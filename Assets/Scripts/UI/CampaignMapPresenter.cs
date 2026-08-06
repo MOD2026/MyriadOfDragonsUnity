@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using MyriadOfDragons.Save;
 
 namespace MyriadOfDragons.UI
 {
@@ -15,7 +16,7 @@ namespace MyriadOfDragons.UI
         public int gemReward;
         public bool isUnlocked;
 
-        public CampaignStageData(string id, string title, string enemy, string portrait, string desc, int gold, int gems, bool unlocked)
+        public CampaignStageData(string id, string title, string enemy, string portrait, string desc, int gold, int gems, bool unlocked = false)
         {
             this.stageId = id;
             this.title = title;
@@ -37,16 +38,28 @@ namespace MyriadOfDragons.UI
 
         private List<CampaignStageData> chapterStages = new List<CampaignStageData>()
         {
-            new CampaignStageData("1-1", "Outer Border Guard", "Orc Scout Patrol", "UI/Portraits/Paladin", "A small scouting party blocks the mountain path. Defeat them to open the route.", 200, 20, true),
-            new CampaignStageData("1-2", "Volcanic Ridge", "Wyvern Tamer Kaelen", "UI/Portraits/Paladin", "Kaelen commands the high ground with his trained drakes. Break his vanguard!", 350, 50, true),
-            new CampaignStageData("1-3", "Stronghold Citadel", "High Warlord Gorn", "UI/Portraits/Paladin", "The citadel commander awaits inside the obsidian gates. Defeat him to liberate Chapter 1.", 500, 100, false)
+            new CampaignStageData("1-1", "Outer Border Guard", "Orc Scout Patrol", "UI/Portraits/Paladin", "A small scouting party blocks the mountain path. Defeat them to open the route.", 200, 20),
+            new CampaignStageData("1-2", "Volcanic Ridge", "Wyvern Tamer Kaelen", "UI/Portraits/Paladin", "Kaelen commands the high ground with his trained drakes. Break his vanguard!", 350, 50),
+            new CampaignStageData("1-3", "Stronghold Citadel", "High Warlord Gorn", "UI/Portraits/Paladin", "The citadel commander awaits inside the obsidian gates. Defeat him to liberate Chapter 1.", 500, 100)
         };
 
         public void Initialize(System.Action onBackToHome, System.Action<CampaignStageData> onLaunchBattle)
         {
             this.onBackToHomeAction = onBackToHome;
             this.onLaunchBattleAction = onLaunchBattle;
+            RefreshStageUnlockStatus();
             BuildCampaignMapUI();
+        }
+
+        private void RefreshStageUnlockStatus()
+        {
+            PlayerProfile profile = SaveSystem.CurrentProfile;
+            List<string> unlockedIds = profile?.unlockedStageIds;
+
+            foreach (var stage in chapterStages)
+            {
+                stage.isUnlocked = unlockedIds != null && unlockedIds.Contains(stage.stageId);
+            }
         }
 
         private void BuildCampaignMapUI()
