@@ -1,0 +1,54 @@
+# Unity generated/machine-specific folders.
+# These are caches rebuilt from Assets/ + Packages/ + ProjectSettings/ on any machine.
+# Committing (or Drive-syncing) them is what corrupted this project before - see docs/START_HERE.md.
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Asset Store / package caches
+[Aa]ssets/AssetStoreTools*
+[Aa]ssets/Plugins/Editor/JetBrains*
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+.vsconfig
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity crash reports and build artifacts
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage
+*.app
+crashlytics-build.properties
+
+# Test output from the batch EditMode runs (regenerated every run)
+results.xml
+run.log
+*.testresults.xml
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "id": "goal",
+      "instruction": "Two Avatars, one battlefield. Bring the enemy Avatar's Health to zero before yours falls.",
+      "highlight": "EnemyPanel"
+    },
+    {
+      "id": "lanes",
+      "instruction": "Your army stands in three lanes. FRONT grants +1 Attack. MIDDLE grants +1 Health. BACK is where Strategists and Perfects draw you an extra card.",
+      "highlight": "PlayerPanel"
+    },
+    {
+      "id": "picker",
+      "instruction": "Tap a lane to open it, then pick up to three cards for that lane. Tap a deployed card to take it back - nothing is locked until you start the battle.",
+      "highlight": "PlayerPanel"
+    },
+    {
+      "id": "resource",
+      "instruction": "Every card costs Resource to deploy. Spend what you like now - leftover Resource is kept for reinforcements later.",
+      "highlight": "StatusRow"
+    },
+    {
+      "id": "synergy",
+      "instruction": "Cards sharing an affinity strengthen the whole squad. Two matching gives a bonus, three gives more. Watch this line as you build.",
+      "highlight": "StatusRow"
+    },
+    {
+      "id": "start",
+      "instruction": "When your three lanes are set, start the battle. Your formation locks at that moment.",
+      "highlight": "PrimaryActionPanel"
+    },
+    {
+      "id": "combat",
+      "instruction": "The lanes now clash on their own. A lane with no defenders left lets damage through to the Avatar behind it.",
+      "highlight": "PlayerPanel"
+    },
+    {
+      "id": "spells",
+      "instruction": "Energy builds every clash. Spend it on Avatar spells - burn a lane, heal your own, or strike the enemy Avatar directly.",
+      "highlight": "SpellBar"
+    },
+    {
+      "id": "reinforce",
+      "instruction": "At Clash 4 and Clash 8 your reserves return. Spend leftover Resource to fill any lane that has lost a card.",
+      "highlight": "HandPanel"
+    },
+    {
+      "id": "cap",
+      "instruction": "If neither Avatar falls within twelve clashes, whoever holds the greater share of their Health wins. Stalling is not a strategy.",
+      "highlight": "StatusRow"
+    }
+  ]
+}

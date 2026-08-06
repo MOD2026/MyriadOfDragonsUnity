@@ -1,0 +1,100 @@
+{
+  "chapters": [
+    {
+      "id": "prologue",
+      "title": "The Broken Throne",
+      "beats": [
+        {
+          "speaker": "",
+          "portrait": "",
+          "background": "Castle_Valley",
+          "text": "Artazostre is dead. Kain struck the blow himself - and in doing so tore a hole in the order of the world."
+        },
+        {
+          "speaker": "",
+          "portrait": "",
+          "background": "Celestial_Palace",
+          "text": "A throne left empty does not stay empty. From the peak of Olympus, the gods have been watching the vacuum, and counting."
+        },
+        {
+          "speaker": "Lightbringer",
+          "portrait": "Paladin",
+          "background": "Desert_Ruins",
+          "text": "I broke a tyrant and inherited a wound. The Titan-veins run open across Boiotia, and every kingdom that swore to me is already reaching for them."
+        },
+        {
+          "speaker": "Lightbringer",
+          "portrait": "Paladin",
+          "background": "",
+          "text": "Zeus sends legions to claim the remnants. Apollo will follow with fire. If the kingdoms of men fight each other over the scraps, Olympus will not need to conquer us - we will hand ourselves over."
+        },
+        {
+          "speaker": "Ironclad Sentry",
+          "portrait": "Orc_King",
+          "background": "Storm_Coast",
+          "text": "The border holds nothing but ash and my garrison, Avatar. If the divine legions come through here, they come through me first."
+        },
+        {
+          "speaker": "Lightbringer",
+          "portrait": "Paladin",
+          "background": "",
+          "text": "Then we find out what your garrison is worth. Form your ranks, Sentry. I will form mine."
+        },
+        {
+          "speaker": "",
+          "portrait": "",
+          "background": "Infernal_Hellscape",
+          "text": "ACT I - THE BROKEN THRONE. Unite the rival kingdoms before Olympus enslaves humanity again."
+        }
+      ]
+    },
+    {
+      "id": "act_02_ashes_of_boiotia",
+      "title": "Ashes of Boiotia",
+      "beats": [
+        {
+          "speaker": "",
+          "portrait": "",
+          "background": "Desert_Ruins",
+          "text": "The mining camps burn. What the divine legions cannot carry from the Titan-veins, they melt into slag so that no mortal hand will hold it."
+        },
+        {
+          "speaker": "Lightbringer",
+          "portrait": "Paladin",
+          "background": "",
+          "text": "They are not looting. They are erasing. Whatever lies under Boiotia, Olympus would rather destroy it than let us learn what it is."
+        },
+        {
+          "speaker": "",
+          "portrait": "",
+          "background": "Infernal_Hellscape",
+          "text": "ACT II - ASHES OF BOIOTIA. Reach the deep veins before the legions finish their work."
+        }
+      ]
+    },
+    {
+      "id": "act_03_sun_gods_wrath",
+      "title": "The Sun God's Wrath",
+      "beats": [
+        {
+          "speaker": "",
+          "portrait": "",
+          "background": "Celestial_Palace",
+          "text": "Apollo does not send envoys. The sky above the human capital turns white, and stays white, and the siege begins."
+        },
+        {
+          "speaker": "Lightbringer",
+          "portrait": "Paladin",
+          "background": "Castle_Valley",
+          "text": "Hold the walls. Hold them until the light breaks or we do."
+        },
+        {
+          "speaker": "",
+          "portrait": "",
+          "background": "",
+          "text": "ACT III - THE SUN GOD'S WRATH. Shield the capital against Apollo's siege."
+        }
+      ]
+    }
+  ]
+}
