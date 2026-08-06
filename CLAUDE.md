@@ -1,0 +1,59 @@
+# Claude — project context (auto-loaded)
+
+You are the **Battle** seat on Myriad of Dragons, a Unity 6000.5.6f1 mobile card battler.
+
+**Before writing any code, read `docs/AI_CONTRIBUTING.md`.** Key points repeated here:
+
+## You own
+
+- `Assets/Scripts/Battle/`, `Cards/`, `AI/`, `Empire/`, `Combat/`
+- `Assets/Scripts/UI/GameBootstrap.cs`, `UI/SpellIconPointerHandler.cs`
+- `Assets/Tests/Editor/BattleLogicTests.cs`, `ExposedAvatarSiegeTests.cs`, `BalanceSimulationTests.cs`
+
+## You must NOT edit
+
+- **FROZEN** (shape changes need the human to coordinate both seats — say so, don't just do it):
+  `Assets/Scripts/Save/PlayerProfile.cs`, `SaveSystem.cs`, `SaveMigration.cs`,
+  `Assets/Scripts/Data/SaveManager.cs`, `Assets/Tests/Editor/SaveSystemTests.cs`
+- **Metagame seat's** (read freely, never edit): `Assets/Scripts/UI/HomePagePresenter.cs`,
+  `CampaignMapPresenter.cs`, `ShopPresenter.cs`, `DeckBuilderPresenter.cs`,
+  `Assets/Scripts/Economy/`, `Assets/Scripts/Story/`
+
+Also frozen: the battle→metagame contract itself — the `MatchResult` struct,
+`BattleController.OnMatchCompleted`, `GameBootstrap.Instance`, `GameBootstrap.SetBattleCanvasVisible(bool)`.
+The rest of those two files is yours; those members are not.
+
+## Non-negotiables
+
+1. **Re-read a shared file right before editing it.** It has probably changed since you last saw it.
+2. **Grep all of `Assets/` (including `Assets/Tests/`) for usages before changing any public member.**
+3. **Run the EditMode suite before AND after any battle-logic change.** Unity must be fully closed
+   first; never add `-quit`; check the log for `error CS` before trusting the results file.
+   Baseline: **78/78**. Report real numbers, never "should pass".
+
+```
+"C:\Program Files\Unity\Hub\Editor\6000.5.6f1\Editor\Unity.exe" -batchmode -projectPath "C:\Users\zihan\Downloads\MyriadOfDragonsUnity" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
+```
+
+4. **Simulate in-engine, never in an external model.** An external Python replica of this combat
+   math predicted ~89% knockouts where the real game produced ~50%, because it silently ignored a
+   Resource constraint. `BalanceSimulationTests.cs` drives the real code — use it.
+5. **Assert relationships, not magnitudes.** A test hardcoding a balance constant once broke on a
+   legitimate tuning change and looked like a regression.
+6. **Real logic in plain testable methods; MonoBehaviours supply only timing.** EditMode cannot run
+   `Update()` or coroutines — anything put there is permanently untestable.
+   `BattleController.AdvanceCombatTick()` is the pattern.
+7. **Legacy uGUI, procedural — no scenes, no prefabs.** `Initialize()` not `Awake()`;
+   `DestroyImmediate()` not `Destroy()` in anything reachable from `Initialize()`.
+
+## Open design decisions — escalate, don't guess
+
+Both in `docs/Mechanics_Gap_Analysis.md` §1: **should the AI opponent cast spells?** (no balance
+number in this project has ever included the spell layer) and **what level does a new player start
+at?** (level-1 matches run ~3 ticks; measured sweep says ~200 starting HP, but applying it needs a
+tapered bonus, not a base-constant change, or it re-breaks the siege tuning).
+
+## This project uses git now
+
+Commit when a task is done and tests pass. Use `git diff` to see what another seat changed rather
+than re-deriving it by reading whole files.
