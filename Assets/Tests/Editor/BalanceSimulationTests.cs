@@ -327,21 +327,43 @@ namespace MyriadOfDragons.Tests
                 "2-tick point a spell can first be cast - the onboarding bonus is too weak.");
         }
 
-        private struct ArchetypeSweepResult
+        private struct DetailedSimResult
         {
             public int Matches;
-            public int PlayerWins;
+            public float PlayerWinRate;
             public float AverageTicks;
-            public float PlayerWinRate => Matches == 0 ? 0f : (float)PlayerWins / Matches;
+            public float AvgWinnerHealthFraction;
+            public float AvgPlayerLanesClearedPerMatch;
+            public float AvgEnemyLanesClearedPerMatch;
+            public float AvgSiegeDamagePerMatch;
+            public float AvgOverflowDamagePerMatch;
+            public float AvgSiegeActiveTicksPerMatch;
+            public float AvgPlayerResourceUtilization;
+            public float AvgEnemyResourceUtilization;
         }
 
         /// <summary>
-        /// Measures the enemy's win rate against the player when played by each AIArchetype in
-        /// turn, holding the player's own deployment at Balanced throughout. Player side always
-        /// wins ties (deployed first, same as every other sweep in this file) - what matters here
-        /// is the spread between archetypes, not the absolute numbers.
+        /// Measures the enemy's effect on the player when played by a single AIArchetype, holding
+        /// the player's own deployment at Balanced throughout - richer than the quick archetype
+        /// check this replaced (win rate + ticks only): also winner's remaining Health fraction,
+        /// lane-clear counts per side, siege vs. plain-overflow damage split, how many ticks siege
+        /// was actually active, and Resource utilization during formation.
+        ///
+        /// Isolates deployment-policy effects only. The AI does not cast spells, has no Energy,
+        /// gets no Back-lane bonus, and never reinforces here - the same permanent asymmetry
+        /// documented in docs/Mechanics_Gap_Analysis.md section 1.2. This experiment measures what
+        /// changing HOW the AI places cards does; it is not a re-litigation of THAT decision, and
+        /// must not be read as one.
+        ///
+        /// Win/loss is read from OnMatchEnded, not PlayerState.IsDefeated after the loop - a
+        /// tick-cap decision (settled on Health percentage) never actually sets either side's
+        /// AvatarHealth to 0, so IsDefeated reads false for BOTH sides after one, which silently
+        /// miscounted every tick-cap-decided match as a player win in an earlier version of this
+        /// sweep. OnMatchEnded's bool is the one place the percentage tie-breaker's real result is
+        /// exposed, including a true draw correctly folding into "not a win" - see
+        /// BattleController.ResolveOnTickCap.
         /// </summary>
-        private ArchetypeSweepResult SweepArchetype(List<Card> pool, PlayerEmpireData empire,
+        private DetailedSimResult SweepArchetypeDetailed(List<Card> pool, PlayerEmpireData empire,
             AIArchetype enemyArchetype, int count)
         {
             var economy = new BattleController.MatchEconomy(
@@ -350,10 +372,22 @@ namespace MyriadOfDragons.Tests
             int matches = 0;
             int playerWins = 0;
             int totalTicks = 0;
+            float totalWinnerHealthFraction = 0f;
+            long playerLanesCleared = 0;
+            long enemyLanesCleared = 0;
+            long totalSiegeDamage = 0;
+            long totalOverflowDamage = 0;
+            long siegeActiveTicks = 0;
+            float totalPlayerResourceUtilization = 0f;
+            float totalEnemyResourceUtilization = 0f;
 
             for (int i = 0; i < count; i++)
             {
                 BattleController controller = CreateController();
+
+                bool? playerWonThisMatch = null;
+                void OnEnded(bool won) => playerWonThisMatch = won;
+                controller.OnMatchEnded += OnEnded;
 
                 List<Card> playerDeck = pool.OrderBy(_ => Random.value).Take(empire.DeckSlotCount).ToList();
                 List<Card> enemyDeck = pool.OrderBy(_ => Random.value).Take(empire.DeckSlotCount).ToList();
@@ -367,27 +401,77 @@ namespace MyriadOfDragons.Tests
 
                 if (!controller.ConfirmFormation())
                 {
+                    controller.OnMatchEnded -= OnEnded;
                     Object.DestroyImmediate(controller.gameObject);
                     continue;
                 }
 
+                // Resource spent building the formation, before combat or reinforcement can touch
+                // it - the fraction of the cap an archetype's placement policy actually used.
+                float playerUtilization = economy.ResourceCap > 0
+                    ? 1f - (controller.PlayerState.Resource / (float)economy.ResourceCap) : 0f;
+                float enemyUtilization = economy.ResourceCap > 0
+                    ? 1f - (controller.EnemyState.Resource / (float)economy.ResourceCap) : 0f;
+                totalPlayerResourceUtilization += playerUtilization;
+                totalEnemyResourceUtilization += enemyUtilization;
+
                 while (controller.Phase == BattlePhase.Combat)
                 {
-                    controller.AdvanceCombatTick();
+                    TurnResolutionResult tickResult = controller.AdvanceCombatTick();
+
+                    foreach (LaneClashResult lane in tickResult.LaneResults)
+                    {
+                        if (lane.SideACleared) playerLanesCleared++;
+                        if (lane.SideBCleared) enemyLanesCleared++;
+                    }
+
+                    // Reconstructed, not guessed: SiegeDamageFor reads the SAME post-clash
+                    // HasLivingCards state ResolveTurn itself used for this tick (siege is
+                    // evaluated after lane pruning - see LaneBattleResolver.ResolveTurn's own
+                    // comment), so calling it again here with the same tick number reproduces the
+                    // exact value already baked into tickResult.DamageDealtToSideA/B.
+                    int tick = controller.TickCount;
+                    int siegeToPlayer = LaneBattleResolver.SiegeDamageFor(controller.PlayerState, tick);
+                    int siegeToEnemy = LaneBattleResolver.SiegeDamageFor(controller.EnemyState, tick);
+                    totalSiegeDamage += siegeToPlayer + siegeToEnemy;
+                    totalOverflowDamage += System.Math.Max(0, tickResult.DamageDealtToSideA - siegeToPlayer)
+                                          + System.Math.Max(0, tickResult.DamageDealtToSideB - siegeToEnemy);
+                    if (siegeToPlayer > 0 || siegeToEnemy > 0) siegeActiveTicks++;
                 }
 
                 matches++;
                 totalTicks += controller.TickCount;
-                if (!controller.PlayerState.IsDefeated) playerWins++;
 
+                bool playerWon = playerWonThisMatch ?? false;
+                if (playerWon) playerWins++;
+
+                if (playerWonThisMatch.HasValue)
+                {
+                    PlayerBattleState winnerState = playerWon ? controller.PlayerState : controller.EnemyState;
+                    totalWinnerHealthFraction += winnerState.MaxAvatarHealth > 0
+                        ? winnerState.AvatarHealth / (float)winnerState.MaxAvatarHealth : 0f;
+                }
+                // A true draw (OnMatchEnded never fires with a winner because playerWonThisMatch
+                // stays consistent with "not a win" via the null-coalesce above) contributes 0 to
+                // the winner-health average by design - there is no winner to measure.
+
+                controller.OnMatchEnded -= OnEnded;
                 Object.DestroyImmediate(controller.gameObject);
             }
 
-            return new ArchetypeSweepResult
+            return new DetailedSimResult
             {
                 Matches = matches,
-                PlayerWins = playerWins,
+                PlayerWinRate = matches == 0 ? 0f : (float)playerWins / matches,
                 AverageTicks = matches == 0 ? 0f : (float)totalTicks / matches,
+                AvgWinnerHealthFraction = matches == 0 ? 0f : totalWinnerHealthFraction / matches,
+                AvgPlayerLanesClearedPerMatch = matches == 0 ? 0f : (float)playerLanesCleared / matches,
+                AvgEnemyLanesClearedPerMatch = matches == 0 ? 0f : (float)enemyLanesCleared / matches,
+                AvgSiegeDamagePerMatch = matches == 0 ? 0f : (float)totalSiegeDamage / matches,
+                AvgOverflowDamagePerMatch = matches == 0 ? 0f : (float)totalOverflowDamage / matches,
+                AvgSiegeActiveTicksPerMatch = matches == 0 ? 0f : (float)siegeActiveTicks / matches,
+                AvgPlayerResourceUtilization = matches == 0 ? 0f : totalPlayerResourceUtilization / matches,
+                AvgEnemyResourceUtilization = matches == 0 ? 0f : totalEnemyResourceUtilization / matches,
             };
         }
 
@@ -395,29 +479,50 @@ namespace MyriadOfDragons.Tests
         /// GameBootstrap's only call to GenerateAIOpponent (StartNewMatch) never passes an
         /// archetype, so every real match uses the parameter's default - AIArchetype.Balanced -
         /// regardless of difficulty tier. Aggressive/Defensive/Tactical are fully implemented and
-        /// exercised throughout this test file, but a real player has never faced any of them; the
-        /// "themed opponent" naming (Border Scout, Ancient Titan Lord...) currently changes in name
-        /// and numbers only, never in how the AI actually plays.
+        /// exercised throughout this test file, but a real player has never faced any of them.
         ///
-        /// This sweep exists to answer the question before proposing a fix: does archetype choice
-        /// actually move the outcome enough to be worth wiring up, or would it be cosmetic churn?
-        /// No hard assertions - this is a measurement, the same role the siege and onboarding
-        /// sweeps played before their own adoption.
+        /// n=2000 per cell (up from the usual 400 elsewhere in this file) specifically because the
+        /// question here is the RANKING of four archetypes against each other, not just "does this
+        /// one rule move the needle" - docs/Mechanics_Gap_Analysis.md's own methodology note gives
+        /// n=400 roughly +/-5 points of run-to-run noise, so two archetypes 6-8 points apart at
+        /// n=400 are not distinguishable from noise. This does not decide anything by itself - same
+        /// role every other sweep in this file plays before a design decision.
         /// </summary>
         [Test]
-        public void Balance_EnemyArchetype_IsNeverVariedInRealPlay_MeasuredAcrossAllFour()
+        public void Balance_ArchetypeDeepSweep_AcrossFourProfilesAtHighSampleSize()
         {
+            const int SampleSize = 2000;
+
             List<Card> pool = LoadDatabase().AllCards.ToList();
 
-            var mid = new PlayerEmpireData();
-            mid.SetLevelsForTesting(avatarLevel: 25, castleLevel: 15, barracksLevel: 25);
-            mid.InitializeTCGModifiers();
-
-            foreach (AIArchetype archetype in System.Enum.GetValues(typeof(AIArchetype)))
+            (string label, int avatar, int castle)[] profiles =
             {
-                ArchetypeSweepResult result = SweepArchetype(pool, mid, archetype, MatchesPerRun);
-                Debug.Log($"[Archetype] enemy={archetype,-10} player win rate {result.PlayerWinRate:P1}   " +
-                          $"avg {result.AverageTicks:F1} ticks   ({result.Matches} matches)");
+                ("Early(1/1)", 1, 1),
+                ("Mid(25/15)", 25, 15),
+                ("High(28/22)", 28, 22),
+                ("Max(30/30)", 30, 30),
+            };
+
+            foreach ((string label, int avatarLevel, int castleLevel) in profiles)
+            {
+                var empire = new PlayerEmpireData();
+                empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+                empire.InitializeTCGModifiers();
+
+                foreach (AIArchetype archetype in System.Enum.GetValues(typeof(AIArchetype)))
+                {
+                    DetailedSimResult r = SweepArchetypeDetailed(pool, empire, archetype, SampleSize);
+
+                    Debug.Log($"[DeepSweep] {label,-11} enemy={archetype,-10} " +
+                              $"winRate={r.PlayerWinRate:P1} avgTicks={r.AverageTicks:F1} " +
+                              $"winnerHP={r.AvgWinnerHealthFraction:P0} " +
+                              $"playerLanesCleared={r.AvgPlayerLanesClearedPerMatch:F2} " +
+                              $"enemyLanesCleared={r.AvgEnemyLanesClearedPerMatch:F2} " +
+                              $"siegeDmg={r.AvgSiegeDamagePerMatch:F1} overflowDmg={r.AvgOverflowDamagePerMatch:F1} " +
+                              $"siegeActiveTicks={r.AvgSiegeActiveTicksPerMatch:F2} " +
+                              $"playerResUtil={r.AvgPlayerResourceUtilization:P0} " +
+                              $"enemyResUtil={r.AvgEnemyResourceUtilization:P0} (n={r.Matches})");
+                }
             }
         }
 

@@ -1,8 +1,11 @@
 # Claude — project context (auto-loaded)
 
-You are the **Battle** seat on Myriad of Dragons, a Unity 6000.5.6f1 mobile card battler.
+You are the **Battle** seat on Myriad of Dragons, a Unity 6000.5.6f1 mobile card battler, operating
+under **`docs/MOS_v1.1.md`** — the project's design constitution, priority 2 in its own
+source-of-truth hierarchy (just below running code+tests, above every other doc including this
+one). Read it first if anything here seems to conflict with it; MOS wins.
 
-**Before writing any code, read `docs/AI_CONTRIBUTING.md`.** Key points repeated here:
+**Before writing any code, also read `docs/AI_CONTRIBUTING.md`.** Key points repeated here:
 
 ## You own
 
@@ -29,7 +32,7 @@ The rest of those two files is yours; those members are not.
 2. **Grep all of `Assets/` (including `Assets/Tests/`) for usages before changing any public member.**
 3. **Run the EditMode suite before AND after any battle-logic change.** Unity must be fully closed
    first; never add `-quit`; check the log for `error CS` before trusting the results file.
-   Baseline: **78/78**. Report real numbers, never "should pass".
+   Baseline: **81/81**. Report real numbers, never "should pass".
 
 ```
 "C:\Program Files\Unity\Hub\Editor\6000.5.6f1\Editor\Unity.exe" -batchmode -projectPath "C:\Users\zihan\Downloads\MyriadOfDragonsUnity" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
@@ -48,10 +51,13 @@ The rest of those two files is yours; those members are not.
 
 ## Open design decisions — escalate, don't guess
 
-Both in `docs/Mechanics_Gap_Analysis.md` §1: **should the AI opponent cast spells?** (no balance
-number in this project has ever included the spell layer) and **what level does a new player start
-at?** (level-1 matches run ~3 ticks; measured sweep says ~200 starting HP, but applying it needs a
-tapered bonus, not a base-constant change, or it re-breaks the siege tuning).
+Both of the previous open items are RESOLVED as of 2026-08-07 (see `docs/Mechanics_Gap_Analysis.md`
+§1.2/§1.3 and `docs/MOS_v1.1.md` §6): the AI opponent does not cast spells (asymmetric by design,
+compensates via `SoloAIScalingSystem` HP/Resource scaling instead), and the level-1 onboarding gap
+is fixed via a taper in `PlayerEmpireData` (full +100 HP at level 1, gone by level 5). Still open per
+`docs/MOS_v1.1.md` §20: currency naming (`eventMedals`/`dragonRelics` vs. Economy Blueprint's
+"Event Tokens"/"Market Credits"), Evolution/Limit Break curves, the 1–12 vs. x10 stat scale, and
+whether initiative has any place in the simultaneous combat model.
 
 ## This project uses git now
 

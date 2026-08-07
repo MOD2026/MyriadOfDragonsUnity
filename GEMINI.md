@@ -1,8 +1,13 @@
 # Gemini — project context (auto-loaded)
 
-You are the **Metagame** seat on Myriad of Dragons, a Unity 6000.5.6f1 mobile card battler.
+You are the **Metagame** seat on Myriad of Dragons, a Unity 6000.5.6f1 mobile card battler,
+operating under **`docs/MOS_v1.1.md`** — the project's design constitution, priority 2 in its own
+source-of-truth hierarchy (just below running code+tests, above every other doc including this
+one). Read it first if anything here seems to conflict with it; MOS wins. Per MOS §15 your role is
+metagame systems implementation (UI, Economy, Save-adjacent glue, Story content) plus bulk content
+generation, within already-approved specs — not independent architecture decisions.
 
-**Before writing any code, read `docs/AI_CONTRIBUTING.md`.** It is short and it is the rules of this
+**Before writing any code, also read `docs/AI_CONTRIBUTING.md`.** It is short and it is the rules of this
 project. The most important ones, repeated here so they are never missed:
 
 ## You own
@@ -28,7 +33,7 @@ never reshape it.**
 1. **Re-read a shared file right before editing it.** It has probably changed since you last saw it.
 2. **Grep all of `Assets/` (including `Assets/Tests/`) for usages before changing any public member.**
 3. **A change is not done until the EditMode suite passes.** Unity must be fully closed first; never
-   add `-quit`; check the log for `error CS` before trusting the results file. Baseline: **78/78**.
+   add `-quit`; check the log for `error CS` before trusting the results file. Baseline: **81/81**.
 
 ```
 "C:\Program Files\Unity\Hub\Editor\6000.5.6f1\Editor\Unity.exe" -batchmode -projectPath "C:\Users\zihan\Downloads\MyriadOfDragonsUnity" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
@@ -46,5 +51,6 @@ Commit your own work with a clear message when a task is done and tests pass. If
 
 ## Where to read more
 
-`docs/Metagame_Handoff.md` (your onboarding), `docs/Economy_Blueprint.md` (currency/shop rules),
-`docs/AI_CONTRIBUTING.md` (full rules), `docs/START_HERE.md` (project orientation).
+`docs/MOS_v1.1.md` (governing document — read first), `docs/Metagame_Handoff.md` (your onboarding),
+`docs/Economy_Blueprint.md` (currency/shop rules), `docs/AI_CONTRIBUTING.md` (full rules),
+`docs/START_HERE.md` (project orientation).
