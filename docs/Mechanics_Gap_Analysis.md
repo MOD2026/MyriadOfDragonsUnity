@@ -92,10 +92,9 @@ that reasoning is the part worth a second opinion:
 the mid profile at 99%, which means the tie-breaker never fires and the board stops deciding
 anything.
 
-### 1.2 DECISION — the AI opponent plays a materially different game to the player
+### 1.2 RESOLVED 2026-08-07 — the AI opponent plays a materially different game to the player, by design
 
-This is the largest correctness gap in the project and it is not written down anywhere else. Four
-systems apply to the player's side only:
+Four systems apply to the player's side only:
 
 | System | Player | AI | Where |
 |---|---|---|---|
@@ -107,17 +106,25 @@ systems apply to the player's side only:
 The AI does one thing: it deploys its formation once, competently, by archetype
 (`SimpleAIOpponent`). After `ConfirmFormation()` it is a static board.
 
-**Why this matters more than it looks.** Every balance number in this document and in
-`Findings_2026-08-06.md` was measured with *both* sides played by `SimpleAIOpponent` and *neither*
-side casting spells. That makes the measurements internally consistent and fair — which is why
-they are trustworthy for comparing rules — but it means **no measurement in this project has ever
-included the spell layer.** A human player casting spells is strictly stronger than everything
-simulated so far, by an unmeasured amount. The knockout-rate numbers are a floor, not a forecast.
+**Decision: asymmetric by design. The AI will not cast spells.** It compensates entirely through
+`SoloAIScalingSystem` — scaling its HP and Resource up with the player's own progression — rather
+than through skill parity. This matches the project's own stated non-goal for `SimpleAIOpponent`
+("a competent turn, not a strong player": no multi-turn planning, no bluffing, no hand-reading) and
+avoids a real engineering cost with no clear payoff: giving the AI a spellbook means `Energy`
+becoming per-side state, plus real cast-decision heuristics (which spell, which lane, when) to
+avoid an AI that either never casts anything useful or casts optimally in a way that reads as
+unfair rather than clever.
 
-**Open question for the reviewer:** should the AI cast spells, or is the spell layer intended as
-the player's compensation for an opponent that gets to scale its HP and Resource
-(`SoloAIScalingSystem`)? Both are defensible designs. Nothing in the code states which one is
-intended, and the difference decides whether `Energy` needs to become per-side state.
+Formally closed rather than left open specifically because leaving it ambiguous was a real risk: a
+future session "fixing" this by giving the AI a spellbook would silently invalidate every balance
+number in this project — the siege-rule sweep (section 1.1) and the onboarding HP taper (section
+1.3) were both measured and adopted against a non-casting opponent. This entry exists so that
+doesn't happen by accident.
+
+**What this means for reading every knockout-rate figure in this document:** every number here is
+still a **floor, not a forecast** — a human player casting spells is strictly stronger than the
+`SimpleAIOpponent` vs. `SimpleAIOpponent` matches these figures came from. That gap is now
+permanent and intentional rather than a placeholder waiting to be closed.
 
 ### 1.3 DECISION — what level a new player starts at, now answerable for the first time
 

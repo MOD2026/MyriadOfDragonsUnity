@@ -5,10 +5,11 @@
 `Assets/Scripts/Empire/`. This is the "battle" half of the project (metagame — home screen, shop,
 economy, save — is a separate collaborator's domain and is out of scope here).
 
-**Test status:** 85/85 EditMode tests passing. Every number in this document is either a source
-constant or a measured result from `Assets/Tests/Editor/BalanceSimulationTests.cs`, which drives
-the real combat code (`LaneBattleResolver`, `BattleController`, `CardDatabase`) headlessly — not a
-spreadsheet or external model. See §9 for why that distinction mattered once already.
+**Test status:** 80/80 EditMode tests passing (updated 2026-08-07 - §4's siege rule and §10.1's
+onboarding taper are both now adopted, not proposals). Every number in this document is either a
+source constant or a measured result from `Assets/Tests/Editor/BalanceSimulationTests.cs`, which
+drives the real combat code (`LaneBattleResolver`, `BattleController`, `CardDatabase`) headlessly —
+not a spreadsheet or external model. See §9 for why that distinction mattered once already.
 
 ---
 
@@ -16,18 +17,21 @@ spreadsheet or external model. See §9 for why that distinction mattered once al
 
 Please attack the following, in priority order:
 
-1. **§8 — the AI/player asymmetry.** This is the single largest known correctness gap and it is
-   currently an open, undecided question (not a bug I'm asking you to find — a design call I want
-   a second opinion on).
-2. **§4 — the siege rule.** Just adopted, one measured sweep, n=400 per cell. Is 6% actually the
-   right number, or does the reasoning for rejecting the alternatives (§4.3) have a hole in it?
+1. **§10.1 — the onboarding Health taper.** The newest, least-reviewed decision in this document:
+   full +100 HP at Avatar level 1, linearly gone by level 5. Does the taper shape itself hold up, or
+   is a linear fade over the wrong span?
+2. **§4 — the siege rule.** One measured sweep, n=400 per cell. Is 6% actually the right number, or
+   does the reasoning for rejecting the alternatives (§4.3) have a hole in it?
 3. **§3.4 — the Avatar damage multiplier and overtime escalation.** This is the piece that
    translates small integer card combat into large Avatar HP pools, and it has been retuned twice
    already (25 → 6, then the HP pool itself was rescaled 3 times). Is the current shape (flat 6x,
    then 1.5x at tick 7, 2x at tick 10) actually well-founded, or does it just happen to pass the
    current tests?
-4. **§10 — the two other open decisions** (starting level, stat scale). These need a decision, not
-   more research; if you have a strong opinion, that's exactly what's useful here.
+4. **§8 and §10.1 are now settled decisions, not open questions** — §8's "asymmetric by design"
+   reasoning and §10.1's taper are both worth challenging if you disagree, but they are no longer
+   undecided; treat a disagreement as a proposal to revisit, not a gap nobody has an opinion on.
+   **§10.2 (stat scale x1 vs x10) is still genuinely open** and still needs a decision, not more
+   research.
 5. **Anything in §11 (rejected proposals)** — if you were about to propose one of these, the
    reasoning for rejecting it is there; tell me if that reasoning is actually wrong rather than
    re-proposing it blind.
@@ -293,7 +297,7 @@ Firestorm — and tapping anywhere else cancels the cast rather than misfiring.
 
 ---
 
-## 8. The AI opponent — the largest open gap
+## 8. The AI opponent — asymmetric by design (resolved 2026-08-07)
 
 `SimpleAIOpponent` deploys competently once, by archetype (Aggressive/Defensive/Tactical/Balanced —
 each a different lane-fill order, e.g. Aggressive stacks Front for the +1 Attack lane and accepts
@@ -319,11 +323,13 @@ included the spell layer.** A human player casting spells is strictly stronger t
 simulated so far, by an unmeasured amount — every knockout-rate figure above is a floor, not a
 forecast of real play.
 
-**Open question, genuinely undecided:** should the AI cast spells (symmetric rules), or is the
-spell layer meant as the player's compensation for an opponent that instead scales its HP/Resource
-directly via `PlayerEmpireData`-style progression (asymmetric by design)? Both are defensible.
-Nothing in the code states which is intended, and the answer decides whether `Energy` needs to
-become per-side state rather than the single value it is today.
+**Decision: the AI will not cast spells.** It compensates entirely through `SoloAIScalingSystem`'s
+HP/Resource scaling instead of skill parity — matching `SimpleAIOpponent`'s own stated non-goal ("a
+competent turn, not a strong player"). `Energy` stays a single value, not per-side state. Closed
+formally, not left open, specifically so a future change doesn't silently invalidate the siege
+sweep (§4) or the onboarding taper (§10.1) — both were measured against a non-casting opponent, and
+that assumption is now permanent rather than provisional. See
+`docs/Mechanics_Gap_Analysis.md` section 1.2 for the full reasoning.
 
 ---
 
@@ -360,13 +366,20 @@ plausibly correct but **has never been proven to run**:
 
 ## 10. Other open decisions (need a decision, not more research)
 
-### 10.1 What level does a new player start at?
+### 10.1 RESOLVED 2026-08-07 — what level does a new player start at
 
 Before this session there was no save system, so `GameBootstrap` hardcoded a mid-range test profile
-(Avatar 25/Castle 15). Progression now persists, which turns that placeholder into a real question,
-and it currently cannot just become 1/1/1: a level-1 profile resolves matches in **~3.1 ticks**, and
-the cheapest spell (Mend, 25 Energy) can never be cast at 18 Energy/tick before the match is already
-over. Fixing level-1 match length is a prerequisite for a real onboarding curve.
+(Avatar 25/Castle 15). A genuine level-1 profile at the base Health resolved matches in ~2.9 ticks —
+too fast for even the cheapest spell (Mend, 25 Energy at 18/tick) to ever come off cooldown.
+
+`PlayerEmpireData` now applies an onboarding Health taper: full +100 HP at Avatar level 1, linearly
+gone by level 5 (the level the first real per-level Health tier starts). Deliberately a taper on top
+of the existing formula rather than raising `BaseAvatarHealth` directly - Base is additive into
+every profile, so a direct raise would have inflated the mid profile 260 to 360 HP (+38%) and max
+340 to 440 HP (+29%), silently re-invalidating the siege-rule sweep (section 4), which was measured
+and adopted at the current HP scale. The taper is zero from level 5 onward, so mid/max are
+byte-for-byte unchanged. Measured result at the new level-1 economy (200 HP): **90.3% knockouts,
+4.8 avg ticks** - real margin for a spell cast without knockout rate anywhere near the design floor.
 
 ### 10.2 Stat scale: x1 vs x10
 
