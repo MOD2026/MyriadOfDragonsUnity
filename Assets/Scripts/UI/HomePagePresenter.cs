@@ -1,7 +1,7 @@
-using UnityEngine;
-using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
 using MyriadOfDragons.UI;
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Battle;

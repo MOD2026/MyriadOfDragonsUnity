@@ -2,33 +2,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using MyriadOfDragons.Save;
+using MyriadOfDragons.Story;
 
 namespace MyriadOfDragons.UI
 {
-    public class CampaignStageData
-    {
-        public string stageId;
-        public string title;
-        public string enemyName;
-        public string enemyPortraitPath;
-        public string description;
-        public int goldReward;
-        public int gemReward;
-        public bool isUnlocked;
-
-        public CampaignStageData(string id, string title, string enemy, string portrait, string desc, int gold, int gems, bool unlocked = false)
-        {
-            this.stageId = id;
-            this.title = title;
-            this.enemyName = enemy;
-            this.enemyPortraitPath = portrait;
-            this.description = desc;
-            this.goldReward = gold;
-            this.gemReward = gems;
-            this.isUnlocked = unlocked;
-        }
-    }
-
     public class CampaignMapPresenter : MonoBehaviour
     {
         private GameObject mapCanvasObj;
@@ -216,7 +193,21 @@ namespace MyriadOfDragons.UI
             launchBtn.onClick.AddListener(() =>
             {
                 Destroy(mapCanvasObj);
-                onLaunchBattleAction?.Invoke(stage);
+
+                string storyKey = $"{stage.stageId}_pre";
+                StorySequence seq = StoryDatabase.GetSequence(storyKey);
+
+                if (seq != null)
+                {
+                    StoryOverlayPresenter.PlaySequence(seq, () =>
+                    {
+                        onLaunchBattleAction?.Invoke(stage);
+                    });
+                }
+                else
+                {
+                    onLaunchBattleAction?.Invoke(stage);
+                }
             });
 
             RectTransform launchRect = launchBtnObj.GetComponent<RectTransform>();

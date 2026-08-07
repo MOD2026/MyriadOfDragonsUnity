@@ -327,6 +327,100 @@ namespace MyriadOfDragons.Tests
                 "2-tick point a spell can first be cast - the onboarding bonus is too weak.");
         }
 
+        private struct ArchetypeSweepResult
+        {
+            public int Matches;
+            public int PlayerWins;
+            public float AverageTicks;
+            public float PlayerWinRate => Matches == 0 ? 0f : (float)PlayerWins / Matches;
+        }
+
+        /// <summary>
+        /// Measures the enemy's win rate against the player when played by each AIArchetype in
+        /// turn, holding the player's own deployment at Balanced throughout. Player side always
+        /// wins ties (deployed first, same as every other sweep in this file) - what matters here
+        /// is the spread between archetypes, not the absolute numbers.
+        /// </summary>
+        private ArchetypeSweepResult SweepArchetype(List<Card> pool, PlayerEmpireData empire,
+            AIArchetype enemyArchetype, int count)
+        {
+            var economy = new BattleController.MatchEconomy(
+                empire.ResourceCap, empire.Turn1Resource, empire.StartingAvatarHealth);
+
+            int matches = 0;
+            int playerWins = 0;
+            int totalTicks = 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                BattleController controller = CreateController();
+
+                List<Card> playerDeck = pool.OrderBy(_ => Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> enemyDeck = pool.OrderBy(_ => Random.value).Take(empire.DeckSlotCount).ToList();
+
+                controller.StartMatch(playerDeck, enemyDeck, economy, economy);
+                controller.DealFormationHand(controller.PlayerState);
+                controller.DealFormationHand(controller.EnemyState);
+
+                DeployWholeSquad(controller, controller.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(controller, enemyArchetype);
+
+                if (!controller.ConfirmFormation())
+                {
+                    Object.DestroyImmediate(controller.gameObject);
+                    continue;
+                }
+
+                while (controller.Phase == BattlePhase.Combat)
+                {
+                    controller.AdvanceCombatTick();
+                }
+
+                matches++;
+                totalTicks += controller.TickCount;
+                if (!controller.PlayerState.IsDefeated) playerWins++;
+
+                Object.DestroyImmediate(controller.gameObject);
+            }
+
+            return new ArchetypeSweepResult
+            {
+                Matches = matches,
+                PlayerWins = playerWins,
+                AverageTicks = matches == 0 ? 0f : (float)totalTicks / matches,
+            };
+        }
+
+        /// <summary>
+        /// GameBootstrap's only call to GenerateAIOpponent (StartNewMatch) never passes an
+        /// archetype, so every real match uses the parameter's default - AIArchetype.Balanced -
+        /// regardless of difficulty tier. Aggressive/Defensive/Tactical are fully implemented and
+        /// exercised throughout this test file, but a real player has never faced any of them; the
+        /// "themed opponent" naming (Border Scout, Ancient Titan Lord...) currently changes in name
+        /// and numbers only, never in how the AI actually plays.
+        ///
+        /// This sweep exists to answer the question before proposing a fix: does archetype choice
+        /// actually move the outcome enough to be worth wiring up, or would it be cosmetic churn?
+        /// No hard assertions - this is a measurement, the same role the siege and onboarding
+        /// sweeps played before their own adoption.
+        /// </summary>
+        [Test]
+        public void Balance_EnemyArchetype_IsNeverVariedInRealPlay_MeasuredAcrossAllFour()
+        {
+            List<Card> pool = LoadDatabase().AllCards.ToList();
+
+            var mid = new PlayerEmpireData();
+            mid.SetLevelsForTesting(avatarLevel: 25, castleLevel: 15, barracksLevel: 25);
+            mid.InitializeTCGModifiers();
+
+            foreach (AIArchetype archetype in System.Enum.GetValues(typeof(AIArchetype)))
+            {
+                ArchetypeSweepResult result = SweepArchetype(pool, mid, archetype, MatchesPerRun);
+                Debug.Log($"[Archetype] enemy={archetype,-10} player win rate {result.PlayerWinRate:P1}   " +
+                          $"avg {result.AverageTicks:F1} ticks   ({result.Matches} matches)");
+            }
+        }
+
         [Test]
         public void Balance_MatchesAreUsuallyDecidedByAKnockout_NotByTheTickCap()
         {
