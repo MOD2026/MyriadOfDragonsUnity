@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using MyriadOfDragons.Cards;
+using MyriadOfDragons.Data;
+using MyriadOfDragons.Save;
 
 namespace MyriadOfDragons.UI
 {
@@ -31,37 +34,68 @@ namespace MyriadOfDragons.UI
         private GameObject canvasObj;
         private System.Action onBackToHomeAction;
 
-        private List<DeckCardData> collectionCards = new List<DeckCardData>()
-        {
-            new DeckCardData("c1", "Cult Devotee", "Strategist", 5, 7, 7, "UI/Portraits/Paladin"),
-            new DeckCardData("c2", "Dragon Queen", "Strategist", 7, 12, 12, "UI/Portraits/Paladin"),
-            new DeckCardData("c3", "Glowing Sword", "Warrior", 5, 7, 6, "UI/Portraits/Paladin"),
-            new DeckCardData("c4", "Guardian", "Knight", 6, 9, 9, "UI/Portraits/Paladin"),
-            new DeckCardData("c5", "Arcane Mage", "Strategist", 5, 7, 7, "UI/Portraits/Paladin"),
-            new DeckCardData("c6", "Ancient Dragon", "Knight", 7, 12, 12, "UI/Portraits/Paladin"),
-            new DeckCardData("c7", "Sea Serpent", "Knight", 5, 7, 7, "UI/Portraits/Paladin"),
-            new DeckCardData("c8", "Archangel", "Warrior", 7, 9, 8, "UI/Portraits/Paladin")
-        };
-
+        private readonly List<DeckCardData> ownedCollectionCards = new List<DeckCardData>();
         private List<DeckCardData> activeDeck = new List<DeckCardData>();
         private Text deckCounterText;
         private Transform collectionGridTransform;
         private Transform deckListTransform;
+        private Text emptyCollectionText;
 
         public void Initialize(System.Action onBackToHome)
         {
             this.onBackToHomeAction = onBackToHome;
 
-            // Seed starting deck with sample cards if empty
-            if (activeDeck.Count == 0)
+            LoadOwnedCollectionCards();
+            BuildUI();
+        }
+
+        private void LoadOwnedCollectionCards()
+        {
+            ownedCollectionCards.Clear();
+
+            PlayerProfile profile = SaveManager.SaveData;
+            if (profile == null || profile.cardCollection == null)
             {
-                activeDeck.Add(collectionCards[0]);
-                activeDeck.Add(collectionCards[2]);
-                activeDeck.Add(collectionCards[3]);
-                activeDeck.Add(collectionCards[5]);
+                return;
             }
 
-            BuildUI();
+            CardDatabase database = EnsureCardDatabase();
+
+            foreach (string cardId in profile.cardCollection)
+            {
+                if (string.IsNullOrEmpty(cardId))
+                {
+                    continue;
+                }
+
+                Card resolved = database != null ? database.GetCard(cardId) : null;
+                if (resolved == null)
+                {
+                    continue;
+                }
+
+                ownedCollectionCards.Add(new DeckCardData(
+                    resolved.Id,
+                    resolved.DisplayName,
+                    resolved.Class.ToString(),
+                    resolved.ResourceCost,
+                    resolved.Attack,
+                    resolved.Health,
+                    resolved.ResourcePath()));
+            }
+        }
+
+        private CardDatabase EnsureCardDatabase()
+        {
+            if (CardDatabase.Instance != null)
+            {
+                return CardDatabase.Instance;
+            }
+
+            GameObject databaseObject = new GameObject("DeckBuilderCardDatabase");
+            CardDatabase database = databaseObject.AddComponent<CardDatabase>();
+            database.Initialize();
+            return database;
         }
 
         private void BuildUI()
@@ -161,6 +195,10 @@ namespace MyriadOfDragons.UI
             gridRect.offsetMin = new Vector2(20, 20);
             gridRect.offsetMax = new Vector2(-20, -70);
 
+            GameObject emptyStateObj = CreateTextElement(panelObj.transform, "EmptyState", "No owned cards available.", new Vector2(0, 0), 26, TextAnchor.MiddleCenter);
+            emptyCollectionText = emptyStateObj.GetComponent<Text>();
+            emptyCollectionText.enabled = false;
+
             GridLayoutGroup grid = gridObj.GetComponent<GridLayoutGroup>();
             grid.cellSize = new Vector2(230, 320);
             grid.spacing = new Vector2(20, 20);
@@ -207,7 +245,18 @@ namespace MyriadOfDragons.UI
                 Destroy(child.gameObject);
             }
 
-            foreach (var card in collectionCards)
+            bool hasCards = ownedCollectionCards.Count > 0;
+            if (emptyCollectionText != null)
+            {
+                emptyCollectionText.enabled = !hasCards;
+            }
+
+            if (!hasCards)
+            {
+                return;
+            }
+
+            foreach (var card in ownedCollectionCards)
             {
                 GameObject cardObj = new GameObject($"Card_{card.id}", typeof(RectTransform), typeof(Image), typeof(Button));
                 cardObj.transform.SetParent(collectionGridTransform, false);
