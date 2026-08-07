@@ -11,6 +11,7 @@ public class HomePagePresenter : MonoBehaviour
 {
     private GameObject homeCanvasObj;
     private GameObject dialogueOverlayObj;
+    private BattleController _battleController;
 
     // HUD Text References
     private Text goldHudText;
@@ -54,20 +55,20 @@ public class HomePagePresenter : MonoBehaviour
         ShowTutorialDialogue();
 
         // Subscribe to Claude's Battle Outcome Event
-        BattleController battleCtrl = FindAnyObjectByType<BattleController>();
-        if (battleCtrl != null)
+        _battleController = FindAnyObjectByType<BattleController>();
+        if (_battleController != null)
         {
-            battleCtrl.OnMatchCompleted += HandleMatchCompleted;
+            _battleController.OnMatchCompleted += HandleMatchCompleted;
         }
     }
 
     private void OnDestroy()
     {
         // Unsubscribe to prevent memory leaks
-        BattleController battleCtrl = FindAnyObjectByType<BattleController>();
-        if (battleCtrl != null)
+        if (_battleController != null)
         {
-            battleCtrl.OnMatchCompleted -= HandleMatchCompleted;
+            _battleController.OnMatchCompleted -= HandleMatchCompleted;
+            _battleController = null;
         }
     }
 
@@ -221,7 +222,7 @@ public class HomePagePresenter : MonoBehaviour
         hlg.childControlWidth = false;
 
         CreateNavButton(dockObj.transform, "STORY", OpenStoryCampaign, new Vector2(220, 85), new Color(0.2f, 0.35f, 0.6f));
-        CreateNavButton(dockObj.transform, "CARDS", OpenDeckBuilder, new Vector2(220, 85), new Color(0.2f, 0.5f, 0.35f));
+        CreateNavButton(dockObj.transform, "CARDS", OpenCollection, new Vector2(220, 85), new Color(0.2f, 0.5f, 0.35f));
         CreateNavButton(dockObj.transform, "SHOP", OpenShop, new Vector2(220, 85), new Color(0.6f, 0.45f, 0.2f));
         CreateNavButton(dockObj.transform, "TO BATTLE", OnToBattleClicked, new Vector2(280, 95), new Color(0.8f, 0.25f, 0.2f));
     }
@@ -290,6 +291,28 @@ public class HomePagePresenter : MonoBehaviour
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 SaveManager.Save();
                 if (deckBuilder != null) Destroy(deckBuilder);
+            }
+        );
+    }
+
+    private void OpenCollection()
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+
+        CollectionPresenter collection = gameObject.GetComponent<CollectionPresenter>();
+        if (collection == null) collection = gameObject.AddComponent<CollectionPresenter>();
+
+        collection.Initialize(
+            onBackToHome: () =>
+            {
+                if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+                SaveManager.Save();
+                if (collection != null) Destroy(collection);
+            },
+            onOpenDeckBuilder: () =>
+            {
+                if (collection != null) Destroy(collection);
+                OpenDeckBuilder();
             }
         );
     }
