@@ -155,6 +155,49 @@ namespace MyriadOfDragons.Empire
         private const int MaxAvatarHealthBonus = 120; // reached at Avatar level 30
         private const int MaxCastleHealthBonus = 210; // reached at Castle level 30
 
+        /// <summary>
+        /// Extra starting Health for a brand-new player, at full strength only at Avatar level 1
+        /// and linearly gone by <see cref="LevelsPerResourceTier"/> - the level the first real
+        /// per-level Health tier kicks in. Addresses docs/Mechanics_Gap_Analysis.md section 1.3 (T2c):
+        /// a genuine level-1 profile at the base 100 HP resolves matches in ~2.9 ticks
+        /// (BalanceSimulationTests.Balance_Level1StartingHealth_SweepForOnboardingViability),
+        /// too short for even the cheapest spell (25 Energy at 18/tick) to reliably come off
+        /// cooldown before the match is already over. 200 HP measured at that same sweep: 5.1
+        /// ticks, 87.0% knockouts (with the siege rule included, since it is on by default) -
+        /// real margin for a spell cast without the knockout rate dropping anywhere near the
+        /// design floor.
+        ///
+        /// Deliberately a taper on top of the existing formula, NOT a change to
+        /// <see cref="BaseAvatarHealth"/>: Base is additive into every profile, so raising it
+        /// directly would have inflated the mid profile 260 -> 360 HP (+38%) and max 340 -> 440
+        /// HP (+29%), silently invalidating the siege-rule tuning that was measured and adopted
+        /// at the current HP scale (Mechanics_Gap_Analysis.md section 1.1). This bonus is zero from
+        /// Avatar level <see cref="LevelsPerResourceTier"/> onward, so it touches nothing past
+        /// early onboarding and the mid/max profile numbers are exactly unchanged.
+        ///
+        /// Tapers on Avatar level only, not Castle: Castle/Barracks/Gate levelling has no way to
+        /// be raised yet (see Mechanics_Gap_Analysis.md "Not built"), so every profile that can
+        /// currently exist has castleLevel stuck at 1 - Avatar level is the only track that
+        /// actually moves, so tapering on it alone covers every real case and avoids inventing a
+        /// two-track taper for a track nothing can raise.
+        /// </summary>
+        private const int OnboardingHealthBonus = 100;
+
+        /// <summary>Linear taper from <see cref="OnboardingHealthBonus"/> at Avatar level 1 down
+        /// to 0 at <see cref="LevelsPerResourceTier"/> (level 5 today) - reuses that existing tier
+        /// boundary rather than a second hardcoded breakpoint, so retuning tier size can't leave
+        /// this taper ending at a level the rest of the formula no longer agrees is "the first
+        /// tier".</summary>
+        private static int OnboardingBonusFor(int avatarLevel)
+        {
+            int taperSpan = LevelsPerResourceTier - 1; // levels 1..4 taper, level 5+ is 0
+            if (taperSpan <= 0) return 0;
+
+            int progress = Mathf.Clamp(avatarLevel - 1, 0, taperSpan);
+            float remaining = 1f - (progress / (float)taperSpan);
+            return Mathf.RoundToInt(OnboardingHealthBonus * remaining);
+        }
+
         private const float BaseResourceRegenRate = 1f;
         private const float ResourceRegenPerBarracksLevel = 0.01f;
 
@@ -180,7 +223,8 @@ namespace MyriadOfDragons.Empire
                 (_avatarLevel / LevelsPerResourceTier) * HealthBonusPerTier);
             int castleHealthBonus = Mathf.Min(MaxCastleHealthBonus,
                 (_castleLevel / LevelsPerResourceTier) * HealthBonusPerTier);
-            _startingAvatarHealth = BaseAvatarHealth + avatarHealthBonus + castleHealthBonus;
+            _startingAvatarHealth = BaseAvatarHealth + avatarHealthBonus + castleHealthBonus
+                + OnboardingBonusFor(_avatarLevel);
 
             _resourceRegenRate = BaseResourceRegenRate + (_barracksLevel * ResourceRegenPerBarracksLevel);
 

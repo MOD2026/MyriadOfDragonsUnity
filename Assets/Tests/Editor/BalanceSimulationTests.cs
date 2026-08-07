@@ -251,6 +251,82 @@ namespace MyriadOfDragons.Tests
             }
         }
 
+        /// <summary>
+        /// Locks in the onboarding HP taper added to PlayerEmpireData (docs/Mechanics_Gap_Analysis.md
+        /// section 1.3 / T2c): full bonus at Avatar level 1, linearly gone by
+        /// PlayerEmpireData.LevelsPerResourceTier. Both halves matter - a regression that makes the
+        /// taper too weak leaves level 1 unplayable for spells again, and a regression that leaks
+        /// it past the taper level would silently re-inflate the mid/max profiles the siege rule
+        /// was tuned against.
+        /// </summary>
+        [Test]
+        public void Balance_OnboardingHealthTaper_AppliesAtLevel1AndIsGoneByTier1()
+        {
+            var level1 = new PlayerEmpireData();
+            level1.SetLevelsForTesting(avatarLevel: 1, castleLevel: 1, barracksLevel: 1);
+            level1.InitializeTCGModifiers();
+
+            Assert.AreEqual(200, level1.StartingAvatarHealth,
+                "Level 1 should be the base 100 plus the full 100 onboarding bonus - if this " +
+                "drifts, re-check BalanceSimulationTests.Balance_Level1StartingHealth_SweepForOnboardingViability " +
+                "against the new value before changing the constant.");
+
+            var level5 = new PlayerEmpireData();
+            level5.SetLevelsForTesting(avatarLevel: 5, castleLevel: 1, barracksLevel: 1);
+            level5.InitializeTCGModifiers();
+
+            // 120, not the bare 100: level 5 is also the level the FIRST per-level Health tier
+            // starts (5 / LevelsPerResourceTier == 1), so avatarHealthBonus contributes its own
+            // +20 here independent of onboarding. What this asserts is that the ONBOARDING
+            // component specifically is gone - 120 total, not 220, is what proves the two never
+            // double up at the boundary they share.
+            Assert.AreEqual(120, level5.StartingAvatarHealth,
+                "By Avatar level 5 the onboarding bonus must contribute nothing - the regular " +
+                "per-level tier bonus (+20, since level 5 is also its own first tier) should be " +
+                "the only thing raising this above the 100 base.");
+
+            // The mid/max profiles the siege rule was measured and adopted against must be
+            // byte-for-byte unchanged by this taper - it exists specifically so this stays true.
+            var mid = new PlayerEmpireData();
+            mid.SetLevelsForTesting(avatarLevel: 25, castleLevel: 15, barracksLevel: 25);
+            mid.InitializeTCGModifiers();
+            Assert.AreEqual(260, mid.StartingAvatarHealth,
+                "The mid profile's Health must not move - this taper is onboarding-only.");
+
+            var max = new PlayerEmpireData();
+            max.SetLevelsForTesting(avatarLevel: 30, castleLevel: 30, barracksLevel: 25);
+            max.InitializeTCGModifiers();
+            Assert.AreEqual(340, max.StartingAvatarHealth,
+                "The max profile's Health must not move - this taper is onboarding-only.");
+        }
+
+        /// <summary>
+        /// Re-measures the level-1 profile at its new (200 HP) starting Health with real
+        /// assertions, not just a logged sweep - this is the regression guard for T2c. Both halves
+        /// of the original problem must hold: matches stay decisive (siege + overflow still work),
+        /// AND they now run long enough for the cheapest spell to plausibly be cast.
+        /// </summary>
+        [Test]
+        public void Balance_Level1Onboarding_IsBothDecisiveAndLongEnoughForASpell()
+        {
+            List<Card> pool = LoadDatabase().AllCards.ToList();
+            SimResult level1 = Simulate(pool, avatarLevel: 1, castleLevel: 1, MatchesPerRun);
+
+            Debug.Log($"[Onboarding] level 1 (200 HP): KO {level1.KnockoutRate:P1}, " +
+                      $"avg {level1.AverageTicks:F1} ticks");
+
+            Assert.Greater(level1.KnockoutRate, 0.70f,
+                "Level 1 knockout rate fell below the design target after the onboarding HP " +
+                "change - the taper should have made spells castable without hurting decisiveness.");
+
+            // Mend (the cheapest spell) costs 25 Energy at 18/tick, so it cannot come off cooldown
+            // before tick 2 at the very earliest (36 accrued). A floor of 4.0 leaves real margin
+            // above that earliest-possible cast rather than merely clearing it by one tick.
+            Assert.Greater(level1.AverageTicks, 4.0f,
+                $"Level 1 matches average {level1.AverageTicks:F1} ticks, still too close to the " +
+                "2-tick point a spell can first be cast - the onboarding bonus is too weak.");
+        }
+
         [Test]
         public void Balance_MatchesAreUsuallyDecidedByAKnockout_NotByTheTickCap()
         {

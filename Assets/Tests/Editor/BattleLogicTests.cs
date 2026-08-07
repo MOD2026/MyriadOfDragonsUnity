@@ -621,30 +621,34 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void StoryDatabase_LoadsRealContentForTheIntroAndTutorial()
+        public void IntroContent_LoadsRealDataForTheIntroAndTutorial()
         {
-            var story = new Story.StoryDatabase();
-
+            // RESTORED 2026-08-07 against GameBootstrap's own JSON loaders (see that file's
+            // MaybeShowTutorial comment) after the metagame side rebuilt MyriadOfDragons.Story
+            // into a static, in-code per-stage dialogue lookup with no equivalent for
+            // TutorialStep.highlight. This is now the only automated coverage of the tutorial
+            // content actually loading correctly.
+            //
             // Story is optional content - a missing or malformed file must never stop the game
-            // booting into a playable battle, so Load() is required not to throw either way.
-            Assert.DoesNotThrow(() => story.Load());
-            Assert.IsNotNull(story.Chapters);
-            Assert.IsNotNull(story.TutorialSteps);
+            // booting into a playable battle, so both loaders are required not to throw either way.
+            GameBootstrap.IntroChapterData prologue = null;
+            GameBootstrap.IntroTutorialStepData[] steps = null;
+            Assert.DoesNotThrow(() => prologue = GameBootstrap.LoadIntroChapter("prologue"));
+            Assert.DoesNotThrow(() => steps = GameBootstrap.LoadTutorialSteps());
 
-            Story.StoryChapter prologue = story.GetChapter("prologue");
             Assert.IsNotNull(prologue, "The intro sequence is driven by a chapter with id 'prologue'.");
             Assert.IsNotEmpty(prologue.beats, "The prologue needs beats to show.");
-            Assert.IsNotEmpty(story.TutorialSteps, "The tutorial needs steps to show.");
+            Assert.IsNotEmpty(steps, "The tutorial needs steps to show.");
 
             // Guards against the placeholder text being shipped by accident - it said
             // PLACEHOLDER in capitals precisely so this check could catch it.
-            foreach (Story.StoryBeat beat in prologue.beats)
+            foreach (GameBootstrap.IntroBeatData beat in prologue.beats)
             {
                 Assert.IsFalse(string.IsNullOrWhiteSpace(beat.text), "Every beat needs text.");
                 Assert.IsFalse(beat.text.Contains("PLACEHOLDER"),
                     "Placeholder story text should not survive into a real chapter.");
             }
-            foreach (Story.TutorialStep step in story.TutorialSteps)
+            foreach (GameBootstrap.IntroTutorialStepData step in steps)
             {
                 Assert.IsFalse(string.IsNullOrWhiteSpace(step.instruction), "Every step needs an instruction.");
                 Assert.IsFalse(step.instruction.Contains("PLACEHOLDER"),

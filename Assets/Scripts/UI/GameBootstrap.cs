@@ -6,7 +6,6 @@ using MyriadOfDragons.Battle;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
-using MyriadOfDragons.Story;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -1541,6 +1540,19 @@ namespace MyriadOfDragons.UI
         /// system existed. PlayerPrefs lives in per-machine registry/plist state that no export,
         /// no cloud save and no "reset progress" path can see, so onboarding used to be the one
         /// piece of player state that a profile wipe could not clear.
+        ///
+        /// RESTORED 2026-08-07 to load story_chapters.json/tutorial_steps.json directly rather
+        /// than through MyriadOfDragons.Story.StoryDatabase - that class was rebuilt (by the
+        /// metagame side) into a static, in-code sequence lookup for per-stage pre-battle banter
+        /// (CampaignMapPresenter's "1-1_pre" etc.), which has no equivalent for
+        /// TutorialStep.highlight at all: pointing PointArrowAt() at a live GameObject name
+        /// (SpellBar, StatusRow, PlayerPanel...) is battle-UI knowledge that never belonged in a
+        /// generic dialogue model to begin with. The two features - narrative intro and
+        /// interactive board tutorial - are genuinely different things that happened to share one
+        /// loader before; splitting them here means this file no longer depends on the metagame
+        /// side's data shape at all, and the metagame side is free to keep reshaping its own
+        /// per-stage dialogue system without this method breaking again. The JSON itself was
+        /// untouched by that rebuild and still holds the real, original content.
         /// </summary>
         private void MaybeShowTutorial()
         {
@@ -1549,14 +1561,11 @@ namespace MyriadOfDragons.UI
 
             _narrativeQueue.Clear();
 
-            var story = new StoryDatabase();
-            story.Load();
-
             string lastBackground = string.Empty;
-            StoryChapter prologue = story.GetChapter("prologue");
+            IntroChapterData prologue = LoadIntroChapter("prologue");
             if (prologue?.beats != null)
             {
-                foreach (StoryBeat beat in prologue.beats)
+                foreach (IntroBeatData beat in prologue.beats)
                 {
                     // An empty background carries the previous beat's forward, so a run of
                     // dialogue in one place only names its location once.
@@ -1566,7 +1575,7 @@ namespace MyriadOfDragons.UI
                 }
             }
 
-            foreach (TutorialStep step in story.TutorialSteps)
+            foreach (IntroTutorialStepData step in LoadTutorialSteps())
             {
                 // Tutorial steps have no speaker or portrait of their own - they're the game
                 // talking to the player, not a character - and no background, because they point
@@ -1580,6 +1589,65 @@ namespace MyriadOfDragons.UI
             _narrativeIndex = 0;
             _tutorialOverlay.SetActive(true);
             ShowNarrativeBeat();
+        }
+
+        // Public, and the two loaders below are public static, specifically so the EditMode suite
+        // can exercise the JSON parsing directly - MaybeShowTutorial() itself early-returns under
+        // Application.isPlaying == false (see its own comment), which is always true in EditMode,
+        // so testing through it would never actually touch this loading logic at all.
+        [System.Serializable]
+        public class IntroBeatData
+        {
+            public string speaker;
+            public string portrait;
+            public string background;
+            public string text;
+        }
+
+        [System.Serializable]
+        public class IntroChapterData
+        {
+            public string id;
+            public string title;
+            public IntroBeatData[] beats;
+        }
+
+        [System.Serializable]
+        private class IntroChapterListData
+        {
+            public IntroChapterData[] chapters;
+        }
+
+        [System.Serializable]
+        public class IntroTutorialStepData
+        {
+            public string id;
+            public string instruction;
+            public string highlight;
+        }
+
+        [System.Serializable]
+        private class IntroTutorialStepListData
+        {
+            public IntroTutorialStepData[] steps;
+        }
+
+        public static IntroChapterData LoadIntroChapter(string chapterId)
+        {
+            TextAsset json = Resources.Load<TextAsset>("Data/Story/story_chapters");
+            if (json == null) return null;
+
+            IntroChapterListData parsed = JsonUtility.FromJson<IntroChapterListData>(json.text);
+            return parsed?.chapters?.FirstOrDefault(c => c.id == chapterId);
+        }
+
+        public static IntroTutorialStepData[] LoadTutorialSteps()
+        {
+            TextAsset json = Resources.Load<TextAsset>("Data/Story/tutorial_steps");
+            if (json == null) return System.Array.Empty<IntroTutorialStepData>();
+
+            IntroTutorialStepListData parsed = JsonUtility.FromJson<IntroTutorialStepListData>(json.text);
+            return parsed?.steps ?? System.Array.Empty<IntroTutorialStepData>();
         }
 
         /// <summary>Replays the intro on demand - exposed so a menu (or a test) can trigger it
