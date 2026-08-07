@@ -53,10 +53,12 @@ namespace MyriadOfDragons.UI
             {
                 new ShopItemData("pack_novice", "Novice Card Pack", "Contains 3 basic warrior & strategist cards.", 500, 0, (p) => {
                     p.gold -= 500;
+                    p.cardCollection.Add("warrior");
                     Debug.Log("Purchased Novice Card Pack! Added 3 cards to collection.");
                 }),
                 new ShopItemData("pack_dragon", "Dragon Booster", "Guaranteed 1 Epic Dragon card & 2 Rare spells.", 0, 100, (p) => {
                     p.gems -= 100;
+                    p.cardCollection.Add("dragon");
                     Debug.Log("Purchased Dragon Booster! Added Dragon card to collection.");
                 }),
                 new ShopItemData("res_gold", "Gold Vault", "Instantly adds 1,500 Gold to your wallet.", 0, 50, (p) => {
