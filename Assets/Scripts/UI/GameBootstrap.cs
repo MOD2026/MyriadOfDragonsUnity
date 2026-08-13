@@ -288,10 +288,7 @@ namespace MyriadOfDragons.UI
             // machine's real profile, so outside Play Mode this stays in memory only.
             _profile = Application.isPlaying ? SaveSystem.CurrentProfile : new PlayerProfile();
 
-            if (_profile.LoadStatus == SaveLoadStatus.NewGame)
-            {
-                SeedNewProfile(_profile);
-            }
+            SeedIfNewProfile(_profile);
 
             // Unconditional and idempotent, not folded into SeedNewProfile's NewGame-only branch:
             // PlayerProfile's default LoadStatus is Success (not NewGame), so a profile built via
@@ -340,16 +337,35 @@ namespace MyriadOfDragons.UI
 
         // What level a brand-new player starts at. Before the save system existed, GameBootstrap
         // hardcoded these same three numbers as a "mid-range test profile" and every launch began
-        // there; keeping them as the seed means the save system did not quietly also become a
-        // balance change (a genuine level-1 start plays very differently - the balance sim puts
-        // that profile at roughly 3 ticks a match, which is too short for a spell to ever be cast).
-        //
-        // OPEN DESIGN QUESTION, newly answerable now that progression persists: a real new player
-        // should almost certainly start at 1/1/1 with an onboarding curve, not mid-game. That
-        // needs the level-1 match length fixed first. See docs/Mechanics_Gap_Analysis.md.
-        private const int NewProfileAvatarLevel = 25;
+        // there. RESOLVED 2026-08-13 (Command Centre decision): a genuinely new player starts at
+        // Avatar level 1, not mid-game - the onboarding Health taper in
+        // PlayerEmpireData.OnboardingBonusFor exists precisely to keep a level-1 match from being
+        // too short for a spell to ever be cast, so it no longer needs a mid-range Avatar level to
+        // stand in for that fix. Castle/Barracks are left at their existing seed values - only
+        // Avatar level was in scope for this decision.
+        private const int NewProfileAvatarLevel = 1;
         private const int NewProfileCastleLevel = 15;
         private const int NewProfileBarracksLevel = 25;
+
+        /// <summary>
+        /// Seeds a profile the save system identified as genuinely new (LoadStatus.NewGame, set
+        /// by SaveSystem.Load() purely from whether a save file existed on disk - never from
+        /// anything client-supplied). Existing and migrated profiles carry any other LoadStatus
+        /// and never reach SeedNewProfile, so their saved levels are untouched by this gate.
+        /// </summary>
+        private static void SeedIfNewProfile(PlayerProfile profile)
+        {
+            if (profile.LoadStatus == SaveLoadStatus.NewGame)
+            {
+                SeedNewProfile(profile);
+            }
+        }
+
+        /// <summary>Exposed for tests: EditMode construction never goes through
+        /// SaveSystem.Load() (see the comment on Initialize()'s _profile assignment), so a test
+        /// that wants to exercise the NewGame seeding path - or prove a non-NewGame profile is
+        /// left alone by it - has to invoke the same gate Initialize() uses directly.</summary>
+        public static void SeedIfNewProfileForTests(PlayerProfile profile) => SeedIfNewProfile(profile);
 
         private static void SeedNewProfile(PlayerProfile profile)
         {

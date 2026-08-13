@@ -4,6 +4,7 @@ using MyriadOfDragons.AI;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Empire;
+using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -598,6 +599,122 @@ namespace MyriadOfDragons.Tests
             Assert.DoesNotThrow(() => bootstrap.EndTurnForTests(),
                 "End Turn should not throw when it destroys and rebuilds the hand/lane displays.");
             Assert.Greater(bootstrap.HandCardCount, 0, "Expected the hand to still render cards after End Turn.");
+        }
+
+        // ---------- New-player Avatar-level seeding (GameBootstrap.SeedIfNewProfile) ----------
+        //
+        // NEW-PLAYER LEVEL-1 CORRECTION, 2026-08-13: a genuinely new profile (SaveSystem.Load()
+        // found no file on disk, LoadStatus.NewGame) now starts at Avatar level 1 instead of the
+        // old mid-test seed of 25. Existing and migrated profiles never reach SeedNewProfile at
+        // all - LoadStatus is derived purely from disk state, never from anything client-supplied
+        // - so these tests exercise GameBootstrap.SeedIfNewProfileForTests directly against
+        // hand-built profiles rather than through Initialize(), since EditMode construction never
+        // goes through SaveSystem.Load() and therefore never naturally produces LoadStatus.NewGame.
+
+        [Test]
+        public void SeedIfNewProfile_GenuinelyNewProfile_StartsAvatarAtLevelOne()
+        {
+            var profile = new PlayerProfile { LoadStatus = SaveLoadStatus.NewGame };
+
+            GameBootstrap.SeedIfNewProfileForTests(profile);
+
+            Assert.AreEqual(1, profile.avatarLevel,
+                "A profile the save system identified as genuinely new (LoadStatus.NewGame) must start at Avatar level 1.");
+        }
+
+        [Test]
+        public void SeedIfNewProfile_ExistingProfile_RetainsItsSavedAvatarLevel()
+        {
+            var profile = new PlayerProfile { LoadStatus = SaveLoadStatus.Loaded, avatarLevel = 47 };
+
+            GameBootstrap.SeedIfNewProfileForTests(profile);
+
+            Assert.AreEqual(47, profile.avatarLevel,
+                "A profile the save system loaded from an existing file (LoadStatus.Loaded) must never be re-seeded.");
+        }
+
+        [Test]
+        public void SeedIfNewProfile_MigratedProfile_RetainsItsMigratedAvatarLevel()
+        {
+            // Simulates exactly what SaveSystem.Deserialize() does for a real file on disk:
+            // SaveMigration.Normalize() repairs the parsed profile (e.g. a null list left by an
+            // older save shape), then LoadStatus is set to Loaded - never NewGame - regardless of
+            // what Normalize() had to repair.
+            var migrated = new PlayerProfile { avatarLevel = 33, cardCollection = null };
+            SaveMigration.Normalize(migrated);
+            migrated.LoadStatus = SaveLoadStatus.Loaded;
+            Assert.NotNull(migrated.cardCollection, "Setup check: Normalize() should have repaired the null list.");
+
+            GameBootstrap.SeedIfNewProfileForTests(migrated);
+
+            Assert.AreEqual(33, migrated.avatarLevel,
+                "A migrated profile's Avatar level must survive the new-profile seeding gate untouched.");
+        }
+
+        [Test]
+        public void SeedIfNewProfile_ExistingProfile_DoesNotResetUnrelatedFields()
+        {
+            var profile = new PlayerProfile
+            {
+                LoadStatus = SaveLoadStatus.Loaded,
+                avatarLevel = 47,
+                gold = 12345,
+                gems = 42,
+                cardCollection = new List<string> { "c9", "c10" },
+            };
+
+            GameBootstrap.SeedIfNewProfileForTests(profile);
+
+            Assert.AreEqual(12345, profile.gold, "Existing-profile fields unrelated to seeding must not be touched.");
+            Assert.AreEqual(42, profile.gems, "Existing-profile fields unrelated to seeding must not be touched.");
+            CollectionAssert.AreEqual(new[] { "c9", "c10" }, profile.cardCollection,
+                "Existing-profile fields unrelated to seeding must not be touched.");
+        }
+
+        [Test]
+        public void SeedIfNewProfile_NewProfile_OnboardingHealthTaperIsAppliedOnTopOfTheBaseFormula()
+        {
+            var newProfile = new PlayerProfile { LoadStatus = SaveLoadStatus.NewGame };
+            GameBootstrap.SeedIfNewProfileForTests(newProfile);
+            newProfile.ApplyDataToEmpire();
+
+            // Same Castle/Barracks levels, but past PlayerEmpireData.LevelsPerResourceTier so the
+            // onboarding taper has already fully decayed to 0 - isolates the taper itself rather
+            // than any other level-driven term in the Health formula.
+            var pastTaperProfile = new PlayerProfile
+            {
+                LoadStatus = SaveLoadStatus.Loaded,
+                avatarLevel = 5,
+                castleLevel = newProfile.castleLevel,
+                barracksLevel = newProfile.barracksLevel,
+            };
+            GameBootstrap.SeedIfNewProfileForTests(pastTaperProfile); // no-op: LoadStatus isn't NewGame
+            pastTaperProfile.ApplyDataToEmpire();
+
+            Assert.AreEqual(1, newProfile.avatarLevel, "Setup check: expected the new-profile seed to be level 1.");
+            Assert.Greater(newProfile.Empire.StartingAvatarHealth, pastTaperProfile.Empire.StartingAvatarHealth,
+                "A genuinely new (level 1) profile must receive the onboarding Health taper on top of the base " +
+                "formula, giving it strictly higher starting Health than an equivalent profile past the taper " +
+                "window - otherwise the taper PlayerEmpireData already implements for exactly this case never " +
+                "actually fires for a real new player.");
+        }
+
+        [Test]
+        public void PlayerEmpireData_ApplyMatchResult_ALossStillGrantsAnAvatarLevel()
+        {
+            // General (non-tutorial) loss progression must be unaffected by the new-profile
+            // seeding fix above - PlayerEmpireData.ApplyMatchResult isn't touched by that change,
+            // but this task's required regression coverage calls it out explicitly.
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel: 10, castleLevel: 10, barracksLevel: 10);
+            empire.InitializeTCGModifiers();
+            int levelBefore = empire.AvatarLevel;
+
+            empire.ApplyMatchResult(won: false);
+
+            Assert.Greater(empire.AvatarLevel, levelBefore,
+                "A loss must still grant an Avatar level - this is unrelated general progression, not the " +
+                "tutorial onboarding taper, and must not change as a side effect of the level-1 seeding fix.");
         }
 
         [Test]
