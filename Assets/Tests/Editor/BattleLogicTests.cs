@@ -782,6 +782,31 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void FormationSynergy_BonusesFromDifferentTagsStackTogether()
+        {
+            // FormationSynergy.Calculate's own doc comment: "Bonuses from different tags stack,
+            // so a squad running two separate pairs is rewarded for both" - never directly
+            // exercised with two distinct tags active at once, only ever a single tag at
+            // varying counts.
+            CardDatabase db = LoadDatabase();
+            List<Card> knights = db.AllCards.Where(c => c.Class == CardClass.Knight).Take(2).ToList();
+            List<Card> strategists = db.AllCards.Where(c => c.Class == CardClass.Strategist).Take(2).ToList();
+            if (knights.Count < 2 || strategists.Count < 2)
+            {
+                Assert.Ignore("Card pool has fewer than 2 Knights or 2 Strategists to test with.");
+            }
+
+            SynergyBonus knightPairAlone = FormationSynergy.Calculate(knights);
+            SynergyBonus strategistPairAlone = FormationSynergy.Calculate(strategists);
+            SynergyBonus combined = FormationSynergy.Calculate(knights.Concat(strategists));
+
+            Assert.AreEqual(knightPairAlone.AttackBonus + strategistPairAlone.AttackBonus, combined.AttackBonus,
+                "Two different tags' pair bonuses should add together, not override or cap each other.");
+            Assert.That(combined.ActiveTags, Does.Contain(SkillTag.AegisGuard).And.Contain(SkillTag.TacticalCommand),
+                "Both active tags should be reported, not just whichever was counted last.");
+        }
+
+        [Test]
         public void FormationSynergy_AppliedToDeployedUnitsWhenFormationLocks()
         {
             CardDatabase db = LoadDatabase();
