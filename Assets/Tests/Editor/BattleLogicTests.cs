@@ -1148,6 +1148,71 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void Spells_AvatarStrikeClampsToRemainingAvatarHealthAndNeverGoesNegative()
+        {
+            // AvatarSpell.Cast's own clamp (Math.Min(Magnitude, opponent.AvatarHealth)) had no
+            // dedicated test - the existing AvatarStrike test only checked "some damage was
+            // dealt", never the boundary where Magnitude exceeds what's left to take.
+            BattleController controller = StartFormationMatch();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            int strikeIndex = controller.Spellbook.FindIndex(s => s.Effect == SpellEffect.AvatarStrike);
+            Assert.GreaterOrEqual(strikeIndex, 0, "The default spellbook should contain an AvatarStrike spell.");
+            AvatarSpell strike = controller.Spellbook[strikeIndex];
+
+            while (controller.Energy < strike.EnergyCost && controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+            }
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match resolved before enough Energy accrued.");
+
+            // Set remaining Health below the spell's own Magnitude directly, after Energy has
+            // already safely accrued against a high-Health enemy - isolates the clamp itself from
+            // whether ordinary combat happens to finish the enemy off first.
+            Assert.Greater(strike.Magnitude, 0, "Sanity check: the spell must have a positive Magnitude for the clamp to mean anything.");
+            controller.EnemyState.AvatarHealth = strike.Magnitude - 1;
+            int healthBefore = controller.EnemyState.AvatarHealth;
+
+            Assert.IsTrue(controller.TryCastSpell(strikeIndex, Lane.Front, out int dealt));
+
+            Assert.AreEqual(healthBefore, dealt,
+                "A strike exceeding remaining Health must be clamped to exactly the remaining Health, not the full Magnitude.");
+            Assert.AreEqual(0, controller.EnemyState.AvatarHealth,
+                "The enemy Avatar's Health must floor at exactly zero, never go negative.");
+        }
+
+        [Test]
+        public void Spells_LaneAttackBuffPermanentlyRaisesAttackOfFriendlyUnitsInTheLane()
+        {
+            // SpellEffect.LaneAttackBuff (War Cry) had zero coverage anywhere in this file.
+            BattleController controller = StartFormationMatch();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            int buffIndex = controller.Spellbook.FindIndex(s => s.Effect == SpellEffect.LaneAttackBuff);
+            Assert.GreaterOrEqual(buffIndex, 0, "The default spellbook should contain a LaneAttackBuff spell.");
+
+            while (controller.Energy < controller.Spellbook[buffIndex].EnergyCost && controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+            }
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match resolved before enough Energy accrued.");
+
+            // The enemy's Front lane is empty, so it deals no damage back to the player's Front -
+            // the deployed unit is guaranteed to still be alive here.
+            BattleCardInstance frontUnit = controller.PlayerState.Lanes[Lane.Front].Cards[0];
+            int attackBefore = frontUnit.Attack;
+
+            Assert.IsTrue(controller.TryCastSpell(buffIndex, Lane.Front, out int dealt),
+                "A LaneAttackBuff spell that is off cooldown and affordable should cast.");
+
+            Assert.AreEqual(0, dealt, "LaneAttackBuff does not deal Avatar damage - it should report zero.");
+            Assert.Greater(frontUnit.Attack, attackBefore,
+                "The living unit in the target lane should have its Attack permanently raised.");
+        }
+
+        [Test]
         public void Spells_LaneHealRestoresDamagedUnitsButNeverRevivesTheDead()
         {
             CardDatabase db = LoadDatabase();
@@ -1782,6 +1847,49 @@ namespace MyriadOfDragons.Tests
             Assert.Greater(dealt, 0, "Damage cast into an undefended lane should reach the Avatar.");
             Assert.Less(controller.EnemyState.AvatarHealth, healthBefore,
                 "The enemy Avatar's Health should actually drop.");
+        }
+
+        [Test]
+        public void Spells_LaneDamageAppliedToADefendedLaneDamagesUnitsNotTheAvatar()
+        {
+            // The other half of AvatarSpell.Cast's LaneDamage branch: the existing test only
+            // exercises the undefended (no living units) path. This is the defended path, where
+            // damage must apply to the living units and never bypass to the Avatar.
+            CardDatabase db = LoadDatabase();
+            Card tankyDefender = db.AllCards.OrderByDescending(c => c.Health).First();
+
+            BattleController controller = CreateController();
+            var economy = new BattleController.MatchEconomy(60, 60, 2000);
+            controller.StartMatch(new List<Card> { tankyDefender }, new List<Card> { tankyDefender }, economy, economy);
+            controller.DealFormationHand(controller.PlayerState);
+            controller.DealFormationHand(controller.EnemyState);
+            // Player deploys to Front only to satisfy ConfirmFormation; the enemy's Back-lane
+            // defender - the actual spell target - never clashes with anything (nothing is
+            // deployed in either side's Back but the enemy's own card), so it is guaranteed alive
+            // and undamaged when the spell lands.
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, tankyDefender, Lane.Front));
+            Assert.IsTrue(controller.TryPlayCard(controller.EnemyState, tankyDefender, Lane.Back));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            int damageIndex = controller.Spellbook.FindIndex(s => s.Effect == SpellEffect.LaneDamage);
+            Assert.GreaterOrEqual(damageIndex, 0, "The default spellbook should contain a LaneDamage spell.");
+
+            while (controller.Energy < controller.Spellbook[damageIndex].EnergyCost && controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+            }
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match resolved before enough Energy accrued.");
+
+            BattleCardInstance target = controller.EnemyState.Lanes[Lane.Back].Cards[0];
+            int targetHealthBefore = target.CurrentHealth;
+            int enemyAvatarHealthBefore = controller.EnemyState.AvatarHealth;
+
+            Assert.IsTrue(controller.TryCastSpell(damageIndex, Lane.Back, out int dealt));
+
+            Assert.AreEqual(0, dealt, "Damage into a defended lane must not reach the Avatar - the spell should report zero.");
+            Assert.Less(target.CurrentHealth, targetHealthBefore, "The living defender in the target lane should take damage.");
+            Assert.AreEqual(enemyAvatarHealthBefore, controller.EnemyState.AvatarHealth,
+                "A defended-lane cast must not change the enemy Avatar's Health.");
         }
 
         // ---------- V4 design changes: overtime, Back-lane energy, elements, slot weighting ----------
