@@ -275,6 +275,60 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void BattleController_StrategistCardTriggersDrawHookRegardlessOfLane()
+        {
+            // The other half of ApplyOnPlayClassHook's rule ("Strategist's on-play draw always
+            // fires, regardless of lane") was never exercised on its own - only Perfect's
+            // Back-lane-specific case was tested above. Deployed into Front, not Back, so this
+            // cannot be mistaken for exercising Perfect's rule instead.
+            CardDatabase db = LoadDatabase();
+            List<Card> deck = db.AllCards.ToList();
+            Card strategistCard = deck.FirstOrDefault(c => c.Class == CardClass.Strategist);
+            Assert.NotNull(strategistCard, "Test assumption failed: expected at least one Strategist-class card in the pool.");
+
+            BattleController controller = CreateController();
+            controller.StartMatch(deck, deck, TestEconomy(20, 20), TestEconomy(20, 20));
+            if (!controller.PlayerState.Hand.Contains(strategistCard))
+            {
+                controller.PlayerState.Hand.Add(strategistCard);
+            }
+
+            int handCountBefore = controller.PlayerState.Hand.Count;
+            bool played = controller.TryPlayCard(controller.PlayerState, strategistCard, Lane.Front);
+
+            Assert.IsTrue(played, "Expected a fully-affordable Strategist card to be playable into Front.");
+            Assert.AreEqual(handCountBefore, controller.PlayerState.Hand.Count,
+                "Playing a Strategist card into Front should remove it from hand but also draw a " +
+                "replacement - net hand size should be unchanged, not down by one, regardless of lane.");
+        }
+
+        [Test]
+        public void BattleController_PerfectCardOutsideBackLane_DoesNotTriggerDrawHook()
+        {
+            // The negative case of Perfect's rule: outside Back, Perfect must behave like any
+            // other card and NOT draw - only ever tested for the positive (Back-lane) case before.
+            CardDatabase db = LoadDatabase();
+            List<Card> deck = db.AllCards.ToList();
+            Card perfectCard = deck.FirstOrDefault(c => c.Class == CardClass.Perfect);
+            Assert.NotNull(perfectCard, "Test assumption failed: expected at least one Perfect-class card in the pool.");
+
+            BattleController controller = CreateController();
+            controller.StartMatch(deck, deck, TestEconomy(20, 20), TestEconomy(20, 20));
+            if (!controller.PlayerState.Hand.Contains(perfectCard))
+            {
+                controller.PlayerState.Hand.Add(perfectCard);
+            }
+
+            int handCountBefore = controller.PlayerState.Hand.Count;
+            bool played = controller.TryPlayCard(controller.PlayerState, perfectCard, Lane.Front);
+
+            Assert.IsTrue(played, "Expected a fully-affordable Perfect card to be playable into Front.");
+            Assert.AreEqual(handCountBefore - 1, controller.PlayerState.Hand.Count,
+                "Playing a Perfect card outside the Back lane should only remove it from hand - Perfect's " +
+                "draw hook is Back-lane-specific, so no replacement should be drawn here.");
+        }
+
+        [Test]
         public void LaneBattleResolver_ClashIsSymmetricAndOrderIndependent()
         {
             // The whole point of computing both sides' attack totals before either takes
@@ -905,6 +959,65 @@ namespace MyriadOfDragons.Tests
                 "Confirming an empty formation should be rejected, not start a fight with no squad.");
             Assert.AreEqual(BattlePhase.Formation, controller.Phase,
                 "A rejected confirmation must leave the phase untouched.");
+        }
+
+        [Test]
+        public void Formation_ConfirmingTwice_IsRejectedAndDoesNotDoubleApplySynergy()
+        {
+            // ConfirmFormation's own Phase guard is the only thing preventing ApplySynergy's
+            // direct BuffAttack/BuffMaxHealth mutation from firing a second time - nothing
+            // exercised a second call before this. A pair of Knights (a real, nonzero synergy
+            // bonus) makes a silent double-application visible rather than invisible.
+            CardDatabase db = LoadDatabase();
+            List<Card> knights = db.AllCards
+                .Where(c => c.Class == CardClass.Knight && c.SlotWeight == 1)
+                .Take(2)
+                .ToList();
+            if (knights.Count < 2) Assert.Ignore("Card pool has fewer than 2 one-slot Knights to test with.");
+
+            BattleController controller = CreateController();
+            var economy = new BattleController.MatchEconomy(60, 60, 2000);
+            controller.StartMatch(knights.ToList(), knights.ToList(), economy, economy);
+            controller.DealFormationHand(controller.PlayerState);
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, knights[0], Lane.Back));
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, knights[1], Lane.Back));
+
+            Assert.IsTrue(controller.ConfirmFormation(), "Setup: the first confirmation should lock the formation.");
+            SynergyBonus synergyAfterFirstLock = controller.PlayerSynergy;
+            Assert.IsTrue(synergyAfterFirstLock.HasAny, "Setup: two matching-tag Knights should earn a pair bonus at lock-in.");
+            List<BattleCardInstance> units = controller.PlayerState.Lanes[Lane.Back].Cards.ToList();
+            List<int> attackAfterFirstLock = units.Select(c => c.Attack).ToList();
+            List<int> healthAfterFirstLock = units.Select(c => c.MaxHealth).ToList();
+
+            Assert.IsFalse(controller.ConfirmFormation(), "A second confirmation must be rejected - the squad is already locked.");
+            Assert.AreEqual(BattlePhase.Combat, controller.Phase, "A rejected second confirmation must leave the phase as Combat.");
+            Assert.AreEqual(synergyAfterFirstLock.AttackBonus, controller.PlayerSynergy.AttackBonus,
+                "A rejected second confirmation must not change the recorded synergy.");
+            Assert.AreEqual(synergyAfterFirstLock.HealthBonus, controller.PlayerSynergy.HealthBonus,
+                "A rejected second confirmation must not change the recorded synergy.");
+            for (int i = 0; i < units.Count; i++)
+            {
+                Assert.AreEqual(attackAfterFirstLock[i], units[i].Attack,
+                    "A rejected second confirmation must not double-apply the synergy bonus.");
+                Assert.AreEqual(healthAfterFirstLock[i], units[i].MaxHealth,
+                    "A rejected second confirmation must not double-apply the synergy bonus.");
+            }
+        }
+
+        [Test]
+        public void Combat_AdvanceCombatTickDuringFormation_IsANoOp()
+        {
+            // AdvanceCombatTick's own Phase guard was never exercised - every existing test calls
+            // it only after ConfirmFormation.
+            BattleController controller = StartFormationMatch();
+            Assert.AreEqual(BattlePhase.Formation, controller.Phase, "Setup: match should still be in Formation.");
+
+            TurnResolutionResult result = controller.AdvanceCombatTick();
+
+            Assert.AreEqual(0, controller.TickCount, "A tick advanced before combat starts must not count.");
+            Assert.AreEqual(0, controller.Energy, "A tick advanced before combat starts must not accrue Energy.");
+            Assert.AreEqual(BattlePhase.Formation, controller.Phase, "A no-op tick must not change the phase.");
+            Assert.IsNull(result.LaneResults, "A no-op tick must return the default (unresolved) result, not a real clash.");
         }
 
         [Test]
