@@ -802,7 +802,9 @@ namespace MyriadOfDragons.Tests
 
             Assert.AreEqual(knightPairAlone.AttackBonus + strategistPairAlone.AttackBonus, combined.AttackBonus,
                 "Two different tags' pair bonuses should add together, not override or cap each other.");
-            Assert.That(combined.ActiveTags, Does.Contain(SkillTag.AegisGuard).And.Contain(SkillTag.TacticalCommand),
+            Assert.That(combined.ActiveTags, Has.Member(SkillTag.AegisGuard),
+                "Both active tags should be reported, not just whichever was counted last.");
+            Assert.That(combined.ActiveTags, Has.Member(SkillTag.TacticalCommand),
                 "Both active tags should be reported, not just whichever was counted last.");
         }
 
