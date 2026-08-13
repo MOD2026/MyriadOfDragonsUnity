@@ -163,9 +163,68 @@ namespace MyriadOfDragons.Tests
 
             Card overflowCard = singleSlot[LaneState.MaxSlots];
             if (!controller.PlayerState.Hand.Contains(overflowCard)) controller.PlayerState.Hand.Add(overflowCard);
+            int resourceBefore = controller.PlayerState.Resource;
+            int handCountBefore = controller.PlayerState.Hand.Count;
             bool played = controller.TryPlayCard(controller.PlayerState, overflowCard, Lane.Front);
 
             Assert.IsFalse(played, "A full lane (3/3 slots) should reject another card.");
+            Assert.AreEqual(resourceBefore, controller.PlayerState.Resource, "A rejected play must not spend Resource.");
+            Assert.AreEqual(handCountBefore, controller.PlayerState.Hand.Count, "A rejected play must not remove the card from hand.");
+        }
+
+        [Test]
+        public void BattleController_TryPlayCard_RejectsWhenCardNotInHand()
+        {
+            // TryPlayCard's first guard clause (Hand.Contains(card)) had no dedicated coverage -
+            // the two existing tests both start from a card already in hand.
+            CardDatabase db = LoadDatabase();
+            List<Card> deck = db.AllCards.ToList();
+            Card cardNotInHand = deck.First();
+
+            BattleController controller = CreateController();
+            controller.StartMatch(deck, deck, TestEconomy(20, 10), TestEconomy(20, 10));
+            controller.PlayerState.Hand.Remove(cardNotInHand); // ensure absence regardless of the random deal
+            controller.PlayerState.Resource = 100;
+
+            int resourceBefore = controller.PlayerState.Resource;
+            int laneCardsBefore = controller.PlayerState.Lanes[Lane.Front].Cards.Count;
+
+            bool played = controller.TryPlayCard(controller.PlayerState, cardNotInHand, Lane.Front);
+
+            Assert.IsFalse(played, "A card not in hand must be rejected.");
+            Assert.AreEqual(resourceBefore, controller.PlayerState.Resource, "A rejected play must not spend Resource.");
+            Assert.AreEqual(laneCardsBefore, controller.PlayerState.Lanes[Lane.Front].Cards.Count,
+                "A rejected play must not place a unit on the board.");
+        }
+
+        [Test]
+        public void BattleController_TryPlayCard_RejectsWhenUnaffordable_WithoutSpendingResourceOrLosingTheCard()
+        {
+            // TryPlayCard's second guard clause (ResourceCost <= Resource) also had no dedicated
+            // rejection coverage.
+            CardDatabase db = LoadDatabase();
+            List<Card> deck = db.AllCards.ToList();
+            Card expensiveCard = deck.OrderByDescending(c => c.ResourceCost).First();
+
+            BattleController controller = CreateController();
+            controller.StartMatch(deck, deck, TestEconomy(20, 10), TestEconomy(20, 10));
+            if (!controller.PlayerState.Hand.Contains(expensiveCard))
+            {
+                controller.PlayerState.Hand.Add(expensiveCard);
+            }
+            controller.PlayerState.Resource = expensiveCard.ResourceCost - 1;
+
+            int resourceBefore = controller.PlayerState.Resource;
+            int handCountBefore = controller.PlayerState.Hand.Count;
+            int laneCardsBefore = controller.PlayerState.Lanes[Lane.Front].Cards.Count;
+
+            bool played = controller.TryPlayCard(controller.PlayerState, expensiveCard, Lane.Front);
+
+            Assert.IsFalse(played, "An unaffordable card must be rejected.");
+            Assert.AreEqual(resourceBefore, controller.PlayerState.Resource, "A rejected play must not spend Resource.");
+            Assert.AreEqual(handCountBefore, controller.PlayerState.Hand.Count, "A rejected play must not remove the card from hand.");
+            Assert.AreEqual(laneCardsBefore, controller.PlayerState.Lanes[Lane.Front].Cards.Count,
+                "A rejected play must not place a unit on the board.");
         }
 
         [Test]
@@ -360,6 +419,94 @@ namespace MyriadOfDragons.Tests
                 "With no living attacker, an empty lane must not leak any overflow at all.");
             Assert.AreEqual(0, idleClash.OverflowToB,
                 "With no living attacker, an empty lane must not leak any overflow at all.");
+        }
+
+        [Test]
+        public void LaneBattleResolver_TauntAbsorbsDamageBeforeNonTauntUnitsInTheSameLane()
+        {
+            // Taunt priority (ApplyDamageToLane: "taunts.Concat(others)") is the rule the whole
+            // formation layer's Taunt/lane-holding trade rests on (see
+            // docs/Mechanics_Gap_Analysis.md §1.1, "Partial overflow... directly removes the
+            // point of Taunt and of holding a lane"), yet nothing exercised it directly before
+            // this test.
+            var attackerData = new CardData { id = "taunt_test_attacker", name = "Taunt Test Attacker", art_file = "x.png", element = "Andras", type = "warrior", rarity = 1 };
+            var tauntData = new CardData { id = "taunt_test_knight", name = "Taunt Test Knight", art_file = "x.png", element = "Andras", type = "knight", rarity = 7 };
+            var nonTauntData = new CardData { id = "taunt_test_nontaunt", name = "Taunt Test Non-Taunt", art_file = "x.png", element = "Andras", type = "warrior", rarity = 4 };
+            Card attackerCard = Card.FromData(attackerData);
+            Card tauntCard = Card.FromData(tauntData);
+            Card nonTauntCard = Card.FromData(nonTauntData);
+            Assert.Less(attackerCard.Attack, tauntCard.Health,
+                "Test setup invariant broken: rarity 1 Attack (1-2) should always be less than rarity 7 Health (7-12), so the Taunt unit survives absorbing the full hit.");
+
+            var attackingLane = new LaneState(Lane.Front);
+            attackingLane.Cards.Add(new BattleCardInstance(attackerCard, true, 0, 0));
+
+            var defendingLane = new LaneState(Lane.Front);
+            // Non-Taunt placed FIRST in the list, Taunt SECOND - Taunt priority must come from
+            // HasTaunt, not from placement order, or this deliberately-reversed setup would
+            // fail to catch a regression to plain placement-order damage.
+            var nonTaunt = new BattleCardInstance(nonTauntCard, false, 0, 0);
+            var taunt = new BattleCardInstance(tauntCard, false, 0, 0);
+            defendingLane.Cards.Add(nonTaunt);
+            defendingLane.Cards.Add(taunt);
+
+            int tauntHealthBefore = taunt.CurrentHealth;
+            int nonTauntHealthBefore = nonTaunt.CurrentHealth;
+
+            LaneClashResult result = LaneBattleResolver.ResolveLaneClash(defendingLane, attackingLane);
+
+            Assert.AreEqual(tauntHealthBefore - attackerCard.Attack, taunt.CurrentHealth,
+                "The Taunt unit should absorb the attacking lane's full Attack.");
+            Assert.IsTrue(taunt.IsAlive, "Test setup invariant broken: the Taunt unit should survive absorbing this hit.");
+            Assert.AreEqual(nonTauntHealthBefore, nonTaunt.CurrentHealth,
+                "A non-Taunt unit must take zero damage while a living Taunt unit shares its lane.");
+            Assert.IsFalse(result.SideACleared, "The lane should not be reported as cleared while both units are alive.");
+        }
+
+        [Test]
+        public void LaneBattleResolver_DamageSpillsToNonTauntUnitsOnceTheTauntUnitDies()
+        {
+            // The other half of the same rule: "then the rest in placement order" - once the
+            // Taunt unit's Health is exhausted, the remainder must not vanish or leak past a
+            // lane that still has a living (non-Taunt) defender.
+            var attackerData = new CardData { id = "taunt_spill_attacker", name = "Taunt Spill Attacker", art_file = "x.png", element = "Andras", type = "warrior", rarity = 4 };
+            var tauntData = new CardData { id = "taunt_spill_knight", name = "Taunt Spill Knight", art_file = "x.png", element = "Andras", type = "knight", rarity = 1 };
+            var nonTauntData = new CardData { id = "taunt_spill_nontaunt", name = "Taunt Spill Non-Taunt", art_file = "x.png", element = "Andras", type = "warrior", rarity = 7 };
+            Card attackerCard = Card.FromData(attackerData);
+            Card tauntCard = Card.FromData(tauntData);
+            Card nonTauntCard = Card.FromData(nonTauntData);
+
+            var attackingLane = new LaneState(Lane.Front);
+            attackingLane.Cards.Add(new BattleCardInstance(attackerCard, true, 0, 0));
+
+            var defendingLane = new LaneState(Lane.Front);
+            var taunt = new BattleCardInstance(tauntCard, false, 0, 0);
+            var nonTaunt = new BattleCardInstance(nonTauntCard, false, 0, 0);
+            // Forced to a known small Health so the spillover amount is exactly computable
+            // regardless of the hash-derived variance within rarity 1's 1-2 Health range.
+            taunt.ApplyDamage(taunt.CurrentHealth - 1);
+            Assert.AreEqual(1, taunt.CurrentHealth, "Test setup: Taunt unit should be forced to exactly 1 Health.");
+            defendingLane.Cards.Add(taunt);
+            defendingLane.Cards.Add(nonTaunt);
+
+            int expectedRemainder = attackerCard.Attack - 1;
+            int nonTauntHealthBefore = nonTaunt.CurrentHealth;
+            Assert.Greater(expectedRemainder, 0,
+                "Test setup invariant broken: rarity 4 Attack (4-6) minus the Taunt unit's forced 1 Health should always leave a remainder.");
+            Assert.Greater(nonTauntHealthBefore, expectedRemainder,
+                "Test setup invariant broken: rarity 7 Health (7-12) should always exceed the maximum possible spillover (5) from a rarity 4 attacker.");
+
+            LaneClashResult result = LaneBattleResolver.ResolveLaneClash(defendingLane, attackingLane);
+
+            Assert.IsFalse(taunt.IsAlive, "The Taunt unit should die once its Health is exhausted.");
+            Assert.AreEqual(0, taunt.CurrentHealth);
+            Assert.AreEqual(nonTauntHealthBefore - expectedRemainder, nonTaunt.CurrentHealth,
+                "The remainder left over once the Taunt unit dies must spill onto the next living defender, not vanish.");
+            Assert.IsTrue(nonTaunt.IsAlive, "Test setup invariant broken: the non-Taunt unit should survive the spillover.");
+            Assert.IsFalse(result.SideACleared,
+                "The lane should not be reported as cleared while the non-Taunt unit survives the spillover.");
+            Assert.AreEqual(0, result.OverflowToA,
+                "No overflow should reach the Avatar while a living defender (the non-Taunt unit) remains in the lane.");
         }
 
         [Test]
@@ -697,6 +844,31 @@ namespace MyriadOfDragons.Tests
                 "A rejected recall must leave the board untouched.");
         }
 
+        [TestCase(-1)]
+        [TestCase(1)]
+        public void LanePicker_RecallWithAnInvalidSlotIndex_DoesNotChangeState(int invalidSlotIndex)
+        {
+            // TryRecallCard's second guard clause (slotIndex < 0 || slotIndex >= Cards.Count) was
+            // never exercised - only the Phase guard (LanePicker_RecallIsRejectedOnceCombatHasStarted)
+            // had atomicity coverage. One card is deployed into Front, occupying only slot 0, so
+            // -1 and 1 exercise the two directions of the same bounds check.
+            BattleController controller = StartFormationMatch();
+            Card card = controller.PlayerState.Hand.First();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, card, Lane.Front));
+
+            int resourceBefore = controller.PlayerState.Resource;
+            int handCountBefore = controller.PlayerState.Hand.Count;
+            int laneCardsBefore = controller.PlayerState.Lanes[Lane.Front].Cards.Count;
+
+            Assert.IsFalse(controller.TryRecallCard(Lane.Front, invalidSlotIndex),
+                "An out-of-range slot index must be rejected, even during Formation.");
+
+            Assert.AreEqual(resourceBefore, controller.PlayerState.Resource, "A rejected recall must not refund Resource.");
+            Assert.AreEqual(handCountBefore, controller.PlayerState.Hand.Count, "A rejected recall must not return a card to hand.");
+            Assert.AreEqual(laneCardsBefore, controller.PlayerState.Lanes[Lane.Front].Cards.Count,
+                "A rejected recall must not remove the deployed card from the lane.");
+        }
+
         // ---------- Formation phase + automated combat + Avatar spells ----------
 
         private BattleController StartFormationMatch(int enemyHealth = 2000)
@@ -789,6 +961,50 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(spell.IsOffCooldown, "Casting should put the spell on cooldown.");
             Assert.IsFalse(controller.TryCastSpell(cheapestIndex, Lane.Front, out _),
                 "A spell on cooldown must not cast again immediately.");
+        }
+
+        [Test]
+        public void Spells_CannotBeCastDuringFormation()
+        {
+            // TryCastSpell's own doc comment: "Returns false with nothing changed if the cast
+            // isn't legal." Every existing spell test casts from inside Combat, exercising the
+            // cooldown/energy guards - the Phase guard itself was never directly exercised.
+            BattleController controller = StartFormationMatch();
+            Assert.AreEqual(BattlePhase.Formation, controller.Phase, "Setup: match should still be in Formation.");
+
+            int enemyHealthBefore = controller.EnemyState.AvatarHealth;
+            bool cast = controller.TryCastSpell(0, Lane.Front, out int dealt);
+
+            Assert.IsFalse(cast, "A spell must not be castable before combat begins.");
+            Assert.AreEqual(0, dealt, "A rejected cast must report zero damage dealt.");
+            Assert.AreEqual(enemyHealthBefore, controller.EnemyState.AvatarHealth,
+                "A rejected cast must not change the enemy Avatar's Health.");
+            Assert.IsTrue(controller.Spellbook.All(s => s.IsOffCooldown), "A rejected cast must not put any spell on cooldown.");
+        }
+
+        [TestCase(-1)]
+        [TestCase(int.MaxValue)]
+        public void Spells_InvalidSpellIndex_IsRejectedWithoutChangingState(int invalidIndex)
+        {
+            // The other unexercised TryCastSpell guard: an out-of-range spellIndex. int.MaxValue
+            // rather than Spellbook.Count, so this stays correct if the spellbook is ever resized.
+            BattleController controller = StartFormationMatch();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.ConfirmFormation());
+            controller.AdvanceCombatTick();
+            Assert.Greater(controller.Energy, 0, "Setup: a combat tick should have accrued some Energy.");
+
+            int energyBefore = controller.Energy;
+            int enemyHealthBefore = controller.EnemyState.AvatarHealth;
+
+            bool cast = controller.TryCastSpell(invalidIndex, Lane.Front, out int dealt);
+
+            Assert.IsFalse(cast, "An out-of-range spell index must be rejected.");
+            Assert.AreEqual(0, dealt, "A rejected cast must report zero damage dealt.");
+            Assert.AreEqual(energyBefore, controller.Energy, "A rejected cast must not spend Energy.");
+            Assert.AreEqual(enemyHealthBefore, controller.EnemyState.AvatarHealth,
+                "A rejected cast must not change the enemy Avatar's Health.");
+            Assert.IsTrue(controller.Spellbook.All(s => s.IsOffCooldown), "A rejected cast must not put any spell on cooldown.");
         }
 
         [Test]
@@ -896,6 +1112,64 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void Combat_TickCapDrawWhenBothSidesEndAtEqualHealthFraction()
+        {
+            // ResolveOnTickCap's Mathf.Approximately(playerFraction, enemyFraction) branch - a
+            // draw reported as a loss for progression but named honestly (see the production
+            // comment on ResolveOnTickCap) - was never directly exercised: every existing
+            // tick-cap test uses deliberately UNEQUAL pools to prove the fraction-not-raw-health
+            // rule, and Draw_IsNeverRewardedMoreThanALoss only tests the downstream Empire
+            // consequence of an already-false `won` flag, not that BattleController itself
+            // detects a draw and produces one.
+            //
+            // A perfectly symmetric mirror match (the exact same Card instance deployed into the
+            // same lane on both sides, identical starting Avatar Health) guarantees AvatarHealth
+            // stays IDENTICAL on both sides every tick, by the same clash symmetry
+            // LaneBattleResolver_ClashIsSymmetricAndOrderIndependent already proves - whichever
+            // damage source fires (lane overflow, siege, or both), it applies the same formula to
+            // the same inputs on both sides. This reaches the draw branch deterministically
+            // without depending on any specific card's stats.
+            CardDatabase db = LoadDatabase();
+            Card mirrorCard = db.AllCards.First();
+            var deck = new List<Card> { mirrorCard };
+
+            BattleController controller = CreateController();
+            var economy = new BattleController.MatchEconomy(60, 60, 6000);
+            controller.StartMatch(deck, deck, economy, economy);
+            controller.DealFormationHand(controller.PlayerState);
+            controller.DealFormationHand(controller.EnemyState);
+
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, mirrorCard, Lane.Front));
+            Assert.IsTrue(controller.TryPlayCard(controller.EnemyState, mirrorCard, Lane.Front));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            bool? playerWon = null;
+            controller.OnMatchEnded += won => playerWon = won;
+            MatchResult? result = null;
+            controller.OnMatchCompleted += r => result = r;
+
+            for (int i = 0; i < BattleController.MaxCombatTicks && controller.Phase == BattlePhase.Combat; i++)
+            {
+                controller.AdvanceCombatTick();
+            }
+
+            Assert.AreEqual(BattlePhase.Resolved, controller.Phase, "Setup: the tick cap should resolve the match.");
+            Assert.AreEqual(controller.PlayerState.AvatarHealth, controller.EnemyState.AvatarHealth,
+                "Setup invariant: a perfectly symmetric mirror match must leave both Avatars at identical Health.");
+            Assert.Less(controller.PlayerState.AvatarHealth, controller.PlayerState.MaxAvatarHealth,
+                "Setup: the mirror match should have taken at least some damage, or this test isn't exercising a contested draw.");
+
+            Assert.IsNotNull(playerWon, "Reaching the cap on a draw must still raise OnMatchEnded.");
+            Assert.IsFalse(playerWon!.Value,
+                "A draw must be reported as a loss for progression - the player must never be credited a victory nobody won.");
+            Assert.IsTrue(result.HasValue, "OnMatchCompleted must still fire on a draw.");
+            Assert.IsFalse(result!.Value.IsVictory,
+                "OnMatchCompleted must agree with OnMatchEnded: a draw is not a victory.");
+            Assert.IsTrue(controller.OutcomeReason.Contains("DRAW"),
+                "A draw must explain itself distinctly from an ordinary victory/defeat, since nobody's Avatar actually fell.");
+        }
+
+        [Test]
         public void OnMatchCompleted_CarriesTheSameOutcomeAsOnMatchEnded_OnATickCapDecision()
         {
             // Same lopsided-pools setup as Combat_TickCapDecidesOnHealthFraction_NotRawHealth -
@@ -942,6 +1216,19 @@ namespace MyriadOfDragons.Tests
             // Avatar all but guarantees a knockout well before the cap, which is the path where
             // OutcomeReason is intentionally left blank (see MatchResult.OutcomeReason's own doc
             // comment - nobody needs an explanation for "the Avatar hit 0").
+            //
+            // The enemy is deliberately left with an empty board rather than run through
+            // SimpleAIOpponent: PlayerBattleState shuffles with an unseeded System.Random, so an
+            // AI-built formation is not guaranteed to leave any lane clearable within the tick
+            // cap - only a lane with zero living defenders is guaranteed to let ANY positive
+            // Attack overflow straight to the Avatar (see LaneBattleResolver.ApplyDamageToLane's
+            // "no living defenders" rule, already proven by
+            // LaneBattleResolver_AttackingAnUndefendedLane_DamagesTheAvatar). Every real card has
+            // positive Attack (CardDatabase_EveryCardHasPositiveStats) and
+            // AvatarDamageMultiplier is always >= 1, so a permanently undefended 1 HP enemy is a
+            // genuine, deterministic tick-1 knockout under ordinary combat rules regardless of
+            // which card the player's shuffle happens to draw - no invulnerability, no fake
+            // victory, no changed damage rules.
             CardDatabase db = LoadDatabase();
             BattleController controller = CreateController();
             List<Card> deck = db.AllCards.Take(15).ToList();
@@ -949,8 +1236,6 @@ namespace MyriadOfDragons.Tests
                 new BattleController.MatchEconomy(60, 60, 10000),
                 new BattleController.MatchEconomy(60, 60, 1));
             controller.DealFormationHand(controller.PlayerState);
-            controller.DealFormationHand(controller.EnemyState);
-            SimpleAIOpponent.TakeTurn(controller, AIArchetype.Balanced);
             foreach (Card card in controller.PlayerState.Hand.ToList())
             {
                 foreach (Lane lane in new[] { Lane.Front, Lane.Middle, Lane.Back })
@@ -1015,6 +1300,345 @@ namespace MyriadOfDragons.Tests
                 "Reinforcing inside the window should succeed.");
             Assert.Greater(controller.PlayerState.Lanes.Values.Sum(l => l.Cards.Count), deployedBefore,
                 "A successful reinforcement should actually put a unit on the board.");
+        }
+
+        // ---------- Reinforcement + formation-synergy interaction ----------
+        //
+        // TryDeployReinforcement recalculates FormationSynergy.Calculate on every reinforcement
+        // ("a reinforcement can complete a pair or trio") but buffs only the newly deployed unit -
+        // the squad already standing had its bonus applied once at ConfirmFormation, and
+        // re-buffing it every window would stack the same bonus repeatedly (see
+        // BattleController.TryDeployReinforcement's own comment). Neither
+        // Reinforcements_OnlyDeployableInsideTheWindow (window gating only) nor
+        // FormationSynergy_AppliedToDeployedUnitsWhenFormationLocks (lock-in only) exercised this
+        // interaction before the tests below.
+
+        /// <summary>
+        /// Locks a formation with exactly two one-slot Knights in Back (a pair - AegisGuard x2,
+        /// which already earns a nonzero bonus) so a reinforcement completing the trio is a real,
+        /// measurable change. Back grants no lane stat bonus, so any Attack/Health change on
+        /// these units is synergy and nothing else. Also gives the enemy one deployed card so
+        /// tests that check the enemy is untouched have real state to prove that against.
+        /// </summary>
+        private BattleController BuildKnightPairLockedForReinforcement(out Card thirdKnight, out Card otherReinforcement)
+        {
+            CardDatabase db = LoadDatabase();
+            List<Card> knights = db.AllCards
+                .Where(c => c.Class == CardClass.Knight && c.SlotWeight == 1)
+                .Take(3)
+                .ToList();
+            if (knights.Count < 3) Assert.Ignore("Card pool has fewer than 3 one-slot Knights to test with.");
+
+            Card other = db.AllCards.FirstOrDefault(c => c.Class != CardClass.Knight && c.SlotWeight == 1);
+            if (other == null) Assert.Ignore("Card pool has no non-Knight one-slot card to reinforce with.");
+
+            var playerDeck = new List<Card> { knights[0], knights[1], knights[2], other };
+            List<Card> enemyDeck = db.AllCards.Take(15).ToList();
+
+            BattleController controller = CreateController();
+            var economy = new BattleController.MatchEconomy(60, 60, 2000);
+            controller.StartMatch(playerDeck, enemyDeck, economy, economy);
+            controller.DealFormationHand(controller.PlayerState);
+            controller.DealFormationHand(controller.EnemyState);
+
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, knights[0], Lane.Back));
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, knights[1], Lane.Back));
+
+            Card enemyCard = controller.EnemyState.Hand.FirstOrDefault(c => c.ResourceCost <= controller.EnemyState.Resource);
+            if (enemyCard != null)
+            {
+                controller.TryPlayCard(controller.EnemyState, enemyCard, Lane.Front);
+            }
+
+            Assert.IsTrue(controller.ConfirmFormation());
+            Assert.IsTrue(controller.PlayerSynergy.HasAny,
+                "Setup failure: two matching-tag Knights should already have earned a pair bonus at lock-in.");
+
+            thirdKnight = knights[2];
+            otherReinforcement = other;
+            return controller;
+        }
+
+        private static void AdvanceToTick(BattleController controller, int tick)
+        {
+            while (controller.Phase == BattlePhase.Combat && controller.TickCount < tick)
+            {
+                controller.AdvanceCombatTick();
+            }
+        }
+
+        [Test]
+        public void Reinforcement_CompletingASynergySet_RecalculatesSynergyAndBuffsOnlyTheNewUnit()
+        {
+            BattleController controller = BuildKnightPairLockedForReinforcement(out Card thirdKnight, out _);
+
+            SynergyBonus pairBonus = controller.PlayerSynergy;
+            List<BattleCardInstance> standingUnits = controller.PlayerState.Lanes[Lane.Back].Cards.ToList();
+            Assert.AreEqual(2, standingUnits.Count, "Setup: exactly two Knights should be standing before reinforcement.");
+            List<int> standingAttackBefore = standingUnits.Select(c => c.Attack).ToList();
+            List<int> standingHealthBefore = standingUnits.Select(c => c.MaxHealth).ToList();
+
+            AdvanceToTick(controller, BattleController.ReinforcementTicks[0]);
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match ended before the first reinforcement window opened.");
+            Assert.IsTrue(controller.IsReinforcementWindowOpen, "Setup: the first reinforcement window should be open at this tick.");
+
+            Assert.IsTrue(controller.TryDeployReinforcement(thirdKnight, Lane.Back),
+                "A valid reinforcement completing a synergy trio should be accepted.");
+
+            // Point 1: deploying inside the window recalculates synergy to a strictly stronger
+            // bonus than the pair it replaces - not asserted as a fixed magnitude, since the pair
+            // and trio bonuses are tunable balance numbers, only that completing the trio must
+            // produce a real, measurable increase.
+            SynergyBonus trioBonus = controller.PlayerSynergy;
+            Assert.Greater(trioBonus.AttackBonus, pairBonus.AttackBonus,
+                "Completing a trio should recalculate synergy to a strictly stronger Attack bonus than the pair it replaces.");
+            Assert.Greater(trioBonus.HealthBonus, pairBonus.HealthBonus,
+                "A trio grants a Health bonus a pair does not - recalculation must pick that up.");
+
+            // Point 3: units already standing before the reinforcement must not be buffed again.
+            for (int i = 0; i < standingUnits.Count; i++)
+            {
+                Assert.AreEqual(standingAttackBefore[i], standingUnits[i].Attack,
+                    "A unit already standing before the reinforcement must not be buffed again by the recalculation.");
+                Assert.AreEqual(standingHealthBefore[i], standingUnits[i].MaxHealth,
+                    "A unit already standing before the reinforcement must not be buffed again by the recalculation.");
+            }
+
+            // Point 2: the newly deployed unit receives exactly the current synergy bonus on top
+            // of its own base stats (Back grants no lane bonus) - derived from the actual
+            // production formula (base + current synergy), not a hardcoded expected number.
+            BattleCardInstance deployed = controller.PlayerState.Lanes[Lane.Back].Cards[^1];
+            Assert.AreEqual(thirdKnight.Attack + trioBonus.AttackBonus, deployed.Attack,
+                "The newly deployed unit's Attack should be its base Attack plus exactly the current synergy bonus.");
+            Assert.AreEqual(thirdKnight.Health + trioBonus.HealthBonus, deployed.MaxHealth,
+                "The newly deployed unit's Health should be its base Health plus exactly the current synergy bonus.");
+        }
+
+        [Test]
+        public void Reinforcement_OutsideTheWindow_DoesNotChangeSynergyOrUnitState()
+        {
+            BattleController controller = BuildKnightPairLockedForReinforcement(out Card thirdKnight, out _);
+
+            Assert.IsFalse(controller.IsReinforcementWindowOpen,
+                "Setup: the window should be shut immediately after formation locks.");
+
+            SynergyBonus synergyBefore = controller.PlayerSynergy;
+            List<BattleCardInstance> standingUnits = controller.PlayerState.Lanes[Lane.Back].Cards.ToList();
+            List<int> attackBefore = standingUnits.Select(c => c.Attack).ToList();
+            List<int> healthBefore = standingUnits.Select(c => c.MaxHealth).ToList();
+            int handCountBefore = controller.PlayerState.Hand.Count;
+            int laneCardsBefore = controller.PlayerState.Lanes.Values.Sum(l => l.Cards.Count);
+
+            Assert.IsFalse(controller.TryDeployReinforcement(thirdKnight, Lane.Back),
+                "A reinforcement attempted outside the window must be rejected.");
+
+            Assert.AreEqual(synergyBefore.AttackBonus, controller.PlayerSynergy.AttackBonus,
+                "A rejected reinforcement must not change the recorded synergy bonus.");
+            Assert.AreEqual(synergyBefore.HealthBonus, controller.PlayerSynergy.HealthBonus,
+                "A rejected reinforcement must not change the recorded synergy bonus.");
+            for (int i = 0; i < standingUnits.Count; i++)
+            {
+                Assert.AreEqual(attackBefore[i], standingUnits[i].Attack, "A rejected reinforcement must not change unit stats.");
+                Assert.AreEqual(healthBefore[i], standingUnits[i].MaxHealth, "A rejected reinforcement must not change unit stats.");
+            }
+            Assert.AreEqual(handCountBefore, controller.PlayerState.Hand.Count,
+                "A rejected reinforcement must not consume the card from hand.");
+            Assert.AreEqual(laneCardsBefore, controller.PlayerState.Lanes.Values.Sum(l => l.Cards.Count),
+                "A rejected reinforcement must not place a unit on the board.");
+        }
+
+        [Test]
+        public void Reinforcement_OnPlayerSide_DoesNotAlterEnemySynergyOrState()
+        {
+            BattleController controller = BuildKnightPairLockedForReinforcement(out Card thirdKnight, out _);
+            AdvanceToTick(controller, BattleController.ReinforcementTicks[0]);
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match ended before the first reinforcement window opened.");
+            Assert.IsTrue(controller.IsReinforcementWindowOpen, "Setup: the first reinforcement window should be open at this tick.");
+
+            SynergyBonus enemySynergyBefore = controller.EnemySynergy;
+            List<BattleCardInstance> enemyUnits = controller.EnemyState.Lanes.Values.SelectMany(l => l.Cards).ToList();
+            List<int> enemyAttackBefore = enemyUnits.Select(c => c.Attack).ToList();
+            List<int> enemyHealthBefore = enemyUnits.Select(c => c.MaxHealth).ToList();
+            int enemyHandBefore = controller.EnemyState.Hand.Count;
+            int enemyResourceBefore = controller.EnemyState.Resource;
+            int enemyAvatarHealthBefore = controller.EnemyState.AvatarHealth;
+            int enemyLaneCardsBefore = controller.EnemyState.Lanes.Values.Sum(l => l.Cards.Count);
+
+            Assert.IsTrue(controller.TryDeployReinforcement(thirdKnight, Lane.Back),
+                "Setup: the player-side reinforcement should succeed inside the window.");
+
+            Assert.AreEqual(enemySynergyBefore.AttackBonus, controller.EnemySynergy.AttackBonus,
+                "A player-side reinforcement must not touch the enemy's synergy.");
+            Assert.AreEqual(enemySynergyBefore.HealthBonus, controller.EnemySynergy.HealthBonus,
+                "A player-side reinforcement must not touch the enemy's synergy.");
+            for (int i = 0; i < enemyUnits.Count; i++)
+            {
+                Assert.AreEqual(enemyAttackBefore[i], enemyUnits[i].Attack, "A player-side reinforcement must not change any enemy unit's stats.");
+                Assert.AreEqual(enemyHealthBefore[i], enemyUnits[i].MaxHealth, "A player-side reinforcement must not change any enemy unit's stats.");
+            }
+            Assert.AreEqual(enemyHandBefore, controller.EnemyState.Hand.Count,
+                "A player-side reinforcement must not change the enemy's hand.");
+            Assert.AreEqual(enemyResourceBefore, controller.EnemyState.Resource,
+                "A player-side reinforcement must not spend the enemy's Resource.");
+            Assert.AreEqual(enemyAvatarHealthBefore, controller.EnemyState.AvatarHealth,
+                "A player-side reinforcement must not change the enemy's Avatar Health.");
+            Assert.AreEqual(enemyLaneCardsBefore, controller.EnemyState.Lanes.Values.Sum(l => l.Cards.Count),
+                "A player-side reinforcement must not place any unit on the enemy's board.");
+        }
+
+        [Test]
+        public void Reinforcement_ASecondReinforcement_DoesNotStackAnAlreadyAppliedSynergyBonus()
+        {
+            BattleController controller = BuildKnightPairLockedForReinforcement(out Card thirdKnight, out Card otherReinforcement);
+
+            AdvanceToTick(controller, BattleController.ReinforcementTicks[0]);
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match ended before the first reinforcement window opened.");
+            Assert.IsTrue(controller.TryDeployReinforcement(thirdKnight, Lane.Back),
+                "Setup: completing the trio on the first reinforcement should succeed.");
+
+            SynergyBonus trioBonus = controller.PlayerSynergy;
+            List<BattleCardInstance> knightUnits = controller.PlayerState.Lanes[Lane.Back].Cards.ToList();
+            Assert.AreEqual(3, knightUnits.Count, "Setup: three Knights should now be standing after the first reinforcement.");
+            List<int> attackAfterFirstReinforcement = knightUnits.Select(c => c.Attack).ToList();
+            List<int> healthAfterFirstReinforcement = knightUnits.Select(c => c.MaxHealth).ToList();
+
+            AdvanceToTick(controller, BattleController.ReinforcementTicks[1]);
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match ended before the second reinforcement window opened.");
+
+            // The second reinforcement is deliberately not a Knight, so it does not change the
+            // AegisGuard trio's tag count - synergy must recalculate to the SAME trio-level
+            // bonus, not a stronger one, proving repeated reinforcement cannot stack it further.
+            Assert.IsTrue(controller.TryDeployReinforcement(otherReinforcement, Lane.Front),
+                "Setup: a second, unrelated reinforcement should still be accepted inside its own window.");
+
+            Assert.AreEqual(trioBonus.AttackBonus, controller.PlayerSynergy.AttackBonus,
+                "A reinforcement that does not change any tag's count must not change the synergy bonus.");
+            Assert.AreEqual(trioBonus.HealthBonus, controller.PlayerSynergy.HealthBonus,
+                "A reinforcement that does not change any tag's count must not change the synergy bonus.");
+
+            for (int i = 0; i < knightUnits.Count; i++)
+            {
+                Assert.AreEqual(attackAfterFirstReinforcement[i], knightUnits[i].Attack,
+                    "A later reinforcement must not stack a synergy bonus onto units that already received it.");
+                Assert.AreEqual(healthAfterFirstReinforcement[i], knightUnits[i].MaxHealth,
+                    "A later reinforcement must not stack a synergy bonus onto units that already received it.");
+            }
+
+            // The second reinforcement should still receive its own (lane + synergy) treatment
+            // once - proving the rule still fires on later reinforcements rather than being
+            // silently disabled, without hardcoding the private lane-bonus magnitude.
+            BattleCardInstance secondDeployed = controller.PlayerState.Lanes[Lane.Front].Cards[^1];
+            Assert.Greater(secondDeployed.Attack, otherReinforcement.Attack,
+                "The second reinforcement should still receive a real Attack bonus on top of its base stats.");
+        }
+
+        // ---------- Reinforcement resource/card-state atomicity ----------
+        //
+        // TryDeployReinforcement's four guard clauses (window, hand membership, affordability,
+        // lane room) all run before any mutation - Reinforcement_OutsideTheWindow_... already
+        // proves this for the window-closed rejection specifically. These two tests cover the
+        // other two rejection reasons a reinforcement can fail for *inside* an open window:
+        // insufficient Resource and a full target lane. Neither was previously exercised.
+
+        [Test]
+        public void Reinforcement_InsufficientResourceInsideTheWindow_DoesNotChangeStateOrConsumeResource()
+        {
+            BattleController controller = BuildKnightPairLockedForReinforcement(out Card thirdKnight, out _);
+            AdvanceToTick(controller, BattleController.ReinforcementTicks[0]);
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match ended before the first reinforcement window opened.");
+            Assert.IsTrue(controller.IsReinforcementWindowOpen, "Setup: the first reinforcement window should be open at this tick.");
+
+            // Drain Resource below the card's cost - the window is open and the card is in hand,
+            // so affordability is the only thing this rejection can be attributed to.
+            Assert.Greater(thirdKnight.ResourceCost, 0, "Setup invariant: every real card has a positive cost.");
+            controller.PlayerState.Resource = thirdKnight.ResourceCost - 1;
+
+            SynergyBonus synergyBefore = controller.PlayerSynergy;
+            List<BattleCardInstance> standingUnits = controller.PlayerState.Lanes[Lane.Back].Cards.ToList();
+            List<int> attackBefore = standingUnits.Select(c => c.Attack).ToList();
+            List<int> healthBefore = standingUnits.Select(c => c.MaxHealth).ToList();
+            int resourceBefore = controller.PlayerState.Resource;
+            int handCountBefore = controller.PlayerState.Hand.Count;
+            int laneCardsBefore = controller.PlayerState.Lanes.Values.Sum(l => l.Cards.Count);
+
+            Assert.IsFalse(controller.TryDeployReinforcement(thirdKnight, Lane.Back),
+                "A reinforcement the player cannot afford must be rejected even inside an open window.");
+
+            Assert.AreEqual(resourceBefore, controller.PlayerState.Resource, "A rejected reinforcement must not spend Resource.");
+            Assert.AreEqual(handCountBefore, controller.PlayerState.Hand.Count, "A rejected reinforcement must not consume the card from hand.");
+            Assert.AreEqual(laneCardsBefore, controller.PlayerState.Lanes.Values.Sum(l => l.Cards.Count),
+                "A rejected reinforcement must not place a unit on the board.");
+            Assert.AreEqual(synergyBefore.AttackBonus, controller.PlayerSynergy.AttackBonus,
+                "A rejected reinforcement must not change the recorded synergy bonus.");
+            Assert.AreEqual(synergyBefore.HealthBonus, controller.PlayerSynergy.HealthBonus,
+                "A rejected reinforcement must not change the recorded synergy bonus.");
+            for (int i = 0; i < standingUnits.Count; i++)
+            {
+                Assert.AreEqual(attackBefore[i], standingUnits[i].Attack, "A rejected reinforcement must not change unit stats.");
+                Assert.AreEqual(healthBefore[i], standingUnits[i].MaxHealth, "A rejected reinforcement must not change unit stats.");
+            }
+        }
+
+        private BattleController BuildFullFrontLaneLockedForReinforcement(out Card overflowCard)
+        {
+            CardDatabase db = LoadDatabase();
+            List<Card> singleSlot = db.AllCards.Where(c => c.SlotWeight == 1).Take(4).ToList();
+            if (singleSlot.Count < 4) Assert.Ignore("Card pool has fewer than 4 one-slot cards to test with.");
+
+            BattleController controller = CreateController();
+            var economy = new BattleController.MatchEconomy(60, 60, 2000);
+            controller.StartMatch(singleSlot, singleSlot, economy, economy);
+            controller.DealFormationHand(controller.PlayerState);
+
+            for (int i = 0; i < 3; i++)
+            {
+                Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, singleSlot[i], Lane.Front));
+            }
+            Assert.AreEqual(0, controller.PlayerState.Lanes[Lane.Front].FreeSlots,
+                "Setup: three one-slot cards should fill the Front lane.");
+
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            overflowCard = singleSlot[3];
+            return controller;
+        }
+
+        [Test]
+        public void Reinforcement_FullLaneInsideTheWindow_DoesNotChangeStateOrConsumeCard()
+        {
+            BattleController controller = BuildFullFrontLaneLockedForReinforcement(out Card overflowCard);
+            AdvanceToTick(controller, BattleController.ReinforcementTicks[0]);
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match ended before the first reinforcement window opened.");
+            Assert.IsTrue(controller.IsReinforcementWindowOpen, "Setup: the first reinforcement window should be open at this tick.");
+            Assert.AreEqual(0, controller.PlayerState.Lanes[Lane.Front].FreeSlots,
+                "Setup: the Front lane must still be full going into the reinforcement attempt.");
+            Assert.LessOrEqual(overflowCard.ResourceCost, controller.PlayerState.Resource,
+                "Setup invariant: the overflow card must be affordable, so the rejection is attributable to the full lane specifically.");
+
+            SynergyBonus synergyBefore = controller.PlayerSynergy;
+            List<BattleCardInstance> standingUnits = controller.PlayerState.Lanes[Lane.Front].Cards.ToList();
+            List<int> attackBefore = standingUnits.Select(c => c.Attack).ToList();
+            List<int> healthBefore = standingUnits.Select(c => c.MaxHealth).ToList();
+            int resourceBefore = controller.PlayerState.Resource;
+            int handCountBefore = controller.PlayerState.Hand.Count;
+            int laneCardsBefore = controller.PlayerState.Lanes.Values.Sum(l => l.Cards.Count);
+
+            Assert.IsFalse(controller.TryDeployReinforcement(overflowCard, Lane.Front),
+                "A reinforcement into an already-full lane must be rejected even inside an open window.");
+
+            Assert.AreEqual(resourceBefore, controller.PlayerState.Resource, "A rejected reinforcement must not spend Resource.");
+            Assert.AreEqual(handCountBefore, controller.PlayerState.Hand.Count, "A rejected reinforcement must not consume the card from hand.");
+            Assert.AreEqual(laneCardsBefore, controller.PlayerState.Lanes.Values.Sum(l => l.Cards.Count),
+                "A rejected reinforcement must not place a unit on the board.");
+            Assert.AreEqual(synergyBefore.AttackBonus, controller.PlayerSynergy.AttackBonus,
+                "A rejected reinforcement must not change the recorded synergy bonus.");
+            Assert.AreEqual(synergyBefore.HealthBonus, controller.PlayerSynergy.HealthBonus,
+                "A rejected reinforcement must not change the recorded synergy bonus.");
+            for (int i = 0; i < standingUnits.Count; i++)
+            {
+                Assert.AreEqual(attackBefore[i], standingUnits[i].Attack, "A rejected reinforcement must not change unit stats.");
+                Assert.AreEqual(healthBefore[i], standingUnits[i].MaxHealth, "A rejected reinforcement must not change unit stats.");
+            }
         }
 
         [Test]
@@ -1317,6 +1941,147 @@ namespace MyriadOfDragons.Tests
                 "A Novice-tier opponent is meant to be handicapped relative to the player it faces.");
             Assert.Greater(titan.MaxAvatarHealth, titanPlayer.StartingAvatarHealth,
                 "A Titan-tier opponent is meant to out-bulk the player it faces.");
+        }
+
+        // ---------- Command Centre-approved first tutorial battle content ----------
+        //
+        // Legality and forgiving-handicap regression coverage for the approved starter roster
+        // (warrior/Front, novice_knight/Middle, goblin_caster/Back) and enemy deck
+        // (butcher, cursed_soldier, giant_worms, tribal_warrior) at genuine Avatar level 1. This
+        // validates legality and the approved handicap only - it does not simulate or assert
+        // victory probability, which is explicitly out of scope for this slice.
+
+        /// <summary>A genuine new player: every progression track at 1, matching Command Centre's
+        /// approved baseline rather than any of the existing mid-test profiles this file already
+        /// uses elsewhere (which deliberately keep Castle/Barracks above 1).</summary>
+        private static PlayerEmpireData NewPlayerEmpireAtLevelOne()
+        {
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel: 1, castleLevel: 1, barracksLevel: 1);
+            empire.InitializeTCGModifiers();
+            return empire;
+        }
+
+        [Test]
+        public void TutorialRoster_AllSevenApprovedCardIdsResolveFromCardDatabase()
+        {
+            CardDatabase db = LoadDatabase();
+            string[] approvedIds =
+            {
+                "warrior", "novice_knight", "goblin_caster",
+                "butcher", "cursed_soldier", "giant_worms", "tribal_warrior",
+            };
+
+            foreach (string id in approvedIds)
+            {
+                Assert.IsNotNull(db.GetCard(id), $"Approved tutorial card id '{id}' must resolve from the real CardDatabase.");
+            }
+        }
+
+        [Test]
+        public void TutorialRoster_StarterCardsRetainTheApprovedClasses()
+        {
+            CardDatabase db = LoadDatabase();
+
+            Assert.AreEqual(CardClass.Warrior, db.GetCard("warrior").Class,
+                "warrior must remain Warrior class for the approved Front placement.");
+            Assert.AreEqual(CardClass.Knight, db.GetCard("novice_knight").Class,
+                "novice_knight must remain Knight class for Taunt and the approved Middle placement.");
+            Assert.AreEqual(CardClass.Strategist, db.GetCard("goblin_caster").Class,
+                "goblin_caster must remain Strategist class for the approved Back placement.");
+        }
+
+        [Test]
+        public void TutorialRoster_StarterFormationDeploysLegallyWithExpectedLaneAndClassEffects()
+        {
+            CardDatabase db = LoadDatabase();
+            Card warrior = db.GetCard("warrior");
+            Card noviceKnight = db.GetCard("novice_knight");
+            Card goblinCaster = db.GetCard("goblin_caster");
+            Assert.NotNull(warrior, "Setup: warrior must resolve.");
+            Assert.NotNull(noviceKnight, "Setup: novice_knight must resolve.");
+            Assert.NotNull(goblinCaster, "Setup: goblin_caster must resolve.");
+
+            PlayerEmpireData playerEmpire = NewPlayerEmpireAtLevelOne();
+            BattleController controller = CreateController();
+            var deck = new List<Card> { warrior, noviceKnight, goblinCaster };
+            var economy = new BattleController.MatchEconomy(
+                playerEmpire.ResourceCap, playerEmpire.Turn1Resource, playerEmpire.StartingAvatarHealth);
+            controller.StartMatch(deck, deck, economy, economy);
+            controller.DealFormationHand(controller.PlayerState);
+
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, warrior, Lane.Front),
+                "The approved starter Formation must be legally deployable: warrior to Front.");
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, noviceKnight, Lane.Middle),
+                "The approved starter Formation must be legally deployable: novice_knight to Middle.");
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, goblinCaster, Lane.Back),
+                "The approved starter Formation must be legally deployable: goblin_caster to Back.");
+            Assert.IsTrue(controller.ConfirmFormation(), "The approved starter Formation must lock legally.");
+
+            // The three approved cards carry three different synergy tags (Warrior/Andras,
+            // Knight, Strategist), none reaching FormationSynergy's pair/trio threshold - so
+            // every stat increase asserted below comes from the lane bonus alone, not synergy,
+            // keeping each assertion attributable to exactly the mechanic it claims to test.
+            BattleCardInstance frontUnit = controller.PlayerState.Lanes[Lane.Front].Cards[0];
+            BattleCardInstance middleUnit = controller.PlayerState.Lanes[Lane.Middle].Cards[0];
+
+            Assert.Greater(frontUnit.Attack, warrior.Attack,
+                "Front placement must increase the deployed unit's live Attack over its base Attack.");
+            Assert.Greater(middleUnit.MaxHealth, noviceKnight.Health,
+                "Middle placement must increase the deployed unit's live MaxHealth over its base Health.");
+            Assert.IsTrue(middleUnit.HasTaunt, "novice_knight must retain Taunt in the approved Middle placement.");
+            Assert.Greater(BattleController.BackLaneEnergy(controller.PlayerState), 0,
+                "The locked Back placement must produce positive Back-lane Energy.");
+        }
+
+        [Test]
+        public void TutorialEnemyDeck_AllFourCardsAlwaysReachTheOpeningHandRegardlessOfShuffleOrder()
+        {
+            CardDatabase db = LoadDatabase();
+            var enemyDeck = new List<Card>
+            {
+                db.GetCard("butcher"), db.GetCard("cursed_soldier"),
+                db.GetCard("giant_worms"), db.GetCard("tribal_warrior"),
+            };
+            Assert.That(enemyDeck, Has.All.Not.Null, "All four approved enemy card ids must resolve.");
+
+            // PlayerBattleState shuffles with an unseeded System.Random (see its own Shuffle
+            // method) - many independent constructions exercise many different concrete orderings
+            // rather than trusting one lucky run, without ever asserting a probability: every
+            // single trial must pass, because a deck no larger than StartingHandSize is drawn to
+            // completion regardless of the order it was shuffled into.
+            for (int trial = 0; trial < 25; trial++)
+            {
+                var side = new PlayerBattleState(enemyDeck, resourceCap: 20, turn1Resource: 20, startingAvatarHealth: 170);
+
+                Assert.AreEqual(enemyDeck.Count, side.Hand.Count,
+                    "A deck no larger than StartingHandSize must be drawn into the opening hand in full, regardless of shuffle order.");
+                foreach (Card card in enemyDeck)
+                {
+                    Assert.IsTrue(side.Hand.Contains(card),
+                        $"'{card.Id}' must be present in the opening hand regardless of shuffle order.");
+                }
+                Assert.AreEqual(0, side.DrawPile.Count, "The deck should be fully drawn, leaving nothing left to draw later.");
+            }
+        }
+
+        [Test]
+        public void TutorialEncounter_NoviceScalingAtLevelOneIsMoreForgivingThanThePlayer()
+        {
+            PlayerEmpireData playerEmpire = NewPlayerEmpireAtLevelOne();
+            var scaling = new SoloAIScalingSystem();
+
+            Assert.AreEqual(AIDifficultyTier.Novice, scaling.DetermineTier(playerEmpire.AvatarLevel),
+                "A genuine level-1 new player must face the Novice difficulty tier.");
+
+            AIBattleProfile enemy = scaling.GenerateAIOpponent(playerEmpire, AIArchetype.Balanced);
+
+            // Relationships against the player's own live-computed values, not copied literals -
+            // the approved handicap ratios can be retuned without breaking this assertion's intent.
+            Assert.Less(enemy.MaxAvatarHealth, playerEmpire.StartingAvatarHealth,
+                "The approved Novice-tier enemy must have less maximum Avatar Health than the level-1 player.");
+            Assert.LessOrEqual(enemy.StartingResourceCap, playerEmpire.ResourceCap,
+                "The approved Novice-tier enemy must not have more starting Resource than the level-1 player.");
         }
 
         [Test]
