@@ -601,54 +601,98 @@ namespace MyriadOfDragons.Tests
             Assert.Greater(bootstrap.HandCardCount, 0, "Expected the hand to still render cards after End Turn.");
         }
 
-        // ---------- New-player Avatar-level seeding (GameBootstrap.SeedIfNewProfile) ----------
+        // ---------- New-player progression seeding (GameBootstrap.SeedIfNewProfile) ----------
         //
         // NEW-PLAYER LEVEL-1 CORRECTION, 2026-08-13: a genuinely new profile (SaveSystem.Load()
-        // found no file on disk, LoadStatus.NewGame) now starts at Avatar level 1 instead of the
-        // old mid-test seed of 25. Existing and migrated profiles never reach SeedNewProfile at
-        // all - LoadStatus is derived purely from disk state, never from anything client-supplied
-        // - so these tests exercise GameBootstrap.SeedIfNewProfileForTests directly against
-        // hand-built profiles rather than through Initialize(), since EditMode construction never
-        // goes through SaveSystem.Load() and therefore never naturally produces LoadStatus.NewGame.
+        // found no file on disk, LoadStatus.NewGame) starts every progression track - Avatar,
+        // Castle and Barracks - at level 1 instead of the old mid-test seed (25/15/25). Gate is
+        // covered too, though SeedNewProfile never sets it explicitly: PlayerProfile.gateLevel
+        // already defaults to 1 on its own. Existing, migrated and recovered profiles never reach
+        // SeedNewProfile at all - LoadStatus is derived purely from disk state, never from
+        // anything client-supplied - so these tests exercise GameBootstrap.SeedIfNewProfileForTests
+        // directly against hand-built profiles rather than through Initialize(), since EditMode
+        // construction never goes through SaveSystem.Load() and therefore never naturally produces
+        // LoadStatus.NewGame.
 
         [Test]
-        public void SeedIfNewProfile_GenuinelyNewProfile_StartsAvatarAtLevelOne()
+        public void SeedIfNewProfile_GenuinelyNewProfile_SeedsEveryProgressionTrackAtLevelOne()
         {
             var profile = new PlayerProfile { LoadStatus = SaveLoadStatus.NewGame };
 
             GameBootstrap.SeedIfNewProfileForTests(profile);
 
-            Assert.AreEqual(1, profile.avatarLevel,
-                "A profile the save system identified as genuinely new (LoadStatus.NewGame) must start at Avatar level 1.");
+            Assert.AreEqual(1, profile.avatarLevel, "A genuinely new profile must start at Avatar level 1.");
+            Assert.AreEqual(1, profile.castleLevel, "A genuinely new profile must start at Castle level 1.");
+            Assert.AreEqual(1, profile.barracksLevel, "A genuinely new profile must start at Barracks level 1.");
+            Assert.AreEqual(1, profile.gateLevel,
+                "A genuinely new profile must start at Gate level 1 - satisfied by PlayerProfile's own field " +
+                "default rather than an explicit SeedNewProfile assignment, since nothing ever raises it.");
         }
 
         [Test]
-        public void SeedIfNewProfile_ExistingProfile_RetainsItsSavedAvatarLevel()
+        public void SeedIfNewProfile_ExistingProfile_RetainsItsSavedCastleAndBarracksLevels()
         {
-            var profile = new PlayerProfile { LoadStatus = SaveLoadStatus.Loaded, avatarLevel = 47 };
+            var profile = new PlayerProfile
+            {
+                LoadStatus = SaveLoadStatus.Loaded,
+                avatarLevel = 47,
+                castleLevel = 22,
+                barracksLevel = 18,
+                gateLevel = 9,
+            };
 
             GameBootstrap.SeedIfNewProfileForTests(profile);
 
-            Assert.AreEqual(47, profile.avatarLevel,
-                "A profile the save system loaded from an existing file (LoadStatus.Loaded) must never be re-seeded.");
+            Assert.AreEqual(47, profile.avatarLevel, "A profile loaded from an existing file must never be re-seeded.");
+            Assert.AreEqual(22, profile.castleLevel, "A profile loaded from an existing file must never be re-seeded.");
+            Assert.AreEqual(18, profile.barracksLevel, "A profile loaded from an existing file must never be re-seeded.");
+            Assert.AreEqual(9, profile.gateLevel, "A profile loaded from an existing file must never be re-seeded.");
         }
 
         [Test]
-        public void SeedIfNewProfile_MigratedProfile_RetainsItsMigratedAvatarLevel()
+        public void SeedIfNewProfile_MigratedProfile_RetainsItsMigratedCastleAndBarracksLevels()
         {
             // Simulates exactly what SaveSystem.Deserialize() does for a real file on disk:
             // SaveMigration.Normalize() repairs the parsed profile (e.g. a null list left by an
             // older save shape), then LoadStatus is set to Loaded - never NewGame - regardless of
             // what Normalize() had to repair.
-            var migrated = new PlayerProfile { avatarLevel = 33, cardCollection = null };
+            var migrated = new PlayerProfile
+            {
+                avatarLevel = 33,
+                castleLevel = 27,
+                barracksLevel = 19,
+                cardCollection = null,
+            };
             SaveMigration.Normalize(migrated);
             migrated.LoadStatus = SaveLoadStatus.Loaded;
             Assert.NotNull(migrated.cardCollection, "Setup check: Normalize() should have repaired the null list.");
 
             GameBootstrap.SeedIfNewProfileForTests(migrated);
 
-            Assert.AreEqual(33, migrated.avatarLevel,
-                "A migrated profile's Avatar level must survive the new-profile seeding gate untouched.");
+            Assert.AreEqual(33, migrated.avatarLevel, "A migrated profile's Avatar level must survive the seeding gate untouched.");
+            Assert.AreEqual(27, migrated.castleLevel, "A migrated profile's Castle level must survive the seeding gate untouched.");
+            Assert.AreEqual(19, migrated.barracksLevel, "A migrated profile's Barracks level must survive the seeding gate untouched.");
+        }
+
+        [Test]
+        public void SeedIfNewProfile_RecoveredProfile_RetainsItsCastleAndBarracksLevels()
+        {
+            // A corruption-recovery load (SaveSystem.Deserialize/Load on unparseable or unreadable
+            // JSON) sets LoadStatus.RecoveredFromCorruption, never NewGame - proves the seeding
+            // gate's == comparison is exact and does not also treat "recovered" as "new".
+            var recovered = new PlayerProfile
+            {
+                LoadStatus = SaveLoadStatus.RecoveredFromCorruption,
+                avatarLevel = 14,
+                castleLevel = 11,
+                barracksLevel = 8,
+            };
+
+            GameBootstrap.SeedIfNewProfileForTests(recovered);
+
+            Assert.AreEqual(14, recovered.avatarLevel, "A recovered profile must never be re-seeded.");
+            Assert.AreEqual(11, recovered.castleLevel, "A recovered profile must never be re-seeded.");
+            Assert.AreEqual(8, recovered.barracksLevel, "A recovered profile must never be re-seeded.");
         }
 
         [Test]
@@ -697,6 +741,41 @@ namespace MyriadOfDragons.Tests
                 "formula, giving it strictly higher starting Health than an equivalent profile past the taper " +
                 "window - otherwise the taper PlayerEmpireData already implements for exactly this case never " +
                 "actually fires for a real new player.");
+        }
+
+        [Test]
+        public void SeedIfNewProfile_NewProfile_DeckSlotsResourceCapAndCastleHealthSitAtTheBaseline()
+        {
+            var newProfile = new PlayerProfile { LoadStatus = SaveLoadStatus.NewGame };
+            GameBootstrap.SeedIfNewProfileForTests(newProfile);
+            newProfile.ApplyDataToEmpire();
+
+            // A higher Castle/Barracks profile at the SAME Avatar level, so the onboarding taper
+            // (Avatar-driven) contributes identically to both sides and cannot be mistaken for a
+            // Castle/Barracks effect - any difference below is attributable to Castle/Barracks alone.
+            var higherBuildingsProfile = new PlayerProfile
+            {
+                LoadStatus = SaveLoadStatus.Loaded,
+                avatarLevel = newProfile.avatarLevel,
+                castleLevel = 10,
+                barracksLevel = 10,
+            };
+            GameBootstrap.SeedIfNewProfileForTests(higherBuildingsProfile); // no-op: LoadStatus isn't NewGame
+            higherBuildingsProfile.ApplyDataToEmpire();
+
+            Assert.AreEqual(1, newProfile.castleLevel, "Setup check: expected the new-profile seed to be Castle level 1.");
+            Assert.AreEqual(1, newProfile.barracksLevel, "Setup check: expected the new-profile seed to be Barracks level 1.");
+
+            Assert.Less(newProfile.Empire.DeckSlotCount, higherBuildingsProfile.Empire.DeckSlotCount,
+                "A Barracks level-1 new profile must sit at the base deck-slot count, strictly below a profile " +
+                "with a higher Barracks level - the deck-capacity formula itself is untouched by this fix.");
+            Assert.Less(newProfile.Empire.ResourceCap, higherBuildingsProfile.Empire.ResourceCap,
+                "A Castle level-1 new profile must sit at the base Resource cap, strictly below a profile with " +
+                "a higher Castle level - the Resource-cap formula itself is untouched by this fix.");
+            Assert.Less(newProfile.Empire.StartingAvatarHealth, higherBuildingsProfile.Empire.StartingAvatarHealth,
+                "A Castle level-1 new profile's Castle Health contribution must sit at its base (zero bonus), " +
+                "strictly below a profile with a higher Castle level, even though both profiles share the same " +
+                "onboarding taper - proving the taper and the Castle contribution are independent additive terms.");
         }
 
         [Test]

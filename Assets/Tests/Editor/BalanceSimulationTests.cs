@@ -669,5 +669,76 @@ namespace MyriadOfDragons.Tests
                 "to break the mutual-wipe stalemate; if it is making matches less decisive, the " +
                 "premise is wrong and it should not be adopted.");
         }
+
+        /// <summary>
+        /// NEW-PROFILE CASTLE/BARRACKS LEVEL-1 CORRECTION, 2026-08-13: confirms the approved first
+        /// tutorial encounter - the same starter roster (warrior/Front, novice_knight/Middle,
+        /// goblin_caster/Back) and enemy deck (butcher, cursed_soldier, giant_worms, tribal_warrior)
+        /// BattleLogicTests' TutorialRoster_*/TutorialEnemyDeck_* tests already cover for legality -
+        /// still legally forms AND resolves under the real combat tick cap now that a genuine new
+        /// profile's deck/Resource/Health baseline is derived from Castle 1 / Barracks 1 rather than
+        /// the old mid-test seed (Castle 15 / Barracks 25). Drives the real BattleController end to
+        /// end, the same "simulate in-engine, not externally" discipline as every other test in this
+        /// file - the smaller Resource cap and Health pool are exactly the kind of constraint an
+        /// external model has silently ignored before (see this file's own class comment). Asserts
+        /// only legality and existing playability boundaries (the tick cap already in force) - no
+        /// new balance target is introduced here.
+        /// </summary>
+        [Test]
+        public void Balance_ApprovedTutorialEncounter_FormsAndResolvesAtTheCastleOneBarracksOneBaseline()
+        {
+            CardDatabase db = LoadDatabase();
+            Card warrior = db.GetCard("warrior");
+            Card noviceKnight = db.GetCard("novice_knight");
+            Card goblinCaster = db.GetCard("goblin_caster");
+            var playerDeck = new List<Card> { warrior, noviceKnight, goblinCaster };
+            var enemyDeck = new List<Card>
+            {
+                db.GetCard("butcher"), db.GetCard("cursed_soldier"),
+                db.GetCard("giant_worms"), db.GetCard("tribal_warrior"),
+            };
+            Assert.That(playerDeck, Has.All.Not.Null, "Setup: all three approved starter card ids must resolve.");
+            Assert.That(enemyDeck, Has.All.Not.Null, "Setup: all four approved enemy card ids must resolve.");
+
+            var playerEmpire = new PlayerEmpireData();
+            playerEmpire.SetLevelsForTesting(avatarLevel: 1, castleLevel: 1, barracksLevel: 1);
+            playerEmpire.InitializeTCGModifiers();
+
+            var economy = new BattleController.MatchEconomy(
+                playerEmpire.ResourceCap, playerEmpire.Turn1Resource, playerEmpire.StartingAvatarHealth);
+
+            BattleController controller = CreateController();
+            controller.StartMatch(playerDeck, enemyDeck, economy, economy);
+            controller.DealFormationHand(controller.PlayerState);
+            controller.DealFormationHand(controller.EnemyState);
+
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, warrior, Lane.Front),
+                "The approved starter Formation must still be legally affordable at the Castle 1 / Barracks 1 Resource cap.");
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, noviceKnight, Lane.Middle),
+                "The approved starter Formation must still be legally affordable at the Castle 1 / Barracks 1 Resource cap.");
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, goblinCaster, Lane.Back),
+                "The approved starter Formation must still be legally affordable at the Castle 1 / Barracks 1 Resource cap.");
+
+            SimpleAIOpponent.TakeTurn(controller, AIArchetype.Balanced);
+            Assert.IsTrue(controller.ConfirmFormation(),
+                "The approved starter Formation must still lock legally at the Castle 1 / Barracks 1 baseline.");
+
+            int ticksRun = 0;
+            while (controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+                ticksRun++;
+                Assert.LessOrEqual(ticksRun, BattleController.MaxCombatTicks,
+                    "The approved tutorial encounter must resolve within the existing combat tick cap, not hang past it.");
+            }
+
+            Assert.AreEqual(BattlePhase.Resolved, controller.Phase,
+                "The approved tutorial encounter must reach a Resolved phase within the existing tick cap - " +
+                "the smaller Castle 1 / Barracks 1 deck/Resource/Health baseline must not leave it stuck mid-combat.");
+
+            Debug.Log($"[TutorialEncounter] resolved in {controller.TickCount} of {BattleController.MaxCombatTicks} ticks " +
+                      $"(ResourceCap={playerEmpire.ResourceCap}, DeckSlots={playerEmpire.DeckSlotCount}, " +
+                      $"StartingHealth={playerEmpire.StartingAvatarHealth}).");
+        }
     }
 }

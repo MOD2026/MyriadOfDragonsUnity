@@ -337,15 +337,18 @@ namespace MyriadOfDragons.UI
 
         // What level a brand-new player starts at. Before the save system existed, GameBootstrap
         // hardcoded these same three numbers as a "mid-range test profile" and every launch began
-        // there. RESOLVED 2026-08-13 (Command Centre decision): a genuinely new player starts at
-        // Avatar level 1, not mid-game - the onboarding Health taper in
-        // PlayerEmpireData.OnboardingBonusFor exists precisely to keep a level-1 match from being
-        // too short for a spell to ever be cast, so it no longer needs a mid-range Avatar level to
-        // stand in for that fix. Castle/Barracks are left at their existing seed values - only
-        // Avatar level was in scope for this decision.
+        // there. RESOLVED 2026-08-13 (Command Centre decision, extended same day to cover Castle
+        // and Barracks): a genuinely new player starts at Avatar/Castle/Barracks level 1, not
+        // mid-game - the onboarding Health taper in PlayerEmpireData.OnboardingBonusFor exists
+        // precisely to keep a level-1 match from being too short for a spell to ever be cast, so
+        // none of the three tracks need a mid-range value to stand in for that fix anymore. Level
+        // 0/locked was considered and rejected: PlayerProfile (FROZEN) has no representation for
+        // an unbuilt building, so 1 is the lowest state these fields can hold. Gate is not listed
+        // here because SeedNewProfile never touched it - PlayerProfile.gateLevel already defaults
+        // to 1 on its own, which already satisfies the same decision for that fourth track.
         private const int NewProfileAvatarLevel = 1;
-        private const int NewProfileCastleLevel = 15;
-        private const int NewProfileBarracksLevel = 25;
+        private const int NewProfileCastleLevel = 1;
+        private const int NewProfileBarracksLevel = 1;
 
         /// <summary>
         /// Seeds a profile the save system identified as genuinely new (LoadStatus.NewGame, set
