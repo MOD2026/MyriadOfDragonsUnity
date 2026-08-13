@@ -2052,6 +2052,27 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void LaneBattleResolver_ElementalCycleCoversAllThreePairsBothDirections()
+        {
+            // Only one of the three counter pairs (Ktini > Andras) had ever been directly
+            // asserted, and only as a setup check inside a different test. This pins down the
+            // full documented cycle (Ktini > Andras > Pnevmas > Ktini) on its own: all three
+            // counter pairs, both directions, plus same-element.
+            Assert.IsTrue(LaneBattleResolver.Counters(CardElement.Ktini, CardElement.Andras));
+            Assert.IsTrue(LaneBattleResolver.Counters(CardElement.Andras, CardElement.Pnevmas));
+            Assert.IsTrue(LaneBattleResolver.Counters(CardElement.Pnevmas, CardElement.Ktini));
+
+            Assert.IsFalse(LaneBattleResolver.Counters(CardElement.Andras, CardElement.Ktini), "The cycle must not run both ways.");
+            Assert.IsFalse(LaneBattleResolver.Counters(CardElement.Pnevmas, CardElement.Andras), "The cycle must not run both ways.");
+            Assert.IsFalse(LaneBattleResolver.Counters(CardElement.Ktini, CardElement.Pnevmas), "The cycle must not run both ways.");
+
+            foreach (CardElement element in System.Enum.GetValues(typeof(CardElement)))
+            {
+                Assert.IsFalse(LaneBattleResolver.Counters(element, element), "An element must never counter itself.");
+            }
+        }
+
+        [Test]
         public void SlotWeighting_HighRarityTakesTwoSlots()
         {
             var lowData = new CardData { id = "sw_low", name = "Low", art_file = "x.png", element = "Andras", type = "warrior", rarity = 4 };
