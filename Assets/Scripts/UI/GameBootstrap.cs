@@ -422,15 +422,19 @@ namespace MyriadOfDragons.UI
         /// when that happens.
         /// </summary>
         /// <summary>
-        /// useRecommendedDeck picks the player's deck with CurveAwareDeck() (a real cost-curve
-        /// heuristic - see that method) instead of the default rarity-fair split - the concrete
-        /// stand-in for the reference UI's "Recommended Lineup" button, given there's still no
-        /// full deck-builder to recommend a selection *from*. Both this and "Reset Lineup"
-        /// (useRecommendedDeck: false) restart the current match immediately with a freshly
-        /// drawn deck at the player's current level - the only two lineup actions that are
-        /// actually meaningful without a deck-builder UI to pick specific cards in.
+        /// useRecommendedDeck picks the player's deck with BuildStrongestDeck (see that method)
+        /// instead of the default path - the concrete stand-in for the reference UI's
+        /// "Recommended Lineup" button.
+        ///
+        /// allowSavedDeck governs the default (useRecommendedDeck: false) path only:
+        /// true (initial boot, "Play Again") reuses the player's last-confirmed
+        /// DeckBuilderPresenter deck when one resolves to at least one real card, falling back
+        /// to a fresh rarity-balanced deck otherwise. false ("Reset Lineup" specifically)
+        /// bypasses the saved deck entirely and always generates a fresh random one - "Reset"
+        /// must keep meaning what its own name and the player-facing UI already promise, not
+        /// silently become "reload my saved deck again" once one exists to reload.
         /// </summary>
-        private void StartNewMatch(bool useRecommendedDeck = false)
+        private void StartNewMatch(bool useRecommendedDeck = false, bool allowSavedDeck = true)
         {
             List<Card> fullPool = _cardDatabase.AllCards.ToList();
             List<Card> playerDeck;
@@ -450,7 +454,23 @@ namespace MyriadOfDragons.UI
             }
             else
             {
-                (playerDeck, enemyDeck) = BuildBalancedDecks(fullPool, deckSize, deckSize);
+                playerDeck = allowSavedDeck ? BuildSavedPlayerDeck(deckSize) : new List<Card>();
+                if (playerDeck.Count == 0)
+                {
+                    (playerDeck, enemyDeck) = BuildBalancedDecks(fullPool, deckSize, deckSize);
+                }
+                else
+                {
+                    // A valid saved deck smaller than the current deckSize (the player leveled
+                    // up since last confirming it in Deck Builder) keeps every chosen card and
+                    // is padded out, not discarded or fielded understrength - see
+                    // PadDeckWithUniqueRandomCards' own comment.
+                    if (playerDeck.Count < deckSize)
+                    {
+                        playerDeck = PadDeckWithUniqueRandomCards(playerDeck, fullPool, deckSize);
+                    }
+                    (_, enemyDeck) = BuildBalancedDecks(fullPool, 0, deckSize);
+                }
             }
 
             // Re-derived every match rather than once at startup, so the level gained from the
@@ -554,6 +574,74 @@ namespace MyriadOfDragons.UI
                     _profile.cardCollection.Add(cardId);
                 }
             }
+        }
+
+        /// <summary>
+        /// Resolves the player's last-confirmed deck (DeckBuilderPresenter.ConfirmDeck's own
+        /// write into activeDeckCardIds) back into real Card references. Deduplicates on the
+        /// way in - DeckBuilderPresenter's own save path already can't produce a duplicate
+        /// (CanConfirmDeck rejects one), but this reads the same field a hand-edited or
+        /// corrupted save could still put one into, and should not be weaker than the writer.
+        /// Invalid/missing ids (stale card data, corruption) are skipped, not errored.
+        /// </summary>
+        private List<Card> BuildSavedPlayerDeck(int deckSize)
+        {
+            var savedDeck = new List<Card>();
+            if (_profile == null || _profile.activeDeckCardIds == null)
+            {
+                return savedDeck;
+            }
+
+            var seenIds = new HashSet<string>();
+            foreach (string cardId in _profile.activeDeckCardIds)
+            {
+                if (string.IsNullOrEmpty(cardId) || !seenIds.Add(cardId))
+                {
+                    continue;
+                }
+
+                Card card = _cardDatabase != null ? _cardDatabase.GetCard(cardId) : null;
+                if (card == null)
+                {
+                    continue;
+                }
+
+                savedDeck.Add(card);
+                if (deckSize > 0 && savedDeck.Count >= deckSize)
+                {
+                    break;
+                }
+            }
+
+            return savedDeck;
+        }
+
+        /// <summary>
+        /// Command Centre decision: a valid saved deck that has fallen behind the player's
+        /// current DeckSlotCount (they leveled up since last confirming it in Deck Builder)
+        /// must never be discarded or fielded understrength - every card the player chose is
+        /// kept, and only the newly-earned slots are filled, with cards not already in the
+        /// deck so the result still has no duplicates.
+        /// </summary>
+        private static List<Card> PadDeckWithUniqueRandomCards(List<Card> savedDeck, List<Card> fullPool, int deckSize)
+        {
+            var padded = new List<Card>(savedDeck);
+            if (padded.Count >= deckSize)
+            {
+                return padded;
+            }
+
+            var existingIds = new HashSet<string>(padded.Select(c => c.Id));
+            List<Card> candidates = fullPool.Where(c => !existingIds.Contains(c.Id)).ToList();
+            Shuffle(candidates);
+
+            foreach (Card candidate in candidates)
+            {
+                if (padded.Count >= deckSize) break;
+                padded.Add(candidate);
+            }
+
+            return padded;
         }
 
         /// <summary>
@@ -2798,6 +2886,10 @@ namespace MyriadOfDragons.UI
         /// same thing the Recommended button does.</summary>
         public void UseRecommendedLineupForTests() => OnLineupButtonPressed(useRecommendedDeck: true);
 
+        /// <summary>Exposed for tests: restarts the match on the "Reset Lineup" path (fresh
+        /// random deck, saved deck bypassed), the same thing the Reset button does.</summary>
+        public void ResetLineupForTests() => OnLineupButtonPressed(useRecommendedDeck: false);
+
         private void OnCardDetailActionPressed()
         {
             if (_previewedCard == null) return;
@@ -2856,6 +2948,11 @@ namespace MyriadOfDragons.UI
             RefreshAll();
         }
 
+        /// <summary>Exposed for tests: restarts the match on the "Play Again" path (ordinary
+        /// replay, saved deck allowed - see StartNewMatch's own comment), the same thing the
+        /// Play Again button does.</summary>
+        public void PlayAgainForTests() => OnPlayAgainPressed();
+
         /// <summary>
         /// The battle/metagame handoff (2026-08-06): hides this entire battle screen so a
         /// non-battle system (campaign map, home screen) can take over. Deliberately does NOT
@@ -2895,7 +2992,12 @@ namespace MyriadOfDragons.UI
         {
             _resultOverlay.SetActive(false);
             _selectedCard = null;
-            StartNewMatch(useRecommendedDeck);
+            // allowSavedDeck: false - "Reset Lineup" (useRecommendedDeck: false, from here) must
+            // stay a true fresh random reset, matching its own name and the player-facing UI;
+            // it must never silently become "reload my saved deck" once one exists. Has no
+            // effect on the useRecommendedDeck: true ("Recommended") path, which never reads
+            // the saved deck regardless.
+            StartNewMatch(useRecommendedDeck, allowSavedDeck: false);
 
             if (useRecommendedDeck)
             {
