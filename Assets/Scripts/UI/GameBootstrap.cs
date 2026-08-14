@@ -267,6 +267,20 @@ namespace MyriadOfDragons.UI
         /// </summary>
         public bool IsTutorialMatch { get; private set; }
 
+        /// <summary>
+        /// Fires after OnReturnToCityPressed has hidden the battle canvas - the other half of
+        /// the battle/metagame handoff OnReturnToCityPressed's own comment already flagged as
+        /// missing (2026-08-06: "re-showing it is the other half of that same open question").
+        /// Payload-free and generic on purpose: this file should not need to know HomePagePresenter
+        /// exists, only that *something* wants to know when a return-to-city has happened, the
+        /// same reasoning BattleController.OnMatchCompleted already follows for match results.
+        /// Reward/progression are already fully resolved before this ever fires (HandleMatchEnded
+        /// and HomePagePresenter.HandleMatchCompleted both run at match resolution, well before
+        /// the player reaches this button) - this event carries no data and must never be given
+        /// any reason to touch either.
+        /// </summary>
+        public event System.Action OnReturnToCityRequested;
+
         private void Awake() => Initialize();
 
         public void Initialize()
@@ -2850,17 +2864,23 @@ namespace MyriadOfDragons.UI
         /// everything a listener needs. This button's only job is getting the battle UI itself
         /// out of the way once the player is done looking at the result.
         ///
-        /// Only half of the handoff this project actually needs: nothing yet reverses this (there
-        /// is no confirmed way for a home/city screen to ask for a battle to start - see
-        /// HomePagePresenter.OnToBattleClicked, which today just hides itself and logs, without
-        /// instantiating GameBootstrap at all). Hiding the canvas here is safe and self-contained
-        /// regardless of how that gets resolved; re-showing it is the other half of that same
-        /// open question.
+        /// RESOLVED 2026-08-15: OnReturnToCityRequested (see its own comment) is the other half
+        /// of this handoff this comment used to flag as missing - fired here, after the canvas
+        /// is already hidden, so any listener's own show-my-screen-again logic runs against a
+        /// battle screen that's already out of the way.
         /// </summary>
         private void OnReturnToCityPressed()
         {
             _canvasTransform.gameObject.SetActive(false);
+            OnReturnToCityRequested?.Invoke();
         }
+
+        /// <summary>Exposed for tests: the result overlay's "Return to City" button calls the
+        /// private OnReturnToCityPressed() directly - EditMode tests have no way to click a UI
+        /// Button, so this is the only way to exercise the real handler (and the real
+        /// OnReturnToCityRequested firing) rather than reimplementing its behavior in a test.
+        /// Same narrow, ...ForTests()-suffixed pattern as UseRecommendedLineupForTests below.</summary>
+        public void ReturnToCityForTests() => OnReturnToCityPressed();
 
         /// <summary>The other half of the battle/metagame handoff: lets a non-battle system
         /// (home screen, campaign map) show this battle screen again via <see cref="Instance"/>

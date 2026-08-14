@@ -12,6 +12,7 @@ public class HomePagePresenter : MonoBehaviour
     private GameObject homeCanvasObj;
     private GameObject dialogueOverlayObj;
     private BattleController _battleController;
+    private GameBootstrap _boundGameBootstrap;
 
     // HUD Text References
     private Text goldHudText;
@@ -63,6 +64,10 @@ public class HomePagePresenter : MonoBehaviour
 
         // Subscribe to Claude's Battle Outcome Event
         BindBattleControllerForTests(FindAnyObjectByType<BattleController>());
+
+        // Battle/metagame return handoff: restores Home once GameBootstrap's "Return to City"
+        // has hidden the battle canvas - see BindGameBootstrapForTests' own comment.
+        BindGameBootstrapForTests(GameBootstrap.Instance);
     }
 
     /// <summary>Exposed for tests: Start() never fires in EditMode (no Play Mode lifecycle),
@@ -88,6 +93,37 @@ public class HomePagePresenter : MonoBehaviour
     /// just built, so a test can inspect it without a broader production accessor.</summary>
     public GameObject HomeCanvasObjectForTests => homeCanvasObj;
 
+    /// <summary>Exposed for tests: Start() never fires in EditMode, so this is the only way a
+    /// test can subscribe HandleReturnToCityRequested to a real GameBootstrap and exercise the
+    /// real return-to-city handoff (GameBootstrap.ReturnToCityForTests() -&gt;
+    /// OnReturnToCityRequested -&gt; this). HandleReturnToCityRequested itself stays private;
+    /// only this subscription step is exposed - same pattern as BindBattleControllerForTests.
+    /// Stores the bound instance (rather than always reading the static GameBootstrap.Instance
+    /// in OnDestroy) so unsubscription always targets the exact instance subscribed to, even if
+    /// a later test run left a different GameBootstrap as the current Instance.</summary>
+    public void BindGameBootstrapForTests(GameBootstrap bootstrap)
+    {
+        _boundGameBootstrap = bootstrap;
+        if (_boundGameBootstrap != null)
+        {
+            _boundGameBootstrap.OnReturnToCityRequested += HandleReturnToCityRequested;
+        }
+    }
+
+    /// <summary>The other half of the battle/metagame handoff: restores Home once
+    /// GameBootstrap's "Return to City" has hidden the battle canvas. Visibility/HUD refresh
+    /// only - reward and progression are already fully resolved by the time this ever fires
+    /// (both guards run at match resolution, well before the player reaches this button), so
+    /// this must never call ShowTutorialDialogue, touch profile data, or start a match.</summary>
+    private void HandleReturnToCityRequested()
+    {
+        if (homeCanvasObj != null)
+        {
+            homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+        }
+    }
+
     private void OnDestroy()
     {
         // Unsubscribe to prevent memory leaks
@@ -95,6 +131,12 @@ public class HomePagePresenter : MonoBehaviour
         {
             _battleController.OnMatchCompleted -= HandleMatchCompleted;
             _battleController = null;
+        }
+
+        if (_boundGameBootstrap != null)
+        {
+            _boundGameBootstrap.OnReturnToCityRequested -= HandleReturnToCityRequested;
+            _boundGameBootstrap = null;
         }
     }
 
