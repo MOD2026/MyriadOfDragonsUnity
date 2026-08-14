@@ -5,7 +5,9 @@
   "art_file": "warriorfinal_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 4,
+  "health": 3
  },
  {
   "id": "archer_dragon",
@@ -13,7 +15,9 @@
   "art_file": "archerfinal_logo.jpg",
   "element": "Pnevmas",
   "type": "warrior",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "cyclops",
@@ -21,7 +25,9 @@
   "art_file": "cyclopsfinal_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "dragonqueen",
@@ -29,7 +35,9 @@
   "art_file": "dragonqueenfinal_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 7
+  "rarity": 7,
+  "attack": 12,
+  "health": 12
  },
  {
   "id": "medusa",
@@ -37,7 +45,9 @@
   "art_file": "medusa_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "minotaur",
@@ -45,7 +55,9 @@
   "art_file": "minotaur_final_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "pandora",
@@ -53,7 +65,9 @@
   "art_file": "pandora_final_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "phoenix",
@@ -61,7 +75,9 @@
   "art_file": "z1_logo.jpg",
   "element": "Pnevmas",
   "type": "warrior",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 8,
+  "health": 7
  },
  {
   "id": "arcanemage",
@@ -69,7 +85,9 @@
   "art_file": "arcane_mage_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 7,
+  "health": 7
  },
  {
   "id": "archangel",
@@ -77,7 +95,9 @@
   "art_file": "Archangel_logo.jpg",
   "element": "Pnevmas",
   "type": "warrior",
-  "rarity": 7
+  "rarity": 7,
+  "attack": 9,
+  "health": 8
  },
  {
   "id": "archer_elf",
@@ -85,7 +105,9 @@
   "art_file": "archer_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 5,
+  "health": 4
  },
  {
   "id": "bunny",
@@ -93,7 +115,9 @@
   "art_file": "bunny_logo.jpg",
   "element": "Andras",
   "type": "perfect",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 2,
+  "health": 2
  },
  {
   "id": "butterflyqueen",
@@ -101,7 +125,9 @@
   "art_file": "butterfly_queen_final_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "drain",
@@ -109,7 +135,9 @@
   "art_file": "drain_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "elfangel",
@@ -117,7 +145,9 @@
   "art_file": "elf_angel_logo.jpg",
   "element": "Pnevmas",
   "type": "perfect",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "forest",
@@ -125,7 +155,9 @@
   "art_file": "forest_logo.jpg",
   "element": "Ktini",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "fox",
@@ -133,7 +165,9 @@
   "art_file": "fox_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 5,
+  "health": 4
  },
  {
   "id": "ladyinlake",
@@ -141,7 +175,9 @@
   "art_file": "Lady_in_lake_logo.jpg",
   "element": "Pnevmas",
   "type": "knight",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "reign",
@@ -149,7 +185,9 @@
   "art_file": "reign__logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 10,
+  "health": 9
  },
  {
   "id": "titan_chief",
@@ -157,7 +195,9 @@
   "art_file": "titan_chief_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 7
+  "rarity": 7,
+  "attack": 9,
+  "health": 9
  },
  {
   "id": "dragon_rider",
@@ -165,7 +205,9 @@
   "art_file": "dragon_rider_logo.jpg",
   "element": "Pnevmas",
   "type": "perfect",
-  "rarity": 7
+  "rarity": 7,
+  "attack": 9,
+  "health": 9
  },
  {
   "id": "dragon",
@@ -173,7 +215,9 @@
   "art_file": "dragon_logo.jpg",
   "element": "Pnevmas",
   "type": "perfect",
-  "rarity": 7
+  "rarity": 7,
+  "attack": 8,
+  "health": 8
  },
  {
   "id": "guardian",
@@ -181,7 +225,9 @@
   "art_file": "guardian_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 9,
+  "health": 9
  },
  {
   "id": "leah",
@@ -189,7 +235,9 @@
   "art_file": "leah_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 7,
+  "health": 6
  },
  {
   "id": "princess",
@@ -197,7 +245,9 @@
   "art_file": "princess_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 9,
+  "health": 9
  },
  {
   "id": "haroth",
@@ -205,7 +255,9 @@
   "art_file": "haroth_logo.jpg",
   "element": "Pnevmas",
   "type": "warrior",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "berserker",
@@ -213,7 +265,9 @@
   "art_file": "berserker_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 8,
+  "health": 7
  },
  {
   "id": "persian_immortal",
@@ -221,7 +275,9 @@
   "art_file": "persian_immortal_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 5,
+  "health": 5
  },
  {
   "id": "dragon_tamer",
@@ -229,7 +285,9 @@
   "art_file": "dragon_tamer_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 7,
+  "health": 7
  },
  {
   "id": "necromancer",
@@ -237,7 +295,9 @@
   "art_file": "necromancer_logo.jpg",
   "element": "Ktini",
   "type": "strategist",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "sea_serpent",
@@ -245,7 +305,9 @@
   "art_file": "sea_serpent_logo.jpg",
   "element": "Pnevmas",
   "type": "knight",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 7,
+  "health": 7
  },
  {
   "id": "dragonling",
@@ -253,7 +315,9 @@
   "art_file": "dragonling_logo.jpg",
   "element": "Pnevmas",
   "type": "perfect",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "frost_enchantress",
@@ -261,7 +325,9 @@
   "art_file": "frost_enchantress_logo.jpg",
   "element": "Ktini",
   "type": "strategist",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 7,
+  "health": 7
  },
  {
   "id": "shaman",
@@ -269,7 +335,9 @@
   "art_file": "shaman_logo.jpg",
   "element": "Ktini",
   "type": "strategist",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "griffin",
@@ -277,7 +345,9 @@
   "art_file": "griffin_logo.jpg",
   "element": "Pnevmas",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "druid",
@@ -285,7 +355,9 @@
   "art_file": "druid_logo.jpg",
   "element": "Ktini",
   "type": "strategist",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "witch",
@@ -293,7 +365,9 @@
   "art_file": "witch_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 5,
+  "health": 5
  },
  {
   "id": "headhunter",
@@ -301,7 +375,9 @@
   "art_file": "headhunter_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "persian_assassin",
@@ -309,7 +385,9 @@
   "art_file": "persian_assassin_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 7,
+  "health": 6
  },
  {
   "id": "protector",
@@ -317,7 +395,9 @@
   "art_file": "protector_logo.jpg",
   "element": "Pnevmas",
   "type": "knight",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 5,
+  "health": 5
  },
  {
   "id": "centaur",
@@ -325,7 +405,9 @@
   "art_file": "centaur.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "goblin_shaman",
@@ -333,7 +415,9 @@
   "art_file": "goblin_shaman_logo.jpg",
   "element": "Ktini",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 3,
+  "health": 3
  },
  {
   "id": "ogre",
@@ -341,7 +425,9 @@
   "art_file": "ogre_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "cleric",
@@ -349,7 +435,9 @@
   "art_file": "cleric_logo.jpg",
   "element": "Pnevmas",
   "type": "knight",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 3,
+  "health": 3
  },
  {
   "id": "screaming_knight",
@@ -357,7 +445,9 @@
   "art_file": "screaming_knight_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 7,
+  "health": 6
  },
  {
   "id": "fire_mage",
@@ -365,7 +455,9 @@
   "art_file": "fire_mage_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "wolf_king",
@@ -373,7 +465,9 @@
   "art_file": "wolf_king_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 7,
+  "health": 6
  },
  {
   "id": "glowing_sword_warrior",
@@ -381,7 +475,9 @@
   "art_file": "glowing_sword_warrior_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 7,
+  "health": 6
  },
  {
   "id": "barbarian",
@@ -389,7 +485,9 @@
   "art_file": "barbarian_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "goblin_witch",
@@ -397,7 +495,9 @@
   "art_file": "goblin_witch_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "titan_axe",
@@ -405,7 +505,9 @@
   "art_file": "titan_axe_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 7,
+  "health": 7
  },
  {
   "id": "ancient_dragon",
@@ -413,7 +515,9 @@
   "art_file": "ancient_dragon_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 7
+  "rarity": 7,
+  "attack": 7,
+  "health": 7
  },
  {
   "id": "forest_fairy",
@@ -421,7 +525,9 @@
   "art_file": "forest_fairy_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "owl_keeper",
@@ -429,7 +535,9 @@
   "art_file": "owl_keeper_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "castle_lady",
@@ -437,7 +545,9 @@
   "art_file": "castle_lady_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "dragon_helm_warrior",
@@ -445,7 +555,9 @@
   "art_file": "dragon_helm_warrior_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "crimson_sorceress",
@@ -453,7 +565,9 @@
   "art_file": "crimson_sorceress_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "dark_elf_witch",
@@ -461,7 +575,9 @@
   "art_file": "dark_elf_witch_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 6
  },
  {
   "id": "cult_devotee",
@@ -469,7 +585,9 @@
   "art_file": "cult_devotee_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 5
+  "rarity": 5,
+  "attack": 7,
+  "health": 7
  },
  {
   "id": "pirate_captain",
@@ -477,7 +595,9 @@
   "art_file": "pirate_captain_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 6,
+  "health": 5
  },
  {
   "id": "fire_golem",
@@ -485,7 +605,9 @@
   "art_file": "fire_golem_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 6
+  "rarity": 6,
+  "attack": 9,
+  "health": 9
  },
  {
   "id": "hooded_rogue",
@@ -493,7 +615,9 @@
   "art_file": "hooded_rogue_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 4
+  "rarity": 4,
+  "attack": 5,
+  "health": 4
  },
  {
   "id": "conquistador",
@@ -501,7 +625,9 @@
   "art_file": "conquistador_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 3,
+  "health": 3
  },
  {
   "id": "elf_wanderer",
@@ -509,7 +635,9 @@
   "art_file": "elf_wanderer_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 3,
+  "health": 3
  },
  {
   "id": "abyssal_horror",
@@ -517,7 +645,9 @@
   "art_file": "abyssal_horror_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 7
+  "rarity": 7,
+  "attack": 11,
+  "health": 11
  },
  {
   "id": "butcher",
@@ -525,7 +655,9 @@
   "art_file": "butcher_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 3,
+  "health": 2
  },
  {
   "id": "goblin_caster",
@@ -533,7 +665,9 @@
   "art_file": "goblin_caster_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 2,
+  "health": 2
  },
  {
   "id": "iron_dragon",
@@ -541,7 +675,9 @@
   "art_file": "iron_dragon_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 3,
+  "health": 3
  },
  {
   "id": "persian_princess",
@@ -549,7 +685,9 @@
   "art_file": "persian_princess_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 3,
+  "health": 3
  },
  {
   "id": "werewolf",
@@ -557,7 +695,9 @@
   "art_file": "werewolf_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 4,
+  "health": 3
  },
  {
   "id": "undead_pirate",
@@ -565,7 +705,9 @@
   "art_file": "undead_pirate_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 4,
+  "health": 3
  },
  {
   "id": "succubus",
@@ -573,7 +715,9 @@
   "art_file": "succubus_logo.jpg",
   "element": "Ktini",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "novice_knight",
@@ -581,7 +725,9 @@
   "art_file": "novice_knight_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 2,
+  "health": 2
  },
  {
   "id": "wood_wizard",
@@ -589,7 +735,9 @@
   "art_file": "wood_wizard_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 3,
+  "health": 3
  },
  {
   "id": "cursed_soldier",
@@ -597,7 +745,9 @@
   "art_file": "cursed_soldier_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 3,
+  "health": 2
  },
  {
   "id": "mountain_harpy",
@@ -605,7 +755,9 @@
   "art_file": "mountain_harpy_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 2,
+  "health": 1
  },
  {
   "id": "snake_archer",
@@ -613,7 +765,9 @@
   "art_file": "snake_archer_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 2,
+  "health": 1
  },
  {
   "id": "elven_high_lord",
@@ -621,7 +775,9 @@
   "art_file": "elven_high_lord_logo.jpg",
   "element": "Andras",
   "type": "strategist",
-  "rarity": 3
+  "rarity": 3,
+  "attack": 4,
+  "health": 4
  },
  {
   "id": "fire_worm",
@@ -629,7 +785,9 @@
   "art_file": "fire_worm_logo.jpg",
   "element": "Ktini",
   "type": "warrior",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 3,
+  "health": 2
  },
  {
   "id": "corrupted_warrior",
@@ -637,7 +795,9 @@
   "art_file": "corrupted_warrior_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 3,
+  "health": 2
  },
  {
   "id": "giant_worms",
@@ -645,7 +805,9 @@
   "art_file": "giant_worms_logo.jpg",
   "element": "Ktini",
   "type": "knight",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 1,
+  "health": 1
  },
  {
   "id": "tribal_warrior",
@@ -653,7 +815,9 @@
   "art_file": "tribal_warrior_logo.jpg",
   "element": "Andras",
   "type": "warrior",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 3,
+  "health": 2
  },
  {
   "id": "undead_soldier",
@@ -661,7 +825,9 @@
   "art_file": "undead_soldier_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 1
+  "rarity": 1,
+  "attack": 1,
+  "health": 1
  },
  {
   "id": "zombified_captain",
@@ -669,7 +835,9 @@
   "art_file": "zombified_captain_logo.jpg",
   "element": "Andras",
   "type": "knight",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 2,
+  "health": 2
  },
  {
   "id": "eastern_sorcerer",
@@ -677,6 +845,8 @@
   "art_file": "eastern_sorcerer_logo.jpg",
   "element": "Pnevmas",
   "type": "strategist",
-  "rarity": 2
+  "rarity": 2,
+  "attack": 2,
+  "health": 2
  }
 ]

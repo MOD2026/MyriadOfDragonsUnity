@@ -79,7 +79,7 @@ namespace MyriadOfDragons.Cards
                 Class = ParseClass(data.type),
                 Rarity = Mathf.Clamp(data.rarity, 1, 7),
             };
-            card.ComputeStats();
+            card.ComputeStats(data);
             return card;
         }
 
@@ -99,9 +99,14 @@ namespace MyriadOfDragons.Cards
         }
 
         /// <summary>
-        /// Deterministic per-card variance within its rarity's stat range, so same-rarity
-        /// cards aren't all mechanically identical. Hash-based rather than random so a given
-        /// card's stats are stable across sessions without needing to be hand-authored or saved.
+        /// FALLBACK ONLY as of the data-authored stats migration (2026-08-14) - used solely when
+        /// a card has no valid authored Attack/Health yet (see ComputeStats). Deterministic
+        /// per-card variance within its rarity's stat range, hash-based rather than random so a
+        /// given card's stats are at least stable within one process. Kept deliberately unchanged
+        /// (not deleted) so a not-yet-authored or corrupted-data card still gets a valid stat
+        /// instead of breaking - it must never be the source of a populated card's live stats,
+        /// since it is not stable across runtimes (see docs on the cross-runtime card-stat
+        /// investigation this migration resolves).
         /// </summary>
         private int VarianceIndex(int rangeSize)
         {
@@ -111,16 +116,70 @@ namespace MyriadOfDragons.Cards
             return positive % rangeSize;
         }
 
-        private void ComputeStats()
+        /// <summary>
+        /// Checks whether <paramref name="authoredValue"/> is a usable, data-authored stat: not
+        /// the "unauthored" sentinel (0 - every RarityTable range starts at 1, so 0 can never be
+        /// a legitimate computed value), and within the legal range for this card's rarity/class.
+        /// Logs a clear warning and reports "not usable" for either failure, rather than silently
+        /// accepting bad data or silently reverting to the formula with no trace.
+        /// </summary>
+        private static bool TryGetValidAuthoredValue(int authoredValue, int minValid, int maxValid, string statName, string cardId)
+        {
+            if (authoredValue == 0)
+            {
+                Debug.LogWarning($"Card '{cardId}': no authored {statName} value yet - falling back to the hash-derived formula.");
+                return false;
+            }
+
+            if (authoredValue < minValid || authoredValue > maxValid)
+            {
+                Debug.LogWarning($"Card '{cardId}': authored {statName} {authoredValue} is outside the legal range " +
+                    $"[{minValid}, {maxValid}] for its rarity/class - falling back to the hash-derived formula.");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Prefers data.attack/data.health - the values transferred from the approved
+        /// Android/Unity Editor baseline, treated as FINAL (the Warrior +1 bonus below is not
+        /// re-applied on top of an authored Attack; it is already included in that number, exactly
+        /// as captured). Falls back to the hash-derived formula only when a value is missing,
+        /// zero, or outside the legal range for this card's rarity/class - see
+        /// TryGetValidAuthoredValue.
+        /// </summary>
+        private void ComputeStats(CardData data)
         {
             var (cost, atkMin, atkMax, hpMin, hpMax) = RarityTable[Rarity];
 
-            int attack = atkMin + VarianceIndex(atkMax - atkMin + 1);
-            int health = hpMin + VarianceIndex(hpMax - hpMin + 1);
+            // The valid range for an authored Attack includes the Warrior bonus, since an
+            // authored value already has it baked in - the raw RarityTable range alone would
+            // wrongly reject every legitimately-authored Warrior card as "out of range".
+            int maxAuthoredAttack = atkMax + (Class == CardClass.Warrior ? 1 : 0);
 
-            if (Class == CardClass.Warrior)
+            int attack;
+            if (TryGetValidAuthoredValue(data.attack, atkMin, maxAuthoredAttack, "Attack", Id))
             {
-                attack += 1;
+                attack = data.attack;
+            }
+            else
+            {
+                attack = atkMin + VarianceIndex(atkMax - atkMin + 1);
+                if (Class == CardClass.Warrior)
+                {
+                    attack += 1;
+                }
+            }
+
+            int health;
+            if (TryGetValidAuthoredValue(data.health, hpMin, hpMax, "Health", Id))
+            {
+                health = data.health;
+            }
+            else
+            {
+                health = hpMin + VarianceIndex(hpMax - hpMin + 1);
             }
             // Knight (Taunt), Strategist (draw/resource on play), and Perfect (adopts whatever
             // lane bonus it's played into, instead of a flat cost tax - see the hardcore-CCG
@@ -136,7 +195,10 @@ namespace MyriadOfDragons.Cards
         public string ResourcePath() => $"CardArt/{System.IO.Path.GetFileNameWithoutExtension(ArtFile)}";
     }
 
-    /// <summary>Plain data shape matching data/card_data.json, for JsonUtility deserialization.</summary>
+    /// <summary>Plain data shape matching data/card_data.json, for JsonUtility deserialization.
+    /// attack/health are data-authored final stats (added 2026-08-14) - 0 means "not yet
+    /// authored" (every RarityTable range starts at 1, so 0 is never a real value); see
+    /// Card.ComputeStats for how a missing or invalid value falls back safely.</summary>
     [System.Serializable]
     public class CardData
     {
@@ -146,6 +208,8 @@ namespace MyriadOfDragons.Cards
         public string element;
         public string type;
         public int rarity;
+        public int attack;
+        public int health;
     }
 
     /// <summary>JsonUtility can't parse a top-level JSON array directly - this wraps it.</summary>
