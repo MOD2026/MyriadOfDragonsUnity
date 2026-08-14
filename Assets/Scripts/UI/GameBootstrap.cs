@@ -257,6 +257,16 @@ namespace MyriadOfDragons.UI
         /// </summary>
         public static GameBootstrap Instance { get; private set; }
 
+        /// <summary>
+        /// True only for the offline, local-only tutorial encounter started by
+        /// StartApprovedTutorialBattle() - lets HomePagePresenter.HandleMatchCompleted
+        /// recognize and skip its reward grant for this specific match without this file
+        /// needing to know anything about gold, gems, or save rewards itself. Reset to false
+        /// by StartNewMatch() (the generic path), so a tutorial run can never leak into the
+        /// next normal match's reward eligibility.
+        /// </summary>
+        public bool IsTutorialMatch { get; private set; }
+
         private void Awake() => Initialize();
 
         public void Initialize()
@@ -452,6 +462,83 @@ namespace MyriadOfDragons.UI
                 // new match's state.
                 StopCoroutine(_combatLoop);
                 _combatLoop = null;
+            }
+
+            // A generic match (initial boot, Play Again, Reset Lineup) must never inherit
+            // IsTutorialMatch from a previous tutorial run - see that property's own comment.
+            IsTutorialMatch = false;
+        }
+
+        /// <summary>
+        /// Approved offline tutorial encounter - player Formation warrior/Front,
+        /// novice_knight/Middle, goblin_caster/Back; enemy butcher, cursed_soldier,
+        /// giant_worms, tribal_warrior; the same level-1 economy already validated in
+        /// BalanceSimulationTests.Balance_ApprovedTutorialEncounter_FormsAndResolvesAtTheCastleOneBarracksOneBaseline.
+        ///
+        /// Reuses the existing _battleController/UI rather than a second instance - every
+        /// panel and input surface in this file is hardwired to that one field, so a second
+        /// controller would have no visible UI at all. Grants the starter cards into the
+        /// local profile directly and sets IsTutorialMatch so HomePagePresenter's reward
+        /// guard can recognize this match; makes no server call, confirms no victory, and
+        /// advances no checkpoint - purely a local, offline prototype battle.
+        /// </summary>
+        public void StartApprovedTutorialBattle()
+        {
+            GrantApprovedStarterCardsIfMissing();
+
+            var playerDeck = new List<Card>
+            {
+                _cardDatabase.GetCard("warrior"),
+                _cardDatabase.GetCard("novice_knight"),
+                _cardDatabase.GetCard("goblin_caster"),
+            };
+            var enemyDeck = new List<Card>
+            {
+                _cardDatabase.GetCard("butcher"),
+                _cardDatabase.GetCard("cursed_soldier"),
+                _cardDatabase.GetCard("giant_worms"),
+                _cardDatabase.GetCard("tribal_warrior"),
+            };
+
+            // Fixed level-1 baseline for the approved tutorial content specifically - not
+            // derived from the player's real progression, since this encounter's content is
+            // the same regardless of how far along the player's own Empire actually is.
+            var tutorialEmpire = new PlayerEmpireData();
+            tutorialEmpire.SetLevels(avatarLevel: 1, castleLevel: 1, barracksLevel: 1);
+            tutorialEmpire.InitializeTCGModifiers();
+            var economy = new BattleController.MatchEconomy(
+                tutorialEmpire.ResourceCap, tutorialEmpire.Turn1Resource, tutorialEmpire.StartingAvatarHealth);
+
+            _battleController.StartMatch(playerDeck, enemyDeck, economy, economy);
+            _battleController.DealFormationHand(_battleController.PlayerState);
+            _battleController.DealFormationHand(_battleController.EnemyState);
+
+            if (_combatLoop != null)
+            {
+                StopCoroutine(_combatLoop);
+                _combatLoop = null;
+            }
+
+            IsTutorialMatch = true;
+            RefreshAll();
+        }
+
+        /// <summary>
+        /// Idempotent: adds only whichever of the three approved starter ids the local
+        /// profile doesn't already own. Local/offline only - this is not a trusted or
+        /// server-verified grant, only a direct write to the same cardCollection list
+        /// ShopPresenter.cs already writes to elsewhere in the game.
+        /// </summary>
+        private void GrantApprovedStarterCardsIfMissing()
+        {
+            if (_profile?.cardCollection == null) return;
+
+            foreach (string cardId in new[] { "warrior", "novice_knight", "goblin_caster" })
+            {
+                if (!_profile.cardCollection.Contains(cardId))
+                {
+                    _profile.cardCollection.Add(cardId);
+                }
             }
         }
 

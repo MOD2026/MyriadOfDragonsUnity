@@ -55,7 +55,17 @@ public class HomePagePresenter : MonoBehaviour
         ShowTutorialDialogue();
 
         // Subscribe to Claude's Battle Outcome Event
-        _battleController = FindAnyObjectByType<BattleController>();
+        BindBattleControllerForTests(FindAnyObjectByType<BattleController>());
+    }
+
+    /// <summary>Exposed for tests: Start() never fires in EditMode (no Play Mode lifecycle),
+    /// so this is the only way a test can subscribe HandleMatchCompleted to a real
+    /// BattleController and exercise the real reward-handler path - the same two lines
+    /// Start() itself runs, and nothing else (no save load, no UI build, no dialogue).
+    /// HandleMatchCompleted itself stays private; only this subscription step is exposed.</summary>
+    public void BindBattleControllerForTests(BattleController controller)
+    {
+        _battleController = controller;
         if (_battleController != null)
         {
             _battleController.OnMatchCompleted += HandleMatchCompleted;
@@ -75,6 +85,14 @@ public class HomePagePresenter : MonoBehaviour
     private void HandleMatchCompleted(MatchResult result)
     {
         Debug.Log($"[Metagame] Match Ended. Victory: {result.IsVictory} | Ticks: {result.TicksTaken}");
+
+        // The offline tutorial battle (GameBootstrap.StartApprovedTutorialBattle) must never
+        // grant rewards, unlock stages, or write a save - it makes no server call and confirms
+        // no victory. This is the only guard; normal-match reward behavior below is unchanged.
+        if (GameBootstrap.Instance != null && GameBootstrap.Instance.IsTutorialMatch)
+        {
+            return;
+        }
 
         if (result.IsVictory)
         {
@@ -225,6 +243,11 @@ public class HomePagePresenter : MonoBehaviour
         CreateNavButton(dockObj.transform, "CARDS", OpenCollection, new Vector2(220, 85), new Color(0.2f, 0.5f, 0.35f));
         CreateNavButton(dockObj.transform, "SHOP", OpenShop, new Vector2(220, 85), new Color(0.6f, 0.45f, 0.2f));
         CreateNavButton(dockObj.transform, "TO BATTLE", OnToBattleClicked, new Vector2(280, 95), new Color(0.8f, 0.25f, 0.2f));
+
+        // Secondary, clearly smaller/muted than the four primary nav buttons above - same
+        // underlying button style/asset (CreateNavButton), deliberately not equal-weight with
+        // them. Offline prototype only: see GameBootstrap.StartApprovedTutorialBattle.
+        CreateNavButton(dockObj.transform, "START TUTORIAL", OnStartTutorialClicked, new Vector2(160, 55), new Color(0.3f, 0.45f, 0.45f));
     }
 
     private void CreateNavButton(Transform parent, string label, UnityEngine.Events.UnityAction action, Vector2 size, Color btnColor)
@@ -466,6 +489,20 @@ public class HomePagePresenter : MonoBehaviour
             homeCanvasObj.SetActive(false);
         }
 
+        GameBootstrap.Instance?.SetBattleCanvasVisible(true);
+    }
+
+    /// <summary>Secondary entry point - approved offline tutorial battle only. Does not
+    /// change OnToBattleClicked()'s own behavior; the two are independent.</summary>
+    private void OnStartTutorialClicked()
+    {
+        Debug.Log("Transitioning to the approved tutorial battle...");
+        if (homeCanvasObj != null)
+        {
+            homeCanvasObj.SetActive(false);
+        }
+
+        GameBootstrap.Instance?.StartApprovedTutorialBattle();
         GameBootstrap.Instance?.SetBattleCanvasVisible(true);
     }
 

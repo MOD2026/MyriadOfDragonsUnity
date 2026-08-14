@@ -2549,6 +2549,116 @@ namespace MyriadOfDragons.Tests
                 "The approved Novice-tier enemy must not have more starting Resource than the level-1 player.");
         }
 
+        // ---------- Tutorial Playable Spine: GameBootstrap.StartApprovedTutorialBattle ----------
+        //
+        // Offline/local-only battle-side coverage. The reward-guard-through-HomePagePresenter
+        // path has its own dedicated coverage in HomePageTutorialRewardGuardTests.cs, kept
+        // separate from this file since it needs SaveSystem test isolation this file doesn't
+        // otherwise depend on.
+
+        private GameBootstrap SpawnAndInitializeBootstrap(string name)
+        {
+            var go = new GameObject(name);
+            _spawned.Add(go);
+            GameBootstrap bootstrap = go.AddComponent<GameBootstrap>();
+            bootstrap.Initialize();
+            foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
+            {
+                GameObject spawned = GameObject.Find(spawnedName);
+                if (spawned != null) _spawned.Add(spawned);
+            }
+            return bootstrap;
+        }
+
+        [Test]
+        public void GameBootstrap_StartApprovedTutorialBattle_GrantsStarterCardsExactlyOnce()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("TutorialBootstrap_Grant");
+
+            bootstrap.StartApprovedTutorialBattle();
+            bootstrap.StartApprovedTutorialBattle();
+
+            List<string> collection = bootstrap.Profile.cardCollection;
+            foreach (string cardId in new[] { "warrior", "novice_knight", "goblin_caster" })
+            {
+                Assert.AreEqual(1, collection.Count(id => id == cardId),
+                    $"'{cardId}' must be granted exactly once across repeated calls, not duplicated.");
+            }
+        }
+
+        [Test]
+        public void GameBootstrap_StartApprovedTutorialBattle_FormsTheApprovedFormationLegally()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("TutorialBootstrap_Formation");
+            bootstrap.StartApprovedTutorialBattle();
+
+            BattleController controller = bootstrap.Battle;
+            Card warrior = controller.PlayerState.Hand.First(c => c.Id == "warrior");
+            Card noviceKnight = controller.PlayerState.Hand.First(c => c.Id == "novice_knight");
+            Card goblinCaster = controller.PlayerState.Hand.First(c => c.Id == "goblin_caster");
+
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, warrior, Lane.Front),
+                "The approved tutorial Formation must be legally deployable: warrior to Front.");
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, noviceKnight, Lane.Middle),
+                "The approved tutorial Formation must be legally deployable: novice_knight to Middle.");
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, goblinCaster, Lane.Back),
+                "The approved tutorial Formation must be legally deployable: goblin_caster to Back.");
+            Assert.IsTrue(controller.ConfirmFormation(), "The approved tutorial Formation must lock legally.");
+        }
+
+        [Test]
+        public void GameBootstrap_StartApprovedTutorialBattle_ResolvesWithinTheTickCap()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("TutorialBootstrap_Resolve");
+            bootstrap.StartApprovedTutorialBattle();
+            BattleController controller = bootstrap.Battle;
+
+            foreach (Card card in controller.PlayerState.Hand.ToList())
+            {
+                Lane lane = card.Id switch { "warrior" => Lane.Front, "novice_knight" => Lane.Middle, _ => Lane.Back };
+                controller.TryPlayCard(controller.PlayerState, card, lane);
+            }
+            SimpleAIOpponent.TakeTurn(controller, AIArchetype.Balanced);
+            Assert.IsTrue(controller.ConfirmFormation(), "Setup: the approved tutorial Formation must lock legally.");
+
+            int ticksRun = 0;
+            while (controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+                ticksRun++;
+                Assert.LessOrEqual(ticksRun, BattleController.MaxCombatTicks,
+                    "The approved tutorial battle must resolve within the existing combat tick cap.");
+            }
+
+            Assert.AreEqual(BattlePhase.Resolved, controller.Phase,
+                "The approved tutorial battle must reach a Resolved phase within the existing tick cap.");
+        }
+
+        [Test]
+        public void GameBootstrap_StartApprovedTutorialBattle_SetsIsTutorialMatchTrue()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("TutorialBootstrap_Flag");
+
+            bootstrap.StartApprovedTutorialBattle();
+
+            Assert.IsTrue(bootstrap.IsTutorialMatch,
+                "StartApprovedTutorialBattle must set IsTutorialMatch so the Home reward guard can recognize this match.");
+        }
+
+        [Test]
+        public void GameBootstrap_StartingANormalMatch_ResetsIsTutorialMatchToFalse()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("TutorialBootstrap_Reset");
+            bootstrap.StartApprovedTutorialBattle();
+            Assert.IsTrue(bootstrap.IsTutorialMatch, "Setup: expected the tutorial battle to set IsTutorialMatch first.");
+
+            bootstrap.UseRecommendedLineupForTests();
+
+            Assert.IsFalse(bootstrap.IsTutorialMatch,
+                "Starting a generic match (Play Again / Reset Lineup / Recommended) must reset IsTutorialMatch to false, " +
+                "so a tutorial run can never leak into the next normal match's reward eligibility.");
+        }
+
         [Test]
         public void SimpleAI_AggressiveFillsFrontLane_DefensivePrefersMiddle()
         {
