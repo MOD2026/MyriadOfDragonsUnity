@@ -2801,16 +2801,24 @@ namespace MyriadOfDragons.UI
 
         private void HandleMatchEnded(bool playerWon)
         {
-            // The actual "how do I get stronger and beat the Avatar" loop: winning raises
-            // Avatar level more than losing does, and that level feeds directly into the next
-            // match's ResourceCap/HP/deck size (see PlayerEmpireData.ApplyMatchResult). Applied
-            // immediately so the level shown below already reflects the match that just ended.
-            //
-            // RecordMatchResult also writes the profile to disk - the single point at which a
-            // match's outcome becomes permanent. Autosaving here rather than on quit is deliberate:
-            // a mobile game is killed by the OS, not closed, so a quit hook is a hook that mostly
-            // never runs.
-            _profile.RecordMatchResult(playerWon);
+            // The approved offline tutorial (StartApprovedTutorialBattle) must have no
+            // progression effect - "makes no server call, confirms no victory, advances no
+            // checkpoint" per that method's own comment. RecordMatchResult mutates
+            // avatarLevel/totalMatches/totalWins/winStreak; even though it does not call Save()
+            // itself, that in-memory mutation can leak to disk later via any unrelated save
+            // (Shop/DeckBuilder/Collection returning home, or a subsequent normal match win) -
+            // skipping the call entirely for a tutorial match is what actually keeps the result
+            // local rather than merely deferring when it gets written. HomePagePresenter's own
+            // reward guard (HandleMatchCompleted's IsTutorialMatch check) already does the same
+            // for gold/gems/stage-unlocks; this is that same rule applied to this call site.
+            if (!IsTutorialMatch)
+            {
+                // The actual "how do I get stronger and beat the Avatar" loop: winning raises
+                // Avatar level more than losing does, and that level feeds directly into the next
+                // match's ResourceCap/HP/deck size (see PlayerEmpireData.ApplyMatchResult). Applied
+                // immediately so the level shown below already reflects the match that just ended.
+                _profile.RecordMatchResult(playerWon);
+            }
 
             // A match decided on the tick cap explains itself rather than claiming an Avatar
             // fell when neither did - BattleController.OutcomeReason carries that wording.

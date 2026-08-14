@@ -14,11 +14,28 @@ namespace MyriadOfDragons.Tests
 {
     /// <summary>
     /// TUTORIAL PLAYABLE SPINE, 2026-08-14 - proves HomePagePresenter.HandleMatchCompleted's
-    /// reward guard through the REAL private path: a real BattleController fires the real
-    /// OnMatchCompleted event, HomePagePresenter's real (still-private) HandleMatchCompleted
-    /// handles it, exactly as production does. BindBattleControllerForTests exists only to
-    /// perform the same subscription Start() already does - Start() never fires in EditMode
-    /// (no Play Mode lifecycle) - it does not touch or expose HandleMatchCompleted itself.
+    /// reward guard AND GameBootstrap.HandleMatchEnded's progression guard through the REAL
+    /// private paths: a real BattleController fires the real OnMatchEnded/OnMatchCompleted
+    /// events, and each listener's real (still-private) handler runs, exactly as production
+    /// does. BindBattleControllerForTests exists only to perform the same subscription Start()
+    /// already does - Start() never fires in EditMode (no Play Mode lifecycle) - it does not
+    /// touch or expose HandleMatchCompleted itself.
+    ///
+    /// TWO SEPARATE PROFILE INSTANCES, NOT ONE - this is not an EditMode-only quirk to work
+    /// around, it is what production code actually does today, in both EditMode and Play Mode.
+    /// GameBootstrap.Initialize() sets its own `_profile` from `Application.isPlaying ?
+    /// SaveSystem.CurrentProfile : new PlayerProfile()` - in EditMode that is ALWAYS a fresh,
+    /// separate `new PlayerProfile()`, never `SaveSystem.CurrentProfile`. HandleMatchEnded (the
+    /// tutorial progression guard from this same slice) reads/writes THAT profile, exposed here
+    /// via `bootstrap.Profile`. HomePagePresenter.HandleMatchCompleted (the older reward guard)
+    /// reads/writes `SaveManager.SaveData`, a facade over `SaveSystem.CurrentProfile` - a
+    /// DIFFERENT object entirely. Gold/gems/unlockedStageIds only ever flow through
+    /// HandleMatchCompleted, so those assertions read `SaveManager.SaveData`.
+    /// avatarLevel/totalMatches/totalWins/winStreak and the tutorial starter-card grant
+    /// (GrantApprovedStarterCardsIfMissing, which writes directly into GameBootstrap's own
+    /// `_profile.cardCollection`) only ever flow through GameBootstrap, so those assertions
+    /// read `bootstrap.Profile`. Asserting the wrong one is a false pass/fail, not a stricter
+    /// check - see the "totalMatches stayed 0" investigation this file's git history records.
     ///
     /// Kept separate from BattleLogicTests.cs because this is the one battle-adjacent test file
     /// that needs SaveSystem test isolation (HandleMatchCompleted reads/writes
@@ -98,8 +115,23 @@ namespace MyriadOfDragons.Tests
             }
         }
 
+        /// <summary>Same lock-and-tick loop as RunToResolutionWithUndefendedEnemy, under a
+        /// neutral name - used by setups (e.g. TutorialDefeat) where the doc comment "enemy
+        /// left undefended" would describe the wrong side.</summary>
+        private static void LockFormationAndRunToResolution(BattleController controller)
+        {
+            Assert.IsTrue(controller.ConfirmFormation(), "Setup: expected the Formation to lock legally.");
+            int ticksRun = 0;
+            while (controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+                ticksRun++;
+                Assert.LessOrEqual(ticksRun, BattleController.MaxCombatTicks, "Setup: expected a knockout well inside the tick cap.");
+            }
+        }
+
         [Test]
-        public void TutorialVictory_ThroughTheRealRewardHandler_LeavesGoldGemsAndStageUnlocksUnchanged()
+        public void TutorialVictory_ThroughTheRealRewardHandler_LeavesGoldGemsProgressionAndEntitlementsUnchanged()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("RewardGuard_TutorialBootstrap");
             bootstrap.StartApprovedTutorialBattle();
@@ -107,10 +139,26 @@ namespace MyriadOfDragons.Tests
 
             HomePagePresenter presenter = SpawnHomePagePresenter(controller);
 
-            PlayerProfile profile = SaveManager.SaveData;
-            int goldBefore = profile.gold;
-            int gemsBefore = profile.gems;
-            int stageCountBefore = profile.unlockedStageIds.Count;
+            // Two separate profiles - see this class's own doc comment. Reward fields
+            // (gold/gems/unlockedStageIds) only ever flow through HomePagePresenter's
+            // SaveManager.SaveData; progression fields (avatarLevel/totalMatches/totalWins/
+            // winStreak) and the starter-card grant only ever flow through GameBootstrap's own
+            // bootstrap.Profile. Both captured AFTER StartApprovedTutorialBattle() so the
+            // approved starter-card grant (GrantApprovedStarterCardsIfMissing, unconditional and
+            // unrelated to match outcome) is already reflected in the "before" snapshot - this
+            // test proves the MATCH RESULT changes nothing further, not that the starter grant
+            // itself never happens.
+            PlayerProfile rewardProfile = SaveManager.SaveData;
+            int goldBefore = rewardProfile.gold;
+            int gemsBefore = rewardProfile.gems;
+            int stageCountBefore = rewardProfile.unlockedStageIds.Count;
+
+            PlayerProfile progressionProfile = bootstrap.Profile;
+            int avatarLevelBefore = progressionProfile.avatarLevel;
+            int totalMatchesBefore = progressionProfile.totalMatches;
+            int totalWinsBefore = progressionProfile.totalWins;
+            int winStreakBefore = progressionProfile.winStreak;
+            var cardCollectionBefore = new List<string>(progressionProfile.cardCollection);
 
             bool? isVictory = null;
             controller.OnMatchCompleted += result => isVictory = result.IsVictory;
@@ -124,12 +172,83 @@ namespace MyriadOfDragons.Tests
             RunToResolutionWithUndefendedEnemy(controller);
 
             Assert.IsTrue(isVictory, "Setup: expected the undefended enemy to produce a player victory.");
-            Assert.AreEqual(goldBefore, profile.gold,
+            Assert.AreEqual(goldBefore, rewardProfile.gold,
                 "A tutorial victory must never change gold - the reward guard must have skipped the grant.");
-            Assert.AreEqual(gemsBefore, profile.gems,
+            Assert.AreEqual(gemsBefore, rewardProfile.gems,
                 "A tutorial victory must never change gems - the reward guard must have skipped the grant.");
-            Assert.AreEqual(stageCountBefore, profile.unlockedStageIds.Count,
+            Assert.AreEqual(stageCountBefore, rewardProfile.unlockedStageIds.Count,
                 "A tutorial victory must never unlock a stage.");
+            Assert.AreEqual(avatarLevelBefore, progressionProfile.avatarLevel,
+                "A tutorial victory must never change avatarLevel - GameBootstrap.HandleMatchEnded must have skipped RecordMatchResult.");
+            Assert.AreEqual(totalMatchesBefore, progressionProfile.totalMatches,
+                "A tutorial victory must never increment totalMatches.");
+            Assert.AreEqual(totalWinsBefore, progressionProfile.totalWins,
+                "A tutorial victory must never increment totalWins.");
+            Assert.AreEqual(winStreakBefore, progressionProfile.winStreak,
+                "A tutorial victory must never change winStreak.");
+            CollectionAssert.AreEquivalent(cardCollectionBefore, progressionProfile.cardCollection,
+                "A tutorial victory must not change cardCollection beyond the approved starter grant already captured above.");
+        }
+
+        [Test]
+        public void TutorialDefeat_ThroughTheRealRewardHandler_LeavesGoldGemsProgressionAndEntitlementsUnchanged()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("RewardGuard_TutorialDefeatBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            BattleController controller = bootstrap.Battle;
+
+            HomePagePresenter presenter = SpawnHomePagePresenter(controller);
+
+            // Two separate profiles - see this class's own doc comment.
+            PlayerProfile rewardProfile = SaveManager.SaveData;
+            int goldBefore = rewardProfile.gold;
+            int gemsBefore = rewardProfile.gems;
+            int stageCountBefore = rewardProfile.unlockedStageIds.Count;
+
+            PlayerProfile progressionProfile = bootstrap.Profile;
+            int avatarLevelBefore = progressionProfile.avatarLevel;
+            int totalMatchesBefore = progressionProfile.totalMatches;
+            int totalWinsBefore = progressionProfile.totalWins;
+            int winStreakBefore = progressionProfile.winStreak;
+            var cardCollectionBefore = new List<string>(progressionProfile.cardCollection);
+
+            bool? isVictory = null;
+            controller.OnMatchCompleted += result => isVictory = result.IsVictory;
+
+            // Roles reversed from RunToResolutionWithUndefendedEnemy: the player deploys only
+            // its weakest card, into Back, leaving Front/Middle undefended; the enemy deploys
+            // its whole (larger, by design harder) hand into Front/Middle. The enemy's combined
+            // overflow into the player's undefended lanes each tick vastly exceeds the player's
+            // single-card counter-overflow into the enemy's undefended Back, guaranteeing a
+            // player defeat well inside the tick cap.
+            Card weakestPlayerCard = controller.PlayerState.Hand.OrderBy(c => c.Attack).First();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, weakestPlayerCard, Lane.Back),
+                "Setup: expected the player's one deployed card to legally occupy Back.");
+
+            foreach (Card enemyCard in controller.EnemyState.Hand.ToList())
+            {
+                Lane lane = controller.EnemyState.Lanes[Lane.Front].Cards.Count < LaneState.MaxSlots ? Lane.Front : Lane.Middle;
+                controller.TryPlayCard(controller.EnemyState, enemyCard, lane);
+            }
+            int enemyDeployedCount = controller.EnemyState.Lanes[Lane.Front].Cards.Count + controller.EnemyState.Lanes[Lane.Middle].Cards.Count;
+            Assert.Greater(enemyDeployedCount, 0, "Setup: expected at least one enemy card to deploy into Front/Middle.");
+
+            LockFormationAndRunToResolution(controller);
+
+            Assert.IsFalse(isVictory, "Setup: expected the undefended player lanes to produce a player defeat.");
+            Assert.AreEqual(goldBefore, rewardProfile.gold, "A tutorial defeat must never change gold.");
+            Assert.AreEqual(gemsBefore, rewardProfile.gems, "A tutorial defeat must never change gems.");
+            Assert.AreEqual(stageCountBefore, rewardProfile.unlockedStageIds.Count, "A tutorial defeat must never unlock a stage.");
+            Assert.AreEqual(avatarLevelBefore, progressionProfile.avatarLevel,
+                "A tutorial defeat must never change avatarLevel - GameBootstrap.HandleMatchEnded must have skipped RecordMatchResult.");
+            Assert.AreEqual(totalMatchesBefore, progressionProfile.totalMatches,
+                "A tutorial defeat must never increment totalMatches.");
+            Assert.AreEqual(totalWinsBefore, progressionProfile.totalWins,
+                "A tutorial defeat must never increment totalWins.");
+            Assert.AreEqual(winStreakBefore, progressionProfile.winStreak,
+                "A tutorial defeat must never change winStreak (RecordMatchResult resets it to 0 on a real loss - here it must not run at all).");
+            CollectionAssert.AreEquivalent(cardCollectionBefore, progressionProfile.cardCollection,
+                "A tutorial defeat must not change cardCollection beyond the approved starter grant already captured above.");
         }
 
         [Test]
@@ -141,9 +260,16 @@ namespace MyriadOfDragons.Tests
 
             HomePagePresenter presenter = SpawnHomePagePresenter(controller);
 
-            PlayerProfile profile = SaveManager.SaveData;
-            int goldBefore = profile.gold;
-            int gemsBefore = profile.gems;
+            // Two separate profiles - see this class's own doc comment. gold/gems only ever
+            // flow through HomePagePresenter's SaveManager.SaveData; totalMatches/totalWins
+            // only ever flow through GameBootstrap.HandleMatchEnded's own bootstrap.Profile.
+            PlayerProfile rewardProfile = SaveManager.SaveData;
+            int goldBefore = rewardProfile.gold;
+            int gemsBefore = rewardProfile.gems;
+
+            PlayerProfile progressionProfile = bootstrap.Profile;
+            int totalMatchesBefore = progressionProfile.totalMatches;
+            int totalWinsBefore = progressionProfile.totalWins;
 
             bool? isVictory = null;
             controller.OnMatchCompleted += result => isVictory = result.IsVictory;
@@ -159,8 +285,16 @@ namespace MyriadOfDragons.Tests
             // (currentActiveStage == null in this test) - asserted directly here because this
             // test's whole purpose is confirming that PRE-EXISTING behavior is unaffected by the
             // new tutorial guard, not validating a value this change introduces.
-            Assert.AreEqual(goldBefore + 250, profile.gold, "A normal victory's existing gold reward must be unaffected by the tutorial guard.");
-            Assert.AreEqual(gemsBefore + 25, profile.gems, "A normal victory's existing gems reward must be unaffected by the tutorial guard.");
+            Assert.AreEqual(goldBefore + 250, rewardProfile.gold, "A normal victory's existing gold reward must be unaffected by the tutorial guard.");
+            Assert.AreEqual(gemsBefore + 25, rewardProfile.gems, "A normal victory's existing gems reward must be unaffected by the tutorial guard.");
+            // Regression proof for the new `if (!IsTutorialMatch)` guard in
+            // GameBootstrap.HandleMatchEnded: an ordinary match must still call
+            // RecordMatchResult exactly as before - these must have actually changed, not just
+            // "not been broken".
+            Assert.AreEqual(totalMatchesBefore + 1, progressionProfile.totalMatches,
+                "A normal match's existing totalMatches increment must be unaffected by the tutorial guard.");
+            Assert.AreEqual(totalWinsBefore + 1, progressionProfile.totalWins,
+                "A normal victory's existing totalWins increment must be unaffected by the tutorial guard.");
         }
     }
 }
