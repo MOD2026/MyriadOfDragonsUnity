@@ -51,8 +51,15 @@ public class HomePagePresenter : MonoBehaviour
     void Start()
     {
         SaveManager.Load();
+
         BuildHomePageUI();
-        ShowTutorialDialogue();
+
+        // Home is the phase-1 proof surface and should own first render. Keep battle canvas
+        // hidden until the explicit TO BATTLE action is invoked.
+        GameBootstrap.Instance?.SetBattleCanvasVisible(false);
+
+        // Narrative onboarding (ShowTutorialDialogue) is deferred pending Narrative-owned
+        // approved content and a working dialogue panel - it must not block Home startup.
 
         // Subscribe to Claude's Battle Outcome Event
         BindBattleControllerForTests(FindAnyObjectByType<BattleController>());
@@ -71,6 +78,15 @@ public class HomePagePresenter : MonoBehaviour
             _battleController.OnMatchCompleted += HandleMatchCompleted;
         }
     }
+
+    /// <summary>Exposed for tests: BuildHomePageUI() is private and only ever called from
+    /// Start(), which never fires in EditMode - this is the only way a test can build Home's
+    /// UI and inspect the result without Play Mode.</summary>
+    public void BuildHomePageUIForTests() => BuildHomePageUI();
+
+    /// <summary>Exposed for tests: read-only access to the canvas BuildHomePageUIForTests()
+    /// just built, so a test can inspect it without a broader production accessor.</summary>
+    public GameObject HomeCanvasObjectForTests => homeCanvasObj;
 
     private void OnDestroy()
     {
@@ -121,66 +137,25 @@ public class HomePagePresenter : MonoBehaviour
     private void BuildHomePageUI()
     {
         // 1. Canvas Setup
-        homeCanvasObj = new GameObject("HomePageCanvas");
-        Canvas canvas = homeCanvasObj.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-        CanvasScaler scaler = homeCanvasObj.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
-
-        homeCanvasObj.AddComponent<GraphicRaycaster>();
-
-        if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
-        {
-            GameObject eventSystem = new GameObject("EventSystem");
-            eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-        }
+        Canvas canvas = UISharedFoundation.CreateScreenCanvas("HomePageCanvas", new Vector2(1920, 1080));
+        homeCanvasObj = canvas.gameObject;
 
         // 2. Background
-        GameObject bgObj = new GameObject("CityBackground");
-        bgObj.transform.SetParent(homeCanvasObj.transform, false);
-        Image bgImage = bgObj.AddComponent<Image>();
-
-        Sprite citySprite = Resources.Load<Sprite>("UI/Backdrops/Zihan_City_NO NAMES");
-        if (citySprite != null)
-            bgImage.sprite = citySprite;
-        else
-            bgImage.color = new Color(0.12f, 0.1f, 0.15f);
-
-        RectTransform bgRect = bgObj.GetComponent<RectTransform>();
-        bgRect.anchorMin = Vector2.zero;
-        bgRect.anchorMax = Vector2.one;
-        bgRect.sizeDelta = Vector2.zero;
+        UISharedFoundation.CreateFullscreenBackground(homeCanvasObj.transform, "UI/Backdrops/Zihan_City_NO NAMES", new Color(0.12f, 0.1f, 0.15f));
 
         // 3. Top Header Bar
-        GameObject topBar = new GameObject("TopHUD");
-        topBar.transform.SetParent(homeCanvasObj.transform, false);
-        Image topBarBg = topBar.AddComponent<Image>();
-
-        Sprite barSprite = Resources.Load<Sprite>("UI/Panels/ui_hud_backing");
-        if (barSprite != null)
-        {
-            topBarBg.sprite = barSprite;
-            topBarBg.type = Image.Type.Sliced;
-        }
-        else
-        {
-            topBarBg.color = new Color(0.05f, 0.05f, 0.08f, 0.9f);
-        }
-
-        RectTransform topRect = topBar.GetComponent<RectTransform>();
-        topRect.anchorMin = new Vector2(0, 1);
-        topRect.anchorMax = Vector2.one;
-        topRect.pivot = new Vector2(0.5f, 1f);
-        topRect.anchoredPosition = Vector2.zero;
-        topRect.sizeDelta = new Vector2(0, 110);
+        RectTransform topRect = UISharedFoundation.CreateHeaderShell(
+            homeCanvasObj.transform,
+            "TopHUD",
+            110f,
+            "UI/Panels/ui_hud_backing",
+            new Color(0.05f, 0.05f, 0.08f, 0.9f));
+        GameObject topBar = topRect.gameObject;
 
         // Player Profile Info
-        GameObject profileGroup = new GameObject("PlayerProfileGroup");
+        GameObject profileGroup = new GameObject("PlayerProfileGroup", typeof(RectTransform));
         profileGroup.transform.SetParent(topBar.transform, false);
-        RectTransform profRect = profileGroup.AddComponent<RectTransform>();
+        RectTransform profRect = profileGroup.GetComponent<RectTransform>();
         profRect.anchorMin = new Vector2(0, 0.5f);
         profRect.anchorMax = new Vector2(0, 0.5f);
         profRect.pivot = new Vector2(0, 0.5f);
@@ -190,12 +165,12 @@ public class HomePagePresenter : MonoBehaviour
         string pName = SaveManager.SaveData != null ? SaveManager.SaveData.playerName : "Sovereign";
         int pLevel = SaveManager.SaveData != null ? SaveManager.SaveData.level : 1;
 
-        CreateTextElement(profileGroup.transform, "PlayerNameText", $"{pName}\n<size=22><color=#FFD700>Lv. {pLevel} Leader</color></size>", Vector2.zero, 28, TextAnchor.MiddleLeft);
+        CreateTextElement(profileGroup.transform, "PlayerNameText", $"{pName}\n<size=22><color=#FFD700>Lv. {pLevel} Leader</color></size>", Vector2.zero, MyriadOfDragons.UI.UITextRole.Display, TextAnchor.MiddleLeft);
 
         // Currency Badges Group
-        GameObject resourceGroup = new GameObject("ResourceGroup");
+        GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform));
         resourceGroup.transform.SetParent(topBar.transform, false);
-        RectTransform resRect = resourceGroup.AddComponent<RectTransform>();
+        RectTransform resRect = resourceGroup.GetComponent<RectTransform>();
         resRect.anchorMin = new Vector2(1, 0.5f);
         resRect.anchorMax = new Vector2(1, 0.5f);
         resRect.pivot = new Vector2(1, 0.5f);
@@ -222,59 +197,36 @@ public class HomePagePresenter : MonoBehaviour
 
     private void BuildBottomDock()
     {
-        GameObject dockObj = new GameObject("BottomNavDock");
-        dockObj.transform.SetParent(homeCanvasObj.transform, false);
+        RectTransform dockRect = UISharedFoundation.CreateBottomDock(
+            homeCanvasObj.transform,
+            "BottomNavDock",
+            130f,
+            new Color(0.08f, 0.08f, 0.12f, 0.85f));
+        Transform dockRoot = dockRect.transform;
 
-        Image dockBg = dockObj.AddComponent<Image>();
-        dockBg.color = new Color(0.08f, 0.08f, 0.12f, 0.85f);
-
-        RectTransform dockRect = dockObj.GetComponent<RectTransform>();
-        dockRect.anchorMin = new Vector2(0f, 0f);
-        dockRect.anchorMax = new Vector2(1f, 0f);
-        dockRect.pivot = new Vector2(0.5f, 0f);
-        dockRect.sizeDelta = new Vector2(0, 130);
-
-        HorizontalLayoutGroup hlg = dockObj.AddComponent<HorizontalLayoutGroup>();
-        hlg.childAlignment = TextAnchor.MiddleCenter;
-        hlg.spacing = 30;
-        hlg.childControlWidth = false;
-
-        CreateNavButton(dockObj.transform, "STORY", OpenStoryCampaign, new Vector2(220, 85), new Color(0.2f, 0.35f, 0.6f));
-        CreateNavButton(dockObj.transform, "CARDS", OpenCollection, new Vector2(220, 85), new Color(0.2f, 0.5f, 0.35f));
-        CreateNavButton(dockObj.transform, "SHOP", OpenShop, new Vector2(220, 85), new Color(0.6f, 0.45f, 0.2f));
-        CreateNavButton(dockObj.transform, "TO BATTLE", OnToBattleClicked, new Vector2(280, 95), new Color(0.8f, 0.25f, 0.2f));
+        CreateNavButton(dockRoot, "STORY", OpenStoryCampaign, new Vector2(220, 85), new Color(0.2f, 0.35f, 0.6f));
+        CreateNavButton(dockRoot, "CARDS", OpenCollection, new Vector2(220, 85), new Color(0.2f, 0.5f, 0.35f));
+        CreateNavButton(dockRoot, "SHOP", OpenShop, new Vector2(220, 85), new Color(0.6f, 0.45f, 0.2f));
+        CreateNavButton(dockRoot, "TO BATTLE", OnToBattleClicked, new Vector2(280, 95), new Color(0.8f, 0.25f, 0.2f));
 
         // Secondary, clearly smaller/muted than the four primary nav buttons above - same
         // underlying button style/asset (CreateNavButton), deliberately not equal-weight with
         // them. Offline prototype only: see GameBootstrap.StartApprovedTutorialBattle.
-        CreateNavButton(dockObj.transform, "START TUTORIAL", OnStartTutorialClicked, new Vector2(160, 55), new Color(0.3f, 0.45f, 0.45f));
+        CreateNavButton(dockRoot, "START TUTORIAL", OnStartTutorialClicked, new Vector2(160, 55), new Color(0.3f, 0.45f, 0.45f));
+
+        // BottomNavDock's HorizontalLayoutGroup only marks itself dirty when children are
+        // added - the actual horizontal positioning pass runs later, asynchronously, at the
+        // engine's next canvas-update phase before render. Without forcing it here, every
+        // button's RectTransform still holds its just-constructed default anchoredPosition
+        // (all pivots at the same point, only offset by each button's own half-width) for an
+        // indeterminate window. Force it now so the five buttons have their real, distinct
+        // positions immediately and deterministically, not dependent on implicit engine timing.
+        LayoutRebuilder.ForceRebuildLayoutImmediate(dockRect);
     }
 
     private void CreateNavButton(Transform parent, string label, UnityEngine.Events.UnityAction action, Vector2 size, Color btnColor)
     {
-        GameObject btnObj = new GameObject($"Btn_{label}");
-        btnObj.transform.SetParent(parent, false);
-
-        Image img = btnObj.AddComponent<Image>();
-
-        Sprite btnSprite = Resources.Load<Sprite>("UI/Buttons/btn_play_massive");
-        if (btnSprite != null)
-        {
-            img.sprite = btnSprite;
-            img.color = btnColor;
-        }
-        else
-        {
-            img.color = btnColor;
-        }
-
-        Button btn = btnObj.AddComponent<Button>();
-        btn.onClick.AddListener(action);
-
-        RectTransform rect = btnObj.GetComponent<RectTransform>();
-        rect.sizeDelta = size;
-
-        CreateTextElement(btnObj.transform, "Text", label, Vector2.zero, 28, TextAnchor.MiddleCenter);
+        UISharedFoundation.CreateButton(parent, $"Btn_{label}", label, size, btnColor, action, "UI/Buttons/btn_home_nav_normal_v2", true);
     }
 
     private void OpenStoryCampaign()
@@ -468,17 +420,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private Text CreateResourcePill(Transform parent, string text, Color bgColor)
     {
-        GameObject pill = new GameObject("ResourcePill");
-        pill.transform.SetParent(parent, false);
-
-        Image img = pill.AddComponent<Image>();
-        img.color = bgColor;
-
-        RectTransform rect = pill.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(170, 50);
-
-        GameObject textObj = CreateTextElement(pill.transform, "PillText", text, Vector2.zero, 22, TextAnchor.MiddleCenter);
-        return textObj.GetComponent<Text>();
+        return UISharedFoundation.CreateCurrencyPill(parent, text, bgColor);
     }
 
     private void OnToBattleClicked()
@@ -506,23 +448,12 @@ public class HomePagePresenter : MonoBehaviour
         GameBootstrap.Instance?.SetBattleCanvasVisible(true);
     }
 
-    private GameObject CreateTextElement(Transform parent, string objectName, string content, Vector2 position, int fontSize, TextAnchor alignment)
+    private GameObject CreateTextElement(Transform parent, string objectName, string content, Vector2 position, MyriadOfDragons.UI.UITextRole role, TextAnchor alignment)
     {
-        GameObject textObj = new GameObject(objectName);
-        textObj.transform.SetParent(parent, false);
-
-        Text txt = textObj.AddComponent<Text>();
-        txt.text = content;
-        txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        txt.fontSize = fontSize;
-        txt.alignment = alignment;
-        txt.color = Color.white;
-        txt.supportRichText = true;
-
-        RectTransform rect = textObj.GetComponent<RectTransform>();
+        Text txt = UISharedFoundation.CreateText(parent, objectName, content, role, alignment, Color.white, true, new Vector2(380f, 80f));
+        RectTransform rect = txt.GetComponent<RectTransform>();
         rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(380, 80);
 
-        return textObj;
+        return txt.gameObject;
     }
 }
