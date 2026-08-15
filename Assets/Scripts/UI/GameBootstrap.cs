@@ -246,6 +246,8 @@ namespace MyriadOfDragons.UI
         private Button _returnToCityButton;
         private Text _returnToCityLabel;
         private Text _tutorialGuidanceCaption;
+        private Button _resetLineupButton;
+        private Button _recommendedLineupButton;
 
         /// <summary>Number of cards currently rendered in the hand row - exposed for tests.</summary>
         public int HandCardCount => _handButtons.Count;
@@ -285,6 +287,12 @@ namespace MyriadOfDragons.UI
         /// visibility and text - see BuildTutorialGuidanceCaption's own comment.</summary>
         public bool TutorialGuidanceCaptionActiveForTests => _tutorialGuidanceCaption != null && _tutorialGuidanceCaption.gameObject.activeSelf;
         public string TutorialGuidanceCaptionTextForTests => _tutorialGuidanceCaption != null ? _tutorialGuidanceCaption.text : null;
+
+        /// <summary>Exposed for tests: Reset/Recommended Lineup's current visibility - the
+        /// readiness-audit fix hides both for the whole duration of any tutorial match (see
+        /// RefreshPhaseControls' own comment).</summary>
+        public bool ResetLineupButtonActiveForTests => _resetLineupButton != null && _resetLineupButton.gameObject.activeSelf;
+        public bool RecommendedLineupButtonActiveForTests => _recommendedLineupButton != null && _recommendedLineupButton.gameObject.activeSelf;
 
         /// <summary>Exposed for tests: opens the lane picker overlay exactly as tapping a
         /// player lane does (OpenLanePicker is private), then returns the resulting title text
@@ -1705,13 +1713,13 @@ namespace MyriadOfDragons.UI
             layout.childAlignment = TextAnchor.MiddleRight;
             layout.padding = new RectOffset(0, 20, 2, 2);
 
-            Button reset = CreateButton(panel, "Reset", font, () => OnLineupButtonPressed(useRecommendedDeck: false));
-            reset.GetComponentInChildren<Text>().fontSize = 12;
-            SetPreferredWidth(reset.gameObject, 90);
+            _resetLineupButton = CreateButton(panel, "Reset", font, () => OnLineupButtonPressed(useRecommendedDeck: false));
+            _resetLineupButton.GetComponentInChildren<Text>().fontSize = 12;
+            SetPreferredWidth(_resetLineupButton.gameObject, 90);
 
-            Button recommended = CreateButton(panel, "Recommended", font, () => OnLineupButtonPressed(useRecommendedDeck: true));
-            recommended.GetComponentInChildren<Text>().fontSize = 12;
-            SetPreferredWidth(recommended.gameObject, 110);
+            _recommendedLineupButton = CreateButton(panel, "Recommended", font, () => OnLineupButtonPressed(useRecommendedDeck: true));
+            _recommendedLineupButton.GetComponentInChildren<Text>().fontSize = 12;
+            SetPreferredWidth(_recommendedLineupButton.gameObject, 110);
         }
 
         /// <summary>
@@ -3314,6 +3322,18 @@ namespace MyriadOfDragons.UI
                     _tutorialGuidanceCaption.gameObject.SetActive(false);
                 }
             }
+
+            // Readiness-audit fix, 2026-08-15: Reset/Recommended Lineup were the one remaining
+            // way to silently leave a tutorial match mid-Formation - both route to
+            // OnLineupButtonPressed -> StartNewMatch, which is not IsTutorialMatch-aware and
+            // resets the flag to false, dropping the player into a real match with no warning.
+            // Hidden entirely (not just disabled) for the whole duration of any tutorial match -
+            // Formation and Combat both, not just Formation, since inCombat means formation is
+            // also false and both buttons would otherwise still be sitting there inert but
+            // visible. A normal match is completely unaffected - same buttons, same handlers,
+            // always visible exactly as before.
+            if (_resetLineupButton != null) _resetLineupButton.gameObject.SetActive(!IsTutorialMatch);
+            if (_recommendedLineupButton != null) _recommendedLineupButton.gameObject.SetActive(!IsTutorialMatch);
 
             if (!inCombat)
             {

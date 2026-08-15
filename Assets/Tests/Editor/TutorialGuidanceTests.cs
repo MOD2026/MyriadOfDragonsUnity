@@ -159,6 +159,46 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void TutorialFormation_HidesResetAndRecommendedLineupButtons()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_TutorialHidesLineupBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+
+            Assert.IsFalse(bootstrap.ResetLineupButtonActiveForTests,
+                "A tutorial match must hide Reset Lineup - it is the one remaining unguarded way to silently leave the tutorial.");
+            Assert.IsFalse(bootstrap.RecommendedLineupButtonActiveForTests,
+                "A tutorial match must hide Recommended Lineup for the same reason.");
+        }
+
+        [Test]
+        public void NormalMatchFormation_ShowsResetAndRecommendedLineupButtons()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_NormalShowsLineupBootstrap");
+            Assert.IsFalse(bootstrap.IsTutorialMatch, "Setup: expected a freshly-initialized match to not be tutorial-flagged.");
+
+            Assert.IsTrue(bootstrap.ResetLineupButtonActiveForTests,
+                "A normal match must keep showing Reset Lineup exactly as before this fix.");
+            Assert.IsTrue(bootstrap.RecommendedLineupButtonActiveForTests,
+                "A normal match must keep showing Recommended Lineup exactly as before this fix.");
+        }
+
+        [Test]
+        public void NormalMatch_ResetAndRecommendedHooksStillFunction_AfterTheVisibilityChange()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_NormalLineupHooksStillWorkBootstrap");
+
+            Assert.DoesNotThrow(() => bootstrap.ResetLineupForTests());
+            Assert.IsFalse(bootstrap.IsTutorialMatch, "Reset Lineup on a normal match must remain a normal match.");
+            Assert.AreEqual(BattlePhase.Formation, bootstrap.Battle.Phase, "Reset Lineup must still start a fresh Formation-phase match.");
+            Assert.IsTrue(bootstrap.ResetLineupButtonActiveForTests, "The buttons must still be visible for the new normal match.");
+
+            Assert.DoesNotThrow(() => bootstrap.UseRecommendedLineupForTests());
+            Assert.IsFalse(bootstrap.IsTutorialMatch, "Recommended Lineup on a normal match must remain a normal match.");
+            Assert.AreEqual(BattlePhase.Formation, bootstrap.Battle.Phase, "Recommended Lineup must still start a fresh Formation-phase match.");
+            Assert.IsTrue(bootstrap.RecommendedLineupButtonActiveForTests, "The buttons must still be visible for the new normal match.");
+        }
+
+        [Test]
         public void TutorialCombat_ShowsCombatObjectiveCaption()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_TutorialCombatBootstrap");
