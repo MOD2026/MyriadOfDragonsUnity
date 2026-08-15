@@ -269,6 +269,12 @@ namespace MyriadOfDragons.UI
         /// <summary>Exposed for tests, which can't rely on Awake() firing outside Play Mode.</summary>
         public BattleController Battle => _battleController;
 
+        /// <summary>Exposed for tests: the AI archetype actually driving the current match's
+        /// enemy deployment (SimpleAIOpponent.TakeTurn's lane choice) - lets a test prove the
+        /// tutorial's own fixed Balanced profile is in effect, independent of whatever a prior
+        /// normal match last generated.</summary>
+        public AIArchetype AiArchetypeForTests => _aiProfile.Archetype;
+
         /// <summary>
         /// The running battle screen, for external code that needs to show/hide it - the home
         /// screen's own handoff, specifically (2026-08-06). Not a CardDatabase-style guarded
@@ -595,6 +601,23 @@ namespace MyriadOfDragons.UI
             tutorialEmpire.InitializeTCGModifiers();
             var economy = new BattleController.MatchEconomy(
                 tutorialEmpire.ResourceCap, tutorialEmpire.Turn1Resource, tutorialEmpire.StartingAvatarHealth);
+
+            // Tutorial-owned, always explicitly Balanced - _aiProfile is otherwise re-derived
+            // per normal match (see StartNewMatch) and would sit stale here, so enemy lane
+            // deployment (SimpleAIOpponent.TakeTurn reads _aiProfile.Archetype) could
+            // accidentally inherit whatever archetype a previous normal match happened to roll.
+            // Values mirror tutorialEmpire's fixed level-1 economy, the same numbers already
+            // passed to StartMatch above, so the enemy portrait/name label (which also reads
+            // _aiProfile) stays consistent with the actual match instead of a leftover profile.
+            _aiProfile = new AIBattleProfile
+            {
+                DisplayName = SoloAIScalingSystem.GetOpponentName(AIDifficultyTier.Novice),
+                DifficultyTier = AIDifficultyTier.Novice,
+                Archetype = AIArchetype.Balanced,
+                MaxAvatarHealth = tutorialEmpire.StartingAvatarHealth,
+                StartingResourceCap = tutorialEmpire.ResourceCap,
+                Turn1Resource = tutorialEmpire.Turn1Resource,
+            };
 
             _battleController.StartMatch(playerDeck, enemyDeck, economy, economy);
             _battleController.DealFormationHand(_battleController.PlayerState);

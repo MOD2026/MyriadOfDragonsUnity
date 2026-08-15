@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using MyriadOfDragons.AI;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Data;
@@ -429,6 +431,63 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(totalMatchesBefore, progressionProfile.totalMatches);
             Assert.AreEqual(totalWinsBefore, progressionProfile.totalWins);
             Assert.AreEqual(winStreakBefore, progressionProfile.winStreak);
+        }
+
+        /// <summary>
+        /// TUTORIAL AI PROFILE STABILITY, 2026-08-15 - StartApprovedTutorialBattle() used to
+        /// leave the shared _aiProfile field untouched, so enemy lane deployment
+        /// (SimpleAIOpponent.TakeTurn reads _aiProfile.Archetype) silently inherited whatever a
+        /// prior normal match happened to generate. It was Balanced today only because
+        /// SoloAIScalingSystem.GenerateAIOpponent's own archetype parameter defaults to Balanced
+        /// - accidental coupling, not a guarantee. These two tests prove the tutorial now sets
+        /// its own explicit, tutorial-owned profile, and that a normal match's independent
+        /// AI generation (StartNewMatch) is untouched by that fix.
+        /// </summary>
+        [Test]
+        public void StartApprovedTutorialBattle_OverridesAnyStaleAiArchetypeToBalanced()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StaleAiArchetype_TutorialBootstrap");
+
+            // Directly forces the field to a non-Balanced, "leftover from a previous normal
+            // match" value - GenerateAIOpponent's own default happens to always produce Balanced
+            // today, so there is no public path that can otherwise reproduce the stale state this
+            // fix guards against.
+            typeof(GameBootstrap)
+                .GetField("_aiProfile", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(bootstrap, new AIBattleProfile
+                {
+                    DisplayName = "Stale Prior Opponent",
+                    DifficultyTier = AIDifficultyTier.Titan,
+                    Archetype = AIArchetype.Aggressive,
+                    MaxAvatarHealth = 999,
+                    StartingResourceCap = 999,
+                    Turn1Resource = 999,
+                });
+
+            bootstrap.StartApprovedTutorialBattle();
+
+            Assert.AreEqual(AIArchetype.Balanced, bootstrap.AiArchetypeForTests,
+                "The tutorial must use its own explicitly Balanced AI profile, never a stale archetype left over from a prior normal match.");
+        }
+
+        [Test]
+        public void NormalMatch_AiProfileGenerationStaysIndependentOfTheTutorialFix()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("NormalMatchAfterTutorial_AiBootstrap");
+
+            bootstrap.StartApprovedTutorialBattle();
+            Assert.AreEqual(AIArchetype.Balanced, bootstrap.AiArchetypeForTests, "Setup: expected the tutorial's own fixed profile.");
+            int tutorialEnemyMaxHealth = bootstrap.Battle.EnemyState.MaxAvatarHealth;
+
+            // The real normal-match path (OnLineupButtonPressed -> StartNewMatch), not the
+            // tutorial's fixed profile.
+            bootstrap.ResetLineupForTests();
+
+            Assert.AreEqual(AIArchetype.Balanced, bootstrap.AiArchetypeForTests,
+                "A normal match's own AI generation still defaults to Balanced via SoloAIScalingSystem, unaffected by the tutorial fix.");
+            Assert.Less(bootstrap.Battle.EnemyState.MaxAvatarHealth, tutorialEnemyMaxHealth,
+                "StartNewMatch must still independently scale its own AI HP down from the player's raw value (SoloAIScalingSystem's Novice ratio is below 1.0), " +
+                "not reuse the tutorial's fixed, unscaled value - proving normal-match AI-profile generation is untouched by the tutorial fix.");
         }
 
         [Test]
