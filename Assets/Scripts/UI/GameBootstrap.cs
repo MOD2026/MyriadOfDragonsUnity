@@ -69,6 +69,20 @@ namespace MyriadOfDragons.UI
         private const float EnemyLaneX0 = 0.20f, EnemyLaneX1 = 0.99f;
         private const float PlayerLaneX0 = 0.01f, PlayerLaneX1 = 0.80f;
 
+        // Board-layout fix, 2026-08-15: both zones above are 0.79 of the 720-wide canvas
+        // (~569px). At the previous per-slot width (66) and inner spacing (8), three fully
+        // labelled/populated lane groups needed 3*(3*66+2*8) + 2*20 (zoneLayout.spacing) =
+        // 682px - more than the zone actually had, so lanes overflowed past the zone's own
+        // bounds and collided with whatever sat past it (the Avatar portrait's own space, or
+        // simply each other) once more than one lane held a card. Confirmed by a Play Mode
+        // screenshot: only one deployed card was independently readable with all three
+        // approved tutorial cards on the board. These two values are shared by every place a
+        // board slot (deployed card, empty-slot placeholder, or a lane's own reserved width) is
+        // sized, so they can never drift out of sync with each other again - at 48/6, three
+        // lanes need 3*(3*48+2*6) + 40 = 508px, comfortably inside the ~569px available.
+        private const float BoardSlotWidth = 48f;
+        private const float BoardSlotSpacing = 6f;
+
         // Battle-board rework, 2026-08-06: the first real play test (this project's EditMode
         // suite cannot execute Update()/coroutines, so Play Mode rendering had literally never
         // been looked at before) showed three stacked per-lane rows reading as a plain 3x3 grid
@@ -973,12 +987,38 @@ namespace MyriadOfDragons.UI
         private void CreateLaneGroup(Transform parent, Lane lane, Font font, bool interactive,
             out Transform slotsContainer, out Button laneButton)
         {
-            const float slotWidth = 66f;
-            const float innerSlotSpacing = 8f;
+            const float slotWidth = BoardSlotWidth;
+            const float innerSlotSpacing = BoardSlotSpacing;
             float groupWidth = LaneState.MaxSlots * slotWidth + (LaneState.MaxSlots - 1) * innerSlotSpacing;
 
+            // Wrapper: label on top, slot row below - stacked so the label sits clearly above
+            // its own slot cluster without consuming a slot column in the row's own
+            // HorizontalLayoutGroup, and without changing the slot row's own tap target (the
+            // label is a plain, non-raycast Text sibling, not part of groupGo). This is the
+            // wrapper the outer board-zone layout (BuildEnemyPanel/BuildPlayerPanel) now
+            // arranges instead of groupGo directly - same groupWidth reserved for it, so lane
+            // click geometry and inter-lane spacing are unchanged.
+            var wrapperGo = new GameObject($"LaneWrapper_{lane}", typeof(RectTransform));
+            wrapperGo.transform.SetParent(parent, false);
+            SetPreferredWidth(wrapperGo, groupWidth);
+            SetPreferredHeight(wrapperGo, 78f);
+
+            var wrapperLayout = wrapperGo.AddComponent<VerticalLayoutGroup>();
+            wrapperLayout.spacing = 2f;
+            wrapperLayout.childAlignment = TextAnchor.MiddleCenter;
+            wrapperLayout.childForceExpandWidth = false;
+            wrapperLayout.childForceExpandHeight = false;
+            wrapperLayout.childControlWidth = false;
+            wrapperLayout.childControlHeight = false;
+
+            Text label = CreateText(wrapperGo.transform, LaneHeaderLabel(lane), 12, GoldTextColor, font);
+            label.fontStyle = FontStyle.Bold;
+            label.raycastTarget = false;
+            SetPreferredWidth(label.gameObject, groupWidth);
+            SetPreferredHeight(label.gameObject, 16f);
+
             var groupGo = new GameObject($"Lane_{lane}", typeof(RectTransform));
-            groupGo.transform.SetParent(parent, false);
+            groupGo.transform.SetParent(wrapperGo.transform, false);
             SetPreferredWidth(groupGo, groupWidth);
             SetPreferredHeight(groupGo, 78f);
 
@@ -1006,6 +1046,18 @@ namespace MyriadOfDragons.UI
 
             slotsContainer = groupGo.transform;
             laneButton = button;
+        }
+
+        /// <summary>"FRONT (+1 ATK)" / "MIDDLE (+1 HP)" / "BACK" - reuses LaneBonusLabel so this
+        /// can never drift out of sync with the real bonus values, same reasoning as that
+        /// method's own comment. Used above both boards (BuildEnemyPanel/BuildPlayerPanel) -
+        /// player-reported: "three unlabeled player lane groups look like one ambiguous row".</summary>
+        private static string LaneHeaderLabel(Lane lane)
+        {
+            string bonus = LaneBonusLabel(lane);
+            return string.IsNullOrEmpty(bonus)
+                ? lane.ToString().ToUpperInvariant()
+                : $"{lane.ToString().ToUpperInvariant()} ({bonus})";
         }
 
         /// <summary>
@@ -3529,7 +3581,7 @@ namespace MyriadOfDragons.UI
                     if (instance.Definition.SlotWeight > 1 && container.childCount > 0)
                     {
                         SetPreferredWidth(container.GetChild(container.childCount - 1).gameObject,
-                            66 * instance.Definition.SlotWeight);
+                            BoardSlotWidth * instance.Definition.SlotWeight);
                     }
                 }
 
@@ -3552,7 +3604,7 @@ namespace MyriadOfDragons.UI
 
             var go = new GameObject("EmptySlot", typeof(RectTransform));
             go.transform.SetParent(parent, false);
-            SetPreferredWidth(go, 66);
+            SetPreferredWidth(go, BoardSlotWidth);
             SetPreferredHeight(go, 78);
             var image = go.AddComponent<Image>();
             image.sprite = emptySlotSprite;
@@ -4132,7 +4184,7 @@ namespace MyriadOfDragons.UI
         {
             var go = new GameObject($"Mini_{instance.Definition.Id}", typeof(RectTransform));
             go.transform.SetParent(parent, false);
-            SetPreferredWidth(go, 66);
+            SetPreferredWidth(go, BoardSlotWidth);
             SetPreferredHeight(go, 78);
 
             var bg = go.AddComponent<Image>();
