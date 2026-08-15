@@ -606,12 +606,30 @@ namespace MyriadOfDragons.UI
         {
             if (_profile?.cardCollection == null) return;
 
+            // Persisted so the grant survives an app restart - previously this only ever
+            // mutated cardCollection in memory, and (per the earlier persistence audit) only
+            // ever reached disk as a side effect of some unrelated save firing later in the
+            // same session (Shop/DeckBuilder/Collection returning home, or a normal match win).
+            // An immediate restart lost it. _profile.Save() (not SaveManager.Save()) is what
+            // actually saves the exact instance that just received the grant - see this
+            // method's call site comment / Initialize()'s own _profile assignment for why the
+            // two are not interchangeable in EditMode.
+            bool anyGranted = false;
             foreach (string cardId in new[] { "warrior", "novice_knight", "goblin_caster" })
             {
                 if (!_profile.cardCollection.Contains(cardId))
                 {
                     _profile.cardCollection.Add(cardId);
+                    anyGranted = true;
                 }
+            }
+
+            // Only when something actually changed - a retry or a second tutorial start finds
+            // all three already present and must not re-save (idempotent no-op, not a repeated
+            // disk write) every time the tutorial is (re)started.
+            if (anyGranted)
+            {
+                _profile.Save();
             }
         }
 
