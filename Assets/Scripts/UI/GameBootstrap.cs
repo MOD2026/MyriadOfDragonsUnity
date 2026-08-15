@@ -2571,6 +2571,21 @@ namespace MyriadOfDragons.UI
         {
             if (_battleController.Phase != BattlePhase.Formation) return;
 
+            // Approved tutorial encounter, Command Centre decision 2026-08-15: the fixed
+            // enemy hand (4 cards, SimpleAIOpponent deploys all of it) only produces the
+            // validated, teachable encounter against a COMPLETE player formation - the normal
+            // "at least one card" rule below is enough for a normal match but lets a tutorial
+            // player start against a full enemy board with only one or two of their three
+            // starter cards placed. Checked, and the enemy left undeployed, before
+            // SimpleAIOpponent.TakeTurn runs at all - not just before ConfirmFormation.
+            // Front/Middle/Back stays pure guidance (TutorialLaneGuidance) - this only requires
+            // all three to be deployed SOMEWHERE, not a specific lane each.
+            if (IsTutorialMatch && !HasAllApprovedTutorialStarterCardsDeployed())
+            {
+                ShowLaneHint("Place all three starter cards - Front, Middle, and Back - before starting the battle.");
+                return;
+            }
+
             // The opponent commits its whole formation at once too, so both squads are locked
             // in before a single clash happens - same simultaneous-commit principle the lane
             // clash already used, applied to deployment.
@@ -2585,6 +2600,28 @@ namespace MyriadOfDragons.UI
             _selectedCard = null;
             RefreshAll();
             StartCombatLoop();
+        }
+
+        /// <summary>Exposed for tests: the real "Start Battle" button calls the private
+        /// OnPrimaryActionPressed() directly - EditMode tests have no way to click a UI Button,
+        /// so this is the only way to exercise the real handler (and the new tutorial
+        /// all-three-starters gate) rather than reimplementing its behavior in a test.
+        /// EndTurnForTests deliberately does not cover this - it calls ConfirmFormation()
+        /// directly, bypassing this method (and its gate) entirely.</summary>
+        public void StartBattleForTests() => OnPrimaryActionPressed();
+
+        /// <summary>See OnPrimaryActionPressed's own comment. Checks presence anywhere on the
+        /// player's board, not any particular lane.</summary>
+        private bool HasAllApprovedTutorialStarterCardsDeployed()
+        {
+            var deployedIds = new HashSet<string>(
+                _battleController.PlayerState.Lanes.Values
+                    .SelectMany(lane => lane.Cards)
+                    .Select(card => card.Definition.Id));
+
+            return deployedIds.Contains("warrior")
+                && deployedIds.Contains("novice_knight")
+                && deployedIds.Contains("goblin_caster");
         }
 
         /// <summary>Drives AdvanceCombatTick() on a timer once formation is locked. All the

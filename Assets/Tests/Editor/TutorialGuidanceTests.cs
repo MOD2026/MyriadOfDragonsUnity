@@ -159,6 +159,63 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void TutorialFormation_WithOneCardDeployed_StaysInFormationAndDoesNotDeployEnemy()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_TutorialIncompleteBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            BattleController controller = bootstrap.Battle;
+
+            Card onlyCard = controller.PlayerState.Hand.First(c => c.Id == "warrior");
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, onlyCard, Lane.Front),
+                "Setup: expected warrior to legally deploy into Front.");
+
+            bootstrap.StartBattleForTests();
+
+            Assert.AreEqual(BattlePhase.Formation, controller.Phase,
+                "Start Battle must not enter Combat until all three tutorial starter cards are deployed.");
+            Assert.AreEqual(0, controller.EnemyState.Lanes.Values.Sum(l => l.Cards.Count),
+                "The enemy must not deploy while the tutorial formation is still incomplete.");
+        }
+
+        [Test]
+        public void TutorialFormation_WithAllThreeDeployed_EntersCombat()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_TutorialCompleteBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            BattleController controller = bootstrap.Battle;
+
+            foreach (Card card in controller.PlayerState.Hand.ToList())
+            {
+                Lane lane = card.Id switch { "warrior" => Lane.Front, "novice_knight" => Lane.Middle, _ => Lane.Back };
+                controller.TryPlayCard(controller.PlayerState, card, lane);
+            }
+
+            bootstrap.StartBattleForTests();
+
+            Assert.AreEqual(BattlePhase.Combat, controller.Phase,
+                "Start Battle must enter Combat once all three tutorial starter cards are deployed.");
+            Assert.Greater(controller.EnemyState.Lanes.Values.Sum(l => l.Cards.Count), 0,
+                "The enemy must deploy once Start Battle actually proceeds.");
+        }
+
+        [Test]
+        public void NormalMatch_WithOneCardDeployed_StillEntersCombat()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_NormalOneCardStartsBattleBootstrap");
+            Assert.IsFalse(bootstrap.IsTutorialMatch, "Setup: expected a freshly-initialized match to not be tutorial-flagged.");
+            BattleController controller = bootstrap.Battle;
+
+            Card anyCard = controller.PlayerState.Hand.First(c => c.ResourceCost <= controller.PlayerState.Resource);
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, anyCard, Lane.Front),
+                "Setup: expected to be able to play at least one card into Front.");
+
+            bootstrap.StartBattleForTests();
+
+            Assert.AreEqual(BattlePhase.Combat, controller.Phase,
+                "A normal match must still be able to start battle with only one card deployed - the tutorial gate must not apply here.");
+        }
+
+        [Test]
         public void TutorialFormation_HidesResetAndRecommendedLineupButtons()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_TutorialHidesLineupBootstrap");
