@@ -2460,7 +2460,43 @@ namespace MyriadOfDragons.UI
 
         private void OnHandCardPressed(Card card)
         {
+            // Direct-selection fix (Command Centre, 2026-08-15): during Formation, tapping a
+            // hand card now selects it immediately for placement instead of only opening the
+            // detail overlay - see SelectOrDeselectFormationHandCard's own comment for the
+            // reported root cause this closes. Combat is unchanged: it still opens the detail
+            // overlay here, and reinforcement selection through it already works correctly via
+            // OnLanePressed's existing _selectedCard branch - only Formation was broken.
+            if (_battleController.Phase == BattlePhase.Formation)
+            {
+                SelectOrDeselectFormationHandCard(card);
+                return;
+            }
+
             ShowCardDetail(card);
+        }
+
+        /// <summary>
+        /// Reported root cause ("cards cannot be selected/placed reliably"): the only way to
+        /// set _selectedCard during Formation was through the card-detail overlay's own confirm
+        /// button (OnCardDetailActionPressed), and even then OnLanePressed never checked
+        /// _selectedCard during Formation at all - it always reopened the lane picker,
+        /// discarding the selection. This gives Formation the same direct one-tap selection
+        /// Combat's reinforcement flow already had. Same affordability message
+        /// OnLanePressed/OnCardDetailActionPressed's own deploy path already uses; deselecting
+        /// (tapping the already-selected card again) needs no message, only reselecting.
+        /// </summary>
+        private void SelectOrDeselectFormationHandCard(Card card)
+        {
+            bool nowSelected = _selectedCard != card;
+            if (nowSelected && card.ResourceCost > _battleController.PlayerState.Resource)
+            {
+                ShowLaneHint($"Not enough Resource for {card.DisplayName} (needs {card.ResourceCost}).");
+                return;
+            }
+
+            _selectedCard = nowSelected ? card : null;
+            RefreshAll();
+            if (nowSelected) PopSelectedHandCard(card);
         }
 
         private void OnLanePressed(Lane lane)
@@ -2490,10 +2526,15 @@ namespace MyriadOfDragons.UI
             // nothing, looked like nothing, and read as broken ("I should be able to load the
             // card by clicking the space holder at the centre but it's not registering").
             // Every rejected tap now says why instead of silently no-op'ing.
-            // During Formation a lane tap opens that lane's picker - the lane is the decision,
-            // and its three cards are chosen together there rather than one at a time from the
-            // hand row (2026-08-06).
-            if (_battleController.Phase == BattlePhase.Formation)
+            // During Formation, a lane tap with nothing selected opens that lane's picker - the
+            // "lane first, then card" flow (2026-08-06), preserved as-is. Direct-selection fix
+            // (Command Centre, 2026-08-15): this used to reopen the picker unconditionally, even
+            // with a card already selected via SelectOrDeselectFormationHandCard - discarding the
+            // selection and making direct hand-card placement impossible ("cards cannot be
+            // selected/placed reliably"). With a card selected, Formation now falls through to
+            // the same TryPlayCard deploy path below already used for Combat's non-reinforcement
+            // case - same room-check and affordability messages, no new behavior invented.
+            if (_battleController.Phase == BattlePhase.Formation && _selectedCard == null)
             {
                 OpenLanePicker(lane);
                 return;
@@ -2609,6 +2650,26 @@ namespace MyriadOfDragons.UI
         /// EndTurnForTests deliberately does not cover this - it calls ConfirmFormation()
         /// directly, bypassing this method (and its gate) entirely.</summary>
         public void StartBattleForTests() => OnPrimaryActionPressed();
+
+        /// <summary>Exposed for tests: the real hand-card tap calls the private
+        /// OnHandCardPressed() directly - the only way an EditMode test can exercise the
+        /// direct-selection fix (or the Combat detail-overlay path it leaves unchanged)
+        /// without simulating a UI Button click.</summary>
+        public void HandCardPressedForTests(Card card) => OnHandCardPressed(card);
+
+        /// <summary>Exposed for tests: the real player-lane tap calls the private
+        /// OnLanePressed() directly - needed to prove a lane tap with a card already selected
+        /// deploys it (Formation direct-selection fix), and that a lane tap with nothing
+        /// selected still opens the lane-first picker flow, unchanged.</summary>
+        public void LanePressedForTests(Lane lane) => OnLanePressed(lane);
+
+        /// <summary>Exposed for tests: the id of the currently-selected hand card, or null -
+        /// _selectedCard itself is private.</summary>
+        public string SelectedCardIdForTests => _selectedCard?.Id;
+
+        /// <summary>Exposed for tests: whether the lane picker overlay is currently open -
+        /// _lanePickerOverlay itself is private.</summary>
+        public bool IsLanePickerOpenForTests => _lanePickerOverlay != null && _lanePickerOverlay.activeSelf;
 
         /// <summary>See OnPrimaryActionPressed's own comment. Checks presence anywhere on the
         /// player's board, not any particular lane.</summary>

@@ -216,6 +216,64 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void NormalFormation_DirectHandCardSelectionThenLaneTap_DeploysTheCard()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_DirectSelectDeploysBootstrap");
+            BattleController controller = bootstrap.Battle;
+            Card card = controller.PlayerState.Hand.First(c => c.ResourceCost <= controller.PlayerState.Resource);
+
+            bootstrap.HandCardPressedForTests(card);
+            Assert.AreEqual(card.Id, bootstrap.SelectedCardIdForTests,
+                "Tapping an affordable hand card during Formation must select it directly.");
+
+            bootstrap.LanePressedForTests(Lane.Front);
+
+            Assert.IsNull(bootstrap.SelectedCardIdForTests, "Deploying the selected card must clear the selection.");
+            Assert.IsTrue(controller.PlayerState.Lanes[Lane.Front].Cards.Any(c => c.Definition.Id == card.Id),
+                "A lane tap with a card selected must deploy that exact card into the tapped lane.");
+        }
+
+        [Test]
+        public void FormationLaneFirstFlow_StillOpensThePickerAndCanDeployACard()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_LaneFirstFlowBootstrap");
+            BattleController controller = bootstrap.Battle;
+
+            bootstrap.LanePressedForTests(Lane.Front);
+
+            Assert.IsTrue(bootstrap.IsLanePickerOpenForTests,
+                "A lane tap with nothing selected must still open the lane-first picker flow, unchanged.");
+            Assert.IsNull(bootstrap.SelectedCardIdForTests, "Opening the picker must not itself select a card.");
+
+            // The picker's own available-row tap deploys through exactly this call
+            // (RefreshLanePicker's inline onClick handler, untouched by this fix) - proving it
+            // still succeeds proves the lane-first flow's underlying deploy path remains intact.
+            Card card = controller.PlayerState.Hand.First();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, card, Lane.Front));
+            Assert.IsTrue(controller.PlayerState.Lanes[Lane.Front].Cards.Any(c => c.Definition.Id == card.Id));
+        }
+
+        [Test]
+        public void TutorialFormation_DirectSelectionForAllThreeStarters_PassesTheStartBattleGate()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_TutorialDirectSelectAllThreeBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            BattleController controller = bootstrap.Battle;
+
+            foreach (Card card in controller.PlayerState.Hand.ToList())
+            {
+                bootstrap.HandCardPressedForTests(card);
+                Lane lane = card.Id switch { "warrior" => Lane.Front, "novice_knight" => Lane.Middle, _ => Lane.Back };
+                bootstrap.LanePressedForTests(lane);
+            }
+
+            bootstrap.StartBattleForTests();
+
+            Assert.AreEqual(BattlePhase.Combat, controller.Phase,
+                "Direct hand-card selection must deploy all three tutorial starters and pass the existing Start Battle gate.");
+        }
+
+        [Test]
         public void TutorialFormation_HidesResetAndRecommendedLineupButtons()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Guidance_TutorialHidesLineupBootstrap");
