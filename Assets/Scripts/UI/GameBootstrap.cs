@@ -241,6 +241,11 @@ namespace MyriadOfDragons.UI
 
         private GameObject _resultOverlay;
         private Text _resultText;
+        private Button _playAgainButton;
+        private Text _playAgainLabel;
+        private Button _returnToCityButton;
+        private Text _returnToCityLabel;
+        private Text _tutorialGuidanceCaption;
 
         /// <summary>Number of cards currently rendered in the hand row - exposed for tests.</summary>
         public int HandCardCount => _handButtons.Count;
@@ -266,6 +271,30 @@ namespace MyriadOfDragons.UI
         /// next normal match's reward eligibility.
         /// </summary>
         public bool IsTutorialMatch { get; private set; }
+
+        /// <summary>Exposed for tests: read-only access to the result overlay's text/labels/
+        /// button-visibility state, which tutorial guidance now branches by IsTutorialMatch -
+        /// no other way for a test to observe this without a broader UI-inspection API.</summary>
+        public string ResultTextForTests => _resultText != null ? _resultText.text : null;
+        public string PlayAgainLabelForTests => _playAgainLabel != null ? _playAgainLabel.text : null;
+        public string ReturnToCityLabelForTests => _returnToCityLabel != null ? _returnToCityLabel.text : null;
+        public bool PlayAgainButtonActiveForTests => _playAgainButton != null && _playAgainButton.gameObject.activeSelf;
+        public bool ReturnToCityButtonActiveForTests => _returnToCityButton != null && _returnToCityButton.gameObject.activeSelf;
+
+        /// <summary>Exposed for tests: the Formation "Ready"/Combat objective caption's current
+        /// visibility and text - see BuildTutorialGuidanceCaption's own comment.</summary>
+        public bool TutorialGuidanceCaptionActiveForTests => _tutorialGuidanceCaption != null && _tutorialGuidanceCaption.gameObject.activeSelf;
+        public string TutorialGuidanceCaptionTextForTests => _tutorialGuidanceCaption != null ? _tutorialGuidanceCaption.text : null;
+
+        /// <summary>Exposed for tests: opens the lane picker overlay exactly as tapping a
+        /// player lane does (OpenLanePicker is private), then returns the resulting title text
+        /// - the only way to observe RefreshLanePicker's tutorial-guidance append without a
+        /// broader UI-inspection API.</summary>
+        public string OpenLanePickerAndGetTitleForTests(Lane lane)
+        {
+            OpenLanePicker(lane);
+            return _lanePickerTitle != null ? _lanePickerTitle.text : null;
+        }
 
         /// <summary>
         /// Fires after OnReturnToCityPressed has hidden the battle canvas - the other half of
@@ -342,7 +371,9 @@ namespace MyriadOfDragons.UI
             // Title panel removed 2026-08-06 ("remove MOD"): a permanent game-title banner across
             // the top of the battle screen is menu chrome, not gameplay information, and it was
             // eating a band of screen the board could use. BuildTitlePanel is kept for a future
-            // main menu rather than deleted.
+            // main menu rather than deleted. The TitleY0/Y1 band it used to occupy is what
+            // BuildTutorialGuidanceCaption reuses below - already free, no board space taken.
+            BuildTutorialGuidanceCaption(canvas.transform, defaultFont);
             BuildEnemyPanel(canvas.transform, defaultFont);
             BuildPlayerPanel(canvas.transform, defaultFont);
             BuildStatusRow(canvas.transform, defaultFont);
@@ -787,6 +818,23 @@ namespace MyriadOfDragons.UI
             StretchFull(title.rectTransform);
         }
 
+        /// <summary>
+        /// One reusable caption reused for both the approved tutorial's "Ready" (Formation) and
+        /// combat-objective (Combat) copy - the two phases are mutually exclusive, so one Text
+        /// with its content and visibility set in RefreshPhaseControls covers both without a
+        /// second GameObject. Lives in the same TitleY0/Y1 band BuildTitlePanel used to occupy
+        /// (see the comment at its Initialize() call site) - already free screen space, nothing
+        /// displaced. Hidden by default; only ever shown for a tutorial match.
+        /// </summary>
+        private void BuildTutorialGuidanceCaption(Transform canvasTransform, Font font)
+        {
+            RectTransform panel = CreateBandPanel(canvasTransform, "TutorialGuidanceCaption", Color.clear, TitleY0, TitleY1);
+            _tutorialGuidanceCaption = CreateText(panel, "", 18, GoldTextColor, font);
+            _tutorialGuidanceCaption.fontStyle = FontStyle.Bold;
+            StretchFull(_tutorialGuidanceCaption.rectTransform);
+            _tutorialGuidanceCaption.gameObject.SetActive(false);
+        }
+
         private void BuildEnemyPanel(Transform canvasTransform, Font font)
         {
             RectTransform panel = CreateGradientBandPanel(canvasTransform, "EnemyPanel",
@@ -943,6 +991,17 @@ namespace MyriadOfDragons.UI
         {
             Lane.Front => "+1 ATK",
             Lane.Middle => "+1 HP",
+            _ => "",
+        };
+
+        /// <summary>Approved tutorial-only copy (Command Centre decision, 2026-08-15) for the
+        /// lane picker overlay - see RefreshLanePicker's own comment on why this is appended,
+        /// not a replacement, of the existing lane-bonus/slot line.</summary>
+        private static string TutorialLaneGuidance(Lane lane) => lane switch
+        {
+            Lane.Front => "Front: Place cards in the Front row.",
+            Lane.Middle => "Middle: Place cards in the Middle row.",
+            Lane.Back => "Back: Place cards in the Back row.",
             _ => "",
         };
 
@@ -2153,6 +2212,14 @@ namespace MyriadOfDragons.UI
             _lanePickerTitle.text = $"{_pickerLane.ToString().ToUpperInvariant()} LANE   {LaneBonusLabel(_pickerLane)}" +
                                     $"   -   {laneState.SlotsUsed}/{LaneState.MaxSlots} slots";
 
+            // Approved tutorial-only copy (Command Centre decision, 2026-08-15), appended rather
+            // than replacing the line above - a normal match keeps exactly the existing lane
+            // bonus/slot text, unchanged.
+            if (IsTutorialMatch)
+            {
+                _lanePickerTitle.text += "\n" + TutorialLaneGuidance(_pickerLane);
+            }
+
             ClearChildren(_lanePickerDeployedRow);
             for (int i = 0; i < laneState.Cards.Count; i++)
             {
@@ -2348,11 +2415,17 @@ namespace MyriadOfDragons.UI
             // battle/metagame split) - both are single-tap, equally weighted exits from this
             // screen, and stacking two full-width buttons here would just be the "giant pill"
             // problem the spell bar already had.
-            Button playAgain = CreateButton(panel, "Play Again", font, OnPlayAgainPressed);
-            AnchorBand(playAgain.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.53f, 0.05f);
+            //
+            // onClick is OnPlayAgainOrRetryPressed, not OnPlayAgainPressed directly - the same
+            // physical button serves as "Play Again" (normal) or "Retry Battle" (tutorial
+            // defeat), see that method's own comment for why the branch has to live there.
+            _playAgainButton = CreateButton(panel, "Play Again", font, OnPlayAgainOrRetryPressed);
+            AnchorBand(_playAgainButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.53f, 0.05f);
+            _playAgainLabel = _playAgainButton.GetComponentInChildren<Text>();
 
-            Button returnToCity = CreateButton(panel, "Return to City", font, OnReturnToCityPressed);
-            AnchorBand(returnToCity.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.05f, 0.53f);
+            _returnToCityButton = CreateButton(panel, "Return to City", font, OnReturnToCityPressed);
+            AnchorBand(_returnToCityButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.05f, 0.53f);
+            _returnToCityLabel = _returnToCityButton.GetComponentInChildren<Text>();
 
             _resultOverlay.SetActive(false);
         }
@@ -2926,17 +2999,47 @@ namespace MyriadOfDragons.UI
                 _profile.RecordMatchResult(playerWon);
             }
 
-            // A match decided on the tick cap explains itself rather than claiming an Avatar
-            // fell when neither did - BattleController.OutcomeReason carries that wording.
-            string headline = !string.IsNullOrEmpty(_battleController.OutcomeReason)
-                ? _battleController.OutcomeReason
-                : playerWon
-                    ? "VICTORY - the enemy Avatar has fallen."
-                    : "DEFEAT - your Avatar has fallen.";
+            if (IsTutorialMatch)
+            {
+                // Approved tutorial-only copy and single-button flow (Command Centre decision,
+                // 2026-08-15): the tutorial never shows the normal match's Avatar Level/Resource/
+                // HP progression line - that reflects RecordMatchResult, which the guard above
+                // never runs for a tutorial match, so showing it here would be reporting numbers
+                // this match had no part in changing.
+                _resultText.text = playerWon
+                    ? "Victory. The first threat has been driven back."
+                    : "Defeat. Adjust your formation and try again.";
+                _returnToCityLabel.text = "Return to Empire";
+                _playAgainLabel.text = "Retry Battle";
+                // Exactly one of the two exits applies to a tutorial outcome - victory returns to
+                // Home (the existing Return to City handler, unchanged), defeat retries the
+                // approved encounter (see OnPlayAgainOrRetryPressed). Both must never show
+                // together outside normal play.
+                _returnToCityButton.gameObject.SetActive(playerWon);
+                _playAgainButton.gameObject.SetActive(!playerWon);
+            }
+            else
+            {
+                // A match decided on the tick cap explains itself rather than claiming an Avatar
+                // fell when neither did - BattleController.OutcomeReason carries that wording.
+                string headline = !string.IsNullOrEmpty(_battleController.OutcomeReason)
+                    ? _battleController.OutcomeReason
+                    : playerWon
+                        ? "VICTORY - the enemy Avatar has fallen."
+                        : "DEFEAT - your Avatar has fallen.";
 
-            _resultText.text = $"{headline}\n" +
-                $"Avatar Level {_empireData.AvatarLevel} - next match: " +
-                $"{_empireData.ResourceCap} Resource, {_empireData.StartingAvatarHealth} HP.";
+                _resultText.text = $"{headline}\n" +
+                    $"Avatar Level {_empireData.AvatarLevel} - next match: " +
+                    $"{_empireData.ResourceCap} Resource, {_empireData.StartingAvatarHealth} HP.";
+                // Restores the normal, always-both-visible/normally-labelled state - covers a
+                // normal match starting right after a tutorial one, whose HandleMatchEnded call
+                // would otherwise have left the tutorial's single-button state in place.
+                _returnToCityLabel.text = "Return to City";
+                _playAgainLabel.text = "Play Again";
+                _returnToCityButton.gameObject.SetActive(true);
+                _playAgainButton.gameObject.SetActive(true);
+            }
+
             _resultOverlay.SetActive(true);
         }
 
@@ -2952,6 +3055,36 @@ namespace MyriadOfDragons.UI
         /// replay, saved deck allowed - see StartNewMatch's own comment), the same thing the
         /// Play Again button does.</summary>
         public void PlayAgainForTests() => OnPlayAgainPressed();
+
+        /// <summary>
+        /// What the same physical button (labelled "Play Again" normally, "Retry Battle" for a
+        /// tutorial defeat - see HandleMatchEnded) actually does depends on IsTutorialMatch: a
+        /// tutorial retry must restart the approved offline encounter via
+        /// StartApprovedTutorialBattle(), never StartNewMatch() - that path picks a normal deck,
+        /// a normal opponent, and (per HandleMatchEnded's own guard) would silently start
+        /// recording real progression again. OnPlayAgainPressed's own normal-match body is
+        /// reused as-is for the non-tutorial case.
+        /// </summary>
+        private void OnPlayAgainOrRetryPressed()
+        {
+            if (IsTutorialMatch)
+            {
+                _resultOverlay.SetActive(false);
+                _selectedCard = null;
+                StartApprovedTutorialBattle();
+                RefreshAll();
+            }
+            else
+            {
+                OnPlayAgainPressed();
+            }
+        }
+
+        /// <summary>Exposed for tests: triggers the real button the result overlay's
+        /// "Play Again"/"Retry Battle" slot actually calls - the only way an EditMode test can
+        /// exercise the tutorial-vs-normal branch in OnPlayAgainOrRetryPressed without
+        /// simulating a UI click.</summary>
+        public void RetryForTests() => OnPlayAgainOrRetryPressed();
 
         /// <summary>
         /// The battle/metagame handoff (2026-08-06): hides this entire battle screen so a
@@ -3160,6 +3293,27 @@ namespace MyriadOfDragons.UI
             // where four unexplained buttons sat below a finished match with nothing to cast at
             // ("what are the 4 buttons?", 2026-08-06).
             _spellBar.gameObject.SetActive(inCombat);
+
+            // Approved tutorial-only copy (Command Centre decision, 2026-08-15): one caption
+            // reused for both phases, since they're mutually exclusive - see
+            // BuildTutorialGuidanceCaption's own comment. Never shown for a normal match.
+            if (_tutorialGuidanceCaption != null)
+            {
+                if (IsTutorialMatch && formation)
+                {
+                    _tutorialGuidanceCaption.text = "Ready: Review your formation, then begin the battle.";
+                    _tutorialGuidanceCaption.gameObject.SetActive(true);
+                }
+                else if (IsTutorialMatch && inCombat)
+                {
+                    _tutorialGuidanceCaption.text = "Hold your formation and overcome the enemy.";
+                    _tutorialGuidanceCaption.gameObject.SetActive(true);
+                }
+                else
+                {
+                    _tutorialGuidanceCaption.gameObject.SetActive(false);
+                }
+            }
 
             if (!inCombat)
             {

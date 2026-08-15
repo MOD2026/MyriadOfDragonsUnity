@@ -233,7 +233,22 @@ public class HomePagePresenter : MonoBehaviour
         gemsHudText = CreateResourcePill(resourceGroup.transform, $"Gems: {gemsVal}", new Color(0.55f, 0.25f, 0.85f, 0.95f));
         energyHudText = CreateResourcePill(resourceGroup.transform, $"Energy: {stamVal}/{maxStamVal}", new Color(0.2f, 0.65f, 0.35f, 0.95f));
 
-        // 4. Bottom Navigation Dock
+        // 4. Tutorial guidance banner (Command Centre decision, 2026-08-15) - approved Home
+        // copy only, a small always-visible static caption below TopHUD. Deliberately NOT
+        // ShowTutorialDialogue()/RenderCurrentLine - that system stays fully deferred (see
+        // Start()'s own comment); this is a lightweight caption with no narrative sequencing,
+        // portrait, or typewriter behavior, and no completion/persistence gating.
+        Text tutorialBanner = UISharedFoundation.CreateText(
+            homeCanvasObj.transform, "TutorialGuidanceBanner",
+            "The Empire stands wounded. Learn to form your ranks and face the first threat.",
+            MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(900f, 60f));
+        RectTransform tutorialBannerRect = tutorialBanner.rectTransform;
+        tutorialBannerRect.anchorMin = new Vector2(0.5f, 1f);
+        tutorialBannerRect.anchorMax = new Vector2(0.5f, 1f);
+        tutorialBannerRect.pivot = new Vector2(0.5f, 1f);
+        tutorialBannerRect.anchoredPosition = new Vector2(0, -130f);
+
+        // 5. Bottom Navigation Dock
         BuildBottomDock();
     }
 
