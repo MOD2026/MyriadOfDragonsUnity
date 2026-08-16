@@ -150,6 +150,14 @@ namespace MyriadOfDragons.Battle
 
         public List<AvatarSpell> Spellbook { get; private set; } = new List<AvatarSpell>();
 
+        private readonly List<CombatTickRecord> _combatLedger = new List<CombatTickRecord>();
+
+        /// <summary>Read-only, chronological record of every combat tick actually resolved this
+        /// match - data foundation for a future hardcore combat-log UI, not a UI feature itself.
+        /// Cleared by StartMatch, appended to once per AdvanceCombatTick call that resolves
+        /// (never for a call outside Combat, which resolves nothing).</summary>
+        public IReadOnlyList<CombatTickRecord> CombatLedger => _combatLedger;
+
         public event Action<TurnResolutionResult> OnTurnResolved;
         public event Action<bool> OnMatchEnded; // argument: true if the player won
 
@@ -218,6 +226,7 @@ namespace MyriadOfDragons.Battle
             TickCount = 0;
             Energy = 0;
             Spellbook = AvatarSpell.CreateDefaultSpellbook();
+            _combatLedger.Clear();
 
             BeginTurn();
         }
@@ -350,6 +359,17 @@ namespace MyriadOfDragons.Battle
             }
 
             TurnResolutionResult result = ResolveTurnAndAdvance(TickCount);
+
+            // One ledger entry per actually-resolved tick - AvatarHealth on both sides is already
+            // post-damage here, since LaneBattleResolver.ResolveTurn (called inside
+            // ResolveTurnAndAdvance above) mutates it before returning.
+            _combatLedger.Add(new CombatTickRecord(
+                tickNumber: TickCount,
+                damageToPlayerAvatar: result.DamageDealtToSideA,
+                damageToEnemyAvatar: result.DamageDealtToSideB,
+                playerAvatarHealthAfter: PlayerState.AvatarHealth,
+                enemyAvatarHealthAfter: EnemyState.AvatarHealth,
+                laneResults: new List<LaneClashResult>(result.LaneResults)));
 
             // Tick cap - see MaxCombatTicks. Checked after resolution so a killing blow on the
             // final tick still counts as a real win rather than being downgraded to a decision.
