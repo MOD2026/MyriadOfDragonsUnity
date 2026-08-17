@@ -215,6 +215,21 @@ namespace MyriadOfDragons.UI
         /// <summary>The loaded player profile. Exposed so tests (and a future main menu) can read
         /// progression without reaching through the UI.</summary>
         public PlayerProfile Profile => _profile;
+
+        /// <summary>Exposed for tests: whether the older JSON-driven "how to play" narrative
+        /// walkthrough (MaybeShowTutorial/_tutorialOverlay/BuildTutorialOverlay) is currently
+        /// active.</summary>
+        public bool NarrativeOverlayActiveForTests => _tutorialOverlay != null && _tutorialOverlay.activeSelf;
+
+        /// <summary>Exposed for tests: forces the narrative overlay active, simulating a session
+        /// where MaybeShowTutorial left it open (MaybeShowTutorial itself never fires in EditMode
+        /// - Application.isPlaying is always false there - so this is the only way to reproduce
+        /// "the narrative was still open" as a starting condition for a test).</summary>
+        public void ForceNarrativeOverlayActiveForTests()
+        {
+            if (_tutorialOverlay != null) _tutorialOverlay.SetActive(true);
+        }
+
         private SoloAIScalingSystem _aiScaling;
         private AIBattleProfile _aiProfile;
 
@@ -495,6 +510,15 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void StartNewMatch(bool useRecommendedDeck = false, bool allowSavedDeck = true)
         {
+            // Modal precedence guard: a normal match must be completely free-play, with no
+            // leftover modal from a previous session. If the older JSON-driven "how to play"
+            // narrative walkthrough (MaybeShowTutorial/_tutorialOverlay) is still open - e.g. a
+            // player who never engaged the guided tutorial reaches a normal battle straight from
+            // Deck Builder's own "To Battle" action while SeenIntro is still false - force it
+            // closed now, before anything else. A cheap no-op the very first time this runs, at
+            // Initialize() time, since _tutorialOverlay does not exist yet.
+            if (_tutorialOverlay != null && _tutorialOverlay.activeSelf) CloseNarrative();
+
             List<Card> fullPool = _cardDatabase.AllCards.ToList();
             List<Card> playerDeck;
             List<Card> enemyDeck;
