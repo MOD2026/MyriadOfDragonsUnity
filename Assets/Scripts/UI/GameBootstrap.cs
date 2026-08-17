@@ -634,10 +634,40 @@ namespace MyriadOfDragons.UI
         }
 
         /// <summary>
-        /// Idempotent: adds only whichever of the three approved starter ids the local
-        /// profile doesn't already own. Local/offline only - this is not a trusted or
-        /// server-verified grant, only a direct write to the same cardCollection list
-        /// ShopPresenter.cs already writes to elsewhere in the game.
+        /// The curated, valid, first-deck-ready starter collection - ten unique existing card
+        /// ids (CardDatabase-verified), superseding the original three-card entitlement. Those
+        /// original three (warrior/novice_knight/goblin_caster) are kept as the first three
+        /// entries unchanged - they are still, separately, the tutorial's own hardcoded scripted
+        /// formation (see StartApprovedTutorialBattle's own playerDeck) - and are joined by seven
+        /// more low-rarity cards (rarity 1-3) spanning every card Type (warrior, knight,
+        /// strategist, perfect) so a player who owns only this set can field a legally varied
+        /// Deck Builder deck, not just a lopsided one. 2026-08-17: a tutorial completer who owned
+        /// only the original three could never reach Deck Builder's 10-unique-card minimum,
+        /// blocking normal play entirely - see GrantApprovedStarterCardsIfMissing's own comment.
+        /// </summary>
+        private static readonly string[] ApprovedStarterCollectionCardIds =
+        {
+            "warrior", "novice_knight", "goblin_caster",
+            "cleric", "archer_elf", "fox", "bunny", "forest", "tribal_warrior", "undead_soldier",
+        };
+
+        /// <summary>
+        /// Idempotent: adds only whichever of the ten approved starter-collection ids the local
+        /// profile doesn't already own (existing players who only ever received the original
+        /// three-card entitlement receive exactly the seven newly missing ids, nothing
+        /// duplicated). Grants no currency, XP, level, or stage-unlock - only cardCollection
+        /// membership. Local/offline only - this is not a trusted or server-verified grant, only
+        /// a direct write to the same cardCollection list ShopPresenter.cs already writes to
+        /// elsewhere in the game.
+        ///
+        /// Deliberately never touches activeDeckCardIds. 2026-08-17: an earlier revision of this
+        /// method also auto-seeded activeDeckCardIds with this same ten-card set whenever the
+        /// saved deck was empty/unusable, which meant Deck Builder opened already sitting at
+        /// 10/10 before the player ever pressed anything - removing their agency over the
+        /// starting deck and making the Recommended Deck button's own action look like it did
+        /// nothing. A fresh player now owns ten valid cards but has no confirmed deck; pressing
+        /// Recommended Deck in Deck Builder remains the one, explicit way that deck gets built -
+        /// unchanged production behavior this method must not shortcut around.
         /// </summary>
         private void GrantApprovedStarterCardsIfMissing()
         {
@@ -652,7 +682,7 @@ namespace MyriadOfDragons.UI
             // method's call site comment / Initialize()'s own _profile assignment for why the
             // two are not interchangeable in EditMode.
             bool anyGranted = false;
-            foreach (string cardId in new[] { "warrior", "novice_knight", "goblin_caster" })
+            foreach (string cardId in ApprovedStarterCollectionCardIds)
             {
                 if (!_profile.cardCollection.Contains(cardId))
                 {
@@ -662,7 +692,7 @@ namespace MyriadOfDragons.UI
             }
 
             // Only when something actually changed - a retry or a second tutorial start finds
-            // all three already present and must not re-save (idempotent no-op, not a repeated
+            // every card already owned and must not re-save (idempotent no-op, not a repeated
             // disk write) every time the tutorial is (re)started.
             if (anyGranted)
             {

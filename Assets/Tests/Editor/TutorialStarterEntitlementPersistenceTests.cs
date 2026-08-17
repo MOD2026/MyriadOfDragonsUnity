@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using MyriadOfDragons.Cards;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
@@ -8,18 +10,31 @@ using UnityEngine;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// TUTORIAL STARTER CARD PERSISTENCE, 2026-08-15 - proves
+    /// TUTORIAL STARTER COLLECTION ENTITLEMENT, 2026-08-17 (v2, player-agency fix) - proves
     /// GameBootstrap.GrantApprovedStarterCardsIfMissing (called from the real, still-private
-    /// StartApprovedTutorialBattle) now persists the approved starter grant, not just mutates
-    /// cardCollection in memory. Uses bootstrap.Profile, not SaveManager.SaveData - in EditMode
-    /// GameBootstrap's own _profile is a standalone `new PlayerProfile()`
-    /// (Application.isPlaying ? SaveSystem.CurrentProfile : new PlayerProfile()), the exact
-    /// object the grant writes to and _profile.Save() persists - see the fix's own comment for
-    /// why SaveManager.Save() would be the wrong API here.
+    /// StartApprovedTutorialBattle) grants the curated ten-card starter collection (not just the
+    /// original three), persists it, safely tops up an existing three-card profile with only the
+    /// missing seven, grants no currency/XP/level/stage-unlock alongside it, and - the fix in
+    /// this revision - never writes to activeDeckCardIds at all. An earlier revision auto-seeded
+    /// the saved deck whenever it was empty/unusable, which meant Deck Builder opened already at
+    /// 10/10 before the player pressed anything, silently doing the Recommended Deck button's own
+    /// job for it. A fresh player must now own ten valid cards but have no confirmed deck -
+    /// pressing Recommended Deck in Deck Builder remains the one explicit way that deck gets
+    /// built. Uses bootstrap.Profile, not SaveManager.SaveData - in EditMode GameBootstrap's own
+    /// _profile is a standalone `new PlayerProfile()` (Application.isPlaying ?
+    /// SaveSystem.CurrentProfile : new PlayerProfile()), the exact object the grant writes to and
+    /// _profile.Save() persists - see the fix's own comment for why SaveManager.Save() would be
+    /// the wrong API here.
     /// </summary>
     public class TutorialStarterEntitlementPersistenceTests
     {
-        private static readonly string[] ApprovedStarterCardIds = { "warrior", "novice_knight", "goblin_caster" };
+        private static readonly string[] ApprovedStarterCollectionCardIds =
+        {
+            "warrior", "novice_knight", "goblin_caster",
+            "cleric", "archer_elf", "fox", "bunny", "forest", "tribal_warrior", "undead_soldier",
+        };
+
+        private static readonly string[] OriginalThreeCardIds = { "warrior", "novice_knight", "goblin_caster" };
 
         private readonly List<GameObject> _spawned = new List<GameObject>();
         private string _scratchSaveDir;
@@ -68,26 +83,60 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void FreshProfile_GainsExactlyTheThreeApprovedStarterCards()
+        public void FreshProfile_GainsAtLeastTenUniqueValidOwnedCards_ButNoAutoSavedDeck()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StarterGrant_FreshBootstrap");
+            List<string> deckBeforeGrant = new List<string>(bootstrap.Profile.activeDeckCardIds);
 
             bootstrap.StartApprovedTutorialBattle();
 
-            CollectionAssert.AreEquivalent(ApprovedStarterCardIds, bootstrap.Profile.cardCollection,
-                "A fresh profile must gain exactly the three approved starter cards, nothing more or less.");
+            CollectionAssert.AreEquivalent(ApprovedStarterCollectionCardIds, bootstrap.Profile.cardCollection,
+                "A fresh profile must gain exactly the curated ten-card starter collection.");
+            Assert.GreaterOrEqual(bootstrap.Profile.cardCollection.Distinct().Count(), 10,
+                "A fresh tutorial completion must yield at least ten unique owned card ids.");
+            foreach (string id in bootstrap.Profile.cardCollection)
+            {
+                Assert.IsNotNull(CardDatabase.Instance.GetCard(id), $"Every granted id must resolve to a real, valid card - '{id}' did not.");
+            }
+
+            CollectionAssert.AreEqual(deckBeforeGrant, bootstrap.Profile.activeDeckCardIds,
+                "The starter-collection grant must never write to activeDeckCardIds - Deck Builder must not open " +
+                "already at 10/10 before the player has pressed Recommended Deck themselves.");
+            CollectionAssert.AreNotEquivalent(ApprovedStarterCollectionCardIds, bootstrap.Profile.activeDeckCardIds,
+                "Setup/regression guard: the saved deck must not happen to already equal the starter collection.");
+        }
+
+        [Test]
+        public void ExistingThreeCardProfile_ReceivesOnlyTheMissingSevenIds_NoDuplicatesNoDeckOverwrite()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StarterGrant_ExistingProfileBootstrap");
+            bootstrap.Profile.cardCollection.Clear();
+            bootstrap.Profile.cardCollection.AddRange(OriginalThreeCardIds);
+            List<string> deckBeforeGrant = new List<string>(bootstrap.Profile.activeDeckCardIds);
+
+            bootstrap.StartApprovedTutorialBattle();
+
+            CollectionAssert.AreEquivalent(ApprovedStarterCollectionCardIds, bootstrap.Profile.cardCollection,
+                "An existing three-card profile must end up owning exactly the full ten-card collection.");
+            Assert.AreEqual(10, bootstrap.Profile.cardCollection.Count,
+                "No card may be duplicated when topping up an existing three-card profile.");
+            CollectionAssert.AreEqual(deckBeforeGrant, bootstrap.Profile.activeDeckCardIds,
+                "Topping up an existing profile's card collection must never touch its saved deck.");
         }
 
         [Test]
         public void Grant_PersistsAcrossAFreshLoad()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StarterGrant_PersistBootstrap");
+            List<string> deckBeforeGrant = new List<string>(bootstrap.Profile.activeDeckCardIds);
 
             bootstrap.StartApprovedTutorialBattle();
 
             PlayerProfile reloaded = SaveSystem.Load();
-            CollectionAssert.AreEquivalent(ApprovedStarterCardIds, reloaded.cardCollection,
-                "The starter-card grant must survive a fresh load from disk (i.e. an app restart), not just live in memory.");
+            CollectionAssert.AreEquivalent(ApprovedStarterCollectionCardIds, reloaded.cardCollection,
+                "The starter-collection grant must survive a fresh load from disk (i.e. an app restart), not just live in memory.");
+            CollectionAssert.AreEqual(deckBeforeGrant, reloaded.activeDeckCardIds,
+                "The saved deck must be exactly as untouched after a fresh load as it was before the grant.");
         }
 
         [Test]
@@ -106,15 +155,50 @@ namespace MyriadOfDragons.Tests
 
             bootstrap.StartApprovedTutorialBattle(); // retry / second tutorial start
 
-            Assert.AreEqual(ApprovedStarterCardIds.Length, bootstrap.Profile.cardCollection.Count,
+            Assert.AreEqual(ApprovedStarterCollectionCardIds.Length, bootstrap.Profile.cardCollection.Count,
                 "A retry must not duplicate any starter card.");
-            CollectionAssert.AreEquivalent(ApprovedStarterCardIds, bootstrap.Profile.cardCollection);
+            CollectionAssert.AreEquivalent(ApprovedStarterCollectionCardIds, bootstrap.Profile.cardCollection);
             Assert.IsFalse(SaveSystem.Exists,
                 "A retry with nothing new to grant must not trigger another persistence write.");
         }
 
         [Test]
-        public void Grant_ChangesNoOtherProfileField()
+        public void DefaultPlaceholderSavedDeck_IsLeftCompletelyUntouched()
+        {
+            // PlayerProfile's own untouched default ({"c1","c3","c4","c6"}) is not empty by
+            // Count, and every one of those ids is fake (none resolve to a real card) - but the
+            // grant must still never touch it. A fresh player is meant to reach Deck Builder
+            // owning ten valid cards with no confirmed deck yet, and press Recommended Deck
+            // themselves - not find it silently pre-filled.
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StarterGrant_DefaultDeckUntouchedBootstrap");
+            CollectionAssert.AreEquivalent(new[] { "c1", "c3", "c4", "c6" }, bootstrap.Profile.activeDeckCardIds,
+                "Setup: expected PlayerProfile's own untouched placeholder default.");
+
+            bootstrap.StartApprovedTutorialBattle();
+
+            CollectionAssert.AreEquivalent(new[] { "c1", "c3", "c4", "c6" }, bootstrap.Profile.activeDeckCardIds,
+                "The starter-collection grant must leave even an unusable placeholder saved deck completely untouched.");
+        }
+
+        [Test]
+        public void RealConfirmedDeck_IsNeverOverwritten()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StarterGrant_RealDeckUntouchedBootstrap");
+            bootstrap.Profile.cardCollection.Clear();
+            bootstrap.Profile.cardCollection.Add("cyclops");
+            // A deliberately small, otherwise-unrelated "confirmed deck" - one real owned card
+            // plus some not-yet-owned ones a player might have picked before finishing it.
+            var confirmedDeck = new List<string> { "cyclops", "medusa", "minotaur" };
+            bootstrap.Profile.activeDeckCardIds = new List<string>(confirmedDeck);
+
+            bootstrap.StartApprovedTutorialBattle();
+
+            CollectionAssert.AreEqual(confirmedDeck, bootstrap.Profile.activeDeckCardIds,
+                "A player's confirmed deck must never be overwritten by the starter-collection grant.");
+        }
+
+        [Test]
+        public void Grant_ChangesNoCurrencyProgressionOrStageUnlock()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StarterGrant_NoSideEffectBootstrap");
 
@@ -126,18 +210,30 @@ namespace MyriadOfDragons.Tests
             bootstrap.StartApprovedTutorialBattle();
             PlayerProfile profile = bootstrap.Profile;
 
-            Assert.AreEqual(baseline.gold, profile.gold, "The starter-card grant must never change gold.");
-            Assert.AreEqual(baseline.gems, profile.gems, "The starter-card grant must never change gems.");
-            Assert.AreEqual(baseline.avatarLevel, profile.avatarLevel, "The starter-card grant must never change avatarLevel.");
-            Assert.AreEqual(baseline.totalMatches, profile.totalMatches, "The starter-card grant must never change totalMatches.");
-            Assert.AreEqual(baseline.totalWins, profile.totalWins, "The starter-card grant must never change totalWins.");
-            Assert.AreEqual(baseline.winStreak, profile.winStreak, "The starter-card grant must never change winStreak.");
+            Assert.AreEqual(baseline.gold, profile.gold, "The starter-collection grant must never change gold.");
+            Assert.AreEqual(baseline.gems, profile.gems, "The starter-collection grant must never change gems.");
+            Assert.AreEqual(baseline.avatarLevel, profile.avatarLevel, "The starter-collection grant must never change avatarLevel.");
+            Assert.AreEqual(baseline.totalMatches, profile.totalMatches, "The starter-collection grant must never change totalMatches.");
+            Assert.AreEqual(baseline.totalWins, profile.totalWins, "The starter-collection grant must never change totalWins.");
+            Assert.AreEqual(baseline.winStreak, profile.winStreak, "The starter-collection grant must never change winStreak.");
             CollectionAssert.AreEquivalent(baseline.unlockedStageIds, profile.unlockedStageIds,
-                "The starter-card grant must never unlock a stage.");
-            CollectionAssert.AreEquivalent(baseline.activeDeckCardIds, profile.activeDeckCardIds,
-                "The starter-card grant must never change the saved deck.");
+                "The starter-collection grant must never unlock a stage.");
             Assert.AreEqual(baseline.hasSeenIntro, profile.hasSeenIntro,
-                "The starter-card grant must never change onboarding/tutorial-completion-style state - none exists yet, and this grant must not invent any.");
+                "The starter-collection grant must never change onboarding/tutorial-completion-style state - none exists yet, and this grant must not invent any.");
+        }
+
+        [Test]
+        public void TutorialFormation_AndDealtDeck_RemainTheOriginalThreeCards_RegardlessOfTheLargerCollection()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("StarterGrant_TutorialFormationUnchangedBootstrap");
+
+            bootstrap.StartApprovedTutorialBattle();
+
+            HashSet<string> dealtIds = new HashSet<string>(bootstrap.Battle.PlayerState.Hand.Select(c => c.Id)
+                .Concat(bootstrap.Battle.PlayerState.DrawPile.Select(c => c.Id)));
+            CollectionAssert.AreEquivalent(OriginalThreeCardIds, dealtIds,
+                "The tutorial's own scripted formation must remain exactly warrior/novice_knight/goblin_caster, " +
+                "unaffected by owning a larger ten-card collection.");
         }
     }
 }
