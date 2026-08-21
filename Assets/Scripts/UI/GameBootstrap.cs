@@ -269,6 +269,12 @@ namespace MyriadOfDragons.UI
         private readonly List<Image> _spellIcons = new List<Image>();
         private RectTransform _spellBar;
 
+        /// <summary>Spell affordability hint (2026-08-22): the SpellRail's existing "SPELLS"
+        /// heading - reused, not a new element - so a player can tell at a glance that something
+        /// is castable without reading every button. See RefreshPhaseControls for the actual
+        /// affordability check (SpellAffordability.AnyCastable).</summary>
+        private Text _spellsTitleText;
+
         /// <summary>V3's activity rail shows each spell's real Name (handoff: "spell buttons
         /// with numeric energy cost/cooldown"), not just an icon - the pre-V3 64px icon tile had
         /// no room for one. Set once per spell in RefreshPhaseControls, alongside the existing
@@ -525,6 +531,11 @@ namespace MyriadOfDragons.UI
         public string PrimaryActionLabelForTests => _primaryActionLabel != null ? _primaryActionLabel.text : null;
         public bool PrimaryActionButtonActiveForTests => _primaryActionButton != null && _primaryActionButton.gameObject.activeSelf;
         public bool PrimaryActionButtonInteractableForTests => _primaryActionButton != null && _primaryActionButton.interactable;
+
+        /// <summary>Exposed for tests: the SpellRail heading's current text - "SPELLS" normally,
+        /// or the affordability-hint copy while at least one spell is really castable in Combat.
+        /// See RefreshPhaseControls.</summary>
+        public string SpellRailTitleTextForTests => _spellsTitleText != null ? _spellsTitleText.text : null;
 
         /// <summary>Exposed for tests: opens the lane picker overlay exactly as tapping a
         /// player lane does (OpenLanePicker is private), then returns the resulting title text
@@ -3389,6 +3400,7 @@ namespace MyriadOfDragons.UI
             spellsTitle.fontStyle = FontStyle.Bold;
             spellsTitle.raycastTarget = false;
             AnchorBand(spellsTitle.rectTransform, 0.90f, 0.99f, 0.04f, 0.04f);
+            _spellsTitleText = spellsTitle;
 
             _spellBar = CreateAnchoredPanel(spellRail, "SpellList", Color.clear, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.88f));
             var spellLayout = _spellBar.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -5707,10 +5719,22 @@ namespace MyriadOfDragons.UI
                 // spell-targeting state on a phase change.
                 if (_armedSpellIndex >= 0) CancelSpellTargeting();
                 if (formation) _primaryActionLabel.text = "START BATTLE";
+
+                // Spell affordability hint (2026-08-22): reset here so Formation and Resolved
+                // both read the plain "SPELLS" heading - Resolved returns below before the loop
+                // that would otherwise naturally recompute this, and Formation's own Energy is
+                // always 0 so the loop below would compute the same false/false result anyway;
+                // set explicitly rather than relying on that coincidence.
+                if (_spellsTitleText != null)
+                {
+                    _spellsTitleText.text = "SPELLS";
+                    _spellsTitleText.color = GoldTextColor;
+                }
             }
 
             if (resolved) return; // rail already hidden above; nothing left to refresh in it.
 
+            bool anySpellReady = false;
             for (int i = 0; i < _spellButtons.Count; i++)
             {
                 bool exists = i < _battleController.Spellbook.Count;
@@ -5731,7 +5755,8 @@ namespace MyriadOfDragons.UI
                 bool tutorialAllowsThisSpell = _tutorialStep == null
                     || (_tutorialStep == TutorialStep.SpellLesson && i == TutorialLessonSpellIndex);
                 bool ready = inCombat && tutorialAllowsThisSpell
-                    && spell.IsOffCooldown && spell.EnergyCost <= _battleController.Energy;
+                    && SpellAffordability.IsCastable(spell, _battleController.Energy);
+                anySpellReady |= ready;
 
                 if (i < _spellNameLabels.Count) _spellNameLabels[i].text = spell.Name;
 
@@ -5749,6 +5774,18 @@ namespace MyriadOfDragons.UI
                     // stable and a spell doesn't appear to vanish when it goes on cooldown.
                     _spellIcons[i].color = ready ? Color.white : new Color(1f, 1f, 1f, 0.35f);
                 }
+            }
+
+            // Spell affordability hint (2026-08-22, owner: "help casting, not watch numbers and
+            // guess") - the SpellRail's existing "SPELLS" heading is the clear existing-UI cue:
+            // once any one spell is really castable (same tutorial-gated `ready` this loop already
+            // computes for the dimming, not a second rule), the heading itself says so, in
+            // addition to the existing per-button dimming - a glance at the rail, not a read of
+            // every button.
+            if (_spellsTitleText != null)
+            {
+                _spellsTitleText.text = anySpellReady ? "SPELLS - READY TO CAST" : "SPELLS";
+                _spellsTitleText.color = anySpellReady ? Color.white : GoldTextColor;
             }
         }
 
