@@ -6,15 +6,37 @@ namespace MyriadOfDragons.Story
     {
         private static readonly Dictionary<string, StorySequence> sequences = new Dictionary<string, StorySequence>();
 
+        // The one recurring speaker every stage's dialogue uses for the player's own line - a
+        // static field (not a local inside InitializeDatabase) so AddStageDialogue's light
+        // template below can reach it without every call site re-passing it.
+        private static readonly StorySpeaker playerSpeaker = new StorySpeaker("player", "Sovereign", "UI/Portraits/Paladin", SpeakerPosition.Left);
+
         static StoryDatabase()
         {
             InitializeDatabase();
         }
 
+        /// <summary>Light template (2026-08-22, Chapter 1 depth expansion) for a stage whose
+        /// dialogue is just "enemy line, player line" before and after the fight - exactly the
+        /// shape every existing Chapter 1/2 sequence already uses, without re-typing the
+        /// StorySequence/DialogueLine/sequences[...] boilerplate nine more times.</summary>
+        private static void AddStageDialogue(string stageId, string title, StorySpeaker enemy,
+            string preEnemyLine, string prePlayerLine, string postEnemyLine, string postPlayerLine)
+        {
+            var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+            pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+            pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+            sequences[$"{stageId}_pre"] = pre;
+
+            var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+            post.lines.Add(new DialogueLine(enemy, postEnemyLine));
+            post.lines.Add(new DialogueLine(playerSpeaker, postPlayerLine));
+            sequences[$"{stageId}_post"] = post;
+        }
+
         private static void InitializeDatabase()
         {
             // Speakers (NPC Avatars & Player)
-            var playerSpeaker = new StorySpeaker("player", "Sovereign", "UI/Portraits/Paladin", SpeakerPosition.Left);
             var orcScout = new StorySpeaker("orc_scout", "Orc Scout Patrol", "UI/Portraits/OrcScout", SpeakerPosition.Right);
             var kaelen = new StorySpeaker("kaelen", "Wyvern Tamer Kaelen", "UI/Portraits/Kaelen", SpeakerPosition.Right);
             var gorn = new StorySpeaker("gorn", "High Warlord Gorn", "UI/Portraits/Gorn", SpeakerPosition.Right);
@@ -61,6 +83,73 @@ namespace MyriadOfDragons.Story
             stage1_3Post.lines.Add(new DialogueLine(gorn, "The citadel... falls. Olympus will notice this wound."));
             stage1_3Post.lines.Add(new DialogueLine(playerSpeaker, "Let them. Chapter one ends here - but the war for Boiotia has only begun."));
             sequences["1-3_post"] = stage1_3Post;
+
+            // Chapter 1 depth expansion, Stages 1-4..1-12 (2026-08-22, owner: "stickiness = many
+            // sequential fights") - one speaker per stage (matching that stage's enemyName in
+            // CampaignMapPresenter), short two-line pre/post dialogue via the light template above.
+            var foothillRaiders = new StorySpeaker("foothill_raiders", "Foothill Raiders", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var bridgeWardens = new StorySpeaker("bridge_wardens", "Bridge Wardens", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var groveCultists = new StorySpeaker("grove_cultists", "Grove Cultists", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var quarryOverseers = new StorySpeaker("quarry_overseers", "Quarry Overseers", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var passMarauders = new StorySpeaker("pass_marauders", "Pass Marauders", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var aqueductGuard = new StorySpeaker("aqueduct_guard", "Aqueduct Guard", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var watchtowerGarrison = new StorySpeaker("watchtower_garrison", "Watchtower Garrison", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var hollowBornVanguard = new StorySpeaker("hollow_born_vanguard", "Hollow-Born Vanguard", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var gatekeeper = new StorySpeaker("gatekeeper", "Gatekeeper of Boiotia", "UI/Portraits/Paladin", SpeakerPosition.Right);
+
+            AddStageDialogue("1-4", "Ashen Foothills", foothillRaiders,
+                "Gorn is dead, but his foothills are still ours! You'll not pass unchallenged.",
+                "Scatter them. The citadel's fall means nothing while stragglers still bar the road.",
+                "Fall back - regroup at the bridge!",
+                "The foothills are clear. On to the crossing.");
+
+            AddStageDialogue("1-5", "Sundered Bridge", bridgeWardens,
+                "This bridge is the only crossing left standing. You'll not take it from us.",
+                "Then we take it anyway. Hold the line and push them off the span!",
+                "The bridge... it's yours. May it hold your weight better than it held ours.",
+                "It will. Forward, into the grove.");
+
+            AddStageDialogue("1-6", "Whispering Grove", groveCultists,
+                "The Warlord's spirit still commands these oaks. Turn back, or feed the roots.",
+                "Superstition won't stop steel. Clear the grove.",
+                "The oaks... go silent. Our cult dies with them.",
+                "Let it. The quarry is next.");
+
+            AddStageDialogue("1-7", "Iron Quarry", quarryOverseers,
+                "This quarry feeds what's left of Gorn's war machine. You'll not shut it down.",
+                "Every chain you're holding here is a reason to end this quickly.",
+                "The overseers... routed. The slaves are free.",
+                "Free, and armed with what we find here. Onward to the pass.");
+
+            AddStageDialogue("1-8", "Wolfsbane Pass", passMarauders,
+                "Few of us are left, but we hold the only pass north. Come and see how few is enough.",
+                "Few or not, you stand between us and the aqueduct. Move.",
+                "The pass... falls. There's nothing left to hold it with.",
+                "Then hold nothing. We march on.");
+
+            AddStageDialogue("1-9", "Sunken Aqueduct", aqueductGuard,
+                "This old aqueduct still moves supplies no one was meant to see. Turn back now.",
+                "All the more reason to see it sealed. Clear the guard.",
+                "The aqueduct is yours. Whatever moved through it moves no longer.",
+                "Good. Now the watchtower stands between us and the hollow.");
+
+            AddStageDialogue("1-10", "Obsidian Watchtower", watchtowerGarrison,
+                "This tower still signals for reinforcements that will never come. Try your luck anyway.",
+                "Then let's make sure that signal never reaches anyone. Silence it.",
+                "The tower falls silent. No one is coming to relieve us.",
+                "No one is coming for any of you. Ember Hollow awaits.");
+
+            AddStageDialogue("1-11", "Ember Hollow", hollowBornVanguard,
+                "We are what remains of Gorn's true vanguard. We do not break, Sovereign.",
+                "Everything breaks eventually. Today, it's your turn.",
+                "The vanguard... breaks. Gorn's line ends here, truly.",
+                "Then only the gate remains. Boiotia is almost ours.");
+
+            AddStageDialogue("1-12", "Boiotia's Gate", gatekeeper,
+                "Beyond this gate lies Boiotia itself - and ash enough to bury an army. You first.",
+                "Open it, or we open it for you. Chapter one ends at this gate.",
+                "The gate... gives way. Boiotia's ashes are yours to walk through now.",
+                "Chapter one ends here - but the war for Boiotia has only begun.");
 
             // Chapter 2 "Ashes of Boiotia" (2026-08-22) - Stage 2-1/2-2/2-3 pre/post-battle
             // dialogue, same short two-line pattern every Chapter 1 stage already uses.

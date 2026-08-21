@@ -164,7 +164,13 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void GetNextStageId_ChainsThroughAllOfChapter2()
         {
-            Assert.AreEqual("2-1", CampaignMapPresenter.GetNextStageId("1-3"));
+            // Chapter 1 depth expansion (2026-08-22, a later task than this file's own): 1-3 no
+            // longer chains directly into 2-1 - CampaignMapPresenter.chapterStages now inserts
+            // 1-4..1-12 between them. This test's own subject is the Chapter 2 portion of the
+            // chain (2-1 -> 2-2 -> 2-3 -> null), which is unaffected; only the Chapter 1 entry
+            // point into it moved from "1-3" to "1-12" - see Chapter1FullDepthTests for full
+            // coverage of the 1-4..1-12 links themselves.
+            Assert.AreEqual("2-1", CampaignMapPresenter.GetNextStageId("1-12"));
             Assert.AreEqual("2-2", CampaignMapPresenter.GetNextStageId("2-1"));
             Assert.AreEqual("2-3", CampaignMapPresenter.GetNextStageId("2-2"));
             Assert.IsNull(CampaignMapPresenter.GetNextStageId("2-3"), "Stage 2-3 must be the new end of the ordered campaign list - nothing invented past it.");

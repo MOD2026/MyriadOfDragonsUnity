@@ -91,11 +91,75 @@ namespace MyriadOfDragons.UI
             "persian_princess", "conquistador", "owl_keeper",
         };
 
+        /// <summary>Chapter 1 depth expansion (2026-08-22, owner: "stickiness = many sequential
+        /// fights" - twelve stages, not three). One reward formula instead of nine more hand-typed
+        /// pairs of numbers: linear from Stage 1-3's own 500/100, capped to stay strictly below
+        /// Chapter 2's own Stage 2-1 reward (650/130) so "leave room for Chapter 2 to sit above
+        /// Chapter 1's end" holds by construction, not by eyeballing each row. Scales to a later
+        /// 2-4..2-21/3-1..3-30 pass by changing only baseGold/baseGems/perStage/stageOffset, not by
+        /// hand-editing dozens of call sites.</summary>
+        private static (int gold, int gems) Chapter1DepthReward(int stageNumber)
+        {
+            const int baseGold = 500, goldPerStage = 14; // 1-12 -> 500 + 9*14 = 626, still < Chapter 2's 650.
+            const int baseGems = 100, gemsPerStage = 3;  // 1-12 -> 100 + 9*3 = 127, still < Chapter 2's 130.
+            int stepsPast1_3 = stageNumber - 3;
+            return (baseGold + stepsPast1_3 * goldPerStage, baseGems + stepsPast1_3 * gemsPerStage);
+        }
+
+        /// <summary>Builds one Chapter 1 stage from its number, flavor text, and enemy roster -
+        /// the reward is always Chapter1DepthReward(stageNumber), never a hand-typed pair, so a
+        /// reward number can't silently drift from the escalation formula above.</summary>
+        private static CampaignStageData BuildChapter1Stage(int stageNumber, string title, string enemyName, string description, string[] enemyIds)
+        {
+            (int gold, int gems) = Chapter1DepthReward(stageNumber);
+            return new CampaignStageData($"1-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: enemyIds);
+        }
+
+        // Chapter 1 depth expansion, Stages 1-4..1-12 (2026-08-22) - same vertical-slice curve as
+        // 1-1..1-3: exactly three real CardDatabase ids per stage, never "dragon", never an
+        // invented id, disjoint from every other stage's roster and from the approved starter
+        // collection. Early (1-4..1-6) stays near 1-3's own already-proven power level; mid
+        // (1-7..1-9) and late (1-10..1-12) step up in rarity - measured against the same
+        // deterministic Auto Formation policy Chapter1CampaignPlayabilityTests uses, retuned where
+        // that measurement (not a guess) showed a real defeat.
+        //
+        // MEASURED CONSTRAINT (2026-08-22): a first pass built 1-5..1-12 from only-unused ids
+        // (necessarily rarity 3+, since the database's entire rarity-1/2 "truly weak" tier - 16
+        // cards total - was already spent by 1-1/1-2/1-3/2-1/2-2/2-3) and every one of those eight
+        // stages measured as a real DEFEAT under this same deterministic Auto Formation policy,
+        // even at a total enemy stat sum barely above Stage 1-4's own proven-good total. Twelve
+        // Chapter 1 stages at three enemies each is 36 enemy slots draw from an 84-card usable
+        // pool that only contains 16 genuinely low-power cards - reuse of an id ACROSS stages
+        // (never duplicated WITHIN one stage's own three, which IsCampaignStageBattleConfigValid
+        // already rejects) is therefore an arithmetic necessity, not a shortcut, exactly what this
+        // task's own requirement 3 anticipated with "disjoint... where possible". Retuned rosters
+        // below mix 1-2 already-proven-weak ids (reused from 1-1/1-2/1-3/1-4, cross-stage only,
+        // never within a stage) with 1-2 fresh unused ids per stage, re-measured to a real
+        // Auto-Formation win.
+        private static readonly string[] Stage1_4EnemyDeck = { "iron_dragon", "pandora", "drain" };
+        private static readonly string[] Stage1_5EnemyDeck = { "giant_worms", "mountain_harpy", "ladyinlake" };
+        private static readonly string[] Stage1_6EnemyDeck = { "snake_archer", "fire_worm", "shaman" };
+        private static readonly string[] Stage1_7EnemyDeck = { "butcher", "cursed_soldier", "druid" };
+        private static readonly string[] Stage1_8EnemyDeck = { "ogre", "succubus", "werewolf" };
+        private static readonly string[] Stage1_9EnemyDeck = { "fire_worm", "wood_wizard", "elven_high_lord" };
+        private static readonly string[] Stage1_10EnemyDeck = { "butcher", "cursed_soldier", "archer_dragon" };
+        private static readonly string[] Stage1_11EnemyDeck = { "mountain_harpy", "snake_archer", "castle_lady" };
+        private static readonly string[] Stage1_12EnemyDeck = { "giant_worms", "ogre", "hooded_rogue" };
+
         private static readonly List<CampaignStageData> chapterStages = new List<CampaignStageData>()
         {
             new CampaignStageData("1-1", "Outer Border Guard", "Orc Scout Patrol", "UI/Portraits/Paladin", "A small scouting party blocks the mountain path. Defeat them to open the route.", 200, 20, enemyDeckCardIds: Stage1EnemyDeck),
             new CampaignStageData("1-2", "Volcanic Ridge", "Wyvern Tamer Kaelen", "UI/Portraits/Paladin", "Kaelen commands the high ground with his trained drakes. Break his vanguard!", 350, 50, enemyDeckCardIds: Stage2EnemyDeck),
             new CampaignStageData("1-3", "Stronghold Citadel", "High Warlord Gorn", "UI/Portraits/Paladin", "The citadel commander awaits inside the obsidian gates. Defeat him to liberate Chapter 1.", 500, 100, enemyDeckCardIds: Stage3EnemyDeck),
+            BuildChapter1Stage(4, "Ashen Foothills", "Foothill Raiders", "Gorn's scattered survivors regroup in the foothills below the citadel. Scatter them before they rally.", Stage1_4EnemyDeck),
+            BuildChapter1Stage(5, "Sundered Bridge", "Bridge Wardens", "A collapsed bridge is the only crossing left. Its wardens will not let it fall to you cheaply.", Stage1_5EnemyDeck),
+            BuildChapter1Stage(6, "Whispering Grove", "Grove Cultists", "A grove of corrupted oaks hides a cult still loyal to the fallen Warlord. Root them out.", Stage1_6EnemyDeck),
+            BuildChapter1Stage(7, "Iron Quarry", "Quarry Overseers", "Slave-driven quarry gangs feed Gorn's old war machine. Break the overseers' hold.", Stage1_7EnemyDeck),
+            BuildChapter1Stage(8, "Wolfsbane Pass", "Pass Marauders", "Marauders control the only pass north. Their numbers are thin; their resolve is not.", Stage1_8EnemyDeck),
+            BuildChapter1Stage(9, "Sunken Aqueduct", "Aqueduct Guard", "An old aqueduct doubles as a smuggling route for the remnants of Gorn's army. Seal it.", Stage1_9EnemyDeck),
+            BuildChapter1Stage(10, "Obsidian Watchtower", "Watchtower Garrison", "The last standing watchtower still signals for reinforcements. Silence it before they arrive.", Stage1_10EnemyDeck),
+            BuildChapter1Stage(11, "Ember Hollow", "Hollow-Born Vanguard", "Deep in Ember Hollow, Gorn's most loyal vanguard makes its final stand.", Stage1_11EnemyDeck),
+            BuildChapter1Stage(12, "Boiotia's Gate", "Gatekeeper of Boiotia", "The gate to Boiotia itself. Beyond it lies the ashes Chapter 2 is named for.", Stage1_12EnemyDeck),
             new CampaignStageData("2-1", "Ashfall Outpost", "Ash Road Overseer", "UI/Portraits/Paladin", "The Titan-vein miners' outer camp burns day and night. Break through the ash-choked sentries.", 650, 130, enemyDeckCardIds: Stage2_1EnemyDeck),
             new CampaignStageData("2-2", "Titan-Vein Camp", "Vein-Warden Thessos", "UI/Portraits/Paladin", "Forced labor gangs mine the Titan-vein under the divine legion's watch. Free the camp and seize the vein.", 800, 160, enemyDeckCardIds: Stage2_2EnemyDeck),
             new CampaignStageData("2-3", "Legion of Ash", "Legion Commander Ares", "UI/Portraits/Paladin", "Olympus has sent its Ashfall Legion to bury Boiotia's rebellion for good. End their march here.", 1000, 200, enemyDeckCardIds: Stage2_3EnemyDeck),
