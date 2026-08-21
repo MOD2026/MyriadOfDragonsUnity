@@ -537,6 +537,12 @@ namespace MyriadOfDragons.UI
         /// See RefreshPhaseControls.</summary>
         public string SpellRailTitleTextForTests => _spellsTitleText != null ? _spellsTitleText.text : null;
 
+        /// <summary>Exposed for tests: the turn/clash text's current value - "Formation" outside
+        /// Combat, "Clash N/12" during an ordinary Combat tick, or "REINFORCE! N/12" while
+        /// BattleController.IsReinforcementWindowOpen is true (ticks 4 and 8). See RefreshAll,
+        /// which already sets this unconditionally for every match type.</summary>
+        public string TurnTextForTests => _turnText != null ? _turnText.text : null;
+
         /// <summary>Exposed for tests: opens the lane picker overlay exactly as tapping a
         /// player lane does (OpenLanePicker is private), then returns the resulting title text
         /// - the only way to observe RefreshLanePicker's tutorial-guidance append without a

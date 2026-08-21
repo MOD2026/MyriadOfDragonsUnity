@@ -21,6 +21,28 @@ namespace MyriadOfDragons.Tests
     public class BattleLogicTests
     {
         private readonly List<GameObject> _spawned = new List<GameObject>();
+        private string _scratchSaveDir;
+
+        /// <summary>
+        /// Release regression gate fix, 2026-08-22: this file never isolated SaveSystem, unlike
+        /// every other test file that touches GameBootstrap. Without OverrideRootDirectoryForTests,
+        /// GameBootstrap.Initialize()'s SaveSystem.CurrentProfile lazily loaded whatever profile
+        /// actually exists on THIS machine's real Application.persistentDataPath - so the two tests
+        /// below that construct a GameBootstrap (GameBootstrap_Initialize_BuildsAPlayableMatchWith
+        /// ARenderedHand, GameBootstrap_RecommendedLineup_PicksStrongerCardsThanADefaultDeck) passed
+        /// or failed depending on unrelated, unrepeatable environment state (whatever deck a real
+        /// manual playtest last saved), not on the behavior under test. A fresh scratch directory
+        /// per test - the same isolation pattern every other GameBootstrap-touching test file
+        /// already uses - makes the result deterministic again.
+        /// </summary>
+        [SetUp]
+        public void SetUp()
+        {
+            _scratchSaveDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "MyriadOfDragonsBattleLogic_" + System.Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(_scratchSaveDir);
+            SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
+            SaveSystem.ResetCurrentProfileForTests();
+        }
 
         [TearDown]
         public void TearDown()
@@ -35,6 +57,39 @@ namespace MyriadOfDragons.Tests
                 if (go != null) Object.DestroyImmediate(go);
             }
             _spawned.Clear();
+
+            SaveSystem.ClearRootDirectoryOverride();
+            SaveSystem.ResetCurrentProfileForTests();
+            if (_scratchSaveDir != null && System.IO.Directory.Exists(_scratchSaveDir))
+            {
+                System.IO.Directory.Delete(_scratchSaveDir, recursive: true);
+            }
+        }
+
+        /// <summary>Same helper pattern every other Battle-adjacent test file in this suite already
+        /// uses: a normal match requires a confirmed valid saved deck before it deals any hand at
+        /// all (TryBuildSavedPlayerDeck blocks instead of falling back to a generated deck).</summary>
+        private void SaveValidDeckForNormalMatch()
+        {
+            CardDatabase database = LoadDatabase();
+
+            var sizingProfile = new PlayerProfile();
+            sizingProfile.ApplyDataToEmpire();
+            int deckSize = sizingProfile.Empire.DeckSlotCount;
+
+            List<Card> deckIds = database.AllCards
+                .Where(c => c.Id != "warrior" && c.Id != "novice_knight" && c.Id != "goblin_caster")
+                .Take(deckSize)
+                .ToList();
+            Assert.AreEqual(deckSize, deckIds.Count, "Setup: expected enough real cards to fill a full-size deck.");
+
+            var profile = new PlayerProfile
+            {
+                cardCollection = deckIds.Select(c => c.Id).ToList(),
+                activeDeckCardIds = deckIds.Select(c => c.Id).ToList(),
+            };
+            Assert.IsTrue(SaveSystem.Save(profile), "Setup: the production save path must persist the confirmed deck.");
+            SaveSystem.ResetCurrentProfileForTests();
         }
 
         private CardDatabase LoadDatabase()
@@ -567,6 +622,8 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void GameBootstrap_Initialize_BuildsAPlayableMatchWithARenderedHand()
         {
+            SaveValidDeckForNormalMatch();
+
             // This is the actual regression test for today's incident: GameBootstrap.cs was
             // silently reconstructed after a data-loss event, and nothing caught that the
             // rebuilt version had a real bug (an empty hand row) until a human looked at a
@@ -863,6 +920,8 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void GameBootstrap_RecommendedLineup_PicksStrongerCardsThanADefaultDeck()
         {
+            SaveValidDeckForNormalMatch();
+
             var bootstrap = new GameObject("TestBootstrap_Recommend").AddComponent<GameBootstrap>();
             _spawned.Add(bootstrap.gameObject);
             bootstrap.Initialize();
