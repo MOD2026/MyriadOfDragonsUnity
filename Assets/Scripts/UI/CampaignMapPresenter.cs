@@ -165,6 +165,94 @@ namespace MyriadOfDragons.UI
             new CampaignStageData("2-3", "Legion of Ash", "Legion Commander Ares", "UI/Portraits/Paladin", "Olympus has sent its Ashfall Legion to bury Boiotia's rebellion for good. End their march here.", 1000, 200, enemyDeckCardIds: Stage2_3EnemyDeck),
         };
 
+        static CampaignMapPresenter()
+        {
+            chapterStages.AddRange(BuildChapter2DepthStages());
+        }
+
+        /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
+        /// §B/§K wartime doctrine - campaign fill only, no combat retunes). Same measured
+        /// constraint §K already documented for Chapter 1's 1-5..1-12: eighteen more stages at
+        /// three enemies each is 54 more slots, and the database's genuinely-low-power tier was
+        /// already fully spent well before Chapter 1 finished - so every roster here deliberately
+        /// reuses ids ACROSS stages (never duplicated WITHIN one stage's own three, which
+        /// IsCampaignStageBattleConfigValid still rejects, and never an exact full-roster repeat of
+        /// any other stage, Chapter 1 included). Built from one small pool of already-proven-weak
+        /// ids via a fixed-stride index pattern (three pairwise-non-colliding offsets mod a
+        /// coprime pool size) rather than eighteen hand-typed arrays - the token-efficient version
+        /// of the same technique, not a new system. One roster (index 6, originally three near-max
+        /// picks summing to the previously measured DEFEAT range) was manually swapped for a safer
+        /// combination before this ever ran; every other roster stayed under that same measured
+        /// safe ceiling on the first pass.</summary>
+        private static readonly string[] Chapter2DepthPool =
+        {
+            "giant_worms", "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior",
+            "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador", "owl_keeper",
+            "ladyinlake",
+        };
+
+        private static readonly (string title, string enemyName, string description)[] Chapter2DepthFlavor =
+        {
+            ("Cinder Watch", "Cinder Sentries", "A watch post of ash-hardened sentries guards the road deeper into Boiotia."),
+            ("Sulfur Flats", "Flat-Born Raiders", "Sulfur fumes choke the flats; the raiders who live there don't seem to mind."),
+            ("Broken Kiln", "Kiln Wardens", "An old Titan-forge kiln, still guarded, still burning. Break its wardens."),
+            ("Slagpour Ridge", "Slagpour Sentinels", "Molten runoff carved this ridge. Its sentinels carved a stand across it."),
+            ("Charcoal Hollow", "Hollow Stalkers", "Charcoal-black stalkers move unseen through this burnt hollow."),
+            ("Ember Causeway", "Causeway Guard", "A causeway of cooling embers is the only way across the flow. It's held."),
+            ("Grey Ash Fields", "Ashfield Marauders", "Fields of grey ash stretch for miles - and marauders hide in every drift."),
+            ("Titan's Cradle", "Cradle Keepers", "Where the first Titan-vein was struck, its keepers still stand guard."),
+            ("Smouldering Vault", "Vault Sentries", "A sealed vault smoulders beneath the earth. Its sentries won't open it willingly."),
+            ("Cracked Foundry", "Foundry Remnant", "A cracked foundry still runs on legion orders. Shut it down."),
+            ("Pale Ash Crossing", "Crossing Wardens", "Pale ash drifts over this crossing like snow. Its wardens don't welcome guests."),
+            ("Blackrock Descent", "Descent Guard", "The descent into Blackrock is steep, narrow, and heavily held."),
+            ("Cinderfall Bastion", "Bastion Legionnaires", "A bastion of Ashfall Legion holdouts refuses to fall back."),
+            ("Ruined Signal Tower", "Tower Remnant", "A ruined signal tower still relays orders from somewhere worse."),
+            ("Molten Scar", "Scarborn Vanguard", "A scar of cooled lava splits the land; its vanguard splits any who cross."),
+            ("Last Ember Camp", "Ember Camp Guard", "The last organized camp before the deep ash. Break it and the road opens."),
+            ("Ashen Threshold", "Threshold Wardens", "The threshold into what Boiotia calls the deep ash. Wardens bar the way."),
+            ("Legion's End", "Legion Remnant Command", "What's left of the Ashfall Legion's command structure makes its last stand here."),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter2DepthStages()
+        {
+            const int poolSize = 19; // Chapter2DepthPool.Length - coprime with stride 3, so 18 consecutive bases (stage 4..21) never repeat mod 19.
+            for (int i = 0; i < 18; i++)
+            {
+                int stageNumber = i + 4; // 2-4 .. 2-21
+                int baseIndex = (3 * i) % poolSize;
+                string[] ids =
+                {
+                    Chapter2DepthPool[baseIndex],
+                    Chapter2DepthPool[(baseIndex + 7) % poolSize],
+                    Chapter2DepthPool[(baseIndex + 13) % poolSize],
+                };
+
+                // Measured DEFEAT on the first pass (three near-max pool entries: ladyinlake +
+                // ogre + undead_pirate, all 4/4-or-near) - swapped for a lighter combination
+                // before this code ever ran against the AF policy.
+                if (stageNumber == 10)
+                {
+                    ids = new[] { "giant_worms", "eastern_sorcerer", "owl_keeper" };
+                }
+
+                (string title, string enemyName, string description) = Chapter2DepthFlavor[i];
+                (int gold, int gems) = Chapter2DepthReward(stageNumber);
+                yield return new CampaignStageData($"2-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 2-3's own 1000/200, same escalation pattern
+        /// Chapter1DepthReward already established - leaves clear headroom for a future Chapter 3
+        /// opener (2-21 lands at 2440/488, nowhere near exhausting the number space).</summary>
+        private static (int gold, int gems) Chapter2DepthReward(int stageNumber)
+        {
+            const int baseGold = 1000, goldPerStage = 80;
+            const int baseGems = 200, gemsPerStage = 16;
+            int stepsPast2_3 = stageNumber - 3;
+            return (baseGold + stepsPast2_3 * goldPerStage, baseGems + stepsPast2_3 * gemsPerStage);
+        }
+
         /// <summary>The stage immediately after <paramref name="currentStageId"/> in the existing
         /// ordered campaign list - the sole order authority (see chapterStages' own comment).
         /// Returns null if the id is unknown or is already the last stage (nothing further to

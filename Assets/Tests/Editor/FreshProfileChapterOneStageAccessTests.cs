@@ -227,15 +227,13 @@ namespace MyriadOfDragons.Tests
                 "Requirement 4: winning Stage 1-3 must unlock exactly the real next stage (1-4), never nothing and never an invented id.");
         }
 
-        [Test]
-        public void Winning2_3_DoesNotInventANonexistentNextStage()
-        {
-            // 2-3 is the new terminal stage in the existing ordered campaign list - the same
-            // "final stage invents nothing further" contract Chapter 1's own 1-3 used to be the
-            // subject of, now proven against the real current end of the list instead.
-            Assert.IsNull(CampaignMapPresenter.GetNextStageId("2-3"),
-                "Setup: expected Stage 2-3 to be the last stage in the existing ordered campaign list.");
-        }
+        // Winning2_3_DoesNotInventANonexistentNextStage removed (2026-08-22): asserted 2-3 was
+        // the ordered campaign list's terminal stage. Chapter 2's own depth fill (2-4..2-21)
+        // moved that terminus again, the second time this exact test needed renaming after a
+        // chapter grew - the "does the real last stage invent nothing further" contract now
+        // lives once, at the actual current end of the list, in Chapter2FullDepthTests'
+        // GetNextStageId_2_21IsTheNewEndOfTheList, rather than being re-chased here every time
+        // campaign depth grows again.
 
         [Test]
         public void ExistingPlayer_WithFurtherStagesAlreadyUnlocked_KeepsThemAfterLoad()

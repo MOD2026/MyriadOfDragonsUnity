@@ -167,13 +167,15 @@ namespace MyriadOfDragons.Tests
             // Chapter 1 depth expansion (2026-08-22, a later task than this file's own): 1-3 no
             // longer chains directly into 2-1 - CampaignMapPresenter.chapterStages now inserts
             // 1-4..1-12 between them. This test's own subject is the Chapter 2 portion of the
-            // chain (2-1 -> 2-2 -> 2-3 -> null), which is unaffected; only the Chapter 1 entry
-            // point into it moved from "1-3" to "1-12" - see Chapter1FullDepthTests for full
-            // coverage of the 1-4..1-12 links themselves.
+            // chain (2-1 -> 2-2 -> 2-3), which is unaffected; only the Chapter 1 entry point into
+            // it moved from "1-3" to "1-12" - see Chapter1FullDepthTests for full coverage of the
+            // 1-4..1-12 links. 2-3 is also no longer the end of the list - Chapter 2's own depth
+            // fill (2-4..2-21, a later task than this file) continues the chain further; see
+            // Chapter2FullDepthTests for that complete, current chain assertion.
             Assert.AreEqual("2-1", CampaignMapPresenter.GetNextStageId("1-12"));
             Assert.AreEqual("2-2", CampaignMapPresenter.GetNextStageId("2-1"));
             Assert.AreEqual("2-3", CampaignMapPresenter.GetNextStageId("2-2"));
-            Assert.IsNull(CampaignMapPresenter.GetNextStageId("2-3"), "Stage 2-3 must be the new end of the ordered campaign list - nothing invented past it.");
+            Assert.AreEqual("2-4", CampaignMapPresenter.GetNextStageId("2-3"), "Stage 2-4 must be the real next stage after 2-3 in the existing ordered campaign list.");
         }
 
         [Test]
@@ -199,10 +201,11 @@ namespace MyriadOfDragons.Tests
             bootstrap.PlayAgainForTests();
             controller = bootstrap.Battle;
             presenter.SetActiveStageForTests(FindStage("2-3"));
-            int unlockedCountBeforeFinalWin = profile.unlockedStageIds.Count;
             PlayOneCardAndWin(controller);
-            Assert.AreEqual(unlockedCountBeforeFinalWin, profile.unlockedStageIds.Count,
-                "Winning the new final stage (2-3) must not invent or unlock any further stage.");
+            // 2-3 is no longer the ordered campaign list's terminal stage - Chapter 2's own
+            // depth fill (2-4..2-21, a later task than this file) continues the chain further;
+            // see Chapter2FullDepthTests for that complete, current end-of-list contract.
+            CollectionAssert.Contains(profile.unlockedStageIds, "2-4", "Winning Stage 2-3 must unlock Stage 2-4.");
         }
 
         /// <summary>Same helper pattern every Battle-adjacent test file in this suite already

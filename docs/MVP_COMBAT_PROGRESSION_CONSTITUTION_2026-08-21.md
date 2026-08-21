@@ -12,6 +12,7 @@
 3. **Campaign stages are content difficulty, not mirrored XP inflation.** Stage enemy *cards* are fixed; Avatar HP/Resource still scale with the player (AI HP ratio + resource parity). Card walls must stay AF-clearable on Chapter 1.
 4. **Integer card stats (1–12) stay.** Overflow multiplier bridges to Avatar HP pools. Do not move to x10 card stats in this pass.
 5. **UI polish waits.** Playable loop > art. One mechanics pass, then content completion, then UI.
+6. **Wartime (2026-08-22 LOCKED):** see `CORE_SYSTEMS_CONSTITUTION.md` §0 — (1) fastest path to whole game up, (2) token efficiency. Stage fine-tune later; no abstract decision cards.
 
 ---
 

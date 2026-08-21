@@ -183,6 +183,43 @@ namespace MyriadOfDragons.Story
             stage2_3Post.lines.Add(new DialogueLine(legionCommander, "Impossible. The Ashfall Legion does not break before mortals."));
             stage2_3Post.lines.Add(new DialogueLine(playerSpeaker, "It just did. Chapter two ends here - Olympus will send worse next."));
             sequences["2-3_post"] = stage2_3Post;
+
+            // Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
+            // wartime doctrine - token efficiency, no docs essays): a small templated generator
+            // instead of eighteen hand-authored speaker/line pairs. Same short two-line pre/post
+            // shape every other stage already uses; enemyName/title match
+            // CampaignMapPresenter.Chapter2DepthFlavor exactly so the story and the map agree.
+            (string stageId, string title, string enemyName)[] depthStages =
+            {
+                ("2-4", "Cinder Watch", "Cinder Sentries"),
+                ("2-5", "Sulfur Flats", "Flat-Born Raiders"),
+                ("2-6", "Broken Kiln", "Kiln Wardens"),
+                ("2-7", "Slagpour Ridge", "Slagpour Sentinels"),
+                ("2-8", "Charcoal Hollow", "Hollow Stalkers"),
+                ("2-9", "Ember Causeway", "Causeway Guard"),
+                ("2-10", "Grey Ash Fields", "Ashfield Marauders"),
+                ("2-11", "Titan's Cradle", "Cradle Keepers"),
+                ("2-12", "Smouldering Vault", "Vault Sentries"),
+                ("2-13", "Cracked Foundry", "Foundry Remnant"),
+                ("2-14", "Pale Ash Crossing", "Crossing Wardens"),
+                ("2-15", "Blackrock Descent", "Descent Guard"),
+                ("2-16", "Cinderfall Bastion", "Bastion Legionnaires"),
+                ("2-17", "Ruined Signal Tower", "Tower Remnant"),
+                ("2-18", "Molten Scar", "Scarborn Vanguard"),
+                ("2-19", "Last Ember Camp", "Ember Camp Guard"),
+                ("2-20", "Ashen Threshold", "Threshold Wardens"),
+                ("2-21", "Legion's End", "Legion Remnant Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in depthStages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                AddStageDialogue(stageId, title, enemy,
+                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                    $"Olympus isn't here. Clear {title} and keep moving.",
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. Boiotia's ash still stretches on.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

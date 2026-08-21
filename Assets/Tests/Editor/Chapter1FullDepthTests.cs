@@ -184,6 +184,11 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void ChapterStages_ContainsAllTwelveChapter1StagesBeforeAnyChapter2Stage_InOrder()
         {
+            // Prefix-only check (not "...then the list ends"): Chapter 2's own depth fill
+            // (2-4..2-21, a later task than this file) continues the chain well past 2-3 now -
+            // see Chapter2FullDepthTests for the complete, current end-to-end chain assertion.
+            // This test's own subject - Chapter 1 is twelve stages, in order, before any 2-x
+            // stage - is unaffected by how long Chapter 2 itself later grew.
             string[] expectedOrderPrefix =
             {
                 "1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10", "1-11", "1-12",
@@ -192,18 +197,16 @@ namespace MyriadOfDragons.Tests
 
             string cursor = "1-1";
             var actualOrder = new List<string> { cursor };
-            while (true)
+            for (int i = 0; i < expectedOrderPrefix.Length - 1; i++)
             {
                 string next = CampaignMapPresenter.GetNextStageId(cursor);
-                if (next == null) break;
+                Assert.IsNotNull(next, $"Setup: expected a real next stage after {cursor}.");
                 actualOrder.Add(next);
                 cursor = next;
-                Assert.LessOrEqual(actualOrder.Count, expectedOrderPrefix.Length,
-                    "Setup: the ordered campaign list grew unexpectedly long - possible infinite chain or duplicate id.");
             }
 
             CollectionAssert.AreEqual(expectedOrderPrefix, actualOrder,
-                "The ordered campaign list must be exactly 1-1..1-12 then 2-1..2-3, in that order, with no gaps or reordering.");
+                "The ordered campaign list must begin with exactly 1-1..1-12 then 2-1..2-3, in that order, with no gaps or reordering.");
         }
 
         [Test]
