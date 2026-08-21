@@ -548,6 +548,12 @@ namespace MyriadOfDragons.UI
         /// this unconditionally for every match type.</summary>
         public string ResourceOrEnergyTextForTests => _resourceText != null ? _resourceText.text : null;
 
+        /// <summary>Exposed for tests: the shared hand-hint/status text's current value and
+        /// visibility - the surface ShowLaneHint writes to, including a rejected spell-cast
+        /// reason (see OnSpellTapped/CastSpellAt).</summary>
+        public string HandHintTextForTests => _handHintText != null ? _handHintText.text : null;
+        public bool HandHintActiveForTests => _handHintText != null && _handHintText.gameObject.activeSelf;
+
         /// <summary>Exposed for tests: opens the lane picker overlay exactly as tapping a
         /// player lane does (OpenLanePicker is private), then returns the resulting title text
         /// - the only way to observe RefreshLanePicker's tutorial-guidance append without a
@@ -4837,7 +4843,14 @@ namespace MyriadOfDragons.UI
                 // action bar the player just tapped, using the same mechanism damage numbers and
                 // spell-cast names already use, so a rejection cannot be mistaken for nothing
                 // having happened at all.
-                ShowLaneHint("That spell isn't ready yet - not enough Energy, or still cooling down.");
+                //
+                // Reject-reason clarity, 2026-08-22: was one blanket "not enough Energy, or still
+                // cooling down" regardless of which one actually applied - SpellAffordability's
+                // plain, testable GetRejectReason/DescribeRejectReason (mirroring TryCastSpell's
+                // own phase/cooldown/Energy checks in the same order) now names the real reason.
+                SpellAffordability.SpellCastRejectReason rejectReason =
+                    SpellAffordability.GetRejectReason(spell, _battleController.Phase, _battleController.Energy);
+                ShowLaneHint(SpellAffordability.DescribeRejectReason(spell, rejectReason, _battleController.Energy));
                 if (_spellBar != null)
                 {
                     string reason = !spell.IsOffCooldown
@@ -4995,7 +5008,14 @@ namespace MyriadOfDragons.UI
 
             if (!_battleController.TryCastSpell(spellIndex, lane, out int avatarDamage))
             {
-                ShowLaneHint("That spell isn't ready yet - not enough Energy, or still cooling down.");
+                // Reject-reason clarity, 2026-08-22: the armed spell's own state may have changed
+                // between OnSpellTapped's own check and this actual cast attempt (e.g. the tick
+                // that just resolved put it on cooldown, or spent the Energy) - the reason must be
+                // re-derived here, not assumed from the earlier tap.
+                AvatarSpell armedSpell = spellIndex < _battleController.Spellbook.Count ? _battleController.Spellbook[spellIndex] : null;
+                SpellAffordability.SpellCastRejectReason rejectReason =
+                    SpellAffordability.GetRejectReason(armedSpell, _battleController.Phase, _battleController.Energy);
+                ShowLaneHint(SpellAffordability.DescribeRejectReason(armedSpell, rejectReason, _battleController.Energy));
                 return;
             }
 
