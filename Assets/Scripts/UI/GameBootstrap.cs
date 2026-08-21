@@ -4,6 +4,7 @@ using System.Linq;
 using MyriadOfDragons.AI;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Cards;
+using MyriadOfDragons.Economy;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 using UnityEngine;
@@ -32,73 +33,134 @@ namespace MyriadOfDragons.UI
         }
     }
 
+    /// <summary>
+    /// Chapter 1's guided tutorial sequence - a strict, one-action-at-a-time script layered on
+    /// top of the ordinary Formation/Combat flow (BattlePhase), replacing the old "place all
+    /// three starters anywhere" gate. Battle-owned, UI-flow state only: it never changes a rule,
+    /// a card, a reward, or a save - it only decides which of the *already-legal* existing
+    /// actions the player is currently allowed to take, and advances itself once that one action
+    /// actually succeeds. Every step's exact allowance is centralized in
+    /// GameBootstrap.TutorialAllowedCardId/TutorialAllowedLane/RefreshTutorialStepControls -
+    /// nowhere else invents its own gating rule.
+    /// </summary>
+    public enum TutorialStep
+    {
+        /// <summary>1. Only the approved first starter card (warrior) is tappable; no lane, no
+        /// other card, nothing else. Advances once it is selected.</summary>
+        CardCost,
+
+        /// <summary>2. The hand is fully locked (the selection from step 1 already stands); only
+        /// the Front lane is tappable. Advances once warrior is actually placed there.</summary>
+        FrontLane,
+
+        /// <summary>3. Only novice_knight (hand) and Middle (lane) are tappable. Advances once
+        /// novice_knight is placed in Middle.</summary>
+        MiddleLane,
+
+        /// <summary>4. Only goblin_caster (hand) and Back (lane) are tappable. Advances once
+        /// goblin_caster is placed in Back.</summary>
+        BackLane,
+
+        /// <summary>5. Formation is complete; only Start Battle is tappable. Advances once
+        /// Combat actually begins.</summary>
+        BeginBattle,
+
+        /// <summary>6. The first combat tick has already resolved (synchronously, the instant
+        /// Combat began - see OnPrimaryActionPressed); its numbers are shown and only the
+        /// tutorial's own Continue control is tappable. Advances on Continue.</summary>
+        FirstCombatResult,
+
+        /// <summary>7. Exactly one spell (Firestorm) is unlocked/highlighted; once tapped,
+        /// exactly one enemy lane (Middle - the sole survivor of the first exchange) is a legal
+        /// target. Advances once that cast actually resolves.</summary>
+        SpellLesson,
+
+        /// <summary>8. Only Continue is tappable; each tap advances one more real combat tick.
+        /// The scripted encounter is tuned so this reaches a real, engine-resolved victory
+        /// within a couple of taps - see StartApprovedTutorialBattle's own numbers.</summary>
+        Finish,
+    }
+
     public class GameBootstrap : MonoBehaviour
     {
-        private const float CanvasWidth = 720f;
-        private const float CanvasHeight = 1280f;
+        // V3 landscape replacement, 2026-08-16 (Battle_Screen_V3_VSCode_Implementation_Handoff.md):
+        // reference resolution is now 1920x1080 landscape, locked - this game's canvas was
+        // portrait-shaped (720x1280) before this. Every anchor below is a direct min/max fraction
+        // of this canvas, taken straight from the handoff's own anchor table rather than derived,
+        // so this file's geometry can be checked against that table line by line.
+        private const float CanvasWidth = 1920f;
+        private const float CanvasHeight = 1080f;
 
-        // Fixed anchored Y-bands (fractions of canvas height) instead of a single stacked
-        // VerticalLayoutGroup - the original all-in-one-layout-group root let a panel's actual
-        // rendered height drift from what its neighbors assumed, which is what caused panels to
-        // visually overlap (e.g. the status row bleeding into the lanes panel). Each band here
-        // is independently anchored, so one panel's content can never push into another's.
-        // Rebalanced 2026-08-05: the hand band was too short for the 180px-tall card buttons, so
-        // cards visibly overflowed underneath the End Turn bar ("the bottom left red bar is
-        // covering the cards"). The hand now gets the largest single share, and the two button
-        // bands below it were tightened to pay for it.
-        private const float TitleY0 = 0.96f, TitleY1 = 1.00f; // unused on the battle screen - see Initialize()
-        private const float EnemyY0 = 0.72f, EnemyY1 = 1.00f;
-        private const float PlayerY0 = 0.43f, PlayerY1 = 0.72f;
-        private const float StatusY0 = 0.37f, StatusY1 = 0.43f;
-        private const float HandY0 = 0.12f, HandY1 = 0.37f;
-        private const float EndTurnY0 = 0.06f, EndTurnY1 = 0.115f;
-        private const float LineupButtonsY0 = 0.005f, LineupButtonsY1 = 0.055f;
+        // Battle Screen Production V4 anchor table, verbatim from
+        // Battle_Screen_Production_V4_Implementation_Handoff.md's own region table (normalized
+        // (left, bottom, right, top)):
+        //   Top HUD:               (.015, .885) - (.985, .995)
+        //   Player HUD:            (.020, .895) - (.300, .985)
+        //   Phase HUD:             (.360, .895) - (.640, .985)
+        //   Enemy HUD:             (.700, .895) - (.980, .985)
+        //   Lane labels:           (.015, .225) - (.165, .875)
+        //   Enemy 3x3 board:       (.170, .565) - (.715, .875)
+        //   Player 3x3 board:      (.170, .225) - (.715, .535)
+        //   Lane totals/overflow:  (.715, .225) - (.755, .875)
+        //   Combat activity rail:  (.760, .520) - (.985, .875)
+        //   Spell/action rail:     (.760, .225) - (.985, .500)
+        //   Hand dock:             (.015, .025) - (.730, .195)
+        //   Primary action:        (.745, .025) - (.985, .195)
+        private static readonly Vector2 TopHudMin = new Vector2(0.015f, 0.885f);
+        private static readonly Vector2 TopHudMax = new Vector2(0.985f, 0.995f);
+        private static readonly Vector2 PlayerHudMin = new Vector2(0.020f, 0.895f);
+        private static readonly Vector2 PlayerHudMax = new Vector2(0.300f, 0.985f);
+        private static readonly Vector2 PhaseHudMin = new Vector2(0.360f, 0.895f);
+        private static readonly Vector2 PhaseHudMax = new Vector2(0.640f, 0.985f);
+        private static readonly Vector2 EnemyHudMin = new Vector2(0.700f, 0.895f);
+        private static readonly Vector2 EnemyHudMax = new Vector2(0.980f, 0.985f);
+        private static readonly Vector2 LaneLabelsMin = new Vector2(0.015f, 0.225f);
+        private static readonly Vector2 LaneLabelsMax = new Vector2(0.165f, 0.875f);
+        private static readonly Vector2 EnemyBoardMin = new Vector2(0.170f, 0.565f);
+        private static readonly Vector2 EnemyBoardMax = new Vector2(0.715f, 0.875f);
+        private static readonly Vector2 PlayerBoardMin = new Vector2(0.170f, 0.225f);
+        private static readonly Vector2 PlayerBoardMax = new Vector2(0.715f, 0.535f);
+        private static readonly Vector2 LaneTotalsMin = new Vector2(0.715f, 0.225f);
+        private static readonly Vector2 LaneTotalsMax = new Vector2(0.755f, 0.875f);
+        private static readonly Vector2 ActivityRailMin = new Vector2(0.760f, 0.520f);
+        private static readonly Vector2 ActivityRailMax = new Vector2(0.985f, 0.875f);
+        private static readonly Vector2 SpellRailMin = new Vector2(0.760f, 0.225f);
+        private static readonly Vector2 SpellRailMax = new Vector2(0.985f, 0.500f);
+        private static readonly Vector2 HandPanelMin = new Vector2(0.015f, 0.025f);
+        private static readonly Vector2 HandPanelMax = new Vector2(0.730f, 0.195f);
+        private static readonly Vector2 PrimaryActionMin = new Vector2(0.745f, 0.025f);
+        private static readonly Vector2 PrimaryActionMax = new Vector2(0.985f, 0.195f);
 
-        // Horizontal inset applied to the full-width bars (both Avatar HP bars, the primary
-        // action button, the lineup buttons). 2026-08-06: every one of these was marked as "too
-        // long" - a bar pinned edge to edge reads as a UI band rather than a discrete element,
-        // and the reference mockup has none of them touching the screen edges.
-        private const float BarXInset = 0.30f;
+        // Thin gap band between the Top HUD's own bottom edge (.885) and the Enemy board's top
+        // edge (.875) - the only non-HUD, non-board sliver anywhere near the top of the V4
+        // layout, reused for the approved tutorial-only guidance caption (see
+        // BuildTutorialGuidanceCaption). V4's own region table has no dedicated slot for this
+        // (it is tutorial-only, not part of the always-on HUD/board/rail/dock regions), and it
+        // must never render into the Top HUD region itself per the handoff's collision table
+        // ("Header controls... reserve HUD regions; no board, guide, tooltip, or combat text may
+        // render into them") - non-raycasting and effectively invisible outside a guided step.
+        private const float TitleY0 = 0.876f, TitleY1 = 0.884f;
 
-        // Horizontal extent of the lane rows within their panel. Previously each lane row
-        // stretched the full panel width while its 3 slots occupied only the left portion, so
-        // the remaining ~40% rendered as a long empty tinted bar - the "unwanted/extra bar"
-        // marked all down the right side of the battle screen. Rows are now only as wide as the
-        // content they hold, with the far side left clear for the Avatar portrait (enemy top
-        // left, player bottom right, matching the reference mockup).
-        private const float EnemyLaneX0 = 0.20f, EnemyLaneX1 = 0.99f;
-        private const float PlayerLaneX0 = 0.01f, PlayerLaneX1 = 0.80f;
+        // Battle Screen Production V4 board slot geometry, verbatim from the handoff's own
+        // "Board geometry" section: "Each board row has three equal slots. A slot is 0.165
+        // screen width by 0.088 screen height before internal card padding." At 1920x1080 that
+        // is 316.8 x 95.04px - rounded to whole pixels. Row *positioning* (both boards share the
+        // same 0.310 span - EnemyBoardMax.y - EnemyBoardMin.y equals PlayerBoardMax.y -
+        // PlayerBoardMin.y) is computed directly from anchor fractions in BuildBattleBoardSide,
+        // not from a pixel row-height constant, so it can never drift out of sync with the
+        // region table above.
+        private const float BoardSlotWidth = 316f;
+        private const float BoardSlotHeight = 95f;
+        private const float BoardSlotSpacing = 14f;
 
-        // Board-layout fix, 2026-08-15: both zones above are 0.79 of the 720-wide canvas
-        // (~569px). At the previous per-slot width (66) and inner spacing (8), three fully
-        // labelled/populated lane groups needed 3*(3*66+2*8) + 2*20 (zoneLayout.spacing) =
-        // 682px - more than the zone actually had, so lanes overflowed past the zone's own
-        // bounds and collided with whatever sat past it (the Avatar portrait's own space, or
-        // simply each other) once more than one lane held a card. Confirmed by a Play Mode
-        // screenshot: only one deployed card was independently readable with all three
-        // approved tutorial cards on the board. These two values are shared by every place a
-        // board slot (deployed card, empty-slot placeholder, or a lane's own reserved width) is
-        // sized, so they can never drift out of sync with each other again - at 48/6, three
-        // lanes need 3*(3*48+2*6) + 40 = 508px, comfortably inside the ~569px available.
-        private const float BoardSlotWidth = 48f;
-        private const float BoardSlotSpacing = 6f;
-
-        // Battle-board rework, 2026-08-06: the first real play test (this project's EditMode
-        // suite cannot execute Update()/coroutines, so Play Mode rendering had literally never
-        // been looked at before) showed three stacked per-lane rows reading as a plain 3x3 grid
-        // of empty boxes, and two full-width health bars sitting in the middle of the board -
-        // exactly what an empty Formation screen looks like, since CreateEmptySlotDisplay's
-        // placeholder art is the only thing rendered before any card is deployed.
-        //
-        // Board zones now hold all 3 lanes side by side in ONE row per side instead of one row
-        // PER LANE - matching a Hearthstone/Shadowverse-style board - while keeping Front/Middle/
-        // Back as three visually grouped clusters within that row (see CreateLaneGroup), because
-        // the lane a card sits in is not cosmetic here: LaneBattleResolver keys elemental
-        // advantage, Front's +1 Attack, Middle's +1 Health, and the overflow-on-clear rule
-        // entirely off which lane a card occupies. Flattening lanes away in the UI would make the
-        // board unreadable rather than cleaner.
-        private const float EnemyBoardY0 = 0.08f, EnemyBoardY1 = 0.42f;
-        private const float PlayerBoardY0 = 0.42f, PlayerBoardY1 = 0.80f;
+        // Visual-review fix, 2026-08-17, corrected 2026-08-18: BoardSlotWidth/Height (316x95) is
+        // a wide, short CELL - correct for the row's tap-target/spacing math, wrong as the shape
+        // to render a card frame at (stretching a portrait frame to fill it read as "flattened/
+        // stretched"). The rendered card tile (CreateBoardCardTile) is instead sized to the
+        // cell's own height at each card's OWN rarity-frame aspect (GetRarityFrameAspect) -
+        // asset audit 2026-08-18 found Common/Rare/Epic (0.739 w/h) and Legendary (0.870) card
+        // frames are genuinely different shapes, so a single shared aspect was itself part of
+        // the stretching defect, not just the wide cell.
 
         // Palette widened 2026-08-05 from a near-uniform dark-purple-on-everything look (flat
         // single color per panel, no depth) to distinct tinted gradients per section - Enemy
@@ -127,6 +189,15 @@ namespace MyriadOfDragons.UI
         // covering the backdrop. CreateGradientBandPanel skips drawing entirely at 0 rather
         // than adding an invisible full-screen Graphic for the canvas to batch.
         private const float HudPanelAlpha = 0f;
+
+        // V3 replacement, 2026-08-16: the handoff's own visual system explicitly calls for
+        // "charcoal/navy stone" solid panels ("dark fantasy" section of the handoff), reversing
+        // the 2026-08-06 decision above for this game's OLDER layout (which removed all panel
+        // backgrounds so backdrop art could show through, relying on per-element dark chips for
+        // contrast instead). Both are real, deliberate decisions for their own layout - V3's own
+        // regions use this constant, not HudPanelAlpha, so the two eras' intent stay distinct in
+        // the code rather than one silently overwriting the other's reasoning.
+        private const float V3PanelAlpha = 0.90f;
         private static Color WithAlpha(Color c, float a) => new Color(c.r, c.g, c.b, a);
         private static readonly Color AccentBorderColor = new Color(0.85f, 0.72f, 0.4f, 0.5f);
         private static readonly Color GoldTextColor = new Color(0.9f, 0.78f, 0.45f);
@@ -198,6 +269,15 @@ namespace MyriadOfDragons.UI
         private readonly List<Image> _spellIcons = new List<Image>();
         private RectTransform _spellBar;
 
+        /// <summary>V3's activity rail shows each spell's real Name (handoff: "spell buttons
+        /// with numeric energy cost/cooldown"), not just an icon - the pre-V3 64px icon tile had
+        /// no room for one. Set once per spell in RefreshPhaseControls, alongside the existing
+        /// cost/cooldown label.</summary>
+        private readonly List<Text> _spellNameLabels = new List<Text>();
+
+        /// <summary>Activity rail's own log of recent resolved ticks - see RefreshActivityLog.</summary>
+        private Text _activityLogText;
+
         /// <summary>Spellbook index of the spell currently awaiting a lane tap, or -1 when no
         /// spell is armed. AvatarStrike spells never set this - they cast immediately on tap
         /// (see RequiresLaneTargeting) since there is no lane for them to target.</summary>
@@ -215,23 +295,11 @@ namespace MyriadOfDragons.UI
         /// <summary>The loaded player profile. Exposed so tests (and a future main menu) can read
         /// progression without reaching through the UI.</summary>
         public PlayerProfile Profile => _profile;
-
-        /// <summary>Exposed for tests: whether the older JSON-driven "how to play" narrative
-        /// walkthrough (MaybeShowTutorial/_tutorialOverlay/BuildTutorialOverlay) is currently
-        /// active.</summary>
-        public bool NarrativeOverlayActiveForTests => _tutorialOverlay != null && _tutorialOverlay.activeSelf;
-
-        /// <summary>Exposed for tests: forces the narrative overlay active, simulating a session
-        /// where MaybeShowTutorial left it open (MaybeShowTutorial itself never fires in EditMode
-        /// - Application.isPlaying is always false there - so this is the only way to reproduce
-        /// "the narrative was still open" as a starting condition for a test).</summary>
-        public void ForceNarrativeOverlayActiveForTests()
-        {
-            if (_tutorialOverlay != null) _tutorialOverlay.SetActive(true);
-        }
-
         private SoloAIScalingSystem _aiScaling;
         private AIBattleProfile _aiProfile;
+
+        private AudioSource _musicSource;
+        private AudioClip _battleMusicClip;
 
         private Card _selectedCard;
         private Card _previewedCard;
@@ -239,6 +307,8 @@ namespace MyriadOfDragons.UI
         private readonly Dictionary<Lane, Transform> _enemyLaneSlots = new Dictionary<Lane, Transform>();
         private readonly Dictionary<Lane, Transform> _playerLaneSlots = new Dictionary<Lane, Transform>();
         private readonly Dictionary<Lane, Button> _playerLaneButtons = new Dictionary<Lane, Button>();
+        private readonly Dictionary<Lane, Text> _enemyLaneTotalTexts = new Dictionary<Lane, Text>();
+        private readonly Dictionary<Lane, Text> _playerLaneTotalTexts = new Dictionary<Lane, Text>();
         private Image _enemyHealthFill;
         private Text _enemyAvatarText;
         private Image _playerHealthFill;
@@ -252,10 +322,58 @@ namespace MyriadOfDragons.UI
         private Text _enemyNameLabel;
         private Image _resourceFill;
         private Text _resourceText;
+
+        /// <summary>V3 header adds a visible enemy Resource readout beside the enemy HP bar
+        /// (handoff's required bindings: "Formation resource... equivalent EnemyState values") -
+        /// the pre-V3 layout never displayed this at all; EnemyState.Resource already existed
+        /// and updates the same way PlayerState.Resource does (BattleController.BeginTurn calls
+        /// GainResourceForTurn on both sides), only nothing read it into the UI before now.</summary>
+        private Image _enemyResourceFill;
+        private Text _enemyResourceText;
         private Text _turnText;
         private Text _deckCountText;
+
+        /// <summary>V3 header's "HAND n" readout beside the player portrait - existing data
+        /// (HandCardCount/PlayerState.Hand.Count), just not previously surfaced as its own label.</summary>
+        private Text _handCountText;
         private Transform _handRow;
         private Text _handHintText;
+
+        /// <summary>The Hand/placement dock's own outer RectTransform - captured for the
+        /// corrective geometry regression tests (never overlaps a Player lane button's bounds).</summary>
+        private RectTransform _handAndPlacementPanelRect;
+
+        /// <summary>Battle Release Layout pass: the single presentation root every Battle child
+        /// (backdrop, header, both boards, right rail, hand dock, action well, and every modal
+        /// overlay) is built under - see Initialize()'s own comment for why.</summary>
+        private RectTransform _battlePresentationRoot;
+
+        /// <summary>Exposed for tests: the Hand dock's real (post-layout) RectTransform.</summary>
+        public RectTransform HandDockRectForTests => _handAndPlacementPanelRect;
+
+        /// <summary>Exposed for tests: a Player lane's own tap-target RectTransform (the lane
+        /// row Button built by CreateBoardRow, stored in _playerLaneButtons).</summary>
+        public RectTransform PlayerLaneButtonRectForTests(Lane lane) =>
+            _playerLaneButtons.TryGetValue(lane, out Button button) ? button.GetComponent<RectTransform>() : null;
+
+        /// <summary>Exposed for tests: an Enemy lane's own tap-target RectTransform - the same
+        /// pattern as PlayerLaneButtonRectForTests, for the Battle Release Layout pass' region
+        /// geometry regression coverage (the enemy board is the one named region with no
+        /// otherwise-findable-by-name wrapping panel).</summary>
+        public RectTransform EnemyLaneButtonRectForTests(Lane lane) =>
+            _enemyLaneButtons.TryGetValue(lane, out Button button) ? button.GetComponent<RectTransform>() : null;
+
+        /// <summary>Exposed for tests: the single BattlePresentationRoot every Battle child is
+        /// built under (Battle Release Layout pass - see Initialize()'s own comment).</summary>
+        public RectTransform BattlePresentationRootForTests => _battlePresentationRoot;
+
+        /// <summary>Exposed for tests: the Hand dock's own decorative background Image, to check
+        /// its raycastTarget setting directly.</summary>
+        public Image HandDockBackgroundImageForTests { get; private set; }
+
+        /// <summary>V3's passive "Selected Card / Place In" status box - text-only, never itself
+        /// a placement control (see BuildHandAndPlacementPanel's own comment on why).</summary>
+        private Text _selectedCardText;
         private readonly List<Button> _handButtons = new List<Button>();
 
         private GameObject _cardDetailOverlay;
@@ -278,6 +396,65 @@ namespace MyriadOfDragons.UI
         private Button _resetLineupButton;
         private Button _recommendedLineupButton;
 
+        /// <summary>Current step of the guided Chapter 1 sequence, or null for a normal match
+        /// (which never constructs one) - see the TutorialStep enum's own doc comment.</summary>
+        private TutorialStep? _tutorialStep;
+
+        /// <summary>Set once the step-7 spell lesson actually resolves, so step 8's caption can
+        /// keep reporting the exact cast numbers (Energy spent, enemy Health change) rather than
+        /// losing them the moment the step advances.</summary>
+        private string _tutorialSpellCastSummary;
+
+        /// <summary>Set once Warrior is actually placed in Front, so step 3's caption can open
+        /// with "Warrior now has N ATK" - the resulting-number confirmation for the step that
+        /// just completed, carried into the next step's own instruction rather than needing a
+        /// separate no-action confirmation screen.</summary>
+        private string _tutorialFrontPlacementSummary;
+
+        private Button _tutorialContinueButton;
+        private Text _tutorialContinueLabel;
+        private string _normalMatchStartError;
+
+        // ---------- Tutorial teaching overlay (full-screen blocker + Tutorial Action Proxy) ----------
+        // Built last in Initialize() so its sibling index is the highest in the canvas.
+        //
+        // REPLACES two earlier designs, both rejected against real manual QA:
+        //  1. A "spotlight hole" (four dark rectangles framing a measured gap) - rejected
+        //     2026-08-16: the hole's coordinate math depended on precise agreement between the
+        //     target's measured world bounds and the scrim's own, which drifted in practice.
+        //  2. Reparenting the real target GameObject into an always-topmost slot - rejected
+        //     2026-08-16 again: a real manual QA pass found the highlighted Novice Knight visible
+        //     but still not tappable.
+        //
+        // This design never touches the real gameplay hierarchy at all. Every real hand card,
+        // lane button, spell tile and Continue button stays in its original parent, sibling
+        // order and layout, exactly as normal (non-tutorial) play already relies on - see
+        // RefreshTutorialActionProxy's own comment for why this specifically is what makes taps
+        // reliable: a full-screen blocker sits above normal gameplay; a small, transparent
+        // "Tutorial Action Proxy" Button - sized to the real target's own current world bounds,
+        // rebuilt fresh every refresh - sits above the blocker and is the only thing that ever
+        // receives the tap, forwarding it straight into the exact same private handler
+        // (OnHandCardPressed/OnLanePressed/OnSpellTapped/OnSpellTargetLanePressed/
+        // OnPrimaryActionPressed/OnTutorialContinuePressed) a real tap on the real control would
+        // have called. A purely decorative, non-raycasting marker (border + arrow) sits around it
+        // so the target still reads as clearly highlighted.
+        private GameObject _tutorialTeachingOverlay;
+        private Image _tutorialFullScreenBlocker;
+        private RectTransform _tutorialProxyContainer;
+        private Button _tutorialActionProxy;
+        private RectTransform _tutorialMarkerTop;
+        private RectTransform _tutorialMarkerBottom;
+        private RectTransform _tutorialMarkerLeft;
+        private RectTransform _tutorialMarkerRight;
+        private RectTransform _tutorialMarkerArrow;
+        private RectTransform _tutorialGuidePanelRect;
+        private Text _tutorialGuideSpeakerText;
+        private Text _tutorialGuideBodyText;
+        private Button _tutorialSkipButton;
+
+        /// <summary>Exposed for tests: which guided step is active, or null outside the tutorial.</summary>
+        public TutorialStep? TutorialStepForTests => _tutorialStep;
+
         /// <summary>Number of cards currently rendered in the hand row - exposed for tests.</summary>
         public int HandCardCount => _handButtons.Count;
 
@@ -289,6 +466,16 @@ namespace MyriadOfDragons.UI
         /// tutorial's own fixed Balanced profile is in effect, independent of whatever a prior
         /// normal match last generated.</summary>
         public AIArchetype AiArchetypeForTests => _aiProfile.Archetype;
+
+        /// <summary>Exposed for tests: whether the battle music AudioSource is currently
+        /// playing the battle track - lets a test prove the start/stop/no-duplicate rules
+        /// without needing a real audio device.</summary>
+        public bool BattleMusicIsPlayingForTests => _musicSource != null && _musicSource.isPlaying;
+
+        /// <summary>Exposed for tests: how many AudioSources exist under the battle canvas -
+        /// proves Retry/Reset/Recommended never create a second, layered music source.</summary>
+        public int BattleMusicSourceCountForTests =>
+            _canvasTransform == null ? 0 : _canvasTransform.GetComponentsInChildren<AudioSource>(true).Length;
 
         /// <summary>
         /// The running battle screen, for external code that needs to show/hide it - the home
@@ -328,6 +515,16 @@ namespace MyriadOfDragons.UI
         /// RefreshPhaseControls' own comment).</summary>
         public bool ResetLineupButtonActiveForTests => _resetLineupButton != null && _resetLineupButton.gameObject.activeSelf;
         public bool RecommendedLineupButtonActiveForTests => _recommendedLineupButton != null && _recommendedLineupButton.gameObject.activeSelf;
+        public string NormalMatchStatusForTests => _normalMatchStartError;
+
+        /// <summary>Exposed for tests: the single primary-action button's current label/
+        /// visibility/interactable state - it swaps between "AUTO FORMATION" and "START BATTLE"
+        /// depending on real board state (see ShouldOfferAutoFormation), and is hidden entirely
+        /// when no valid deck was confirmed (see RefreshPhaseControls' own normalDeckBlocked
+        /// check).</summary>
+        public string PrimaryActionLabelForTests => _primaryActionLabel != null ? _primaryActionLabel.text : null;
+        public bool PrimaryActionButtonActiveForTests => _primaryActionButton != null && _primaryActionButton.gameObject.activeSelf;
+        public bool PrimaryActionButtonInteractableForTests => _primaryActionButton != null && _primaryActionButton.interactable;
 
         /// <summary>Exposed for tests: opens the lane picker overlay exactly as tapping a
         /// player lane does (OpenLanePicker is private), then returns the resulting title text
@@ -364,9 +561,43 @@ namespace MyriadOfDragons.UI
             _canvasTransform = canvas.transform;
             BuildEventSystem();
 
-            var dbGo = new GameObject("CardDatabase");
-            _cardDatabase = dbGo.AddComponent<CardDatabase>();
-            _cardDatabase.Initialize();
+            // Battle Release Layout pass: one BattlePresentationRoot under Canvas owns every
+            // Battle child from here down - built first (before even the music source and
+            // StartNewMatch) so nothing Battle-owned is ever a direct sibling of it under Canvas.
+            // A pure SetParent change for every Build* call below (StretchFull(root) makes the
+            // root's own fraction space identical to the canvas's), so every existing
+            // fractional/pixel anchor is completely unaffected - zero geometry change from this
+            // alone. Consolidates what was previously a flat list of panels siblinged directly
+            // under Canvas (with the backdrop as a further, separately-drawn sibling before all
+            // of them - see BuildBattleBackdrop) into one owned hierarchy, matching the
+            // six-region contract: header/HUD, enemy board, player board, right rail, hand dock,
+            // action well, plus the backdrop, music source, and every modal overlay as the
+            // root's own additional owned chrome.
+            var battleRootGo = new GameObject("BattlePresentationRoot", typeof(RectTransform));
+            battleRootGo.transform.SetParent(canvas.transform, false);
+            RectTransform battleRoot = (RectTransform)battleRootGo.transform;
+            StretchFull(battleRoot);
+            _battlePresentationRoot = battleRoot;
+
+            // Built before StartNewMatch() below, which is the first call that can start battle
+            // music. A child of the battle presentation root specifically - see
+            // OnReturnToCityPressed's own comment for why the canvas being hidden alone isn't
+            // relied on to silence it (unaffected by which Battle-owned ancestor this sits under).
+            var musicGo = new GameObject("BattleMusicSource");
+            musicGo.transform.SetParent(battleRoot, false);
+            _musicSource = musicGo.AddComponent<AudioSource>();
+            _musicSource.playOnAwake = false;
+            _musicSource.loop = true;
+            _battleMusicClip = Resources.Load<AudioClip>("Audio/Music/Battle_Theme");
+            _musicSource.clip = _battleMusicClip;
+
+            _cardDatabase = CardDatabase.Instance;
+            if (_cardDatabase == null)
+            {
+                var dbGo = new GameObject("CardDatabase");
+                _cardDatabase = dbGo.AddComponent<CardDatabase>();
+                _cardDatabase.Initialize();
+            }
 
             var controllerGo = new GameObject("BattleController");
             _battleController = controllerGo.AddComponent<BattleController>();
@@ -382,7 +613,7 @@ namespace MyriadOfDragons.UI
             //
             // EditMode tests construct GameBootstrap directly and must not read or write the
             // machine's real profile, so outside Play Mode this stays in memory only.
-            _profile = Application.isPlaying ? SaveSystem.CurrentProfile : new PlayerProfile();
+            _profile = SaveSystem.CurrentProfile;
 
             SeedIfNewProfile(_profile);
 
@@ -398,7 +629,7 @@ namespace MyriadOfDragons.UI
             // The enemy is no longer pinned at a fixed level-1 baseline. That pinning was itself
             // a fix for an earlier bug (the enemy used to mirror the player's economy exactly, so
             // levelling up never made a win easier to reach) but it overcorrected: the player
-            // gains +3 Avatar levels per win against an opponent that never changed, so the game
+            // gains Avatar levels per win against an opponent that never changed, so the game
             // got monotonically *easier* the longer it was played. SoloAIScalingSystem now derives
             // the opponent from the player's own progression each match - see that class for what
             // it does and does not scale.
@@ -407,27 +638,35 @@ namespace MyriadOfDragons.UI
             StartNewMatch();
             _battleController.OnMatchEnded += HandleMatchEnded;
 
+            BuildBattleBackdrop(battleRoot);
+
             // Built before any panel with a lane button - see BuildSpellTargetCancelCatcher's own
             // comment for why its position in this call order is load-bearing, not cosmetic.
-            BuildSpellTargetCancelCatcher(canvas.transform);
+            BuildSpellTargetCancelCatcher(battleRoot);
 
             // Title panel removed 2026-08-06 ("remove MOD"): a permanent game-title banner across
             // the top of the battle screen is menu chrome, not gameplay information, and it was
             // eating a band of screen the board could use. BuildTitlePanel is kept for a future
             // main menu rather than deleted. The TitleY0/Y1 band it used to occupy is what
             // BuildTutorialGuidanceCaption reuses below - already free, no board space taken.
-            BuildTutorialGuidanceCaption(canvas.transform, defaultFont);
-            BuildEnemyPanel(canvas.transform, defaultFont);
-            BuildPlayerPanel(canvas.transform, defaultFont);
-            BuildStatusRow(canvas.transform, defaultFont);
-            BuildHandPanel(canvas.transform, defaultFont);
-            BuildEndTurnButton(canvas.transform, defaultFont);
-            BuildLineupButtons(canvas.transform, defaultFont);
-            BuildCardDetailOverlay(canvas.transform, defaultFont);
-            BuildLanePickerOverlay(canvas.transform, defaultFont);
-            BuildResultOverlay(canvas.transform, defaultFont);
-            BuildTutorialOverlay(canvas.transform, defaultFont);
-            BuildSpellTooltip(canvas.transform, defaultFont);
+            BuildTutorialGuidanceCaption(battleRoot, defaultFont);
+            BuildHeaderBar(battleRoot, defaultFont);
+            BuildBattleBoards(battleRoot, defaultFont);
+            BuildActivityRail(battleRoot, defaultFont);
+            BuildHandAndPlacementPanel(battleRoot, defaultFont);
+            BuildPrimaryActionAndSpells(battleRoot, defaultFont);
+            BuildCardDetailOverlay(battleRoot, defaultFont);
+            BuildLanePickerOverlay(battleRoot, defaultFont);
+            BuildResultOverlay(battleRoot, defaultFont);
+            BuildTutorialOverlay(battleRoot, defaultFont);
+            BuildSpellTooltip(battleRoot, defaultFont);
+
+            // Built last, so it is the highest sibling under the root and draws on top of
+            // every other panel above - required for the scrim to actually dim/block the rest of
+            // the screen. Unrelated to _tutorialOverlay/BuildTutorialOverlay above (the JSON-
+            // driven first-run narrative/arrow intro) - this is the guided-battle TutorialStep
+            // machine's own teaching overlay.
+            BuildTutorialTeachingOverlay(battleRoot, defaultFont);
 
             RefreshAll();
             MaybeShowTutorial();
@@ -501,27 +740,33 @@ namespace MyriadOfDragons.UI
         /// "Recommended Lineup" button.
         ///
         /// allowSavedDeck governs the default (useRecommendedDeck: false) path only:
-        /// true (initial boot, "Play Again") reuses the player's last-confirmed
-        /// DeckBuilderPresenter deck when one resolves to at least one real card, falling back
-        /// to a fresh rarity-balanced deck otherwise. false ("Reset Lineup" specifically)
-        /// bypasses the saved deck entirely and always generates a fresh random one - "Reset"
-        /// must keep meaning what its own name and the player-facing UI already promise, not
-        /// silently become "reload my saved deck again" once one exists to reload.
+        /// true (initial boot, "Play Again") makes the player's last-confirmed
+        /// DeckBuilderPresenter deck (activeDeckCardIds) the exclusive source of the normal
+        /// player deck - see TryBuildSavedPlayerDeck. An invalid or incomplete saved deck
+        /// (missing, wrong size, duplicate/unknown ids) blocks the match instead of padding,
+        /// substituting, or generating a fallback deck (Command Centre decision, see
+        /// _normalMatchStartError below) - the player must confirm a complete deck in Deck
+        /// Builder before a normal battle can start. false ("Reset Lineup" specifically) bypasses
+        /// the saved deck entirely and always generates a fresh random one - "Reset" must keep
+        /// meaning what its own name and the player-facing UI already promise, not silently
+        /// become "reload my saved deck again" once one exists to reload.
         /// </summary>
         private void StartNewMatch(bool useRecommendedDeck = false, bool allowSavedDeck = true)
         {
-            // Modal precedence guard: a normal match must be completely free-play, with no
-            // leftover modal from a previous session. If the older JSON-driven "how to play"
-            // narrative walkthrough (MaybeShowTutorial/_tutorialOverlay) is still open - e.g. a
-            // player who never engaged the guided tutorial reaches a normal battle straight from
-            // Deck Builder's own "To Battle" action while SeenIntro is still false - force it
-            // closed now, before anything else. A cheap no-op the very first time this runs, at
-            // Initialize() time, since _tutorialOverlay does not exist yet.
+            // Modal precedence guard, mirroring StartApprovedTutorialBattle's own (2026-08-17): a
+            // normal match must be completely free-play, with no leftover modal from a previous
+            // session. If the older JSON-driven "how to play" narrative walkthrough
+            // (MaybeShowTutorial/_tutorialOverlay) is still open - e.g. a player who never
+            // engaged the guided tutorial reaches a normal battle straight from Deck Builder's
+            // own "To Battle" action while SeenIntro is still false - force it closed now, before
+            // anything else. A cheap no-op the very first time this runs, at Initialize() time,
+            // since _tutorialOverlay does not exist yet.
             if (_tutorialOverlay != null && _tutorialOverlay.activeSelf) CloseNarrative();
 
             List<Card> fullPool = _cardDatabase.AllCards.ToList();
             List<Card> playerDeck;
             List<Card> enemyDeck;
+            _normalMatchStartError = null;
 
             // Both sides get the same deck size. Deck size is a poor difficulty lever here (10-20
             // cards against a 3x3 board that fills long before a deck runs out), so making it
@@ -537,21 +782,47 @@ namespace MyriadOfDragons.UI
             }
             else
             {
-                playerDeck = allowSavedDeck ? BuildSavedPlayerDeck(deckSize) : new List<Card>();
-                if (playerDeck.Count == 0)
+                if (allowSavedDeck)
                 {
-                    (playerDeck, enemyDeck) = BuildBalancedDecks(fullPool, deckSize, deckSize);
+                    if (!TryBuildSavedPlayerDeck(deckSize, out playerDeck))
+                    {
+                        // First-normal-battle onboarding: this exact string is shown to the
+                        // player as-is (RefreshNormalMatchGuidanceCaption) as well as exposed to
+                        // tests via NormalMatchStatusForTests - one source of truth for both, so
+                        // the player-facing copy and the test-visible signal can never drift.
+                        _normalMatchStartError = $"No complete {deckSize}-card deck saved. Return to Deck Builder and save {deckSize} cards to enter Battle.";
+                        playerDeck = new List<Card>();
+                        enemyDeck = new List<Card>();
+                    }
+                    else if (_pendingCampaignStage != null)
+                    {
+                        // Campaign-stage battle-configuration contract: a stage launched via
+                        // Campaign -> Home's onLaunchBattle callback -> OnToBattleClicked sets
+                        // _pendingCampaignStage before revealing Battle (SetPendingCampaignStageForNextMatch).
+                        // Only the ENEMY deck is stage-specific; the player still fields their own
+                        // saved deck exactly as any other normal match, and enemy HP/Resource still
+                        // comes from the same SoloAIScalingSystem call below, untouched - stages are
+                        // distinct only through TryResolveCampaignEnemyDeck's verified composition
+                        // (requirement 8), not new scaling. HomePagePresenter already refuses to
+                        // launch an unresolvable stage before Battle is ever revealed
+                        // (IsCampaignStageBattleConfigValid), so this failing here is a defense-in-
+                        // depth backstop, not the primary gate - it still blocks the whole match via
+                        // the same _normalMatchStartError surface rather than silently falling back
+                        // to a random enemy deck (requirement 9).
+                        if (!TryResolveCampaignEnemyDeck(_pendingCampaignStage, out enemyDeck))
+                        {
+                            _normalMatchStartError = $"Stage {_pendingCampaignStage.stageId} has an invalid battle configuration. Return to the Campaign map.";
+                            playerDeck = new List<Card>();
+                        }
+                    }
+                    else
+                    {
+                        (_, enemyDeck) = BuildBalancedDecks(fullPool, 0, deckSize);
+                    }
                 }
                 else
                 {
-                    // A valid saved deck smaller than the current deckSize (the player leveled
-                    // up since last confirming it in Deck Builder) keeps every chosen card and
-                    // is padded out, not discarded or fielded understrength - see
-                    // PadDeckWithUniqueRandomCards' own comment.
-                    if (playerDeck.Count < deckSize)
-                    {
-                        playerDeck = PadDeckWithUniqueRandomCards(playerDeck, fullPool, deckSize);
-                    }
+                    playerDeck = BuildBalancedDecks(fullPool, deckSize, deckSize).playerDeck;
                     (_, enemyDeck) = BuildBalancedDecks(fullPool, 0, deckSize);
                 }
             }
@@ -562,8 +833,24 @@ namespace MyriadOfDragons.UI
 
             var playerEconomy = new BattleController.MatchEconomy(
                 _empireData.ResourceCap, _empireData.Turn1Resource, _empireData.StartingAvatarHealth);
+
+            // AI formation-resource parity contract, requirement 1: the AI's Formation-phase
+            // resource budget is now exactly the player's own (_empireData.ResourceCap/
+            // Turn1Resource), not _aiProfile's difficulty-scaled StartingResourceCap/Turn1Resource
+            // (which could sit above OR below the player's, depending on AIDifficultyTier - see
+            // SoloAIScalingSystem's Novice/Titan resource ratios). PlayerBattleState.Resource is
+            // computed as Min(ResourceCap, turn1Resource + ...) (see its own BeginTurn), so both
+            // the cap and the turn-1 value must match for the clamp not to silently reintroduce a
+            // gap - passing only Turn1Resource while leaving StartingResourceCap scaled would have
+            // clamped straight back down to the old scaled figure. HP scaling (_aiProfile.
+            // MaxAvatarHealth) is untouched - difficulty still comes from Avatar Health and
+            // archetype placement (SimpleAIOpponent), never from a bigger card budget than the
+            // player gets. TryPlayCard already checks and deducts ResourceCost identically for
+            // both sides (requirements 2-4) - this call site is the only production reader of
+            // _aiProfile.StartingResourceCap/Turn1Resource, so this one edit closes the gap
+            // everywhere both normal and Campaign matches reach this method.
             var enemyEconomy = new BattleController.MatchEconomy(
-                _aiProfile.StartingResourceCap, _aiProfile.Turn1Resource, _aiProfile.MaxAvatarHealth);
+                _empireData.ResourceCap, _empireData.Turn1Resource, _aiProfile.MaxAvatarHealth);
             _battleController.StartMatch(playerDeck, enemyDeck, playerEconomy, enemyEconomy);
 
             // Deal both sides their whole formation hand up front. The entire point of the
@@ -584,6 +871,33 @@ namespace MyriadOfDragons.UI
             // A generic match (initial boot, Play Again, Reset Lineup) must never inherit
             // IsTutorialMatch from a previous tutorial run - see that property's own comment.
             IsTutorialMatch = false;
+
+            // Same reasoning, for the guided tutorial's own step gate: a normal match must never
+            // inherit a leftover _tutorialStep from a previous tutorial run, or every one of the
+            // gates in OnHandCardPressed/OnLanePressed/OnSpellTapped above would wrongly start
+            // restricting it too - "normal matches remain completely unrestricted" is the whole
+            // point of gating everything off _tutorialStep specifically, never IsTutorialMatch.
+            _tutorialStep = null;
+
+            PlayBattleMusicIfNeeded();
+        }
+
+        /// <summary>
+        /// Starts the battle music loop, but only if it isn't already the thing playing.
+        /// StartNewMatch and StartApprovedTutorialBattle both call this every time a battle
+        /// (re)starts - initial boot, Play Again, Retry, Reset Lineup, Recommended - all of which
+        /// must resume the same already-playing track rather than restarting or layering a
+        /// second copy on top of it. There is exactly one AudioSource for the lifetime of this
+        /// GameBootstrap (created once in Initialize()), so "already playing" is sufficient to
+        /// prevent duplicates without any extra bookkeeping.
+        /// </summary>
+        private void PlayBattleMusicIfNeeded()
+        {
+            if (_musicSource == null || _battleMusicClip == null) return;
+            if (_musicSource.isPlaying && _musicSource.clip == _battleMusicClip) return;
+
+            _musicSource.clip = _battleMusicClip;
+            _musicSource.Play();
         }
 
         /// <summary>
@@ -599,8 +913,22 @@ namespace MyriadOfDragons.UI
         /// guard can recognize this match; makes no server call, confirms no victory, and
         /// advances no checkpoint - purely a local, offline prototype battle.
         /// </summary>
-        public void StartApprovedTutorialBattle()
+        /// <param name="showOpeningCinematic">True for a fresh tutorial start (default - matches
+        /// every existing external caller, including HomePagePresenter's Start Tutorial action);
+        /// false for a tutorial retry after defeat (see OnPlayAgainOrRetryPressed), which must
+        /// re-enter Formation directly, not replay the opening.</param>
+        public void StartApprovedTutorialBattle(bool showOpeningCinematic = true)
         {
+            // Modal precedence guard, 2026-08-16: the older, JSON-driven "how to play" narrative
+            // walkthrough (MaybeShowTutorial/_tutorialOverlay - independent of this guided,
+            // interactive sequence and gated only on the player's own SeenIntro flag) can still
+            // be mid-sequence (its own Next/Skip buttons up) at the exact moment a caller starts
+            // this battle. Reported 2026-08-16: that overlay sat on top of and blocked this
+            // sequence's own Continue button. This guided sequence already teaches everything the
+            // narrative's "how to play" beats cover, interactively, so it is always safe to force
+            // the narrative closed here rather than let two modal walkthroughs coexist.
+            if (_tutorialOverlay != null && _tutorialOverlay.activeSelf) CloseNarrative();
+
             GrantApprovedStarterCardsIfMissing();
 
             var playerDeck = new List<Card>
@@ -609,12 +937,30 @@ namespace MyriadOfDragons.UI
                 _cardDatabase.GetCard("novice_knight"),
                 _cardDatabase.GetCard("goblin_caster"),
             };
+
+            // Teaching-encounter fix, 2026-08-16, extended for the guided step sequence: was the
+            // same 4-card, normal-strength roster a real match uses - a genuine full board
+            // against the player's fixed 3-card starter squad, reported losing three times in a
+            // row playing it correctly. Tutorial-only, isolated entirely to this method: exactly
+            // 3 cards, chosen from the existing approved card pool (no new card data), with
+            // DIFFERENT rarities specifically so SimpleAIOpponent.TakeTurn's own
+            // highest-ResourceCost-first ordering (see its own doc comment) deterministically
+            // seats them - highest cost always goes to the first empty lane it tries (Front for
+            // Balanced), then next-highest to the next-emptiest (Middle), lowest to the last
+            // (Back) - regardless of the enemy hand's shuffle order:
+            //   Front  - cleric (rarity 3, ATK3/HP3): dies outright to the player's Front ATK.
+            //   Middle - zombified_captain (rarity 2, ATK2/HP2 -> HP3 with the Middle bonus):
+            //            deliberately SURVIVES the player's Middle ATK2 with 1 HP left, so it is
+            //            the sole living enemy unit going into the guided spell lesson (step 7) -
+            //            the run's own "exactly one valid target".
+            //   Back   - giant_worms (rarity 1, ATK1/HP1): dies outright to the player's Back ATK.
+            // Verified empirically (not just by hand) in TutorialGuidedSequenceTests, which runs
+            // the real production sequence end to end - see that file for the actual numbers.
             var enemyDeck = new List<Card>
             {
-                _cardDatabase.GetCard("butcher"),
-                _cardDatabase.GetCard("cursed_soldier"),
+                _cardDatabase.GetCard("cleric"),
+                _cardDatabase.GetCard("zombified_captain"),
                 _cardDatabase.GetCard("giant_worms"),
-                _cardDatabase.GetCard("tribal_warrior"),
             };
 
             // Fixed level-1 baseline for the approved tutorial content specifically - not
@@ -626,26 +972,50 @@ namespace MyriadOfDragons.UI
             var economy = new BattleController.MatchEconomy(
                 tutorialEmpire.ResourceCap, tutorialEmpire.Turn1Resource, tutorialEmpire.StartingAvatarHealth);
 
+            // Enemy keeps the same Resource/Turn1Resource as the player (so its 3 cards are
+            // always affordable to deploy in full) but a deliberately tuned Avatar Health,
+            // isolated to this tutorial encounter only. 40 is chosen to SURVIVE the first
+            // clash's overflow damage (Front and Back clear, Middle's zombified_captain does
+            // not - see enemyDeck's own comment) so there is a real "first combat result" to
+            // show and a real spell-lesson target left standing, then be comfortably finished
+            // off by the guided spell cast plus the guaranteed follow-up clash once every enemy
+            // lane sits permanently empty against the player's still-living board. Not a
+            // razor's-edge exact kill either way - verified empirically in
+            // TutorialGuidedSequenceTests.
+            const int tutorialEnemyStartingHealth = 40;
+            var enemyEconomy = new BattleController.MatchEconomy(
+                tutorialEmpire.ResourceCap, tutorialEmpire.Turn1Resource, tutorialEnemyStartingHealth);
+
             // Tutorial-owned, always explicitly Balanced - _aiProfile is otherwise re-derived
             // per normal match (see StartNewMatch) and would sit stale here, so enemy lane
             // deployment (SimpleAIOpponent.TakeTurn reads _aiProfile.Archetype) could
             // accidentally inherit whatever archetype a previous normal match happened to roll.
-            // Values mirror tutorialEmpire's fixed level-1 economy, the same numbers already
-            // passed to StartMatch above, so the enemy portrait/name label (which also reads
-            // _aiProfile) stays consistent with the actual match instead of a leftover profile.
+            // MaxAvatarHealth mirrors tutorialEnemyStartingHealth (not the player's economy), so
+            // the enemy HP bar's own max value matches what StartMatch actually gave it below.
             _aiProfile = new AIBattleProfile
             {
                 DisplayName = SoloAIScalingSystem.GetOpponentName(AIDifficultyTier.Novice),
                 DifficultyTier = AIDifficultyTier.Novice,
                 Archetype = AIArchetype.Balanced,
-                MaxAvatarHealth = tutorialEmpire.StartingAvatarHealth,
+                MaxAvatarHealth = tutorialEnemyStartingHealth,
                 StartingResourceCap = tutorialEmpire.ResourceCap,
                 Turn1Resource = tutorialEmpire.Turn1Resource,
             };
 
-            _battleController.StartMatch(playerDeck, enemyDeck, economy, economy);
+            _battleController.StartMatch(playerDeck, enemyDeck, economy, enemyEconomy);
             _battleController.DealFormationHand(_battleController.PlayerState);
             _battleController.DealFormationHand(_battleController.EnemyState);
+
+            // Deterministic hand order for this scripted encounter only: PlayerBattleState
+            // shuffles its DrawPile unconditionally (real matches want that), which left the
+            // player's dealt Hand in a random permutation of these same three cards - harmless
+            // to the guided step gates themselves (they check card id, not hand position), but
+            // it meant any caller that places the hand in its own iteration order without
+            // looking each card up by id could visit them out of the guided CardCost -> FrontLane
+            // -> MiddleLane -> BackLane sequence and have a legal placement rejected. Restored to
+            // the same fixed order playerDeck was authored in above.
+            _battleController.PlayerState.Hand.Sort((a, b) =>
+                playerDeck.FindIndex(c => c.Id == a.Id).CompareTo(playerDeck.FindIndex(c => c.Id == b.Id)));
 
             if (_combatLoop != null)
             {
@@ -654,7 +1024,1022 @@ namespace MyriadOfDragons.UI
             }
 
             IsTutorialMatch = true;
+            PlayBattleMusicIfNeeded();
+
+            // Guided Chapter 1 sequence, 2026-08-16: always resets to the first step, on both a
+            // fresh start and a retry after defeat - see OnPlayAgainOrRetryPressed's own comment
+            // for why a retry still restarts the step sequence but skips the opening cinematic.
+            _tutorialStep = TutorialStep.CardCost;
+            _tutorialSpellCastSummary = null;
+            _tutorialFrontPlacementSummary = null;
+
             RefreshAll();
+
+            // Purely additive - Formation's real state above is already fully built and
+            // RefreshAll()'d; this only shows a blocking overlay on top of it in Play Mode (a
+            // no-op in EditMode, since it only creates a GameObject and starts a coroutine that
+            // never ticks outside Play Mode - same reasoning as every other coroutine in this
+            // file, e.g. CombatLoop). No existing Formation-state assertion is affected by it.
+            if (showOpeningCinematic) BeginOpeningCinematic();
+        }
+
+        // ---------- Chapter 1 tutorial cinematics ----------
+        //
+        // Phase A: runtime flow only (timed, skippable, layered-still overlay; the elaborate
+        // per-layer percent-motion/camera-crop/particle values in
+        // CHAPTER_1_CINEMATIC_LAYER_MOTION_SPEC.md are deferred to a later pass). Both
+        // cinematics are purely additive: by the time BeginOpeningCinematic/BeginVictoryCinematic
+        // is ever called, the real Formation state or result overlay it sits in front of has
+        // already been fully built and activated exactly as it always was - the cinematic only
+        // covers it and blocks input for its duration, then reveals it by disappearing. Nothing
+        // about the underlying battle state is gated behind the cinematic, so no existing test's
+        // assertions about that state (immediately after StartApprovedTutorialBattle/
+        // HandleMatchEnded) are affected by whether a cinematic is also showing.
+
+        private CinematicSequence _activeCinematic;
+        private Coroutine _cinematicCoroutine;
+        private GameObject _cinematicOverlay;
+        private Text _cinematicCopyText;
+        private readonly List<Image> _cinematicLayerImages = new List<Image>();
+
+        /// <summary>Exposed for tests: whether a cinematic is currently blocking input.</summary>
+        public bool CinematicActiveForTests => _activeCinematic != null;
+
+        /// <summary>Exposed for tests: whether the older JSON-driven "how to play" narrative
+        /// walkthrough (MaybeShowTutorial/_tutorialOverlay/BuildTutorialOverlay) is currently
+        /// active - distinct from the guided tutorial's own teaching overlay.</summary>
+        public bool NarrativeOverlayActiveForTests => _tutorialOverlay != null && _tutorialOverlay.activeSelf;
+
+        /// <summary>Exposed for tests: forces the narrative overlay active, simulating a session
+        /// where MaybeShowTutorial left it open (MaybeShowTutorial itself never fires in EditMode
+        /// - Application.isPlaying is always false there - so this is the only way to reproduce
+        /// "the narrative was still open" as a starting condition for a test).</summary>
+        public void ForceNarrativeOverlayActiveForTests()
+        {
+            if (_tutorialOverlay != null) _tutorialOverlay.SetActive(true);
+        }
+
+        /// <summary>Exposed for tests: which cinematic is active, or null if none is.</summary>
+        public CinematicKind? CinematicKindForTests => _activeCinematic?.Kind;
+
+        /// <summary>Exposed for tests: the real Skip handler, without needing to simulate a UI
+        /// click - same pattern as every other ...ForTests() method in this file.</summary>
+        public void SkipCinematicForTests() => OnCinematicSkipPressed();
+
+        /// <summary>Exposed for tests: the current match's Empire data (Avatar/Castle/Barracks
+        /// levels) - lets a test prove an action never granted progression.</summary>
+        public PlayerEmpireData EmpireForTests => _empireData;
+
+        /// <summary>Exposed for tests: the local profile's owned-card ids - lets a test prove an
+        /// action never duplicated a starter-card grant.</summary>
+        public List<string> ProfileCardCollectionForTests => _profile?.cardCollection;
+
+        /// <summary>Exposed for tests: whether the battle canvas is currently visible - the same
+        /// state SetBattleCanvasVisible(bool) controls for the metagame side.</summary>
+        public bool BattleCanvasVisibleForTests => _canvasTransform != null && _canvasTransform.gameObject.activeSelf;
+
+        private static readonly string[] OpeningCinematicLayers =
+        {
+            "Cinematics/Chapter1/Opening/OPEN_01_SKY_WEATHER_BG",
+            "Cinematics/Chapter1/Opening/OPEN_02_MOUNTAINS_FAR",
+            "Cinematics/Chapter1/Opening/OPEN_03_FORTRESS_MID",
+            "Cinematics/Chapter1/Opening/OPEN_04_BRIDGE_FOREGROUND",
+            "Cinematics/Chapter1/Opening/OPEN_05_THREAT_FG",
+            "Cinematics/Chapter1/Opening/OPEN_06_ATMOS_LIGHT_FX",
+        };
+
+        private static readonly string[] VictoryCinematicLayers =
+        {
+            "Cinematics/Chapter1/Victory/CLOSE_01_SKY_WEATHER_BG",
+            "Cinematics/Chapter1/Victory/CLOSE_02_MOUNTAINS_FAR",
+            "Cinematics/Chapter1/Victory/CLOSE_03_FORTRESS_MID",
+            "Cinematics/Chapter1/Victory/CLOSE_04_BRIDGE_FOREGROUND",
+            "Cinematics/Chapter1/Victory/CLOSE_05_ATMOS_LIGHT_FX",
+        };
+
+        /// <summary>Opening line 1 and 2, verbatim from the handoff's Copy contract, shown
+        /// together for Phase A rather than the timing sheet's separate 1.00-2.70s/3.00-5.20s
+        /// crossfade windows.</summary>
+        private const string OpeningCinematicCopy =
+            "The Empire stands wounded.\nLearn to form your ranks and face the first threat.";
+
+        private const string VictoryCinematicCopy = "Victory. The first threat has been driven back.";
+
+        private void BeginOpeningCinematic() =>
+            BeginCinematic(CinematicKind.Opening, 8f, OpeningCinematicLayers, OpeningCinematicCopy);
+
+        private void BeginVictoryCinematic() =>
+            BeginCinematic(CinematicKind.Victory, 5f, VictoryCinematicLayers, VictoryCinematicCopy);
+
+        private void BeginCinematic(CinematicKind kind, float durationSeconds, string[] layerResourcePaths, string copy)
+        {
+            if (_cinematicCoroutine != null)
+            {
+                StopCoroutine(_cinematicCoroutine);
+                _cinematicCoroutine = null;
+            }
+
+            _activeCinematic = new CinematicSequence(kind, durationSeconds);
+            BuildCinematicOverlay(layerResourcePaths, copy);
+            _cinematicCoroutine = StartCoroutine(RunCinematic());
+
+            // Modal precedence guard: re-evaluate immediately so the teaching overlay hides
+            // itself the instant a cinematic exists, rather than staying active underneath it
+            // until the next unrelated RefreshAll() happens to fire.
+            RefreshTutorialTeachingOverlay();
+        }
+
+        /// <summary>Drives CinematicSequence.Advance() with real frame time - never ticks outside
+        /// Play Mode (Unity coroutines don't advance in EditMode), same as CombatLoop.</summary>
+        private IEnumerator RunCinematic()
+        {
+            while (_activeCinematic != null && !_activeCinematic.IsComplete)
+            {
+                yield return null;
+                _activeCinematic?.Advance(Time.deltaTime);
+                DriftCinematicLayers();
+            }
+            CompleteActiveCinematic();
+        }
+
+        /// <summary>Simple continuous horizontal drift on the two outermost layers (sky drifts
+        /// one way, the nearest foreground layer drifts the other) - a lightweight approximation
+        /// of the motion spec's per-layer parallax for this phase, not its exact percent curves.</summary>
+        private void DriftCinematicLayers()
+        {
+            if (_activeCinematic == null || _cinematicLayerImages.Count == 0) return;
+
+            float t = _activeCinematic.ElapsedSeconds;
+            Image sky = _cinematicLayerImages[0];
+            if (sky != null) sky.rectTransform.anchoredPosition = new Vector2(Mathf.Sin(t * 0.05f) * 14f, 0f);
+
+            Image nearest = _cinematicLayerImages[_cinematicLayerImages.Count - 1];
+            if (nearest != null && nearest != sky)
+            {
+                nearest.rectTransform.anchoredPosition = new Vector2(Mathf.Sin(t * 0.08f + 1.5f) * -22f, 0f);
+            }
+        }
+
+        private void OnCinematicSkipPressed()
+        {
+            if (_activeCinematic == null) return;
+
+            // First accepted Skip wins; a second tap while the coroutine is already stopping
+            // finds _activeCinematic already null (CompleteActiveCinematic cleared it) and this
+            // whole method is a no-op - see CinematicSequence.Skip's own comment for the same
+            // rule at the timer level.
+            _activeCinematic.Skip();
+            if (_cinematicCoroutine != null)
+            {
+                StopCoroutine(_cinematicCoroutine);
+                _cinematicCoroutine = null;
+            }
+            CompleteActiveCinematic();
+        }
+
+        private void CompleteActiveCinematic()
+        {
+            if (_activeCinematic == null) return;
+            _activeCinematic = null;
+            HideCinematicOverlay();
+
+            // Modal precedence guard, mirroring BeginCinematic's own call: Formation guidance may
+            // only begin once the opening cinematic has fully finished or been skipped - this is
+            // what lets it reappear the instant that happens, rather than waiting for the next
+            // unrelated RefreshAll().
+            RefreshTutorialTeachingOverlay();
+        }
+
+        /// <summary>
+        /// Full-screen blocking overlay: an opaque background (raycastTarget=true, so it
+        /// intercepts every tap meant for the board beneath it - "Cinematic blocks battle input
+        /// while active"), the approved layered art stacked back-to-front, the runtime copy, and
+        /// a Skip button. Rebuilt fresh per cinematic rather than reused, since this shows at
+        /// most twice in a tutorial run (opening, victory) - not worth a persistent pooled object.
+        /// </summary>
+        private void BuildCinematicOverlay(string[] layerResourcePaths, string copy)
+        {
+            if (_cinematicOverlay != null) DestroyImmediate(_cinematicOverlay);
+            _cinematicLayerImages.Clear();
+
+            _cinematicOverlay = new GameObject("Chapter1Cinematic", typeof(RectTransform));
+            _cinematicOverlay.transform.SetParent(_canvasTransform, false);
+            StretchFull((RectTransform)_cinematicOverlay.transform);
+
+            // Opaque fallback so the overlay still fully blocks input and reads as a real
+            // transition even if a layer sprite fails to load - never a blank/see-through gap.
+            Image background = CreateImage(_cinematicOverlay.transform, Color.black);
+            StretchFull(background.rectTransform);
+
+            Font font = GetDefaultFont();
+
+            foreach (string path in layerResourcePaths)
+            {
+                Sprite sprite = Resources.Load<Sprite>(path);
+                if (sprite == null) continue; // missing/optional layer - play with what's approved and present.
+
+                var layerGo = new GameObject(path.Substring(path.LastIndexOf('/') + 1), typeof(RectTransform));
+                layerGo.transform.SetParent(_cinematicOverlay.transform, false);
+                var layerImage = layerGo.AddComponent<Image>();
+                layerImage.sprite = sprite;
+                layerImage.preserveAspect = false;
+                layerImage.raycastTarget = false;
+                // Slight overscan so the small drift in DriftCinematicLayers never exposes an
+                // edge - "Layer source files require overscan equal to maximum movement plus 1%
+                // safety on every moving edge" (motion spec).
+                var layerRect = (RectTransform)layerGo.transform;
+                layerRect.anchorMin = new Vector2(-0.03f, -0.03f);
+                layerRect.anchorMax = new Vector2(1.03f, 1.03f);
+                layerRect.offsetMin = Vector2.zero;
+                layerRect.offsetMax = Vector2.zero;
+                _cinematicLayerImages.Add(layerImage);
+            }
+
+            // Matte bars - top and bottom, static for this phase (the timing sheet's animated
+            // retract is deferred, same as the rest of the per-frame motion curve).
+            Image topMatte = CreateImage(_cinematicOverlay.transform, Color.black);
+            topMatte.raycastTarget = false;
+            AnchorBand(topMatte.rectTransform, 0.97f, 1f, 0f, 0f);
+            Image bottomMatte = CreateImage(_cinematicOverlay.transform, Color.black);
+            bottomMatte.raycastTarget = false;
+            AnchorBand(bottomMatte.rectTransform, 0f, 0.03f, 0f, 0f);
+
+            _cinematicCopyText = CreateText(_cinematicOverlay.transform, copy, 26, Color.white, font);
+            _cinematicCopyText.fontStyle = FontStyle.Bold;
+            _cinematicCopyText.alignment = TextAnchor.UpperLeft;
+            _cinematicCopyText.raycastTarget = false;
+            _cinematicCopyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            var copyOutline = _cinematicCopyText.gameObject.AddComponent<Outline>();
+            copyOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            copyOutline.effectDistance = new Vector2(2f, -2f);
+            // Upper-left copy-safe region, per the motion spec.
+            AnchorBand(_cinematicCopyText.rectTransform, 0.72f, 0.92f, 0.06f, 0.32f);
+
+            Button skipButton = CreateButton(_cinematicOverlay.transform, "Skip", font, OnCinematicSkipPressed);
+            RectTransform skipRect = skipButton.GetComponent<RectTransform>();
+            skipRect.anchorMin = new Vector2(1f, 1f);
+            skipRect.anchorMax = new Vector2(1f, 1f);
+            skipRect.pivot = new Vector2(1f, 1f);
+            skipRect.sizeDelta = new Vector2(140f, 56f);
+            skipRect.anchoredPosition = new Vector2(-24f, -24f);
+            skipButton.GetComponentInChildren<Text>().fontSize = 18;
+
+            // Distinct from "Skip" above (which only skips *this cinematic* and continues into
+            // the battle) - ends the whole tutorial encounter. Stacked directly above it so both
+            // remain individually reachable rather than one replacing the other.
+            Button skipTutorialButton = CreateButton(_cinematicOverlay.transform, "SKIP TUTORIAL", font, OnSkipTutorialPressed);
+            RectTransform skipTutorialRect = skipTutorialButton.GetComponent<RectTransform>();
+            skipTutorialRect.anchorMin = new Vector2(1f, 1f);
+            skipTutorialRect.anchorMax = new Vector2(1f, 1f);
+            skipTutorialRect.pivot = new Vector2(1f, 1f);
+            skipTutorialRect.sizeDelta = new Vector2(190f, 56f);
+            skipTutorialRect.anchoredPosition = new Vector2(-24f, -88f);
+            Text skipTutorialLabel = skipTutorialButton.GetComponentInChildren<Text>();
+            skipTutorialLabel.fontSize = 18;
+            skipTutorialLabel.fontStyle = FontStyle.Bold;
+        }
+
+        private void HideCinematicOverlay()
+        {
+            if (_cinematicOverlay == null) return;
+            DestroyImmediate(_cinematicOverlay);
+            _cinematicOverlay = null;
+            _cinematicCopyText = null;
+            _cinematicLayerImages.Clear();
+        }
+
+        // ---------- Chapter 1 guided tutorial step machine ----------
+        //
+        // Every step's exact allowance is centralized here so no handler invents its own gating
+        // rule - OnHandCardPressed/SelectOrDeselectFormationHandCard, OnLanePressed,
+        // OnSpellTapped and OnSpellTargetLanePressed each just ask TutorialAllowedCardId/
+        // TutorialAllowedLane (or check _tutorialStep directly for the spell step) before doing
+        // anything, and the same call sites that already advance real game state (card placed,
+        // battle started, spell cast, tick resolved) are the only places that also advance
+        // _tutorialStep - see TutorialStep's own doc comment for the full step table.
+
+        /// <summary>The one hand card allowed this step, or null if none is.</summary>
+        private string TutorialAllowedCardId() => _tutorialStep switch
+        {
+            TutorialStep.CardCost => "warrior",
+            TutorialStep.MiddleLane => "novice_knight",
+            TutorialStep.BackLane => "goblin_caster",
+            _ => null,
+        };
+
+        /// <summary>The one player lane allowed this step, or null if none is - including
+        /// BeginBattle, which has nothing left to place and must leave every lane locked.</summary>
+        private Lane? TutorialAllowedLane() => _tutorialStep switch
+        {
+            TutorialStep.FrontLane => Lane.Front,
+            TutorialStep.MiddleLane => Lane.Middle,
+            TutorialStep.BackLane => Lane.Back,
+            _ => null,
+        };
+
+        /// <summary>True for the Formation-phase card-placement steps specifically - used only
+        /// where a check needs to distinguish "a placement step" from "some other tutorial step
+        /// that happens to also return null from TutorialAllowedLane" (BeginBattle).</summary>
+        private bool IsTutorialFormationGateStep() =>
+            _tutorialStep is TutorialStep.CardCost or TutorialStep.FrontLane
+                or TutorialStep.MiddleLane or TutorialStep.BackLane;
+
+        private void AdvanceTutorialStep(TutorialStep next) => _tutorialStep = next;
+
+        /// <summary>Called from OnLanePressed's own successful-placement branch - the single
+        /// place all three Front/Middle/Back placements advance the step, so the advancement
+        /// rule can never drift out of sync with which lane/card actually just succeeded.</summary>
+        private void AdvanceTutorialStepAfterPlacement(Card playedCard, Lane lane)
+        {
+            if (_tutorialStep == TutorialStep.FrontLane && lane == Lane.Front)
+            {
+                BattleCardInstance placed = _battleController.PlayerState.Lanes[Lane.Front].Cards.LastOrDefault();
+                _tutorialFrontPlacementSummary = placed != null
+                    ? $"Warrior now has {placed.Attack} ATK in Front."
+                    : null;
+                AdvanceTutorialStep(TutorialStep.MiddleLane);
+            }
+            else if (_tutorialStep == TutorialStep.MiddleLane && lane == Lane.Middle)
+            {
+                AdvanceTutorialStep(TutorialStep.BackLane);
+            }
+            else if (_tutorialStep == TutorialStep.BackLane && lane == Lane.Back)
+            {
+                AdvanceTutorialStep(TutorialStep.BeginBattle);
+            }
+        }
+
+        /// <summary>Instructional caption for the current guided step - the one place this copy
+        /// lives, so nothing else has to duplicate or drift from it.</summary>
+        private string TutorialStepCaption() => _tutorialStep switch
+        {
+            TutorialStep.CardCost =>
+                "Cards cost Energy to play. Tap Warrior to select it.",
+            TutorialStep.FrontLane =>
+                "Front grants +1 ATK. Tap the Front lane to place Warrior there.",
+            TutorialStep.MiddleLane =>
+                (_tutorialFrontPlacementSummary != null ? _tutorialFrontPlacementSummary + " " : "") +
+                "Middle grants +1 HP. Tap Novice Knight, then the Middle lane.",
+            TutorialStep.BackLane =>
+                "Back has no lane bonus. Tap Goblin Caster, then the Back lane.",
+            TutorialStep.BeginBattle =>
+                "Your formation is ready. Tap Start Battle.",
+            TutorialStep.FirstCombatResult => TutorialFirstCombatResultCaption(),
+            TutorialStep.SpellLesson =>
+                "Spells spend Energy to change the battle. Tap Firestorm, then the highlighted enemy lane.",
+            TutorialStep.Finish =>
+                (_tutorialSpellCastSummary != null ? _tutorialSpellCastSummary + " " : "") +
+                "Tap Continue to finish the battle.",
+            _ => string.Empty,
+        };
+
+        private string TutorialFirstCombatResultCaption()
+        {
+            PlayerBattleState enemy = _battleController.EnemyState;
+            PlayerBattleState player = _battleController.PlayerState;
+            return $"Clash {_battleController.TickCount} resolved - Enemy Health {enemy.AvatarHealth}/{enemy.MaxAvatarHealth}, " +
+                   $"your Health {player.AvatarHealth}/{player.MaxAvatarHealth}. Tap Continue.";
+        }
+
+        /// <summary>
+        /// Central per-step gate, called every RefreshAll(): shows/hides and colors the
+        /// tutorial caption and the Continue control. Interactable state for hand cards, player
+        /// lanes and spells is set at their own creation/refresh points (RefreshHand,
+        /// RefreshLaneButtons, RefreshPhaseControls) rather than here, so each stays next to the
+        /// code that already builds that control.
+        /// </summary>
+        private void RefreshTutorialStepControls()
+        {
+            if (_tutorialGuidanceCaption == null) return;
+
+            bool active = _tutorialStep != null;
+            // Reverted 2026-08-18: a prior fix pointed this at a static, phase-based "Ready.../
+            // Hold your formation..." readout instead, on the theory that duplicating the guide
+            // panel's own TutorialStepCaption text here was pure redundancy. That broke
+            // TutorialTeachingOverlayTests' own expectation that THIS field carries the real
+            // per-step outcome text (e.g. the spell-cast summary naming the actual enemy unit and
+            // HP change) - a static placeholder is strictly less informative to the player than
+            // the real outcome, so this field's own test suite is the more load-bearing one.
+            // TutorialGuidanceTests' two caption assertions were updated to match instead (see
+            // that file's own 2026-08-18 note).
+            if (active)
+            {
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                _tutorialGuidanceCaption.text = TutorialStepCaption();
+            }
+            else
+            {
+                // First-normal-battle onboarding (release repair): _tutorialStep is always null
+                // for a normal match (StartNewMatch's own guarantee) - this same caption surface,
+                // otherwise idle for the whole match, now carries the Auto Formation/"formation
+                // ready"/blocked-deck instructions instead. Confirmed compatible before adding:
+                // this branch only ever runs when the guided-tutorial branch above did not, so it
+                // can never fight the tutorial for this Text's content or visibility.
+                //
+                // First-time Campaign onboarding: a Campaign attempt (_pendingCampaignStage set by
+                // the real launch gate - see TryLaunchCampaignStage/StartNewMatch) gets the fuller
+                // explanatory captions instead of the terser ordinary-normal-match ones below,
+                // since this same idle caption surface is exactly what the onboarding brief asks
+                // to reuse. Ordinary "To Battle" matches (_pendingCampaignStage == null) keep the
+                // existing, already-tested RefreshNormalMatchGuidanceCaption copy unchanged.
+                if (_pendingCampaignStage != null)
+                {
+                    RefreshCampaignGuidanceCaption();
+                }
+                else
+                {
+                    RefreshNormalMatchGuidanceCaption();
+                }
+            }
+
+            if (_tutorialContinueButton != null)
+            {
+                bool showContinue = _tutorialStep is TutorialStep.FirstCombatResult or TutorialStep.Finish;
+                _tutorialContinueButton.gameObject.SetActive(showContinue);
+            }
+
+            RefreshTutorialTeachingOverlay();
+        }
+
+        /// <summary>
+        /// First-normal-battle onboarding (release repair): drives the shared tutorial-guidance
+        /// caption for a normal (non-tutorial) match only - called exclusively from
+        /// RefreshTutorialStepControls' own _tutorialStep == null branch, so it never runs
+        /// alongside the guided tutorial's own use of the same Text. Three mutually exclusive
+        /// states, each the exact copy the release-repair brief requires:
+        ///   - no valid confirmed deck: the blocked-start status (_normalMatchStartError),
+        ///     telling the player to return to Deck Builder - never an old/unrelated hand,
+        ///     which StartNewMatch's own saved-deck gate already guarantees is never dealt;
+        ///   - a valid deck but an empty board: "build a formation, or tap Auto Formation";
+        ///   - every player lane occupied: "formation ready, tap Start Battle".
+        /// Hidden outside Formation (Combat/Resolved already have their own activity-rail and
+        /// result-screen readouts) and for the whole duration of any tutorial match.
+        /// </summary>
+        private void RefreshNormalMatchGuidanceCaption()
+        {
+            if (IsTutorialMatch || _battleController.Phase != BattlePhase.Formation)
+            {
+                _tutorialGuidanceCaption.gameObject.SetActive(false);
+                return;
+            }
+
+            if (_normalMatchStartError != null)
+            {
+                _tutorialGuidanceCaption.text = _normalMatchStartError;
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                return;
+            }
+
+            if (AllPlayerLanesOccupied())
+            {
+                _tutorialGuidanceCaption.text = "Formation ready. Tap Start Battle.";
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                return;
+            }
+
+            if (!AnyPlayerLaneOccupied())
+            {
+                _tutorialGuidanceCaption.text = "Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.";
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                return;
+            }
+
+            // Partial manual placement (1-2 lanes filled, not via Auto Formation) - no
+            // prescribed copy for this in-between state; the existing selected-card/placement
+            // status text already carries what's needed here.
+            _tutorialGuidanceCaption.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// First-time Campaign onboarding: drives the same shared caption surface
+        /// RefreshNormalMatchGuidanceCaption uses, but only for a Campaign attempt
+        /// (_pendingCampaignStage != null) and across Formation/Combat/Resolved (that method stays
+        /// Formation-only) - a new player's "everything is on autopilot" confusion specifically
+        /// named the loop this covers. Deterministic and state-driven, same as every other caption
+        /// in this file: identical board/phase state always produces identical text, no flag, no
+        /// timer, no "seen once" gate, and nothing here disables or delays a single real control
+        /// (Auto Formation, manual placement, spells, Start Battle, Retry, Return Home all keep
+        /// their own existing interactable rules untouched).
+        ///
+        /// Five states, matching the onboarding brief's own five numbered requirements:
+        ///   1. Formation, nothing placed: saved deck -> hand, Auto Formation is optional, and the
+        ///      exact manual-placement steps (tap a hand card, then an empty lane slot; Resource
+        ///      spent normally - not a new rule, TryPlayCard already works this way).
+        ///   2/3. Formation, at least one card placed: may add more affordable cards, plain-
+        ///      language lane roles (Front/Middle/Back - the existing +1 Attack / +1 Health /
+        ///      no-bonus mechanics BattleController.TryPlayCard already applies, not invented
+        ///      here), and that Start Battle is available whenever ready.
+        ///   4. Combat: cards resolve automatically each clash; spells remain the player's active
+        ///      choice when available - restates BattleController's own real behavior, adds no
+        ///      new mechanic.
+        ///   5. Resolved: handled separately, on the existing result-overlay text
+        ///      (HandleMatchEnded's own _resultText) rather than this caption - see that method's
+        ///      own comment for why.
+        /// The blocked-deck state reuses _normalMatchStartError exactly as the non-Campaign
+        /// caption does (defense-in-depth backstop only - HomePagePresenter's own pre-launch gate
+        /// already prevents a real Campaign attempt from ever reaching Formation without a valid
+        /// deck).
+        /// </summary>
+        private void RefreshCampaignGuidanceCaption()
+        {
+            if (_tutorialGuidanceCaption == null) return;
+
+            if (_battleController.Phase == BattlePhase.Resolved)
+            {
+                // The result overlay's own text (HandleMatchEnded) already carries the
+                // requirement-5 next-action line for a Campaign outcome - this caption stays
+                // hidden rather than duplicating it on top of that overlay.
+                _tutorialGuidanceCaption.gameObject.SetActive(false);
+                return;
+            }
+
+            if (_battleController.Phase == BattlePhase.Combat)
+            {
+                _tutorialGuidanceCaption.text = "Combat is automatic - your cards attack on their own each clash. Cast a spell below if one is ready; that choice is still yours.";
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                return;
+            }
+
+            if (_normalMatchStartError != null)
+            {
+                _tutorialGuidanceCaption.text = _normalMatchStartError;
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                return;
+            }
+
+            if (AnyPlayerLaneOccupied())
+            {
+                _tutorialGuidanceCaption.text = "You can add more cards from hand if you can afford them - Front gives +1 Attack, Middle gives +1 Health, Back has no bonus but is safest. Tap Start Battle when ready; that begins automatic combat, and your placement (plus any spells you cast) is your strategy.";
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                return;
+            }
+
+            _tutorialGuidanceCaption.text = "Your saved 10-card deck fills the hand below. Tap Auto Formation for an optional basic three-lane squad, or place manually: tap a hand card, then an empty lane slot - Resource is spent as normal.";
+            _tutorialGuidanceCaption.gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// The one RectTransform the teaching overlay currently highlights - matches exactly the
+        /// one permitted action for the current step (TutorialAllowedCardId/TutorialAllowedLane,
+        /// and the SpellLesson-specific gates in OnSpellTapped/OnSpellTargetLanePressed), so the
+        /// spotlight can never point at anything the player isn't actually allowed to tap.
+        ///
+        /// MiddleLane/BackLane and SpellLesson each cover two sequential sub-actions (select a
+        /// card, then place it; arm a spell, then target a lane) - the target tracks whichever
+        /// of the two hasn't happened yet, using the same state (_selectedCard, _armedSpellIndex)
+        /// the real handlers already gate on, so it can never drift out of sync with what a tap
+        /// would actually do right now.
+        /// </summary>
+        private RectTransform GetTutorialActiveTargetRect()
+        {
+            switch (_tutorialStep)
+            {
+                case TutorialStep.CardCost:
+                    return TutorialHandCardRect("warrior");
+
+                case TutorialStep.FrontLane:
+                    return _playerLaneButtons.TryGetValue(Lane.Front, out Button frontButton)
+                        ? frontButton.GetComponent<RectTransform>() : null;
+
+                case TutorialStep.MiddleLane:
+                    return (_selectedCard != null && _selectedCard.Id == "novice_knight")
+                        ? (_playerLaneButtons.TryGetValue(Lane.Middle, out Button middleButton)
+                            ? middleButton.GetComponent<RectTransform>() : null)
+                        : TutorialHandCardRect("novice_knight");
+
+                case TutorialStep.BackLane:
+                    return (_selectedCard != null && _selectedCard.Id == "goblin_caster")
+                        ? (_playerLaneButtons.TryGetValue(Lane.Back, out Button backButton)
+                            ? backButton.GetComponent<RectTransform>() : null)
+                        : TutorialHandCardRect("goblin_caster");
+
+                case TutorialStep.BeginBattle:
+                    return _primaryActionButton != null ? _primaryActionButton.GetComponent<RectTransform>() : null;
+
+                case TutorialStep.FirstCombatResult:
+                case TutorialStep.Finish:
+                    return _tutorialContinueButton != null ? _tutorialContinueButton.GetComponent<RectTransform>() : null;
+
+                case TutorialStep.SpellLesson:
+                    if (_armedSpellIndex == TutorialLessonSpellIndex)
+                    {
+                        return _enemyLaneButtons.TryGetValue(TutorialLessonTargetLane, out Button enemyLaneButton)
+                            ? enemyLaneButton.GetComponent<RectTransform>() : null;
+                    }
+                    return _spellButtons.Count > TutorialLessonSpellIndex
+                        ? _spellButtons[TutorialLessonSpellIndex].GetComponent<RectTransform>() : null;
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// The one place "is some other modal walkthrough currently up" is decided - both
+        /// RefreshTutorialTeachingOverlay (won't show while this is true) and this file's
+        /// cinematic begin/end hooks (which re-run RefreshTutorialTeachingOverlay whenever this
+        /// value could have changed) read the same two real, live flags: whether a cinematic
+        /// sequence exists, and whether the older JSON-driven narrative overlay is currently
+        /// active. No separate cached bool to drift out of sync with either.
+        /// </summary>
+        private bool IsAnyOtherTutorialModalActive() =>
+            _activeCinematic != null || (_tutorialOverlay != null && _tutorialOverlay.activeSelf);
+
+        /// <summary>Exposed for tests: the same real, live state
+        /// RefreshTutorialTeachingOverlay's own precedence guard reads.</summary>
+        public bool AnyOtherTutorialModalActiveForTests => IsAnyOtherTutorialModalActive();
+
+        /// <summary>Finds a hand-row card button by card id - "Card_{id}" is the exact
+        /// GameObject name CreateCardButton already gives it, so no separate id-lookup table is
+        /// needed.</summary>
+        private RectTransform TutorialHandCardRect(string cardId)
+        {
+            Button button = _handButtons.FirstOrDefault(b => b.gameObject.name == $"Card_{cardId}");
+            return button != null ? button.GetComponent<RectTransform>() : null;
+        }
+
+        /// <summary>
+        /// Restores whichever real control is currently reparented into the highlight slot back
+        /// to its original parent/sibling position - called before a different target takes over
+        /// and when the overlay hides entirely. A hand card target has already been destroyed by
+        /// RefreshHand() before this ever runs (its GameObject reference is already gone, and
+        /// Unity's overridden null-check on a destroyed Object correctly reports true.
+        /// </summary>
+        private void DestroyTutorialActionProxy()
+        {
+            if (_tutorialActionProxy == null) return;
+            DestroyImmediate(_tutorialActionProxy.gameObject);
+            _tutorialActionProxy = null;
+        }
+
+        /// <summary>
+        /// The exact production handler call the current step's one allowed action must invoke -
+        /// the literal same call a real tap on the real control (OnHandCardPressed's own
+        /// onClick.AddListener, OnLanePressed's own button wiring, etc.) already makes. Mirrors
+        /// GetTutorialActiveTargetRect's own per-step/sub-step logic exactly, since the proxy
+        /// must always act on whichever control that method says is the current target.
+        /// </summary>
+        private UnityEngine.Events.UnityAction GetTutorialActiveProxyAction()
+        {
+            switch (_tutorialStep)
+            {
+                case TutorialStep.CardCost:
+                    return () => { Card card = TutorialFindHandCard("warrior"); if (card != null) OnHandCardPressed(card); };
+
+                case TutorialStep.FrontLane:
+                    return () => OnLanePressed(Lane.Front);
+
+                case TutorialStep.MiddleLane:
+                    return (_selectedCard != null && _selectedCard.Id == "novice_knight")
+                        ? (UnityEngine.Events.UnityAction)(() => OnLanePressed(Lane.Middle))
+                        : () => { Card card = TutorialFindHandCard("novice_knight"); if (card != null) OnHandCardPressed(card); };
+
+                case TutorialStep.BackLane:
+                    return (_selectedCard != null && _selectedCard.Id == "goblin_caster")
+                        ? (UnityEngine.Events.UnityAction)(() => OnLanePressed(Lane.Back))
+                        : () => { Card card = TutorialFindHandCard("goblin_caster"); if (card != null) OnHandCardPressed(card); };
+
+                case TutorialStep.BeginBattle:
+                    return OnPrimaryActionPressed;
+
+                case TutorialStep.FirstCombatResult:
+                case TutorialStep.Finish:
+                    return OnTutorialContinuePressed;
+
+                case TutorialStep.SpellLesson:
+                    return (_armedSpellIndex == TutorialLessonSpellIndex)
+                        ? (UnityEngine.Events.UnityAction)(() => OnSpellTargetLanePressed(TutorialLessonTargetLane))
+                        : () => OnSpellTapped(TutorialLessonSpellIndex);
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>The real Card instance for a hand-card proxy action to pass to
+        /// OnHandCardPressed - looked up by id at click time (not captured earlier), so it always
+        /// reflects whatever RefreshHand() most recently built the hand from.</summary>
+        private Card TutorialFindHandCard(string cardId) =>
+            _battleController?.PlayerState.Hand.FirstOrDefault(c => c.Id == cardId);
+
+        /// <summary>
+        /// Rebuilds the Tutorial Action Proxy and repositions the decorative marker every
+        /// refresh, without ever touching the real gameplay hierarchy. See this region's own
+        /// top-of-file comment for why: earlier designs computed a coordinate-matched "hole" or
+        /// reparented the real control above the blocker, and both were rejected against real
+        /// manual QA (drift, and unclickable-despite-visible, respectively). This design instead
+        /// leaves every real card/lane/spell/button exactly where normal Unity layout already
+        /// puts it - a full-screen blocker dims it like everything else - and creates one small,
+        /// transparent, real UnityEngine.UI.Button ("TutorialActionProxy") sized to that control's
+        /// own current world bounds, sitting above the blocker, whose onClick is wired directly
+        /// to the exact same private handler a real tap on the real control calls
+        /// (GetTutorialActiveProxyAction). Destroyed and rebuilt fresh every call (never reused,
+        /// never left stale), so at most one proxy - matching at most one allowed action - can
+        /// ever exist. Called every RefreshAll() via RefreshTutorialStepControls.
+        /// </summary>
+        private void RefreshTutorialTeachingOverlay()
+        {
+            if (_tutorialTeachingOverlay == null) return;
+
+            // Explicit precedence guard/state assertion: this overlay and any cinematic (opening
+            // or victory) - or the older JSON-driven narrative walkthrough, if a caller ever
+            // reactivates it - must never be active at once. A cinematic or the narrative always
+            // outranks Formation/guided-step guidance, since both are meant to be watched/read
+            // uninterrupted; this overlay simply refuses to show at all while either is up,
+            // regardless of what _tutorialStep says.
+            bool anotherModalIsActive = IsAnyOtherTutorialModalActive();
+
+            // Never shown once the match has resolved - the Result overlay owns the whole screen
+            // at that point, and the Finish step's own Continue target no longer means anything.
+            bool matchResolved = _battleController != null && _battleController.Phase == BattlePhase.Resolved;
+
+            // Explicit state assertion (requirement, 2026-08-17): this overlay must only ever
+            // exist for the real guided tutorial match, never a normal one - checked directly
+            // against IsTutorialMatch itself, not only inferred from _tutorialStep being non-null
+            // (which StartNewMatch already resets to null for every normal match, but this makes
+            // the invariant explicit rather than implicit, and safe even if the two ever drifted).
+            RectTransform target = (_tutorialStep != null && IsTutorialMatch && !matchResolved && !anotherModalIsActive)
+                ? GetTutorialActiveTargetRect() : null;
+
+            DestroyTutorialActionProxy();
+
+            if (target == null)
+            {
+                _tutorialTeachingOverlay.SetActive(false);
+                return;
+            }
+
+            _tutorialTeachingOverlay.SetActive(true);
+            ForceFullCanvasLayoutRebuild();
+
+            (float fxMin, float fxMax, float fyMin, float fyMax) = TutorialWorldBoundsAsCanvasFractions(target, paddingPx: 0f);
+            BuildTutorialActionProxy(fxMin, fyMin, fxMax, fyMax, GetTutorialActiveProxyAction());
+            PositionMarkerAroundTarget(target);
+
+            (Vector2 panelMin, Vector2 panelMax) = TutorialGuidePanelAnchors(_tutorialStep.Value);
+            _tutorialGuidePanelRect.anchorMin = panelMin;
+            _tutorialGuidePanelRect.anchorMax = panelMax;
+
+            if (_tutorialGuideBodyText != null) _tutorialGuideBodyText.text = TutorialStepCaption();
+        }
+
+        /// <summary>
+        /// Creates the one, fresh Tutorial Action Proxy for this refresh: an otherwise-normal
+        /// Button/Image sized to the given canvas-fraction bounds, fully transparent
+        /// (alpha 0 - still a real raycast target; Unity's default alphaHitTestMinimumThreshold
+        /// of 0 does not exempt transparent pixels from hit-testing) so the real, dimmed control
+        /// underneath still reads through it, parented as the last child of the always-topmost
+        /// proxy container so nothing can render above it, and wired to invoke the exact
+        /// production handler action passed in.
+        /// </summary>
+        private void BuildTutorialActionProxy(float xMin, float yMin, float xMax, float yMax, UnityEngine.Events.UnityAction action)
+        {
+            if (action == null) return;
+
+            var proxyGo = new GameObject("TutorialActionProxy", typeof(RectTransform));
+            proxyGo.transform.SetParent(_tutorialProxyContainer, false);
+            var proxyRect = (RectTransform)proxyGo.transform;
+            proxyRect.anchorMin = new Vector2(xMin, yMin);
+            proxyRect.anchorMax = new Vector2(xMax, yMax);
+            proxyRect.offsetMin = Vector2.zero;
+            proxyRect.offsetMax = Vector2.zero;
+
+            var proxyImage = proxyGo.AddComponent<Image>();
+            proxyImage.color = new Color(0f, 0f, 0f, 0f);
+            proxyImage.raycastTarget = true;
+
+            var proxyButton = proxyGo.AddComponent<Button>();
+            proxyButton.transition = Selectable.Transition.None;
+            proxyButton.onClick.AddListener(action);
+
+            _tutorialActionProxy = proxyButton;
+        }
+
+        /// <summary>Converts a RectTransform's real, current world corners into canvas-local
+        /// anchor fractions (0..1), optionally padded outward by a fixed pixel margin - the one
+        /// place this conversion is done, shared by the proxy's exact-fit bounds (padding 0) and
+        /// the marker's slightly wider decorative frame.</summary>
+        private (float xMin, float xMax, float yMin, float yMax) TutorialWorldBoundsAsCanvasFractions(RectTransform target, float paddingPx)
+        {
+            var canvasRect = (RectTransform)_canvasTransform;
+            var corners = new Vector3[4];
+            target.GetWorldCorners(corners);
+            float xMin = float.MaxValue, xMax = float.MinValue, yMin = float.MaxValue, yMax = float.MinValue;
+            for (int i = 0; i < 4; i++)
+            {
+                Vector3 local = canvasRect.InverseTransformPoint(corners[i]);
+                xMin = Mathf.Min(xMin, local.x);
+                xMax = Mathf.Max(xMax, local.x);
+                yMin = Mathf.Min(yMin, local.y);
+                yMax = Mathf.Max(yMax, local.y);
+            }
+
+            Rect canvasLocal = canvasRect.rect;
+            float fxMin = Mathf.Clamp01(((xMin - paddingPx) - canvasLocal.xMin) / canvasLocal.width);
+            float fxMax = Mathf.Clamp01(((xMax + paddingPx) - canvasLocal.xMin) / canvasLocal.width);
+            float fyMin = Mathf.Clamp01(((yMin - paddingPx) - canvasLocal.yMin) / canvasLocal.height);
+            float fyMax = Mathf.Clamp01(((yMax + paddingPx) - canvasLocal.yMin) / canvasLocal.height);
+            return (fxMin, fxMax, fyMin, fyMax);
+        }
+
+        /// <summary>
+        /// Purely decorative (raycastTarget=false throughout) - a bright frame around the
+        /// target's real world bounds plus a downward arrow above it, using the same existing
+        /// "UI/Icons/Tutorial_Arrow" sprite the JSON-driven intro overlay already uses elsewhere
+        /// in this file. Positioned independently of the proxy (which is exact-fit, no margin) -
+        /// nothing here needs to be pixel-exact, since the proxy - not this marker - is what
+        /// makes the target clickable.
+        /// </summary>
+        private void PositionMarkerAroundTarget(RectTransform target)
+        {
+            const float marginPx = 8f;
+            (float fxMin, float fxMax, float fyMin, float fyMax) = TutorialWorldBoundsAsCanvasFractions(target, marginPx);
+
+            Rect canvasLocal = ((RectTransform)_canvasTransform).rect;
+            float thicknessFracX = 6f / canvasLocal.width;
+            float thicknessFracY = 6f / canvasLocal.height;
+
+            SetMarkerRect(_tutorialMarkerTop, fxMin, Mathf.Max(fyMin, fyMax - thicknessFracY), fxMax, fyMax);
+            SetMarkerRect(_tutorialMarkerBottom, fxMin, fyMin, fxMax, Mathf.Min(fyMax, fyMin + thicknessFracY));
+            SetMarkerRect(_tutorialMarkerLeft, fxMin, fyMin, Mathf.Min(fxMax, fxMin + thicknessFracX), fyMax);
+            SetMarkerRect(_tutorialMarkerRight, Mathf.Max(fxMin, fxMax - thicknessFracX), fyMin, fxMax, fyMax);
+
+            float arrowCenterX = (fxMin + fxMax) / 2f;
+            float arrowHalfWidth = Mathf.Min(0.03f, (fxMax - fxMin) / 2f);
+            float arrowHeight = 0.035f;
+            float arrowGap = 0.006f;
+            float arrowYMin = Mathf.Clamp(fyMax + arrowGap, 0f, 1f - arrowHeight);
+            _tutorialMarkerArrow.anchorMin = new Vector2(Mathf.Clamp01(arrowCenterX - arrowHalfWidth), arrowYMin);
+            _tutorialMarkerArrow.anchorMax = new Vector2(Mathf.Clamp01(arrowCenterX + arrowHalfWidth), Mathf.Clamp01(arrowYMin + arrowHeight));
+            _tutorialMarkerArrow.offsetMin = Vector2.zero;
+            _tutorialMarkerArrow.offsetMax = Vector2.zero;
+        }
+
+        private static void SetMarkerRect(RectTransform rect, float xMin, float yMin, float xMax, float yMax)
+        {
+            rect.anchorMin = new Vector2(xMin, yMin);
+            rect.anchorMax = new Vector2(xMax, yMax);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>
+        /// Fixed, analytically-safe parking spots for the guide panel - not computed from the
+        /// target's own position, because every guided step's target (and the very next step's
+        /// target) falls into one of exactly two known regions of the V3 layout, so a fixed
+        /// choice per region is already guaranteed never to cover either one:
+        ///  - Every step except SpellLesson: the target is in the Hand dock, a Player lane, or
+        ///    the primary-action region - never the Enemy board, so parking there is always safe.
+        ///  - SpellLesson specifically: the target is the Firestorm tile (Activity rail) or the
+        ///    enemy Middle lane (Enemy board) - never the Player board, so parking there instead
+        ///    is safe for this one step.
+        /// </summary>
+        private static (Vector2 min, Vector2 max) TutorialGuidePanelAnchors(TutorialStep step)
+        {
+            if (step == TutorialStep.SpellLesson)
+            {
+                return (new Vector2(0.10f, 0.27f), new Vector2(0.55f, 0.47f));
+            }
+
+            return (new Vector2(0.22f, 0.53f), new Vector2(0.68f, 0.85f));
+        }
+
+        /// <summary>Forces every RectTransform under the canvas to resolve its real, current
+        /// layout before world corners are read anywhere - bottom-up (deepest first), then one
+        /// final root-level pass, exactly the two-part sequence
+        /// TutorialHandDockGeometryTests.SpawnAndInitializeBootstrap uses (see its own comment
+        /// for why a single top-down call is not reliable). Cheap enough to call on every
+        /// tutorial-step refresh - this file's UI tree is small and refreshes only on real player
+        /// actions, never per-frame.</summary>
+        private void ForceFullCanvasLayoutRebuild()
+        {
+            var canvasRect = _canvasTransform as RectTransform;
+            if (canvasRect == null) return;
+
+            foreach (RectTransform rt in canvasRect.GetComponentsInChildren<RectTransform>(true)
+                         .OrderByDescending(r => r.GetComponentsInParent<Transform>(true).Length))
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            }
+            LayoutRebuilder.ForceRebuildLayoutImmediate(canvasRect);
+        }
+
+        /// <summary>
+        /// The tutorial's own Continue control (step 6 and step 8 - see TutorialStep's own doc
+        /// comment). Step 6 -> 7: grants the scripted Energy for the spell lesson (see
+        /// BattleController.SetEnergyForTutorial's own comment for why a direct grant is
+        /// necessary here) and advances. Step 8: advances one real combat tick per tap - the
+        /// same production AdvanceCombatTick() every other tick in this game runs through, not a
+        /// separate resolution path - until the scripted encounter's own numbers (see
+        /// StartApprovedTutorialBattle) resolve it, which HandleMatchEnded (already wired to
+        /// BattleController.OnMatchEnded) then handles exactly as it always does.
+        /// </summary>
+        private void OnTutorialContinuePressed()
+        {
+            if (_tutorialStep == TutorialStep.FirstCombatResult)
+            {
+                const int tutorialSpellLessonEnergy = 30; // exactly Firestorm's EnergyCost
+                _battleController.SetEnergyForTutorial(tutorialSpellLessonEnergy);
+                AdvanceTutorialStep(TutorialStep.SpellLesson);
+                RefreshAll();
+                return;
+            }
+
+            if (_tutorialStep == TutorialStep.Finish)
+            {
+                if (_battleController.Phase == BattlePhase.Combat)
+                {
+                    TurnResolutionResult result = _battleController.AdvanceCombatTick();
+                    RefreshAll();
+                    ShowTurnDamage(result);
+                    ShowClashEffects(result);
+                }
+            }
+        }
+
+        /// <summary>Exposed for tests: the real Continue tap calls the private
+        /// OnTutorialContinuePressed() directly - same pattern as every other ...ForTests()
+        /// method in this file.</summary>
+        public void TutorialContinueForTests() => OnTutorialContinuePressed();
+
+        /// <summary>Exposed for tests: the real Continue button (FirstCombatResult/Finish).</summary>
+        public Button TutorialContinueButtonForTests => _tutorialContinueButton;
+
+        /// <summary>
+        /// Ends the tutorial encounter safely from either the opening cinematic or the guided
+        /// teaching overlay: clears the gate first so nothing re-shows after the canvas hides,
+        /// stops any in-flight cinematic, then routes through the exact same
+        /// OnReturnToCityPressed() a normal match's own "Return to City" button calls. That
+        /// method only ever hides the battle canvas, stops the music and fires
+        /// OnReturnToCityRequested - it never grants rewards or progression (that only ever
+        /// happens in HandleMatchEnded, reached solely through a real BattleController.OnMatchEnded
+        /// firing, which a skip never triggers), so skipping is inherently reward/progression-free
+        /// without needing its own separate guard. Starter-card duplication is likewise already
+        /// impossible - GrantApprovedStarterCardsIfMissing (called once, at
+        /// StartApprovedTutorialBattle) is idempotent and is not called again here.
+        /// </summary>
+        private void OnSkipTutorialPressed()
+        {
+            if (_activeCinematic != null)
+            {
+                if (_cinematicCoroutine != null)
+                {
+                    StopCoroutine(_cinematicCoroutine);
+                    _cinematicCoroutine = null;
+                }
+                CompleteActiveCinematic();
+            }
+
+            _tutorialStep = null;
+            DestroyTutorialActionProxy();
+            OnReturnToCityPressed();
+        }
+
+        /// <summary>Exposed for tests: the real Skip Tutorial tap, from either overlay - both
+        /// buttons call this same private handler.</summary>
+        public void SkipTutorialForTests() => OnSkipTutorialPressed();
+
+        /// <summary>Exposed for tests: the real, currently-highlighted target RectTransform for
+        /// the active guided step, or null outside the tutorial - see
+        /// GetTutorialActiveTargetRect's own comment for the per-step mapping.</summary>
+        public RectTransform TutorialActiveTargetRectForTests() => GetTutorialActiveTargetRect();
+
+        /// <summary>Exposed for tests: the teaching overlay's own root GameObject.</summary>
+        public GameObject TutorialTeachingOverlayForTests => _tutorialTeachingOverlay;
+
+        /// <summary>Exposed for tests: the guide panel's RectTransform (avatar/speaker/instruction/Continue).</summary>
+        public RectTransform TutorialGuidePanelRectForTests => _tutorialGuidePanelRect;
+
+        /// <summary>Exposed for tests: the always-topmost container the Tutorial Action Proxy (and
+        /// the decorative marker) live in - proxy.transform.IsChildOf(this) proves the proxy
+        /// renders/raycasts above the blocker.</summary>
+        public RectTransform TutorialProxyContainerForTests => _tutorialProxyContainer;
+
+        /// <summary>Exposed for tests: the single opaque, raycast-blocking, full-screen Image
+        /// every real gameplay control (including the current step's real target) renders
+        /// behind - the proxy is the only thing that ever sits above it.</summary>
+        public Image TutorialFullScreenBlockerForTests => _tutorialFullScreenBlocker;
+
+        /// <summary>Exposed for tests: the current step's one Tutorial Action Proxy Button, or
+        /// null when no guided step is active.</summary>
+        public Button TutorialActionProxyForTests => _tutorialActionProxy;
+
+        /// <summary>Exposed for tests: the "SKIP TUTORIAL" button on the teaching overlay.</summary>
+        public Button TutorialSkipButtonForTests => _tutorialSkipButton;
+
+        /// <summary>Exposed for tests: the real Canvas's own GraphicRaycaster - lets a test drive
+        /// an actual Unity pointer raycast rather than reimplementing hit-testing.</summary>
+        public GraphicRaycaster CanvasRaycasterForTests => _canvasTransform != null
+            ? _canvasTransform.GetComponent<GraphicRaycaster>() : null;
+
+        /// <summary>Exposed for tests: forces a full layout + canvas rebuild, then re-derives the
+        /// teaching overlay for the current step - the same rebuild
+        /// RefreshTutorialTeachingOverlay always performs internally, callable standalone so a
+        /// test can force it immediately before reading real post-layout state.</summary>
+        public void ForceTutorialOverlayRebuildForTests()
+        {
+            ForceFullCanvasLayoutRebuild();
+            RefreshTutorialTeachingOverlay();
         }
 
         /// <summary>
@@ -693,6 +2078,14 @@ namespace MyriadOfDragons.UI
         /// Recommended Deck in Deck Builder remains the one, explicit way that deck gets built -
         /// unchanged production behavior this method must not shortcut around.
         /// </summary>
+        /// <summary>Public alias for callers outside this file - currently HomePagePresenter's
+        /// "To Battle" redirect, which must ensure a fresh player actually owns cards before
+        /// sending them into Deck Builder to build a first deck. Calls the exact same entitlement
+        /// method the approved tutorial start already uses (see its own doc comment above); no
+        /// second grant path is introduced, and idempotency/persistence rules are unchanged - a
+        /// player who already owns the full starter set is a no-op, not a repeated write.</summary>
+        public void EnsureApprovedStarterCollectionGranted() => GrantApprovedStarterCardsIfMissing();
+
         private void GrantApprovedStarterCardsIfMissing()
         {
             if (_profile?.cardCollection == null) return;
@@ -726,18 +2119,20 @@ namespace MyriadOfDragons.UI
 
         /// <summary>
         /// Resolves the player's last-confirmed deck (DeckBuilderPresenter.ConfirmDeck's own
-        /// write into activeDeckCardIds) back into real Card references. Deduplicates on the
-        /// way in - DeckBuilderPresenter's own save path already can't produce a duplicate
-        /// (CanConfirmDeck rejects one), but this reads the same field a hand-edited or
-        /// corrupted save could still put one into, and should not be weaker than the writer.
-        /// Invalid/missing ids (stale card data, corruption) are skipped, not errored.
+        /// write into activeDeckCardIds) back into real Card references - the exclusive source
+        /// of the normal player battle deck. Any defect at all (missing profile/field, a
+        /// duplicate id, an id that no longer resolves to a real card, or a count that doesn't
+        /// match the current DeckSlotCount) fails the WHOLE deck, not just the offending id -
+        /// this must block normal battle (see StartNewMatch's own comment and
+        /// _normalMatchStartError), never silently pad, substitute, or skip-and-continue with a
+        /// partial/regenerated deck.
         /// </summary>
-        private List<Card> BuildSavedPlayerDeck(int deckSize)
+        private bool TryBuildSavedPlayerDeck(int deckSize, out List<Card> savedDeck)
         {
-            var savedDeck = new List<Card>();
+            savedDeck = new List<Card>();
             if (_profile == null || _profile.activeDeckCardIds == null)
             {
-                return savedDeck;
+                return false;
             }
 
             var seenIds = new HashSet<string>();
@@ -745,51 +2140,120 @@ namespace MyriadOfDragons.UI
             {
                 if (string.IsNullOrEmpty(cardId) || !seenIds.Add(cardId))
                 {
-                    continue;
+                    savedDeck.Clear();
+                    return false;
                 }
 
                 Card card = _cardDatabase != null ? _cardDatabase.GetCard(cardId) : null;
                 if (card == null)
                 {
-                    continue;
+                    savedDeck.Clear();
+                    return false;
                 }
 
                 savedDeck.Add(card);
-                if (deckSize > 0 && savedDeck.Count >= deckSize)
-                {
-                    break;
-                }
             }
 
-            return savedDeck;
+            return savedDeck.Count == deckSize;
         }
 
+        /// <summary>Set by HomePagePresenter's launch handoff (SetPendingCampaignStageForNextMatch)
+        /// immediately before revealing Battle; null for the ordinary "To Battle" path and for
+        /// Tutorial (which never touches this field at all - StartApprovedTutorialBattle builds
+        /// its own fixed decks directly, bypassing StartNewMatch entirely). Deliberately NOT
+        /// cleared after one match: "Play Again"/Retry during a campaign stage must keep facing
+        /// the same stage's configured enemy deck, not a random one - it is only replaced or
+        /// cleared by the next explicit OnToBattleClicked call (campaign or normal).</summary>
+        private CampaignStageData _pendingCampaignStage;
+
+        /// <summary>Campaign-stage battle-configuration contract: the one handoff point a caller
+        /// outside this file (HomePagePresenter's launch callback) uses to attach a stage's
+        /// enemy-deck configuration to the next normal-path match, before calling
+        /// SetBattleCanvasVisible(true). Passing null clears any previous stage (the ordinary "To
+        /// Battle" tile always does this).</summary>
+        public void SetPendingCampaignStageForNextMatch(CampaignStageData stage) => _pendingCampaignStage = stage;
+
         /// <summary>
-        /// Command Centre decision: a valid saved deck that has fallen behind the player's
-        /// current DeckSlotCount (they leveled up since last confirming it in Deck Builder)
-        /// must never be discarded or fielded understrength - every card the player chose is
-        /// kept, and only the newly-earned slots are filled, with cards not already in the
-        /// deck so the result still has no duplicates.
+        /// Resolves a Campaign stage's data-defined enemy deck (CampaignStageData.enemyDeckCardIds)
+        /// into real Card references - the single validator both the pre-launch check
+        /// (IsCampaignStageBattleConfigValid, called before Battle is ever revealed) and the actual
+        /// match setup (StartNewMatch) share. Mirrors TryBuildSavedPlayerDeck's own all-or-nothing
+        /// rule: a missing/empty list, a duplicate id, or an id CardDatabase cannot resolve fails
+        /// the WHOLE deck - never a partial, padded, or randomly-substituted one (requirement 9).
+        /// Deliberately does NOT require the list to match the player's current DeckSlotCount -
+        /// unlike the player's own deck, a campaign stage's enemy roster is a fixed, authored
+        /// composition, not something that should silently grow as the player's Barracks levels up
+        /// (requirement 8: stages stay distinct through composition, not scaling).
         /// </summary>
-        private static List<Card> PadDeckWithUniqueRandomCards(List<Card> savedDeck, List<Card> fullPool, int deckSize)
+        private bool TryResolveCampaignEnemyDeck(CampaignStageData stage, out List<Card> enemyDeck)
         {
-            var padded = new List<Card>(savedDeck);
-            if (padded.Count >= deckSize)
+            enemyDeck = new List<Card>();
+            if (stage?.enemyDeckCardIds == null || stage.enemyDeckCardIds.Length == 0)
             {
-                return padded;
+                return false;
             }
 
-            var existingIds = new HashSet<string>(padded.Select(c => c.Id));
-            List<Card> candidates = fullPool.Where(c => !existingIds.Contains(c.Id)).ToList();
-            Shuffle(candidates);
-
-            foreach (Card candidate in candidates)
+            var seenIds = new HashSet<string>();
+            foreach (string cardId in stage.enemyDeckCardIds)
             {
-                if (padded.Count >= deckSize) break;
-                padded.Add(candidate);
+                if (string.IsNullOrEmpty(cardId) || !seenIds.Add(cardId))
+                {
+                    enemyDeck.Clear();
+                    return false;
+                }
+
+                Card card = _cardDatabase != null ? _cardDatabase.GetCard(cardId) : null;
+                if (card == null)
+                {
+                    enemyDeck.Clear();
+                    return false;
+                }
+
+                enemyDeck.Add(card);
             }
 
-            return padded;
+            return true;
+        }
+
+        /// <summary>Exposed for HomePagePresenter's launch callback: whether a stage's enemy-deck
+        /// configuration is resolvable right now, so an invalid/missing config can block the
+        /// launch BEFORE Battle is ever revealed (requirement 9) rather than being discovered only
+        /// once inside StartNewMatch's own defense-in-depth check.</summary>
+        public bool IsCampaignStageBattleConfigValid(CampaignStageData stage) =>
+            TryResolveCampaignEnemyDeck(stage, out _);
+
+        /// <summary>How much a single Campaign stage attempt costs - launch and retry alike
+        /// (Campaign stamina-entry contract, requirements 1 and 4). Not a balancing knob this
+        /// task touches beyond satisfying "exactly 1" - no other value is used anywhere.</summary>
+        private const int CampaignStaminaCostPerAttempt = 1;
+
+        /// <summary>
+        /// The sole Campaign-stamina spend choke point: called from exactly two real sites -
+        /// HomePagePresenter.LaunchCampaignStage (initial launch, after every other prerequisite
+        /// already passed) and this file's own OnPlayAgainOrRetryPressed (a Campaign retry,
+        /// requirement 4 - "a new attempt"). Nothing else spends Campaign Stamina, and this
+        /// method itself never touches Battle visibility, campaign context, rewards, or unlocks -
+        /// callers decide what to do on failure. CurrencyManager.SpendStamina is the sole
+        /// authority (requirement 9): this only decides WHEN 1 Stamina is due, not how the
+        /// balance is read, deducted, or persisted.
+        /// </summary>
+        public bool TrySpendCampaignStaminaForAttempt() =>
+            CurrencyManager.SpendStamina(_profile, CampaignStaminaCostPerAttempt);
+
+        /// <summary>
+        /// First-time normal-battle entry contract: the one saved-deck validation gate exposed
+        /// for callers outside this file - currently HomePagePresenter's "To Battle" tile, which
+        /// must know whether a valid confirmed deck exists BEFORE revealing the Battle canvas at
+        /// all, not after (see StartNewMatch's own _normalMatchStartError, which only ever fires
+        /// once Battle is already visible). Shares TryBuildSavedPlayerDeck exactly as StartNewMatch
+        /// does - same missing/duplicate/unresolved/wrong-count rules, not a second, independently
+        /// maintained validator. Returns false (redirect-to-Deck-Builder territory) rather than
+        /// throwing if called before Initialize() has finished setting up Empire data.
+        /// </summary>
+        public bool HasValidConfirmedDeckForNormalBattle()
+        {
+            if (_empireData == null) return false;
+            return TryBuildSavedPlayerDeck(_empireData.DeckSlotCount, out _);
         }
 
         /// <summary>
@@ -889,8 +2353,27 @@ namespace MyriadOfDragons.UI
 
             canvasGo.AddComponent<GraphicRaycaster>();
 
+            return canvas;
+        }
+
+        /// <summary>
+        /// Battle Release Layout pass: the arena backdrop + dim wash, now built as
+        /// BattlePresentationRoot's own first children (item 1 of the root's owned chrome)
+        /// instead of living directly on Canvas outside any region - previously a sibling of
+        /// every real panel rather than a child of one shared root.
+        ///
+        /// Bug found and fixed in this same pass: neither Image ever set raycastTarget = false.
+        /// Unity's GraphicRaycaster hit-tests front-to-back, so a real panel drawn on top of
+        /// these still received the tap correctly - but any pixel NOT covered by a later panel
+        /// (every inter-region gap; see CreateAnchoredPanel's own comment about the identical bug
+        /// once found in per-panel backgrounds) was a live, invisible tap target on a purely
+        /// decorative Image. Fixed at the source instead of per-region, matching the fix already
+        /// applied to CreateAnchoredPanel's own backgrounds.
+        /// </summary>
+        private void BuildBattleBackdrop(Transform root)
+        {
             var bgGo = new GameObject("Background", typeof(RectTransform));
-            bgGo.transform.SetParent(canvasGo.transform, false);
+            bgGo.transform.SetParent(root, false);
             var bg = bgGo.AddComponent<Image>();
             Sprite backdrop = Resources.Load<Sprite>("UI/Backdrops/Arenas/Lava_Fortress");
             if (backdrop != null)
@@ -904,6 +2387,7 @@ namespace MyriadOfDragons.UI
                 bg.sprite = CreateGradientSprite(BackgroundTop, BackgroundBottom);
                 bg.type = Image.Type.Simple;
             }
+            bg.raycastTarget = false;
             StretchFull(bg.rectTransform);
 
             if (backdrop != null)
@@ -911,11 +2395,10 @@ namespace MyriadOfDragons.UI
                 // The panels' own gradients already add contrast for their own text, but the
                 // gaps between panels sit directly over a busy painted scene now instead of a
                 // plain dark background - a dim overlay keeps the whole HUD readable over it.
-                Image dim = CreateImage(canvasGo.transform, new Color(0f, 0f, 0f, 0.35f));
+                Image dim = CreateImage(root, new Color(0f, 0f, 0f, 0.35f));
+                dim.raycastTarget = false;
                 StretchFull(dim.rectTransform);
             }
-
-            return canvas;
         }
 
         private void BuildEventSystem()
@@ -952,189 +2435,232 @@ namespace MyriadOfDragons.UI
             _tutorialGuidanceCaption.gameObject.SetActive(false);
         }
 
-        private void BuildEnemyPanel(Transform canvasTransform, Font font)
+        /// <summary>Generic direct-fraction anchored panel - unlike CreateBandPanel (full width,
+        /// Y-only), this takes an arbitrary min/max anchor pair so a region can be placed exactly
+        /// as the V3 handoff's own anchor table states it, with no derived math in between.</summary>
+        private static RectTransform CreateAnchoredPanel(Transform parent, string name, Color background,
+            Vector2 anchorMin, Vector2 anchorMax)
         {
-            RectTransform panel = CreateGradientBandPanel(canvasTransform, "EnemyPanel",
-                WithAlpha(EnemyPanelTop, HudPanelAlpha), WithAlpha(EnemyPanelBottom, HudPanelAlpha), EnemyY0, EnemyY1);
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
 
-            // Enemy portrait pinned top-left and made much larger (was a 0.22-height sliver in
-            // the corner and reported as "too small to see") - matches the reference mockup,
-            // where each side's Avatar is a big circular portrait in its own corner.
-            CreatePortrait(panel, "Orc_King", 0.55f, 1f, 0.005f, 0.17f, _aiProfile.DisplayName, font,
-                out RectTransform enemyPortraitBox, out _enemyNameLabel);
-
-            // HP moved into a corner badge on the portrait itself (see CreateHealthBadge) -
-            // replaces the old full-width CreateBar() health bar, which sat across the middle of
-            // the board rather than in either side's own corner. "Enemy - bring their Avatar HP to
-            // 0 to win" was removed earlier (2026-08-06) as a permanent instruction banner that
-            // belongs in the tutorial instead.
-            CreateHealthBadge(enemyPortraitBox, font, out _enemyHealthFill, out _enemyAvatarText);
-
-            // Single board row instead of one row per lane - see the Board zones note by
-            // EnemyBoardY0/EnemyBoardY1 for why Front/Middle/Back stay visually grouped rather
-            // than a flat run of cards.
-            RectTransform boardZone = CreateBandPanel(panel, "EnemyBoardZone", Color.clear, EnemyBoardY0, EnemyBoardY1);
-            // AnchorBand's xInsetMin/xInsetMax become anchorMin.x/1-anchorMax.x directly, so the
-            // pair here is (EnemyLaneX0, 1-EnemyLaneX1) - NOT (1-EnemyLaneX1, 1-EnemyLaneX0),
-            // which would silently invert the board zone's horizontal placement.
-            AnchorBand(boardZone, EnemyBoardY0, EnemyBoardY1, EnemyLaneX0, 1f - EnemyLaneX1);
-            var zoneLayout = boardZone.gameObject.AddComponent<HorizontalLayoutGroup>();
-            zoneLayout.spacing = 20f;
-            zoneLayout.childAlignment = TextAnchor.MiddleCenter;
-            zoneLayout.childForceExpandWidth = false;
-            zoneLayout.childForceExpandHeight = true;
-            zoneLayout.childControlWidth = false;
-            zoneLayout.childControlHeight = true;
-
-            foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
+            if (background.a > 0f)
             {
-                // Interactive now (2026-08-06, was false) - Firestorm targets an ENEMY lane, and
-                // until now the enemy board had no tap target of any kind. Kept non-interactable
-                // by default (set immediately below) so an ordinary tap does nothing outside spell
-                // targeting - ArmSpellTargeting is what turns these on, only for the lanes a
-                // damage spell can actually hit, only while one is armed.
-                CreateLaneGroup(boardZone, lane, font, interactive: true, out Transform slots, out Button laneButton);
-                _enemyLaneSlots[lane] = slots;
-                _enemyLaneButtons[lane] = laneButton;
-                laneButton.interactable = false;
-                // CreateLaneGroup always wires an interactive button to OnLanePressed, which is
-                // the PLAYER's card-placement/reinforcement handler - meaningless for the enemy
-                // board. Stripped here; ArmSpellTargeting adds the real (spell-targeting)
-                // listener only while a damage spell is armed, and CancelSpellTargeting removes
-                // it again, so an enemy lane is never left holding a stale listener from a spell
-                // that's no longer armed.
-                laneButton.onClick.RemoveAllListeners();
+                var image = go.AddComponent<Image>();
+                image.color = background;
+                // Decorative tint only - every real call site of this helper builds its actual
+                // interactive controls as separate children afterward (Buttons, lane groups,
+                // etc.), never relies on this background Image itself catching a tap. Left at
+                // the default (true) it silently intercepted taps meant for whatever sits behind
+                // it whenever two regions' rendered bounds came closer than their nominal anchors
+                // suggested - confirmed root cause of the Back-lane tutorial action becoming
+                // untappable once the Hand dock's real (post-layout) bounds crept into the Player
+                // board's own bottom row. Fixed at this one shared helper rather than per call
+                // site, since every other CreateAnchoredPanel background has the same latent risk.
+                image.raycastTarget = false;
             }
-        }
 
-        private void BuildPlayerPanel(Transform canvasTransform, Font font)
-        {
-            RectTransform panel = CreateGradientBandPanel(canvasTransform, "PlayerPanel",
-                WithAlpha(PlayerPanelTop, HudPanelAlpha), WithAlpha(PlayerPanelBottom, HudPanelAlpha), PlayerY0, PlayerY1);
-
-            // Player portrait pinned bottom-right, mirroring the enemy's top-left - the
-            // diagonal-corners arrangement from the reference mockup. Dropped lower (was
-            // 0.02-0.52) on 2026-08-06: it sat level with the lane rows and read as part of the
-            // board rather than as the player's own corner.
-            // "Lightbringer" is a fixed player identity, unlike the AI opponent (see
-            // _enemyNameLabel) - it never changes mid-session, so the label from CreatePortrait
-            // doesn't need to be captured for a later refresh.
-            CreatePortrait(panel, "Paladin", -0.30f, 0.18f, 0.83f, 0.995f, "Lightbringer", font,
-                out RectTransform playerPortraitBox, out _);
-            CreateHealthBadge(playerPortraitBox, font, out _playerHealthFill, out _playerAvatarText);
-
-            // Resource/Energy gem, moved from the status row to sit beside the player's own
-            // portrait ("Mana Gem counter... anchored at the player corner" - matches the
-            // reference more closely than a bar shared with Deck/Clash text). RefreshAll's
-            // existing fillAmount/text logic is unchanged; only where this Image/Text physically
-            // live moved.
-            CreateResourceBadge(playerPortraitBox, font, out _resourceFill, out _resourceText);
-
-            RectTransform boardZone = CreateBandPanel(panel, "PlayerBoardZone", Color.clear, PlayerBoardY0, PlayerBoardY1);
-            AnchorBand(boardZone, PlayerBoardY0, PlayerBoardY1, PlayerLaneX0, 1f - PlayerLaneX1);
-            var zoneLayout = boardZone.gameObject.AddComponent<HorizontalLayoutGroup>();
-            zoneLayout.spacing = 20f;
-            zoneLayout.childAlignment = TextAnchor.MiddleCenter;
-            zoneLayout.childForceExpandWidth = false;
-            zoneLayout.childForceExpandHeight = true;
-            zoneLayout.childControlWidth = false;
-            zoneLayout.childControlHeight = true;
-
-            foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
-            {
-                CreateLaneGroup(boardZone, lane, font, interactive: true, out Transform slots, out Button laneButton);
-                _playerLaneSlots[lane] = slots;
-                _playerLaneButtons[lane] = laneButton;
-            }
+            return rect;
         }
 
         /// <summary>
-        /// One lane's cluster of up to <see cref="LaneState.MaxSlots"/> slots, as a single tap
-        /// target within a side's shared board row. Replaces the old CreateLaneRow (each lane its
-        /// own full-width row, stacked three deep) with a compact group meant to sit beside its
-        /// two siblings in one HorizontalLayoutGroup - see BuildEnemyPanel/BuildPlayerPanel.
-        ///
-        /// A fixed preferred width (SetPreferredWidth) rather than letting the outer zone infer
-        /// one from this group's own nested layout - nested HorizontalLayoutGroups CAN report a
-        /// preferred size to their parent's layout pass, but every other sizing decision in this
-        /// file already goes through SetPreferredWidth/Height, and there was no working Editor
-        /// session to screenshot-verify the alternative against, so this sticks to the pattern
-        /// that's already proven to render correctly elsewhere here.
+        /// V4 layout: three independent columns (lane labels / 3x3 boards / lane totals), each
+        /// spanning both the enemy and player board zones as one continuous strip of six rows -
+        /// this is what keeps a label, its board row, and its total vertically aligned without
+        /// duplicating the row-band math three times. Replaces the old titled-panel-with-
+        /// centered-rows approach (V3), which is what produced the rejected "huge mostly-empty
+        /// tinted panel" and portrait-era BoardRowHeight/BoardRowSpacing constants.
         /// </summary>
-        private void CreateLaneGroup(Transform parent, Lane lane, Font font, bool interactive,
-            out Transform slotsContainer, out Button laneButton)
+        private void BuildBattleBoards(Transform canvasTransform, Font font)
         {
-            const float slotWidth = BoardSlotWidth;
-            const float innerSlotSpacing = BoardSlotSpacing;
-            float groupWidth = LaneState.MaxSlots * slotWidth + (LaneState.MaxSlots - 1) * innerSlotSpacing;
-
-            // Wrapper: label on top, slot row below - stacked so the label sits clearly above
-            // its own slot cluster without consuming a slot column in the row's own
-            // HorizontalLayoutGroup, and without changing the slot row's own tap target (the
-            // label is a plain, non-raycast Text sibling, not part of groupGo). This is the
-            // wrapper the outer board-zone layout (BuildEnemyPanel/BuildPlayerPanel) now
-            // arranges instead of groupGo directly - same groupWidth reserved for it, so lane
-            // click geometry and inter-lane spacing are unchanged.
-            var wrapperGo = new GameObject($"LaneWrapper_{lane}", typeof(RectTransform));
-            wrapperGo.transform.SetParent(parent, false);
-            SetPreferredWidth(wrapperGo, groupWidth);
-            SetPreferredHeight(wrapperGo, 78f);
-
-            var wrapperLayout = wrapperGo.AddComponent<VerticalLayoutGroup>();
-            wrapperLayout.spacing = 2f;
-            wrapperLayout.childAlignment = TextAnchor.MiddleCenter;
-            wrapperLayout.childForceExpandWidth = false;
-            wrapperLayout.childForceExpandHeight = false;
-            wrapperLayout.childControlWidth = false;
-            wrapperLayout.childControlHeight = false;
-
-            Text label = CreateText(wrapperGo.transform, LaneHeaderLabel(lane), 12, GoldTextColor, font);
-            label.fontStyle = FontStyle.Bold;
-            label.raycastTarget = false;
-            SetPreferredWidth(label.gameObject, groupWidth);
-            SetPreferredHeight(label.gameObject, 16f);
-
-            var groupGo = new GameObject($"Lane_{lane}", typeof(RectTransform));
-            groupGo.transform.SetParent(wrapperGo.transform, false);
-            SetPreferredWidth(groupGo, groupWidth);
-            SetPreferredHeight(groupGo, 78f);
-
-            // Fully transparent, same reasoning as the row tint it replaces (2026-08-06, "take
-            // away the opaque shading in all the rows") - an Image with alpha 0 still receives
-            // clicks, which is what keeps the group tappable without painting a visible band.
-            var groupImage = groupGo.AddComponent<Image>();
-            groupImage.color = new Color(0, 0, 0, 0f);
-
-            Button button = null;
-            if (interactive)
-            {
-                button = groupGo.AddComponent<Button>();
-                button.transition = Selectable.Transition.None;
-                button.onClick.AddListener(() => OnLanePressed(lane));
-            }
-
-            var groupLayout = groupGo.AddComponent<HorizontalLayoutGroup>();
-            groupLayout.spacing = innerSlotSpacing;
-            groupLayout.childAlignment = TextAnchor.MiddleCenter;
-            groupLayout.childForceExpandWidth = false;
-            groupLayout.childForceExpandHeight = true;
-            groupLayout.childControlWidth = false;
-            groupLayout.childControlHeight = true;
-
-            slotsContainer = groupGo.transform;
-            laneButton = button;
+            BuildBattleBoardSide(canvasTransform, font, isEnemySide: true);
+            BuildBattleBoardSide(canvasTransform, font, isEnemySide: false);
         }
 
-        /// <summary>"FRONT (+1 ATK)" / "MIDDLE (+1 HP)" / "BACK" - reuses LaneBonusLabel so this
-        /// can never drift out of sync with the real bonus values, same reasoning as that
-        /// method's own comment. Used above both boards (BuildEnemyPanel/BuildPlayerPanel) -
-        /// player-reported: "three unlabeled player lane groups look like one ambiguous row".</summary>
-        private static string LaneHeaderLabel(Lane lane)
+        /// <summary>
+        /// Splits one board zone's vertical span (EnemyBoardMin/Max or PlayerBoardMin/Max) into
+        /// exactly 3 row bands per the handoff's "six row bands, each 0.095 screen height, 0.010
+        /// separation" spec, scaled to whatever span this zone actually has (both zones share the
+        /// same 0.310 span in the V4 table, but this stays correct even if that ever changes).
+        /// </summary>
+        private static (float top, float bottom)[] ComputeThreeRowBands(float zoneTop, float zoneBottom)
         {
+            float span = zoneTop - zoneBottom;
+            float rowH = span * (0.095f / 0.305f);
+            float gap = span * (0.010f / 0.305f);
+            var bands = new (float top, float bottom)[3];
+            float cursor = zoneTop;
+            for (int i = 0; i < 3; i++)
+            {
+                bands[i] = (cursor, cursor - rowH);
+                cursor -= rowH + gap;
+            }
+            return bands;
+        }
+
+        private void BuildBattleBoardSide(Transform canvasTransform, Font font, bool isEnemySide)
+        {
+            Vector2 boardMin = isEnemySide ? EnemyBoardMin : PlayerBoardMin;
+            Vector2 boardMax = isEnemySide ? EnemyBoardMax : PlayerBoardMax;
+            Color accentColor = isEnemySide ? new Color(0.85f, 0.35f, 0.35f) : new Color(0.4f, 0.85f, 0.55f);
+            Color rowTint = isEnemySide ? new Color(0.3f, 0.1f, 0.1f, 0.55f) : new Color(0.08f, 0.22f, 0.16f, 0.55f);
+
+            var bands = ComputeThreeRowBands(boardMax.y, boardMin.y);
+            Lane[] lanesInOrder = { Lane.Front, Lane.Middle, Lane.Back };
+
+            for (int i = 0; i < 3; i++)
+            {
+                Lane lane = lanesInOrder[i];
+                float top = bands[i].top;
+                float bottom = bands[i].bottom;
+                string side = isEnemySide ? "Enemy" : "Player";
+
+                // Visual-review fix, 2026-08-17: was Color.clear - bare text floating over the
+                // battle backdrop with no framing at all, reported as reading like a raw colour
+                // square/text rather than a premium label. Both the lane-label and lane-total
+                // columns now sit on the same dark charcoal-plus-bronze-accent plate every other
+                // V4 panel (activity rail, spell rail) already uses.
+                RectTransform labelBox = CreateAnchoredPanel(canvasTransform, $"LaneLabel_{side}_{lane}",
+                    new Color(0.09f, 0.08f, 0.13f, V3PanelAlpha), new Vector2(LaneLabelsMin.x, bottom), new Vector2(LaneLabelsMax.x, top));
+                AddBronzeAccentStripe(labelBox);
+                BuildLaneLabelContent(labelBox, lane, accentColor, font);
+
+                CreateBoardRow(canvasTransform, lane, font, isEnemySide,
+                    new Vector2(boardMin.x, bottom), new Vector2(boardMax.x, top), rowTint,
+                    out Transform slots, out Button laneButton);
+
+                RectTransform totalBox = CreateAnchoredPanel(canvasTransform, $"LaneTotal_{side}_{lane}",
+                    new Color(0.09f, 0.08f, 0.13f, V3PanelAlpha), new Vector2(LaneTotalsMin.x, bottom), new Vector2(LaneTotalsMax.x, top));
+                AddBronzeAccentStripe(totalBox);
+                Text total = CreateText(totalBox, "ATK 0\nOVERFLOW 0", 16, Color.white, font);
+                total.raycastTarget = false;
+                total.alignment = TextAnchor.MiddleCenter;
+                total.horizontalOverflow = HorizontalWrapMode.Wrap;
+                total.resizeTextForBestFit = true;
+                total.resizeTextMinSize = 11;
+                total.resizeTextMaxSize = 16;
+                AnchorBand(total.rectTransform, 0.05f, 0.95f, 0.06f, 0.06f);
+
+                if (isEnemySide)
+                {
+                    _enemyLaneSlots[lane] = slots;
+                    _enemyLaneButtons[lane] = laneButton;
+                    _enemyLaneTotalTexts[lane] = total;
+                }
+                else
+                {
+                    _playerLaneSlots[lane] = slots;
+                    _playerLaneButtons[lane] = laneButton;
+                    _playerLaneTotalTexts[lane] = total;
+                }
+            }
+        }
+
+        /// <summary>Thin bronze top accent stripe - the same "a visibly bordered, less-black
+        /// panel reads as part of the shell" cue every other V4 panel already uses (see
+        /// BuildActivityRail's own railAccent). Applied to the lane-label and lane-total plates
+        /// too so they read as premium framed columns, not bare text over the backdrop.</summary>
+        private static void AddBronzeAccentStripe(RectTransform panel)
+        {
+            Image accent = CreateImage(panel, AccentBorderColor);
+            accent.rectTransform.anchorMin = new Vector2(0f, 1f);
+            accent.rectTransform.anchorMax = new Vector2(1f, 1f);
+            accent.rectTransform.pivot = new Vector2(0.5f, 1f);
+            accent.rectTransform.sizeDelta = new Vector2(0f, 3f);
+            accent.rectTransform.anchoredPosition = Vector2.zero;
+            accent.raycastTarget = false;
+        }
+
+        /// <summary>Icon badge + lane name + runtime lane modifier, centered to fit the narrow
+        /// Lane labels column (.015-.165) without overlapping the board.</summary>
+        private void BuildLaneLabelContent(RectTransform labelBox, Lane lane, Color accentColor, Font font)
+        {
+            // A small, fixed-size circular medallion - not a swatch stretched across most of the
+            // column's own width, which is what read as "a raw colour square" rather than a lane
+            // icon in visual review.
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(labelBox, false);
+            var iconRect = (RectTransform)iconGo.transform;
+            iconRect.anchorMin = iconRect.anchorMax = new Vector2(0.5f, 0.82f);
+            iconRect.pivot = new Vector2(0.5f, 0.5f);
+            iconRect.sizeDelta = new Vector2(26f, 26f);
+            iconRect.anchoredPosition = Vector2.zero;
+            var icon = iconGo.AddComponent<Image>();
+            icon.sprite = CreateRoundedGradientSprite(accentColor, accentColor, 24, 13);
+            icon.type = Image.Type.Sliced;
+            icon.raycastTarget = false;
+
+            Text nameText = CreateText(labelBox, lane.ToString().ToUpperInvariant(), 19, GoldTextColor, font);
+            nameText.fontStyle = FontStyle.Bold;
+            nameText.alignment = TextAnchor.MiddleCenter;
+            nameText.raycastTarget = false;
+            nameText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            AnchorBand(nameText.rectTransform, 0.42f, 0.65f, 0.04f, 0.04f);
+
             string bonus = LaneBonusLabel(lane);
-            return string.IsNullOrEmpty(bonus)
-                ? lane.ToString().ToUpperInvariant()
-                : $"{lane.ToString().ToUpperInvariant()} ({bonus})";
+            Text modifierText = CreateText(labelBox, bonus, 14, accentColor, font);
+            modifierText.alignment = TextAnchor.MiddleCenter;
+            modifierText.raycastTarget = false;
+            modifierText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            AnchorBand(modifierText.rectTransform, 0.20f, 0.42f, 0.04f, 0.04f);
+        }
+
+        /// <summary>
+        /// One board row: exactly LaneState.MaxSlots card slots inside the given normalized
+        /// (min,max) anchor rect, tinted and (for the player side) directly tappable for
+        /// placement/reinforcement - same click/slot contract RefreshLaneSlots already expects,
+        /// just anchored to a fixed row band instead of centered inside a titled panel.
+        /// </summary>
+        private void CreateBoardRow(Transform canvasTransform, Lane lane, Font font, bool isEnemySide,
+            Vector2 anchorMin, Vector2 anchorMax, Color rowTint,
+            out Transform slotsContainer, out Button laneButton)
+        {
+            RectTransform rowBg = CreateAnchoredPanel(canvasTransform,
+                $"BoardRow_{(isEnemySide ? "Enemy" : "Player")}_{lane}", rowTint, anchorMin, anchorMax);
+
+            var slotsGo = new GameObject($"Lane_{lane}", typeof(RectTransform));
+            slotsGo.transform.SetParent(rowBg, false);
+            var slotsRect = (RectTransform)slotsGo.transform;
+            slotsRect.anchorMin = new Vector2(0f, 0f);
+            slotsRect.anchorMax = new Vector2(1f, 1f);
+            slotsRect.offsetMin = new Vector2(8f, 8f);
+            slotsRect.offsetMax = new Vector2(-8f, -8f);
+
+            // Fully transparent, not invisible/absent - an Image with alpha 0 still receives
+            // clicks, which is what keeps the row tappable without painting a visible band on
+            // top of the rowBg tint set above.
+            var slotsImage = slotsGo.AddComponent<Image>();
+            slotsImage.color = new Color(0, 0, 0, 0f);
+
+            var button = slotsGo.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            if (!isEnemySide)
+            {
+                button.onClick.AddListener(() => OnLanePressed(lane));
+            }
+            else
+            {
+                // Interactive (Firestorm targets an ENEMY lane) but not interactable by default -
+                // ArmSpellTargeting is what turns a lane on, only while a damage spell is armed,
+                // only for the lanes it can actually hit.
+                button.interactable = false;
+            }
+
+            var slotsLayout = slotsGo.AddComponent<HorizontalLayoutGroup>();
+            slotsLayout.spacing = BoardSlotSpacing;
+            slotsLayout.childAlignment = TextAnchor.MiddleCenter;
+            slotsLayout.childForceExpandWidth = false;
+            slotsLayout.childForceExpandHeight = true;
+            slotsLayout.childControlWidth = true;
+            slotsLayout.childControlHeight = true;
+
+            slotsContainer = slotsGo.transform;
+            laneButton = button;
         }
 
         /// <summary>
@@ -1191,51 +2717,75 @@ namespace MyriadOfDragons.UI
             return Resources.Load<Sprite>($"UI/Frames/{tier}");
         }
 
-        private void BuildStatusRow(Transform canvasTransform, Font font)
+        /// <summary>
+        /// Asset audit, 2026-08-18 (docs/Battle_Screen_Landscape_Asset_Audit_2026-08-18.md):
+        /// Common/Rare/Epic_Card_Frame.png are 340x460 (0.739 w/h); Legendary_Card_Frame.png is
+        /// 400x460 (0.870 w/h) - a genuinely different, wider aspect, not an authoring mistake.
+        /// Every card renderer that used to force ALL rarities into one fixed box (the "flattened/
+        /// stretched" defect visual review flagged) now sizes each card tile at ITS OWN frame's
+        /// real aspect instead. Falls back to Common's aspect if the sprite failed to load, same
+        /// as GetRarityFrameSprite's own fallback tier.
+        /// </summary>
+        private static float GetRarityFrameAspect(int rarity) => rarity switch
         {
-            RectTransform panel = CreateBandPanel(canvasTransform, "StatusRow", Color.clear, StatusY0, StatusY1);
-            var layout = panel.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 12f;
-            layout.childForceExpandWidth = false;
-            layout.childControlWidth = false;
-            layout.childForceExpandHeight = true;
-            layout.childAlignment = TextAnchor.MiddleLeft;
-            layout.padding = new RectOffset(8, 8, 0, 0);
-            layout.childControlHeight = true;
+            <= 6 => 340f / 460f,
+            _ => 400f / 460f, // Legendary
+        };
 
-            // The resource/Energy bar that used to live here moved to a corner badge beside the
-            // player portrait (2026-08-06, see CreateResourceBadge and BuildPlayerPanel) - it
-            // reads as the player's own resource there, next to their Avatar, rather than a meter
-            // shared with the deck count and clash indicator. _resourceFill/_resourceText are
-            // still wired in RefreshAll exactly as before; only where they physically live moved.
-            //
-            // Font sizes raised across this row (13/15 -> 17) and widths widened to match: "Turn
-            // 1" and "Deck: 9" were both called out as too small to read (2026-08-05). These are
-            // numbers a player checks often mid-turn, so they should be legible, not the least.
-            _turnText = CreateText(panel, "", 17, GoldTextColor, font);
-            SetPreferredWidth(_turnText.gameObject, 110);
-            _deckCountText = CreateText(panel, "", 17, GoldTextColor, font);
-            SetPreferredWidth(_deckCountText.gameObject, 110);
+        /// <summary>
+        /// V4 Top HUD: a background strip (TopHudMin/Max) with three independently-anchored
+        /// clusters inside it - Player HUD (left), Phase HUD (center), Enemy HUD (right), each
+        /// its own fixed normalized rect per the handoff table rather than fractions of one
+        /// shared panel. Reserved for identity/HP/resource/phase only, per the handoff's
+        /// collision-safe rule that no board/guide/tooltip/combat text may render into it.
+        /// </summary>
+        private void BuildHeaderBar(Transform canvasTransform, Font font)
+        {
+            CreateAnchoredPanel(canvasTransform, "TopHud",
+                new Color(0.05f, 0.04f, 0.07f, V3PanelAlpha), TopHudMin, TopHudMax);
 
-            // The "^ +1 ATK  = +1 HP  v --" legend was removed again 2026-08-06 ("some ATK and HP
-            // words which are out of place"). Substituting ASCII glyphs for icons produced
-            // something that read as neither - the lane rules are now taught by the tutorial,
-            // which is the right place for a rule that never changes.
+            // ----- Player cluster (left) -----
+            RectTransform playerCluster = CreateAnchoredPanel(canvasTransform, "PlayerHud", Color.clear,
+                PlayerHudMin, PlayerHudMax);
+            CreatePortrait(playerCluster, "Paladin", 0.06f, 0.94f, 0.02f, 0.30f, "Lightbringer", font,
+                out _, out _);
 
-            // Shows what the squad's tag composition bought - without this the synergy bonus is
-            // invisible, and an invisible bonus can't influence how you build a formation.
-            _synergyText = CreateText(panel, "", 15, SelectedColor, font);
-            SetPreferredWidth(_synergyText.gameObject, 340);
-            _synergyText.alignment = TextAnchor.MiddleLeft;
-            // Single line, clipped. With Wrap it broke "TacticalCommand" mid-word across three
-            // lines and spilled up over the Avatar HP bar above it (2026-08-06). The status row
-            // is one line tall by design, so text that doesn't fit should be cut, not reflowed
-            // into a neighbour's space.
-            _synergyText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _synergyText.verticalOverflow = VerticalWrapMode.Truncate;
-            _synergyText.resizeTextForBestFit = true;
-            _synergyText.resizeTextMinSize = 9;
-            _synergyText.resizeTextMaxSize = 15;
+            Image playerHealthBar = CreateBar(playerCluster, HealthBarEmptyColor, PlayerHealthBarFillColor, font, 20,
+                out _playerHealthFill, out _playerAvatarText, "Health_Empty");
+            AnchorBand(playerHealthBar.rectTransform, 0.56f, 0.86f, 0.34f, 0.02f);
+
+            Image playerResourceBar = CreateBar(playerCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 20,
+                out _resourceFill, out _resourceText, "Mana_Fill");
+            AnchorBand(playerResourceBar.rectTransform, 0.30f, 0.54f, 0.34f, 0.02f);
+
+            _handCountText = CreateText(playerCluster, "", 18, GoldTextColor, font);
+            AnchorBand(_handCountText.rectTransform, 0.08f, 0.28f, 0.34f, 0.02f);
+
+            // ----- Phase cluster (center) -----
+            // _turnText already carries the combined phase/clash string exactly as RefreshAll
+            // sets it today ("Formation" / "Clash N/12" / "REINFORCE! N/12") - shown large and
+            // centered here, matching the mockup's "FORMATION / CLASH 0/12" stack, without
+            // splitting RefreshAll's single string across two fields it was never designed to
+            // populate separately.
+            RectTransform phaseCluster = CreateAnchoredPanel(canvasTransform, "PhaseHud", Color.clear,
+                PhaseHudMin, PhaseHudMax);
+            _turnText = CreateText(phaseCluster, "", 26, GoldTextColor, font);
+            _turnText.fontStyle = FontStyle.Bold;
+            StretchFull(_turnText.rectTransform);
+
+            // ----- Enemy cluster (right) -----
+            RectTransform enemyCluster = CreateAnchoredPanel(canvasTransform, "EnemyHud", Color.clear,
+                EnemyHudMin, EnemyHudMax);
+            CreatePortrait(enemyCluster, "Orc_King", 0.06f, 0.94f, 0.02f, 0.30f, _aiProfile.DisplayName, font,
+                out _, out _enemyNameLabel);
+
+            Image enemyHealthBar = CreateBar(enemyCluster, HealthBarEmptyColor, HealthBarFillColor, font, 20,
+                out _enemyHealthFill, out _enemyAvatarText, "Health_Empty");
+            AnchorBand(enemyHealthBar.rectTransform, 0.56f, 0.86f, 0.34f, 0.02f);
+
+            Image enemyResourceBar = CreateBar(enemyCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 20,
+                out _enemyResourceFill, out _enemyResourceText, "Mana_Fill");
+            AnchorBand(enemyResourceBar.rectTransform, 0.14f, 0.44f, 0.34f, 0.02f);
         }
 
         /// <summary>A background+fill bar with a bold centered text label on top, for HP/Resource -
@@ -1284,16 +2834,26 @@ namespace MyriadOfDragons.UI
 
             var portraitImg = innerGo.AddComponent<Image>();
             portraitImg.sprite = portraitSprite;
-            portraitImg.preserveAspect = false;
+            // Asset audit, 2026-08-18: was forced to fill a square box exactly (preserveAspect
+            // false against a 1:1 AddSquareFitter) regardless of the portrait's own real aspect -
+            // Portraits/Paladin.png (0.691 w/h) and Portraits/Orc_King.png (0.800) are not the
+            // same shape as each other, so the old approach stretched at least one of them.
+            // preserveAspect fits within the box instead - see the box-aspect comment below for
+            // why the box itself is no longer forced to 1:1 either.
+            portraitImg.preserveAspect = true;
             portraitImg.raycastTarget = false;
-            AddSquareFitter(innerGo); // squares against portraitGo, which is correctly anchored
 
             Sprite frameSprite = Resources.Load<Sprite>("UI/Frames/Avatar_Circle_Frame");
             if (frameSprite != null)
             {
-                // Child of the square, stretched to it - inheriting the square means the ring is
-                // concentric with the face by construction, which was the point of the original
-                // change and still holds.
+                // Box sized to the FRAME's own real aspect (400x500 = 0.8 w/h, asset audit
+                // 2026-08-18), not a hardcoded 1:1 square - the frame art is a ring with corner
+                // gem ornaments extending its canvas taller than it is wide, and forcing that
+                // into a square visibly ovaled the ring (a plain circle is one of the more
+                // noticeable shapes to distort). Stretching zero, not "less" - the frame now
+                // renders at its own native aspect exactly.
+                AddAspectFitter(innerGo, 400f / 500f);
+
                 var frameGo = new GameObject("Frame", typeof(RectTransform));
                 frameGo.transform.SetParent(innerGo.transform, false);
                 var frameImg = frameGo.AddComponent<Image>();
@@ -1301,6 +2861,15 @@ namespace MyriadOfDragons.UI
                 frameImg.preserveAspect = false;
                 frameImg.raycastTarget = false;
                 StretchFull((RectTransform)frameGo.transform);
+            }
+            else
+            {
+                // No frame asset to size the box against - fall back to the portrait's own
+                // aspect so at least the portrait itself never stretches.
+                float portraitAspect = portraitSprite.rect.height > 0f
+                    ? portraitSprite.rect.width / portraitSprite.rect.height
+                    : 1f;
+                AddAspectFitter(innerGo, portraitAspect);
             }
 
             if (string.IsNullOrEmpty(displayName)) { nameLabelOut = null; return; }
@@ -1323,101 +2892,6 @@ namespace MyriadOfDragons.UI
             outline.effectDistance = new Vector2(1.6f, -1.6f);
 
             nameLabelOut = nameLabel;
-        }
-
-        /// <summary>
-        /// Compact HP badge straddling a portrait's bottom-right corner - replaces the old
-        /// full-width central health bar (removed 2026-08-06; see the Board zones note near
-        /// EnemyBoardY0). Parented to `portraitBox` (CreatePortrait's own out-param) rather than
-        /// hand-computed against panel space, so the badge tracks wherever that portrait actually
-        /// sits instead of needing its own separately-tuned coordinates that could drift out of
-        /// sync with it.
-        ///
-        /// No radial "drains as you take damage" fill: ui_badge_red's exact silhouette hasn't
-        /// been visually verified yet (this whole rework was written and compile-tested without a
-        /// live Editor to screenshot against - see docs/OFFLINE_TASKS.md T1), and Image.Type.Filled
-        /// on an unverified non-circular sprite can crop badly. A plain static badge with the HP
-        /// number on it cannot render wrong regardless of the art's real shape; the fraction is
-        /// still there in `fill.fillAmount` for a later pass to switch on once someone has
-        /// actually looked at the sprite.
-        /// </summary>
-        private static void CreateHealthBadge(RectTransform portraitBox, Font font, out Image fill, out Text label)
-        {
-            fill = null;
-            label = null;
-            if (portraitBox == null) return; // portrait art missing - same guard as CreatePortrait
-
-            var badgeGo = new GameObject("HealthBadge", typeof(RectTransform));
-            badgeGo.transform.SetParent(portraitBox, false);
-            var badgeRect = (RectTransform)badgeGo.transform;
-            // BROKEN 2026-08-06, confirmed by an actual Play Mode screenshot: a stretched-fraction
-            // anchor (0.58-1.20 x, -0.16-0.34 y of portraitBox) rendered as a huge elongated red
-            // oval spanning past the portrait into the name text, not a small badge. Two compounding
-            // causes: (1) portraitBox is CreatePortrait's OUTER box, not the square the portrait
-            // actually renders at - CreatePortrait fits a square INSIDE it via AddSquareFitter, so
-            // anchoring a fraction of the outer box inherits its real (non-square) proportions
-            // instead of the visible circle's; (2) see the cornerRadius note below.
-            //
-            // Fixed size in pixels, anchored as a POINT (not a stretched fraction) at the
-            // portrait's bottom-right corner - this is what actually guarantees a small, correctly
-            // proportioned badge regardless of what shape the outer portrait box turns out to be.
-            badgeRect.anchorMin = new Vector2(1f, 0f);
-            badgeRect.anchorMax = new Vector2(1f, 0f);
-            badgeRect.pivot = new Vector2(0.5f, 0.5f);
-            badgeRect.sizeDelta = new Vector2(74f, 32f);
-            badgeRect.anchoredPosition = new Vector2(-4f, 4f);
-
-            fill = badgeGo.AddComponent<Image>();
-            // cornerRadius was 40 against CreateRoundedGradientSprite's default size of 56 - more
-            // than half the texture, which leaves Sliced with no valid flat middle to stretch (the
-            // 9-slice border exceeds half the source), and IS what turned a wide target rect into
-            // a solid elongated pill instead of a rounded badge. 16 against 56 matches the ratio
-            // CreateButton's own rim already uses successfully (26 against the same default 56).
-            fill.sprite = CreateRoundedGradientSprite(HealthBarFillColor, HealthBarEmptyColor, cornerRadius: 16);
-            fill.type = Image.Type.Sliced;
-
-            label = CreateText(badgeGo.transform, "", 13, Color.white, font);
-            label.fontStyle = FontStyle.Bold;
-            label.raycastTarget = false;
-            StretchFull(label.rectTransform);
-            var labelOutline = label.gameObject.AddComponent<Outline>();
-            labelOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
-            labelOutline.effectDistance = new Vector2(1.2f, -1.2f);
-        }
-
-        /// <summary>
-        /// Compact Energy/Resource pill anchored to the player portrait's bottom-left corner,
-        /// mirroring CreateHealthBadge on the right ("Mana Gem counter... anchored at the player
-        /// corner"). Moved out of the status row (2026-08-06), which now only carries Deck count,
-        /// the Clash/Formation indicator, and the synergy line.
-        ///
-        /// Reuses CreateBar rather than the ui_badge_red approach CreateHealthBadge takes -
-        /// Health_Empty/Mana_Fill are bar art already proven correct (they are what the two
-        /// Avatar HP bars this rework removed were built from), where ui_badge_red is new and
-        /// unverified. A working pill beats a guessed-at badge shape for the resource the player
-        /// reads every single tick.
-        /// </summary>
-        private Image CreateResourceBadge(RectTransform portraitBox, Font font, out Image fill, out Text label)
-        {
-            fill = null;
-            label = null;
-            if (portraitBox == null) return null; // portrait art missing - same guard as CreatePortrait
-
-            Image bar = CreateBar(portraitBox, ResourceBarEmptyColor, ResourceBarFillColor, font, 11,
-                out fill, out label, "Mana_Fill");
-
-            // CreateBar does not anchor/size its own output - every existing call site positions
-            // it afterward (AnchorBand in BuildEnemyPanel/BuildPlayerPanel, SetPreferredWidth in
-            // BuildStatusRow's layout group). Mirrors CreateHealthBadge's corner math on the
-            // opposite (bottom-left) side; wider than tall since a bar reads better wide than a
-            // circular badge does.
-            RectTransform rect = bar.rectTransform;
-            rect.anchorMin = new Vector2(-0.75f, -0.14f);
-            rect.anchorMax = new Vector2(0.42f, 0.20f);
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            return bar;
         }
 
         /// <summary>
@@ -1688,71 +3162,241 @@ namespace MyriadOfDragons.UI
             return bg;
         }
 
-        private void BuildHandPanel(Transform canvasTransform, Font font)
+        /// <summary>
+        /// V3's hand and placement panel (handoff anchor: (.02,.02)-(.70,.23)). Left: a passive
+        /// "Selected Card / Place In" status box mirroring the mockup, plus deck count and the
+        /// synergy line (both existing data, moved out of the old status row) and the existing
+        /// Reset/Recommended Lineup controls tucked into its corner - relocated, not removed or
+        /// duplicated. Right: the hand row - same CreateCardButton/RefreshHand logic as before,
+        /// only the container moved.
+        /// </summary>
+        private void BuildHandAndPlacementPanel(Transform canvasTransform, Font font)
         {
-            RectTransform panel = CreateGradientBandPanel(canvasTransform, "HandPanel",
-                WithAlpha(HandPanelTop, HudPanelAlpha), WithAlpha(HandPanelBottom, HudPanelAlpha), HandY0, HandY1);
+            // Corrective fix, 2026-08-16 ("purple hand dock overlaps the Player Back lane"): the
+            // panel's own background used to be painted at the FULL HandPanelMin-Max rect
+            // (Color.clear here instead), whose nominal top edge (y=0.23) sat only ~22px below
+            // the Player board zone's own nominal bottom edge (y=0.25) at 1080p - real content in
+            // both zones (see BuildBattleBoardSide's own row-band math) could close that gap
+            // entirely. The visible purple tint is now a separate, explicitly inset child
+            // (12% of this panel's own height, ~25px) rather than the panel's own full-rect
+            // background, so there is a real, deliberate buffer between the painted color and the
+            // Player board above it - functional content (hand row, placement box, buttons below)
+            // keeps its existing anchors unchanged, only the decorative tint shrank away from the
+            // top edge. raycastTarget=false either way (see CreateAnchoredPanel's own comment) -
+            // this is defense in depth on the geometry itself, not the input-blocking half of the
+            // bug, which is already fixed at the shared helper.
+            RectTransform panel = CreateAnchoredPanel(canvasTransform, "HandAndPlacementPanel",
+                Color.clear, HandPanelMin, HandPanelMax);
+            _handAndPlacementPanelRect = panel;
+            RectTransform panelBackground = CreateAnchoredPanel(panel, "HandAndPlacementPanelBackground",
+                WithAlpha(HandPanelTop, V3PanelAlpha), new Vector2(0f, 0f), new Vector2(1f, 0.88f));
+            panelBackground.transform.SetAsFirstSibling(); // stays behind every real control built below
+            HandDockBackgroundImageForTests = panelBackground.GetComponent<Image>();
 
-            Text label = CreateText(panel, "Your Hand", 13, GoldTextColor, font);
-            label.rectTransform.anchorMin = new Vector2(0f, 0.85f);
-            label.rectTransform.anchorMax = new Vector2(1f, 1f);
-            label.rectTransform.offsetMin = new Vector2(8, 0);
-            label.rectTransform.offsetMax = new Vector2(-8, 0);
+            // Left status box - text only. Never itself a placement control: FRONT/MIDDLE/BACK
+            // here are a passive reminder of the selection already made via OnHandCardPressed/
+            // OnLanePressed (existing input routes), not a second way to place a card - adding
+            // tappable buttons here would be a new control the handoff explicitly forbids.
+            RectTransform placementBox = CreateAnchoredPanel(panel, "SelectedCardBox",
+                new Color(0f, 0f, 0f, 0.35f), new Vector2(0.005f, 0.30f), new Vector2(0.15f, 0.98f));
+            _selectedCardText = CreateText(placementBox, "", 16, GoldTextColor, font);
+            _selectedCardText.raycastTarget = false;
+            _selectedCardText.alignment = TextAnchor.UpperCenter;
+            _selectedCardText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _selectedCardText.resizeTextForBestFit = true;
+            _selectedCardText.resizeTextMinSize = 10;
+            _selectedCardText.resizeTextMaxSize = 16;
+            StretchFull(_selectedCardText.rectTransform);
 
-            _handHintText = CreateText(panel, "No affordable cards left - press End Turn", 12, new Color(0.85f, 0.6f, 0.4f), font);
-            _handHintText.rectTransform.anchorMin = new Vector2(0f, 0.7f);
-            _handHintText.rectTransform.anchorMax = new Vector2(1f, 0.85f);
-            _handHintText.rectTransform.offsetMin = new Vector2(8, 0);
-            _handHintText.rectTransform.offsetMax = new Vector2(-8, 0);
-            _handHintText.gameObject.SetActive(false);
+            _deckCountText = CreateText(panel, "", 18, GoldTextColor, font);
+            AnchorBand(_deckCountText.rectTransform, 0.06f, 0.28f, 0.005f, 0.85f);
+            _deckCountText.alignment = TextAnchor.MiddleLeft;
 
+            _synergyText = CreateText(panel, "", 16, SelectedColor, font);
+            _synergyText.alignment = TextAnchor.MiddleLeft;
+            _synergyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _synergyText.verticalOverflow = VerticalWrapMode.Truncate;
+            _synergyText.resizeTextForBestFit = true;
+            _synergyText.resizeTextMinSize = 11;
+            _synergyText.resizeTextMaxSize = 16;
+            AnchorBand(_synergyText.rectTransform, 0.0f, 0.05f, 0.005f, 0.85f);
+
+            // Existing Reset/Recommended Lineup mechanic (see the original BuildLineupButtons'
+            // own comment for why these must keep working) - compact, tucked into this panel's
+            // own top-left corner rather than a separate always-on-screen band.
+            _resetLineupButton = CreateButton(panel, "Reset", font, () => OnLineupButtonPressed(useRecommendedDeck: false));
+            _resetLineupButton.GetComponentInChildren<Text>().fontSize = 14;
+            RectTransform resetRect = _resetLineupButton.GetComponent<RectTransform>();
+            resetRect.anchorMin = new Vector2(0.005f, 0.98f);
+            resetRect.anchorMax = new Vector2(0.005f, 0.98f);
+            resetRect.pivot = new Vector2(0f, 1f);
+            resetRect.sizeDelta = new Vector2(78f, 26f);
+            resetRect.anchoredPosition = Vector2.zero;
+
+            // Release feature: this control is Auto Formation now, not "Recommended" - same
+            // Button/GameObject/slot (no new control created), relabeled and repointed to
+            // OnAutoFormationPressed. OnLineupButtonPressed(useRecommendedDeck: true) and
+            // AutoDeployRecommendedFormation are deliberately left fully intact and unreferenced
+            // by any control - BattleLogicTests still exercises them directly via
+            // UseRecommendedLineupForTests(), which must keep passing unchanged.
+            _recommendedLineupButton = CreateButton(panel, "AUTO FORMATION", font, OnAutoFormationPressed);
+            _recommendedLineupButton.GetComponentInChildren<Text>().fontSize = 14;
+            RectTransform recRect = _recommendedLineupButton.GetComponent<RectTransform>();
+            recRect.anchorMin = new Vector2(0.005f, 0.98f);
+            recRect.anchorMax = new Vector2(0.005f, 0.98f);
+            recRect.pivot = new Vector2(0f, 1f);
+            recRect.sizeDelta = new Vector2(110f, 26f);
+            recRect.anchoredPosition = new Vector2(82f, 0f);
+
+            // Centered, not left-packed - a short hand (e.g. the tutorial's 3 cards) used to leave
+            // a wide empty gap to its right when packed against the left edge ("giant empty
+            // panel"); centering makes a small hand read as intentionally compact instead.
             var rowGo = new GameObject("HandRow", typeof(RectTransform));
             rowGo.transform.SetParent(panel, false);
             var rowRect = (RectTransform)rowGo.transform;
-            rowRect.anchorMin = new Vector2(0f, 0f);
-            rowRect.anchorMax = new Vector2(1f, 0.7f);
+            rowRect.anchorMin = new Vector2(0.16f, 0f);
+            rowRect.anchorMax = new Vector2(1f, 1f);
             rowRect.offsetMin = new Vector2(8, 4);
-            rowRect.offsetMax = new Vector2(-8, 0);
+            rowRect.offsetMax = new Vector2(-8, -4);
             var rowLayout = rowGo.AddComponent<HorizontalLayoutGroup>();
-            rowLayout.spacing = 18f;
+            rowLayout.spacing = 14f;
+            rowLayout.childAlignment = TextAnchor.MiddleCenter;
             rowLayout.childForceExpandWidth = false;
-            rowLayout.childControlWidth = false;
+            // 2026-08-16, real-raycast investigation: with this false, the layout group only
+            // ever used each card's LayoutElement.preferredWidth (130, from
+            // CreateCardButton/SetPreferredWidth) to compute row *spacing*, but never actually
+            // wrote it onto the card's own RectTransform - confirmed directly (a real
+            // GraphicRaycaster query at a hand card's own reported world-corner center found no
+            // hit at all; a manual sweep of every raycastable Graphic under canvas showed the
+            // card's real rect was still Unity's untouched 100x100 default, not 130x196 - the
+            // cards had silently never been their intended size). true is what makes the layout
+            // group actually apply that preferred size to the child's rect - same fix, same root
+            // cause, as CreateBoardRow's childControlHeight earlier this session.
+            rowLayout.childControlWidth = true;
+            rowLayout.childControlHeight = true;
             rowLayout.childForceExpandHeight = true;
             _handRow = rowRect;
+
+            // Hint text (affordability/placement rejection messages - ShowLaneHint) anchored
+            // over the placement box, the one part of this panel not already busy with cards.
+            _handHintText = CreateText(placementBox, "", 14, new Color(0.85f, 0.6f, 0.4f), font);
+            _handHintText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _handHintText.resizeTextForBestFit = true;
+            _handHintText.resizeTextMinSize = 10;
+            _handHintText.resizeTextMaxSize = 14;
+            StretchFull(_handHintText.rectTransform);
+            _handHintText.gameObject.SetActive(false);
         }
 
-        private void BuildEndTurnButton(Transform canvasTransform, Font font)
+        /// <summary>
+        /// V3's primary action region (handoff anchor: (.72,.02)-(.98,.18)) - just the single
+        /// large START BATTLE button now; the spell bar that used to share this band moved to the
+        /// activity rail (see BuildActivityRail), since the rail is where the mockup actually
+        /// puts spells and this region is Formation-only per the handoff ("Existing combat/result
+        /// state determines its later presentation; do not add actions").
+        /// </summary>
+        private void BuildPrimaryActionAndSpells(Transform canvasTransform, Font font)
         {
-            RectTransform panel = CreateBandPanel(canvasTransform, "PrimaryActionPanel", Color.clear, EndTurnY0, EndTurnY1);
+            RectTransform panel = CreateAnchoredPanel(canvasTransform, "PrimaryActionPanel", Color.clear,
+                PrimaryActionMin, PrimaryActionMax);
 
-            // The spell bar shares this band with the primary button: during Formation the
-            // button owns the row, during Combat the spells do. Only one is ever active.
-            //
-            // Rebuilt 2026-08-06 from four wide horizontal pills (childForceExpandWidth stretched
-            // across the row minus 150px side padding) into a dark action bar holding four fixed
-            // 64x64 icon slots, centred - the pill shape matched every other button in the game,
-            // which read as consistent, but was also flagged twice as too large for what's really
-            // a small set of icon toggles. A 3-line label ("Firestorm / 4 dmg to a lane / 30
-            // Energy") cannot fit a 64px tile, so the full name and effect description are gone
-            // from the tile itself - RefreshPhaseControls now writes just the number that matters
-            // in the moment (Energy cost, or ticks left on cooldown). The dimmed-icon-on-cooldown
-            // cue (already existing) is what's meant to carry "not ready" at a glance now that the
-            // word "ready" no longer fits.
-            var actionBarGo = new GameObject("SpellActionBar", typeof(RectTransform));
-            actionBarGo.transform.SetParent(panel, false);
-            Image actionBarBg = actionBarGo.AddComponent<Image>();
-            actionBarBg.sprite = CreateRoundedGradientSprite(new Color(0.05f, 0.05f, 0.08f, 0.85f),
-                new Color(0.02f, 0.02f, 0.04f, 0.85f), cornerRadius: 18);
-            actionBarBg.type = Image.Type.Sliced;
-            AnchorBand((RectTransform)actionBarGo.transform, 0.05f, 0.95f, 0.30f, 0.30f);
+            // Visual-review fix, 2026-08-16: the external "play match button" sprite (designed
+            // for a small ~220x60 button) was being stretched to fill this entire ~499x173 region
+            // (StretchFull below), which rendered as a plain white/blank rectangle at that scale
+            // rather than a readable button. Dropped the external-sprite override entirely and
+            // kept the standard procedural gradient pill CreateButton already uses everywhere else
+            // in this file (Reset/Recommended, spell rows, etc.) - proven, never white, and sized
+            // with real margin inside its region instead of edge-to-edge stretch.
+            _primaryActionButton = CreateButton(panel, "START BATTLE", font, OnPrimaryActionPressed);
+            RectTransform primaryRect = _primaryActionButton.GetComponent<RectTransform>();
+            primaryRect.anchorMin = new Vector2(0.5f, 0.5f);
+            primaryRect.anchorMax = new Vector2(0.5f, 0.5f);
+            primaryRect.pivot = new Vector2(0.5f, 0.5f);
+            primaryRect.sizeDelta = new Vector2(440f, 130f);
+            primaryRect.anchoredPosition = Vector2.zero;
 
-            _spellBar = (RectTransform)actionBarGo.transform;
-            var spellLayout = actionBarGo.AddComponent<HorizontalLayoutGroup>();
-            spellLayout.spacing = 10f;
-            spellLayout.childAlignment = TextAnchor.MiddleCenter;
-            spellLayout.childForceExpandWidth = false;
+            _primaryActionLabel = _primaryActionButton.GetComponentInChildren<Text>();
+            _primaryActionLabel.fontSize = 30;
+            _primaryActionLabel.fontStyle = FontStyle.Bold;
+
+            // Guided-tutorial Continue control (steps 6 and 8 - see TutorialStep's own doc
+            // comment) - shares this same region/sizing as Start Battle since the two are never
+            // shown together (Start Battle is Formation-only, Continue is Combat-only), and
+            // hidden by default outside those two steps (RefreshTutorialStepControls).
+            _tutorialContinueButton = CreateButton(panel, "Continue", font, OnTutorialContinuePressed);
+            RectTransform continueRect = _tutorialContinueButton.GetComponent<RectTransform>();
+            continueRect.anchorMin = new Vector2(0.5f, 0.5f);
+            continueRect.anchorMax = new Vector2(0.5f, 0.5f);
+            continueRect.pivot = new Vector2(0.5f, 0.5f);
+            continueRect.sizeDelta = new Vector2(440f, 130f);
+            continueRect.anchoredPosition = Vector2.zero;
+
+            _tutorialContinueLabel = _tutorialContinueButton.GetComponentInChildren<Text>();
+            _tutorialContinueLabel.fontSize = 30;
+            _tutorialContinueLabel.fontStyle = FontStyle.Bold;
+            _tutorialContinueButton.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// V4 splits the old combined rail into two separate, non-overlapping regions per the
+        /// handoff table: Combat activity rail (top-right) and Spell/action rail (below it) -
+        /// each a permanent in-shell panel, not a modal or floating overlay (the rejected pre-V3
+        /// Combat Log attempt was exactly that mistake - see its own revert).
+        /// </summary>
+        private void BuildActivityRail(Transform canvasTransform, Font font)
+        {
+            // Softened from near-black (0.05,0.05,0.08) and given a bronze top accent stripe -
+            // visual review read the stark near-black panel as "a floating black overlay"
+            // (echoing the earlier, rejected Combat Log slice's own mistake), even though this
+            // panel is genuinely native/in-shell, built alongside every other Build* region in
+            // Initialize(), never toggled as a modal. A visibly bordered, less-black panel reads
+            // as part of the shell rather than something floating disconnected on top of it.
+            RectTransform rail = CreateAnchoredPanel(canvasTransform, "ActivityRail",
+                new Color(0.09f, 0.08f, 0.13f, V3PanelAlpha), ActivityRailMin, ActivityRailMax);
+            Image railAccent = CreateImage(rail, AccentBorderColor);
+            railAccent.rectTransform.anchorMin = new Vector2(0f, 1f);
+            railAccent.rectTransform.anchorMax = new Vector2(1f, 1f);
+            railAccent.rectTransform.pivot = new Vector2(0.5f, 1f);
+            railAccent.rectTransform.sizeDelta = new Vector2(0f, 3f);
+            railAccent.rectTransform.anchoredPosition = Vector2.zero;
+            railAccent.raycastTarget = false;
+
+            Text railTitle = CreateText(rail, "COMBAT ACTIVITY", 19, GoldTextColor, font);
+            railTitle.fontStyle = FontStyle.Bold;
+            railTitle.raycastTarget = false;
+            AnchorBand(railTitle.rectTransform, 0.92f, 0.99f, 0.04f, 0.04f);
+
+            _activityLogText = CreateText(rail, "", 15, Color.white, font);
+            _activityLogText.raycastTarget = false;
+            _activityLogText.alignment = TextAnchor.UpperLeft;
+            _activityLogText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _activityLogText.verticalOverflow = VerticalWrapMode.Truncate;
+            AnchorBand(_activityLogText.rectTransform, 0.02f, 0.90f, 0.04f, 0.04f);
+
+            // Separate Spell/action rail region, below and independent of the activity rail -
+            // never scrolls together and never shares a raycastable background with it.
+            RectTransform spellRail = CreateAnchoredPanel(canvasTransform, "SpellRail",
+                new Color(0.09f, 0.08f, 0.13f, V3PanelAlpha), SpellRailMin, SpellRailMax);
+            Image spellRailAccent = CreateImage(spellRail, AccentBorderColor);
+            spellRailAccent.rectTransform.anchorMin = new Vector2(0f, 1f);
+            spellRailAccent.rectTransform.anchorMax = new Vector2(1f, 1f);
+            spellRailAccent.rectTransform.pivot = new Vector2(0.5f, 1f);
+            spellRailAccent.rectTransform.sizeDelta = new Vector2(0f, 3f);
+            spellRailAccent.rectTransform.anchoredPosition = Vector2.zero;
+            spellRailAccent.raycastTarget = false;
+
+            Text spellsTitle = CreateText(spellRail, "SPELLS", 19, GoldTextColor, font);
+            spellsTitle.fontStyle = FontStyle.Bold;
+            spellsTitle.raycastTarget = false;
+            AnchorBand(spellsTitle.rectTransform, 0.90f, 0.99f, 0.04f, 0.04f);
+
+            _spellBar = CreateAnchoredPanel(spellRail, "SpellList", Color.clear, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.88f));
+            var spellLayout = _spellBar.gameObject.AddComponent<VerticalLayoutGroup>();
+            spellLayout.spacing = 6f;
+            spellLayout.childAlignment = TextAnchor.UpperCenter;
+            spellLayout.childForceExpandWidth = true;
             spellLayout.childForceExpandHeight = false;
-            spellLayout.childControlWidth = false;
+            spellLayout.childControlWidth = true;
             spellLayout.childControlHeight = false;
 
             for (int i = 0; i < 4; i++)
@@ -1764,109 +3408,59 @@ namespace MyriadOfDragons.UI
                 // onClick always fires on release regardless of hold duration, which can't
                 // express that. SpellIconPointerHandler below owns the distinction instead.
                 Button spell = CreateButton(_spellBar, "", font, null);
-                SetPreferredWidth(spell.gameObject, 64f);
-                SetPreferredHeight(spell.gameObject, 64f);
+                SetPreferredHeight(spell.gameObject, 62f);
+                var spellRowLayout = spell.gameObject.AddComponent<HorizontalLayoutGroup>();
+                spellRowLayout.spacing = 8f;
+                spellRowLayout.padding = new RectOffset(6, 6, 4, 4);
+                spellRowLayout.childAlignment = TextAnchor.MiddleLeft;
+                spellRowLayout.childForceExpandWidth = false;
+                spellRowLayout.childForceExpandHeight = true;
+                spellRowLayout.childControlWidth = false;
+                spellRowLayout.childControlHeight = true;
 
                 var pointerHandler = spell.gameObject.AddComponent<SpellIconPointerHandler>();
                 pointerHandler.OnQuickTap = () => OnSpellTapped(spellIndex);
                 pointerHandler.OnHoldStart = () => ShowSpellTooltip(spellIndex, spell.GetComponent<RectTransform>());
                 pointerHandler.OnHoldEnd = HideSpellTooltip;
 
-                // Icon fills almost the whole tile - a 64px slot has no room left for an icon
-                // plus a separate readable label the way the old wide pill did.
                 var iconGo = new GameObject("Icon", typeof(RectTransform));
                 iconGo.transform.SetParent(spell.transform, false);
+                SetPreferredWidth(iconGo, 52f);
                 var icon = iconGo.AddComponent<Image>();
                 icon.raycastTarget = false;
                 icon.preserveAspect = true;
-                AnchorBand((RectTransform)iconGo.transform, 0.16f, 0.94f, 0.10f, 0.10f);
 
-                // Cost/cooldown number only, as a small corner chip rather than a text line inside
-                // the tile - reuses the same rounded-badge helper the card stat chips use, so this
-                // matches the visual language everywhere else numbers-on-art appear in this game.
-                Text spellLabel = CreateText(spell.transform, "", 12, Color.white, font);
-                spellLabel.fontStyle = FontStyle.Bold;
+                var textColGo = new GameObject("Text", typeof(RectTransform));
+                textColGo.transform.SetParent(spell.transform, false);
+                SetPreferredWidth(textColGo, 260f);
+                var textColLayout = textColGo.AddComponent<VerticalLayoutGroup>();
+                textColLayout.childAlignment = TextAnchor.MiddleLeft;
+                textColLayout.childForceExpandWidth = true;
+                textColLayout.childForceExpandHeight = false;
+                textColLayout.childControlWidth = true;
+                textColLayout.childControlHeight = false;
+
+                Text spellName = CreateText(textColGo.transform, "", 17, Color.white, font);
+                spellName.fontStyle = FontStyle.Bold;
+                spellName.raycastTarget = false;
+                spellName.alignment = TextAnchor.MiddleLeft;
+                spellName.horizontalOverflow = HorizontalWrapMode.Overflow;
+                SetPreferredHeight(spellName.gameObject, 24f);
+
+                // Cost/cooldown number - see RefreshPhaseControls for exactly what this shows
+                // (live cost while ready, remaining cooldown ticks while not).
+                Text spellLabel = CreateText(textColGo.transform, "", 15, Color.white, font);
                 spellLabel.raycastTarget = false;
-                AnchorBand(spellLabel.rectTransform, -0.02f, 0.20f, 0.05f, 0.05f);
-                var labelOutline = spellLabel.gameObject.AddComponent<Outline>();
-                labelOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
-                labelOutline.effectDistance = new Vector2(1f, -1f);
+                spellLabel.alignment = TextAnchor.MiddleLeft;
+                spellLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+                SetPreferredHeight(spellLabel.gameObject, 20f);
 
                 _spellButtons.Add(spell);
                 _spellLabels.Add(spellLabel);
                 _spellIcons.Add(icon);
+                _spellNameLabels.Add(spellName);
             }
             _spellBar.gameObject.SetActive(false);
-
-            // "Compact metallic action button" using the real button art from the icon set
-            // (2026-08-06) instead of the procedural pill every other button in this file uses -
-            // falls back to the same procedural pill if the sprite is ever missing, matching the
-            // defensive pattern used everywhere else art is optional in this file.
-            Sprite primaryArt = Resources.Load<Sprite>("UI/Icons/play match button");
-            if (primaryArt != null)
-            {
-                _primaryActionButton = CreateButton(panel, "START BATTLE", font, OnPrimaryActionPressed);
-                Image primaryBg = _primaryActionButton.GetComponent<Image>();
-                Image primaryFill = _primaryActionButton.transform.Find("Fill")?.GetComponent<Image>();
-                primaryBg.sprite = null;
-                primaryBg.color = Color.clear;
-                if (primaryFill != null)
-                {
-                    primaryFill.sprite = primaryArt;
-                    primaryFill.type = Image.Type.Sliced;
-                    primaryFill.color = Color.white;
-                }
-            }
-            else
-            {
-                _primaryActionButton = CreateButton(panel, "START BATTLE", font, OnPrimaryActionPressed);
-            }
-
-            // Bottom-right corner, sized close to a compact 220x60 action button rather than a
-            // bar spanning the row - AnchorBand's fractional inset already put this at roughly
-            // that size within a 720-wide canvas; the fixed pixel width/height below makes the
-            // intended size explicit instead of implicit in the inset math.
-            RectTransform primaryRect = _primaryActionButton.GetComponent<RectTransform>();
-            primaryRect.anchorMin = new Vector2(1f, 0f);
-            primaryRect.anchorMax = new Vector2(1f, 0f);
-            primaryRect.pivot = new Vector2(1f, 0f);
-            primaryRect.sizeDelta = new Vector2(220f, 60f);
-            primaryRect.anchoredPosition = new Vector2(-16f, 6f);
-            _primaryActionLabel = _primaryActionButton.GetComponentInChildren<Text>();
-            _primaryActionLabel.fontSize = 18;
-        }
-
-        /// <summary>
-        /// "Reset Lineup" and "Recommended" from the reference UI - both restart the current
-        /// match immediately with a freshly drawn deck (see StartNewMatch's useRecommendedDeck
-        /// parameter for what "Recommended" actually means without a real deck-builder yet).
-        ///
-        /// Shrunk further and pushed to the far right (2026-08-06, "remove Start Battle/Reset
-        /// Lineup/Recommended from overlapping the card hand"). These stay - they are the only
-        /// working way to change the deck without a real deck-builder UI, so removing them would
-        /// remove a real capability, not just declutter - but they no longer need to be full-size
-        /// pill buttons competing with the primary action for the same row's width. Left-padding
-        /// widened to keep them clear of both the primary action button's own corner (see
-        /// BuildEndTurnButton) and the taller hand cards now sitting directly above this row.
-        /// </summary>
-        private void BuildLineupButtons(Transform canvasTransform, Font font)
-        {
-            RectTransform panel = CreateBandPanel(canvasTransform, "LineupButtonsPanel", Color.clear, LineupButtonsY0, LineupButtonsY1);
-            var layout = panel.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 8f;
-            layout.childForceExpandWidth = false;
-            layout.childForceExpandHeight = true;
-            layout.childControlWidth = false;
-            layout.childAlignment = TextAnchor.MiddleRight;
-            layout.padding = new RectOffset(0, 20, 2, 2);
-
-            _resetLineupButton = CreateButton(panel, "Reset", font, () => OnLineupButtonPressed(useRecommendedDeck: false));
-            _resetLineupButton.GetComponentInChildren<Text>().fontSize = 12;
-            SetPreferredWidth(_resetLineupButton.gameObject, 90);
-
-            _recommendedLineupButton = CreateButton(panel, "Recommended", font, () => OnLineupButtonPressed(useRecommendedDeck: true));
-            _recommendedLineupButton.GetComponentInChildren<Text>().fontSize = 12;
-            SetPreferredWidth(_recommendedLineupButton.gameObject, 110);
         }
 
         /// <summary>
@@ -1953,6 +3547,133 @@ namespace MyriadOfDragons.UI
             AnchorBand(skip.GetComponent<RectTransform>(), 0.04f, 0.18f, 0.80f, 0.04f);
 
             _tutorialOverlay.SetActive(false);
+        }
+
+        /// <summary>
+        /// Builds the guided-tutorial teaching overlay: a single full-screen blocker, an
+        /// always-topmost proxy container (holding a bright marker frame + downward arrow, plus
+        /// whichever Tutorial Action Proxy RefreshTutorialTeachingOverlay currently builds - see
+        /// this region's own top-of-file comment for why nothing real is ever reparented into
+        /// it), a readable guide panel (existing Lightbringer portrait, speaker name, instruction
+        /// text), and a top-right Skip Tutorial button. Hidden by default;
+        /// RefreshTutorialTeachingOverlay (via RefreshTutorialStepControls, called by every
+        /// RefreshAll()) shows, hides and repositions it every refresh.
+        ///
+        /// Unrelated to _tutorialOverlay/BuildTutorialOverlay above (the JSON-driven first-run
+        /// narrative/pointing-arrow intro, gated on Application.isPlaying and never active during
+        /// a guided battle) - this overlay is driven purely by _tutorialStep instead.
+        /// </summary>
+        private void BuildTutorialTeachingOverlay(Transform canvasTransform, Font font)
+        {
+            _tutorialTeachingOverlay = new GameObject("TutorialTeachingOverlay");
+            _tutorialTeachingOverlay.transform.SetParent(canvasTransform, false);
+            StretchFull(_tutorialTeachingOverlay.AddComponent<RectTransform>());
+
+            var blockerGo = new GameObject("TutorialFullScreenBlocker", typeof(RectTransform));
+            blockerGo.transform.SetParent(_tutorialTeachingOverlay.transform, false);
+            _tutorialFullScreenBlocker = blockerGo.AddComponent<Image>();
+            _tutorialFullScreenBlocker.color = new Color(0f, 0f, 0f, 0.78f);
+            _tutorialFullScreenBlocker.raycastTarget = true; // the entire point: block every non-target tap
+            StretchFull(_tutorialFullScreenBlocker.rectTransform);
+
+            BuildTutorialGuidePanel(_tutorialTeachingOverlay.transform, font);
+
+            _tutorialSkipButton = CreateButton(_tutorialTeachingOverlay.transform, "SKIP TUTORIAL", font, OnSkipTutorialPressed);
+            RectTransform skipRect = _tutorialSkipButton.GetComponent<RectTransform>();
+            skipRect.anchorMin = new Vector2(1f, 1f);
+            skipRect.anchorMax = new Vector2(1f, 1f);
+            skipRect.pivot = new Vector2(1f, 1f);
+            skipRect.sizeDelta = new Vector2(190f, 56f);
+            skipRect.anchoredPosition = new Vector2(-24f, -24f);
+            Text skipLabel = _tutorialSkipButton.GetComponentInChildren<Text>();
+            skipLabel.fontSize = 18;
+            skipLabel.fontStyle = FontStyle.Bold;
+
+            // Always the last child under the overlay (and therefore under the whole canvas) -
+            // holds only the decorative marker (built here, permanent) and the Tutorial Action
+            // Proxy (built/destroyed fresh every refresh, appended as its last child) - never a
+            // real gameplay control. Never reordered after this.
+            var containerGo = new GameObject("TutorialProxyContainer", typeof(RectTransform));
+            containerGo.transform.SetParent(_tutorialTeachingOverlay.transform, false);
+            _tutorialProxyContainer = (RectTransform)containerGo.transform;
+            StretchFull(_tutorialProxyContainer);
+
+            Color markerColor = new Color(0.35f, 0.95f, 0.95f); // cyan
+            _tutorialMarkerTop = BuildTutorialMarkerStrip(_tutorialProxyContainer, "MarkerTop", markerColor);
+            _tutorialMarkerBottom = BuildTutorialMarkerStrip(_tutorialProxyContainer, "MarkerBottom", markerColor);
+            _tutorialMarkerLeft = BuildTutorialMarkerStrip(_tutorialProxyContainer, "MarkerLeft", markerColor);
+            _tutorialMarkerRight = BuildTutorialMarkerStrip(_tutorialProxyContainer, "MarkerRight", markerColor);
+
+            var arrowGo = new GameObject("TutorialMarkerArrow", typeof(RectTransform));
+            arrowGo.transform.SetParent(_tutorialProxyContainer, false);
+            _tutorialMarkerArrow = (RectTransform)arrowGo.transform;
+            var arrowImage = arrowGo.AddComponent<Image>();
+            arrowImage.sprite = Resources.Load<Sprite>("UI/Icons/Tutorial_Arrow");
+            arrowImage.color = markerColor;
+            arrowImage.preserveAspect = true;
+            arrowImage.raycastTarget = false;
+            // Arrow art points right by default elsewhere in this file (PointArrowAt) - rotated
+            // to point down at the target sitting directly below it here.
+            arrowGo.transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
+
+            _tutorialTeachingOverlay.SetActive(false);
+        }
+
+        /// <summary>One thin, bright, non-raycast-blocking strip of the target marker's frame -
+        /// purely decorative, see PositionMarkerAroundTarget's own comment.</summary>
+        private static RectTransform BuildTutorialMarkerStrip(Transform parent, string name, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var image = go.AddComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return (RectTransform)go.transform;
+        }
+
+        /// <summary>
+        /// The readable guide panel: existing Lightbringer portrait, speaker name (>=22px), and
+        /// instruction text (>=28px) over a near-opaque, high-contrast panel with real margins on
+        /// every side - rejected 2026-08-16 for being "readable only at extreme zoom" at the
+        /// previous 15/16px sizes with tight insets.
+        /// </summary>
+        private void BuildTutorialGuidePanel(Transform parent, Font font)
+        {
+            _tutorialGuidePanelRect = CreateRoundedPanel(parent, "TutorialGuidePanel",
+                new Color(0.04f, 0.04f, 0.06f, 0.97f), new Color(0.04f, 0.04f, 0.06f, 0.97f));
+            _tutorialGuidePanelRect.offsetMin = Vector2.zero;
+            _tutorialGuidePanelRect.offsetMax = Vector2.zero;
+
+            // A solid, opaque fill behind the ornate frame sprite CreateRoundedPanel prefers -
+            // that frame has transparent corners/edges by design (see its own comment), which is
+            // the right look for a modal but leaves this panel's text sitting directly over
+            // whatever board content is behind it, hurting contrast. Inserted as the first (so,
+            // furthest-back) child specifically so the frame art still shows on top of it.
+            Image solidBackdrop = CreateImage(_tutorialGuidePanelRect, new Color(0.04f, 0.04f, 0.06f, 0.94f));
+            StretchFull(solidBackdrop.rectTransform);
+            solidBackdrop.raycastTarget = false;
+            solidBackdrop.transform.SetAsFirstSibling();
+
+            var portraitGo = new GameObject("TutorialGuidePortrait", typeof(RectTransform));
+            portraitGo.transform.SetParent(_tutorialGuidePanelRect, false);
+            AnchorBand((RectTransform)portraitGo.transform, 0.08f, 0.92f, 0.06f, 0.68f);
+            var portraitImg = portraitGo.AddComponent<Image>();
+            portraitImg.sprite = Resources.Load<Sprite>("UI/Portraits/Paladin");
+            portraitImg.preserveAspect = true;
+            portraitImg.raycastTarget = false;
+
+            _tutorialGuideSpeakerText = CreateText(_tutorialGuidePanelRect, "LIGHTBRINGER", 24, GoldTextColor, font);
+            _tutorialGuideSpeakerText.fontStyle = FontStyle.Bold;
+            _tutorialGuideSpeakerText.alignment = TextAnchor.UpperLeft;
+            _tutorialGuideSpeakerText.raycastTarget = false;
+            AnchorBand(_tutorialGuideSpeakerText.rectTransform, 0.80f, 0.94f, 0.36f, 0.06f);
+
+            _tutorialGuideBodyText = CreateText(_tutorialGuidePanelRect, "", 30, Color.white, font);
+            _tutorialGuideBodyText.alignment = TextAnchor.UpperLeft;
+            _tutorialGuideBodyText.raycastTarget = false;
+            _tutorialGuideBodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _tutorialGuideBodyText.verticalOverflow = VerticalWrapMode.Overflow;
+            AnchorBand(_tutorialGuideBodyText.rectTransform, 0.06f, 0.78f, 0.36f, 0.06f);
         }
 
         /// <summary>
@@ -2563,7 +4284,11 @@ namespace MyriadOfDragons.UI
             panel.offsetMin = Vector2.zero;
             panel.offsetMax = Vector2.zero;
 
-            _resultText = CreateText(panel, "", 18, Color.white, font);
+            // V3 visual-review fix, 2026-08-16: this overlay is anchored against the full 1920x1080
+            // canvas (not one of V3's new smaller regions), so its panel is already large - only
+            // its internal text was still sized for the old 720-wide canvas. Bumped for legibility
+            // at the new scale; no layout/anchor change.
+            _resultText = CreateText(panel, "", 32, Color.white, font);
             AnchorBand(_resultText.rectTransform, 0.4f, 0.85f, 0.06f, 0.06f);
 
             // Side by side rather than stacked (2026-08-06, "RETURN TO CITY" added for the
@@ -2577,10 +4302,12 @@ namespace MyriadOfDragons.UI
             _playAgainButton = CreateButton(panel, "Play Again", font, OnPlayAgainOrRetryPressed);
             AnchorBand(_playAgainButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.53f, 0.05f);
             _playAgainLabel = _playAgainButton.GetComponentInChildren<Text>();
+            _playAgainLabel.fontSize = 22;
 
             _returnToCityButton = CreateButton(panel, "Return to City", font, OnReturnToCityPressed);
             AnchorBand(_returnToCityButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.05f, 0.53f);
             _returnToCityLabel = _returnToCityButton.GetComponentInChildren<Text>();
+            _returnToCityLabel.fontSize = 22;
 
             _resultOverlay.SetActive(false);
         }
@@ -2616,6 +4343,19 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void SelectOrDeselectFormationHandCard(Card card)
         {
+            // Guided-tutorial gate: the real block for a UI tap already happened at the button's
+            // own Button.interactable (see RefreshHand) - this re-check is what makes a direct
+            // (test) call to OnHandCardPressed/HandCardPressedForTests honor the same rule.
+            if (_tutorialStep != null)
+            {
+                string allowedCardId = TutorialAllowedCardId();
+                if (allowedCardId == null || card.Id != allowedCardId)
+                {
+                    ShowLaneHint("Follow the tutorial: tap the highlighted card.");
+                    return;
+                }
+            }
+
             bool nowSelected = _selectedCard != card;
             if (nowSelected && card.ResourceCost > _battleController.PlayerState.Resource)
             {
@@ -2624,12 +4364,37 @@ namespace MyriadOfDragons.UI
             }
 
             _selectedCard = nowSelected ? card : null;
+
+            // Step 1 (CardCost) advances the instant its one approved card is selected - see
+            // TutorialStep.CardCost's own doc comment.
+            if (nowSelected && _tutorialStep == TutorialStep.CardCost && card.Id == "warrior")
+            {
+                AdvanceTutorialStep(TutorialStep.FrontLane);
+            }
+
             RefreshAll();
             if (nowSelected) PopSelectedHandCard(card);
         }
 
         private void OnLanePressed(Lane lane)
         {
+            // Guided-tutorial gate: only during Formation, where every step but the two card-
+            // placement ones has no legal lane action at all (TutorialAllowedLane returns null
+            // for CardCost and BeginBattle alike, blocking every lane exactly as required). The
+            // real UI-level block already happened at the button's own Button.interactable (see
+            // RefreshLaneButtons); this is what makes a direct (test) call honor the same rule.
+            // Combat-phase gating (the SpellLesson step's single valid target) lives in
+            // OnSpellTargetLanePressed instead, since armed-spell taps route through there.
+            if (_tutorialStep != null && _battleController.Phase == BattlePhase.Formation)
+            {
+                Lane? allowedLane = TutorialAllowedLane();
+                if (allowedLane == null || lane != allowedLane.Value)
+                {
+                    ShowLaneHint("Follow the tutorial: tap the highlighted lane.");
+                    return;
+                }
+            }
+
             // A friendly-targeted spell (Mend, War Cry) being armed takes over what a player-lane
             // tap means, ahead of every other reading below - card placement and reinforcement
             // are Formation/Combat concepts that already coexist by phase, but spell targeting can
@@ -2712,6 +4477,7 @@ namespace MyriadOfDragons.UI
             if (played)
             {
                 _selectedCard = null;
+                AdvanceTutorialStepAfterPlacement(playedCard, lane);
                 RefreshAll();
                 PlayEffect(_playerLaneSlots[lane], ElementEffectSprite(playedCard.Element), Vector2.zero, 60f, 0.6f);
                 SlideNewestCardIntoLane(lane);
@@ -2741,6 +4507,14 @@ namespace MyriadOfDragons.UI
         {
             if (_battleController.Phase != BattlePhase.Formation) return;
 
+            // Start Battle's own gate is the pre-existing, path-independent one directly below
+            // (HasAllApprovedTutorialStarterCardsDeployed) - it only cares whether all three
+            // starters are actually on the board, not which sequence of taps put them there.
+            // A stricter "must have reached guided step BeginBattle" gate used to live here too,
+            // but that made Start Battle depend on the guided sequence's own bookkeeping (which
+            // only advances through OnHandCardPressed/OnLanePressed) rather than on the real
+            // board state - redundant with, and strictly narrower than, the check below.
+
             // Approved tutorial encounter, Command Centre decision 2026-08-15: the fixed
             // enemy hand (4 cards, SimpleAIOpponent deploys all of it) only produces the
             // validated, teachable encounter against a COMPLETE player formation - the normal
@@ -2768,6 +4542,28 @@ namespace MyriadOfDragons.UI
             }
 
             _selectedCard = null;
+
+            if (_tutorialStep == TutorialStep.BeginBattle)
+            {
+                // Guided step 5 -> 6: the tutorial paces combat entirely through its own Continue
+                // control (see OnTutorialContinuePressed), never the real-time CombatLoop - the
+                // first exchange resolves synchronously right here, the instant Combat begins,
+                // so step 6 has real numbers to show immediately rather than waiting on a timer.
+                AdvanceTutorialStep(TutorialStep.FirstCombatResult);
+                if (_battleController.Phase == BattlePhase.Combat)
+                {
+                    TurnResolutionResult result = _battleController.AdvanceCombatTick();
+                    RefreshAll();
+                    ShowTurnDamage(result);
+                    ShowClashEffects(result);
+                }
+                else
+                {
+                    RefreshAll();
+                }
+                return;
+            }
+
             RefreshAll();
             StartCombatLoop();
         }
@@ -2779,6 +4575,85 @@ namespace MyriadOfDragons.UI
         /// EndTurnForTests deliberately does not cover this - it calls ConfirmFormation()
         /// directly, bypassing this method (and its gate) entirely.</summary>
         public void StartBattleForTests() => OnPrimaryActionPressed();
+
+        /// <summary>Exposed for tests: the real Auto Formation control (the relabeled Recommended
+        /// button - see BuildPrimaryActionAndSpells) calls the private OnAutoFormationPressed()
+        /// directly.</summary>
+        public void AutoFormationForTests() => OnAutoFormationPressed();
+
+        /// <summary>Release feature: true only for a normal (non-tutorial) match, in Formation,
+        /// with a valid confirmed deck actually loaded, and no card placed in any player lane
+        /// yet - the exact window the relabeled Auto Formation control (formerly Recommended
+        /// Lineup) is visible in (see RefreshPhaseControls). The tutorial is completely excluded
+        /// (IsTutorialMatch) - it always drives its own fixed starter placement through the
+        /// guided TutorialStep sequence instead, never this path.</summary>
+        private bool ShouldOfferAutoFormation()
+        {
+            return !IsTutorialMatch
+                && _battleController.Phase == BattlePhase.Formation
+                && _normalMatchStartError == null
+                && !AnyPlayerLaneOccupied();
+        }
+
+        /// <summary>The relabeled Recommended control's real click handler (release feature:
+        /// "turn the existing normal-battle Recommended control into AUTO FORMATION"). Re-checks
+        /// the same conditions as ShouldOfferAutoFormation (the button's own Button.interactable/
+        /// active state already blocks a real tap outside them, but every other handler in this
+        /// file re-checks its own gate directly too, so a direct test call - or a stale click
+        /// that lands after a state change - can never bypass it). Deliberately does not call
+        /// OnLineupButtonPressed/StartNewMatch/AutoDeployRecommendedFormation - those remain
+        /// fully intact and still reachable via UseRecommendedLineupForTests(), just no longer
+        /// wired to any visible control.</summary>
+        private void OnAutoFormationPressed()
+        {
+            if (!ShouldOfferAutoFormation()) return;
+            PerformAutoFormation();
+        }
+
+        private bool AnyPlayerLaneOccupied() =>
+            _battleController.PlayerState.Lanes.Values.Any(l => l.Cards.Count > 0);
+
+        private bool AllPlayerLanesOccupied() =>
+            _battleController.PlayerState.Lanes.Values.All(l => l.Cards.Count > 0);
+
+        /// <summary>
+        /// One-tap onboarding: places a sensible legal three-card opening formation - one card
+        /// each in Front, Middle, and Back - using BattleController.TryPlayCard, the exact same
+        /// production placement route a manual hand-card-then-lane tap already uses (see
+        /// OnLanePressed's own non-reinforcement deploy call). No new placement rule, room check,
+        /// or affordability rule is introduced; a lane is simply skipped if nothing in the
+        /// current hand both fits it and is currently affordable, rather than than forcing an
+        /// illegal placement. Manual placement remains fully available afterward through the
+        /// unchanged OnHandCardPressed/OnLanePressed flow - this does not lock, consume, or mark
+        /// any UI state beyond the cards it actually plays.
+        /// </summary>
+        private void PerformAutoFormation()
+        {
+            Lane[] lanes = { Lane.Front, Lane.Middle, Lane.Back };
+            PlayerBattleState player = _battleController.PlayerState;
+
+            foreach (Lane lane in lanes)
+            {
+                // One card per lane: prefer single-slot cards so all three lanes fill, then the
+                // strongest affordable option (cost, then Attack, then Id). This is the beginner
+                // "basic squad" path - competent Front/Middle/Back without dumping the three
+                // cheapest leftovers, and without a rarity-5+ card claiming a whole lane early.
+                Card candidate = player.Hand
+                    .Where(c => c.ResourceCost <= player.Resource && player.Lanes[lane].HasRoomFor(c))
+                    .OrderBy(c => c.SlotWeight)
+                    .ThenByDescending(c => c.ResourceCost)
+                    .ThenByDescending(c => c.Attack)
+                    .ThenBy(c => c.Id)
+                    .FirstOrDefault();
+
+                if (candidate == null) continue;
+
+                _battleController.TryPlayCard(player, candidate, lane);
+            }
+
+            _selectedCard = null;
+            RefreshAll();
+        }
 
         /// <summary>Exposed for tests: the real hand-card tap calls the private
         /// OnHandCardPressed() directly - the only way an EditMode test can exercise the
@@ -2909,8 +4784,22 @@ namespace MyriadOfDragons.UI
         /// for a spell that cannot actually be cast, AvatarStrike casts immediately since it has
         /// no lane to pick, and everything else arms targeting mode instead of casting outright.
         /// </summary>
+        /// <summary>The one spell (Firestorm, index 0) the guided tutorial unlocks for its
+        /// step-7 lesson - see TutorialStep.SpellLesson's own doc comment.</summary>
+        private const int TutorialLessonSpellIndex = 0;
+
         private void OnSpellTapped(int spellIndex)
         {
+            // Guided-tutorial gate: no spell is usable outside step 7, and only the one approved
+            // spell is usable within it - real UI-level block is the button's own gating in
+            // RefreshPhaseControls; this is what makes a direct call honor the same rule.
+            if (_tutorialStep != null
+                && (_tutorialStep != TutorialStep.SpellLesson || spellIndex != TutorialLessonSpellIndex))
+            {
+                ShowLaneHint("Follow the tutorial: tap the highlighted spell.");
+                return;
+            }
+
             if (spellIndex >= _battleController.Spellbook.Count) return;
             AvatarSpell spell = _battleController.Spellbook[spellIndex];
 
@@ -2951,6 +4840,15 @@ namespace MyriadOfDragons.UI
             ArmSpellTargeting(spellIndex);
         }
 
+        /// <summary>Exposed for tests: the real spell-tile quick-tap calls the private
+        /// OnSpellTapped() directly - EditMode tests have no way to simulate
+        /// SpellIconPointerHandler's own pointer-down/up timing.</summary>
+        public void SpellTappedForTests(int spellIndex) => OnSpellTapped(spellIndex);
+
+        /// <summary>Exposed for tests: the real armed-spell enemy-lane tap calls the private
+        /// OnSpellTargetLanePressed() directly.</summary>
+        public void SpellTargetLanePressedForTests(Lane lane) => OnSpellTargetLanePressed(lane);
+
         /// <summary>
         /// Enters targeting mode for `spellIndex`: highlights the side its effect actually
         /// targets (the enemy board for LaneDamage, the player's own board for LaneHeal/
@@ -2972,8 +4870,15 @@ namespace MyriadOfDragons.UI
                 // every tick and needs to know about armed-spell state regardless - see its own
                 // comment on why highlight can't be set once and left alone). Only the enemy side
                 // needs explicit wiring here, since nothing else ever makes it interactable.
+                // Guided-tutorial gate: only the one scripted target lane highlights/accepts a
+                // tap during the step-7 spell lesson - the other two enemy lanes stay exactly as
+                // CancelSpellTargeting already left them (non-interactable, unhighlighted).
+                bool tutorialGatesTarget = _tutorialStep == TutorialStep.SpellLesson;
+
                 foreach (Lane lane in System.Enum.GetValues(typeof(Lane)).Cast<Lane>())
                 {
+                    if (tutorialGatesTarget && lane != TutorialLessonTargetLane) continue;
+
                     Button enemyButton = _enemyLaneButtons[lane];
                     enemyButton.interactable = true;
                     enemyButton.onClick.RemoveAllListeners();
@@ -2990,6 +4895,13 @@ namespace MyriadOfDragons.UI
 
             RefreshLaneButtons(); // picks up armedSpellIsFriendly immediately, not next tick
             _spellTargetCancelCatcher.SetActive(true);
+
+            // Neither this nor CancelSpellTargeting below calls the full RefreshAll() (this
+            // method deliberately avoids it - see the comment on RefreshLaneButtons just above),
+            // but the teaching overlay's spotlight must still jump from the spell tile to the
+            // enemy target lane the instant it arms - a stale spotlight here would leave it
+            // pointing at a tile the player already tapped instead of what to tap next.
+            RefreshTutorialTeachingOverlay();
         }
 
         /// <summary>Leaves targeting mode without casting - used both for an explicit cancel (tap
@@ -3011,11 +4923,27 @@ namespace MyriadOfDragons.UI
 
             if (_spellTargetCancelCatcher != null) _spellTargetCancelCatcher.SetActive(false);
             RefreshLaneButtons(); // clears the player-side highlight now that nothing is armed
+            RefreshTutorialTeachingOverlay(); // reverts the spotlight to the spell tile after a real cancel
         }
+
+        /// <summary>The one enemy lane the guided tutorial's spell lesson allows as a target -
+        /// the sole survivor of the scripted first exchange (see StartApprovedTutorialBattle's
+        /// own comment on enemyDeck for why that's deterministic).</summary>
+        private const Lane TutorialLessonTargetLane = Lane.Middle;
 
         private void OnSpellTargetLanePressed(Lane lane)
         {
             if (_armedSpellIndex < 0) return;
+
+            // Guided-tutorial gate: only the one scripted enemy lane is a legal target - the
+            // real UI-level block is ArmSpellTargeting's own restriction (see its own comment);
+            // this is what makes a direct call honor the same rule.
+            if (_tutorialStep == TutorialStep.SpellLesson && lane != TutorialLessonTargetLane)
+            {
+                ShowLaneHint("Follow the tutorial: tap the highlighted enemy lane.");
+                return;
+            }
+
             int spellIndex = _armedSpellIndex;
             // Cleared before casting, not after - CastSpellAt calls RefreshAll(), and
             // RefreshLaneButtons reading a stale _armedSpellIndex mid-cast would re-highlight a
@@ -3026,6 +4954,22 @@ namespace MyriadOfDragons.UI
 
         private void CastSpellAt(int spellIndex, Lane lane)
         {
+            int energyBefore = _battleController.Energy;
+
+            // Firestorm (and every guided-lesson spell) targets a *lane*, not the enemy Avatar
+            // directly - EnemyState.AvatarHealth only ever changes from combat damage getting
+            // through, never from this cast itself, so it was always going to read "22 -> 22" and
+            // misleadingly imply the spell did nothing (reported 2026-08-16). Capture the actual
+            // targeted unit's own identity/Health before the cast (it may be destroyed by it, so
+            // this must happen before TryCastSpell, not after).
+            BattleCardInstance tutorialTargetBefore = null;
+            int tutorialTargetHealthBefore = 0;
+            if (_tutorialStep == TutorialStep.SpellLesson && lane == TutorialLessonTargetLane)
+            {
+                tutorialTargetBefore = _battleController.EnemyState.Lanes[lane].Cards.FirstOrDefault();
+                tutorialTargetHealthBefore = tutorialTargetBefore?.CurrentHealth ?? 0;
+            }
+
             if (!_battleController.TryCastSpell(spellIndex, lane, out int avatarDamage))
             {
                 ShowLaneHint("That spell isn't ready yet - not enough Energy, or still cooling down.");
@@ -3033,6 +4977,24 @@ namespace MyriadOfDragons.UI
             }
 
             AvatarSpell cast = _battleController.Spellbook[spellIndex];
+
+            // Guided step 7 -> 8: build the "before/after" summary (task requirement: "Show
+            // Energy before/after and the changed damage/HP number") from the exact same values
+            // just used to cast, then advance - see TutorialStepCaption's own use of this string.
+            if (_tutorialStep == TutorialStep.SpellLesson)
+            {
+                bool stillPresent = tutorialTargetBefore != null
+                    && _battleController.EnemyState.Lanes[lane].Cards.Contains(tutorialTargetBefore);
+                string outcome = tutorialTargetBefore == null
+                    ? "No enemy unit was there to strike."
+                    : stillPresent
+                        ? $"{tutorialTargetBefore.Definition.DisplayName} Health {tutorialTargetHealthBefore} -> {tutorialTargetBefore.CurrentHealth}."
+                        : $"{tutorialTargetBefore.Definition.DisplayName} in the Middle lane destroyed!";
+                _tutorialSpellCastSummary =
+                    $"{cast.Name} cast! Energy {energyBefore} -> {_battleController.Energy}. {outcome}";
+                AdvanceTutorialStep(TutorialStep.Finish);
+            }
+
             RefreshAll();
             PlayCastImpact(cast, lane);
 
@@ -3069,15 +5031,16 @@ namespace MyriadOfDragons.UI
         /// pattern CardDetailOverlay and TutorialOverlay already use, reused here rather than
         /// invented fresh.
         ///
-        /// Built EARLY (called right after BuildCanvas, before any panel that contains a lane
+        /// Built EARLY (right after BuildBattleBackdrop, before any panel that contains a lane
         /// button) so it sits at a low sibling index and every lane button - built after it -
         /// naturally wins the raycast over it. Unity's GraphicRaycaster checks the TOPMOST
         /// (highest sibling index) hit first, so building this any later would make it the
         /// topmost element on screen and it would swallow every tap, including ones landing
-        /// directly on a highlighted lane button underneath it - the opposite of its job. Built
-        /// AFTER BuildCanvas specifically because BuildCanvas's own arena backdrop + dim overlay
-        /// are raycast targets too (Image.raycastTarget defaults to true and neither sets it
-        /// false) - building any earlier would put THIS catcher underneath THEM instead.
+        /// directly on a highlighted lane button underneath it - the opposite of its job.
+        /// Battle Release Layout pass: BuildBattleBackdrop's arena backdrop + dim overlay now
+        /// both set raycastTarget = false (a real bug fixed in this same pass - see that
+        /// method's own comment), so this ordering is no longer load-bearing against them
+        /// specifically, only against the real interactive panels built after it.
         /// </summary>
         private void BuildSpellTargetCancelCatcher(Transform canvasTransform)
         {
@@ -3233,6 +5196,13 @@ namespace MyriadOfDragons.UI
 
         private void HandleMatchEnded(bool playerWon)
         {
+            // First-time Campaign onboarding, requirement 5: captured before anything else runs
+            // (including this same event's other subscriber, HomePagePresenter.
+            // HandleMatchCompleted, which clears _pendingCampaignStage on a victory) so the
+            // Campaign-specific next-action line below is correct regardless of subscriber order.
+            // Reward/unlock logic itself is untouched - this only reads the field, never writes it.
+            bool wasCampaignMatch = _pendingCampaignStage != null;
+
             // The approved offline tutorial (StartApprovedTutorialBattle) must have no
             // progression effect - "makes no server call, confirms no victory, advances no
             // checkpoint" per that method's own comment. RecordMatchResult mutates
@@ -3281,9 +5251,20 @@ namespace MyriadOfDragons.UI
                         ? "VICTORY - the enemy Avatar has fallen."
                         : "DEFEAT - your Avatar has fallen.";
 
+                // First-time Campaign onboarding, requirement 5: the one next-action line, on
+                // this same existing result-overlay text - no new panel/text element. Reward and
+                // unlock logic itself lives entirely in HomePagePresenter.HandleMatchCompleted,
+                // unchanged by this addition.
+                string campaignNextAction = wasCampaignMatch
+                    ? (playerWon
+                        ? "\nReturn home to continue to the next unlocked stage."
+                        : "\nRetry costs 1 Stamina, or return home.")
+                    : string.Empty;
+
                 _resultText.text = $"{headline}\n" +
                     $"Avatar Level {_empireData.AvatarLevel} - next match: " +
-                    $"{_empireData.ResourceCap} Resource, {_empireData.StartingAvatarHealth} HP.";
+                    $"{_empireData.ResourceCap} Resource, {_empireData.StartingAvatarHealth} HP." +
+                    campaignNextAction;
                 // Restores the normal, always-both-visible/normally-labelled state - covers a
                 // normal match starting right after a tutorial one, whose HandleMatchEnded call
                 // would otherwise have left the tutorial's single-button state in place.
@@ -3294,6 +5275,14 @@ namespace MyriadOfDragons.UI
             }
 
             _resultOverlay.SetActive(true);
+
+            // Purely additive, same reasoning as StartApprovedTutorialBattle's own opening-
+            // cinematic call: the result overlay above is already fully configured and active
+            // exactly as before (unconditionally, for every outcome) - this only shows a
+            // blocking cinematic on top of it in Play Mode, for a confirmed tutorial victory
+            // only. Never for a normal match, never for tutorial defeat (see the handoff's own
+            // "Tutorial defeat: no cinematic" and "Never show this sequence for normal battles").
+            if (IsTutorialMatch && playerWon) BeginVictoryCinematic();
         }
 
         private void OnPlayAgainPressed()
@@ -3324,11 +5313,31 @@ namespace MyriadOfDragons.UI
             {
                 _resultOverlay.SetActive(false);
                 _selectedCard = null;
-                StartApprovedTutorialBattle();
+                // A retry after tutorial defeat re-enters Formation directly - the opening
+                // cinematic is a one-time introduction (Start Tutorial), not something a retry
+                // should replay. Tutorial defeat itself never shows a cinematic at all (see
+                // HandleMatchEnded), so this call is reached only from the defeat result screen.
+                StartApprovedTutorialBattle(showOpeningCinematic: false);
                 RefreshAll();
             }
             else
             {
+                // Campaign stamina-entry contract, requirement 4/5: a retry of a Campaign stage
+                // (a non-tutorial Play Again/Retry while a stage is still the pending battle
+                // configuration) is a new attempt and costs 1 Stamina again - a plain normal-
+                // match "Play Again" (_pendingCampaignStage == null) costs nothing, matching
+                // requirement 6. Checked and spent BEFORE OnPlayAgainPressed/StartNewMatch runs,
+                // so an insufficient balance blocks the retry outright: the current (already-
+                // resolved) result screen simply stays up, no new match is built, and nothing
+                // else is touched - the existing Campaign status/log surface (requirement 10) is
+                // a Debug.LogError here since Battle is already on-screen with no caption slot
+                // free to reuse mid-result.
+                if (_pendingCampaignStage != null && !TrySpendCampaignStaminaForAttempt())
+                {
+                    Debug.LogError($"Campaign stage {_pendingCampaignStage.stageId}: insufficient Stamina - retry blocked.");
+                    return;
+                }
+
                 OnPlayAgainPressed();
             }
         }
@@ -3355,6 +5364,19 @@ namespace MyriadOfDragons.UI
         private void OnReturnToCityPressed()
         {
             _canvasTransform.gameObject.SetActive(false);
+            // Explicit Stop(), not left to the canvas SetActive(false) above - the music
+            // AudioSource lives under the canvas today, but relying on deactivation alone to
+            // silence it would silently break if that ever changed, and Home must never hear
+            // battle music under any circumstance.
+            _musicSource?.Stop();
+
+            // Campaign match-context lifecycle contract, requirement 4: returning to Home from
+            // EITHER a campaign victory or a campaign defeat clears the pending battle
+            // configuration - this is the ONLY clear point for the defeat case (a victory already
+            // cleared it in HandleMatchCompleted, so this is a harmless no-op there). Fires
+            // unconditionally, same as this whole method already does for both outcomes.
+            _pendingCampaignStage = null;
+
             OnReturnToCityRequested?.Invoke();
         }
 
@@ -3368,10 +5390,38 @@ namespace MyriadOfDragons.UI
         /// <summary>The other half of the battle/metagame handoff: lets a non-battle system
         /// (home screen, campaign map) show this battle screen again via <see cref="Instance"/>
         /// without needing a Canvas-hierarchy lookup of its own - see OnReturnToCityPressed's own
-        /// note on why that lookup can't work (BattleController has no Canvas ancestor).</summary>
+        /// note on why that lookup can't work (BattleController has no Canvas ancestor).
+        ///
+        /// Bug fix: GameBootstrap.Initialize() runs once, at app boot, before the player has
+        /// ever visited Deck Builder in this session - Home starts with the battle canvas hidden
+        /// (SetBattleCanvasVisible(false)) and only reveals it later via this method's own
+        /// "To Battle" call site. Without a refresh here, that reveal showed the SAME match
+        /// StartNewMatch() built at boot time, dealt from whatever activeDeckCardIds existed
+        /// then - so confirming a new deck in Deck Builder and going straight to Battle dealt
+        /// the old (or no) deck instead of the just-confirmed one ("Deck Builder saves a
+        /// confirmed 10-card deck, but normal Battle deals unrelated cards"). A hidden-to-visible
+        /// transition for a NORMAL entry now rebuilds the match from the current saved deck
+        /// first, so TryBuildSavedPlayerDeck always reads whatever is confirmed at the moment
+        /// the player actually enters Battle, not whatever existed at process start.
+        ///
+        /// Skipped when IsTutorialMatch is already true: StartApprovedTutorialBattle() always
+        /// runs immediately before this call on the tutorial entry path (see HomePagePresenter's
+        /// own call order) and must not be immediately stomped by a normal-match refresh right
+        /// after setting itself up - the tutorial stays completely isolated on its fixed starter
+        /// deck either way (StartApprovedTutorialBattle never reads activeDeckCardIds), but
+        /// refreshing here would still needlessly discard the tutorial's own already-correct
+        /// state and restart the combat loop coroutine a second time.
+        /// </summary>
         public void SetBattleCanvasVisible(bool visible)
         {
+            bool wasHidden = _canvasTransform != null && !_canvasTransform.gameObject.activeSelf;
             if (_canvasTransform != null) _canvasTransform.gameObject.SetActive(visible);
+
+            if (visible && wasHidden && !IsTutorialMatch)
+            {
+                StartNewMatch();
+                RefreshAll();
+            }
         }
 
         private void OnLineupButtonPressed(bool useRecommendedDeck)
@@ -3454,10 +5504,17 @@ namespace MyriadOfDragons.UI
 
         // ---------- Refresh ----------
 
+        /// <summary>Exposed for tests: production always reaches RefreshAll() through some real
+        /// action (AdvanceCombatTick is normally driven by the CombatLoop coroutine, which then
+        /// calls this) - a test that calls BattleController.AdvanceCombatTick() directly skips
+        /// that coroutine entirely, so the caption/UI surfaces this file owns (including the
+        /// Campaign guidance caption) never update unless a test calls this too.</summary>
+        public void RefreshAllForTests() => RefreshAll();
+
         private void RefreshAll()
         {
-            RefreshLaneSlots(_battleController.EnemyState, _enemyLaneSlots);
-            RefreshLaneSlots(_battleController.PlayerState, _playerLaneSlots);
+            RefreshLaneSlots(_battleController.EnemyState, _enemyLaneSlots, _enemyLaneTotalTexts, isEnemySide: true);
+            RefreshLaneSlots(_battleController.PlayerState, _playerLaneSlots, _playerLaneTotalTexts, isEnemySide: false);
             RefreshLaneButtons();
             PlayerBattleState enemy = _battleController.EnemyState;
             PlayerBattleState player = _battleController.PlayerState;
@@ -3469,7 +5526,7 @@ namespace MyriadOfDragons.UI
             // label instead (_enemyNameLabel), refreshed here for the same reason the old text
             // was refreshed every tick: _aiProfile is re-derived every match (see
             // SoloAIScalingSystem), so the opponent shown must be able to change without a full
-            // Initialize() - a name set once at BuildEnemyPanel time would go stale after "Play
+            // Initialize() - a name set once at BuildHeaderBar time would go stale after "Play
             // Again" faced a different opponent.
             _enemyAvatarText.text = $"{enemy.AvatarHealth}/{enemy.MaxAvatarHealth}";
             if (_enemyNameLabel != null)
@@ -3516,8 +5573,65 @@ namespace MyriadOfDragons.UI
                 _synergyText.text = FormationSynergy.Describe(bonus);
             }
 
+            // V3 header addition: enemy Resource, always shown (existing EnemyState.Resource -
+            // see the field's own comment for why this wasn't surfaced before).
+            if (_enemyResourceFill != null)
+            {
+                _enemyResourceFill.fillAmount = enemy.ResourceCap > 0 ? (float)enemy.Resource / enemy.ResourceCap : 0f;
+                _enemyResourceText.text = $"{enemy.Resource}/{enemy.ResourceCap}";
+            }
+
+            // V3 header addition: HAND n, next to the player's own Resource/Hand cluster -
+            // existing data (PlayerState.Hand.Count), previously only shown as card thumbnails
+            // themselves, never as its own number.
+            if (_handCountText != null)
+            {
+                _handCountText.text = $"HAND {player.Hand.Count}";
+            }
+
+            // V3 hand/placement panel addition: passive "Selected Card / Place In" status text -
+            // reports _selectedCard, the same field OnHandCardPressed/OnLanePressed already read
+            // and write; this never itself changes selection (see BuildHandAndPlacementPanel).
+            if (_selectedCardText != null)
+            {
+                _selectedCardText.text = _selectedCard == null
+                    ? "SELECTED CARD\n\n(none - tap a hand\ncard or an empty lane)"
+                    : $"SELECTED CARD\n{_selectedCard.DisplayName}\n\nPLACE IN\nFRONT / MIDDLE / BACK";
+            }
+
+            RefreshActivityLog();
             RefreshPhaseControls();
             RefreshHand();
+            RefreshTutorialStepControls();
+        }
+
+        /// <summary>
+        /// Combat Tick Feed (2026-08-22, owner: "combat after Formation feels like autopilot,
+        /// I can't tell what happened each tick") - replaces this rail's previous terse numeric
+        /// dump ("CLASH 3 - Dmg P0 E12 (HP P188 E76)") with CombatFeedFormatter's plain-language
+        /// lines (lane deaths, overflow, siege, spell casts), built from the same real, already-
+        /// resolved BattleController.CombatLedger/SpellCastLog this rail always read - no new data
+        /// source, no combat-math change, purely a readability pass on the same facts. Still the
+        /// latest up to 6 lines, newest first. Shows a phase status line instead when no tick has
+        /// resolved yet (Formation), rather than leaving the rail visually empty - matching the
+        /// mockup, which shows "FORMATION PHASE / CLASH 0/12" as the rail's first line even before
+        /// Combat.
+        /// </summary>
+        private void RefreshActivityLog()
+        {
+            if (_activityLogText == null) return;
+
+            IReadOnlyList<CombatTickRecord> ledger = _battleController.CombatLedger;
+            if (ledger.Count == 0)
+            {
+                _activityLogText.text = _battleController.Phase == BattlePhase.Formation
+                    ? $"FORMATION PHASE\nCLASH 0/{BattleController.MaxCombatTicks}"
+                    : "No ticks resolved yet.";
+                return;
+            }
+
+            List<string> lines = CombatFeedFormatter.BuildFeedLines(ledger, _battleController.SpellCastLog, maxLines: 6);
+            _activityLogText.text = string.Join("\n", lines);
         }
 
         /// <summary>
@@ -3540,33 +5654,31 @@ namespace MyriadOfDragons.UI
 
             bool formation = _battleController.Phase == BattlePhase.Formation;
             bool inCombat = _battleController.Phase == BattlePhase.Combat;
+            bool resolved = _battleController.Phase == BattlePhase.Resolved;
 
-            _primaryActionButton.gameObject.SetActive(formation);
-            // Only during Combat - the spell bar used to stay visible under the victory screen,
-            // where four unexplained buttons sat below a finished match with nothing to cast at
-            // ("what are the 4 buttons?", 2026-08-06).
-            _spellBar.gameObject.SetActive(inCombat);
+            // First-normal-battle onboarding, release repair: with no confirmed valid deck at
+            // all, there is nothing to auto-format or start with (RefreshHand already shows no
+            // cards - see StartNewMatch's own comment) - the primary action is hidden entirely
+            // and RefreshNormalMatchGuidanceCaption (below, via RefreshTutorialStepControls)
+            // carries the only instruction the player needs: return to Deck Builder.
+            bool normalDeckBlocked = !IsTutorialMatch && _normalMatchStartError != null;
+            _primaryActionButton.gameObject.SetActive(formation && !normalDeckBlocked);
+            // Guided-tutorial gate: real UI-level block for Start Battle, mirroring the logical
+            // gate already in OnPrimaryActionPressed itself.
+            _primaryActionButton.interactable = _tutorialStep == null || _tutorialStep == TutorialStep.BeginBattle;
 
-            // Approved tutorial-only copy (Command Centre decision, 2026-08-15): one caption
-            // reused for both phases, since they're mutually exclusive - see
-            // BuildTutorialGuidanceCaption's own comment. Never shown for a normal match.
-            if (_tutorialGuidanceCaption != null)
-            {
-                if (IsTutorialMatch && formation)
-                {
-                    _tutorialGuidanceCaption.text = "Ready: Review your formation, then begin the battle.";
-                    _tutorialGuidanceCaption.gameObject.SetActive(true);
-                }
-                else if (IsTutorialMatch && inCombat)
-                {
-                    _tutorialGuidanceCaption.text = "Hold your formation and overcome the enemy.";
-                    _tutorialGuidanceCaption.gameObject.SetActive(true);
-                }
-                else
-                {
-                    _tutorialGuidanceCaption.gameObject.SetActive(false);
-                }
-            }
+            // Visible during Formation and Combat both now - V3's activity rail is "a permanent
+            // in-shell rail" per the handoff, and the mockup shows the spell list fully populated
+            // (dimmed - nothing is castable with 0 Formation Energy) even before combat starts.
+            // Hidden only once the match is Resolved, preserving the original reason it used to
+            // hide outside Combat entirely ("four unexplained buttons sat below a finished match
+            // with nothing to cast at", 2026-08-06) without also hiding it during Formation.
+            _spellBar.gameObject.SetActive(!resolved);
+
+            // The guided tutorial's own captions (RefreshTutorialStepControls, called at the end
+            // of RefreshAll()) fully replace the old static "Ready.../Hold your formation..."
+            // pair that used to live here - every tutorial match now always has a _tutorialStep,
+            // so that replacement is unconditional, not an addition alongside this.
 
             // Readiness-audit fix, 2026-08-15: Reset/Recommended Lineup were the one remaining
             // way to silently leave a tutorial match mid-Formation - both route to
@@ -3578,7 +5690,14 @@ namespace MyriadOfDragons.UI
             // visible. A normal match is completely unaffected - same buttons, same handlers,
             // always visible exactly as before.
             if (_resetLineupButton != null) _resetLineupButton.gameObject.SetActive(!IsTutorialMatch);
-            if (_recommendedLineupButton != null) _recommendedLineupButton.gameObject.SetActive(!IsTutorialMatch);
+            // Release feature: Auto Formation lives on the relabeled Recommended control now
+            // (see BuildPrimaryActionAndSpells/ShouldOfferAutoFormation), not on this button -
+            // additionally hidden without a valid confirmed deck, so an invalid/incomplete
+            // normal deck can never permit Auto Formation.
+            if (_recommendedLineupButton != null)
+            {
+                _recommendedLineupButton.gameObject.SetActive(ShouldOfferAutoFormation());
+            }
 
             if (!inCombat)
             {
@@ -3588,8 +5707,9 @@ namespace MyriadOfDragons.UI
                 // spell-targeting state on a phase change.
                 if (_armedSpellIndex >= 0) CancelSpellTargeting();
                 if (formation) _primaryActionLabel.text = "START BATTLE";
-                return;
             }
+
+            if (resolved) return; // rail already hidden above; nothing left to refresh in it.
 
             for (int i = 0; i < _spellButtons.Count; i++)
             {
@@ -3598,11 +5718,26 @@ namespace MyriadOfDragons.UI
                 if (!exists) continue;
 
                 AvatarSpell spell = _battleController.Spellbook[i];
-                bool ready = spell.IsOffCooldown && spell.EnergyCost <= _battleController.Energy;
+                // Never "ready" outside Combat - Formation Energy is always 0 (never accrued
+                // until BattleController.AdvanceCombatTick runs), so this is otherwise already
+                // true by construction, but stating it directly here keeps the dimmed-during-
+                // Formation visual from ever silently depending on that coincidence.
+                //
+                // Guided-tutorial gate: outside step 7, or for any spell but the one approved
+                // lesson spell within it, dimmed exactly like an on-cooldown/unaffordable spell -
+                // SpellIconPointerHandler bypasses Button.interactable entirely (see its own
+                // class comment), so OnSpellTapped's own check is the real block; this is only
+                // the matching visual.
+                bool tutorialAllowsThisSpell = _tutorialStep == null
+                    || (_tutorialStep == TutorialStep.SpellLesson && i == TutorialLessonSpellIndex);
+                bool ready = inCombat && tutorialAllowsThisSpell
+                    && spell.IsOffCooldown && spell.EnergyCost <= _battleController.Energy;
+
+                if (i < _spellNameLabels.Count) _spellNameLabels[i].text = spell.Name;
 
                 _spellLabels[i].text = spell.IsOffCooldown
-                    ? spell.EnergyCost.ToString()
-                    : spell.CooldownRemaining.ToString();
+                    ? $"{spell.EnergyCost} COST"
+                    : $"CD {spell.CooldownRemaining}";
                 _spellLabels[i].color = ready ? ButtonTextNormalColor : ButtonTextDisabledColor;
 
                 if (i < _spellIcons.Count)
@@ -3637,9 +5772,12 @@ namespace MyriadOfDragons.UI
             _ => string.Empty,
         };
 
-        private void RefreshLaneSlots(PlayerBattleState side, Dictionary<Lane, Transform> slotContainers)
+        private void RefreshLaneSlots(PlayerBattleState side, Dictionary<Lane, Transform> slotContainers,
+            Dictionary<Lane, Text> totalTexts, bool isEnemySide)
         {
             Font font = GetDefaultFont();
+            IReadOnlyList<CombatTickRecord> ledger = _battleController.CombatLedger;
+
             foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
             {
                 Transform container = slotContainers[lane];
@@ -3650,6 +5788,7 @@ namespace MyriadOfDragons.UI
                     DestroyImmediate(container.GetChild(i).gameObject);
                 }
 
+                int totalAttack = 0;
                 foreach (BattleCardInstance instance in side.Lanes[lane].Cards)
                 {
                     CreateMiniCardDisplay(container, instance, font);
@@ -3660,6 +5799,7 @@ namespace MyriadOfDragons.UI
                         SetPreferredWidth(container.GetChild(container.childCount - 1).gameObject,
                             BoardSlotWidth * instance.Definition.SlotWeight);
                     }
+                    if (instance.IsAlive) totalAttack += instance.Attack;
                 }
 
                 // Fill remaining open slots with empty-slot art, so all 3 slots per lane are
@@ -3671,7 +5811,35 @@ namespace MyriadOfDragons.UI
                 {
                     CreateEmptySlotDisplay(container);
                 }
+
+                // V3 lane-total column: sum of living cards' live Attack, plus this lane's own
+                // latest-resolved-tick overflow, shown as an explicit number (0 before any tick
+                // has resolved) - never a rating, per the handoff's hard-number rule.
+                if (totalTexts.TryGetValue(lane, out Text totalText) && totalText != null)
+                {
+                    int overflow = GetLatestLaneOverflow(ledger, lane, isEnemySide);
+                    totalText.text = $"ATK {totalAttack}\nOVERFLOW {overflow}";
+                }
             }
+        }
+
+        /// <summary>
+        /// This lane's overflow toward the OPPOSING avatar from the most recently resolved tick -
+        /// 0 before any tick has resolved. LaneClashResult.OverflowToA is overflow landing on the
+        /// player (PlayerState is LaneBattleResolver.ResolveTurn's own sideA, EnemyState sideB -
+        /// see BattleController.ResolveTurnAndAdvance's call), OverflowToB on the enemy, so the
+        /// enemy's own row shows OverflowToA (damage IT sent to the player) and the player's own
+        /// row shows OverflowToB (damage IT sent to the enemy).
+        /// </summary>
+        private static int GetLatestLaneOverflow(IReadOnlyList<CombatTickRecord> ledger, Lane lane, bool isEnemySide)
+        {
+            if (ledger.Count == 0) return 0;
+            CombatTickRecord latest = ledger[ledger.Count - 1];
+            foreach (LaneClashResult result in latest.LaneResults)
+            {
+                if (result.Lane == lane) return isEnemySide ? result.OverflowToA : result.OverflowToB;
+            }
+            return 0;
         }
 
         private static void CreateEmptySlotDisplay(Transform parent)
@@ -3679,11 +5847,15 @@ namespace MyriadOfDragons.UI
             Sprite emptySlotSprite = Resources.Load<Sprite>("UI/Slots/Empty_Slot");
             if (emptySlotSprite == null) return;
 
-            var go = new GameObject("EmptySlot", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            SetPreferredWidth(go, BoardSlotWidth);
-            SetPreferredHeight(go, 78);
-            var image = go.AddComponent<Image>();
+            var cell = new GameObject("EmptySlot", typeof(RectTransform));
+            cell.transform.SetParent(parent, false);
+            SetPreferredWidth(cell, BoardSlotWidth);
+            SetPreferredHeight(cell, BoardSlotHeight);
+
+            // Empty_Slot.png's own real aspect (170x200 = 0.85 w/h, asset audit 2026-08-18) -
+            // its own shape, not a rarity frame's.
+            RectTransform go = CreateBoardCardTile(cell.transform, 170f / 200f);
+            var image = go.gameObject.AddComponent<Image>();
             image.sprite = emptySlotSprite;
             image.type = Image.Type.Sliced; // see CreateCardButton's rarity-frame comment
             image.raycastTarget = false;
@@ -3712,10 +5884,16 @@ namespace MyriadOfDragons.UI
             // what keeps them from fighting over the same Image.color.
             bool armedSpellIsFriendly = IsArmedSpellFriendlyTargeted();
 
+            // Guided-tutorial lock: outside the tutorial (or once its own lane-gated steps are
+            // done - BeginBattle onward), null here restores the normal "always tappable, every
+            // rejected tap explains why" behaviour untouched.
+            Lane? tutorialAllowedLane = TutorialAllowedLane();
+            bool tutorialGatesLanes = _tutorialStep != null && IsTutorialFormationGateStep();
+
             foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
             {
                 Button button = _playerLaneButtons[lane];
-                button.interactable = true;
+                button.interactable = !tutorialGatesLanes || lane == tutorialAllowedLane;
 
                 bool isValidCardTarget = _selectedCard != null
                     && _battleController.PlayerState.Lanes[lane].HasRoomFor(_selectedCard)
@@ -3766,6 +5944,7 @@ namespace MyriadOfDragons.UI
             }
 
             int handIndex = 0;
+            string tutorialAllowedCardId = TutorialAllowedCardId();
             foreach (Card card in _battleController.PlayerState.Hand)
             {
                 Card capturedCard = card;
@@ -3774,6 +5953,21 @@ namespace MyriadOfDragons.UI
 
                 Button button = CreateCardButton(_handRow, card, font, affordable, isSelected);
                 button.onClick.AddListener(() => OnHandCardPressed(capturedCard));
+
+                // Guided-tutorial lock: Button.interactable genuinely blocks onClick (unlike the
+                // spell tiles' raw pointer handler - see OnSpellTapped's own note), so this alone
+                // stops a real tap; OnHandCardPressed/SelectOrDeselectFormationHandCard still
+                // re-checks the same allowance for direct (test) calls that bypass the UI layer.
+                if (_tutorialStep != null)
+                {
+                    bool allowed = tutorialAllowedCardId != null && card.Id == tutorialAllowedCardId;
+                    button.interactable = allowed;
+                    if (!allowed)
+                    {
+                        Image cardBg = button.GetComponent<Image>();
+                        if (cardBg != null) cardBg.color = new Color(0.3f, 0.3f, 0.3f, 0.6f);
+                    }
+                }
 
                 StartCardShimmer(button.gameObject, handIndex);
 
@@ -4072,13 +6266,38 @@ namespace MyriadOfDragons.UI
             return art;
         }
 
-        /// <summary>Forces a RectTransform to a 1:1 square that fits inside its parent, so two
-        /// sprites with different native aspects still end up exactly concentric.</summary>
-        private static void AddSquareFitter(GameObject go)
+        /// <summary>
+        /// V4 hard requirement: "never crop-to-fill" for card illustrations in hand/board slots
+        /// (unlike full-bleed backgrounds, which still use CreateCroppedArt above). Simple
+        /// letterbox/pillarbox fit via Image.preserveAspect - no Mask, no AspectRatioFitter,
+        /// nothing hangs over the frame's edge.
+        /// </summary>
+        private static Image CreateFittedArt(Transform parent, Sprite sprite,
+            Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var artGo = new GameObject("ArtFit", typeof(RectTransform));
+            artGo.transform.SetParent(parent, false);
+            var artRect = (RectTransform)artGo.transform;
+            artRect.anchorMin = anchorMin;
+            artRect.anchorMax = anchorMax;
+            artRect.offsetMin = Vector2.zero;
+            artRect.offsetMax = Vector2.zero;
+
+            var art = artGo.AddComponent<Image>();
+            art.sprite = sprite;
+            art.enabled = sprite != null;
+            art.raycastTarget = false;
+            art.preserveAspect = true;
+            return art;
+        }
+
+        /// <summary>Forces a RectTransform to a fixed aspect ratio that fits inside its parent,
+        /// so two sprites with different native aspects still end up exactly concentric.</summary>
+        private static void AddAspectFitter(GameObject go, float aspect)
         {
             var fitter = go.AddComponent<AspectRatioFitter>();
             fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            fitter.aspectRatio = 1f;
+            fitter.aspectRatio = aspect;
         }
 
         private static Image CreateImage(Transform parent, Color color)
@@ -4141,18 +6360,20 @@ namespace MyriadOfDragons.UI
         {
             var go = new GameObject($"Card_{card.Id}", typeof(RectTransform));
             go.transform.SetParent(parent, false);
-            // Enlarged from 118x180 (2026-08-06, "render player cards larger so artwork, Cost,
-            // ATK and HP are clearly visible") - same aspect ratio, so the rarity frame's Sliced
-            // 9-slice border (computed as a fraction of its own source texture, not the target
-            // rect - see CardArtImportSettings) stretches cleanly at the new size.
-            //
-            // Capped at 196 tall, not pushed further: HandRow sits in the bottom 70% of HandPanel
-            // (HandY0-HandY1 = 0.12-0.37 of a 1280-tall canvas = 320px, so 224px), and the row
+            // Capped at 196 tall, not pushed further: V3's HandAndPlacementPanel (handoff anchor
+            // (.02,.02)-(.70,.23), ~227px tall at 1080) gives the hand row ~212px, and the row
             // does not mask its children, so a card taller than that bleeds into neighbouring UI
-            // rather than clipping cleanly. 196 leaves ~28px of slack; verify this against the
-            // real render before pushing it any larger.
-            SetPreferredWidth(go, 130);
-            SetPreferredHeight(go, 196);
+            // rather than clipping cleanly. 196 leaves ~16px of slack.
+            //
+            // Width, asset audit 2026-08-18 (docs/Battle_Screen_Landscape_Asset_Audit_2026-08-18.md):
+            // used to be a flat 130 regardless of rarity, forcing Sliced to stretch the frame's
+            // real aspect (0.739 Common/Rare/Epic, 0.870 Legendary) to whatever 130/196 happened
+            // to be - "the frame's native aspect doesn't match the card button's rect" was a
+            // known, accepted defect, not a non-issue. Computed from this card's own frame aspect
+            // instead, so the Sliced border no longer has to stretch at all.
+            float cardHeight = 196f;
+            SetPreferredWidth(go, cardHeight * GetRarityFrameAspect(card.Rarity));
+            SetPreferredHeight(go, cardHeight);
 
             var bg = go.AddComponent<Image>();
             Sprite rarityFrame = GetRarityFrameSprite(card.Rarity);
@@ -4161,9 +6382,9 @@ namespace MyriadOfDragons.UI
                 // The frame art's fill is opaque, not a transparent cutout (checked directly -
                 // center pixel alpha is 255) - it's meant to sit *behind* the card art, which
                 // then covers the fill within an inset margin, not composited through it.
-                // Sliced (not Simple) - the frame's native aspect doesn't match the card button's
-                // 118x180 rect, and Simple stretched it non-uniformly, warping the painted corner
-                // ornaments ("the icons are distorted", 2026-08-05). See CardArtImportSettings
+                // Sliced (not Simple) - even at this card's own native aspect, the button's exact
+                // pixel size still won't equal the source texture's own pixel size, and Simple
+                // would stretch the whole image non-uniformly to fit. See CardArtImportSettings
                 // for the spriteBorder this depends on.
                 bg.sprite = rarityFrame;
                 bg.type = Image.Type.Sliced;
@@ -4180,9 +6401,9 @@ namespace MyriadOfDragons.UI
             button.transition = Selectable.Transition.None;
             button.interactable = true;
 
-            // Art fills the frame, cropped rather than stretched or letterboxed - see
-            // CreateCroppedArt for why this needed a third approach.
-            CreateCroppedArt(go.transform, _cardDatabase.GetArt(card),
+            // V4 hard requirement: never crop-to-fill card illustrations. Preserve-aspect fit
+            // instead (see CreateFittedArt) - letterboxes rather than cropping or squashing.
+            CreateFittedArt(go.transform, _cardDatabase.GetArt(card),
                 new Vector2(0.10f, 0.10f), new Vector2(0.90f, 0.95f));
 
             // Class corner badge (e.g. "Perfect") - the card's type wasn't visible anywhere on
@@ -4245,6 +6466,30 @@ namespace MyriadOfDragons.UI
         }
 
         /// <summary>
+        /// The fixed rect a board card (or empty-slot marker) actually renders at, explicitly
+        /// centered inside its (deliberately wider) cell, sized to a shared row HEIGHT at the
+        /// caller-supplied aspect ratio - never a shared box. Asset audit, 2026-08-18: forcing
+        /// every rarity into one fixed box was the actual root cause of the "flattened/stretched"
+        /// board-card defect, since Common/Rare/Epic (0.739 w/h) and Legendary (0.870) card
+        /// frames are genuinely different shapes, not a single "card aspect". A Legendary tile
+        /// therefore renders visibly wider than a Common one at the same height - intentional,
+        /// not a bug. Returns the tile's own RectTransform so the caller can parent its
+        /// frame/art/chips onto it exactly as it used to onto the cell itself.
+        /// </summary>
+        private static RectTransform CreateBoardCardTile(Transform cell, float aspect)
+        {
+            var go = new GameObject("Tile", typeof(RectTransform));
+            go.transform.SetParent(cell, false);
+            var rect = (RectTransform)go.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            float tileHeight = BoardSlotHeight - 8f;
+            rect.sizeDelta = new Vector2(tileHeight * aspect, tileHeight);
+            rect.anchoredPosition = Vector2.zero;
+            return rect;
+        }
+
+        /// <summary>
         /// A deployed unit on the board: rarity-framed art with its Attack and current Health in
         /// the bottom corners.
         ///
@@ -4259,12 +6504,23 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void CreateMiniCardDisplay(Transform parent, BattleCardInstance instance, Font font)
         {
-            var go = new GameObject($"Mini_{instance.Definition.Id}", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            SetPreferredWidth(go, BoardSlotWidth);
-            SetPreferredHeight(go, 78);
+            // The V4 handoff's own slot geometry (316x95) is deliberately a wide, short CELL -
+            // it defines the tap-target/spacing math for three-across lane rows, not the shape a
+            // card should render at. Stretching the rarity frame and art to fill that cell
+            // outright (the pre-fix behavior) squashed a portrait frame into a landscape box,
+            // which is exactly the "flattened/stretched" distortion visual review flagged. Fixed
+            // by keeping the cell purely as a LayoutElement-sized, invisible spacing box, and
+            // rendering the actual card tile as a fixed rect explicitly centered inside it via
+            // CreateBoardCardTile, at THIS card's own rarity-frame aspect (see
+            // GetRarityFrameAspect) rather than one shared aspect.
+            var cell = new GameObject($"Mini_{instance.Definition.Id}", typeof(RectTransform));
+            cell.transform.SetParent(parent, false);
+            SetPreferredWidth(cell, BoardSlotWidth);
+            SetPreferredHeight(cell, BoardSlotHeight);
 
-            var bg = go.AddComponent<Image>();
+            RectTransform go = CreateBoardCardTile(cell.transform, GetRarityFrameAspect(instance.Definition.Rarity));
+
+            var bg = go.gameObject.AddComponent<Image>();
             Sprite rarityFrame = GetRarityFrameSprite(instance.Definition.Rarity);
             if (rarityFrame != null)
             {
@@ -4279,10 +6535,9 @@ namespace MyriadOfDragons.UI
             }
             bg.raycastTarget = false;
 
-            // Cropped fill, not a stretch: filling by disabling preserveAspect squashed the
-            // portrait art badly at this tile size ("I can't see anything after selecting the
-            // cards" / "way too overstretched", 2026-08-06).
-            CreateCroppedArt(go.transform, _cardDatabase.GetArt(instance.Definition),
+            // V4 hard requirement: never crop-to-fill card illustrations. Preserve-aspect fit
+            // instead (see CreateFittedArt) - letterboxes rather than cropping or squashing.
+            CreateFittedArt(go.transform, _cardDatabase.GetArt(instance.Definition),
                 new Vector2(0.12f, 0.12f), new Vector2(0.88f, 0.88f));
 
             // Ownership rim - a thin tinted overlay, since the slot plate that used to carry
@@ -4293,6 +6548,11 @@ namespace MyriadOfDragons.UI
             rim.raycastTarget = false;
             StretchFull(rim.rectTransform);
 
+            // Cost badge, top-left - V4 spec: "cost at top-left; ATK at bottom-left; HP at
+            // bottom-right" for every card on the board, matching the hand card's own chip
+            // layout (CreateCardButton) rather than only showing ATK/HP as before.
+            CreateStatChip(go.transform, instance.Definition.ResourceCost.ToString(), font,
+                new Vector2(0.02f, 0.70f), new Vector2(0.42f, 0.98f), new Color(0.2f, 0.35f, 0.85f, 0.9f));
             CreateStatChip(go.transform, instance.Attack.ToString(), font,
                 new Vector2(0.02f, 0.02f), new Vector2(0.42f, 0.30f), new Color(0.85f, 0.55f, 0.2f, 0.9f));
             CreateStatChip(go.transform, instance.CurrentHealth.ToString(), font,

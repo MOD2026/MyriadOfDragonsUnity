@@ -23,8 +23,16 @@ namespace MyriadOfDragons.Battle
         /// LaneBattleResolver's own per-lane result rather than re-deriving it.</summary>
         public readonly IReadOnlyList<LaneClashResult> LaneResults;
 
+        /// <summary>Combat Tick Feed data (2026-08-22): the portion of DamageToPlayerAvatar/
+        /// DamageToEnemyAvatar that came from the exposed-Avatar siege rule specifically, rather
+        /// than lane overflow - see TurnResolutionResult.SiegeDamageToSideA/B, which this just
+        /// carries into the ledger unchanged.</summary>
+        public readonly int SiegeDamageToPlayerAvatar;
+        public readonly int SiegeDamageToEnemyAvatar;
+
         public CombatTickRecord(int tickNumber, int damageToPlayerAvatar, int damageToEnemyAvatar,
-            int playerAvatarHealthAfter, int enemyAvatarHealthAfter, IReadOnlyList<LaneClashResult> laneResults)
+            int playerAvatarHealthAfter, int enemyAvatarHealthAfter, IReadOnlyList<LaneClashResult> laneResults,
+            int siegeDamageToPlayerAvatar = 0, int siegeDamageToEnemyAvatar = 0)
         {
             TickNumber = tickNumber;
             DamageToPlayerAvatar = damageToPlayerAvatar;
@@ -32,6 +40,8 @@ namespace MyriadOfDragons.Battle
             PlayerAvatarHealthAfter = playerAvatarHealthAfter;
             EnemyAvatarHealthAfter = enemyAvatarHealthAfter;
             LaneResults = laneResults;
+            SiegeDamageToPlayerAvatar = siegeDamageToPlayerAvatar;
+            SiegeDamageToEnemyAvatar = siegeDamageToEnemyAvatar;
         }
     }
 }

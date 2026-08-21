@@ -4,6 +4,7 @@
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
+[Bb]in/
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
@@ -23,6 +24,8 @@
 *.unityproj
 *.sln
 *.slnx
+!CloudCode/**/*.csproj
+!CloudCode/**/*.sln
 .vsconfig
 *.suo
 *.user
@@ -52,3 +55,19 @@ run.log
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Command Centre — local test / batch junk (do not commit)
+*.log
+*-results.xml
+*-results*.xml
+chapter1-balance-*
+home-*.log
+home-*.xml
+results-home*.xml
+run-home*.log
+full-*.log
+final-test-run.log
+combined-run.log
+testtext.log
+text-render-run.log
+.utmp/

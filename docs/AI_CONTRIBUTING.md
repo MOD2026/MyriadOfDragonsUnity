@@ -67,6 +67,8 @@ Two seats today. Add rows, don't reassign existing ones, if more are added.
 | Save system | `Assets/Scripts/Save/`, `Assets/Scripts/Data/` | **FROZEN — §2** | read; propose changes |
 | Save tests | `Assets/Tests/Editor/SaveSystemTests.cs` | **FROZEN — §2** | read |
 | Docs | `docs/` | shared | anyone may add; don't rewrite another seat's doc |
+| Social contracts | `Assets/Scripts/Social/`, `Assets/Tests/Editor/SocialFoundationTests.cs` | **Shared contract — MOS v1.2** | read; changes require explicit file scope and full tests |
+| Trusted guild/identity service | New server/backend surface | **Owner not yet assigned** | design/review only until ownership and service approach are approved |
 
 ### Dead code — do not use, do not extend
 
@@ -107,7 +109,19 @@ A change is not done until **all** of these pass:
 - Every behavioural change gets an EditMode test.
 - Report the actual pass/fail numbers. Never say "should work" or "tests should pass."
 
-Current baseline: **78/78 passing.**
+Protected Git baseline: **81/81 passing.** Latest verified social-contract working-tree result:
+**100/100 passing**. Do not call 100/100 a clean baseline until unrelated worktree changes are
+isolated and reviewed. Fresh result artifacts and logs must be checked on every run.
+
+### Guild and competition authority
+
+- Follow `docs/MOS_v1.2.md` and `docs/Guild_Competition_Rewards_v1.md`.
+- Never trust client-supplied rank, score, Power, contribution, office, timestamp, reward claim,
+  timer reduction or guild-resource relationship.
+- R4/R5 command actions, leaderboard scoring, rewards and temporary offices require trusted-service
+  enforcement and audit records.
+- Do not add direct combat bonuses to guild rank, leaderboard placement or appointed offices.
+- Do not award leaderboard points for purchases, chat volume or passive online time.
 
 ---
 

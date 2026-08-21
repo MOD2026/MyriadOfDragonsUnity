@@ -49,6 +49,7 @@ namespace MyriadOfDragons.AI
             List<Cards.Card> affordable = enemy.Hand
                 .Where(c => c.ResourceCost <= enemy.Resource)
                 .OrderByDescending(c => c.ResourceCost)
+                .ThenBy(c => c.Id)
                 .ToList();
 
             foreach (Cards.Card card in affordable)

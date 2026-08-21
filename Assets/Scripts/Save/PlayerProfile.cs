@@ -50,7 +50,29 @@ namespace MyriadOfDragons.Save
         public List<string> seenChapters = new List<string>();
 
         // Campaign, Decks & Tradeable Inventory
-        public List<string> unlockedStageIds = new List<string>() { "1-1", "1-2" };
+        //
+        // Fresh-profile Chapter 1 stage-access contract: a brand-new profile starts with ONLY
+        // Stage 1-1 unlocked - the sequential campaign flow (win 1-1 -> unlock 1-2 -> win 1-2 ->
+        // unlock 1-3, via HomePagePresenter.HandleMatchCompleted/CampaignMapPresenter.GetNextStageId,
+        // the existing ordered campaign list) is the only way 1-2/1-3 are ever supposed to become
+        // reachable. Previously defaulted to {"1-1","1-2"}, which silently unlocked 1-2 for every
+        // new player with no win required, contradicting that flow. This default applies ONLY to a
+        // genuinely new `PlayerProfile()` construction (no save file exists yet - SaveSystem.Load's
+        // NewGame branch never runs JsonUtility deserialization at all); an existing save's real
+        // JSON `unlockedStageIds` array always overwrites this field initializer during
+        // deserialization regardless of what it is set to here, so no already-progressed existing
+        // player loses anything they already had unlocked.
+        public List<string> unlockedStageIds = new List<string>() { "1-1" };
+
+        /// <summary>Chapter 1 progression contract: distinguishes "unlocked" (playable) from
+        /// "first-clear reward already claimed" - unlockedStageIds alone cannot express this,
+        /// since a stage is added to it once (to make it playable) but a player can then replay
+        /// a cleared stage any number of times. A stage id lands here exactly once, the first
+        /// time HomePagePresenter.HandleMatchCompleted sees a victory for it; every later
+        /// replay's reward grant is skipped once its id is already present. Backward compatible:
+        /// an old save with no such key deserializes this as null, and SaveMigration.Normalize
+        /// (like every other List field here) replaces null with an empty list on load.</summary>
+        public List<string> claimedStageRewardIds = new List<string>();
         public List<string> activeDeckCardIds = new List<string>() { "c1", "c3", "c4", "c6" };
         public List<string> cardCollection = new List<string>();
         public List<TradeableAssetInstance> inventoryAssets = new List<TradeableAssetInstance>();

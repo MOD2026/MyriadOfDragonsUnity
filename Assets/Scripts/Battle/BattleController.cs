@@ -106,6 +106,15 @@ namespace MyriadOfDragons.Battle
         public int EnergyPerTick { get; private set; } = 18;
 
         /// <summary>
+        /// Tutorial-only: directly sets Energy for the scripted Chapter 1 spell lesson, which
+        /// must let the player cast the one approved spell right after the first combat exchange
+        /// rather than waiting through several real ticks to accrue enough naturally. Not called
+        /// from any normal-match code path - GameBootstrap gates every call site on
+        /// IsTutorialMatch. Does not touch MaxEnergy, EnergyPerTick, or any other rule.
+        /// </summary>
+        public void SetEnergyForTutorial(int energy) => Energy = Math.Min(MaxEnergy, Math.Max(0, energy));
+
+        /// <summary>
         /// Energy each living Back-lane card adds per clash.
         ///
         /// The Back lane previously did nothing at all: Front grants +1 Attack, Middle grants +1
@@ -157,6 +166,14 @@ namespace MyriadOfDragons.Battle
         /// Cleared by StartMatch, appended to once per AdvanceCombatTick call that resolves
         /// (never for a call outside Combat, which resolves nothing).</summary>
         public IReadOnlyList<CombatTickRecord> CombatLedger => _combatLedger;
+
+        private readonly List<SpellCastRecord> _spellCastLog = new List<SpellCastRecord>();
+
+        /// <summary>Combat Tick Feed data (2026-08-22): read-only, chronological record of every
+        /// spell actually cast this match (player or AI - the AI never casts today per MOS §6/§20,
+        /// but this does not assume that stays true). Cleared by StartMatch, appended to only on a
+        /// successful TryCastSpell - a rejected cast changes nothing and logs nothing.</summary>
+        public IReadOnlyList<SpellCastRecord> SpellCastLog => _spellCastLog;
 
         public event Action<TurnResolutionResult> OnTurnResolved;
         public event Action<bool> OnMatchEnded; // argument: true if the player won
@@ -227,6 +244,7 @@ namespace MyriadOfDragons.Battle
             Energy = 0;
             Spellbook = AvatarSpell.CreateDefaultSpellbook();
             _combatLedger.Clear();
+            _spellCastLog.Clear();
 
             BeginTurn();
         }
@@ -369,7 +387,9 @@ namespace MyriadOfDragons.Battle
                 damageToEnemyAvatar: result.DamageDealtToSideB,
                 playerAvatarHealthAfter: PlayerState.AvatarHealth,
                 enemyAvatarHealthAfter: EnemyState.AvatarHealth,
-                laneResults: new List<LaneClashResult>(result.LaneResults)));
+                laneResults: new List<LaneClashResult>(result.LaneResults),
+                siegeDamageToPlayerAvatar: result.SiegeDamageToSideA,
+                siegeDamageToEnemyAvatar: result.SiegeDamageToSideB));
 
             // Tick cap - see MaxCombatTicks. Checked after resolution so a killing blow on the
             // final tick still counts as a real win rather than being downgraded to a decision.
@@ -483,6 +503,11 @@ namespace MyriadOfDragons.Battle
             Energy -= spell.EnergyCost;
             spell.PutOnCooldown();
             avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane);
+
+            // Combat Tick Feed data (2026-08-22): logged only once the cast is confirmed legal
+            // and has actually happened - never for a rejected attempt (see the early returns
+            // above, none of which reach this line).
+            _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt));
 
             // A spell that kills the enemy Avatar outright must end the match immediately, not
             // leave it running until the next tick happens to notice.

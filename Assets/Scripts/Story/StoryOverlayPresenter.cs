@@ -16,9 +16,26 @@ namespace MyriadOfDragons.Story
         private int currentLineIndex = 0;
         private Action onCompletedAction;
 
+        /// <summary>Last sequence id handed to <see cref="PlaySequence"/> (EditMode + Play Mode).
+        /// Cleared via <see cref="ResetTestHooks"/>.</summary>
+        public static string LastPlayedSequenceIdForTests { get; private set; }
+
+        public static void ResetTestHooks() => LastPlayedSequenceIdForTests = null;
+
         public static void PlaySequence(StorySequence sequence, Action onCompleted)
         {
             if (sequence == null || sequence.lines == null || sequence.lines.Count == 0)
+            {
+                onCompleted?.Invoke();
+                return;
+            }
+
+            LastPlayedSequenceIdForTests = sequence.sequenceId;
+
+            // EditMode cannot drive uGUI click-through overlays (and Destroy is deferred). Content
+            // still registers via LastPlayedSequenceIdForTests; the callback completes immediately
+            // so reward/unlock owners are never blocked by a phantom canvas.
+            if (!Application.isPlaying)
             {
                 onCompleted?.Invoke();
                 return;
@@ -215,7 +232,10 @@ namespace MyriadOfDragons.Story
         private void EndSequence()
         {
             Action callback = onCompletedAction;
-            Destroy(gameObject);
+            if (Application.isPlaying)
+                Destroy(gameObject);
+            else
+                DestroyImmediate(gameObject);
             callback?.Invoke();
         }
     }

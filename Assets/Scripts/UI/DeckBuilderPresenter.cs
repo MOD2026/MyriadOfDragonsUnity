@@ -51,15 +51,29 @@ namespace MyriadOfDragons.UI
         private Text deckStatusText;
         private Button confirmDeckButton;
         private Button recommendedDeckButton;
+        private string entryStatusOverride;
 
-        public void Initialize(System.Action onBackToHome)
+        /// <summary>entryStatusMessage: an optional one-time message shown on the existing status
+        /// surface (deckStatusText) instead of the normal GetConfirmStatusText() readout, for a
+        /// caller that redirected the player here for a specific reason - currently Home's "To
+        /// Battle" gate, which needs to say why Deck Builder opened rather than Battle. Not a new
+        /// status surface: BuildUI/UpdateDeckUIState still own deckStatusText, and the very next
+        /// deck edit (add/remove a card) replaces this override with the normal readout, same as
+        /// it always has.</summary>
+        public void Initialize(System.Action onBackToHome, string entryStatusMessage = null)
         {
             this.onBackToHomeAction = onBackToHome;
+            this.entryStatusOverride = entryStatusMessage;
 
             LoadProfileState();
             LoadOwnedCollectionCards();
             LoadSavedDeck();
             BuildUI();
+
+            if (!string.IsNullOrEmpty(entryStatusOverride) && deckStatusText != null)
+            {
+                deckStatusText.text = entryStatusOverride;
+            }
         }
 
         /// <summary>Exposed for tests: builds a deck from the given owned card ids and saves
@@ -193,8 +207,8 @@ namespace MyriadOfDragons.UI
 
         private void BuildUI()
         {
-            // 1. Canvas Setup
             canvasObj = new GameObject("DeckBuilderCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvasObj.transform.SetParent(transform, false);
             Canvas canvas = canvasObj.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
@@ -202,60 +216,29 @@ namespace MyriadOfDragons.UI
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
 
-            // 2. Backdrop
             GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bgObj.transform.SetParent(canvasObj.transform, false);
             Image bgImg = bgObj.GetComponent<Image>();
-            bgImg.color = new Color(0.08f, 0.08f, 0.12f, 0.98f);
+            bgImg.color = new Color(0.035f, 0.055f, 0.075f, 1f);
+            SetNormalizedRect(bgObj.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f);
 
-            RectTransform bgRect = bgObj.GetComponent<RectTransform>();
-            bgRect.anchorMin = Vector2.zero;
-            bgRect.anchorMax = Vector2.one;
-            bgRect.sizeDelta = Vector2.zero;
-
-            // 3. Top Header Bar
             GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(canvasObj.transform, false);
             Image topBarBg = topBar.GetComponent<Image>();
-            topBarBg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
+            topBarBg.color = new Color(0.045f, 0.085f, 0.11f, 1f);
+            SetScreenRectFromTopLeftPixels(topBar.GetComponent<RectTransform>(), 0f, 0f, 1920f, 100f);
 
-            RectTransform topRect = topBar.GetComponent<RectTransform>();
-            topRect.anchorMin = new Vector2(0, 1);
-            topRect.anchorMax = Vector2.one;
-            topRect.pivot = new Vector2(0.5f, 1f);
-            topRect.sizeDelta = new Vector2(0, 100);
+            Text title = CreateTextElement(topBar.transform, "Title", "DECK BUILDER", Vector2.zero, 34, TextAnchor.MiddleCenter, new Vector2(640, 64));
+            title.color = new Color(0.91f, 0.95f, 0.86f);
+            SetLocalNormalisedRect(title.rectTransform, 0.3f, 0.18f, 0.7f, 0.82f);
 
-            // Back Button
-            GameObject backBtnObj = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
-            backBtnObj.transform.SetParent(topBar.transform, false);
-            Image backImg = backBtnObj.GetComponent<Image>();
-            backImg.color = new Color(0.3f, 0.2f, 0.2f);
+            deckCounterText = CreateTextElement(topBar.transform, "Counter", "", new Vector2(0, 0), 27, TextAnchor.MiddleRight, new Vector2(290, 58));
+            deckCounterText.color = new Color(0.58f, 0.94f, 0.88f);
+            SetLocalNormalisedRect(deckCounterText.rectTransform, 0.78f, 0.18f, 0.98f, 0.82f);
 
-            Button backBtn = backBtnObj.GetComponent<Button>();
-            backBtn.onClick.AddListener(() =>
-            {
-                DestroyDynamicUIObject(canvasObj);
-                onBackToHomeAction?.Invoke();
-            });
-
-            RectTransform backRect = backBtnObj.GetComponent<RectTransform>();
-            backRect.anchorMin = new Vector2(0, 0.5f);
-            backRect.anchorMax = new Vector2(0, 0.5f);
-            backRect.pivot = new Vector2(0, 0.5f);
-            backRect.anchoredPosition = new Vector2(30, 0);
-            backRect.sizeDelta = new Vector2(160, 60);
-
-            CreateTextElement(backBtnObj.transform, "Text", "< BACK", Vector2.zero, 24, TextAnchor.MiddleCenter);
-
-            // Header Title
-            CreateTextElement(topBar.transform, "Title", "DECK BUILDER", new Vector2(-150, 0), 32, TextAnchor.MiddleCenter);
-
-            // Deck Counter Label
-            deckCounterText = CreateTextElement(topBar.transform, "Counter", "", new Vector2(600, 0), 28, TextAnchor.MiddleRight);
-
-            // 4. Split Panels
             BuildCollectionPanel();
             BuildDeckPanel();
+            BuildActionRail();
 
             RefreshAllUI();
         }
@@ -265,35 +248,20 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("CollectionPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(canvasObj.transform, false);
             Image panelImg = panelObj.GetComponent<Image>();
-            panelImg.color = new Color(0.12f, 0.12f, 0.16f, 0.9f);
+            panelImg.color = new Color(0.055f, 0.09f, 0.115f, 1f);
+            SetScreenRectFromTopLeftPixels(panelObj.GetComponent<RectTransform>(), 24f, 150f, 900f, 960f);
 
-            RectTransform rect = panelObj.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 0f);
-            rect.anchorMax = new Vector2(0.66f, 1f);
-            rect.offsetMin = new Vector2(20, 20);
-            rect.offsetMax = new Vector2(-10, -120);
+            Text header = CreateTextElement(panelObj.transform, "Header", "OWNED CARDS", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(400, 54));
+            header.color = new Color(0.57f, 0.91f, 0.9f);
+            SetLocalNormalisedRect(header.rectTransform, 0.03f, 0.92f, 0.5f, 0.995f);
 
-            CreateTextElement(panelObj.transform, "Header", "CARD COLLECTION (Tap to Add)", new Vector2(0, 410), 26, TextAnchor.MiddleCenter);
-
-            GameObject scrollObj = new GameObject("CollectionScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            GameObject scrollObj = new GameObject("CollectionScroll", typeof(RectTransform), typeof(ScrollRect));
             scrollObj.transform.SetParent(panelObj.transform, false);
-            scrollObj.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.08f);
+            SetLocalNormalisedRect(scrollObj.GetComponent<RectTransform>(), 0.02f, 0.03f, 0.98f, 0.90f);
 
-            RectTransform scrollRect = scrollObj.GetComponent<RectTransform>();
-            scrollRect.anchorMin = Vector2.zero;
-            scrollRect.anchorMax = Vector2.one;
-            scrollRect.offsetMin = new Vector2(16, 16);
-            scrollRect.offsetMax = new Vector2(-16, -16);
-
-            GameObject viewportObj = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            GameObject viewportObj = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
             viewportObj.transform.SetParent(scrollObj.transform, false);
-            viewportObj.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.02f);
-            viewportObj.GetComponent<Mask>().showMaskGraphic = false;
-
-            RectTransform viewportRect = viewportObj.GetComponent<RectTransform>();
-            viewportRect.anchorMin = Vector2.zero;
-            viewportRect.anchorMax = Vector2.one;
-            viewportRect.sizeDelta = Vector2.zero;
+            SetNormalizedRect(viewportObj.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f);
 
             GameObject contentObj = new GameObject("Content", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
             contentObj.transform.SetParent(viewportObj.transform, false);
@@ -304,23 +272,24 @@ namespace MyriadOfDragons.UI
             contentRect.anchorMax = new Vector2(1f, 1f);
             contentRect.pivot = new Vector2(0.5f, 1f);
             contentRect.anchoredPosition = Vector2.zero;
-            contentRect.sizeDelta = new Vector2(0f, 0f);
+            contentRect.sizeDelta = Vector2.zero;
 
             GridLayoutGroup grid = contentObj.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(230, 320);
-            grid.spacing = new Vector2(20, 20);
-            grid.childAlignment = TextAnchor.UpperLeft;
+            grid.cellSize = new Vector2(190, 260);
+            grid.spacing = new Vector2(16, 16);
+            grid.padding = new RectOffset(8, 8, 8, 8);
+            grid.childAlignment = TextAnchor.UpperCenter;
             grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
             grid.startAxis = GridLayoutGroup.Axis.Horizontal;
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 2;
+            grid.constraintCount = 4;
 
             ContentSizeFitter fitter = contentObj.GetComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             ScrollRect sr = scrollObj.GetComponent<ScrollRect>();
-            sr.viewport = viewportRect;
+            sr.viewport = viewportObj.GetComponent<RectTransform>();
             sr.content = contentRect;
             sr.horizontal = false;
             sr.vertical = true;
@@ -335,39 +304,26 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("DeckPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(canvasObj.transform, false);
             Image panelImg = panelObj.GetComponent<Image>();
-            panelImg.color = new Color(0.15f, 0.13f, 0.18f, 0.9f);
+            panelImg.color = new Color(0.07f, 0.075f, 0.095f, 1f);
+            SetScreenRectFromTopLeftPixels(panelObj.GetComponent<RectTransform>(), 918f, 150f, 1896f, 960f);
 
-            RectTransform rect = panelObj.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.67f, 0f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.offsetMin = new Vector2(10, 20);
-            rect.offsetMax = new Vector2(-20, -120);
+            Text header = CreateTextElement(panelObj.transform, "Header", "ACTIVE DECK", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(360, 54));
+            header.color = new Color(0.94f, 0.75f, 0.4f);
+            SetLocalNormalisedRect(header.rectTransform, 0.03f, 0.92f, 0.5f, 0.995f);
 
-            CreateTextElement(panelObj.transform, "Header", "ACTIVE DECK (Tap to Remove)", new Vector2(0, 410), 24, TextAnchor.MiddleCenter);
+            deckStatsText = CreateTextElement(panelObj.transform, "DeckStats", "", Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(720, 72));
+            deckStatsText.color = new Color(0.86f, 0.9f, 0.82f);
+            SetLocalNormalisedRect(deckStatsText.rectTransform, 0.03f, 0.06f, 0.97f, 0.17f);
 
-            deckStatsText = CreateTextElement(panelObj.transform, "DeckStats", "", new Vector2(0, 305), 22, TextAnchor.MiddleLeft, new Vector2(560, 150));
-
-            GameObject scrollObj = new GameObject("DeckScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            GameObject scrollObj = new GameObject("DeckScroll", typeof(RectTransform), typeof(ScrollRect));
             scrollObj.transform.SetParent(panelObj.transform, false);
-            scrollObj.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.08f);
+            SetLocalNormalisedRect(scrollObj.GetComponent<RectTransform>(), 0.03f, 0.18f, 0.97f, 0.90f);
 
-            RectTransform scrollRect = scrollObj.GetComponent<RectTransform>();
-            scrollRect.anchorMin = Vector2.zero;
-            scrollRect.anchorMax = Vector2.one;
-            scrollRect.offsetMin = new Vector2(16, 150);
-            scrollRect.offsetMax = new Vector2(-16, -170);
-
-            GameObject viewportObj = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            GameObject viewportObj = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
             viewportObj.transform.SetParent(scrollObj.transform, false);
-            viewportObj.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.02f);
-            viewportObj.GetComponent<Mask>().showMaskGraphic = false;
+            SetNormalizedRect(viewportObj.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f);
 
-            RectTransform viewportRect = viewportObj.GetComponent<RectTransform>();
-            viewportRect.anchorMin = Vector2.zero;
-            viewportRect.anchorMax = Vector2.one;
-            viewportRect.sizeDelta = Vector2.zero;
-
-            GameObject contentObj = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            GameObject contentObj = new GameObject("Content", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
             contentObj.transform.SetParent(viewportObj.transform, false);
             deckListTransform = contentObj.transform;
 
@@ -378,33 +334,56 @@ namespace MyriadOfDragons.UI
             contentRect.anchoredPosition = Vector2.zero;
             contentRect.sizeDelta = new Vector2(0f, 0f);
 
-            VerticalLayoutGroup vlg = contentObj.GetComponent<VerticalLayoutGroup>();
-            vlg.spacing = 8;
-            vlg.childControlWidth = true;
-            vlg.childControlHeight = false;
-            vlg.childAlignment = TextAnchor.UpperCenter;
+            GridLayoutGroup grid = contentObj.GetComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(150, 205);
+            grid.spacing = new Vector2(12, 12);
+            grid.padding = new RectOffset(8, 8, 8, 8);
+            grid.childAlignment = TextAnchor.UpperCenter;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 2;
 
             ContentSizeFitter fitter = contentObj.GetComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             ScrollRect sr = scrollObj.GetComponent<ScrollRect>();
-            sr.viewport = viewportRect;
+            sr.viewport = viewportObj.GetComponent<RectTransform>();
             sr.content = contentRect;
             sr.horizontal = false;
             sr.vertical = true;
             sr.movementType = ScrollRect.MovementType.Clamped;
 
-            deckEmptyText = CreateTextElement(panelObj.transform, "EmptyDeckState", "No cards in the deck yet. Add owned cards from the collection.", new Vector2(0, -5), 24, TextAnchor.MiddleCenter, new Vector2(560, 140));
+            deckEmptyText = CreateTextElement(panelObj.transform, "EmptyDeckState", "No cards in the deck yet. Tap an owned card to add it.", new Vector2(0, 36), 22, TextAnchor.MiddleCenter, new Vector2(600, 70));
             deckEmptyText.enabled = false;
 
-            recommendedDeckButton = CreateButton(panelObj.transform, "Btn_Recommended", "RECOMMENDED DECK", new Vector2(-170, -405), new Vector2(300, 60), new Color(0.18f, 0.4f, 0.28f)).GetComponent<Button>();
+            deckStatusText = CreateTextElement(panelObj.transform, "DeckStatus", "", Vector2.zero, 19, TextAnchor.MiddleCenter, new Vector2(720, 46));
+            deckStatusText.color = new Color(0.9f, 0.82f, 0.64f);
+            SetLocalNormalisedRect(deckStatusText.rectTransform, 0.03f, 0.0f, 0.97f, 0.05f);
+
+        }
+
+        private void BuildActionRail()
+        {
+            GameObject railObj = new GameObject("ActionRail", typeof(RectTransform), typeof(Image));
+            railObj.transform.SetParent(canvasObj.transform, false);
+            railObj.GetComponent<Image>().color = new Color(0.045f, 0.085f, 0.105f, 1f);
+            SetScreenRectFromTopLeftPixels(railObj.GetComponent<RectTransform>(), 24f, 16f, 1896f, 120f);
+
+            GameObject backBtnObj = CreateButton(railObj.transform, "Btn_Back_Rail", "< BACK", new Vector2(0, 0), new Vector2(210, 62), new Color(0.22f, 0.18f, 0.14f));
+            SetNormalizedRect(backBtnObj.GetComponent<RectTransform>(), 0.02f, 0.18f, 0.18f, 0.82f);
+            backBtnObj.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                DestroyDynamicUIObject(canvasObj);
+                onBackToHomeAction?.Invoke();
+            });
+
+            recommendedDeckButton = CreateButton(railObj.transform, "Btn_Recommended", "RECOMMENDED DECK", new Vector2(0, 0), new Vector2(320, 62), new Color(0.08f, 0.34f, 0.3f)).GetComponent<Button>();
+            SetNormalizedRect(recommendedDeckButton.GetComponent<RectTransform>(), 0.39f, 0.18f, 0.61f, 0.82f);
             recommendedDeckButton.onClick.AddListener(ApplyRecommendedDeck);
 
-            confirmDeckButton = CreateButton(panelObj.transform, "Btn_Confirm", "CONFIRM / SAVE DECK", new Vector2(170, -405), new Vector2(300, 60), new Color(0.85f, 0.65f, 0.15f)).GetComponent<Button>();
+            confirmDeckButton = CreateButton(railObj.transform, "Btn_Confirm", "CONFIRM / SAVE DECK", new Vector2(0, 0), new Vector2(320, 62), new Color(0.66f, 0.43f, 0.14f)).GetComponent<Button>();
+            SetNormalizedRect(confirmDeckButton.GetComponent<RectTransform>(), 0.80f, 0.18f, 0.98f, 0.82f);
             confirmDeckButton.onClick.AddListener(ConfirmDeck);
-
-            deckStatusText = CreateTextElement(panelObj.transform, "DeckStatus", "", new Vector2(0, -475), 20, TextAnchor.MiddleCenter, new Vector2(560, 90));
         }
 
         private void RefreshCollectionUI()
@@ -424,23 +403,14 @@ namespace MyriadOfDragons.UI
 
             foreach (var card in ownedCollectionCards)
             {
-                GameObject cardObj = new GameObject($"Card_{card.id}", typeof(RectTransform), typeof(Image), typeof(Button));
+                GameObject cardObj = CreateCardVisual($"Card_{card.id}", card, false);
                 cardObj.transform.SetParent(collectionGridTransform, false);
                 cardObj.transform.localScale = Vector3.one;
-
-                Image cardBg = cardObj.GetComponent<Image>();
-                cardBg.color = new Color(0.18f, 0.22f, 0.32f);
 
                 Button btn = cardObj.GetComponent<Button>();
                 DeckCardData capturedCard = card;
                 btn.onClick.AddListener(() => AddCardToDeck(capturedCard));
                 btn.interactable = CanAddCard(capturedCard);
-
-                // Card Visual Elements
-                CreateTextElement(cardObj.transform, "Name", card.cardName, new Vector2(0, 100), 22, TextAnchor.MiddleCenter);
-                CreateTextElement(cardObj.transform, "Type", $"<{card.archetype}>", new Vector2(0, 65), 18, TextAnchor.MiddleCenter);
-                CreateTextElement(cardObj.transform, "Cost", $"Cost: <color=#00BFFF>{card.cost}</color>", new Vector2(0, 10), 22, TextAnchor.MiddleCenter);
-                CreateTextElement(cardObj.transform, "Stats", $"ATK: <color=#FF8C00>{card.attack}</color>  HP: <color=#FF4500>{card.health}</color>", new Vector2(0, -90), 20, TextAnchor.MiddleCenter);
             }
         }
 
@@ -458,21 +428,12 @@ namespace MyriadOfDragons.UI
                 var card = activeDeck[i];
                 int index = i;
 
-                GameObject rowObj = new GameObject($"DeckRow_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+                GameObject rowObj = CreateCardVisual($"DeckRow_{i}", card, true);
                 rowObj.transform.SetParent(deckListTransform, false);
                 rowObj.transform.localScale = Vector3.one;
 
-                Image rowBg = rowObj.GetComponent<Image>();
-                rowBg.color = new Color(0.28f, 0.22f, 0.16f);
-
-                LayoutElement le = rowObj.GetComponent<LayoutElement>();
-                le.preferredHeight = 48;
-                le.minHeight = 48;
-
                 Button btn = rowObj.GetComponent<Button>();
                 btn.onClick.AddListener(() => RemoveCardFromDeck(index));
-
-                CreateTextElement(rowObj.transform, "Text", $"[{card.cost}]  {card.cardName}  ({card.archetype})", Vector2.zero, 20, TextAnchor.MiddleCenter);
             }
 
             UpdateDeckUIState();
@@ -635,11 +596,9 @@ namespace MyriadOfDragons.UI
             float averageManaCost = activeDeck.Count > 0 ? (float)totalManaCost / activeDeck.Count : 0f;
 
             return
-                $"Cards selected: {activeDeck.Count}/{deckSizeLimit}\n" +
-                $"Total mana cost: {totalManaCost}\n" +
-                $"Average mana cost: {averageManaCost:0.0}\n" +
-                $"Total ATK: {totalAttack}\n" +
-                $"Total HP: {totalHealth}";
+                $"Deck {activeDeck.Count}/{deckSizeLimit}    Total Mana {totalManaCost}\n" +
+                $"Average Mana {averageManaCost:0.0}\n" +
+                $"Total ATK {totalAttack}    Total HP {totalHealth}";
         }
 
         private string GetConfirmStatusText()
@@ -661,6 +620,100 @@ namespace MyriadOfDragons.UI
             }
 
             return "Deck ready to confirm and save.";
+        }
+
+        private GameObject CreateCardVisual(string objectName, DeckCardData card, bool compact)
+        {
+            Vector2 cardSize = compact ? new Vector2(150f, 205f) : new Vector2(190f, 260f);
+            GameObject cardObj = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
+            Image cardBackground = cardObj.GetComponent<Image>();
+            cardBackground.color = new Color(0.08f, 0.10f, 0.14f, 0.75f);
+            Button cardButton = cardObj.GetComponent<Button>();
+            cardButton.transition = Selectable.Transition.ColorTint;
+            cardButton.colors = new ColorBlock
+            {
+                normalColor = Color.white,
+                highlightedColor = new Color(0.8f, 1f, 1f, 1f),
+                pressedColor = new Color(0.7f, 0.9f, 0.95f, 1f),
+                selectedColor = Color.white,
+                disabledColor = new Color(0.45f, 0.48f, 0.5f, 1f),
+                colorMultiplier = 1f,
+                fadeDuration = 0.08f
+            };
+
+            GameObject borderObj = new GameObject("CardBorder", typeof(RectTransform), typeof(Image));
+            borderObj.transform.SetParent(cardObj.transform, false);
+            Image borderImage = borderObj.GetComponent<Image>();
+            borderImage.color = new Color(0.28f, 0.35f, 0.40f, 0.90f);
+            borderImage.raycastTarget = false;
+            SetLocalNormalisedRect(borderImage.rectTransform, 0.02f, 0.02f, 0.98f, 0.98f);
+
+            GameObject artViewport = new GameObject("ArtViewport", typeof(RectTransform), typeof(RectMask2D));
+            artViewport.transform.SetParent(cardObj.transform, false);
+            SetLocalNormalisedRect(artViewport.GetComponent<RectTransform>(), 0.08f, 0.28f, 0.92f, 0.84f);
+
+            GameObject artObj = new GameObject("Art", typeof(RectTransform), typeof(Image), typeof(AspectRatioFitter));
+            artObj.transform.SetParent(artViewport.transform, false);
+
+            Image artImage = artObj.GetComponent<Image>();
+            Card resolved = cardDatabase != null ? cardDatabase.GetCard(card.id) : null;
+            Sprite art = resolved != null && cardDatabase != null ? cardDatabase.GetArt(resolved) : null;
+            artImage.sprite = art;
+            artImage.color = art != null ? Color.white : Color.clear;
+            artImage.preserveAspect = true;
+            artImage.raycastTarget = false;
+
+            RectTransform artRect = artObj.GetComponent<RectTransform>();
+            artRect.anchorMin = Vector2.zero;
+            artRect.anchorMax = Vector2.one;
+            artRect.offsetMin = Vector2.zero;
+            artRect.offsetMax = Vector2.zero;
+
+            AspectRatioFitter artFitter = artObj.GetComponent<AspectRatioFitter>();
+            artFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            artFitter.aspectRatio = art != null ? art.rect.width / art.rect.height : 1f;
+
+            Text name = CreateTextElement(cardObj.transform, "Name", card.cardName, Vector2.zero, compact ? 14 : 16, TextAnchor.MiddleCenter, new Vector2(160f, 30f));
+            name.color = new Color(0.95f, 0.94f, 0.84f);
+            SetLocalNormalisedRect(name.rectTransform, 0.08f, 0.17f, 0.92f, 0.29f);
+
+            Text type = CreateTextElement(cardObj.transform, "Type", card.archetype, Vector2.zero, compact ? 11 : 12, TextAnchor.MiddleCenter, new Vector2(160f, 24f));
+            type.color = new Color(0.55f, 0.85f, 0.84f);
+            SetLocalNormalisedRect(type.rectTransform, 0.08f, 0.08f, 0.92f, 0.17f);
+
+            Text stats = CreateTextElement(cardObj.transform, "Stats", $"COST {card.cost}   ATK {card.attack}   HP {card.health}", Vector2.zero, compact ? 10 : 12, TextAnchor.MiddleCenter, new Vector2(180f, 24f));
+            stats.color = new Color(0.9f, 0.95f, 0.9f);
+            SetLocalNormalisedRect(stats.rectTransform, 0.04f, 0.01f, 0.96f, 0.09f);
+
+            if (!compact && IsCardInDeck(card.id))
+            {
+                var cardBorderOutline = cardObj.AddComponent<Outline>();
+                cardBorderOutline.effectColor = new Color(0.88f, 0.76f, 0.28f, 1f);
+                cardBorderOutline.effectDistance = new Vector2(2f, -2f);
+            }
+
+            return cardObj;
+        }
+
+        private static void SetLocalNormalisedRect(RectTransform rect, float left, float bottom, float right, float top)
+        {
+            rect.anchorMin = new Vector2(left, bottom);
+            rect.anchorMax = new Vector2(right, top);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private static void SetScreenRectFromTopLeftPixels(RectTransform rect, float left, float top, float right, float bottom)
+        {
+            rect.anchorMin = new Vector2(left / 1920f, 1f - bottom / 1080f);
+            rect.anchorMax = new Vector2(right / 1920f, 1f - top / 1080f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private static void SetNormalizedRect(RectTransform rect, float left, float bottom, float right, float top)
+        {
+            SetLocalNormalisedRect(rect, left, bottom, right, top);
         }
 
         /// <summary>Destroys every dynamically-created UI GameObject directly parented under

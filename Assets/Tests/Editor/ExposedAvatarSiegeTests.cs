@@ -237,5 +237,159 @@ namespace MyriadOfDragons.Tests
             LaneBattleResolver.ResetRulesToDefault();
             Assert.IsTrue(LaneBattleResolver.ExposedAvatarSiegeEnabled);
         }
+
+        // ---------- Reinforcement interaction ----------
+        //
+        // Exposure (LaneBattleResolver.SiegeDamageFor) is decided by PlayerBattleState.HasLivingCards,
+        // which checks every lane on a SIDE, not one lane in isolation - there is no per-lane
+        // exposure concept anywhere in production code. A reinforcement placed into any lane
+        // therefore ends siege for the whole side, not "that lane" specifically. The tests below
+        // assert the real, side-wide rule rather than a per-lane one.
+
+        /// <summary>
+        /// Builds a live match where the player's side has locked its formation and then loses its
+        /// only deployed card before combat resolves anything - the "board wiped early" state
+        /// SiegeStartTick's own doc comment describes, reached directly rather than by simulating
+        /// combat against unpredictable card stats. One card is deployed and then removed (not
+        /// left undeployed) specifically because ConfirmFormation refuses an empty player board.
+        /// The second deck card stays in hand, unused, as the reinforcement. The enemy fields
+        /// nothing, so no cross-side combat noise complicates the assertions below.
+        /// </summary>
+        private BattleController BuildExposedPlayerMatch(out Card reinforcementCard)
+        {
+            List<Card> deck = LoadDatabase().AllCards.Take(2).ToList();
+            Assert.GreaterOrEqual(deck.Count, 2, "Test needs at least two distinct cards in the database.");
+
+            var go = new GameObject("SiegeReinforcementController");
+            _spawned.Add(go);
+            BattleController controller = go.AddComponent<BattleController>();
+
+            var economy = new BattleController.MatchEconomy(resourceCap: 999, turn1Resource: 999, startingAvatarHealth: 260);
+            controller.StartMatch(deck, new List<Card>(), economy, economy);
+
+            Card deployed = controller.PlayerState.Hand[0];
+            reinforcementCard = controller.PlayerState.Hand[1];
+
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, deployed, Lane.Front),
+                "Setup failure: the deployed card should always be playable with this generous economy.");
+            Assert.IsTrue(controller.ConfirmFormation(), "Setup failure: formation should lock with one card deployed.");
+
+            controller.PlayerState.Lanes[Lane.Front].Cards.Clear();
+            Assert.IsFalse(controller.PlayerState.HasLivingCards,
+                "Setup failure: player side must be exposed (no living cards) before this scenario begins.");
+
+            return controller;
+        }
+
+        private static void AdvanceTo(BattleController controller, int tick)
+        {
+            while (controller.Phase == BattlePhase.Combat && controller.TickCount < tick)
+            {
+                controller.AdvanceCombatTick();
+            }
+        }
+
+        [Test]
+        public void Reinforcement_OutsideTheValidWindow_IsRejectedAndExposureContinues()
+        {
+            LaneBattleResolver.ExposedAvatarSiegeEnabled = true;
+            BattleController controller = BuildExposedPlayerMatch(out Card reinforcementCard);
+
+            AdvanceTo(controller, LaneBattleResolver.SiegeStartTick);
+
+            // Confirmed rule: BattleController.IsReinforcementWindowOpen only matches
+            // ReinforcementTicks (4, 8); SiegeStartTick (7) is neither.
+            Assert.IsFalse(controller.IsReinforcementWindowOpen,
+                "SiegeStartTick must not coincide with a reinforcement tick for this test to be meaningful.");
+            // Confirmed rule: SiegeDamageFor fires once tick >= SiegeStartTick for an exposed side.
+            Assert.Less(controller.PlayerState.AvatarHealth, controller.PlayerState.MaxAvatarHealth,
+                "The exposed side should already be bleeding from siege before any reinforcement attempt.");
+
+            int healthBeforeAttempt = controller.PlayerState.AvatarHealth;
+
+            // Confirmed rule: TryDeployReinforcement returns false whenever IsReinforcementWindowOpen is false.
+            Assert.IsFalse(controller.TryDeployReinforcement(reinforcementCard, Lane.Back),
+                "A reinforcement attempted outside the window must be rejected.");
+            Assert.IsFalse(controller.PlayerState.HasLivingCards,
+                "A rejected reinforcement must not change exposure.");
+            Assert.AreEqual(healthBeforeAttempt, controller.PlayerState.AvatarHealth,
+                "A rejected reinforcement must not change Avatar Health either.");
+        }
+
+        [Test]
+        public void Reinforcement_DuringTheValidWindow_EndsExposureAndStopsSiegeOnTheNextTick()
+        {
+            LaneBattleResolver.ExposedAvatarSiegeEnabled = true;
+            BattleController controller = BuildExposedPlayerMatch(out Card reinforcementCard);
+
+            AdvanceTo(controller, LaneBattleResolver.SiegeStartTick);
+            Assert.Less(controller.PlayerState.AvatarHealth, controller.PlayerState.MaxAvatarHealth,
+                "Confirmed rule: an exposed side bleeds once SiegeStartTick is reached.");
+
+            AdvanceTo(controller, BattleController.ReinforcementTicks[1]); // tick 8
+            Assert.IsTrue(controller.IsReinforcementWindowOpen,
+                "Confirmed rule: BattleController.ReinforcementTicks includes tick 8.");
+
+            Assert.IsTrue(controller.TryDeployReinforcement(reinforcementCard, Lane.Back),
+                "A valid reinforcement (card in hand, affordable, room in lane) must be accepted inside the window.");
+
+            // Confirmed rule: HasLivingCards - and therefore SiegeDamageFor, which reads it - is
+            // evaluated fresh from current board state on every call, with no per-lane concept.
+            Assert.IsTrue(controller.PlayerState.HasLivingCards,
+                "The side must no longer read as exposed once a living card is on its board.");
+
+            int healthAfterReinforcing = controller.PlayerState.AvatarHealth;
+
+            controller.AdvanceCombatTick(); // tick 9
+
+            // Confirmed rule: SiegeDamageFor returns 0 once HasLivingCards is true.
+            Assert.AreEqual(healthAfterReinforcing, controller.PlayerState.AvatarHealth,
+                "No further siege damage should apply while the reinforcement remains alive.");
+        }
+
+        [Test]
+        public void Reinforcement_DuringTheValidWindow_DoesNotAlterTheOpposingSide()
+        {
+            LaneBattleResolver.ExposedAvatarSiegeEnabled = true;
+            BattleController controller = BuildExposedPlayerMatch(out Card reinforcementCard);
+
+            AdvanceTo(controller, BattleController.ReinforcementTicks[1]); // tick 8
+
+            int enemyHealthBefore = controller.EnemyState.AvatarHealth;
+            int enemyFrontBefore = controller.EnemyState.Lanes[Lane.Front].Cards.Count;
+            int enemyMiddleBefore = controller.EnemyState.Lanes[Lane.Middle].Cards.Count;
+            int enemyBackBefore = controller.EnemyState.Lanes[Lane.Back].Cards.Count;
+
+            Assert.IsTrue(controller.TryDeployReinforcement(reinforcementCard, Lane.Back));
+
+            // Confirmed rule: TryDeployReinforcement only ever reads/writes PlayerState - it takes
+            // no side parameter, so the enemy side has no path to be touched by this call.
+            Assert.AreEqual(enemyHealthBefore, controller.EnemyState.AvatarHealth);
+            Assert.AreEqual(enemyFrontBefore, controller.EnemyState.Lanes[Lane.Front].Cards.Count);
+            Assert.AreEqual(enemyMiddleBefore, controller.EnemyState.Lanes[Lane.Middle].Cards.Count);
+            Assert.AreEqual(enemyBackBefore, controller.EnemyState.Lanes[Lane.Back].Cards.Count);
+        }
+
+        [Test]
+        public void Reinforcement_WithSiegeDisabled_NeverAppliesDamageRegardlessOfWindowTiming()
+        {
+            LaneBattleResolver.ExposedAvatarSiegeEnabled = false;
+            BattleController controller = BuildExposedPlayerMatch(out Card reinforcementCard);
+
+            AdvanceTo(controller, LaneBattleResolver.SiegeStartTick);
+
+            // Confirmed rule: SiegeDamageFor returns 0 unconditionally when
+            // ExposedAvatarSiegeEnabled is false, independent of exposure or reinforcement state.
+            Assert.AreEqual(controller.PlayerState.MaxAvatarHealth, controller.PlayerState.AvatarHealth,
+                "No siege damage should apply at all with the feature flag off, even while exposed.");
+
+            AdvanceTo(controller, BattleController.ReinforcementTicks[1]); // tick 8
+            Assert.IsTrue(controller.TryDeployReinforcement(reinforcementCard, Lane.Back));
+            controller.AdvanceCombatTick(); // tick 9
+
+            Assert.AreEqual(controller.PlayerState.MaxAvatarHealth, controller.PlayerState.AvatarHealth,
+                "Health must remain untouched by siege throughout - the flag-off default is " +
+                "respected regardless of reinforcement timing.");
+        }
     }
 }

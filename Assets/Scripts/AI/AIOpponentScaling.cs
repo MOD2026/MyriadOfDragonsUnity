@@ -83,7 +83,7 @@ namespace MyriadOfDragons.AI
     /// Generates a per-match AI opponent scaled to the player's current Empire progression.
     ///
     /// This replaces the previous arrangement where the enemy was pinned at Avatar 1 / Castle 1
-    /// forever (GameBootstrap) while the player gained +3 Avatar levels per win - which meant the
+    /// forever (GameBootstrap) while the player gained Avatar levels per win - which meant the
     /// game got monotonically *easier* the longer it was played, the concrete "it's unbalanced"
     /// problem this system exists to solve.
     ///
@@ -153,10 +153,11 @@ namespace MyriadOfDragons.AI
                 Archetype = archetype,
                 MaxAvatarHealth = Mathf.Max(1, scaledHealth),
                 StartingResourceCap = Mathf.Max(1, scaledResourceCap),
-                // Matches the player's own Turn-1 rule (PlayerEmpireData.Turn1ResourceFraction is
-                // currently 1.0 - full cap from Turn 1), rather than inventing a separate ramp
-                // that would silently diverge if the player's rule is retuned later.
-                Turn1Resource = Mathf.Max(1, scaledResourceCap),
+                // Matches the player's own Turn-1 fraction (PlayerEmpireData.Turn1ResourceFraction
+                // = 0.6). Production match construction in GameBootstrap currently passes the
+                // player's exact Turn1Resource for both sides (AI formation-resource parity), so
+                // this field is the profile's documented baseline rather than a second economy.
+                Turn1Resource = Mathf.Max(1, Mathf.RoundToInt(scaledResourceCap * 0.6f)),
             };
         }
 

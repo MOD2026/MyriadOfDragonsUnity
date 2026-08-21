@@ -60,13 +60,12 @@ namespace MyriadOfDragons.Empire
         public void SetLevelsForTesting(int avatarLevel, int castleLevel, int barracksLevel, int gateLevel = 1)
             => SetLevels(avatarLevel, castleLevel, barracksLevel, gateLevel);
 
-        // How many Avatar levels a match win/loss grants - the concrete "how do I get stronger
-        // and beat the Avatar" loop that was missing entirely: winning genuinely made the next
-        // match easier (higher ResourceCap/HP), losing didn't compound the difficulty further.
-        // Placeholder numbers (not sourced from the design doc) - real XP curves/loss-forgiveness
-        // rules are a design decision for later, this just makes the loop exist and be testable.
-        private const int AvatarLevelsGainedPerWin = 3;
-        private const int AvatarLevelsGainedPerLoss = 1;
+        // MVP constitution 2026-08-21: +1 Avatar level per win, +0 on loss.
+        // The old +3/+1 placeholders jumped AI difficulty tiers every couple of fights and
+        // rewarded losses with free power. Castle/Barracks still do not advance from matches
+        // in MVP - only AvatarLevel moves (see docs/MVP_COMBAT_PROGRESSION_CONSTITUTION_2026-08-21.md).
+        private const int AvatarLevelsGainedPerWin = 1;
+        private const int AvatarLevelsGainedPerLoss = 0;
 
         /// <summary>Call after a match ends, then InitializeTCGModifiers() to apply the new
         /// level to the next match. Only persists for the current Play session - see the note
@@ -90,9 +89,11 @@ namespace MyriadOfDragons.Empire
         /// <summary>Max match resource, from a base plus Avatar-level and Castle-level bonuses.</summary>
         public int ResourceCap => _resourceCap;
 
-        /// <summary>Starting (Turn 1) match resource - full ResourceCap per direct request
-        /// (2026-08-05), so a match is playable at full strength from the first turn rather
-        /// than ramping up into it.</summary>
+        /// <summary>Starting (Turn 1 / Formation) match resource - a fraction of
+        /// <see cref="ResourceCap"/> (see Turn1ResourceFraction). Ramps +1/turn after that up
+        /// to the cap. Kept below the full cap so Formation is a real choice: leftover Resource
+        /// funds reinforcement windows (ticks 4 and 8), and first-tick overflow cannot one-shot
+        /// a full dump of both boards.</summary>
         public int Turn1Resource => _turn1Resource;
 
         /// <summary>Match-starting Avatar HP, from a base plus Avatar-level and Castle-level
@@ -123,7 +124,15 @@ namespace MyriadOfDragons.Empire
         private const int ResourceBonusPerTier = 5;
         private const int MaxAvatarResourceBonus = 30; // reached at Avatar level 30
         private const int MaxCastleResourceBonus = 30; // reached at Castle level 30
-        private const float Turn1ResourceFraction = 1.0f; // full cap from Turn 1, per direct request
+        // Restored to 0.6 on 2026-08-21 (Chapter 1 systemic combat-balance audit).
+        // The 1.0 "full cap from Turn 1" experiment let both sides dump near-full boards in
+        // Formation; with a full Turn-1 dump that produced 1-tick Chapter 1 clears under a
+        // full legal formation and erased reinforcement / spell decision space. 0.6 matches the
+        // PlayerBattleState comment contract (~60% of ResourceCap) and the original economy notes
+        // in README: Formation spends a real budget, leftovers fund ticks 4/8 reinforcements, and
+        // combat length returns to the BalanceSimulationTargets band without retuning individual
+        // Chapter 1 enemy rosters.
+        private const float Turn1ResourceFraction = 0.6f;
 
         // Starting Avatar Health. Card combat stats (Attack/Health 1-12) are deliberately
         // UNCHANGED - still the small, mentally-computable Integer Model from Part II §3. What

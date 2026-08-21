@@ -12,6 +12,14 @@ namespace MyriadOfDragons.Battle
         public bool SideBCleared;
         public int OverflowToA;
         public int OverflowToB;
+
+        /// <summary>Combat Tick Feed data (2026-08-22): display names of cards that died IN THIS
+        /// clash specifically, captured before ResolveLaneClash prunes them - a lane always starts
+        /// a clash with only-alive cards (dead ones were pruned at the end of the previous clash),
+        /// so "dead after this clash's damage" and "died this clash" are the same set. Purely
+        /// additive read of already-resolved state; changes no damage/death rule.</summary>
+        public IReadOnlyList<string> DefeatedCardNamesA;
+        public IReadOnlyList<string> DefeatedCardNamesB;
     }
 
     public struct TurnResolutionResult
@@ -21,6 +29,13 @@ namespace MyriadOfDragons.Battle
         public int DamageDealtToSideB;
         public bool SideADefeated;
         public bool SideBDefeated;
+
+        /// <summary>Combat Tick Feed data (2026-08-22): the siege portion of DamageDealtToSideA/B,
+        /// broken out separately so the feed can say "siege" rather than folding it silently into
+        /// overflow. Already computed inside ResolveTurn either way - this just reports it instead
+        /// of discarding it after the sum.</summary>
+        public int SiegeDamageToSideA;
+        public int SiegeDamageToSideB;
     }
 
     /// <summary>
@@ -63,6 +78,12 @@ namespace MyriadOfDragons.Battle
             bool sideACleared = laneA.IsFullyCleared;
             bool sideBCleared = laneB.IsFullyCleared;
 
+            // Combat Tick Feed (2026-08-22): captured here, before the prune below removes them -
+            // every card still in Cards at this point was alive at the start of this clash (see
+            // the struct's own comment), so filtering to !IsAlive is exactly "died this clash".
+            List<string> defeatedA = laneA.Cards.Where(c => !c.IsAlive).Select(c => c.Definition.DisplayName).ToList();
+            List<string> defeatedB = laneB.Cards.Where(c => !c.IsAlive).Select(c => c.Definition.DisplayName).ToList();
+
             // Real bug fixed 2026-08-05: dead cards used to stay in Cards forever. That meant
             // (a) a "cleared" lane still counted as full for HasOpenSlot, permanently blocking
             // new plays there, and (b) IsFullyCleared kept reading true on every later turn
@@ -83,6 +104,8 @@ namespace MyriadOfDragons.Battle
                 SideBCleared = sideBCleared,
                 OverflowToA = overflowToA,
                 OverflowToB = overflowToB,
+                DefeatedCardNamesA = defeatedA,
+                DefeatedCardNamesB = defeatedB,
             };
         }
 
@@ -171,21 +194,10 @@ namespace MyriadOfDragons.Battle
         // track how much bigger Avatar HP got overall (base 20->100 is 5x, but the mid-test
         // profile's total went ~36->1300, ~36x) - 25 keeps match length in the same ballpark as
         // before the HP rescale rather than 5x or 36x longer.
-        // Cut 25 -> 6 on 2026-08-06 because two other changes compounded underneath it and made
-        // matches end in about two ticks ("the battle happens too fast, the player can't even
-        // click on the energy"). 25 was tuned when (a) an undefended lane absorbed everything
-        // and dealt no damage at all, and (b) the turn-based model refilled the board every
-        // turn. Now undefended lanes deal full damage AND the formation model never replenishes
-        // a dead unit, so once a side's lanes empty they stay empty and take the full attack
-        // every single tick: 3 lanes x ~12 Attack x 25 was ~900 damage a tick into a 1300 HP
-        // pool. At 6 a match runs roughly 10-14 ticks, which is long enough to bank Energy and
-        // actually cast something - the active-spell layer is unusable if the fight is over
-        // before the first spell comes off cooldown.
-        // Public so the test suite can assert the *relationship* (avatar damage == raw overflow x
-        // this) instead of hardcoding the number. The test previously duplicated "25" as a
-        // literal and broke the moment this was retuned, which makes a balance change look like
-        // a regression.
-        public const int AvatarDamageMultiplier = 6;
+        // Cut 25 -> 6 on 2026-08-06 for pacing; cut 6 -> 4 on 2026-08-21 (MVP constitution) so
+        // Chapter 1 / early matches reliably last long enough to bank Energy for a spell while
+        // keeping the Integer Model card stats untouched. Overtime stays ~1.5x / 2x of this base.
+        public const int AvatarDamageMultiplier = 4;
 
         // Overtime. The multiplier escalates in the back half of a match so the tick cap acts as
         // a *deadline* rather than a result: previously a fight that hadn't resolved by tick 12
@@ -194,8 +206,8 @@ namespace MyriadOfDragons.Battle
         // lethal, so a match reaches a real conclusion instead of running out the clock.
         public const int OvertimeStartTick = 7;
         public const int LateOvertimeStartTick = 10;
-        private const int OvertimeMultiplier = 9;      // 1.5x
-        private const int LateOvertimeMultiplier = 12; // 2.0x
+        private const int OvertimeMultiplier = 6;      // 1.5x of base 4
+        private const int LateOvertimeMultiplier = 8; // 2.0x of base 4
 
         /// <summary>The Avatar damage multiplier in force on a given combat tick.</summary>
         public static int AvatarDamageMultiplierForTick(int tickNumber)
@@ -368,8 +380,10 @@ namespace MyriadOfDragons.Battle
             // before it, or a board wiped on tick 7 would not come under siege until tick 8.
             // Added after the multiplier, not before: it is already a fraction of the Health pool
             // and carries its own overtime scaling.
-            int avatarDamageToA = (totalOverflowToA * multiplier) + SiegeDamageFor(sideA, tickNumber);
-            int avatarDamageToB = (totalOverflowToB * multiplier) + SiegeDamageFor(sideB, tickNumber);
+            int siegeToA = SiegeDamageFor(sideA, tickNumber);
+            int siegeToB = SiegeDamageFor(sideB, tickNumber);
+            int avatarDamageToA = (totalOverflowToA * multiplier) + siegeToA;
+            int avatarDamageToB = (totalOverflowToB * multiplier) + siegeToB;
             sideA.AvatarHealth = Math.Max(0, sideA.AvatarHealth - avatarDamageToA);
             sideB.AvatarHealth = Math.Max(0, sideB.AvatarHealth - avatarDamageToB);
 
@@ -380,6 +394,8 @@ namespace MyriadOfDragons.Battle
                 DamageDealtToSideB = avatarDamageToB,
                 SideADefeated = sideA.IsDefeated,
                 SideBDefeated = sideB.IsDefeated,
+                SiegeDamageToSideA = siegeToA,
+                SiegeDamageToSideB = siegeToB,
             };
         }
     }

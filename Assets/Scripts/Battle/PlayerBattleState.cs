@@ -85,12 +85,24 @@ namespace MyriadOfDragons.Battle
 
         private static void Shuffle(List<Card> cards)
         {
-            var rng = new System.Random();
+            // Tests may pin a seed so Chapter 1 / balance audits measure policy, not draw luck.
+            // Production keeps an unseeded Random so each match still shuffles freshly.
+            var rng = _shuffleSeedForTests.HasValue
+                ? new System.Random(_shuffleSeedForTests.Value)
+                : new System.Random();
             for (int i = cards.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(i + 1);
                 (cards[i], cards[j]) = (cards[j], cards[i]);
             }
         }
+
+        private static int? _shuffleSeedForTests;
+
+        /// <summary>EditMode-only: pin both sides' draw shuffles so combat policies are comparable.</summary>
+        public static void SetShuffleSeedForTests(int seed) => _shuffleSeedForTests = seed;
+
+        /// <summary>EditMode-only: restore unseeded production shuffle behaviour.</summary>
+        public static void ClearShuffleSeedForTests() => _shuffleSeedForTests = null;
     }
 }

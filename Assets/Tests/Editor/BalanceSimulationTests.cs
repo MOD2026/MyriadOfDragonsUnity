@@ -9,7 +9,11 @@ using UnityEngine;
 
 namespace MyriadOfDragons.Tests
 {
-    /// <summary>
+    public class BalanceSimulationTests
+    {
+        private const int MatchesPerRun = 400;
+
+        /// <summary>
     /// Balance simulation, run headlessly through the normal EditMode test runner.
     ///
     /// This exists because balance questions were previously answered by reasoning, and reasoning
@@ -27,9 +31,6 @@ namespace MyriadOfDragons.Tests
     /// The assertions deliberately check broad *ranges*, not exact figures. A balance change
     /// should not fail the build; a balance change that makes matches undecidable should.
     /// </summary>
-    public class BalanceSimulationTests
-    {
-        private const int MatchesPerRun = 400;
 
         private readonly List<GameObject> _spawned = new List<GameObject>();
 

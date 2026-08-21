@@ -39,6 +39,17 @@ namespace MyriadOfDragons.Tests
         private readonly List<GameObject> _spawned = new List<GameObject>();
         private string _scratchSaveDir;
 
+        /// <summary>Mirrors GameBootstrap's own private SeenIntroPrefKey constant exactly
+        /// (see SeedNewProfile's own one-time PlayerPrefs carry-over comment). PlayerPrefs is
+        /// real machine/registry state, not sandboxed by SaveSystem.OverrideRootDirectoryForTests
+        /// the way the save file is - a value left behind by an earlier interactive Editor/Play
+        /// session (or an earlier batch run) leaks into SeedNewProfile's NewGame branch here,
+        /// making Grant_ChangesNoCurrencyProgressionOrStageUnlock's hasSeenIntro assertion depend
+        /// on unrelated history instead of this test's own setup.</summary>
+        private const string SeenIntroPrefKey = "MOD_SeenIntro";
+        private bool _hadSeenIntroPref;
+        private int _priorSeenIntroPrefValue;
+
         [SetUp]
         public void SetUp()
         {
@@ -49,6 +60,14 @@ namespace MyriadOfDragons.Tests
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
+
+            // Reset to a known, deleted state before every test in this file - independent of
+            // whatever an earlier Unity/Editor session left in the real PlayerPrefs store.
+            // Whatever was actually there is captured first and restored in TearDown, so this
+            // test file leaves the developer's own machine state exactly as it found it.
+            _hadSeenIntroPref = PlayerPrefs.HasKey(SeenIntroPrefKey);
+            _priorSeenIntroPrefValue = PlayerPrefs.GetInt(SeenIntroPrefKey, 0);
+            PlayerPrefs.DeleteKey(SeenIntroPrefKey);
         }
 
         [TearDown]
@@ -66,6 +85,9 @@ namespace MyriadOfDragons.Tests
             {
                 Directory.Delete(_scratchSaveDir, recursive: true);
             }
+
+            if (_hadSeenIntroPref) PlayerPrefs.SetInt(SeenIntroPrefKey, _priorSeenIntroPrefValue);
+            else PlayerPrefs.DeleteKey(SeenIntroPrefKey);
         }
 
         private GameBootstrap SpawnAndInitializeBootstrap(string name)

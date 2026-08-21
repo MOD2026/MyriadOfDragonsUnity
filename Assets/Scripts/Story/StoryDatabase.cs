@@ -42,6 +42,22 @@ namespace MyriadOfDragons.Story
             stage1_3.lines.Add(new DialogueLine(gorn, "So you reached my citadel gates... Your journey ends here!"));
             stage1_3.lines.Add(new DialogueLine(playerSpeaker, "Yield, Gorn, or face the full strength of our army!"));
             sequences["1-3_pre"] = stage1_3;
+
+            // Stage 1-1 / 1-2 / 1-3 post-victory bridges (first clear only - see HomePagePresenter).
+            var stage1_1Post = new StorySequence("1-1_post", "Stage 1-1: Path Cleared");
+            stage1_1Post.lines.Add(new DialogueLine(orcScout, "Fall back! The border is lost!"));
+            stage1_1Post.lines.Add(new DialogueLine(playerSpeaker, "The mountain path is ours. Push on to the Volcanic Ridge."));
+            sequences["1-1_post"] = stage1_1Post;
+
+            var stage1_2Post = new StorySequence("1-2_post", "Stage 1-2: Ridge Secured");
+            stage1_2Post.lines.Add(new DialogueLine(kaelen, "My wyverns... broken. Gorn will not forgive this."));
+            stage1_2Post.lines.Add(new DialogueLine(playerSpeaker, "Then we take the fight to his citadel before he recovers."));
+            sequences["1-2_post"] = stage1_2Post;
+
+            var stage1_3Post = new StorySequence("1-3_post", "Stage 1-3: Citadel Falls");
+            stage1_3Post.lines.Add(new DialogueLine(gorn, "The citadel... falls. Olympus will notice this wound."));
+            stage1_3Post.lines.Add(new DialogueLine(playerSpeaker, "Let them. Chapter one ends here - but the war for Boiotia has only begun."));
+            sequences["1-3_post"] = stage1_3Post;
         }
 
         public static StorySequence GetSequence(string sequenceId)

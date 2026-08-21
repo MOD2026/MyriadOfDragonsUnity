@@ -22,6 +22,7 @@ namespace MyriadOfDragons.Save
 
             profile.seenChapters ??= new List<string>();
             profile.unlockedStageIds ??= new List<string>();
+            profile.claimedStageRewardIds ??= new List<string>();
             profile.activeDeckCardIds ??= new List<string>();
             profile.cardCollection ??= new List<string>();
             profile.inventoryAssets ??= new List<TradeableAssetInstance>();

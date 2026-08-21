@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using MyriadOfDragons.Cards;
+using MyriadOfDragons.Economy;
 using MyriadOfDragons.Save;
 
 namespace MyriadOfDragons.UI
@@ -13,9 +15,14 @@ namespace MyriadOfDragons.UI
         public string description;
         public int goldCost;
         public int gemCost;
-        public System.Action<PlayerProfile> onPurchase;
 
-        public ShopItemData(string id, string title, string desc, int goldCost, int gemCost, System.Action<PlayerProfile> onPurchase)
+        /// <summary>Grants the item's reward and returns whether it could actually be fulfilled.
+        /// Returning false (the card reward sequence is exhausted - see
+        /// ShopPresenter.TryGrantNextUnownedCard) must leave the profile completely untouched;
+        /// AttemptPurchase relies on that to decide whether currency is spent at all.</summary>
+        public System.Func<PlayerProfile, bool> onPurchase;
+
+        public ShopItemData(string id, string title, string desc, int goldCost, int gemCost, System.Func<PlayerProfile, bool> onPurchase)
         {
             this.id = id;
             this.title = title;
@@ -47,29 +54,91 @@ namespace MyriadOfDragons.UI
             BuildUI();
         }
 
+        /// <summary>Exposed for tests: the real "BUY" button calls the private AttemptPurchase()
+        /// directly - EditMode tests have no way to click a UI Button, so this is the only way to
+        /// exercise the real purchase handler (affordability gate, reward fulfillment, and the
+        /// currency-spend-only-on-fulfillment ordering) rather than reimplementing it in a test.
+        /// Returns whether the item existed by id - not whether the purchase itself succeeded, so
+        /// a test asserts the real, resulting profile state rather than a return value standing
+        /// in for it.</summary>
+        public bool PurchaseForTests(string itemId)
+        {
+            ShopItemData item = shopItems?.Find(i => i.id == itemId);
+            if (item == null) return false;
+            AttemptPurchase(item);
+            return true;
+        }
+
+        /// <summary>
+        /// The one card a pack purchase actually placed into cardCollection used to be a single
+        /// hardcoded literal per item - "warrior" for the Novice pack (no ownership check, so a
+        /// second purchase silently duplicated it), and "dragon" for the Dragon Booster, an id
+        /// that reads as a real database entry but is exactly the kind of placeholder grant this
+        /// release feature exists to remove (rarity 7, no verified art/balance pass behind it -
+        /// excluded by literal id below, not by any new "is this card legitimate" heuristic).
+        ///
+        /// PlaceholderCardId is the sole, explicit exclusion - not a general rarity/quality
+        /// filter (requirement: "no new economy balancing, randomness, rarity system"). The rest
+        /// of the sequence is simply CardDatabase.AllCards in its own existing file order, which
+        /// is already the deterministic ordering authority other code in this project relies on
+        /// (e.g. deck-persistence tests already slice AllCards the same way) - not a second,
+        /// hand-maintained id list that could drift out of sync with the real database.
+        /// </summary>
+        private const string PlaceholderCardId = "dragon";
+
+        /// <summary>
+        /// Grants the next real card id from CardDatabase.AllCards (in the database's own fixed
+        /// order) that isn't already in profile.cardCollection and isn't the placeholder id -
+        /// the one fixed, deterministic reward sequence every card-granting Shop item draws from.
+        /// Returns false, touching nothing, if every real card is already owned (sequence
+        /// exhausted) - AttemptPurchase relies on this to withhold currency in that case.
+        /// </summary>
+        private static bool TryGrantNextUnownedCard(PlayerProfile profile)
+        {
+            CardDatabase database = CardDatabase.Instance;
+            if (database == null) return false;
+
+            foreach (Card card in database.AllCards)
+            {
+                if (card.Id == PlaceholderCardId) continue;
+                if (profile.cardCollection.Contains(card.Id)) continue;
+
+                profile.cardCollection.Add(card.Id);
+                return true;
+            }
+
+            return false;
+        }
+
         private void SetupShopItems()
         {
             shopItems = new List<ShopItemData>()
             {
-                new ShopItemData("pack_novice", "Novice Card Pack", "Contains 3 basic warrior & strategist cards.", 500, 0, (p) => {
-                    p.gold -= 500;
-                    p.cardCollection.Add("warrior");
-                    Debug.Log("Purchased Novice Card Pack! Added 3 cards to collection.");
+                new ShopItemData("pack_novice", "Novice Card Pack", "Grants one new card for your collection.", 500, 0, (p) =>
+                {
+                    bool granted = TryGrantNextUnownedCard(p);
+                    if (granted) Debug.Log("Purchased Novice Card Pack! Added a new card to your collection.");
+                    else Debug.Log("Novice Card Pack: your collection already contains every available card.");
+                    return granted;
                 }),
-                new ShopItemData("pack_dragon", "Dragon Booster", "Guaranteed 1 Epic Dragon card & 2 Rare spells.", 0, 100, (p) => {
-                    p.gems -= 100;
-                    p.cardCollection.Add("dragon");
-                    Debug.Log("Purchased Dragon Booster! Added Dragon card to collection.");
+                new ShopItemData("pack_dragon", "Dragon Booster", "Grants one new card for your collection.", 0, 100, (p) =>
+                {
+                    bool granted = TryGrantNextUnownedCard(p);
+                    if (granted) Debug.Log("Purchased Dragon Booster! Added a new card to your collection.");
+                    else Debug.Log("Dragon Booster: your collection already contains every available card.");
+                    return granted;
                 }),
-                new ShopItemData("res_gold", "Gold Vault", "Instantly adds 1,500 Gold to your wallet.", 0, 50, (p) => {
-                    p.gems -= 50;
-                    p.gold += 1500;
-                    Debug.Log("Purchased 1,500 Gold!");
+                new ShopItemData("res_gold", "Gold Vault", "Instantly adds 1,500 Gold to your wallet.", 0, 50, (p) =>
+                {
+                    bool granted = CurrencyManager.AddCurrency(p, CurrencyType.Gold, 1500, persist: false);
+                    if (granted) Debug.Log("Purchased 1,500 Gold!");
+                    return granted;
                 }),
-                new ShopItemData("res_energy", "Energy Potion", "Restores +50 Stamina for campaign battles.", 0, 30, (p) => {
-                    p.gems -= 30;
-                    p.stamina = Mathf.Min(p.stamina + 50, p.maxStamina);
-                    Debug.Log("Restored +50 Energy!");
+                new ShopItemData("res_energy", "Energy Potion", "Restores +50 Stamina for campaign battles.", 0, 30, (p) =>
+                {
+                    bool granted = CurrencyManager.RestoreStamina(p, 50, persist: false);
+                    if (granted) Debug.Log("Restored +50 Energy!");
+                    return granted;
                 })
             };
         }
@@ -213,21 +282,46 @@ namespace MyriadOfDragons.UI
             CreateTextElement(buyBtnObj.transform, "PriceText", $"BUY ({priceLabel})", Vector2.zero, 20, TextAnchor.MiddleCenter);
         }
 
+        /// <summary>
+        /// CurrencyManager is the sole wallet authority for this transaction: affordability reads
+        /// (GetBalance), the reward's own currency/stamina grants (AddCurrency/RestoreStamina,
+        /// called from inside each ShopItemData.onPurchase with persist:false), and the final cost
+        /// deduction (SpendCurrency, also persist:false) all go through it - ShopPresenter itself
+        /// never writes player.gold/gems/stamina directly. Every CurrencyManager call in this
+        /// transaction defers its own save so the whole purchase (reward + cost) commits in the
+        /// single SaveSystem.Save below, not several partial writes.
+        /// </summary>
         private void AttemptPurchase(ShopItemData item)
         {
-            if (item.goldCost > 0 && player.gold < item.goldCost)
+            // Insufficient currency changes nothing - checked, and returned on, before any
+            // profile mutation or reward attempt.
+            if (item.goldCost > 0 && CurrencyManager.GetBalance(player, CurrencyType.Gold) < item.goldCost)
             {
                 Debug.Log("Not enough Gold!");
                 return;
             }
 
-            if (item.gemCost > 0 && player.gems < item.gemCost)
+            if (item.gemCost > 0 && CurrencyManager.GetBalance(player, CurrencyType.Gems) < item.gemCost)
             {
                 Debug.Log("Not enough Gems!");
                 return;
             }
 
-            item.onPurchase?.Invoke(player);
+            // The reward is fulfilled BEFORE any currency is spent, and only currency is spent
+            // if it actually was fulfilled - a card-granting item whose reward sequence is
+            // exhausted (TryGrantNextUnownedCard returns false, having touched nothing) must not
+            // spend the player's Gold/Gems for nothing. Existing non-card items (Gold Vault,
+            // Energy Potion) always return true and are unaffected by this ordering change.
+            bool fulfilled = item.onPurchase != null && item.onPurchase.Invoke(player);
+            if (!fulfilled)
+            {
+                Debug.Log($"{item.title}: purchase could not be fulfilled - no currency spent.");
+                return;
+            }
+
+            if (item.goldCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gold, item.goldCost, persist: false);
+            if (item.gemCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gems, item.gemCost, persist: false);
+
             MyriadOfDragons.Save.SaveSystem.Save(player);
             RefreshResourceDisplay();
         }

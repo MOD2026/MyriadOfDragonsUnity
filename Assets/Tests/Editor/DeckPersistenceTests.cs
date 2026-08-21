@@ -12,12 +12,19 @@ using UnityEngine;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// DECK PERSISTENCE, 2026-08-15 - proves DeckBuilderPresenter's save path and
-    /// GameBootstrap's saved-deck consumption path through their REAL private handlers:
-    /// SetAndConfirmDeckForTests reuses the real (still-private) AddCardToDeck/ConfirmDeck;
-    /// PlayAgainForTests/ResetLineupForTests reuse the real (still-private)
-    /// OnPlayAgainPressed/OnLineupButtonPressed -&gt; StartNewMatch -&gt; BuildSavedPlayerDeck/
-    /// PadDeckWithUniqueRandomCards, exactly as production does.
+    /// DECK PERSISTENCE, 2026-08-15 (revised in the release repair pass below) - proves
+    /// DeckBuilderPresenter's save path and GameBootstrap's saved-deck consumption path through
+    /// their REAL private handlers: SetAndConfirmDeckForTests reuses the real (still-private)
+    /// AddCardToDeck/ConfirmDeck; PlayAgainForTests/ResetLineupForTests reuse the real
+    /// (still-private) OnPlayAgainPressed/OnLineupButtonPressed -&gt; StartNewMatch -&gt;
+    /// TryBuildSavedPlayerDeck, exactly as production does.
+    ///
+    /// A confirmed valid activeDeckCardIds deck is the exclusive source of the normal player
+    /// battle deck - an invalid or incomplete saved deck blocks normal battle instead of padding,
+    /// substituting, or skip-and-continuing with a partial/regenerated deck (see
+    /// TryBuildSavedPlayerDeck's own comment). The padding behavior this file used to assert was
+    /// itself the defect; see UndersizedSavedDeck_BlocksNormalBattle_WithNoPadding and
+    /// DuplicateAndInvalidSavedIds_BlockNormalBattle_WithNoSkipOrPad below.
     ///
     /// Two separate profiles, same as the other Home/Battle test files in this suite -
     /// GameBootstrap's own `bootstrap.Profile` (Application.isPlaying ? SaveSystem.CurrentProfile
@@ -113,8 +120,11 @@ namespace MyriadOfDragons.Tests
         public void NormalMatch_UsesTheSavedDeck_WhenItResolvesToAFullDeck()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("DeckPersistence_NormalBootstrap");
-            int deckSize = DealtDeckIds(bootstrap.Battle.PlayerState).Count;
-            Assert.Greater(deckSize, 0, "Setup: expected the initial boot match to deal a non-empty deck.");
+            // Read the required deck size directly from Empire rather than from the boot-time
+            // match's own dealt hand: with no saved deck yet (a fresh profile), the boot match
+            // now correctly deals nothing at all (blocked, see NormalMatchStatusForTests below).
+            int deckSize = bootstrap.Profile.Empire.DeckSlotCount;
+            Assert.Greater(deckSize, 0, "Setup: expected a positive current deck size.");
 
             List<string> realCardIds = CardDatabase.Instance.AllCards.Select(c => c.Id).Take(deckSize).ToList();
             Assert.AreEqual(deckSize, realCardIds.Count, "Setup: expected enough real cards to fill a full-size saved deck.");
@@ -125,13 +135,19 @@ namespace MyriadOfDragons.Tests
             HashSet<string> dealtIds = DealtDeckIds(bootstrap.Battle.PlayerState);
             CollectionAssert.AreEquivalent(realCardIds, dealtIds,
                 "A full-size, fully valid saved deck must be used exactly as saved on ordinary replay.");
+            Assert.IsNull(bootstrap.NormalMatchStatusForTests, "A complete, valid saved deck must not produce a blocked-start status.");
         }
 
+        /// <summary>Command Centre decision (release repair, deck-to-battle contract): an
+        /// undersized saved deck must BLOCK normal battle, not be padded with random cards up to
+        /// the current DeckSlotCount. Padding was the exact defect this test used to lock in -
+        /// see NormalBattleSavedDeckIntegrationTests for the confirmed-valid-deck happy path this
+        /// invariant protects.</summary>
         [Test]
-        public void UndersizedSavedDeck_IsPaddedToTheCurrentSlotCount_WithNoDuplicates()
+        public void UndersizedSavedDeck_BlocksNormalBattle_WithNoPadding()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("DeckPersistence_UndersizedBootstrap");
-            int deckSize = DealtDeckIds(bootstrap.Battle.PlayerState).Count;
+            int deckSize = bootstrap.Profile.Empire.DeckSlotCount;
             Assert.Greater(deckSize, 2, "Setup: expected a deck size large enough to test an undersized subset.");
 
             List<string> undersizedDeck = CardDatabase.Instance.AllCards.Select(c => c.Id).Take(deckSize - 2).ToList();
@@ -144,19 +160,19 @@ namespace MyriadOfDragons.Tests
                 .Select(c => c.Id)
                 .ToList();
 
-            Assert.AreEqual(deckSize, dealtIdsList.Count,
-                "An undersized valid saved deck must be padded back up to the current DeckSlotCount, not fielded understrength.");
-            Assert.AreEqual(dealtIdsList.Count, dealtIdsList.Distinct().Count(),
-                "The padded deck must contain no duplicate cards.");
-            CollectionAssert.IsSubsetOf(undersizedDeck, dealtIdsList,
-                "Padding must keep every one of the player's originally-saved cards, not discard or replace them.");
+            Assert.AreEqual(0, dealtIdsList.Count,
+                "An undersized saved deck must block normal battle entirely, not be padded or fielded understrength.");
+            Assert.IsNotNull(bootstrap.NormalMatchStatusForTests,
+                "An undersized saved deck must produce a blocked-start status the player can see.");
         }
 
+        /// <summary>Same invariant as UndersizedSavedDeck_BlocksNormalBattle_WithNoPadding, for
+        /// duplicate/invalid ids: the whole deck is rejected, not silently repaired by skipping
+        /// the bad ids and padding the rest.</summary>
         [Test]
-        public void DuplicateAndInvalidSavedIds_AreSkippedSafely_AndTheResultHasNoDuplicates()
+        public void DuplicateAndInvalidSavedIds_BlockNormalBattle_WithNoSkipOrPad()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("DeckPersistence_DuplicateInvalidBootstrap");
-            int deckSize = DealtDeckIds(bootstrap.Battle.PlayerState).Count;
 
             List<string> validUniqueIds = CardDatabase.Instance.AllCards.Select(c => c.Id).Take(3).ToList();
             var poisonedIds = new List<string>
@@ -176,10 +192,10 @@ namespace MyriadOfDragons.Tests
                 .Select(c => c.Id)
                 .ToList();
 
-            Assert.AreEqual(deckSize, dealtIdsList.Count, "The deck must still be padded up to the full current deck size.");
-            Assert.AreEqual(dealtIdsList.Count, dealtIdsList.Distinct().Count(), "The result must contain no duplicate cards.");
-            CollectionAssert.IsSubsetOf(validUniqueIds, dealtIdsList,
-                "Every valid, deduplicated id from the poisoned list must still be present exactly once.");
+            Assert.AreEqual(0, dealtIdsList.Count,
+                "A saved deck containing any duplicate or invalid id must block normal battle entirely, not skip the bad ids and pad the rest.");
+            Assert.IsNotNull(bootstrap.NormalMatchStatusForTests,
+                "A poisoned saved deck must produce a blocked-start status the player can see.");
         }
 
         [Test]

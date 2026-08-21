@@ -9,6 +9,7 @@ using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MyriadOfDragons.Tests
 {
@@ -251,9 +252,42 @@ namespace MyriadOfDragons.Tests
                 "A tutorial defeat must not change cardCollection beyond the approved starter grant already captured above.");
         }
 
+        /// <summary>A normal (non-tutorial) match now requires a confirmed valid saved deck to
+        /// deal any hand at all (release repair: TryBuildSavedPlayerDeck blocks instead of
+        /// falling back to a generated deck) - this test's own subject is the reward grant on a
+        /// normal victory, not the saved-deck contract itself, so this just satisfies that
+        /// prerequisite the same way NormalBattleSavedDeckIntegrationTests/DeckPersistenceTests
+        /// already do, rather than reimplementing or weakening it here.</summary>
+        private static void SaveValidDeckForNormalMatch()
+        {
+            var databaseGo = new GameObject("RewardGuard_CardDatabase");
+            CardDatabase database = databaseGo.AddComponent<CardDatabase>();
+            database.Initialize();
+
+            var sizingProfile = new PlayerProfile();
+            sizingProfile.ApplyDataToEmpire();
+            int deckSize = sizingProfile.Empire.DeckSlotCount;
+
+            List<string> deckIds = database.AllCards.Select(c => c.Id)
+                .Where(id => id != "warrior" && id != "novice_knight" && id != "goblin_caster")
+                .Take(deckSize)
+                .ToList();
+            Assert.AreEqual(deckSize, deckIds.Count, "Setup: expected enough real cards to fill a full-size deck.");
+
+            PlayerProfile profile = new PlayerProfile();
+            profile.cardCollection = new List<string>(deckIds);
+            profile.ApplyDataToEmpire();
+            profile.activeDeckCardIds = new List<string>(deckIds);
+            Assert.IsTrue(SaveSystem.Save(profile), "Setup: the production save path must persist the confirmed deck.");
+            SaveSystem.ResetCurrentProfileForTests();
+
+            Object.DestroyImmediate(databaseGo);
+        }
+
         [Test]
         public void NormalVictory_ThroughTheRealRewardHandler_StillGrantsGoldAndGems()
         {
+            SaveValidDeckForNormalMatch();
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("RewardGuard_NormalBootstrap");
             Assert.IsFalse(bootstrap.IsTutorialMatch, "Setup: expected a freshly-initialized match to not be tutorial-flagged.");
             BattleController controller = bootstrap.Battle;
@@ -295,6 +329,53 @@ namespace MyriadOfDragons.Tests
                 "A normal match's existing totalMatches increment must be unaffected by the tutorial guard.");
             Assert.AreEqual(totalWinsBefore + 1, progressionProfile.totalWins,
                 "A normal victory's existing totalWins increment must be unaffected by the tutorial guard.");
+        }
+
+        /// <summary>
+        /// GUIDANCE-CONTRACT RECONCILIATION FOLLOW-UP, 2026-08-21 - replaces the retired
+        /// `HomeBanner_ShowsApprovedCopy` test (formerly in TutorialGuidanceTests.cs, added by
+        /// "Add guided tutorial battle messaging"). That test asserted a static, unclickable
+        /// "TutorialGuidanceBanner" caption ("The Empire stands wounded. Learn to form your ranks
+        /// and face the first threat.") that BuildHomePageUI's pre-HomeV3 layout rendered directly
+        /// under TopHUD. HomeV3's redesign (BuildNeutralTutorialStrip, already live in this tree)
+        /// replaced that static banner wholesale with a functional "TutorialRoot" strip: live
+        /// approved copy plus a real "START TUTORIAL" button wired to the actual tutorial entry
+        /// path (OnStartTutorialClicked -> GameBootstrap.StartApprovedTutorialBattle). The old
+        /// banner GameObject no longer exists anywhere in the current Home layout (confirmed via
+        /// grep across HomePagePresenter.cs) - restoring the old test's literal assertions
+        /// unchanged would fail against current, intentional production behavior, not catch a
+        /// regression. This test asserts the CURRENT Home tutorial-entry contract instead: the
+        /// strip's approved copy is present, and a real click on its real button reaches the real
+        /// tutorial battle entry point exactly as production wires it - not a reimplementation of
+        /// OnStartTutorialClicked's own logic, and not a mere "element exists" check.
+        /// </summary>
+        [Test]
+        public void HomeTutorialStrip_ShowsApprovedCopyAndStartTutorialButtonEntersTheApprovedTutorialBattle()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("TutorialStrip_Bootstrap");
+            Assert.IsFalse(bootstrap.IsTutorialMatch, "Setup: expected a freshly-initialized match to not be tutorial-flagged yet.");
+
+            HomePagePresenter presenter = SpawnHomePagePresenter(bootstrap.Battle);
+            presenter.BuildHomePageUIForTests();
+
+            GameObject homeCanvas = presenter.HomeCanvasObjectForTests;
+            Assert.IsNotNull(homeCanvas, "Setup: expected Home's canvas to exist.");
+
+            Transform tutorialRoot = homeCanvas.transform.Find("TutorialRoot");
+            Assert.IsNotNull(tutorialRoot, "Home must contain the current tutorial-entry strip (TutorialRoot).");
+
+            Text tutorialCopy = tutorialRoot.Find("TutorialCopy")?.GetComponent<Text>();
+            Assert.IsNotNull(tutorialCopy, "The tutorial strip must contain its approved copy text.");
+            Assert.AreEqual("Ready to lead your forces into battle? The Empire awaits your command.", tutorialCopy.text,
+                "The tutorial strip must show the current approved copy, not the retired banner's copy.");
+
+            Button startTutorialButton = tutorialRoot.Find("StartTutorialButtonRoot")?.GetComponent<Button>();
+            Assert.IsNotNull(startTutorialButton, "The tutorial strip must contain a real Start Tutorial button.");
+
+            startTutorialButton.onClick.Invoke();
+
+            Assert.IsTrue(bootstrap.IsTutorialMatch,
+                "A real click on the Start Tutorial button must reach the real tutorial entry path (StartApprovedTutorialBattle), not a stub.");
         }
     }
 }

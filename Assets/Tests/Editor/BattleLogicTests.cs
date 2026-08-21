@@ -779,11 +779,9 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void PlayerEmpireData_ApplyMatchResult_ALossStillGrantsAnAvatarLevel()
+        public void PlayerEmpireData_ApplyMatchResult_ALossDoesNotGrantAvatarLevel()
         {
-            // General (non-tutorial) loss progression must be unaffected by the new-profile
-            // seeding fix above - PlayerEmpireData.ApplyMatchResult isn't touched by that change,
-            // but this task's required regression coverage calls it out explicitly.
+            // MVP constitution 2026-08-21: losses grant +0 Avatar levels (wins grant +1).
             var empire = new PlayerEmpireData();
             empire.SetLevelsForTesting(avatarLevel: 10, castleLevel: 10, barracksLevel: 10);
             empire.InitializeTCGModifiers();
@@ -791,9 +789,8 @@ namespace MyriadOfDragons.Tests
 
             empire.ApplyMatchResult(won: false);
 
-            Assert.Greater(empire.AvatarLevel, levelBefore,
-                "A loss must still grant an Avatar level - this is unrelated general progression, not the " +
-                "tutorial onboarding taper, and must not change as a side effect of the level-1 seeding fix.");
+            Assert.AreEqual(levelBefore, empire.AvatarLevel,
+                "A loss must not grant Avatar levels - free power on defeat inflates the economy.");
         }
 
         [Test]
@@ -2339,6 +2336,7 @@ namespace MyriadOfDragons.Tests
             afterWin.ApplyMatchResult(won: true);
             int winGain = afterWin.AvatarLevel - 10;
 
+            Assert.AreEqual(1, winGain, "MVP constitution: a win grants exactly +1 Avatar level.");
             Assert.Less(drawGain, winGain,
                 "A draw must always be worth strictly less than a win, or stalling to the cap " +
                 "becomes a viable way to farm progression.");
@@ -2363,7 +2361,7 @@ namespace MyriadOfDragons.Tests
             AIBattleProfile later = scaling.GenerateAIOpponent(EmpireAtAvatarLevel(30));
 
             // This is the whole point of the system: the opponent used to be pinned at a fixed
-            // level-1 baseline while the player gained +3 Avatar levels per win, so the game got
+            // level-1 baseline while the player gained Avatar levels per win, so the game got
             // steadily *easier* the longer it was played. If these two are ever equal again, that
             // regression is back.
             Assert.Greater(later.MaxAvatarHealth, early.MaxAvatarHealth,
