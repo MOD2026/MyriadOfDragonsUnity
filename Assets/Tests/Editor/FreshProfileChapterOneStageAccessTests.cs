@@ -194,8 +194,14 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Winning1_3_DoesNotInventANonexistentNextStage()
+        public void Winning1_3_NowUnlocksTheStartOfChapter2_2_1_NotNothing()
         {
+            // Chapter 2 "Ashes of Boiotia" (2026-08-22): 1-3 is no longer the last stage in the
+            // existing ordered campaign list - CampaignMapPresenter.chapterStages now continues
+            // 1-3 -> 2-1 -> 2-2 -> 2-3. This replaces the old "1-3 is terminal" assertion this
+            // test used to make (Winning1_3_DoesNotInventANonexistentNextStage) - the underlying
+            // contract (a win must unlock exactly the real next stage in the list, never invent
+            // one) is unchanged; only which stage is "next" after 1-3 changed.
             SaveValidDeckForNormalMatch();
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("FreshStageAccess_Win13Bootstrap");
             BattleController controller = bootstrap.Battle;
@@ -211,12 +217,23 @@ namespace MyriadOfDragons.Tests
             controller = bootstrap.Battle;
             presenter.SetActiveStageForTests(FindStage("1-3"));
 
-            Assert.IsNull(CampaignMapPresenter.GetNextStageId("1-3"), "Setup: expected Stage 1-3 to be the last stage in the existing ordered campaign list.");
+            Assert.AreEqual("2-1", CampaignMapPresenter.GetNextStageId("1-3"),
+                "Setup: expected Stage 2-1 to be the real next stage after 1-3 in the existing ordered campaign list.");
             PlayOneCardAndWin(controller);
 
             PlayerProfile profile = SaveManager.SaveData;
-            CollectionAssert.AreEquivalent(new[] { "1-1", "1-2", "1-3" }, profile.unlockedStageIds,
-                "Requirement 4: winning the final stage must not invent or unlock any nonexistent next stage.");
+            CollectionAssert.AreEquivalent(new[] { "1-1", "1-2", "1-3", "2-1" }, profile.unlockedStageIds,
+                "Requirement 4: winning Stage 1-3 must unlock exactly the real next stage (2-1), never nothing and never an invented id.");
+        }
+
+        [Test]
+        public void Winning2_3_DoesNotInventANonexistentNextStage()
+        {
+            // 2-3 is the new terminal stage in the existing ordered campaign list - the same
+            // "final stage invents nothing further" contract Chapter 1's own 1-3 used to be the
+            // subject of, now proven against the real current end of the list instead.
+            Assert.IsNull(CampaignMapPresenter.GetNextStageId("2-3"),
+                "Setup: expected Stage 2-3 to be the last stage in the existing ordered campaign list.");
         }
 
         [Test]

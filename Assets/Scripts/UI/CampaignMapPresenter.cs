@@ -63,11 +63,42 @@ namespace MyriadOfDragons.UI
             "ogre", "werewolf", "wood_wizard",
         };
 
+        /// <summary>Chapter 2 "Ashes of Boiotia" (2026-08-22) - same vertical-slice curve as
+        /// Chapter 1: three real CardDatabase ids per stage (never the "dragon" placeholder, never
+        /// an invented id), Auto-Formation-clearable, count/power escalating 2-1 -> 2-2 -> 2-3
+        /// without jumping to a full ten-card elite wall. Disjoint from Chapter 1's own three
+        /// rosters and from the approved starter collection - distinct encounters, not a reused
+        /// wall under a new name.</summary>
+        private static readonly string[] Stage2_1EnemyDeck =
+        {
+            // Ashfall Outpost - weakest of the three, roughly Stage 1-3's own power level.
+            "zombified_captain", "eastern_sorcerer", "corrupted_warrior",
+        };
+
+        private static readonly string[] Stage2_2EnemyDeck =
+        {
+            // Titan-Vein Camp - strictly stronger than 2-1, still AF-clearable with the starter squad.
+            "undead_pirate", "goblin_shaman", "elf_wanderer",
+        };
+
+        private static readonly string[] Stage2_3EnemyDeck =
+        {
+            // Legion of Ash - Act II closer, harder than 2-2's mix, still AF-clearable. An
+            // earlier all-4/4-rarity3 roster (owl_keeper/goblin_witch/succubus) measured as a
+            // real DEFEAT under the deterministic AF policy (Chapter2CampaignContentTests) -
+            // swapped one 4/4 for two 3/3s to bring total enemy power back down while staying at
+            // or above 2-2's own total (measured, not guessed).
+            "persian_princess", "conquistador", "owl_keeper",
+        };
+
         private static readonly List<CampaignStageData> chapterStages = new List<CampaignStageData>()
         {
             new CampaignStageData("1-1", "Outer Border Guard", "Orc Scout Patrol", "UI/Portraits/Paladin", "A small scouting party blocks the mountain path. Defeat them to open the route.", 200, 20, enemyDeckCardIds: Stage1EnemyDeck),
             new CampaignStageData("1-2", "Volcanic Ridge", "Wyvern Tamer Kaelen", "UI/Portraits/Paladin", "Kaelen commands the high ground with his trained drakes. Break his vanguard!", 350, 50, enemyDeckCardIds: Stage2EnemyDeck),
-            new CampaignStageData("1-3", "Stronghold Citadel", "High Warlord Gorn", "UI/Portraits/Paladin", "The citadel commander awaits inside the obsidian gates. Defeat him to liberate Chapter 1.", 500, 100, enemyDeckCardIds: Stage3EnemyDeck)
+            new CampaignStageData("1-3", "Stronghold Citadel", "High Warlord Gorn", "UI/Portraits/Paladin", "The citadel commander awaits inside the obsidian gates. Defeat him to liberate Chapter 1.", 500, 100, enemyDeckCardIds: Stage3EnemyDeck),
+            new CampaignStageData("2-1", "Ashfall Outpost", "Ash Road Overseer", "UI/Portraits/Paladin", "The Titan-vein miners' outer camp burns day and night. Break through the ash-choked sentries.", 650, 130, enemyDeckCardIds: Stage2_1EnemyDeck),
+            new CampaignStageData("2-2", "Titan-Vein Camp", "Vein-Warden Thessos", "UI/Portraits/Paladin", "Forced labor gangs mine the Titan-vein under the divine legion's watch. Free the camp and seize the vein.", 800, 160, enemyDeckCardIds: Stage2_2EnemyDeck),
+            new CampaignStageData("2-3", "Legion of Ash", "Legion Commander Ares", "UI/Portraits/Paladin", "Olympus has sent its Ashfall Legion to bury Boiotia's rebellion for good. End their march here.", 1000, 200, enemyDeckCardIds: Stage2_3EnemyDeck),
         };
 
         /// <summary>The stage immediately after <paramref name="currentStageId"/> in the existing
