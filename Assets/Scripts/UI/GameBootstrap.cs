@@ -543,6 +543,11 @@ namespace MyriadOfDragons.UI
         /// which already sets this unconditionally for every match type.</summary>
         public string TurnTextForTests => _turnText != null ? _turnText.text : null;
 
+        /// <summary>Exposed for tests: the resource/Energy meter text's current value - "Resource:
+        /// X/Y" during Formation, "Energy: X/Y" during Combat. See RefreshAll, which already sets
+        /// this unconditionally for every match type.</summary>
+        public string ResourceOrEnergyTextForTests => _resourceText != null ? _resourceText.text : null;
+
         /// <summary>Exposed for tests: opens the lane picker overlay exactly as tapping a
         /// player lane does (OpenLanePicker is private), then returns the resulting title text
         /// - the only way to observe RefreshLanePicker's tutorial-guidance append without a
