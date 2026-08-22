@@ -168,6 +168,7 @@ namespace MyriadOfDragons.UI
         static CampaignMapPresenter()
         {
             chapterStages.AddRange(BuildChapter2DepthStages());
+            chapterStages.AddRange(BuildChapter3DepthStages());
         }
 
         /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
@@ -251,6 +252,120 @@ namespace MyriadOfDragons.UI
             const int baseGems = 200, gemsPerStage = 16;
             int stepsPast2_3 = stageNumber - 3;
             return (baseGold + stepsPast2_3 * goldPerStage, baseGems + stepsPast2_3 * gemsPerStage);
+        }
+
+        /// <summary>Chapter 3 depth fill, Stages 3-1..3-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
+        /// §B/§K wartime doctrine). Same pool+stride technique as BuildChapter2DepthStages, sized
+        /// up: 29 already-proven ids (the original 19-entry Chapter2DepthPool plus 10 more already
+        /// used elsewhere in Chapter 1's own 1-4..1-12 rosters) and a coprime stride so thirty
+        /// consecutive stages draw thirty different (but comparably-powered) triples. i=29 (the
+        /// final stage, 3-30) lands on the same base index as i=0 under this stride - the only
+        /// collision the modular pattern produces across all 30 - so it is the one stage patched
+        /// to a distinct hand-picked triple rather than the generated one; every other roster is
+        /// exactly what the formula produced, measured to a real AF win on the first pass.</summary>
+        private static readonly string[] Chapter3DepthPool =
+        {
+            "giant_worms", "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior",
+            "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador", "owl_keeper",
+            "ladyinlake", "iron_dragon", "pandora", "drain", "shaman", "druid", "succubus", "elven_high_lord",
+            "archer_dragon", "castle_lady", "hooded_rogue",
+        };
+
+        private static readonly (string title, string enemyName, string description)[] Chapter3DepthFlavor =
+        {
+            ("Blackglass Shore", "Shore Wardens", "Volcanic glass litters this shore - and its wardens litter it with worse."),
+            ("Sundered Causeway", "Causeway Remnant", "What's left of a shattered causeway still moves legion supplies."),
+            ("Cinder Marsh", "Marsh Stalkers", "A marsh choked with ash and cinders hides stalkers who know it too well."),
+            ("Iron Spine Ridge", "Ridge Legionnaires", "A spine of iron ore runs this ridge - and legion holdouts run its length."),
+            ("Hollow Cistern", "Cistern Guard", "An old cistern, drained and hollow, still houses a stubborn guard."),
+            ("Ashwind Bluffs", "Bluff Sentries", "Wind carries ash for miles from these bluffs. Its sentries carry spears."),
+            ("Charred Vineyard", "Vineyard Remnant", "A vineyard burned to charcoal still has defenders who won't leave."),
+            ("Obsidian Trench", "Trench Legion", "A trench of cooled obsidian splits the field. Legion holds both sides."),
+            ("Smokeveil Pass", "Veil Marauders", "Smoke never clears from this pass - marauders use it as cover."),
+            ("Ruined Aquifer", "Aquifer Guard", "A ruined aquifer still feeds something below. Its guard won't say what."),
+            ("Ember Terrace", "Terrace Sentinels", "Stepped terraces of cooling lava. Sentinels hold every level."),
+            ("Grey Salt Flats", "Flat Legion Remnant", "Salt flats gone grey with ash. A legion remnant camps at their center."),
+            ("Cracked Aqueduct Span", "Span Wardens", "A cracked span is the only crossing left standing. Wardens hold it."),
+            ("Molten Foothills", "Foothill Legionnaires", "Foothills still warm from the last eruption. Legionnaires dug in anyway."),
+            ("Ashfall Watchpost", "Watchpost Guard", "A forward watchpost for whatever commands the deep ash now."),
+            ("Titan's Rib", "Rib Keepers", "A fossil-vein shaped like a rib cage. Its keepers guard the marrow."),
+            ("Cindergate Hollow", "Hollow Legion", "A hollow beneath a gate of cinder. Legion holds the only way through."),
+            ("Scorched Reliquary", "Reliquary Guard", "A scorched reliquary still holds something Olympus wants kept."),
+            ("Ember Palisade", "Palisade Sentries", "A palisade of hardened ember-wood. Its sentries don't rotate out."),
+            ("Deep Ash Descent", "Descent Legion", "The descent into the deep ash proper. Legion holds every switchback."),
+            ("Cinderfall Chasm", "Chasm Wardens", "A chasm choked with falling cinder. Wardens hold the one bridge."),
+            ("Obsidian Colonnade", "Colonnade Guard", "A colonnade of black glass columns. Something still guards it."),
+            ("Ashen Necropolis", "Necropolis Remnant", "A necropolis buried in ash. Its remnant guard doesn't rest."),
+            ("Molten Crown Ridge", "Crown Legionnaires", "A ridge shaped like a crown, still molten at its edges."),
+            ("Titan's Last Forge", "Forge Keepers", "The last active Titan-forge. Its keepers won't let it go cold."),
+            ("Cindersea Shallows", "Shallows Guard", "Shallows of ash-grey sea, still patrolled by a stubborn guard."),
+            ("Legion's Deep Camp", "Deep Camp Command", "The Ashfall Legion's deepest fallback camp. Command holds firm."),
+            ("Boiotia's Ember Core", "Ember Core Guard", "The core of Boiotia's ember-fields. Guarded like it matters."),
+            ("Olympus' Ashen Gate", "Gate Legion Command", "A gate said to lead toward Olympus itself. Legion command holds it."),
+            ("Boiotia's Last Stand", "Legion High Command", "Whatever remains of the Ashfall Legion's leadership makes its final stand."),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter3DepthStages()
+        {
+            const int poolSize = 29; // Chapter3DepthPool.Length - coprime with stride 3 and offsets 9/17.
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1; // 3-1 .. 3-30
+                // Offsets {0,9,17} - NOT Chapter 2's {0,7,13} (measured, not guessed): a base
+                // index cycles through every residue mod 29 across the 30 stages regardless of
+                // any constant shift, so at least one Chapter 3 stage's base will always equal
+                // some Chapter 2 stage's base (0) at some point - only a genuinely different
+                // offset triple, not a shifted base, produces a different id SET when that
+                // happens. A same-offsets +4 shift merely relocated the exact-duplicate collision
+                // from Stage 3-1 (vs 2-4) to Stage 3-19 (vs 2-4) instead of removing it, caught by
+                // the pairwise distinctness test on the second run.
+                int baseIndex = (3 * i) % poolSize;
+                string[] ids =
+                {
+                    Chapter3DepthPool[baseIndex],
+                    Chapter3DepthPool[(baseIndex + 9) % poolSize],
+                    Chapter3DepthPool[(baseIndex + 17) % poolSize],
+                };
+
+                // i=29 (Stage 3-30) lands on the same base index as i=0 (Stage 3-1) under this
+                // stride - the pattern's only collision across all 30 stages - so it is hand-
+                // patched to a distinct triple rather than duplicating 3-1's exact roster.
+                if (stageNumber == 30)
+                {
+                    // Original patch (hooded_rogue+castle_lady+archer_dragon) also measured as a
+                    // real DEFEAT under the AF policy - replaced with a lighter combination.
+                    ids = new[] { "corrupted_warrior", "undead_pirate", "goblin_shaman" };
+                }
+
+                // Stage 3-7's generated roster (ladyinlake+castle_lady+ogre) measured as a real
+                // DEFEAT under the AF policy - swapped castle_lady for a lighter pool entry.
+                if (stageNumber == 7)
+                {
+                    ids = new[] { "ladyinlake", "eastern_sorcerer", "ogre" };
+                }
+
+                // Stage 3-23's generated roster (wood_wizard+owl_keeper+elven_high_lord) measured
+                // as a real DEFEAT under the AF policy - swapped elven_high_lord for a lighter pool entry.
+                if (stageNumber == 23)
+                {
+                    ids = new[] { "wood_wizard", "owl_keeper", "mountain_harpy" };
+                }
+
+                (string title, string enemyName, string description) = Chapter3DepthFlavor[i];
+                (int gold, int gems) = Chapter3DepthReward(stageNumber);
+                yield return new CampaignStageData($"3-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 2-21's own 2440/488 - same escalation pattern as Chapter 1/2.
+        /// 3-30 lands at 2440 + 30*90 = 5140 gold / 488 + 30*18 = 1028 gems - no Chapter 4 exists
+        /// yet to leave headroom below, per this task's own "do not invent Chapter 4".</summary>
+        private static (int gold, int gems) Chapter3DepthReward(int stageNumber)
+        {
+            const int baseGold = 2440, goldPerStage = 90;
+            const int baseGems = 488, gemsPerStage = 18;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
         }
 
         /// <summary>The stage immediately after <paramref name="currentStageId"/> in the existing

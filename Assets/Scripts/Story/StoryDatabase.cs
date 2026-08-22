@@ -220,6 +220,54 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. Boiotia's ash still stretches on.");
             }
+
+            // Chapter 3 depth fill, Stages 3-1..3-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
+            // wartime doctrine - token efficiency): same templated generator as Chapter 2's own
+            // depth fill above. title/enemyName match CampaignMapPresenter.Chapter3DepthFlavor.
+            (string stageId, string title, string enemyName)[] chapter3Stages =
+            {
+                ("3-1", "Blackglass Shore", "Shore Wardens"),
+                ("3-2", "Sundered Causeway", "Causeway Remnant"),
+                ("3-3", "Cinder Marsh", "Marsh Stalkers"),
+                ("3-4", "Iron Spine Ridge", "Ridge Legionnaires"),
+                ("3-5", "Hollow Cistern", "Cistern Guard"),
+                ("3-6", "Ashwind Bluffs", "Bluff Sentries"),
+                ("3-7", "Charred Vineyard", "Vineyard Remnant"),
+                ("3-8", "Obsidian Trench", "Trench Legion"),
+                ("3-9", "Smokeveil Pass", "Veil Marauders"),
+                ("3-10", "Ruined Aquifer", "Aquifer Guard"),
+                ("3-11", "Ember Terrace", "Terrace Sentinels"),
+                ("3-12", "Grey Salt Flats", "Flat Legion Remnant"),
+                ("3-13", "Cracked Aqueduct Span", "Span Wardens"),
+                ("3-14", "Molten Foothills", "Foothill Legionnaires"),
+                ("3-15", "Ashfall Watchpost", "Watchpost Guard"),
+                ("3-16", "Titan's Rib", "Rib Keepers"),
+                ("3-17", "Cindergate Hollow", "Hollow Legion"),
+                ("3-18", "Scorched Reliquary", "Reliquary Guard"),
+                ("3-19", "Ember Palisade", "Palisade Sentries"),
+                ("3-20", "Deep Ash Descent", "Descent Legion"),
+                ("3-21", "Cinderfall Chasm", "Chasm Wardens"),
+                ("3-22", "Obsidian Colonnade", "Colonnade Guard"),
+                ("3-23", "Ashen Necropolis", "Necropolis Remnant"),
+                ("3-24", "Molten Crown Ridge", "Crown Legionnaires"),
+                ("3-25", "Titan's Last Forge", "Forge Keepers"),
+                ("3-26", "Cindersea Shallows", "Shallows Guard"),
+                ("3-27", "Legion's Deep Camp", "Deep Camp Command"),
+                ("3-28", "Boiotia's Ember Core", "Ember Core Guard"),
+                ("3-29", "Olympus' Ashen Gate", "Gate Legion Command"),
+                ("3-30", "Boiotia's Last Stand", "Legion High Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter3Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                bool isFinal = stageId == "3-30";
+                AddStageDialogue(stageId, title, enemy,
+                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                    isFinal ? "This is the last of them. Finish it." : $"Olympus isn't here. Clear {title} and keep moving.",
+                    isFinal ? "Command falls. There is nothing left standing between us and Olympus." : $"{enemyName} scatter, broken.",
+                    isFinal ? "Chapter three ends here. What Olympus does next is its own choice to answer for." : $"{title} is behind us. Boiotia's ash still stretches on.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

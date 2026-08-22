@@ -41,17 +41,60 @@ If a pillar is **STUB**, do not balance content as if it were live.
 
 ---
 
-## B. Campaign depth (LOCKED)
+## B. Campaign depth (LOCKED — owner 2026-08-22)
 
-| Ch | Stages | Count |
-|---|---|---:|
-| 1 | `1-1` … `1-12` | 12 |
-| 2 | `2-1` … `2-21` | 21 |
-| 3 | `3-1` … `3-30` | 30 |
+### Live content (in code now)
 
-Sequential unlock. Fresh = `{1-1}`. Retune **enemy decks**, not global combat knobs, when a stage fails AF.
+| Ch | Stages | Count | Status |
+|---|---|---:|---|
+| 1 | `1-1` … `1-12` | 12 | **DONE** |
+| 2 | `2-1` … `2-21` | 21 | **DONE** |
+| 3 | `3-1` … `3-30` | 30 | **DONE** |
 
-**Debt:** Ch1 **1-12 done**. Ch2 **2-1..2-21 done**. Next fill `3-1..3-30`. Do not per-stage polish until all three chapters exist.
+**Live total:** 63 sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
+
+### Planned spine — minimum **10 chapters** (LOCKED intent)
+
+Player must have a long grill path. Chapters **4–10 are required**, not optional DLC fantasy.
+
+| Ch | Stages | Count | Status |
+|---|---|---:|---|
+| 4 | `4-1` … `4-30` | 30 | NOT FILLED |
+| 5 | `5-1` … `5-30` | 30 | NOT FILLED |
+| 6 | `6-1` … `6-30` | 30 | NOT FILLED |
+| 7 | `7-1` … `7-30` | 30 | NOT FILLED |
+| 8 | `8-1` … `8-30` | 30 | NOT FILLED |
+| 9 | `9-1` … `9-30` | 30 | NOT FILLED |
+| 10 | `10-1` … `10-30` | 30 | NOT FILLED |
+
+**Planned total:** 63 + 210 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
+
+### Chapter gates (LOCKED intent — not just “beat last stage”)
+
+Opening chapter `N` (N≥2) requires **all** of:
+1. Clear prior chapter final stage (`(N-1)-last`)
+2. Meet a **hard requirement** (at least one): Avatar level floor, collection/deck power floor, or currency sink — exact numbers after owner plays Ch1–3
+3. Optional later: clear that chapter’s **between-chapter mini-game**
+
+Within a chapter, stages stay sequential (`N-k` → `N-(k+1)`).  
+Gates make chapter openers **earned**, not autopilot.
+
+**Save note:** gate fields must stay additive; frozen save shape changes need Command Centre + both seats.
+
+### Between-chapter mini-games (LOCKED intent)
+
+End of a chapter must not dump the player into empty waiting. After clearing chapter `N` (or as part of unlocking `N+1`), player gets a **mini-game / side activity** for variety (not another 30 identical battles).
+
+- Required for the 10-chapter product, not polish chrome
+- First ship: **one** playable mini-game loop after Ch1–3 is on device
+- Do not invent full mini-game design in campaign-fill passes — Command Centre assigns a dedicated slice
+
+### Debt / build order (wartime)
+
+1. **DONE:** fill Ch1–3 content  
+2. **Next content:** fill Ch4→Ch10 (bulk, same builder pattern)  
+3. **Next systems (parallel / after one APK play):** chapter gates + first mini-game  
+4. Per-stage feel polish = **last**
 
 ---
 
