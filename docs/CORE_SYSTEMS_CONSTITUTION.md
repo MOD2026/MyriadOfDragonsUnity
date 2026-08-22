@@ -64,21 +64,21 @@ If a pillar is **STUB**, do not balance content as if it were live.
 | 4 | `4-1` … `4-30` | 30 | **DONE** |
 | 5 | `5-1` … `5-30` | 30 | **DONE** |
 | 6 | `6-1` … `6-30` | 30 | **DONE** |
+| 7 | `7-1` … `7-30` | 30 | **DONE** |
 
-**Live total:** **153** sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
+**Live total:** **183** sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
 
 ### Planned spine — minimum **10 chapters** (LOCKED intent)
 
-Player must have a long grill path. Chapters **7–10** remain required.
+Player must have a long grill path. Chapters **8–10** remain required.
 
 | Ch | Stages | Count | Status |
 |---|---|---:|---|
-| 7 | `7-1` … `7-30` | 30 | NOT FILLED |
 | 8 | `8-1` … `8-30` | 30 | NOT FILLED |
 | 9 | `9-1` … `9-30` | 30 | NOT FILLED |
 | 10 | `10-1` … `10-30` | 30 | NOT FILLED |
 
-**Planned full spine:** 153 + 120 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
+**Planned full spine:** 183 + 90 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
 
 ### Chapter gates (LOCKED intent — not just “beat last stage”)
 
@@ -96,24 +96,24 @@ Gates make chapter openers **earned**, not autopilot.
 
 End of a chapter must not dump the player into empty waiting. After clearing chapter `N` (or as part of unlocking `N+1`), player gets a **mini-game / side activity** for variety.
 
-**KEEP (yes):** Empire-powered activities with **1 daily** + **1 weekly** refresh; rewards feed deck/mats; creates hunger to upgrade Empire. Main climb can be Tower-style; strength primarily from Empire buildings.
+**KEEP (yes):** Empire-powered activities with **1 daily** + **1 weekly** refresh; rewards feed deck/mats; creates hunger to upgrade Empire. Main climb can be Tower-style.
+
+**Weekly building focus (LOCKED):** Barracks → Castle → Gate → Open/Card (repeat). Focus opens **routes/rules** that week — not raw combat-stat cheats. Accept record: `docs/DUAL_PRESTIGE_TOWER_CC_ACCEPT_2026-08-22.md`.
 
 **REPLACE the “no” (pure Empire climb as the only ranking):**
 
 | Track | What players strive for | Power source |
 |---|---|---|
 | **Card prestige** | Campaign mastery (clears, optional later PvP ladder) | Deck + formation + spells + Avatar |
-| **Empire prestige** | Daily clear + weekly highest Tower floor (and small satellite mini-games) | Empire buildings (Barracks capacity, Castle tower durability, Gate = which sector) |
+| **Empire prestige** | Daily clear + weekly highest Tower floor (and small satellite mini-games) | Empire buildings, **rotated weekly focus** |
 
-Do **not** make weekly Tower floor the sole definition of “best player.” Hardcore brand lives on the card track; midcore retention/money lives on the Empire track. Reward caps required. Server required for weekly ranks. Full TD codebase waits until Campaign spine + Empire construction feasibility land.
-
-Detail: `docs/MINIGAME_EMPIRE_RANKING_ANALYSIS_2026-08-22.md`.
+Do **not** make weekly Tower floor the sole definition of “best player.” Hardcore brand lives on the card track; midcore retention lives on the Empire track. Reward caps + server required for weekly ranks. TD code after Campaign spine + Empire construction.
 
 ### Debt / build order (wartime)
 
-1. **DONE:** fill Ch1–6 content (**153** stages)  
-2. **Next content:** fill Ch7→Ch10  
-3. **Next systems:** Economy faucet → Barracks milestones → construction (instant A) → Gate reader → Castle sim — **doc loopholes already reviewed**  
+1. **DONE:** fill Ch1–7 content (**183** stages)  
+2. **Next content:** fill Ch8→Ch10 using ChatGPT naming kit  
+3. **Next systems:** Barracks paid milestones → construction (instant A) → Gate reader → Castle sim  
 4. Dual-prestige mini-games / TD after Empire construction exists  
 5. Per-stage feel polish = **last**
 

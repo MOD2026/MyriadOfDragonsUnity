@@ -65,7 +65,7 @@ From packet §6 — all required before Empire feature accept:
 
 | Seat | Next |
 |---|---|
-| **VS Code / Metagame** | **Economy Faucet slice** (see queue) — `HomePagePresenter` Normal/Tutorial → 0g/0gems |
-| **Claude** | Campaign Ch7 fill (parallel) |
-| **ChatGPT** | Dual-prestige mini-game packet (Empire ladder ≠ card ranking) |
-| **Cursor CC** | Accept faucet when green; then Barracks formula → construction → Gate → Castle sim |
+| **VS Code / Metagame** | **DONE faucet** — next when assigned: Barracks paid milestones (Battle formula + tests) or wait for CC |
+| **Claude** | Finish/accept Ch7, then Ch8 using naming kit |
+| **ChatGPT** | Idle |
+| **Cursor CC** | Re-verify faucet if needed when Unity free; then Barracks formula slice |

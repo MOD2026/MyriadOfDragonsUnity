@@ -172,6 +172,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter4DepthStages());
             chapterStages.AddRange(BuildChapter5DepthStages());
             chapterStages.AddRange(BuildChapter6DepthStages());
+            chapterStages.AddRange(BuildChapter7DepthStages());
         }
 
         /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
@@ -709,6 +710,137 @@ namespace MyriadOfDragons.UI
         {
             const int baseGold = 11440, goldPerStage = 120;
             const int baseGems = 2288, gemsPerStage = 24;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 7 depth fill, Stages 7-1..7-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
+        /// §0 wartime + deep-review doctrine). No ChatGPT naming kit exists in docs/ yet (checked)
+        /// - coherent placeholders continuing past the Olympus outer gate (Ch6's own ending).
+        /// Same pool+stride technique, decorrelated the same two ways as every chapter since Ch3
+        /// (Chapter6DepthPool rotated by 11, a seventh distinct offset triple {0,2,21} over a
+        /// seventh distinct stride 17, both coprime with the 29-entry pool and unused by any
+        /// earlier chapter). i=29 (Stage 7-30) still lands on the same base as i=0 (Stage 7-1) -
+        /// patched pre-emptively. Chapter 6's own pool proved unusually fragile (4 retunes needed)
+        /// - expect the same here; any roster measuring as a real AF defeat is retuned with a
+        /// comment recording that measurement, not guessed in advance.</summary>
+        private static readonly string[] Chapter7DepthPool =
+        {
+            "fire_worm", "butcher", "cursed_soldier", "ogre", "werewolf", "wood_wizard",
+            "zombified_captain", "eastern_sorcerer", "corrupted_warrior", "undead_pirate",
+            "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador", "owl_keeper",
+            "ladyinlake", "iron_dragon", "pandora", "drain", "shaman", "druid", "succubus",
+            "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue", "giant_worms",
+            "mountain_harpy", "snake_archer",
+        };
+
+        private static readonly (string title, string enemyName, string description)[] Chapter7DepthFlavor =
+        {
+            ("Beyond the Outer Gate", "Inner Gate Watch", "Past the gate the legion held, something else is watching now."),
+            ("Godsroad Switchback", "Switchback Command", "A road built for something larger than a mortal army. Legion holds it anyway."),
+            ("Marble Terrace", "Terrace Wardens", "Terraces of ancient marble, half-buried in ash. Wardens guard the steps."),
+            ("Broken Colossus Field", "Colossus Field Legion", "A field of shattered statue-giants. Legion camps among the rubble."),
+            ("Skyforge Approach", "Skyforge Legion", "An approach to a forge said to have made the gods' own weapons."),
+            ("Cindered Grand Stair", "Grand Stair Guard", "A grand staircase, once ceremonial, now scorched. Still guarded."),
+            ("Ashbound Colonnade", "Colonnade Legion", "A colonnade of towering columns, ash-bound at their bases."),
+            ("Divine Foundry Ruins", "Foundry Ruins Guard", "Ruins of a foundry said to have forged thunderbolts. Guarded closely."),
+            ("Cloudpiercer Spire Base", "Spire Base Legion", "The base of a spire piercing the low clouds. Legion holds the entrance."),
+            ("Shattered Pantheon Court", "Pantheon Court Guard", "A court where statues of forgotten gods lie broken. Guarded still."),
+            ("Ember-Lit Processional", "Processional Legion", "A processional way lit by permanent embers. Legion marches it daily."),
+            ("Highvault Antechamber", "Antechamber Guard", "An antechamber to something larger. Guarded like it matters."),
+            ("Ashfall Oracle Ruins", "Oracle Ruins Legion", "Ruins of an oracle's seat, long since silenced. Legion camps here now."),
+            ("Sundered Throne Approach", "Throne Approach Guard", "An approach to a throne no one has sat in for generations."),
+            ("Cinderlit Amphitheater", "Amphitheater Legion", "An amphitheater lit by cinder-glow. Legion uses it as a muster point."),
+            ("Godsforge Threshold", "Forge Threshold Guard", "The threshold of a forge that hasn't cooled in centuries."),
+            ("Marble Ashfields", "Ashfield Legion Command", "Fields of marble dust and ash. Command holds the high ground."),
+            ("Broken Aegis Wall", "Aegis Wall Guard", "A wall said to have once held a god's own shield-ward. Broken, but guarded."),
+            ("Highforge Bastion", "Bastion Legion", "A bastion built around a forge. Legion won't let it fall."),
+            ("Ashen Processional Gate", "Processional Gate Command", "A gate marking the ceremonial path deeper in. Heavily held."),
+            ("Cindered Reliquary Vault", "Reliquary Vault Legion", "A vault of relics, ash-choked but intact. Legion guards it fiercely."),
+            ("Skyward Colossus Ruins", "Colossus Ruins Command", "Ruins of a colossus that once faced the sky. Command holds the base."),
+            ("Godsroad Terminus", "Terminus Legion", "Where the godsroad finally ends. Legion holds the terminus hard."),
+            ("Divine Armory Ruins", "Armory Ruins Guard", "Ruins of an armory said to have equipped legions of gods."),
+            ("Ashfall Inner Sanctum Approach", "Sanctum Approach Command", "The approach to an inner sanctum. Command doesn't yield ground easily."),
+            ("Cinderlit Grand Hall", "Grand Hall Legion", "A grand hall lit only by drifting cinders. Legion holds every entrance."),
+            ("Shattered Throne Room", "Throne Room Command", "A throne room, shattered but still defended like it matters."),
+            ("Highest Ashfall Gate", "Highest Gate Legion", "The highest gate before whatever lies at the true summit."),
+            ("Godsreach Sanctum", "Sanctum High Command", "A sanctum said to be within reach of the gods themselves."),
+            ("Boiotia's Divine Threshold", "Divine Threshold High Command", "The final divine threshold - the legion's last true stand on this road."),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter7DepthStages()
+        {
+            const int poolSize = 29; // Chapter7DepthPool.Length - coprime with stride 17 and offsets 2/21.
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1; // 7-1 .. 7-30
+                int baseIndex = (17 * i) % poolSize;
+                string[] ids =
+                {
+                    Chapter7DepthPool[baseIndex],
+                    Chapter7DepthPool[(baseIndex + 2) % poolSize],
+                    Chapter7DepthPool[(baseIndex + 21) % poolSize],
+                };
+
+                // i=29 (Stage 7-30) lands on the same base index as i=0 (Stage 7-1) under this
+                // stride - the pattern's only collision across all 30 stages - hand-patched.
+                if (stageNumber == 30)
+                {
+                    ids = new[] { "snake_archer", "cursed_soldier", "elven_high_lord" };
+                }
+
+                // Stage 7-4's generated roster (elven_high_lord+castle_lady+owl_keeper) measured
+                // as a real DEFEAT under the AF policy - swapped elven_high_lord+castle_lady for
+                // lighter pool entries.
+                if (stageNumber == 4)
+                {
+                    ids = new[] { "fire_worm", "goblin_shaman", "owl_keeper" };
+                }
+
+                // Stage 7-8's generated roster (ogre+wood_wizard+castle_lady) measured as a real
+                // DEFEAT under the AF policy - swapped castle_lady for a lighter pool entry.
+                if (stageNumber == 8)
+                {
+                    ids = new[] { "ogre", "wood_wizard", "mountain_harpy" };
+                }
+
+                // Stage 7-9's generated roster (druid+elven_high_lord+persian_princess) measured
+                // as a real DEFEAT under the AF policy. The first retune (elven_high_lord ->
+                // eastern_sorcerer) still measured as a real DEFEAT - swapped persian_princess
+                // for a lighter pool entry too.
+                if (stageNumber == 9)
+                {
+                    ids = new[] { "druid", "mountain_harpy", "eastern_sorcerer" };
+                }
+
+                // Stage 7-26's generated roster (shaman+succubus+elf_wanderer) measured as a real
+                // DEFEAT under the AF policy. The first retune (succubus -> goblin_shaman) still
+                // measured as a real DEFEAT - swapped shaman for a lighter pool entry too.
+                if (stageNumber == 26)
+                {
+                    ids = new[] { "fire_worm", "goblin_shaman", "elf_wanderer" };
+                }
+
+                // Stage 7-28's generated roster (castle_lady+giant_worms+iron_dragon) measured as
+                // a real DEFEAT under the AF policy - swapped castle_lady and iron_dragon for
+                // lighter pool entries.
+                if (stageNumber == 28)
+                {
+                    ids = new[] { "mountain_harpy", "giant_worms", "butcher" };
+                }
+
+                (string title, string enemyName, string description) = Chapter7DepthFlavor[i];
+                (int gold, int gems) = Chapter7DepthReward(stageNumber);
+                yield return new CampaignStageData($"7-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 6-30's own 15040/3008, same +10 gold / +2 gems per-stage step
+        /// growth pattern every chapter since Ch2 has followed. 7-30 lands at 15040 + 30*130 =
+        /// 18940 gold / 3008 + 30*26 = 3788 gems - Chapter 8 does not exist yet.</summary>
+        private static (int gold, int gems) Chapter7DepthReward(int stageNumber)
+        {
+            const int baseGold = 15040, goldPerStage = 130;
+            const int baseGems = 3008, gemsPerStage = 26;
             return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
         }
 

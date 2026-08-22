@@ -414,6 +414,55 @@ namespace MyriadOfDragons.Story
                     isFinal ? "The summit falls. The outer gate of Olympus stands open before us." : $"{enemyName} scatter, broken.",
                     isFinal ? "Chapter six ends here. Whatever waits past that gate is next." : $"{title} is behind us. Boiotia's ash still stretches on.");
             }
+
+            // Chapter 7 depth fill, Stages 7-1..7-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
+            // wartime doctrine - token efficiency). No ChatGPT naming kit exists in docs/ yet
+            // (checked before writing this) - coherent placeholders continuing past the Olympus
+            // outer gate. title/enemyName match CampaignMapPresenter.Chapter7DepthFlavor.
+            (string stageId, string title, string enemyName)[] chapter7Stages =
+            {
+                ("7-1", "Beyond the Outer Gate", "Inner Gate Watch"),
+                ("7-2", "Godsroad Switchback", "Switchback Command"),
+                ("7-3", "Marble Terrace", "Terrace Wardens"),
+                ("7-4", "Broken Colossus Field", "Colossus Field Legion"),
+                ("7-5", "Skyforge Approach", "Skyforge Legion"),
+                ("7-6", "Cindered Grand Stair", "Grand Stair Guard"),
+                ("7-7", "Ashbound Colonnade", "Colonnade Legion"),
+                ("7-8", "Divine Foundry Ruins", "Foundry Ruins Guard"),
+                ("7-9", "Cloudpiercer Spire Base", "Spire Base Legion"),
+                ("7-10", "Shattered Pantheon Court", "Pantheon Court Guard"),
+                ("7-11", "Ember-Lit Processional", "Processional Legion"),
+                ("7-12", "Highvault Antechamber", "Antechamber Guard"),
+                ("7-13", "Ashfall Oracle Ruins", "Oracle Ruins Legion"),
+                ("7-14", "Sundered Throne Approach", "Throne Approach Guard"),
+                ("7-15", "Cinderlit Amphitheater", "Amphitheater Legion"),
+                ("7-16", "Godsforge Threshold", "Forge Threshold Guard"),
+                ("7-17", "Marble Ashfields", "Ashfield Legion Command"),
+                ("7-18", "Broken Aegis Wall", "Aegis Wall Guard"),
+                ("7-19", "Highforge Bastion", "Bastion Legion"),
+                ("7-20", "Ashen Processional Gate", "Processional Gate Command"),
+                ("7-21", "Cindered Reliquary Vault", "Reliquary Vault Legion"),
+                ("7-22", "Skyward Colossus Ruins", "Colossus Ruins Command"),
+                ("7-23", "Godsroad Terminus", "Terminus Legion"),
+                ("7-24", "Divine Armory Ruins", "Armory Ruins Guard"),
+                ("7-25", "Ashfall Inner Sanctum Approach", "Sanctum Approach Command"),
+                ("7-26", "Cinderlit Grand Hall", "Grand Hall Legion"),
+                ("7-27", "Shattered Throne Room", "Throne Room Command"),
+                ("7-28", "Highest Ashfall Gate", "Highest Gate Legion"),
+                ("7-29", "Godsreach Sanctum", "Sanctum High Command"),
+                ("7-30", "Boiotia's Divine Threshold", "Divine Threshold High Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter7Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                bool isFinal = stageId == "7-30";
+                AddStageDialogue(stageId, title, enemy,
+                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                    isFinal ? "This is the last threshold before whatever answers for Olympus. Break it." : $"Olympus isn't here. Clear {title} and keep moving.",
+                    isFinal ? "The threshold falls. Whatever comes next, it will have to answer to us." : $"{enemyName} scatter, broken.",
+                    isFinal ? "Chapter seven ends here." : $"{title} is behind us. Boiotia's ash still stretches on.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)
