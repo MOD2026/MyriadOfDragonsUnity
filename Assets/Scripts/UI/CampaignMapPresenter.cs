@@ -169,6 +169,7 @@ namespace MyriadOfDragons.UI
         {
             chapterStages.AddRange(BuildChapter2DepthStages());
             chapterStages.AddRange(BuildChapter3DepthStages());
+            chapterStages.AddRange(BuildChapter4DepthStages());
         }
 
         /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
@@ -365,6 +366,103 @@ namespace MyriadOfDragons.UI
         {
             const int baseGold = 2440, goldPerStage = 90;
             const int baseGems = 488, gemsPerStage = 18;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 4 depth fill, Stages 4-1..4-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
+        /// §B/§K wartime doctrine). Same pool+stride technique as Chapter 3, decorrelated two ways
+        /// per the Ch3-vs-Ch2 lesson (same offsets over a shared pool prefix produced exact-roster
+        /// duplicates, caught by the pairwise distinctness test, not guessed): the pool itself is
+        /// Chapter3DepthPool rotated by 5, and the stride/offsets ({3,11,19} over step 7, both
+        /// coprime with the 29-entry pool) differ from every earlier chapter's. i=29 (Stage 4-30)
+        /// still lands on the same base as i=0 (Stage 4-1) - the one unavoidable collision this
+        /// stride shape produces across 30 stages from a 29-entry pool - so it is hand-patched
+        /// pre-emptively; any further roster here that measures as a real AF defeat is retuned
+        /// below with a comment recording that measurement, not guessed in advance.</summary>
+        private static readonly string[] Chapter4DepthPool =
+        {
+            "cursed_soldier", "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer",
+            "corrupted_warrior", "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess",
+            "conquistador", "owl_keeper", "ladyinlake", "iron_dragon", "pandora", "drain", "shaman",
+            "druid", "succubus", "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue",
+            "giant_worms", "mountain_harpy", "snake_archer", "fire_worm", "butcher",
+        };
+
+        private static readonly (string title, string enemyName, string description)[] Chapter4DepthFlavor =
+        {
+            ("Ashroad Gatehouse", "Gatehouse Watch", "The first gatehouse past Boiotia's border. Its watch doesn't blink."),
+            ("Cinderbrook Ford", "Ford Sentries", "A shallow crossing choked with ash-silt. Sentries hold both banks."),
+            ("Titanfall Ravine", "Ravine Legionnaires", "A ravine where a Titan is said to have fallen. Legion holds the floor."),
+            ("Scorched Terracing", "Terrace Remnant", "Farming terraces burned to ash. A remnant garrison still works them."),
+            ("Ashen Millworks", "Millworks Guard", "An old millworks, ash-choked but still guarded like it matters."),
+            ("Smolder Hollow", "Hollow Sentries", "A hollow that never stops smoldering. Sentries patrol its rim."),
+            ("Emberlit Colonnade", "Colonnade Wardens", "A colonnade lit by permanent embers. Wardens hold every column."),
+            ("Blackash Quarry", "Quarry Legion", "A quarry of black ash-stone. Legion works it under guard."),
+            ("Cindermoor", "Moor Stalkers", "A moor of packed cinder. Stalkers move through it unseen."),
+            ("Ruined Watergate", "Watergate Guard", "A ruined watergate still controls the flow below. Guarded closely."),
+            ("Ashfall Barrows", "Barrow Wardens", "Old burial barrows, now ash-covered. Wardens don't let the dead rest."),
+            ("Titan's Forgehall", "Forgehall Keepers", "A forgehall built into a Titan's old ribcage. Keepers won't abandon it."),
+            ("Cinderspire Base", "Spire Garrison", "The base of a spire of hardened cinder. A garrison holds the ground floor."),
+            ("Molten Stairwell", "Stairwell Guard", "A stairwell cut into cooling lava. Guarded at every landing."),
+            ("Ember Threshing Floor", "Threshing Guard", "An old threshing floor, now used for something worse. Guarded."),
+            ("Scorched Reservoir", "Reservoir Wardens", "A reservoir gone dry and ash-choked. Wardens hold its banks."),
+            ("Ashen Palisade Line", "Palisade Legion", "A line of ember-wood palisades. Legion holds the whole line."),
+            ("Deep Cinder Vault", "Vault Legion", "A vault sunk deep into the cinder fields. Legion guards its door."),
+            ("Titan's Buried Anvil", "Anvil Keepers", "A buried anvil, said to be a Titan's own. Keepers won't give it up."),
+            ("Ashfall Colossus Base", "Colossus Guard", "The base of a fallen colossus statue. A guard still stands watch."),
+            ("Cinderveil Crossing", "Crossing Legion", "A crossing veiled in permanent ash-haze. Legion holds both approaches."),
+            ("Molten Bastion Wall", "Bastion Wall Guard", "A bastion wall still warm from the last eruption. Heavily guarded."),
+            ("Scorchfield Camp", "Scorchfield Legion", "A legion camp dug into scorched farmland. Well dug in."),
+            ("Ember Sepulcher", "Sepulcher Wardens", "A sepulcher of ash and ember. Wardens guard whatever's inside."),
+            ("Titan's Hollow Vein", "Vein Legion", "A hollowed-out Titan-vein, mined dry. Legion still holds the tunnels."),
+            ("Ashen Siegeworks", "Siegeworks Legion", "Old siegeworks, repurposed by the legion. Still fully manned."),
+            ("Cinderfall Approach", "Approach Legion", "The final approach before the deep ash proper. Legion holds it hard."),
+            ("Molten Command Post", "Command Post Guard", "A forward command post, still warm underfoot. Well guarded."),
+            ("Boiotia's Ember Spine", "Ember Spine Legion", "A spine of ember-rock running deep into Boiotia. Legion holds it."),
+            ("Ashfall Legion Reserve", "Legion Reserve Command", "The Ashfall Legion's standing reserve force. The deepest line yet."),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter4DepthStages()
+        {
+            const int poolSize = 29; // Chapter4DepthPool.Length - coprime with stride 7 and offsets 11/19.
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1; // 4-1 .. 4-30
+                int baseIndex = (7 * i) % poolSize;
+                string[] ids =
+                {
+                    Chapter4DepthPool[baseIndex],
+                    Chapter4DepthPool[(baseIndex + 11) % poolSize],
+                    Chapter4DepthPool[(baseIndex + 19) % poolSize],
+                };
+
+                // i=29 (Stage 4-30) lands on the same base index as i=0 (Stage 4-1) under this
+                // stride - the pattern's only collision across all 30 stages - hand-patched.
+                if (stageNumber == 30)
+                {
+                    ids = new[] { "hooded_rogue", "elf_wanderer", "eastern_sorcerer" };
+                }
+
+                // Stage 4-15's generated roster (conquistador+castle_lady+ogre) measured as a
+                // real DEFEAT under the AF policy - swapped castle_lady for a lighter pool entry.
+                if (stageNumber == 15)
+                {
+                    ids = new[] { "conquistador", "mountain_harpy", "ogre" };
+                }
+
+                (string title, string enemyName, string description) = Chapter4DepthFlavor[i];
+                (int gold, int gems) = Chapter4DepthReward(stageNumber);
+                yield return new CampaignStageData($"4-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 3-30's own 5140/1028. 4-30 lands at 5140 + 30*100 = 8140
+        /// gold / 1028 + 30*20 = 1628 gems - Chapter 5 does not exist yet, so no ceiling to leave
+        /// headroom below (per this task's own "do not invent Chapter 5 yet").</summary>
+        private static (int gold, int gems) Chapter4DepthReward(int stageNumber)
+        {
+            const int baseGold = 5140, goldPerStage = 100;
+            const int baseGems = 1028, gemsPerStage = 20;
             return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
         }
 

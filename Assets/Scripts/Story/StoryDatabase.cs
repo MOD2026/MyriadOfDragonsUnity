@@ -268,6 +268,54 @@ namespace MyriadOfDragons.Story
                     isFinal ? "Command falls. There is nothing left standing between us and Olympus." : $"{enemyName} scatter, broken.",
                     isFinal ? "Chapter three ends here. What Olympus does next is its own choice to answer for." : $"{title} is behind us. Boiotia's ash still stretches on.");
             }
+
+            // Chapter 4 depth fill, Stages 4-1..4-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
+            // wartime doctrine - token efficiency): same templated generator. title/enemyName
+            // match CampaignMapPresenter.Chapter4DepthFlavor.
+            (string stageId, string title, string enemyName)[] chapter4Stages =
+            {
+                ("4-1", "Ashroad Gatehouse", "Gatehouse Watch"),
+                ("4-2", "Cinderbrook Ford", "Ford Sentries"),
+                ("4-3", "Titanfall Ravine", "Ravine Legionnaires"),
+                ("4-4", "Scorched Terracing", "Terrace Remnant"),
+                ("4-5", "Ashen Millworks", "Millworks Guard"),
+                ("4-6", "Smolder Hollow", "Hollow Sentries"),
+                ("4-7", "Emberlit Colonnade", "Colonnade Wardens"),
+                ("4-8", "Blackash Quarry", "Quarry Legion"),
+                ("4-9", "Cindermoor", "Moor Stalkers"),
+                ("4-10", "Ruined Watergate", "Watergate Guard"),
+                ("4-11", "Ashfall Barrows", "Barrow Wardens"),
+                ("4-12", "Titan's Forgehall", "Forgehall Keepers"),
+                ("4-13", "Cinderspire Base", "Spire Garrison"),
+                ("4-14", "Molten Stairwell", "Stairwell Guard"),
+                ("4-15", "Ember Threshing Floor", "Threshing Guard"),
+                ("4-16", "Scorched Reservoir", "Reservoir Wardens"),
+                ("4-17", "Ashen Palisade Line", "Palisade Legion"),
+                ("4-18", "Deep Cinder Vault", "Vault Legion"),
+                ("4-19", "Titan's Buried Anvil", "Anvil Keepers"),
+                ("4-20", "Ashfall Colossus Base", "Colossus Guard"),
+                ("4-21", "Cinderveil Crossing", "Crossing Legion"),
+                ("4-22", "Molten Bastion Wall", "Bastion Wall Guard"),
+                ("4-23", "Scorchfield Camp", "Scorchfield Legion"),
+                ("4-24", "Ember Sepulcher", "Sepulcher Wardens"),
+                ("4-25", "Titan's Hollow Vein", "Vein Legion"),
+                ("4-26", "Ashen Siegeworks", "Siegeworks Legion"),
+                ("4-27", "Cinderfall Approach", "Approach Legion"),
+                ("4-28", "Molten Command Post", "Command Post Guard"),
+                ("4-29", "Boiotia's Ember Spine", "Ember Spine Legion"),
+                ("4-30", "Ashfall Legion Reserve", "Legion Reserve Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter4Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                bool isFinal = stageId == "4-30";
+                AddStageDialogue(stageId, title, enemy,
+                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                    isFinal ? "This is the last of them, for now. Finish it." : $"Olympus isn't here. Clear {title} and keep moving.",
+                    isFinal ? "The reserve breaks. Whatever Olympus sends next, it won't be this." : $"{enemyName} scatter, broken.",
+                    isFinal ? "Chapter four ends here." : $"{title} is behind us. Boiotia's ash still stretches on.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

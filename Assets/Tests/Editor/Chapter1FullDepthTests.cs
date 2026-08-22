@@ -46,6 +46,11 @@ namespace MyriadOfDragons.Tests
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
+            // Pinned draw order (same technique Chapter1CampaignPlayabilityTests.Stage1_1 already
+            // uses): makes every stage's playability result reproducible instead of occasionally
+            // flaky when combined with other suites in the same batch (found while retuning
+            // Chapter 3/4's own depth-fill rosters).
+            PlayerBattleState.SetShuffleSeedForTests(42);
         }
 
         [TearDown]

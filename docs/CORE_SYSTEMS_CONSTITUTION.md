@@ -59,7 +59,7 @@ Player must have a long grill path. Chapters **4–10 are required**, not option
 
 | Ch | Stages | Count | Status |
 |---|---|---:|---|
-| 4 | `4-1` … `4-30` | 30 | NOT FILLED |
+| 4 | `4-1` … `4-30` | 30 | **DONE** |
 | 5 | `5-1` … `5-30` | 30 | NOT FILLED |
 | 6 | `6-1` … `6-30` | 30 | NOT FILLED |
 | 7 | `7-1` … `7-30` | 30 | NOT FILLED |
@@ -91,8 +91,8 @@ End of a chapter must not dump the player into empty waiting. After clearing cha
 
 ### Debt / build order (wartime)
 
-1. **DONE:** fill Ch1–3 content  
-2. **Next content:** fill Ch4→Ch10 (bulk, same builder pattern)  
+1. **DONE:** fill Ch1–4 content (12+21+30+30 = **93** stages)  
+2. **Next content:** fill Ch5→Ch10 (bulk, same builder pattern)  
 3. **Next systems (parallel / after one APK play):** chapter gates + first mini-game  
 4. Per-stage feel polish = **last**
 
@@ -280,16 +280,48 @@ Treat as **features to balance**, not bugs to hide — unless marked EXPLOIT.
 
 ---
 
-## L. AI seat rules
+## L. AI seat rules + ownership matrix (LOCKED)
 
-| Seat | May touch |
-|---|---|
-| Claude | Campaign depth (bulk), Battle EXPLOIT fixes, EditMode proof — follow §0 |
-| Cursor | This doc, accepts, commits, owner Qs, APK |
-| VS Code | UI only after systems + full campaign depth |
-| ChatGPT | Curves/packets when asked — no Unity |
+| Seat | Tool | Owns | Must NOT touch |
+|---|---|---|---|
+| **Command Centre** | Cursor (this chat) | Queue, bible locks, accepts, commits, APK, owner Qs | Random feature coding that belongs to another seat |
+| **Battle / campaign content** | Claude | Campaign stage fill, Battle EXPLOITs, EditMode combat proof, apply story packets into `StoryDatabase` flavor in bulk | Metagame presenters, Economy/, frozen Save shape, UI polish |
+| **Metagame UI** | VS Code agent (Gemini historically) | `HomePagePresenter`, `CampaignMapPresenter` UI flows, `ShopPresenter`, `DeckBuilderPresenter`, Story UI chrome | Battle combat math, frozen Save shape without CC |
+| **Design / story** | ChatGPT | Story bible, gates fiction, mini-game fantasy, economy/guild **design packets**, curves — **docs only** | Unity / C# |
+| **Owner** | Zihan | Priorities, playtest verdicts, lock numbers after feeling the game | — |
 
-No HUD busywork. No 3-stage “chapters.” Unity open → stop. Obey §0 wartime doctrine.
+### Who picks up work that has not commenced
+
+| Workstream | Design packet | Code seat | When (wartime) |
+|---|---|---|---|
+| **Campaign Ch4–10** | ChatGPT naming/arc | **Claude** | **NOW** (active) |
+| **Story dialogue (beats)** | **ChatGPT** | Claude apply bulk | Parallel **now** (docs) → apply after packet |
+| **Chapter gates** | ChatGPT fiction | Metagame (VS Code) + CC if Save touched | After Ch1–3 on device / with Ch4+ |
+| **Mini-games** | **ChatGPT** | Metagame (+ Battle if combat-like) | After first playable spine APK |
+| **Shop** (real grants, SKUs, integrity) | ChatGPT / Economy blueprint | **Metagame (VS Code)** | After playable spine; Shop shell exists |
+| **Empire** (Castle/Barracks/Gate live) | ChatGPT + CC lock | Battle formulas + Metagame UI; **Save = CC coord** | **After** schema decision + sim — not parallel with soft stubs sold as depth |
+| **Animation / VFX / HUD polish** | Art brief (optional ChatGPT) | **Metagame / VS Code** | **LAST** (§0) |
+| **Music / audio** | Asset list | Metagame hookup + Claude only if Battle cue wiring | After spine; assets can be prepared in parallel |
+| **Guild / chat / social** | MOS + ChatGPT | Metagame + `CloudCode/Social*` (server) | Parallel **docs + contracts OK**; full live guild **after** identity/server — do not block campaign |
+| **Deck builder / collection depth** | ChatGPT | Metagame | Parallel once Shop/economy integrity clear |
+| **Android / APK** | — | **Cursor CC** | On demand after content lands |
+
+### Co-running (speed) — YES, with hard lanes
+
+**Do parallel now**
+1. Claude → campaign Ch4→10  
+2. ChatGPT → story bible + gate/mini-game fiction + naming kits  
+3. ChatGPT → Shop/Empire/Guild **design packets** (no code)  
+4. Asset prep (music files, art) outside Unity seats  
+
+**Do not parallel-collide**
+- Two seats editing the same `.cs` file  
+- Anyone editing **frozen Save** (`PlayerProfile` / `SaveSystem` / `SaveMigration`) without CC  
+- Metagame presenters while Claude is mid-edit on `CampaignMapPresenter` content (serialize: Claude content commit → then UI)  
+- **Unity open** → no batchmode tests/builds (one machine lock)  
+- Empire/animation “busywork” while campaign spine incomplete (§0)
+
+**Rule:** co-run **different workstreams**, not three agents on one system. Design packets ahead of code = free speed.
 
 ---
 
