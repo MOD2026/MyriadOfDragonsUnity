@@ -151,11 +151,10 @@ public class HomePagePresenter : MonoBehaviour
     /// still self-heal the next time the player wins this same stage, rather than staying stuck
     /// forever because the reward-grant branch below it never runs again.
     ///
-    /// currentActiveStage == null (a battle entered without going through Story at all) keeps
-    /// its pre-existing flat 250 Gold / 25 Gems reward, granted on every such victory with no
-    /// dedup - unrelated to Chapter 1 stage progression and explicitly out of this feature's
-    /// scope (no economy/reward-value change). NormalVictory_ThroughTheRealRewardHandler_
-    /// StillGrantsGoldAndGems (HomePageTutorialRewardGuardTests) locks this in.
+    /// currentActiveStage == null (a battle entered without going through Story at all) grants
+    /// no economy reward (0 Gold / 0 Gems). This keeps Campaign as the sole current Gold/Gems
+    /// faucet (first clear only) while preserving the existing non-economy progression flow for
+    /// ordinary normal matches (e.g. totalMatches/totalWins via GameBootstrap).
     /// </summary>
     private void HandleMatchCompleted(MatchResult result)
     {
@@ -179,13 +178,10 @@ public class HomePagePresenter : MonoBehaviour
 
         if (currentActiveStage == null)
         {
-            // No active campaign stage - pre-existing flat reward, unrelated to Chapter 1
-            // progression, deliberately left exactly as it was (see this method's own comment).
-            profile.gold += 250;
-            profile.gems += 25;
+            // No active campaign stage - this path intentionally mints no economy rewards.
             SaveManager.Save();
             RefreshTopHUD();
-            Debug.Log("[Metagame] Awarded 250 Gold & 25 Gems for Victory (no active campaign stage)!");
+            Debug.Log("[Metagame] No economy reward for Victory (no active campaign stage).");
             return;
         }
 

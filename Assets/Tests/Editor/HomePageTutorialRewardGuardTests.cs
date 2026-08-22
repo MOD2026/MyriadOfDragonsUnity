@@ -285,7 +285,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void NormalVictory_ThroughTheRealRewardHandler_StillGrantsGoldAndGems()
+        public void NormalVictory_ThroughTheRealRewardHandler_GrantsNoGoldOrGems()
         {
             SaveValidDeckForNormalMatch();
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("RewardGuard_NormalBootstrap");
@@ -315,12 +315,10 @@ namespace MyriadOfDragons.Tests
             RunToResolutionWithUndefendedEnemy(controller);
 
             Assert.IsTrue(isVictory, "Setup: expected the undefended enemy to produce a player victory.");
-            // 250 gold / 25 gems are HandleMatchCompleted's own existing fallback constants
-            // (currentActiveStage == null in this test) - asserted directly here because this
-            // test's whole purpose is confirming that PRE-EXISTING behavior is unaffected by the
-            // new tutorial guard, not validating a value this change introduces.
-            Assert.AreEqual(goldBefore + 250, rewardProfile.gold, "A normal victory's existing gold reward must be unaffected by the tutorial guard.");
-            Assert.AreEqual(gemsBefore + 25, rewardProfile.gems, "A normal victory's existing gems reward must be unaffected by the tutorial guard.");
+            Assert.AreEqual(goldBefore, rewardProfile.gold,
+                "A normal non-campaign victory must not grant gold.");
+            Assert.AreEqual(gemsBefore, rewardProfile.gems,
+                "A normal non-campaign victory must not grant gems.");
             // Regression proof for the new `if (!IsTutorialMatch)` guard in
             // GameBootstrap.HandleMatchEnded: an ordinary match must still call
             // RecordMatchResult exactly as before - these must have actually changed, not just
