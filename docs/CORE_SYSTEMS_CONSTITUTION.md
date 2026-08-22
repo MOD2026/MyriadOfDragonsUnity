@@ -50,16 +50,16 @@ If a pillar is **STUB**, do not balance content as if it were live.
 | 1 | `1-1` … `1-12` | 12 | **DONE** |
 | 2 | `2-1` … `2-21` | 21 | **DONE** |
 | 3 | `3-1` … `3-30` | 30 | **DONE** |
+| 4 | `4-1` … `4-30` | 30 | **DONE** |
 
-**Live total:** 63 sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
+**Live total:** **93** sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
 
 ### Planned spine — minimum **10 chapters** (LOCKED intent)
 
-Player must have a long grill path. Chapters **4–10 are required**, not optional DLC fantasy.
+Player must have a long grill path. Chapters **5–10** remain required.
 
 | Ch | Stages | Count | Status |
 |---|---|---:|---|
-| 4 | `4-1` … `4-30` | 30 | **DONE** |
 | 5 | `5-1` … `5-30` | 30 | NOT FILLED |
 | 6 | `6-1` … `6-30` | 30 | NOT FILLED |
 | 7 | `7-1` … `7-30` | 30 | NOT FILLED |
@@ -67,7 +67,7 @@ Player must have a long grill path. Chapters **4–10 are required**, not option
 | 9 | `9-1` … `9-30` | 30 | NOT FILLED |
 | 10 | `10-1` … `10-30` | 30 | NOT FILLED |
 
-**Planned total:** 63 + 210 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
+**Planned full spine:** 93 + 180 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
 
 ### Chapter gates (LOCKED intent — not just “beat last stage”)
 
