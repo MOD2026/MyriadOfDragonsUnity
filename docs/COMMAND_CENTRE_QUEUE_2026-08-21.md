@@ -1,39 +1,79 @@
 # Command Centre — Ops Board
 
-**Bible:** `docs/CORE_SYSTEMS_CONSTITUTION.md` §0 (wartime + **deep near-future review**)  
-**Status:** Ch1–5 **DONE** (123 stages). Next Claude: **Ch6 `6-1..6-30`**.
-
-**Accept bar:** not surface-only — EditMode green **and** next-chapter terminal, no roster clones, gold headroom, seed pin.
+**Bible:** §0 deep review · §I Empire DESIGN LOCKED · dual-prestige mini-games  
+**Empire:** feasibility **ACCEPTED** (offline A, Barracks paid milestones, ReadyToCollect)  
+**Campaign:** Ch1–6 **DONE** (153 stages). Claude → **Ch7**.
 
 ---
 
-## Claude — NEXT: Chapter 6 (paste below)
+## VS Code / Metagame — NEXT (paste): Economy Faucet
 
-## Parallel
-ChatGPT: revise Empire packet (doc loopholes). Art: mine quarantine ReuseBank when owner asks.
+Do **not** assign this to Claude (touches `HomePagePresenter`).
+
+## Claude — NEXT: Chapter 7 (paste at bottom)
+
+## ChatGPT — NEXT: Dual-prestige mini-game packet (paste below)
 
 ## Parked
-Empire/Shop/gates **code**, HUD polish, animation.
+Empire construction/UI code until faucet green; TD implementation; HUD polish.
 
 ---
 
-## CLAUDE PASTE
+## VS CODE PASTE — Economy Faucet only
 
 ```
-Read docs/CORE_SYSTEMS_CONSTITUTION.md §0 (including Deep review) + §B + §C first.
-Wartime: (1) fastest playable game (2) token efficiency.
-Deep review: your DONE must not only be green — avoid designs that break Ch7–10, Gate maps, or gold sinks later. No polish. No Empire/XP/spell redesign. No HUD.
+Metagame seat. Read docs/EMPIRE_SCHEMA_LOCK_2026-08-22.md + EMPIRE_FEASIBILITY_AUDIT (Codex folder).
 
-TASK (one pass): Fill Chapter 6 stages 6-1 through 6-30.
-Chain: … → 5-1..5-30 → 6-1..6-30. Win 5-30 unlocks 6-1; 6-30 → null (no Ch7 yet).
+TASK (one slice ONLY): Economy faucet correction.
+- Ordinary Normal Battle victory: grant 0 Gold and 0 Gems (fix HomePagePresenter.HandleMatchCompleted non-campaign branch that currently +250g/+25gems).
+- Tutorial: already no economy rewards — prove with tests; do not add rewards.
+- Campaign first-clear Gold/Gems + claimedStageRewardIds dedup: UNCHANGED.
+- Campaign replay: still 0 economy (existing contract).
+- Avatar XP / RecordMatchResult: do not change unless a test forces a touch — prefer leave XP as-is.
+- Route spends through existing patterns; prefer CurrencyManager if that file already owns grants — match project norms.
+- Focused EditMode tests: repeat Normal victories do not change gold/gems; Tutorial does not; Campaign first-clear still grants once.
+- Unity closed; real pass/fail; never -quit.
+- Do NOT touch Empire construction, Gate, Barracks formula, Castle, Shop SKUs, HUD polish.
 
-CONTENT RULES (same builders as Ch2–Ch5):
-- Pool+stride; offset so no exact full-roster clone of ANY prior stage; AF-measured; SetShuffleSeedForTests in fixture.
-- Escalate via enemy decks only — §C locked.
-- Rewards escalate from 5-30; leave headroom for Ch7–10 (do not explode gold so Empire sinks become impossible to tune).
-- StoryDatabase templated pre/post. Prefer ChatGPT naming kit if in docs/; else coherent Olympus-thread placeholders.
+DONE: files + test numbers. Stop.
+```
 
-TESTS: Chapter6FullDepthTests; fix stale end-of-list (5-30 not terminal). Unity closed; EditMode; real counts; never -quit.
+---
 
-DONE: files + test numbers + one line on gold at 6-30 vs headroom. Stop.
+## CHATGPT PASTE — Dual prestige mini-games
+
+```
+Design seat. No Unity. Do not reopen Empire schema locks.
+
+KEEP: Empire-powered daily + weekly mini-games that create upgrade hunger; Tower-style climb OK; rewards beef deck with caps.
+
+REPLACE pure-Empire-as-only-ranking with DUAL PRESTIGE (locked intent in CORE_SYSTEMS §B):
+1) Card prestige = Campaign mastery (+ future PvP). Power = deck/formation/spells/Avatar.
+2) Empire prestige = daily clear + weekly highest Tower floor (+ ≤2 satellite mini-games). Power = Empire buildings.
+
+DELIVERABLE packet:
+- EmpirePower mapping: Barracks→capacity, Castle→tower durability (named distinct from match HP), Gate→sector unlock only
+- Daily rule + Weekly highest-floor rule + reward tables with hard caps
+- What leaderboards exist (Empire vs Card) — never one board that mixes both into one “rank”
+- Soft walls every 10 tower floors; anti-gold-faucet vs Empire sinks
+- Wartime: docs only; TD code after faucet + Empire construction slices
+
+READY FOR CC. Stop.
+```
+
+---
+
+## CLAUDE PASTE — Chapter 7
+
+```
+Read docs/CORE_SYSTEMS_CONSTITUTION.md §0 + §B + §C.
+Wartime + deep review. No polish. No Empire/XP/HUD.
+
+TASK: Fill Chapter 7 stages 7-1..7-30.
+Chain: … → 6-30 → 7-1..7-30 → null (no Ch8 yet).
+Pool+stride; no exact roster clone of any prior stage; AF-measured; SetShuffleSeedForTests.
+Escalate decks only; §C locked. Rewards from 6-30 with headroom for Ch8–10 (report gold at 7-30).
+StoryDatabase templated pre/post.
+TESTS: Chapter7FullDepthTests; fix 6-30 terminal stale asserts. Unity closed; never -quit.
+DONE: files + counts + gold at 7-30. Stop.
 ```

@@ -365,6 +365,55 @@ namespace MyriadOfDragons.Story
                     isFinal ? "The wall falls. Nothing coastal stands between us and Olympus now." : $"{enemyName} scatter, broken.",
                     isFinal ? "Chapter five ends here. The climb to Olympus begins next." : $"{title} is behind us. Boiotia's ash still stretches on.");
             }
+
+            // Chapter 6 depth fill, Stages 6-1..6-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
+            // wartime doctrine - token efficiency). No ChatGPT naming kit exists in docs/ yet
+            // (checked before writing this) - coherent placeholders continuing the climb toward
+            // Olympus. title/enemyName match CampaignMapPresenter.Chapter6DepthFlavor.
+            (string stageId, string title, string enemyName)[] chapter6Stages =
+            {
+                ("6-1", "Ashfoot Trailhead", "Trailhead Watch"),
+                ("6-2", "Switchback Cinderpath", "Cinderpath Legion"),
+                ("6-3", "Craggy Overlook", "Overlook Sentries"),
+                ("6-4", "Thin Air Camp", "Camp Wardens"),
+                ("6-5", "Boulderfall Pass", "Pass Legion"),
+                ("6-6", "Ashen Timberline", "Timberline Guard"),
+                ("6-7", "Cloudbreak Ridge", "Ridge Sentinels"),
+                ("6-8", "Frostash Shelf", "Shelf Wardens"),
+                ("6-9", "Windhowl Saddle", "Saddle Legion"),
+                ("6-10", "Stonefall Traverse", "Traverse Guard"),
+                ("6-11", "Hanging Cinderfield", "Cinderfield Legion"),
+                ("6-12", "Echo Chasm Bridge", "Chasm Bridge Guard"),
+                ("6-13", "Greyrock Bivouac", "Bivouac Wardens"),
+                ("6-14", "Ashen Col", "Col Legion"),
+                ("6-15", "Skyline Watchpost", "Watchpost Command"),
+                ("6-16", "Cinderglass Face", "Face Sentries"),
+                ("6-17", "Highfrost Camp", "Camp Legion"),
+                ("6-18", "Precipice Trail", "Trail Guard"),
+                ("6-19", "Stormline Ridge", "Ridge Legion"),
+                ("6-20", "Ashfall Summit Camp", "Summit Camp Command"),
+                ("6-21", "Thundercleft Pass", "Cleft Legion"),
+                ("6-22", "Godsview Overlook", "Overlook Legion Command"),
+                ("6-23", "Ashen Crown Ridge", "Crown Ridge Guard"),
+                ("6-24", "Skyward Cinderpath", "Cinderpath Legion Command"),
+                ("6-25", "Highaltar Approach", "Altar Approach Guard"),
+                ("6-26", "Cloudsplit Ridge", "Ridge High Command"),
+                ("6-27", "Threshold Camp", "Threshold Legion"),
+                ("6-28", "Godsgate Approach", "Gate Approach Command"),
+                ("6-29", "Olympus Outer Gate", "Outer Gate Legion Command"),
+                ("6-30", "Boiotia's Summit Stand", "Summit High Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter6Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                bool isFinal = stageId == "6-30";
+                AddStageDialogue(stageId, title, enemy,
+                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                    isFinal ? "The summit is close. Break this line and it's ours." : $"Olympus isn't here. Clear {title} and keep moving.",
+                    isFinal ? "The summit falls. The outer gate of Olympus stands open before us." : $"{enemyName} scatter, broken.",
+                    isFinal ? "Chapter six ends here. Whatever waits past that gate is next." : $"{title} is behind us. Boiotia's ash still stretches on.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

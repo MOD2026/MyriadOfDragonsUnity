@@ -63,22 +63,22 @@ If a pillar is **STUB**, do not balance content as if it were live.
 | 3 | `3-1` … `3-30` | 30 | **DONE** |
 | 4 | `4-1` … `4-30` | 30 | **DONE** |
 | 5 | `5-1` … `5-30` | 30 | **DONE** |
+| 6 | `6-1` … `6-30` | 30 | **DONE** |
 
-**Live total:** **123** sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
+**Live total:** **153** sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
 
 ### Planned spine — minimum **10 chapters** (LOCKED intent)
 
-Player must have a long grill path. Chapters **6–10** remain required.
+Player must have a long grill path. Chapters **7–10** remain required.
 
 | Ch | Stages | Count | Status |
 |---|---|---:|---|
-| 6 | `6-1` … `6-30` | 30 | NOT FILLED |
 | 7 | `7-1` … `7-30` | 30 | NOT FILLED |
 | 8 | `8-1` … `8-30` | 30 | NOT FILLED |
 | 9 | `9-1` … `9-30` | 30 | NOT FILLED |
 | 10 | `10-1` … `10-30` | 30 | NOT FILLED |
 
-**Planned full spine:** 123 + 150 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
+**Planned full spine:** 153 + 120 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
 
 ### Chapter gates (LOCKED intent — not just “beat last stage”)
 
@@ -92,20 +92,30 @@ Gates make chapter openers **earned**, not autopilot.
 
 **Save note:** gate fields must stay additive; frozen save shape changes need Command Centre + both seats.
 
-### Between-chapter mini-games (LOCKED intent)
+### Between-chapter mini-games (LOCKED intent — dual prestige)
 
-End of a chapter must not dump the player into empty waiting. After clearing chapter `N` (or as part of unlocking `N+1`), player gets a **mini-game / side activity** for variety (not another 30 identical battles).
+End of a chapter must not dump the player into empty waiting. After clearing chapter `N` (or as part of unlocking `N+1`), player gets a **mini-game / side activity** for variety.
 
-- Required for the 10-chapter product, not polish chrome
-- First ship: **one** playable mini-game loop after Ch1–3 is on device
-- Do not invent full mini-game design in campaign-fill passes — Command Centre assigns a dedicated slice
+**KEEP (yes):** Empire-powered activities with **1 daily** + **1 weekly** refresh; rewards feed deck/mats; creates hunger to upgrade Empire. Main climb can be Tower-style; strength primarily from Empire buildings.
+
+**REPLACE the “no” (pure Empire climb as the only ranking):**
+
+| Track | What players strive for | Power source |
+|---|---|---|
+| **Card prestige** | Campaign mastery (clears, optional later PvP ladder) | Deck + formation + spells + Avatar |
+| **Empire prestige** | Daily clear + weekly highest Tower floor (and small satellite mini-games) | Empire buildings (Barracks capacity, Castle tower durability, Gate = which sector) |
+
+Do **not** make weekly Tower floor the sole definition of “best player.” Hardcore brand lives on the card track; midcore retention/money lives on the Empire track. Reward caps required. Server required for weekly ranks. Full TD codebase waits until Campaign spine + Empire construction feasibility land.
+
+Detail: `docs/MINIGAME_EMPIRE_RANKING_ANALYSIS_2026-08-22.md`.
 
 ### Debt / build order (wartime)
 
-1. **DONE:** fill Ch1–5 content (12+21+30+30+30 = **123** stages)  
-2. **Next content:** fill Ch6→Ch10 (bulk, same builder pattern)  
-3. **Next systems (parallel / after one APK play):** chapter gates + first mini-game — **doc loopholes first** (§0 deep review)  
-4. Per-stage feel polish = **last**
+1. **DONE:** fill Ch1–6 content (**153** stages)  
+2. **Next content:** fill Ch7→Ch10  
+3. **Next systems:** Economy faucet → Barracks milestones → construction (instant A) → Gate reader → Castle sim — **doc loopholes already reviewed**  
+4. Dual-prestige mini-games / TD after Empire construction exists  
+5. Per-stage feel polish = **last**
 
 ---
 
@@ -241,7 +251,7 @@ Reinforce {4,8}: spend leftover Resource. Synergy at ConfirmFormation; reinforce
 | Shop | 4 SKUs; packs deterministic | EventMedal / Relic unused |
 | Stamina | Campaign cost 1 | Normal Battle **free** |
 | Campaign rewards | First-clear only | Often `gold +=` not CurrencyManager |
-| Normal win | 250g/25g every time | Farm faucet |
+| Normal win | 250g/25g every time (**live faucet**) | **LOCKED to remove:** Normal+Tutorial → 0g/0gems before Empire ships (`EMPIRE_SCHEMA_LOCK_2026-08-22.md`) |
 | Deck | Confirmed 10 slots | Barracks never raises |
 
 ### OPEN
@@ -250,16 +260,21 @@ Currency naming (EventMedal vs Event Token). Single wallet path (`CurrencyManage
 
 ---
 
-## I. Empire building (STUB — do not fake it)
+## I. Empire building — DESIGN LOCKED (2026-08-22), code not started
 
-| Building | Formula? | Raises in play? | Player-facing today |
+**Lock record:** `docs/EMPIRE_SCHEMA_LOCK_2026-08-22.md`  
+**Full packet:** ChatGPT `EMPIRE_SAVE_AND_PROGRESSION_SCHEMA_PACKET_2026-08-22.md` (Codex referenced conversation folder).
+
+| Building | Formula today? | Raises in play today? | Locked first-slice role |
 |---|---|---|---|
-| Avatar | Yes | Yes | Real |
-| Castle | Yes | No | Dead bonus |
-| Barracks | Yes | No | Dead deck/regen |
-| Gate | No effect | No | Pure stub |
+| Avatar | Yes | Yes (+1 win / +0 loss) | Unchanged — not a building |
+| Castle | Yes | No | Gold+time build; shared HP/Resource scale (AI mirrors); sim before publish |
+| Barracks | Yes (20 slots @ L50 live) | No | **Rescale to 20 slots @ L30**; no regen UI |
+| Gate | None | No | Meta route clearance Ch1–10; necessary ≠ sufficient |
 
-**Rule:** No Empire UI / “build to power” marketing until advancement rules + Gate effect are decided and simulated in-engine (`BalanceSimulationTests` pattern).
+**Paired lock:** Normal Battle + Tutorial → **0 Gold/0 Gems** before Empire construction ships. Campaign first-clear remains finite source.
+
+**Rule:** No Empire UI marketing until implementation gates in the lock record pass (economy faucet, formula tests, Gate entry tests, Castle sim). Doc loopholes already reviewed twice — do not re-open locked decisions in chat; residual offline-timer A/B/C is for feasibility only.
 
 ---
 
@@ -310,7 +325,7 @@ Treat as **features to balance**, not bugs to hide — unless marked EXPLOIT.
 | **Chapter gates** | ChatGPT fiction | Metagame (VS Code) + CC if Save touched | After Ch1–3 on device / with Ch4+ |
 | **Mini-games** | **ChatGPT** | Metagame (+ Battle if combat-like) | After first playable spine APK |
 | **Shop** (real grants, SKUs, integrity) | ChatGPT / Economy blueprint | **Metagame (VS Code)** | After playable spine; Shop shell exists |
-| **Empire** (Castle/Barracks/Gate live) | ChatGPT + CC lock | Battle formulas + Metagame UI; **Save = CC coord** | **After** schema decision + sim — not parallel with soft stubs sold as depth |
+| **Empire** (Castle/Barracks/Gate live) | **LOCKED design** — feasibility next | Battle formulas + Metagame UI; **Save = CC coord** | After feasibility + Normal Battle 0-reward + sim — not before |
 | **Animation / VFX / HUD polish** | Art brief (optional ChatGPT) | **Metagame / VS Code** | **LAST** (§0) |
 | **Music / audio** | Asset list | Metagame hookup + Claude only if Battle cue wiring | After spine; assets can be prepared in parallel |
 | **Guild / chat / social** | MOS + ChatGPT | Metagame + `CloudCode/Social*` (server) | Parallel **docs + contracts OK**; full live guild **after** identity/server — do not block campaign |
@@ -347,5 +362,5 @@ Any new system packet (Empire, Shop grants, gates, mini-games, guild) must get a
 
 Same bar for accepting content: not only EditMode green — check next-chapter terminal, catalog exhaustion, gold inflation vs sinks, Gate/chapter collisions.
 
-Empire: see `docs/EMPIRE_SCHEMA_CC_REVIEW_2026-08-22.md` — **not locked** until revised packet answers Gate→Ch10, Barracks L30 vs L50 formula, farm pairing, construction complete API.
+Empire: **DESIGN LOCKED** — `docs/EMPIRE_SCHEMA_LOCK_2026-08-22.md`. Implementation blocked until feasibility audit + gates (Normal Battle faucet removal, Barracks L30 formula, offline timer A/B/C, Castle sim).
 

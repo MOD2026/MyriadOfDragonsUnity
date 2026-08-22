@@ -171,6 +171,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter3DepthStages());
             chapterStages.AddRange(BuildChapter4DepthStages());
             chapterStages.AddRange(BuildChapter5DepthStages());
+            chapterStages.AddRange(BuildChapter6DepthStages());
         }
 
         /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
@@ -582,6 +583,132 @@ namespace MyriadOfDragons.UI
         {
             const int baseGold = 8140, goldPerStage = 110;
             const int baseGems = 1628, gemsPerStage = 22;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 6 depth fill, Stages 6-1..6-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
+        /// §0 deep-review pass - "must not break Ch7-10, Gate maps, or gold sinks later"). No
+        /// ChatGPT naming kit exists in docs/ yet (checked before writing this) - coherent
+        /// placeholders continuing the Olympus-approach thread. Same pool+stride technique,
+        /// decorrelated the same two ways as every chapter since Ch3 (Chapter5DepthPool rotated by
+        /// 9, a sixth distinct offset triple {0,3,15} over a sixth distinct stride 13, both coprime
+        /// with the 29-entry pool and unused by any earlier chapter). i=29 (Stage 6-30) still lands
+        /// on the same base as i=0 (Stage 6-1) - patched pre-emptively.
+        ///
+        /// GOLD-SINK HEADROOM (the deep-review concern this pass was explicitly asked to consider):
+        /// the per-stage reward step has grown +10 gold / +2 gems each chapter since Ch2 (14 -> 80
+        /// -> 90 -> 100 -> 110 -> 120 here) - linear escalation, not exponential/compounding, so
+        /// four more chapters at this same growth rate land 6-30 at 15040 gold / 3008 gems and a
+        /// projected Ch10 opener still in the tens-of-thousands range, not millions. That leaves a
+        /// stable, predictable curve for whoever tunes Empire building costs against it later,
+        /// rather than a number that would force renegotiating every earlier chapter's reward once
+        /// a real gold sink exists.</summary>
+        private static readonly string[] Chapter6DepthPool =
+        {
+            "drain", "shaman", "druid", "succubus", "elven_high_lord", "archer_dragon", "castle_lady",
+            "hooded_rogue", "giant_worms", "mountain_harpy", "snake_archer", "fire_worm", "butcher",
+            "cursed_soldier", "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer",
+            "corrupted_warrior", "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess",
+            "conquistador", "owl_keeper", "ladyinlake", "iron_dragon", "pandora",
+        };
+
+        private static readonly (string title, string enemyName, string description)[] Chapter6DepthFlavor =
+        {
+            ("Ashfoot Trailhead", "Trailhead Watch", "The climb toward Olympus begins here. A watch already waits."),
+            ("Switchback Cinderpath", "Cinderpath Legion", "A switchback path up the ash-slope. Legion holds every turn."),
+            ("Craggy Overlook", "Overlook Sentries", "An overlook with a view of the whole coast below. Sentries never leave it."),
+            ("Thin Air Camp", "Camp Wardens", "A camp pitched where the air runs thin. Wardens seem unbothered."),
+            ("Boulderfall Pass", "Pass Legion", "A pass prone to rockfalls. Legion has learned to live with it."),
+            ("Ashen Timberline", "Timberline Guard", "The last treeline before bare ash-rock. A guard holds the edge."),
+            ("Cloudbreak Ridge", "Ridge Sentinels", "A ridge that breaks through the low clouds. Sentinels hold the spine."),
+            ("Frostash Shelf", "Shelf Wardens", "Ash frozen into a hard shelf. Wardens patrol its narrow edge."),
+            ("Windhowl Saddle", "Saddle Legion", "A saddle between two peaks where wind never stops. Legion dug in anyway."),
+            ("Stonefall Traverse", "Traverse Guard", "A traverse cut into unstable stone. Guarded despite the risk."),
+            ("Hanging Cinderfield", "Cinderfield Legion", "A field of ash clinging to a steep slope. Legion holds the only path through."),
+            ("Echo Chasm Bridge", "Chasm Bridge Guard", "A bridge over a chasm that echoes every footstep. Guarded closely."),
+            ("Greyrock Bivouac", "Bivouac Wardens", "A bivouac camp of grey stone. Wardens rotate but never truly leave."),
+            ("Ashen Col", "Col Legion", "A col between two ridgelines. Legion controls the only crossing."),
+            ("Skyline Watchpost", "Watchpost Command", "A watchpost with Olympus visible on the horizon, when the ash clears."),
+            ("Cinderglass Face", "Face Sentries", "A cliff face of fused ash-glass. Sentries climb it better than most."),
+            ("Highfrost Camp", "Camp Legion", "A camp pitched in permanent frost-ash. Legion holds it grimly."),
+            ("Precipice Trail", "Trail Guard", "A trail along a sheer precipice. One misstep, and the guard doesn't have to fight."),
+            ("Stormline Ridge", "Ridge Legion", "A ridge that catches every mountain storm. Legion holds it regardless."),
+            ("Ashfall Summit Camp", "Summit Camp Command", "A forward camp near the summit proper. Well defended."),
+            ("Thundercleft Pass", "Cleft Legion", "A pass split by an old lightning strike. Legion uses the cleft as cover."),
+            ("Godsview Overlook", "Overlook Legion Command", "An overlook said to show all of Olympus on a clear day. Heavily held."),
+            ("Ashen Crown Ridge", "Crown Ridge Guard", "A ridge shaped like a crown of ash. Guard holds every point of it."),
+            ("Skyward Cinderpath", "Cinderpath Legion Command", "The steepest cinderpath yet, climbing straight toward the sky."),
+            ("Highaltar Approach", "Altar Approach Guard", "An approach to an old altar, long since claimed by the legion."),
+            ("Cloudsplit Ridge", "Ridge High Command", "A ridge that splits the clouds themselves. Command holds the summit side."),
+            ("Threshold Camp", "Threshold Legion", "A camp at the literal threshold of Olympus's outer bounds."),
+            ("Godsgate Approach", "Gate Approach Command", "The final approach to whatever gate Olympus keeps at this height."),
+            ("Olympus Outer Gate", "Outer Gate Legion Command", "The outer gate of Olympus itself. The legion's last mountain command."),
+            ("Boiotia's Summit Stand", "Summit High Command", "The summit stand - the last of the legion's mountain forces makes its final defense."),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter6DepthStages()
+        {
+            const int poolSize = 29; // Chapter6DepthPool.Length - coprime with stride 13 and offsets 3/15.
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1; // 6-1 .. 6-30
+                int baseIndex = (13 * i) % poolSize;
+                string[] ids =
+                {
+                    Chapter6DepthPool[baseIndex],
+                    Chapter6DepthPool[(baseIndex + 3) % poolSize],
+                    Chapter6DepthPool[(baseIndex + 15) % poolSize],
+                };
+
+                // i=29 (Stage 6-30) lands on the same base index as i=0 (Stage 6-1) under this
+                // stride - the pattern's only collision across all 30 stages - hand-patched.
+                if (stageNumber == 30)
+                {
+                    ids = new[] { "pandora", "cursed_soldier", "elf_wanderer" };
+                }
+
+                // Stage 6-10's generated roster (shaman+elven_high_lord+wood_wizard) measured as
+                // a real DEFEAT under the AF policy - swapped elven_high_lord for a lighter entry.
+                if (stageNumber == 10)
+                {
+                    ids = new[] { "shaman", "snake_archer", "wood_wizard" };
+                }
+
+                // Stage 6-11's generated roster (ogre+zombified_captain+drain) measured as a real
+                // DEFEAT under the AF policy despite modest stats (likely element matchup, not
+                // raw totals) - swapped drain for a proven-safe entry.
+                if (stageNumber == 11)
+                {
+                    ids = new[] { "ogre", "zombified_captain", "butcher" };
+                }
+
+                // Stage 6-18's generated roster (eastern_sorcerer+goblin_shaman+elven_high_lord)
+                // measured as a real DEFEAT under the AF policy - swapped elven_high_lord out.
+                if (stageNumber == 18)
+                {
+                    ids = new[] { "eastern_sorcerer", "goblin_shaman", "corrupted_warrior" };
+                }
+
+                // Stage 6-28's generated roster (succubus+castle_lady+eastern_sorcerer) measured
+                // as a real DEFEAT under the AF policy - swapped castle_lady out.
+                if (stageNumber == 28)
+                {
+                    ids = new[] { "succubus", "mountain_harpy", "eastern_sorcerer" };
+                }
+
+                (string title, string enemyName, string description) = Chapter6DepthFlavor[i];
+                (int gold, int gems) = Chapter6DepthReward(stageNumber);
+                yield return new CampaignStageData($"6-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 5-30's own 11440/2288, same +10 gold / +2 gems per-stage step
+        /// growth pattern every chapter since Ch2 has followed. 6-30 lands at 11440 + 30*120 =
+        /// 15040 gold / 2288 + 30*24 = 3008 gems - Chapter 7 does not exist yet.</summary>
+        private static (int gold, int gems) Chapter6DepthReward(int stageNumber)
+        {
+            const int baseGold = 11440, goldPerStage = 120;
+            const int baseGems = 2288, gemsPerStage = 24;
             return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
         }
 
