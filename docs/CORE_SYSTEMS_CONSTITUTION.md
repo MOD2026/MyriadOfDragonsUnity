@@ -23,6 +23,17 @@ Every seat must optimize for these **two** things only:
 **Do not:** UI/animation polish, HomeV3, Empire redesign, spell/XP curve debates, per-stage “feel” tuning before the whole loop exists.  
 **Owner process:** play the assembled loop → name big issues → then retune. Do not ask the owner to lock abstract tables from a doc.
 
+### Deep review — not surface (LOCKED — owner 2026-08-22)
+
+Applies to **every** workstream (campaign accept, Empire/Shop/gates packets, art triage, economy, guild, APK):
+
+1. **Surface checks are not enough** — “compiles / tests green / file exists” is the start, not the accept bar.
+2. **Near-future lens required** — before lock or code, ask what breaks when we have 10 chapters, gates, gold sinks, Save migration, AI parity, Normal Battle farm, and server time.
+3. **Doc loopholes before Unity** — system packets get Command Centre deep review (economy collisions, dual-write, test/contract breakage, softlocks) **before** implementation. Half-locked schema = wasted credit.
+4. **Accept = think one release ahead** — Claude DONE reports still need CC check for chain terminal, roster uniqueness vs prior chapters, seed determinism, and whether the next chapter/gate will fight this design.
+
+Owner instruction: *do not work only at surface level; look deeper into the near future.*
+
 ---
 
 ## A. Product spine (what must stay coherent)
@@ -51,23 +62,23 @@ If a pillar is **STUB**, do not balance content as if it were live.
 | 2 | `2-1` … `2-21` | 21 | **DONE** |
 | 3 | `3-1` … `3-30` | 30 | **DONE** |
 | 4 | `4-1` … `4-30` | 30 | **DONE** |
+| 5 | `5-1` … `5-30` | 30 | **DONE** |
 
-**Live total:** **93** sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
+**Live total:** **123** sequential stages. Fresh = `{1-1}`. Today unlock = win prior stage only (too soft for hardcore long-run — see gates below).
 
 ### Planned spine — minimum **10 chapters** (LOCKED intent)
 
-Player must have a long grill path. Chapters **5–10** remain required.
+Player must have a long grill path. Chapters **6–10** remain required.
 
 | Ch | Stages | Count | Status |
 |---|---|---:|---|
-| 5 | `5-1` … `5-30` | 30 | NOT FILLED |
 | 6 | `6-1` … `6-30` | 30 | NOT FILLED |
 | 7 | `7-1` … `7-30` | 30 | NOT FILLED |
 | 8 | `8-1` … `8-30` | 30 | NOT FILLED |
 | 9 | `9-1` … `9-30` | 30 | NOT FILLED |
 | 10 | `10-1` … `10-30` | 30 | NOT FILLED |
 
-**Planned full spine:** 93 + 180 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
+**Planned full spine:** 123 + 150 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
 
 ### Chapter gates (LOCKED intent — not just “beat last stage”)
 
@@ -91,9 +102,9 @@ End of a chapter must not dump the player into empty waiting. After clearing cha
 
 ### Debt / build order (wartime)
 
-1. **DONE:** fill Ch1–4 content (12+21+30+30 = **93** stages)  
-2. **Next content:** fill Ch5→Ch10 (bulk, same builder pattern)  
-3. **Next systems (parallel / after one APK play):** chapter gates + first mini-game  
+1. **DONE:** fill Ch1–5 content (12+21+30+30+30 = **123** stages)  
+2. **Next content:** fill Ch6→Ch10 (bulk, same builder pattern)  
+3. **Next systems (parallel / after one APK play):** chapter gates + first mini-game — **doc loopholes first** (§0 deep review)  
 4. Per-stage feel polish = **last**
 
 ---
@@ -329,4 +340,12 @@ Treat as **features to balance**, not bugs to hide — unless marked EXPLOIT.
 
 XP/spell unlock/Normal Battle farm/Empire timing: **not locked from a doc.**  
 After full campaign loop is playable, owner names big issues from play; then Command Centre locks 1–2 changes. Until then: **campaign fill only.**
+
+### Doc-level loophole review BEFORE code (LOCKED — owner 2026-08-22)
+
+Any new system packet (Empire, Shop grants, gates, mini-games, guild) must get a **Command Centre deep review at doc level** (holes, economy collisions, save dual-write, test breakage, near-future Ch6–10 / monetization / server time) **before any Unity implementation**. Coding a half-locked schema is wasted credit.
+
+Same bar for accepting content: not only EditMode green — check next-chapter terminal, catalog exhaustion, gold inflation vs sinks, Gate/chapter collisions.
+
+Empire: see `docs/EMPIRE_SCHEMA_CC_REVIEW_2026-08-22.md` — **not locked** until revised packet answers Gate→Ch10, Barracks L30 vs L50 formula, farm pairing, construction complete API.
 

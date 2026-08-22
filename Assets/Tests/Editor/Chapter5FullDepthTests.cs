@@ -13,13 +13,13 @@ using UnityEngine;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// CHAPTER 4 DEPTH FILL, 2026-08-22 - CORE_SYSTEMS_CONSTITUTION §0 wartime doctrine. Proves the
-    /// newly added Stages 4-1..4-30 (CampaignMapPresenter.chapterStages, appended after 3-30)
+    /// CHAPTER 5 DEPTH FILL, 2026-08-22 - CORE_SYSTEMS_CONSTITUTION §0 wartime doctrine. Proves the
+    /// newly added Stages 5-1..5-30 (CampaignMapPresenter.chapterStages, appended after 4-30)
     /// through the same deterministic, entirely-production combat policy every prior campaign-
     /// depth fixture uses, plus the complete full chain 1-1..1-12 -> 2-1..2-21 -> 3-1..3-30 ->
-    /// 4-1..4-30 -> null (no Chapter 5 invented yet) and content contracts.
+    /// 4-1..4-30 -> 5-1..5-30 -> null (no Chapter 6 invented yet) and content contracts.
     /// </summary>
-    public class Chapter4FullDepthTests
+    public class Chapter5FullDepthTests
     {
         private readonly List<GameObject> _spawned = new List<GameObject>();
         private string _scratchSaveDir;
@@ -39,24 +39,24 @@ namespace MyriadOfDragons.Tests
             for (int i = 1; i <= 21; i++) ids.Add($"2-{i}");
             for (int i = 1; i <= 30; i++) ids.Add($"3-{i}");
             for (int i = 1; i <= 30; i++) ids.Add($"4-{i}");
+            for (int i = 1; i <= 30; i++) ids.Add($"5-{i}");
             return ids.ToArray();
         }
 
-        private static readonly string[] NewChapter4StageIds =
-            Enumerable.Range(1, 30).Select(n => $"4-{n}").ToArray();
+        private static readonly string[] NewChapter5StageIds =
+            Enumerable.Range(1, 30).Select(n => $"5-{n}").ToArray();
 
         [SetUp]
         public void SetUp()
         {
-            _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MyriadOfDragonsChapter4Depth_" + System.Guid.NewGuid().ToString("N"));
+            _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MyriadOfDragonsChapter5Depth_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
-            // Pinned draw order (same technique Chapter1CampaignPlayabilityTests.Stage1_1 already
-            // uses): a borderline-tuned roster can flip between win/lose across runs purely on
-            // shuffle luck (measured directly - Stage 3-6 passed in isolation, then failed once
-            // combined with other suites in the same batch) - this makes every stage's result
-            // reproducible instead of occasionally flaky.
+            // Pinned draw order (same technique Chapter1CampaignPlayabilityTests.Stage1_1 and
+            // every ChapterNFullDepthTests fixture since Chapter 4 already use): makes every
+            // stage's playability result reproducible instead of occasionally flaky when combined
+            // with other suites in the same batch.
             PlayerBattleState.SetShuffleSeedForTests(42);
         }
 
@@ -108,7 +108,7 @@ namespace MyriadOfDragons.Tests
 
         private HomePagePresenter SpawnHomePagePresenter(GameBootstrap bootstrap)
         {
-            var go = new GameObject("HomePagePresenterUnderTest_Chapter4Depth");
+            var go = new GameObject("HomePagePresenterUnderTest_Chapter5Depth");
             _spawned.Add(go);
             var presenter = go.AddComponent<HomePagePresenter>();
             presenter.BindBattleControllerForTests(bootstrap.Battle);
@@ -137,7 +137,7 @@ namespace MyriadOfDragons.Tests
             }
 
             Assert.IsTrue(result.HasValue, $"Stage {stage.stageId} must actually resolve (OnMatchCompleted must fire).");
-            Debug.Log($"[Chapter4FullDepthTests] Stage {stage.stageId}: {(result.Value.IsVictory ? "VICTORY" : "DEFEAT")} in {ticksRun} tick(s).");
+            Debug.Log($"[Chapter5FullDepthTests] Stage {stage.stageId}: {(result.Value.IsVictory ? "VICTORY" : "DEFEAT")} in {ticksRun} tick(s).");
             return result.Value;
         }
 
@@ -157,7 +157,7 @@ namespace MyriadOfDragons.Tests
 
         private static void SaveValidDeckForNormalMatch()
         {
-            var databaseGo = new GameObject("Chapter4Depth_CardDatabase_Deck");
+            var databaseGo = new GameObject("Chapter5Depth_CardDatabase_Deck");
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
             var sizingProfile = new PlayerProfile();
@@ -183,57 +183,53 @@ namespace MyriadOfDragons.Tests
         // ---------- Order / unlock chain ----------
 
         [Test]
-        public void ChapterStages_ContainsChapters1Through4InOrder()
+        public void ChapterStages_ContainsTheCompleteChainFrom1_1Through5_30_EndingThere()
         {
-            // Prefix-only check (not "...then the list ends"): Chapter 5's own depth fill
-            // (5-1..5-30, a later task than this file) continues the chain past 4-30 now - see
-            // Chapter5FullDepthTests for the complete, current end-to-end chain assertion.
             string cursor = "1-1";
             var actualOrder = new List<string> { cursor };
-            for (int i = 0; i < AllStageIdsInOrder.Length - 1; i++)
+            while (true)
             {
                 string next = CampaignMapPresenter.GetNextStageId(cursor);
-                Assert.IsNotNull(next, $"Setup: expected a real next stage after {cursor}.");
+                if (next == null) break;
                 actualOrder.Add(next);
                 cursor = next;
+                Assert.LessOrEqual(actualOrder.Count, AllStageIdsInOrder.Length,
+                    "Setup: the ordered campaign list grew unexpectedly long - possible infinite chain or duplicate id.");
             }
 
             CollectionAssert.AreEqual(AllStageIdsInOrder, actualOrder,
-                "The ordered campaign list must begin with exactly 1-1..1-12 then 2-1..2-21 then 3-1..3-30 then 4-1..4-30, in that order, with no gaps.");
+                "The complete ordered campaign list must be exactly 1-1..1-12 then 2-1..2-21 then 3-1..3-30 then 4-1..4-30 then 5-1..5-30, in that order, with no gaps.");
         }
 
         [Test]
-        public void GetNextStageId_ChainsThroughAllOfChapter4()
+        public void GetNextStageId_5_30IsTheTerminalStage_NoChapter6Invented()
         {
-            Assert.AreEqual("4-1", CampaignMapPresenter.GetNextStageId("3-30"));
-            Assert.AreEqual("4-11", CampaignMapPresenter.GetNextStageId("4-10"));
-            Assert.AreEqual("4-30", CampaignMapPresenter.GetNextStageId("4-29"));
-            // 4-30 is no longer the end of the list - Chapter 5's own depth fill (5-1..5-30, a
-            // later task) continues it further; see Chapter5FullDepthTests for that complete,
-            // current end-of-list contract.
-            Assert.AreEqual("5-1", CampaignMapPresenter.GetNextStageId("4-30"), "Stage 5-1 must be the real next stage after 4-30.");
+            Assert.AreEqual("5-1", CampaignMapPresenter.GetNextStageId("4-30"));
+            Assert.AreEqual("5-11", CampaignMapPresenter.GetNextStageId("5-10"));
+            Assert.AreEqual("5-30", CampaignMapPresenter.GetNextStageId("5-29"));
+            Assert.IsNull(CampaignMapPresenter.GetNextStageId("5-30"), "Stage 5-30 must be the terminal stage - no Chapter 6 invented yet.");
         }
 
         [Test]
-        public void FreshProfile_StillUnlocksOnlyStage1_1_AfterChapter4DepthFill()
+        public void FreshProfile_StillUnlocksOnlyStage1_1_AfterChapter5DepthFill()
         {
             var profile = new PlayerProfile();
             CollectionAssert.AreEqual(new[] { "1-1" }, profile.unlockedStageIds,
-                "A brand-new profile must start with exactly Stage 1-1 unlocked, even after the full campaign grew to ninety-three stages.");
+                "A brand-new profile must start with exactly Stage 1-1 unlocked, even after the full campaign grew to one hundred twenty-three stages.");
         }
 
         [Test]
-        public void WinningEachNewChapter4Stage_UnlocksExactlyTheNextOne()
+        public void WinningEachNewChapter5Stage_UnlocksExactlyTheNextOne()
         {
             SaveValidDeckForNormalMatch();
-            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Chapter4Depth_UnlockChainBootstrap");
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Chapter5Depth_UnlockChainBootstrap");
             BattleController controller = bootstrap.Battle;
             HomePagePresenter presenter = SpawnHomePagePresenter(bootstrap);
             PlayerProfile profile = SaveManager.SaveData;
 
-            for (int i = 0; i < NewChapter4StageIds.Length; i++)
+            for (int i = 0; i < NewChapter5StageIds.Length; i++)
             {
-                string stageId = NewChapter4StageIds[i];
+                string stageId = NewChapter5StageIds[i];
                 presenter.SetActiveStageForTests(FindStage(stageId));
                 PlayOneCardAndWin(controller);
 
@@ -244,10 +240,10 @@ namespace MyriadOfDragons.Tests
                 }
                 else
                 {
-                    Assert.AreEqual(stageId, "4-30", "Only Stage 4-30 should have no next stage to unlock.");
+                    Assert.AreEqual(stageId, "5-30", "Only Stage 5-30 should have no next stage to unlock.");
                 }
 
-                if (i + 1 < NewChapter4StageIds.Length)
+                if (i + 1 < NewChapter5StageIds.Length)
                 {
                     bootstrap.PlayAgainForTests();
                     controller = bootstrap.Battle;
@@ -258,22 +254,22 @@ namespace MyriadOfDragons.Tests
         // ---------- Playability (Auto Formation) - all thirty new stages, one test ----------
 
         [Test]
-        public void AllNewChapter4Stages_AreWinnable_ByAFreshPlayer_UsingApprovedStarterCollection_AndAutoFormation()
+        public void AllNewChapter5Stages_AreWinnable_ByAFreshPlayer_UsingApprovedStarterCollection_AndAutoFormation()
         {
             var unlockedThroughAll = AllStageIdsInOrder.ToList();
 
             // CardDatabase is a singleton - Initialize() once for the whole test, not once per
             // loop iteration (re-initializing it mid-loop tries to replace the live singleton via
             // Destroy(), which is illegal outside Play Mode).
-            var databaseGo = new GameObject("Chapter4Depth_CardDatabase_AllStages");
+            var databaseGo = new GameObject("Chapter5Depth_CardDatabase_AllStages");
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
 
-            foreach (string stageId in NewChapter4StageIds)
+            foreach (string stageId in NewChapter5StageIds)
             {
                 SaveFreshStarterProfile(unlockedStages: unlockedThroughAll);
-                GameBootstrap bootstrap = SpawnAndInitializeBootstrap($"Chapter4Depth_Bootstrap_{stageId}");
+                GameBootstrap bootstrap = SpawnAndInitializeBootstrap($"Chapter5Depth_Bootstrap_{stageId}");
                 HomePagePresenter home = SpawnHomePagePresenter(bootstrap);
                 CampaignStageData stage = FindStage(stageId);
 
@@ -287,15 +283,15 @@ namespace MyriadOfDragons.Tests
         // ---------- Content contracts ----------
 
         [Test]
-        public void NewChapter4Stages_UseExactlyThreeRealCardDatabaseIds_NeverThePlaceholder()
+        public void NewChapter5Stages_UseExactlyThreeRealCardDatabaseIds_NeverThePlaceholder()
         {
-            var databaseGo = new GameObject("Chapter4Depth_CardDatabase_IdVerify");
+            var databaseGo = new GameObject("Chapter5Depth_CardDatabase_IdVerify");
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
             var realIds = new HashSet<string>(database.AllCards.Select(c => c.Id));
 
-            foreach (string stageId in NewChapter4StageIds)
+            foreach (string stageId in NewChapter5StageIds)
             {
                 CampaignStageData stage = FindStage(stageId);
                 Assert.AreEqual(3, stage.enemyDeckCardIds.Length, $"Stage {stageId} must field exactly three enemy card ids.");
@@ -309,7 +305,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void NoStageAcrossTheEntireNinetyThreeStageCampaign_RepeatsAnotherStagesFullRoster()
+        public void NoStageAcrossTheEntireCampaign_RepeatsAnotherStagesFullRoster()
         {
             var decks = AllStageIdsInOrder.Select(id => FindStage(id).enemyDeckCardIds.OrderBy(x => x).ToList()).ToList();
             for (int i = 0; i < decks.Count; i++)
@@ -325,8 +321,8 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void IsCampaignStageBattleConfigValid_TrueForAllThirtyNewStages()
         {
-            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Chapter4Depth_ConfigValidBootstrap");
-            foreach (string stageId in NewChapter4StageIds)
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Chapter5Depth_ConfigValidBootstrap");
+            foreach (string stageId in NewChapter5StageIds)
             {
                 CampaignStageData stage = FindStage(stageId);
                 Assert.IsTrue(bootstrap.IsCampaignStageBattleConfigValid(stage), $"Stage {stageId}'s battle configuration must be valid.");
@@ -334,13 +330,13 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Rewards_EscalateAcross4_1Through4_30_AboveStage3_30()
+        public void Rewards_EscalateAcross5_1Through5_30_AboveStage4_30()
         {
-            CampaignStageData stage3_30 = FindStage("3-30");
-            int previousGold = stage3_30.goldReward;
-            int previousGems = stage3_30.gemReward;
+            CampaignStageData stage4_30 = FindStage("4-30");
+            int previousGold = stage4_30.goldReward;
+            int previousGems = stage4_30.gemReward;
 
-            foreach (string stageId in NewChapter4StageIds)
+            foreach (string stageId in NewChapter5StageIds)
             {
                 CampaignStageData stage = FindStage(stageId);
                 Assert.Greater(stage.goldReward, previousGold, $"Stage {stageId}'s gold reward must exceed the previous stage's.");
@@ -355,7 +351,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void StoryDatabase_DefinesPreAndPostVictorySequencesForAllThirtyNewStages()
         {
-            foreach (string stageId in NewChapter4StageIds)
+            foreach (string stageId in NewChapter5StageIds)
             {
                 StorySequence pre = StoryDatabase.GetSequence($"{stageId}_pre");
                 Assert.IsNotNull(pre, $"Expected StoryDatabase entry '{stageId}_pre'.");

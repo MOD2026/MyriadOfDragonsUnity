@@ -316,6 +316,55 @@ namespace MyriadOfDragons.Story
                     isFinal ? "The reserve breaks. Whatever Olympus sends next, it won't be this." : $"{enemyName} scatter, broken.",
                     isFinal ? "Chapter four ends here." : $"{title} is behind us. Boiotia's ash still stretches on.");
             }
+
+            // Chapter 5 depth fill, Stages 5-1..5-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
+            // wartime doctrine - token efficiency). No ChatGPT naming kit exists in docs/ yet
+            // (checked before writing this) - coherent placeholders continuing the coastal
+            // approach toward Olympus. title/enemyName match CampaignMapPresenter.Chapter5DepthFlavor.
+            (string stageId, string title, string enemyName)[] chapter5Stages =
+            {
+                ("5-1", "Cindertide Shoals", "Shoal Wardens"),
+                ("5-2", "Salt-Ash Harbor", "Harbor Legion"),
+                ("5-3", "Driftwood Palisade", "Palisade Guard"),
+                ("5-4", "Greywater Inlet", "Inlet Sentries"),
+                ("5-5", "Sunken Pier Row", "Pier Legion"),
+                ("5-6", "Cindercliff Stair", "Cliffside Wardens"),
+                ("5-7", "Foglit Cove", "Cove Stalkers"),
+                ("5-8", "Brinewreck Shallows", "Wreck Guard"),
+                ("5-9", "Ashen Lighthouse", "Lighthouse Watch"),
+                ("5-10", "Stormwrack Point", "Wrack Legion"),
+                ("5-11", "Tideglass Reef", "Reef Sentinels"),
+                ("5-12", "Coastal Redoubt", "Redoubt Garrison"),
+                ("5-13", "Ember Surf Break", "Surf Guard"),
+                ("5-14", "Ruined Sea Gate", "Sea Gate Legion"),
+                ("5-15", "Windward Bastion", "Bastion Watch"),
+                ("5-16", "Cindersalt Flats", "Flat Legion"),
+                ("5-17", "Longshore Outpost", "Outpost Guard"),
+                ("5-18", "Ashen Skiff Yard", "Skiff Yard Legion"),
+                ("5-19", "Rockbound Cove", "Cove Legion"),
+                ("5-20", "Greyfoam Straits", "Strait Wardens"),
+                ("5-21", "Cindermist Harbor", "Mist Harbor Legion"),
+                ("5-22", "Seaward Watchtower", "Watchtower Legion"),
+                ("5-23", "Brackish Delta", "Delta Guard"),
+                ("5-24", "Ashfall Naval Yard", "Naval Yard Legion"),
+                ("5-25", "Stormward Bluff", "Bluff Legion"),
+                ("5-26", "Cindergale Anchorage", "Anchorage Guard"),
+                ("5-27", "Olympus Approach Road", "Approach Legion"),
+                ("5-28", "Godsreach Landing", "Landing Command"),
+                ("5-29", "Threshold of Olympus", "Threshold Legion Command"),
+                ("5-30", "Boiotia's Sea Wall", "Sea Wall High Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter5Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                bool isFinal = stageId == "5-30";
+                AddStageDialogue(stageId, title, enemy,
+                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                    isFinal ? "The sea wall is the last line before the climb. Break it." : $"Olympus isn't here. Clear {title} and keep moving.",
+                    isFinal ? "The wall falls. Nothing coastal stands between us and Olympus now." : $"{enemyName} scatter, broken.",
+                    isFinal ? "Chapter five ends here. The climb to Olympus begins next." : $"{title} is behind us. Boiotia's ash still stretches on.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

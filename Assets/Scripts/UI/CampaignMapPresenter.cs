@@ -170,6 +170,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter2DepthStages());
             chapterStages.AddRange(BuildChapter3DepthStages());
             chapterStages.AddRange(BuildChapter4DepthStages());
+            chapterStages.AddRange(BuildChapter5DepthStages());
         }
 
         /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
@@ -463,6 +464,124 @@ namespace MyriadOfDragons.UI
         {
             const int baseGold = 5140, goldPerStage = 100;
             const int baseGems = 1028, gemsPerStage = 20;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 5 depth fill, Stages 5-1..5-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
+        /// §B/§K wartime doctrine). No ChatGPT naming kit exists in docs/ yet (checked before
+        /// writing this) - coherent placeholders continuing the "war for Boiotia... Olympus will
+        /// send worse next" / "Olympus does its own choice to answer for" thread Chapters 3/4
+        /// already set up: the coastal approach toward Olympus itself. Same pool+stride technique
+        /// as Chapter 4, decorrelated the same two ways (Chapter4DepthPool rotated by 7, a fourth
+        /// offset triple {0,5,23} over stride 11, both coprime with the 29-entry pool and distinct
+        /// from every earlier chapter's). i=29 (Stage 5-30) still lands on the same base as i=0
+        /// (Stage 5-1) - patched pre-emptively. Any roster below that measures as a real AF defeat
+        /// is retuned with a comment recording that measurement, not guessed in advance.</summary>
+        private static readonly string[] Chapter5DepthPool =
+        {
+            "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador",
+            "owl_keeper", "ladyinlake", "iron_dragon", "pandora", "drain", "shaman", "druid",
+            "succubus", "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue",
+            "giant_worms", "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior",
+        };
+
+        private static readonly (string title, string enemyName, string description)[] Chapter5DepthFlavor =
+        {
+            ("Cindertide Shoals", "Shoal Wardens", "Where Boiotia's ash meets the sea. Wardens hold the shallows."),
+            ("Salt-Ash Harbor", "Harbor Legion", "A ruined harbor, still garrisoned. Ships haven't sailed in years."),
+            ("Driftwood Palisade", "Palisade Guard", "A palisade built from wreckage. Its guard doesn't care where it came from."),
+            ("Greywater Inlet", "Inlet Sentries", "An inlet gone grey with ash-runoff. Sentries watch every tide."),
+            ("Sunken Pier Row", "Pier Legion", "A row of sunken piers, half-claimed by the sea. Legion holds the dry ends."),
+            ("Cindercliff Stair", "Cliffside Wardens", "A stair cut into an ash-black cliff. Wardens hold every landing."),
+            ("Foglit Cove", "Cove Stalkers", "A cove that never clears of fog. Stalkers use it to their advantage."),
+            ("Brinewreck Shallows", "Wreck Guard", "Old shipwrecks litter these shallows. A guard picks through them."),
+            ("Ashen Lighthouse", "Lighthouse Watch", "A lighthouse that hasn't lit in years - but is still watched."),
+            ("Stormwrack Point", "Wrack Legion", "A point where storms wreck ships on purpose, it seems. Legion profits from it."),
+            ("Tideglass Reef", "Reef Sentinels", "A reef of fused volcanic glass. Sentinels guard the only safe channel."),
+            ("Coastal Redoubt", "Redoubt Garrison", "A redoubt built to watch the coast road. Still fully garrisoned."),
+            ("Ember Surf Break", "Surf Guard", "Waves break warm here, heated from below. A guard doesn't seem to mind."),
+            ("Ruined Sea Gate", "Sea Gate Legion", "A gate meant to keep something out of the harbor. Or in."),
+            ("Windward Bastion", "Bastion Watch", "A bastion facing the open sea. Watch never lets up."),
+            ("Cindersalt Flats", "Flat Legion", "Flats of salt and ash together. Legion camps at the driest point."),
+            ("Longshore Outpost", "Outpost Guard", "An outpost strung along the shore. Guard rotates, never leaves."),
+            ("Ashen Skiff Yard", "Skiff Yard Legion", "A yard where ash-skiffs are built for the legion's own use."),
+            ("Rockbound Cove", "Cove Legion", "A cove hemmed in by black rock. Legion holds the one entrance."),
+            ("Greyfoam Straits", "Strait Wardens", "Narrow straits of grey foam and current. Wardens control the passage."),
+            ("Cindermist Harbor", "Mist Harbor Legion", "A harbor perpetually wrapped in ash-mist. Legion knows it by feel."),
+            ("Seaward Watchtower", "Watchtower Legion", "A tower watching the sea approach to Olympus itself."),
+            ("Brackish Delta", "Delta Guard", "A delta where ash-river meets salt sea. Guard holds the fork."),
+            ("Ashfall Naval Yard", "Naval Yard Legion", "A naval yard repurposed for the legion's coastal defense."),
+            ("Stormward Bluff", "Bluff Legion", "A bluff facing the worst of the coastal storms. Legion holds firm anyway."),
+            ("Cindergale Anchorage", "Anchorage Guard", "An anchorage swept by ash-laden gales. Guard doesn't budge."),
+            ("Olympus Approach Road", "Approach Legion", "The coast road that finally turns inland, toward Olympus."),
+            ("Godsreach Landing", "Landing Command", "A landing point said to be within sight of Olympus on a clear day."),
+            ("Threshold of Olympus", "Threshold Legion Command", "The last coastal ground before the climb to Olympus begins."),
+            ("Boiotia's Sea Wall", "Sea Wall High Command", "The final sea wall - what's left of the Ashfall Legion's coastal command makes its stand."),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter5DepthStages()
+        {
+            const int poolSize = 29; // Chapter5DepthPool.Length - coprime with stride 11 and offsets 5/23.
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1; // 5-1 .. 5-30
+                int baseIndex = (11 * i) % poolSize;
+                string[] ids =
+                {
+                    Chapter5DepthPool[baseIndex],
+                    Chapter5DepthPool[(baseIndex + 5) % poolSize],
+                    Chapter5DepthPool[(baseIndex + 23) % poolSize],
+                };
+
+                // i=29 (Stage 5-30) lands on the same base index as i=0 (Stage 5-1) under this
+                // stride - the pattern's only collision across all 30 stages - hand-patched.
+                if (stageNumber == 30)
+                {
+                    ids = new[] { "hooded_rogue", "wood_wizard", "corrupted_warrior" };
+                }
+
+                // Stage 5-2's generated roster (druid+hooded_rogue+owl_keeper) measured as a real
+                // DEFEAT under the AF policy - swapped hooded_rogue for a lighter pool entry.
+                if (stageNumber == 2)
+                {
+                    ids = new[] { "druid", "mountain_harpy", "owl_keeper" };
+                }
+
+                // Stage 5-5's generated roster (castle_lady+fire_worm+drain) measured as a real
+                // DEFEAT under the AF policy - swapped castle_lady for a lighter pool entry.
+                if (stageNumber == 5)
+                {
+                    ids = new[] { "snake_archer", "fire_worm", "drain" };
+                }
+
+                // Stage 5-7's generated roster (pandora+elven_high_lord+elf_wanderer) measured as
+                // a real DEFEAT under the AF policy - swapped elven_high_lord for a lighter entry.
+                if (stageNumber == 7)
+                {
+                    ids = new[] { "pandora", "butcher", "elf_wanderer" };
+                }
+
+                // Stage 5-23's generated roster (shaman+castle_lady+conquistador) measured as a
+                // real DEFEAT under the AF policy - swapped castle_lady for a lighter entry.
+                if (stageNumber == 23)
+                {
+                    ids = new[] { "shaman", "eastern_sorcerer", "conquistador" };
+                }
+
+                (string title, string enemyName, string description) = Chapter5DepthFlavor[i];
+                (int gold, int gems) = Chapter5DepthReward(stageNumber);
+                yield return new CampaignStageData($"5-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 4-30's own 8140/1628. 5-30 lands at 8140 + 30*110 = 11440
+        /// gold / 1628 + 30*22 = 2288 gems - Chapter 6 does not exist yet, so no ceiling to leave
+        /// headroom below (per this task's own "do not invent Chapter 6 yet").</summary>
+        private static (int gold, int gems) Chapter5DepthReward(int stageNumber)
+        {
+            const int baseGold = 8140, goldPerStage = 110;
+            const int baseGems = 1628, gemsPerStage = 22;
             return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
         }
 
