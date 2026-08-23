@@ -39,11 +39,19 @@ is still the full history/reasoning; this is the fast-lookup layer that was miss
 
 ## Empire construction — CURRENTLY BEING REVISED, do not treat as settled
 
-- Base: Gold + Construction Materials (Materials amendment 2026-08-23, see `EMPIRE_SCHEMA_LOCK_2026-08-22.md` §2)
-- Timers: client-clock pacing only, no speed-up purchase (blocked on §8 above until a trusted server exists)
-- **Open right now:** whether Construction Materials become partially Gem-purchasable via capped
-  "Construction Contracts" — under active review 2026-08-23, do not treat as locked. If this locks,
-  update this row.
+- Base: Gold (1,779,550 L30) + Construction Materials (Materials amendment 2026-08-23, see
+  `EMPIRE_SCHEMA_LOCK_2026-08-22.md` §2)
+- Timers: client-clock pacing only, no speed-up purchase (blocked on §8 above until a trusted
+  server exists). **Locked bands:** 5-15min (T1-5) → 1-3h (T6-10) → 6-12h (T11-15) → 1-2d (T16-20)
+  → 3-5d (T21-25) → 7-10d (T26-30). **Single builder slot only** — a second slot is explicitly
+  rejected for Phase 1. Total completion target: **6-9 months serial** (owner-confirmed 2026-08-23,
+  independently of GPT's estimate — not previously written down anywhere before this).
+- Construction Contracts (Gem→Materials catch-up): **275,000 Materials/season cap (18.6% of the
+  1,479,000 total)** — locked at this scale, not the original 1,450,000/98% proposal. Contracts
+  never reduce the timer, never raise the level cap, never bypass Gate.
+- **Open right now:** the 3-building-serial-vs-CoC's-many-parallel-structures pacing feel, and the
+  top-tier-band consecutive-wait risk (up to ~21-30 days back-to-back near endgame) — sent back to
+  ChatGPT, not yet resolved.
 - **Known stale downstream reference:** `Guild_Competition_Rewards_v1.md` reconciliation's Master
   Builder office assumption was written when construction was instant-only — corrected in the Drive
   doc 2026-08-23, needs re-review before that office ships.
