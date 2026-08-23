@@ -549,3 +549,13 @@ exposes this as a live tripwire (a test asserts it's still true - it should fail
 silently, the day this gets built and someone forgets to flip it). Needs: a per-chapter SpellBook
 item variant (or equivalent identifier) plus real inventory/ownership tracking on PlayerProfile
 before Sun Lance/Tempest Brand can ever unlock. Not built - logged so it isn't lost.
+
+**UI/UX Command Centre Review Pack moved to WIP (2026-08-24):** Real, curated 65-file review pack
+(V4 consolidated authority doc, screen-family visual references, explicit rejected/superseded work
+excluded) found at a Codex output path and moved to
+`G:\My Drive\card game\Game mech\MOD\Phase 1\Game mech\WIP\UI_UX_Command_Centre_Review_Pack\`.
+Covers Home, Deck/Collection, Battle (frozen, V4/V5/V6 runtime rejected), Empire Buildings (paused),
+Guild Social (concept/flow only, not implementation-ready), Cards/Formation, Tutorial. Not yet
+reviewed screen-by-screen by CC - owner flagged this as the source for the in-progress GPT-driven UI
+recreation (separate from and likely superseding the existing `Assets/Resources/UI/HomeV3` asset
+set already in the repo - relationship between the two not yet confirmed).
