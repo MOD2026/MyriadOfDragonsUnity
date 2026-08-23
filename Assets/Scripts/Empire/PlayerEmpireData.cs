@@ -151,7 +151,7 @@ namespace MyriadOfDragons.Empire
         // in README: Formation spends a real budget, leftovers fund ticks 4/8 reinforcements, and
         // combat length returns to the BalanceSimulationTargets band without retuning individual
         // Chapter 1 enemy rosters.
-        private const float Turn1ResourceFraction = 0.6f;
+        public const float Turn1ResourceFraction = 0.6f;
 
         // Starting Avatar Health. Card combat stats (Attack/Health 1-12) are deliberately
         // UNCHANGED - still the small, mentally-computable Integer Model from Part II §3. What

@@ -153,11 +153,13 @@ namespace MyriadOfDragons.AI
                 Archetype = archetype,
                 MaxAvatarHealth = Mathf.Max(1, scaledHealth),
                 StartingResourceCap = Mathf.Max(1, scaledResourceCap),
-                // Matches the player's own Turn-1 fraction (PlayerEmpireData.Turn1ResourceFraction
-                // = 0.6). Production match construction in GameBootstrap currently passes the
-                // player's exact Turn1Resource for both sides (AI formation-resource parity), so
-                // this field is the profile's documented baseline rather than a second economy.
-                Turn1Resource = Mathf.Max(1, Mathf.RoundToInt(scaledResourceCap * 0.6f)),
+                // Matches the player's own Turn-1 fraction. Production match construction in
+                // GameBootstrap currently passes the player's exact Turn1Resource for both sides
+                // (AI formation-resource parity), so this field is the profile's documented
+                // baseline rather than a second economy - but it reads the real constant instead
+                // of a second hardcoded 0.6f, so a future retune of Turn1ResourceFraction can't
+                // leave this baseline silently stale.
+                Turn1Resource = Mathf.Max(1, Mathf.RoundToInt(scaledResourceCap * PlayerEmpireData.Turn1ResourceFraction)),
             };
         }
 
