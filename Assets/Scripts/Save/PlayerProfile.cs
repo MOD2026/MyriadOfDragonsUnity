@@ -77,11 +77,32 @@ namespace MyriadOfDragons.Save
         public List<string> cardCollection = new List<string>();
         public List<TradeableAssetInstance> inventoryAssets = new List<TradeableAssetInstance>();
 
+        // --- Collection schema V1 (additive — COLLECTION_SCHEMA_PROPOSAL_v1, owner opened Save 2026-08-22) ---
+        public int collectionSchemaVersion = 0;
+        public List<CardProgressionRecord> cardProgression = new List<CardProgressionRecord>();
+        public List<string> collectionMigrationUnknownIds = new List<string>();
+        public int normalPityMisses = 0;
+        public int highPityMissesSince5Star = 0;
+        public int highPityMissesSince7Star = 0;
+        public int ascensionPermitBalance = 0;
+        public string ascensionPermitWeekKey = string.Empty;
+        public int ascensionPermitsEarnedThisWeek = 0;
+        public CollectionMaterialWallet collectionWallet = new CollectionMaterialWallet();
+
+        /// <summary>True when legacy flat list has been migrated into <see cref="cardProgression"/>.</summary>
+        public bool UsesCollectionV1 => collectionSchemaVersion >= CollectionSchemaRules.CurrentCollectionSchemaVersion;
+
         // Base & Structure Levels
         public int avatarLevel = 1;
         public int castleLevel = 1;
         public int barracksLevel = 1;
         public int gateLevel = 1;
+
+        /// <summary>
+        /// Additive Empire construction project (EMPIRE_SCHEMA_LOCK). Null on old saves —
+        /// SaveMigration.Normalize replaces with idle.
+        /// </summary>
+        public EmpireConstructionState empireConstruction = new EmpireConstructionState();
 
         // Battle History & Stats
         public int winStreak = 0;

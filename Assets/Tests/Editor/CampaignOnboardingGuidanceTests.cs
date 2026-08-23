@@ -316,8 +316,10 @@ namespace MyriadOfDragons.Tests
             home.OnToBattleClickedForTests(); // ordinary "To Battle" - no campaign stage attached
 
             string text = bootstrap.TutorialGuidanceCaptionTextForTests;
-            Assert.AreEqual("Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.", text,
-                "Requirement: the ordinary Home 'To Battle' path must keep its existing, unchanged, shorter caption - not the new Campaign onboarding copy.");
+            Assert.AreEqual(
+                GameBootstrap.NormalBattleModeLabel + "\nYour saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
+                text,
+                "Requirement: the ordinary Home 'To Battle' path must keep Soft mode + existing shorter caption - not the Campaign onboarding copy.");
         }
     }
 }

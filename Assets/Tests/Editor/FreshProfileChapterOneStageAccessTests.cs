@@ -102,6 +102,11 @@ namespace MyriadOfDragons.Tests
 
         private static void PlayOneCardAndWin(BattleController controller)
         {
+            // Undefended-enemy unlock harness: ConfirmFormation without enemy deploy. Option B
+            // AI spells (enabled by StartNewMatch) would still cast and can KO the player —
+            // isolate the unlock contract from mirrored spells (same pattern as permit earn tests).
+            controller.SetMirroredEnemySpellsEnabledForTests(false);
+
             Card anyCard = controller.PlayerState.Hand.First(c => c.ResourceCost <= controller.PlayerState.Resource);
             Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, anyCard, Lane.Front),
                 "Setup: expected to be able to play at least one card into Front.");
@@ -118,6 +123,8 @@ namespace MyriadOfDragons.Tests
 
         private static void DeployWeaklyAndLose(BattleController controller)
         {
+            controller.SetMirroredEnemySpellsEnabledForTests(false);
+
             Card weakestPlayerCard = controller.PlayerState.Hand.OrderBy(c => c.Attack).First();
             Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, weakestPlayerCard, Lane.Back),
                 "Setup: expected the player's one deployed card to legally occupy Back.");

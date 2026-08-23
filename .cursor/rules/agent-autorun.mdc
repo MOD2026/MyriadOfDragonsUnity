@@ -1,0 +1,15 @@
+---
+description: Reduce permission prompts for routine CC and Working Hands operations in this repo
+alwaysApply: true
+---
+
+# Auto-run guidance (Zihan approved 2026-08-22)
+
+When executing CC or Working Hands tasks in **MyriadOfDragonsUnity**:
+
+- Prefer `required_permissions: ["all"]` for Unity batch tests, Drive WIP doc sync, and robocopy asset mirrors — do not stop to ask if the command is read-only or matches `.cursor/permissions.json` allow list.
+- **Do NOT build Android APK** unless Zihan explicitly requests phone playtest. Default QA = Unity Editor Play + EditMode tests (fastest route, efficient tokens).
+- Do **not** ask before: git status/diff/log, grep, reading logs, Copy-Item to Drive WIP.
+- **Still ask / escalate:** frozen Save shape changes, force push, deleting files outside task scope, shop/evolution code before schema human OK.
+
+Project permissions: `.cursor/permissions.json`

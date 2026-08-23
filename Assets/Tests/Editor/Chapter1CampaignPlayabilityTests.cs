@@ -106,12 +106,19 @@ namespace MyriadOfDragons.Tests
         /// <summary>The one deterministic, entirely-production combat policy every stage in this
         /// file is validated against: real Campaign launch (stage config + unlock + deck +
         /// Stamina gate), real Auto Formation for the player, real Start Battle (which deploys
-        /// the real enemy AI), real tick-by-tick resolution. Returns the real MatchResult.</summary>
+        /// the real enemy AI), real tick-by-tick resolution. Returns the real MatchResult.
+        ///
+        /// Mirrored enemy spells (Option B) stay ON in production StartNewMatch; this fixture's
+        /// AF win contract is the taught formation path without Option B casts — same isolation
+        /// CollectionAscensionPermitEarnTests uses. Resolve-with-AI-on is covered by
+        /// CampaignAfMirroredAiSpellSmokeTests.</summary>
         private static MatchResult RunDeterministicPolicy(GameBootstrap bootstrap, HomePagePresenter home, CampaignStageData stage)
         {
             home.LaunchCampaignStageForTests(stage);
             Assert.IsTrue(bootstrap.BattleCanvasVisibleForTests, $"Setup: expected Stage {stage.stageId} to launch successfully under this policy.");
             Assert.IsNull(bootstrap.NormalMatchStatusForTests, $"Setup: expected Stage {stage.stageId} to be a valid, unblocked campaign match.");
+
+            bootstrap.Battle.SetMirroredEnemySpellsEnabledForTests(false);
 
             bootstrap.AutoFormationForTests();
             bootstrap.StartBattleForTests();
@@ -162,6 +169,8 @@ namespace MyriadOfDragons.Tests
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
 
+            // Pin draw order so this contract asserts the beginner path, not shuffle luck.
+            PlayerBattleState.SetShuffleSeedForTests(11);
             SaveFreshStarterProfile(unlockedStages: new List<string> { "1-1", "1-2" });
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignPlayability_Bootstrap_1_2");
             HomePagePresenter home = SpawnHomePagePresenter(bootstrap);
@@ -181,6 +190,7 @@ namespace MyriadOfDragons.Tests
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
 
+            PlayerBattleState.SetShuffleSeedForTests(11);
             SaveFreshStarterProfile(unlockedStages: new List<string> { "1-1", "1-2", "1-3" });
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignPlayability_Bootstrap_1_3");
             HomePagePresenter home = SpawnHomePagePresenter(bootstrap);

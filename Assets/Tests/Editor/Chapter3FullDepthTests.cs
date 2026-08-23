@@ -86,6 +86,7 @@ namespace MyriadOfDragons.Tests
                 stamina = 100,
             };
             if (unlockedStages != null) profile.unlockedStageIds = unlockedStages;
+            GateTestSupport.EnsureGateAllowsChapter(profile, 3);
             Assert.IsTrue(SaveSystem.Save(profile), "Setup: expected the fresh starter profile to save.");
             SaveSystem.ResetCurrentProfileForTests();
         }

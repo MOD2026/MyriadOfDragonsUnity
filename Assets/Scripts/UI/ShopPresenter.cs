@@ -22,7 +22,10 @@ namespace MyriadOfDragons.UI
         /// AttemptPurchase relies on that to decide whether currency is spent at all.</summary>
         public System.Func<PlayerProfile, bool> onPurchase;
 
-        public ShopItemData(string id, string title, string desc, int goldCost, int gemCost, System.Func<PlayerProfile, bool> onPurchase)
+        /// <summary>When true, <see cref="onPurchase"/> already spent currency and saved (e.g. pack receipt).</summary>
+        public bool walletCommittedByCallback;
+
+        public ShopItemData(string id, string title, string desc, int goldCost, int gemCost, System.Func<PlayerProfile, bool> onPurchase, bool walletCommittedByCallback = false)
         {
             this.id = id;
             this.title = title;
@@ -30,6 +33,7 @@ namespace MyriadOfDragons.UI
             this.goldCost = goldCost;
             this.gemCost = gemCost;
             this.onPurchase = onPurchase;
+            this.walletCommittedByCallback = walletCommittedByCallback;
         }
     }
 
@@ -42,8 +46,10 @@ namespace MyriadOfDragons.UI
         private Text goldText;
         private Text gemsText;
         private Text energyText;
+        private Text statusText;
 
         private List<ShopItemData> shopItems;
+        private PackReceiptResult _pendingPackReceipt;
 
         public void Initialize(PlayerProfile profile, System.Action onBackToHome)
         {
@@ -101,13 +107,40 @@ namespace MyriadOfDragons.UI
             foreach (Card card in database.AllCards)
             {
                 if (card.Id == PlaceholderCardId) continue;
-                if (profile.cardCollection.Contains(card.Id)) continue;
+                if (CollectionProgression.OwnsAnyCopy(profile, card.Id)) continue;
 
-                profile.cardCollection.Add(card.Id);
-                return true;
+                if (CollectionProgression.TryGrantFirstCopy(profile, card.Id, id => database.GetCard(id) != null))
+                {
+                    return true;
+                }
             }
 
             return false;
+        }
+
+        /// <summary>Exposed for tests: overlay draw row after a gem pack purchase.</summary>
+        public Transform PackDrawContentForTests =>
+            canvasObj != null ? PackOpenOverlayPresenter.DrawContentForTests(canvasObj.transform) : null;
+
+        /// <summary>Exposed for tests: sequential reveal controller on the pack overlay.</summary>
+        public PackOpenRevealRunner PackRevealRunnerForTests =>
+            canvasObj != null ? PackOpenOverlayPresenter.RevealRunnerForTests(canvasObj.transform) : null;
+
+        private static bool TryOpenGemPack(PlayerProfile profile, string skuId, out PackReceiptResult result)
+        {
+            result = null;
+            if (profile == null) return false;
+
+            var rng = new System.Random();
+            string receiptId = System.Guid.NewGuid().ToString("N");
+            result = new PackReceiptResult();
+            if (!CollectionPackReceiptService.TryOpenPack(profile, skuId, rng, receiptId, out result))
+            {
+                Debug.Log($"Gem pack '{skuId}' could not open: {result.Error}");
+                return false;
+            }
+
+            return true;
         }
 
         private void SetupShopItems()
@@ -128,6 +161,30 @@ namespace MyriadOfDragons.UI
                     else Debug.Log("Dragon Booster: your collection already contains every available card.");
                     return granted;
                 }),
+                new ShopItemData(CollectionPackCatalog.SingleSigilSkuId, "Single Sigil", "1 Normal draw — best gem/card value.", 0, 150, p =>
+                {
+                    if (!TryOpenGemPack(p, CollectionPackCatalog.SingleSigilSkuId, out PackReceiptResult r)) return false;
+                    _pendingPackReceipt = r;
+                    return true;
+                }, walletCommittedByCallback: true),
+                new ShopItemData(CollectionPackCatalog.ScoutCacheSkuId, "Scout Cache", "4 Normal + 1 High — at least one 2★+.", 0, 800, p =>
+                {
+                    if (!TryOpenGemPack(p, CollectionPackCatalog.ScoutCacheSkuId, out PackReceiptResult r)) return false;
+                    _pendingPackReceipt = r;
+                    return true;
+                }, walletCommittedByCallback: true),
+                new ShopItemData(CollectionPackCatalog.WarbandCacheSkuId, "Warband Cache", "7 Normal + 2 High — at least one 3★+.", 0, 1650, p =>
+                {
+                    if (!TryOpenGemPack(p, CollectionPackCatalog.WarbandCacheSkuId, out PackReceiptResult r)) return false;
+                    _pendingPackReceipt = r;
+                    return true;
+                }, walletCommittedByCallback: true),
+                new ShopItemData(CollectionPackCatalog.LegionCacheSkuId, "Legion Cache", "16 Normal + 4 High — at least one 5★+.", 0, 4000, p =>
+                {
+                    if (!TryOpenGemPack(p, CollectionPackCatalog.LegionCacheSkuId, out PackReceiptResult r)) return false;
+                    _pendingPackReceipt = r;
+                    return true;
+                }, walletCommittedByCallback: true),
                 new ShopItemData("res_gold", "Gold Vault", "Instantly adds 1,500 Gold to your wallet.", 0, 50, (p) =>
                 {
                     bool granted = CurrencyManager.AddCurrency(p, CurrencyType.Gold, 1500, persist: false);
@@ -145,10 +202,14 @@ namespace MyriadOfDragons.UI
 
         private void BuildUI()
         {
+            TeardownUI();
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
             // 1. Canvas Setup
             canvasObj = new GameObject("ShopCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             Canvas canvas = canvasObj.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 10;
 
             CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -169,7 +230,8 @@ namespace MyriadOfDragons.UI
             GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(canvasObj.transform, false);
             Image topBarBg = topBar.GetComponent<Image>();
-            topBarBg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
+            if (!HomeV3UiLibrary.TryApplyHeaderFrame(topBarBg))
+                topBarBg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
 
             RectTransform topRect = topBar.GetComponent<RectTransform>();
             topRect.anchorMin = new Vector2(0, 1);
@@ -184,6 +246,7 @@ namespace MyriadOfDragons.UI
             backImg.color = new Color(0.3f, 0.2f, 0.2f);
 
             Button backBtn = backBtnObj.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(backBtn, backImg);
             backBtn.onClick.AddListener(() =>
             {
                 Destroy(canvasObj);
@@ -217,9 +280,18 @@ namespace MyriadOfDragons.UI
             hlg.spacing = 15;
             hlg.childControlWidth = false;
 
-            goldText = CreateResourcePill(resourceGroup.transform, $"Gold: {player.gold}", new Color(0.85f, 0.68f, 0.15f, 0.95f));
-            gemsText = CreateResourcePill(resourceGroup.transform, $"Gems: {player.gems}", new Color(0.55f, 0.25f, 0.85f, 0.95f));
-            energyText = CreateResourcePill(resourceGroup.transform, $"Energy: {player.stamina}/{player.maxStamina}", new Color(0.2f, 0.65f, 0.35f, 0.95f));
+            goldText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gold_pill_v3",
+                "Gold", $"{player.gold}", 185f);
+            gemsText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gems_pill_v3",
+                "Gems", $"{player.gems}", 185f);
+            energyText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_energy_pill_v3",
+                "Energy", $"{player.stamina}/{player.maxStamina}", 200f);
+
+            GameObject statusObj = CreateTextElement(canvasObj.transform, "ShopStatus", "Tap BUY on a supply to purchase.",
+                new Vector2(0, -480), 20, TextAnchor.MiddleCenter);
+            statusText = statusObj.GetComponent<Text>();
+            statusText.color = new Color(0.9f, 0.82f, 0.64f);
+            statusObj.GetComponent<RectTransform>().sizeDelta = new Vector2(1200f, 40f);
 
             // 4. Shop Items Grid Container
             BuildShopGrid();
@@ -276,6 +348,7 @@ namespace MyriadOfDragons.UI
             buyRect.sizeDelta = new Vector2(240, 55);
 
             Button buyBtn = buyBtnObj.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(buyBtn, buyImg);
             buyBtn.onClick.AddListener(() => AttemptPurchase(item));
 
             string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
@@ -297,13 +370,13 @@ namespace MyriadOfDragons.UI
             // profile mutation or reward attempt.
             if (item.goldCost > 0 && CurrencyManager.GetBalance(player, CurrencyType.Gold) < item.goldCost)
             {
-                Debug.Log("Not enough Gold!");
+                SetShopStatus($"Not enough Gold for {item.title}.");
                 return;
             }
 
             if (item.gemCost > 0 && CurrencyManager.GetBalance(player, CurrencyType.Gems) < item.gemCost)
             {
-                Debug.Log("Not enough Gems!");
+                SetShopStatus($"Not enough Gems for {item.title}.");
                 return;
             }
 
@@ -315,38 +388,43 @@ namespace MyriadOfDragons.UI
             bool fulfilled = item.onPurchase != null && item.onPurchase.Invoke(player);
             if (!fulfilled)
             {
-                Debug.Log($"{item.title}: purchase could not be fulfilled - no currency spent.");
+                SetShopStatus($"{item.title}: could not be fulfilled — no currency spent.");
                 return;
             }
 
-            if (item.goldCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gold, item.goldCost, persist: false);
-            if (item.gemCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gems, item.gemCost, persist: false);
+            if (!item.walletCommittedByCallback)
+            {
+                if (item.goldCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gold, item.goldCost, persist: false);
+                if (item.gemCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gems, item.gemCost, persist: false);
+                MyriadOfDragons.Save.SaveSystem.Save(player);
+            }
 
-            MyriadOfDragons.Save.SaveSystem.Save(player);
-            RefreshResourceDisplay();
+            if (_pendingPackReceipt != null && _pendingPackReceipt.Success && canvasObj != null)
+            {
+                PackReceiptResult receipt = _pendingPackReceipt;
+                _pendingPackReceipt = null;
+                PackOpenOverlayPresenter.Show(canvasObj.transform, receipt, RefreshResourceDisplay);
+                SetShopStatus($"Opened {item.title}.");
+            }
+            else
+            {
+                _pendingPackReceipt = null;
+                SetShopStatus($"Purchased {item.title}.");
+                RefreshResourceDisplay();
+            }
+        }
+
+        private void SetShopStatus(string message)
+        {
+            if (statusText != null) statusText.text = message ?? string.Empty;
+            Debug.Log(message);
         }
 
         private void RefreshResourceDisplay()
         {
-            if (goldText != null) goldText.text = $"Gold: {player.gold}";
-            if (gemsText != null) gemsText.text = $"Gems: {player.gems}";
-            if (energyText != null) energyText.text = $"Energy: {player.stamina}/{player.maxStamina}";
-        }
-
-        private Text CreateResourcePill(Transform parent, string text, Color bgColor)
-        {
-            GameObject pill = new GameObject("Pill", typeof(RectTransform), typeof(Image));
-            pill.transform.SetParent(parent, false);
-            pill.transform.localScale = Vector3.one;
-
-            Image img = pill.GetComponent<Image>();
-            img.color = bgColor;
-
-            RectTransform rect = pill.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(170, 50);
-
-            GameObject textObj = CreateTextElement(pill.transform, "Text", text, Vector2.zero, 20, TextAnchor.MiddleCenter);
-            return textObj.GetComponent<Text>();
+            if (goldText != null) goldText.text = $"{player.gold}";
+            if (gemsText != null) gemsText.text = $"{player.gems}";
+            if (energyText != null) energyText.text = $"{player.stamina}/{player.maxStamina}";
         }
 
         private GameObject CreateTextElement(Transform parent, string objectName, string content, Vector2 position, int fontSize, TextAnchor alignment)
@@ -368,6 +446,20 @@ namespace MyriadOfDragons.UI
             rect.sizeDelta = new Vector2(280, 80);
 
             return textObj;
+        }
+
+        public void TeardownUI()
+        {
+            if (canvasObj == null) return;
+            canvasObj.SetActive(false);
+            if (Application.isPlaying) Destroy(canvasObj);
+            else DestroyImmediate(canvasObj);
+            canvasObj = null;
+        }
+
+        private void OnDestroy()
+        {
+            TeardownUI();
         }
     }
 }

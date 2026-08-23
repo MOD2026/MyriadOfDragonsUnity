@@ -1,8 +1,18 @@
 # START HERE — Myriad of Dragons
 
-Read this first. It is the entry point for a new session and points at everything else.
+**Zihan only read:** [`docs/ZIHAN_COMMAND_CENTRE.md`](ZIHAN_COMMAND_CENTRE.md) — one table, links, what to reply.  
+**AI ownership (locked):** [`docs/AI_SEAT_CHART_LOCKED.md`](AI_SEAT_CHART_LOCKED.md)
 
-Last updated: 2026-08-06. Suite status: **77/77 passing.**
+Agents: `CC_EXECUTION_BOARD_2026-08-22.md`, `PROGRESS_STATUS.md`.
+
+Last updated: 2026-08-22.
+
+**Design / theory hub (Aug 22):** `docs/SINGLE_BIBLE_MASTER_PLAN_2026-08-22.md` — also on Drive at  
+`G:\My Drive\card game\Game mech\MOD\Phase 1\Game mech\WIP\`.  
+Superseded session docs live in `docs/_archive/`. ChatGPT parallel work: `docs/CHATGPT_ASSIGN_SHOP_BURN_BIBLE_2026-08-22.md`.
+
+Protected Git baseline: **81/81 passing.** Latest verified social-contract
+working-tree result: **100/100 passing**, pending clean isolation from unrelated worktree changes.
 
 ---
 
@@ -42,13 +52,13 @@ Safe to delete whenever Drive releases them (usually needs a reboot or a Drive r
 ## 2. Running the tests
 
 ```
-Unity.exe -batchmode -projectPath "C:\MOD\MyriadOfDragons" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
+Unity.exe -batchmode -projectPath "C:\Users\zihan\Downloads\MyriadOfDragonsUnity" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
 ```
 
 - **Never add `-quit`** — the run silently does nothing.
 - Unity must be **closed** first; it needs exclusive project access.
 - If a run hangs, delete `Library/Bee` (a stale build lock).
-- Paths with spaces break Unity's argument parser — another reason to stay on `C:\MOD`.
+- Use the verified local project path above and quote every path argument.
 
 ---
 
@@ -67,6 +77,8 @@ All in `docs/`:
 | `Combat_Design_V4_Counter_Proposal.md` | Background on why the current combat rules are what they are. |
 | `V4_Blueprint_Fixes.md` | Per-issue fixes proposed for the V4 blueprint. |
 | `balance_sim_reference.py` | **Historical only — do not trust its numbers.** See §5. |
+| `MOS_v1.2.md` | **Current design/governance reference.** Includes Phase 1 guild, identity, research, donation, help, store, ranks, competition and rewards. |
+| `Guild_Competition_Rewards_v1.md` | Guild leagues, individual achievement boards, anti-snowball rewards, appointed offices, UI/art requirements and tests. |
 
 ---
 
@@ -89,8 +101,9 @@ Progression, match record and story/tutorial state now survive a restart. Also t
 **siege rule**, built and measured but **switched off** pending a design decision — see
 `Mechanics_Gap_Analysis.md` §1.1.
 
-**Not built:** home screen, deck builder, collection screen, card levels, economy/inventory,
-Castle/Barracks/Gate levelling, cloud save, multiplayer/guild, audio. Full breakdown with
+**Not built or incomplete:** card levels, full economy/inventory, standardized level-30 Empire
+buildings, Academy research, cloud identity, live guild service, guild competition/rewards and
+audio. Provider-neutral social contracts exist and pass their current tests. Full breakdown with
 severities in `Mechanics_Gap_Analysis.md`.
 
 ---

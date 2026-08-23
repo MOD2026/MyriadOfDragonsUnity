@@ -35,7 +35,15 @@ namespace MyriadOfDragons.Cards
 
             if (Instance != null && Instance != this)
             {
-                Destroy(gameObject);
+                // Destroy() is illegal (and silently a no-op) outside Play Mode - EditMode tests
+                // that create a second CardDatabase while Instance already points to one would
+                // previously return here with this object never loaded (_initialized stays
+                // false, AllCards stays empty) while the caller's own local reference to *this*
+                // object is what they actually query - a real leak across test fixtures, not
+                // just a duplicate-singleton no-op. DestroyImmediate is safe and immediate in
+                // both modes for a component reachable from Initialize() (project non-negotiable).
+                if (Application.isPlaying) Destroy(gameObject);
+                else DestroyImmediate(gameObject);
                 return;
             }
 

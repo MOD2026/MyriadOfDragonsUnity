@@ -1,5 +1,11 @@
 # BRIEF: Home Page / Main Menu — Myriad of Dragons
 
+> **2026-08-11 Phase 1 addition:** The final landscape Home direction must reserve a clear Guild
+> entry and notification state. The Guild destination contains overview, roster, chat,
+> announcements, donations, help, research, store, rankings and event offices. Do not place those
+> systems directly on Home or bake their labels into artwork. Home may show only concise guild
+> status: emblem, league/rank, unread chat/announcement state, help requests and claimable reward.
+
 **For:** an AI or engineer building this feature standalone.
 **Deliverable:** one C# file, `Assets/Scripts/UI/HomeScreen.cs`, plus any small helpers it needs.
 **Dependency on existing combat code:** none. This screen must not read or modify battle state.

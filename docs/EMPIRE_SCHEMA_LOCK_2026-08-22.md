@@ -12,7 +12,7 @@
 ## Locked decisions (do not re-litigate in chat)
 
 1. Ship **Castle / Barracks / Gate** only; Academy / Embassy later.  
-2. Construction = **Gold + time**, **one** account-wide slot, **no Gems** in first slice.  
+2. Phase-1 construction = **Gold only → instant `ReadyToCollect`** (Offline A), **one** account-wide slot, **no Gems**. Gold+time construction is Phase 2 only.
 3. Gate = **meta-only** chapter route clearance for **Ch1–10**; **necessary, never sufficient** (stage unlock + Avatar/collection/mini-game gates still required).  
 4. Additive `empireConstruction` on `PlayerProfile` with `projectId`, `status`, `costCharged`, `costGold`, idempotent complete; dual-write forbidden — one completion API → save → `ApplyDataToEmpire()` once.  
 5. Barracks **option A:** **20 deck slots at L30** via **paid milestone tiers only** (L1→L5→L10→L15→L20→L25→L30); lookup table `{1:10,5:11,10:12,15:14,20:16,25:18,30:20}`; **no** empty +1 levels; **no** regen/replenish UI. `targetLevel` = next paid tier, not `current+1`.  
@@ -65,7 +65,22 @@ From packet §6 — all required before Empire feature accept:
 
 | Seat | Next |
 |---|---|
-| **VS Code / Metagame** | **DONE faucet** — next when assigned: Barracks paid milestones (Battle formula + tests) or wait for CC |
-| **Claude** | Finish/accept Ch7, then Ch8 using naming kit |
+| **VS Code / Metagame** | Idle until Copilot; next game task: construction UI after Save opens |
+| **Claude** | Ch9 then Ch10 from naming kit |
 | **ChatGPT** | Idle |
-| **Cursor CC** | Re-verify faucet if needed when Unity free; then Barracks formula slice |
+| **Cursor / Battle** | **DONE Barracks slots + Gold cost table**; next: Gate chapter reader OR open Save for construction |
+
+## Barracks Gold cost table (CC locked 2026-08-22)
+
+Paid upgrades only. Total L1→L30 = **411,200 Gold**.
+
+| Upgrade | Gold | Intent |
+|---|---:|---|
+| → L5 | 1,200 | After Ch1 |
+| → L10 | 5,000 | Ch2 band |
+| → L15 | 15,000 | Ch3 band |
+| → L20 | 40,000 | Mid campaign |
+| → L25 | 100,000 | Late mid |
+| → L30 | 250,000 | Capstone — competes with Castle/Gate; Barracks-only dump still needs deep Ch5+ |
+
+Recompute if Ch9–10 gold curve changes the CumCh5/CumCh8 bands materially.

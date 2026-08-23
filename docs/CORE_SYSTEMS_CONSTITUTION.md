@@ -74,9 +74,9 @@ Player must have a long grill path. Chapters **8–10** remain required.
 
 | Ch | Stages | Count | Status |
 |---|---|---:|---|
-| 8 | `8-1` … `8-30` | 30 | NOT FILLED |
-| 9 | `9-1` … `9-30` | 30 | NOT FILLED |
-| 10 | `10-1` … `10-30` | 30 | NOT FILLED |
+| 8 | `8-1` … `8-30` | 30 | **FILLED** |
+| 9 | `9-1` … `9-30` | 30 | **FILLED** |
+| 10 | `10-1` … `10-30` | 30 | **FILLED** (Empty Throne kit) |
 
 **Planned full spine:** 183 + 90 = **273** stage fights. Retune **enemy decks**, not global combat knobs (§C).
 
@@ -111,9 +111,8 @@ Do **not** make weekly Tower floor the sole definition of “best player.” Har
 
 ### Debt / build order (wartime)
 
-1. **DONE:** fill Ch1–7 content (**183** stages)  
-2. **Next content:** fill Ch8→Ch10 using ChatGPT naming kit  
-3. **Next systems:** Barracks paid milestones → construction (instant A) → Gate reader → Castle sim  
+1. **DONE:** fill Ch1–10 content (**273** stages)  
+2. **Next systems:** Empire construction UI → Gate reader polish → Castle sim  
 4. Dual-prestige mini-games / TD after Empire construction exists  
 5. Per-stage feel polish = **last**
 
@@ -268,13 +267,13 @@ Currency naming (EventMedal vs Event Token). Single wallet path (`CurrencyManage
 | Building | Formula today? | Raises in play today? | Locked first-slice role |
 |---|---|---|---|
 | Avatar | Yes | Yes (+1 win / +0 loss) | Unchanged — not a building |
-| Castle | Yes | No | Gold+time build; shared HP/Resource scale (AI mirrors); sim before publish |
+| Castle | Yes | No | Gold spend → instant `ReadyToCollect` in Phase 1 (Offline A); shared HP/Resource scale (AI mirrors); sim before publish. Gold+time construction is Phase 2 only. |
 | Barracks | Yes (20 slots @ L50 live) | No | **Rescale to 20 slots @ L30**; no regen UI |
 | Gate | None | No | Meta route clearance Ch1–10; necessary ≠ sufficient |
 
 **Paired lock:** Normal Battle + Tutorial → **0 Gold/0 Gems** before Empire construction ships. Campaign first-clear remains finite source.
 
-**Rule:** No Empire UI marketing until implementation gates in the lock record pass (economy faucet, formula tests, Gate entry tests, Castle sim). Doc loopholes already reviewed twice — do not re-open locked decisions in chat; residual offline-timer A/B/C is for feasibility only.
+**Rule:** No Empire UI marketing until implementation gates in the lock record pass (economy faucet, formula tests, Gate entry tests, Castle sim). Doc loopholes already reviewed twice — do not re-open locked decisions in chat. **Offline A is locked for Phase 1:** Gold spend → instant `ReadyToCollect`; Gold+time construction is Phase 2 only.
 
 ---
 
@@ -362,5 +361,4 @@ Any new system packet (Empire, Shop grants, gates, mini-games, guild) must get a
 
 Same bar for accepting content: not only EditMode green — check next-chapter terminal, catalog exhaustion, gold inflation vs sinks, Gate/chapter collisions.
 
-Empire: **DESIGN LOCKED** — `docs/EMPIRE_SCHEMA_LOCK_2026-08-22.md`. Implementation blocked until feasibility audit + gates (Normal Battle faucet removal, Barracks L30 formula, offline timer A/B/C, Castle sim).
-
+Empire: **DESIGN LOCKED** — `docs/EMPIRE_SCHEMA_LOCK_2026-08-22.md`. Implementation blocked until feasibility audit + gates (Normal Battle faucet removal, Barracks L30 formula, **locked Offline A claim flow**, Castle sim).

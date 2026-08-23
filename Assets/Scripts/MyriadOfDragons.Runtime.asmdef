@@ -1,7 +1,11 @@
 {
     "name": "MyriadOfDragons.Runtime",
     "rootNamespace": "",
-    "references": [],
+    "references": [
+        "Unity.Services.Core",
+        "Unity.Services.Authentication",
+        "Unity.Services.CloudCode"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

@@ -2793,5 +2793,59 @@ namespace MyriadOfDragons.Tests
                     "The AI should have spent on the strongest card it could afford, not the first one in hand.");
             }
         }
+
+        // ---------- Mirrored PvE AI spells (Option B) ----------
+
+        [Test]
+        public void AISpell_DoesNotCastBeforeClash2()
+        {
+            BattleController controller = StartFormationMatch();
+            controller.SetMirroredEnemySpellsEnabledForTests(true);
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.TryPlayCard(controller.EnemyState, controller.EnemyState.Hand.First(), Lane.Middle));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            controller.AdvanceCombatTick();
+            Assert.AreEqual(1, controller.TickCount);
+            Assert.IsFalse(controller.SpellCastLog.Any(c => !c.CastByPlayer),
+                "AI must not cast before clash 2.");
+        }
+
+        [Test]
+        public void AISpell_TryCastEnemySpell_RespectsEnergyCost()
+        {
+            BattleController controller = StartFormationMatch();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.TryPlayCard(controller.EnemyState, controller.EnemyState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            int damageIndex = controller.EnemySpellbook.FindIndex(s => s.Effect == SpellEffect.LaneDamage);
+            Assert.GreaterOrEqual(damageIndex, 0);
+
+            controller.SetEnemyEnergyForTests(0);
+            Assert.IsFalse(controller.TryCastEnemySpell(damageIndex, Lane.Front, out _));
+
+            AvatarSpell spell = controller.EnemySpellbook[damageIndex];
+            controller.SetEnemyEnergyForTests(spell.EnergyCost);
+            Assert.IsTrue(controller.TryCastEnemySpell(damageIndex, Lane.Front, out _));
+            Assert.AreEqual(0, controller.EnemyEnergy);
+            Assert.IsFalse(spell.IsOffCooldown);
+        }
+
+        [Test]
+        public void AISpell_AdvanceCombatTick_CastsWhenEnergyAndTargetsAllow()
+        {
+            BattleController controller = StartFormationMatch();
+            controller.SetMirroredEnemySpellsEnabledForTests(true);
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.TryPlayCard(controller.EnemyState, controller.EnemyState.Hand.First(), Lane.Middle));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            controller.AdvanceCombatTick();
+            controller.AdvanceCombatTick();
+
+            Assert.IsTrue(controller.SpellCastLog.Any(c => !c.CastByPlayer),
+                "Mirrored AI should cast once energy and clash-2 gate allow a legal target.");
+        }
     }
 }

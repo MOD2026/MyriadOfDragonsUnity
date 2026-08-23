@@ -1,5 +1,12 @@
 # Myriad of Dragons — Shop & Currency Blueprint (v0.1, DRAFT FOR ATTACK)
 
+> **MOS v1.2 amendment — 2026-08-11:** Guild Contribution now has an available spendable balance
+> and a separate non-spendable lifetime-earned statistic. Phase 1 adds capped donation/help faucets,
+> a Guild Store with weekly purchase limits, guild league/milestone rewards and seven-day appointed
+> offices. Power ranking is prestige-only and produces no recurring functional payout. Exact
+> values remain provisional until economy and bot-farm simulation. See
+> `Guild_Competition_Rewards_v1.md` and MOS §11.4–§11.10.
+
 **Status:** Pre-implementation design. Nothing here is built yet.
 **Date:** 2026-08-07
 **Purpose:** Define the full currency and shop specification so it can be reviewed adversarially before any code is written.
@@ -59,7 +66,7 @@ open for re-litigation in this review — only their *application* below is.
 
 ## 2. The four currencies at a glance
 
-| | **Gold** | **Gems** | **Event Tokens** | **Market Credits** |
+| | **Gold** | **Gems** | **Event Medals** | **Market Credits** |
 |---|---|---|---|---|
 | **Type** | Soft | Hard (IAP) | Seasonal | Trade proceeds |
 | **Source** | Gameplay | Real money + sparse gameplay | Event participation only | Marketplace sales only |
@@ -69,7 +76,7 @@ open for re-litigation in this review — only their *application* below is.
 | **Wallet cap** | 9,999,999 | None | 50,000 per event | 999,999 |
 | **Exists in Phase** | 1 | 1 | 1 | 2 |
 
-**Naming note:** The codebase currently has `gold` and `gems` in `SaveData`. Event Tokens
+**Naming note:** The codebase currently has `gold` and `gems` in `SaveData`. Event Medals
 and Market Credits are new. Player-facing names TBD ("Dragon Credits" was floated for
 Gems — flagged as a **naming risk**, see §12.6).
 
@@ -202,7 +209,7 @@ enough to make gems feel real to an F2P player.
 
 - **Earned only** by event participation. No IAP path. No gold/gem conversion in.
 - **Expire 14 days after the event's shop closes.** Hard delete, with 7-day and 1-day warnings.
-- **Non-tradeable, permanently.** Event Tokens must never touch the marketplace, or events
+- **Non-tradeable, permanently.** Event Medals must never touch the marketplace, or events
   become a farmable income stream and the entire anti-bot posture collapses.
 - **Spent only** in that event's own shop, which sells: event-exclusive `Soulbound` cards
   and trophies (Prestige), crafting reagents, and gold.
@@ -288,7 +295,7 @@ cosmetic, player-set pricing just means prices crash to zero.
 | Gold → Gems | Cycle. Would let players farm revenue currency. |
 | Market Credits → Gems | Makes gems earnable by trading; corrupts the IAP price anchor. |
 | Gems → Market Credits | Studio becomes counterparty to a real-money market. **Hard no, all phases.** |
-| Anything → Event Tokens | Would break event pacing and make events buyable. |
+| Anything → Event Medals | Would break event pacing and make events buyable. |
 | Market Credits → Card packs | Turns the marketplace into a gacha faucet — bot-farm target. |
 | Gold → Market Credits | Bots farm gold → credits → real value. **The single most dangerous edge.** |
 
@@ -353,7 +360,7 @@ by unit test (§10.2), not by author discipline.**
 | Any `acquisition == EventOnly` object | Principle: event rewards are earned, never bought |
 | Any object where money is the *only* path to a `Competitive` power level | Money buys speed, not power |
 | Market Credits, in any quantity, for any currency | §5 forbidden edges |
-| Event Tokens, for gems or gold | Events must not be buyable |
+| Event Medals, for gems or gold | Events must not be buyable |
 | Anything that reduces another player's progression | No offensive purchases |
 | Randomised boxes without published odds | Legal exposure in multiple jurisdictions, independent of everything else |
 
@@ -489,7 +496,7 @@ the cost of creating and warming an account.
 |---|---|---|
 | Match victory gold | **High** — matches are automatable | Daily cap (15); gold is non-tradeable, so farmed gold cannot exit |
 | Daily quests | Medium | Cap; require varied activity, not repeat of one action |
-| Event Tokens | Low | Non-tradeable + expiring = no exit path for farmed value |
+| Event Medals | Low | Non-tradeable + expiring = no exit path for farmed value |
 | Marketplace proceeds | **Critical** | §9.1 |
 | Legacy minting | Medium | Requires deep progression (Empire 80) — expensive to bot |
 
@@ -531,7 +538,7 @@ because the shop cannot see it.
 ### 10.2 Required unit tests (EditMode)
 
 - No shop SKU resolves to an object with `acquisition == EventOnly`
-- No shop SKU grants Market Credits or Event Tokens
+- No shop SKU grants Market Credits or Event Medals
 - The conversion graph (§5) contains no cycles — asserted programmatically
 - Legacy minting leaves the source milestone variable unchanged (additive rule)
 - Every faucet has at least one registered sink for the same currency
@@ -546,7 +553,7 @@ tests are the rule.
 
 | Phase | Ships | Explicitly does not ship |
 |---|---|---|
-| **1 — Launch** | Gold, Gems, Event Tokens. Full shop. Ownership ledger + item flags (no UI). Device migration. Legacy minting. Archive/Dormant. Bot telemetry. | Trading. Market Credits UI. Any transfer. |
+| **1 — Launch** | Gold, Gems, Event Medals. Full shop. Ownership ledger + item flags (no UI). Device migration. Legacy minting. Archive/Dormant. Bot telemetry. | Trading. Market Credits UI. Any transfer. |
 | **2 — Stability proven** | Marketplace (closed-loop). Market Credits. Credit Store. Provenance display. Trading gates §9.1. | Any cash-out. Any account transfer. |
 | **3 — Mature, gated on legal review** | Possible external web marketplace + withdrawal. Estate succession (exceptional process). | — |
 
@@ -579,7 +586,7 @@ I am least confident about the following. They are judgment calls, not derivatio
    adjacent to a system that has a Market Credits currency invites confusion, and
    money-adjacent naming on a currency that explicitly never cashes out is a
    self-inflicted perception risk. Recommend a non-financial name for the hard currency.
-7. **Two currencies named similarly (Event Tokens / Market Credits)** may confuse players
+7. **Two currencies named similarly (Event Medals / Market Credits)** may confuse players
    in UI where both appear. No mitigation proposed yet.
 8. **Nothing in §4.5 has been simulated.** Every threshold in the Treasury section is a
    plausible-sounding number with no model behind it.

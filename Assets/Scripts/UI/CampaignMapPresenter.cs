@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
@@ -20,6 +21,7 @@ namespace MyriadOfDragons.UI
         BlockedLocked,
         BlockedNoDeck,
         BlockedInsufficientStamina,
+        BlockedByGate,
     }
 
     public class CampaignMapPresenter : MonoBehaviour
@@ -173,6 +175,9 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter5DepthStages());
             chapterStages.AddRange(BuildChapter6DepthStages());
             chapterStages.AddRange(BuildChapter7DepthStages());
+            chapterStages.AddRange(BuildChapter8DepthStages());
+            chapterStages.AddRange(BuildChapter9DepthStages());
+            chapterStages.AddRange(BuildChapter10DepthStages());
         }
 
         /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
@@ -844,6 +849,283 @@ namespace MyriadOfDragons.UI
             return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
         }
 
+        /// <summary>Chapter 8 depth fill, Stages 8-1..8-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
+        /// §0/§B wartime doctrine). Titles/enemy names come from the ChatGPT naming kit
+        /// (CAMPAIGN_10_CHAPTER_NAMING_AND_BEAT_DIALOGUE_KIT_2026-08-22.md, Chapter 8 - Crown of
+        /// Storms table) - not invented. Same pool+stride technique as every prior chapter,
+        /// decorrelated the same two ways (Chapter7DepthPool rotated by 13, continuing the
+        /// 5/7/9/11/13 rotation sequence, over an eighth distinct stride 19 and offset triple
+        /// {0,8,24}, both coprime with the 29-entry pool and unused by any earlier chapter).
+        /// i=29 (Stage 8-30) still lands on the same base as i=0 (Stage 8-1) - patched
+        /// pre-emptively. Any roster below that measures as a real AF defeat is retuned with a
+        /// comment recording that measurement, not guessed in advance.</summary>
+        private static readonly string[] Chapter8DepthPool =
+        {
+            "conquistador", "owl_keeper", "ladyinlake", "iron_dragon", "pandora", "drain",
+            "shaman", "druid", "succubus", "elven_high_lord", "archer_dragon", "castle_lady",
+            "hooded_rogue", "giant_worms", "mountain_harpy", "snake_archer", "fire_worm",
+            "butcher", "cursed_soldier", "ogre", "werewolf", "wood_wizard", "zombified_captain",
+            "eastern_sorcerer", "corrupted_warrior", "undead_pirate", "goblin_shaman",
+            "elf_wanderer", "persian_princess",
+        };
+
+        private static readonly (string title, string enemyName, string description)[] Chapter8DepthFlavor =
+        {
+            ("Stormward Terrace", "Stormward Guard", "The first terrace beneath the storm wall. Apollo's light does not forgive trespassers."),
+            ("Sun-Split Causeway", "Sun Guard Patrol", "A causeway split by permanent noon-glare. A patrol holds every seam."),
+            ("Thunderhead Court", "Thunder Court Wardens", "A court that never sees a clear sky. Wardens stand under the rolling thunder."),
+            ("Gilded Rainstairs", "Rainstairs Legion", "Stairs gilded and slick with unending rain. A legion holds every landing."),
+            ("Cloudharrow Bridge", "Bridge Sentinels", "A bridge that harrows the clouds below it. Sentinels won't let it fall to us."),
+            ("Dawnfire Bastion", "Dawnfire Guard", "A bastion lit permanently by false dawn-fire. Guarded like it matters."),
+            ("Tempest Orchard", "Orchard Cohort", "An orchard lashed by constant tempest winds. A cohort shelters among the trees."),
+            ("Brasswind Gallery", "Gallery Wardens", "A gallery that hums with brass wind-chimes. Wardens use the noise to hide their approach."),
+            ("Lightning Well", "Well Keepers", "A well that draws lightning instead of water. Keepers guard the charge."),
+            ("Sunforge Ramp", "Sunforge Legion", "A ramp leading to a forge fired by captured sunlight. Legion holds the grade."),
+            ("Stormglass Arcade", "Arcade Guard", "An arcade of fused storm-glass. A guard patrols behind the panes."),
+            ("High Noon Redoubt", "Noon Redoubt Command", "A redoubt built to catch the sun at its highest. Command never blinks."),
+            ("Thunderstep Rise", "Thunderstep Sentinels", "A rise that shakes with every thunderclap. Sentinels hold the shaking ground."),
+            ("Goldcloud Parapet", "Parapet Cohort", "A parapet wreathed in gilded storm-cloud. A cohort mans every merlon."),
+            ("Apollo's Broken Court", "Sun Court Guard", "The sun god's own court, cracked but still held. The guard has never yielded it."),
+            ("Boltfall Stair", "Boltfall Legion", "A stair where bolts fall instead of rain. Legion has learned to walk it anyway."),
+            ("Skyfire Reservoir", "Reservoir Wardens", "A reservoir that burns instead of floods. Wardens keep the banks."),
+            ("Tempest Reliquary", "Reliquary Guard", "A reliquary sealed against the storm outside. Guarded from within."),
+            ("Whitecloud Bastion", "Bastion Cohort", "A bastion wrapped in permanent white cloud. A cohort holds it by feel alone."),
+            ("Sunward Processional", "Processional Command", "A processional walk facing the sun's full glare. Command marches it daily."),
+            ("Stormcrown Gate", "Stormcrown Guard", "A gate crowned by a standing storm. Guarded at every hinge."),
+            ("Lightning Choir Hall", "Choir Hall Legion", "A hall where thunder is sung as liturgy. Legion answers every verse with steel."),
+            ("Ash-and-Aurum Span", "Aurum Span Wardens", "A span of gold and old ash together. Wardens hold the only crossing."),
+            ("Dawnspire Foot", "Dawnspire Guard", "The foot of a spire that catches first light. Guarded before the sun even clears it."),
+            ("Thundercliff Traverse", "Traverse Cohort", "A traverse along a cliff that never stops rumbling. A cohort holds the narrow path."),
+            ("Solar Watchfire", "Watchfire Legion", "A watchfire fed by captured sunlight. Legion keeps it burning day and night."),
+            ("Tempest Crown Wall", "Crown Wall Guard", "A wall crowned in standing storm-cloud. The guard has held it since the climb began."),
+            ("The Sun Gate", "Sun Gate Command", "The gate to the god of the sun's own seat. Command holds it like scripture."),
+            ("Apollo's Stormworks", "Stormworks High Guard", "The stormworks that power the whole terrace. A high guard defends the machinery."),
+            ("Crown of Storms", "Sun Guard High Command", "The crown of storms itself - Apollo's high command makes its stand here."),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter8DepthStages()
+        {
+            const int poolSize = 29; // Chapter8DepthPool.Length - coprime with stride 19 and offsets 8/24.
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1; // 8-1 .. 8-30
+                int baseIndex = (19 * i) % poolSize;
+                string[] ids =
+                {
+                    Chapter8DepthPool[baseIndex],
+                    Chapter8DepthPool[(baseIndex + 8) % poolSize],
+                    Chapter8DepthPool[(baseIndex + 24) % poolSize],
+                };
+
+                // i=29 (Stage 8-30) lands on the same base index as i=0 (Stage 8-1) under this
+                // stride - the pattern's only collision across all 30 stages - hand-patched.
+                if (stageNumber == 30)
+                {
+                    ids = new[] { "cursed_soldier", "werewolf", "zombified_captain" };
+                }
+
+                // Stage 8-4's generated roster (persian_princess+druid+eastern_sorcerer) measured
+                // as a real DEFEAT under the AF policy. The first retune (persian_princess ->
+                // goblin_shaman) still measured as a real DEFEAT - swapped druid for a lighter
+                // pool entry too.
+                if (stageNumber == 4)
+                {
+                    ids = new[] { "goblin_shaman", "fire_worm", "eastern_sorcerer" };
+                }
+
+                // Stage 8-8's generated roster (butcher+undead_pirate+hooded_rogue) measured as a
+                // real DEFEAT under the AF policy - swapped hooded_rogue for a lighter pool entry.
+                if (stageNumber == 8)
+                {
+                    ids = new[] { "butcher", "undead_pirate", "cursed_soldier" };
+                }
+
+                // Stage 8-26's generated roster (archer_dragon+ogre+shaman) measured as a real
+                // DEFEAT under the AF policy - swapped archer_dragon for a lighter pool entry.
+                if (stageNumber == 26)
+                {
+                    ids = new[] { "goblin_shaman", "ogre", "shaman" };
+                }
+
+                (string title, string enemyName, string description) = Chapter8DepthFlavor[i];
+                (int gold, int gems) = Chapter8DepthReward(stageNumber);
+                yield return new CampaignStageData($"8-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 8-30's 23140/4628, +10 gold / +2 gems per chapter step.
+        /// 9-30 lands at 23140 + 30*150 = 27640 gold / 4628 + 30*30 = 5528 gems.</summary>
+        private static (int gold, int gems) Chapter9DepthReward(int stageNumber)
+        {
+            const int baseGold = 23140, goldPerStage = 150;
+            const int baseGems = 4628, gemsPerStage = 30;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 9 — The Aegis Citadel (naming kit). Pool+stride decorrelated from Ch8.</summary>
+        private static readonly (string title, string enemyName)[] Chapter9DepthFlavor =
+        {
+            ("Aegis Outer Court", "Aegis Court Watch"),
+            ("Spearline Causeway", "Spearline Cohort"),
+            ("Owlstone Gatehouse", "Gatehouse Wardens"),
+            ("Bronze Verdict Hall", "Verdict Guard"),
+            ("Strategos' Walk", "Strategos Legion"),
+            ("Shieldwall Arcade", "Shieldwall Cohort"),
+            ("War Map Gallery", "Gallery Command"),
+            ("Iron Laurel Yard", "Laurel Guard"),
+            ("Silent Phalanx Court", "Phalanx Wardens"),
+            ("Aegis Foundry", "Foundry Cohort"),
+            ("Marble Muster Field", "Muster Command"),
+            ("Bronze Archive", "Archive Guard"),
+            ("Spearpoint Stair", "Spearpoint Legion"),
+            ("Citadel Cistern", "Cistern Wardens"),
+            ("Athena's War Hall", "War Hall Command"),
+            ("Nine-Shield Passage", "Nine-Shield Guard"),
+            ("Gorgon Banner Court", "Banner Cohort"),
+            ("Oathbound Barracks", "Oathbound Legion"),
+            ("Aegis Bastion", "Bastion Guard"),
+            ("Iron Verdict Gate", "Verdict Gate Command"),
+            ("Tactical Reliquary", "Reliquary Wardens"),
+            ("Owlspire Ascent", "Owlspire Guard"),
+            ("Shielded Processional", "Processional Cohort"),
+            ("Bronze Throne Annex", "Throne Annex Command"),
+            ("The War Council Chamber", "War Council Guard"),
+            ("Spearwall Rampart", "Spearwall Legion"),
+            ("Aegis Inner Gate", "Inner Gate Cohort"),
+            ("Athena's Last Redoubt", "Redoubt Command"),
+            ("Citadel Heart", "Citadel High Guard"),
+            ("The Aegis Citadel", "Aegis High Command"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter9DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                int baseIndex = (21 * i + 15) % poolSize;
+                string[] ids =
+                {
+                    Chapter8DepthPool[baseIndex],
+                    Chapter8DepthPool[(baseIndex + 10) % poolSize],
+                    Chapter8DepthPool[(baseIndex + 26) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "iron_dragon", "elven_high_lord", "archer_dragon" };
+
+                // Stage 9-16's generated roster measured as a real DEFEAT under the AF policy —
+                // retuned to lighter pool entries and re-verified via Chapter9FullDepthTests.
+                if (stageNumber == 16)
+                    ids = new[] { "goblin_shaman", "cursed_soldier", "fire_worm" };
+                // Stage 9-25's generated roster measured as a real DEFEAT under the AF policy.
+                if (stageNumber == 25)
+                    ids = new[] { "fire_worm", "goblin_shaman", "undead_pirate" };
+
+                (string title, string enemyName) = Chapter9DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The Aegis admits no undisciplined force.";
+                (int gold, int gems) = Chapter9DepthReward(stageNumber);
+                yield return new CampaignStageData($"9-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Chapter 10 depth pool — Chapter8DepthPool rotated by 15 (continuing the 5/7/9/11/13/15
+        /// rotation sequence Ch8 used from Ch7).</summary>
+        private static readonly string[] Chapter10DepthPool =
+        {
+            "snake_archer", "fire_worm", "butcher", "cursed_soldier", "ogre", "werewolf",
+            "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior", "undead_pirate",
+            "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador", "owl_keeper",
+            "ladyinlake", "iron_dragon", "pandora", "drain", "shaman", "druid", "succubus",
+            "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue", "giant_worms", "mountain_harpy",
+        };
+
+        /// <summary>Linear from Stage 9-30's 27640/5528, +10 gold / +2 gems per chapter step.
+        /// 10-30 lands at 27640 + 30*160 = 32440 gold / 5528 + 30*32 = 6488 gems.</summary>
+        private static (int gold, int gems) Chapter10DepthReward(int stageNumber)
+        {
+            const int baseGold = 27640, goldPerStage = 160;
+            const int baseGems = 5528, gemsPerStage = 32;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 10 — The Empty Throne (CAMPAIGN_CH10_NAMING_AND_BEATS_v1.md). Pool+stride decorrelated from Ch9.</summary>
+        private static readonly (string title, string enemyName)[] Chapter10DepthFlavor =
+        {
+            ("Throneward Causeway", "Throneward Watch"),
+            ("Storm-King's Gate", "Storm Gate Guard"),
+            ("Eagle Standard Court", "Eagle Cohort"),
+            ("Cloudbound Archive", "Archive Wardens"),
+            ("Lightning Rod Hall", "Rod Hall Legion"),
+            ("High Throne Stair", "Throne Stair Guard"),
+            ("Zeus's Empty Forum", "Forum Command"),
+            ("Thunderchain Bridge", "Thunderchain Cohort"),
+            ("Skyvault Antechamber", "Skyvault Guard"),
+            ("Storm Eagle Roost", "Eagle Legion"),
+            ("Crownbolt Gallery", "Crownbolt Wardens"),
+            ("The Judgment Steps", "Judgment Guard"),
+            ("Cloudbreaker Hall", "Cloudbreaker Command"),
+            ("Thunder Oath Chamber", "Oath Cohort"),
+            ("The Empty Throne Court", "Throne Court Guard"),
+            ("Boltscar Processional", "Processional Legion"),
+            ("Skyfire Treasury", "Treasury Wardens"),
+            ("Eaglewatch Parapet", "Eaglewatch Guard"),
+            ("Tempest Engine Room", "Engine Cohort"),
+            ("Zeus's War Balcony", "Balcony Command"),
+            ("Stormseal Reliquary", "Reliquary Guard"),
+            ("Cloud Crown Rampart", "Crown Rampart Legion"),
+            ("Thunderbrand Hall", "Thunderbrand Wardens"),
+            ("The Last Aegis", "Last Aegis Cohort"),
+            ("Thronefire Vestibule", "Vestibule Guard"),
+            ("Sky King's Bastion", "Bastion Command"),
+            ("The Broken Scepter", "Scepter Legion"),
+            ("Stormheart Gate", "Stormheart Guard"),
+            ("The Throne Dais", "Throne High Command"),
+            ("The Empty Throne", "Zeus's Final Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter10DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                int baseIndex = (23 * i + 11) % poolSize;
+                string[] ids =
+                {
+                    Chapter10DepthPool[baseIndex],
+                    Chapter10DepthPool[(baseIndex + 12) % poolSize],
+                    Chapter10DepthPool[(baseIndex + 22) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "castle_lady", "hooded_rogue", "eastern_sorcerer" };
+
+                // Stage 10-7's generated roster (hooded_rogue+ladyinlake+ogre) measured as a real
+                // DEFEAT under the AF policy — retuned to lighter pool entries (distinct from 9-16).
+                if (stageNumber == 7)
+                    ids = new[] { "werewolf", "zombified_captain", "snake_archer" };
+
+                // Stage 10-10's generated roster collided exactly with Stage 2-10's own three-card
+                // roster under this stride — swapped for a distinct, lighter combination.
+                if (stageNumber == 10)
+                    ids = new[] { "snake_archer", "butcher", "wood_wizard" };
+
+                (string title, string enemyName) = Chapter10DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The Sky Throne precinct admits no trespass.";
+                (int gold, int gems) = Chapter10DepthReward(stageNumber);
+                yield return new CampaignStageData($"10-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
+        /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
+        /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
+        private static (int gold, int gems) Chapter8DepthReward(int stageNumber)
+        {
+            const int baseGold = 18940, goldPerStage = 140;
+            const int baseGems = 3788, gemsPerStage = 28;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
         /// <summary>The stage immediately after <paramref name="currentStageId"/> in the existing
         /// ordered campaign list - the sole order authority (see chapterStages' own comment).
         /// Returns null if the id is unknown or is already the last stage (nothing further to
@@ -868,6 +1150,51 @@ namespace MyriadOfDragons.UI
             this.onLaunchBattleAction = onLaunchBattle;
             RefreshStageUnlockStatus();
             BuildCampaignMapUI();
+        }
+
+        /// <summary>
+        /// Launching a Campaign battle destroys this presenter component but used to leave
+        /// mapCanvasObj alive as a root-level orphan - its GraphicRaycaster then sat on top of
+        /// Battle and swallowed Continue/Launch taps. Call before battle entry; also invoked
+        /// from OnDestroy as a backstop.
+        /// </summary>
+        public void TeardownMapForBattle()
+        {
+            if (detailModalObj != null)
+            {
+                SafeDestroy(detailModalObj);
+                detailModalObj = null;
+            }
+
+            if (mapCanvasObj != null)
+            {
+                mapCanvasObj.SetActive(false);
+                SafeDestroy(mapCanvasObj);
+                mapCanvasObj = null;
+            }
+        }
+
+        /// <summary>Removes any leftover metagame overlay canvases whose presenter component was
+        /// destroyed without tearing down the root GameObject - those GraphicRaycasters block
+        /// Battle input. Safe before Story open, battle entry, or return Home.</summary>
+        public static void CleanupStaleMetagameCanvases()
+        {
+            foreach (string canvasName in new[] { "CampaignMapCanvas", "ShopCanvas", "DeckBuilderCanvas", "CollectionCanvas", "EmpireCanvas" })
+            {
+                GameObject stale;
+                while ((stale = GameObject.Find(canvasName)) != null)
+                {
+                    SafeDestroy(stale);
+                }
+            }
+        }
+
+        /// <summary>Backward-compatible alias.</summary>
+        public static void CleanupStaleMapCanvases() => CleanupStaleMetagameCanvases();
+
+        private void OnDestroy()
+        {
+            TeardownMapForBattle();
         }
 
         /// <summary>Exposed for tests: whether the given stage shows as unlocked right now -
@@ -895,11 +1222,17 @@ namespace MyriadOfDragons.UI
         /// detailModalObj itself stays private.</summary>
         public bool IsDetailModalOpenForTests => detailModalObj != null;
 
+        /// <summary>Exposed for tests: MVP stage row content transform after Initialize().</summary>
+        public Transform StageNodesContentForTests =>
+            mapCanvasObj != null
+                ? mapCanvasObj.transform.Find("StageScrollView/Viewport/StageNodesContent")
+                : null;
+
         /// <summary>Destroy is not legal outside Play Mode (this project's own non-negotiable
         /// rule - DestroyImmediate(), not Destroy(), for anything reachable from Initialize();
         /// EditMode tests that click through the real Launch Battle button reach this directly).
         /// Production (Play Mode) behavior and timing are unchanged - Destroy still runs there.</summary>
-        private static void SafeDestroy(Object obj)
+        private static void SafeDestroy(UnityEngine.Object obj)
         {
             if (obj == null) return;
             if (Application.isPlaying) Destroy(obj);
@@ -914,7 +1247,7 @@ namespace MyriadOfDragons.UI
         public bool ClickStageNodeForTests(string stageId)
         {
             if (mapCanvasObj == null) return false;
-            Transform nodeTransform = mapCanvasObj.transform.Find($"StageNodesContainer/StageNode_{stageId}");
+            Transform nodeTransform = mapCanvasObj.transform.Find($"StageScrollView/Viewport/StageNodesContent/StageNode_{stageId}");
             Button nodeBtn = nodeTransform != null ? nodeTransform.GetComponent<Button>() : null;
             if (nodeBtn == null) return false;
             nodeBtn.onClick.Invoke();
@@ -962,12 +1295,147 @@ namespace MyriadOfDragons.UI
             statusText.text = $"Stamina: {current}/{max} • Stage entry: 1";
         }
 
+        /// <summary>Show only the chapter the player is progressing through — not all 273 nodes.</summary>
+        public static int ResolveDisplayChapterForTests(PlayerProfile profile)
+        {
+            if (profile?.unlockedStageIds == null || profile.unlockedStageIds.Count == 0) return 1;
+            int highest = 1;
+            foreach (string id in profile.unlockedStageIds)
+            {
+                if (TryParseStageChapter(id, out int chapter))
+                    highest = Math.Max(highest, chapter);
+            }
+
+            return highest;
+        }
+
+        /// <summary>Block W: made public so HomePagePresenter's Gate launch check reuses this
+        /// exact parse instead of a second, potentially-drifting implementation - one source of
+        /// truth for "which chapter does this stage id belong to".</summary>
+        public static bool TryParseStageChapter(string stageId, out int chapter)
+        {
+            chapter = 1;
+            if (string.IsNullOrEmpty(stageId)) return false;
+            int dash = stageId.IndexOf('-');
+            if (dash <= 0) return false;
+            return int.TryParse(stageId.Substring(0, dash), out chapter);
+        }
+
+        private static List<CampaignStageData> GetStagesForChapter(int chapter)
+        {
+            string prefix = chapter + "-";
+            var visible = new List<CampaignStageData>();
+            foreach (CampaignStageData stage in chapterStages)
+            {
+                if (stage.stageId.StartsWith(prefix, StringComparison.Ordinal))
+                    visible.Add(stage);
+            }
+
+            return visible;
+        }
+
+        private static List<CampaignStageData> GetMvpWindowStages(int chapter, PlayerProfile profile)
+        {
+            List<CampaignStageData> chapterList = GetStagesForChapter(chapter);
+            if (chapterList.Count == 0) return chapterList;
+
+            int focusIndex = 0;
+            for (int i = 0; i < chapterList.Count; i++)
+            {
+                if (chapterList[i].isUnlocked) focusIndex = i;
+            }
+
+            // MVP window: previous (context) + current frontier + one locked teaser (max 3 nodes).
+            int start = Mathf.Max(0, focusIndex - 1);
+            int end = Mathf.Min(chapterList.Count - 1, focusIndex + 1);
+            if (focusIndex == 0 && chapterList.Count > 1)
+                end = 1;
+
+            var window = new List<CampaignStageData>();
+            for (int i = start; i <= end; i++)
+                window.Add(chapterList[i]);
+
+            return window;
+        }
+
+        public static List<CampaignStageData> GetMvpWindowStagesForTests(int chapter, PlayerProfile profile)
+        {
+            foreach (CampaignStageData stage in chapterStages)
+            {
+                if (!TryParseStageChapter(stage.stageId, out int stageChapter) || stageChapter != chapter)
+                    continue;
+                stage.isUnlocked = profile?.unlockedStageIds != null && profile.unlockedStageIds.Contains(stage.stageId);
+            }
+
+            return GetMvpWindowStages(chapter, profile);
+        }
+
+        private static string BuildMvpProgressHint(int chapter, PlayerProfile profile, List<CampaignStageData> window)
+        {
+            if (window == null || window.Count == 0)
+                return "No stages available.";
+
+            CampaignStageData nextPlayable = null;
+            CampaignStageData nextLocked = null;
+            foreach (CampaignStageData stage in window)
+            {
+                if (stage.isUnlocked) nextPlayable = stage;
+                else if (nextLocked == null) nextLocked = stage;
+            }
+
+            int totalInChapter = GetStagesForChapter(chapter).Count;
+            if (nextPlayable != null)
+            {
+                bool cleared = profile?.claimedStageRewardIds != null
+                    && profile.claimedStageRewardIds.Contains(nextPlayable.stageId);
+                if (cleared && nextLocked != null)
+                    return $"Next: Stage {nextLocked.stageId} — {nextLocked.title} (locked until you clear {nextPlayable.stageId})";
+
+                return $"Next battle: Stage {nextPlayable.stageId} — {nextPlayable.title}";
+            }
+
+            return $"Chapter {chapter} · {totalInChapter} stages · unlock by winning the previous stage.";
+        }
+
+        /// <summary>Player-facing chapter banner. Ch1/2/10 keep their long-standing titles;
+        /// Ch3–9 use Command Centre–approved names (Block T) aligned with Story/campaign kits
+        /// (Deep Ash → Ember Spine → Ash Coast → Climb → Beyond the Outer Gate → Crown of Storms
+        /// → Aegis Citadel). Format matches existing "CHAPTER N: NAME" style.</summary>
+        private static string GetChapterTitle(int chapter)
+        {
+            switch (chapter)
+            {
+                case 1: return "CHAPTER 1: THE ORC INVASION";
+                case 2: return "CHAPTER 2: ASHES OF BOIOTIA";
+                case 3: return "CHAPTER 3: THE DEEP ASH";
+                case 4: return "CHAPTER 4: EMBER SPINE";
+                case 5: return "CHAPTER 5: THE ASH COAST";
+                case 6: return "CHAPTER 6: THE CLIMB";
+                case 7: return "CHAPTER 7: BEYOND THE OUTER GATE";
+                case 8: return "CHAPTER 8: CROWN OF STORMS";
+                case 9: return "CHAPTER 9: THE AEGIS CITADEL";
+                case 10: return "CHAPTER 10: THE EMPTY THRONE";
+                default: return $"CHAPTER {chapter}";
+            }
+        }
+
+        /// <summary>Exposed for EditMode — Block T title contract.</summary>
+        public static string GetChapterTitleForTests(int chapter) => GetChapterTitle(chapter);
+
         private void BuildCampaignMapUI()
         {
+            CleanupStaleMetagameCanvases();
+            if (mapCanvasObj != null)
+            {
+                SafeDestroy(mapCanvasObj);
+                mapCanvasObj = null;
+            }
+
             // 1. Canvas Setup
             mapCanvasObj = new GameObject("CampaignMapCanvas");
             Canvas canvas = mapCanvasObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 10;
 
             CanvasScaler scaler = mapCanvasObj.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -1032,7 +1500,12 @@ namespace MyriadOfDragons.UI
             CreateTextElement(backBtnObj.transform, "Text", "< BACK", Vector2.zero, 24, TextAnchor.MiddleCenter);
 
             // Chapter Title
-            CreateTextElement(topBar.transform, "TitleText", "CHAPTER 1: THE ORC INVASION", new Vector2(0, 0), 32, TextAnchor.MiddleCenter);
+            int displayChapter = ResolveDisplayChapterForTests(SaveSystem.CurrentProfile);
+            List<CampaignStageData> visibleStages = GetMvpWindowStages(displayChapter, SaveSystem.CurrentProfile);
+
+            CreateTextElement(topBar.transform, "TitleText", GetChapterTitle(displayChapter), new Vector2(0, 10), 32, TextAnchor.MiddleCenter);
+            CreateTextElement(topBar.transform, "ProgressHint", BuildMvpProgressHint(displayChapter, SaveSystem.CurrentProfile, visibleStages),
+                new Vector2(0, -28), 22, TextAnchor.MiddleCenter);
 
             // Campaign launch feedback contract, requirement 1: a persistent status surface
             // (Stamina: current/max + the per-attempt entry cost), reused for requirement 2's
@@ -1053,23 +1526,74 @@ namespace MyriadOfDragons.UI
             statusRect.sizeDelta = new Vector2(900, 40);
             RefreshPersistentStatusText();
 
-            // 4. Stage Nodes Container
-            GameObject nodeContainer = new GameObject("StageNodesContainer");
-            nodeContainer.transform.SetParent(mapCanvasObj.transform, false);
+            // 4. Stage nodes — horizontal scroll for current chapter only (1-1..1-N visible on open).
+            GameObject scrollRoot = new GameObject("StageScrollView", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            scrollRoot.transform.SetParent(mapCanvasObj.transform, false);
+            RectTransform scrollRect = scrollRoot.GetComponent<RectTransform>();
+            scrollRect.anchorMin = new Vector2(0.05f, 0.25f);
+            scrollRect.anchorMax = new Vector2(0.95f, 0.75f);
+            scrollRect.offsetMin = Vector2.zero;
+            scrollRect.offsetMax = Vector2.zero;
+            scrollRoot.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.15f);
 
-            RectTransform nodeContRect = nodeContainer.AddComponent<RectTransform>();
-            nodeContRect.anchoredPosition = new Vector2(0, -30);
-            nodeContRect.sizeDelta = new Vector2(1200, 300);
+            GameObject viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Mask), typeof(Image));
+            viewport.transform.SetParent(scrollRoot.transform, false);
+            RectTransform viewportRect = viewport.GetComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.offsetMin = Vector2.zero;
+            viewportRect.offsetMax = Vector2.zero;
+            viewport.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.01f);
 
-            HorizontalLayoutGroup hlg = nodeContainer.AddComponent<HorizontalLayoutGroup>();
-            hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.spacing = 150;
+            GameObject content = new GameObject("StageNodesContent", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
+            content.transform.SetParent(viewport.transform, false);
+            RectTransform contentRect = content.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 0.5f);
+            contentRect.anchorMax = new Vector2(0f, 0.5f);
+            contentRect.pivot = new Vector2(0f, 0.5f);
+            contentRect.anchoredPosition = Vector2.zero;
+
+            HorizontalLayoutGroup hlg = content.GetComponent<HorizontalLayoutGroup>();
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.spacing = 40f;
+            hlg.padding = new RectOffset(24, 24, 0, 0);
             hlg.childControlWidth = false;
+            hlg.childForceExpandWidth = false;
 
-            // Create Stage Nodes
-            foreach (var stage in chapterStages)
+            ContentSizeFitter fitter = content.GetComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+            ScrollRect scroll = scrollRoot.GetComponent<ScrollRect>();
+            scroll.horizontal = true;
+            scroll.vertical = false;
+            scroll.viewport = viewportRect;
+            scroll.content = contentRect;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+
+            string scrollTargetStageId = null;
+            foreach (CampaignStageData stage in visibleStages)
             {
-                CreateStageNode(nodeContainer.transform, stage);
+                CreateStageNode(content.transform, stage);
+                if (scrollTargetStageId == null && stage.isUnlocked)
+                    scrollTargetStageId = stage.stageId;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
+            if (!string.IsNullOrEmpty(scrollTargetStageId))
+            {
+                Transform target = content.transform.Find($"StageNode_{scrollTargetStageId}");
+                if (target is RectTransform targetRect)
+                {
+                    float contentWidth = Mathf.Max(1f, contentRect.rect.width);
+                    float viewportWidth = Mathf.Max(1f, viewportRect.rect.width);
+                    float targetX = targetRect.anchoredPosition.x;
+                    float normalized = contentWidth <= viewportWidth
+                        ? 0f
+                        : Mathf.Clamp01((targetX - viewportWidth * 0.5f) / (contentWidth - viewportWidth));
+                    scroll.horizontalNormalizedPosition = normalized;
+                }
             }
         }
 
@@ -1079,7 +1603,13 @@ namespace MyriadOfDragons.UI
             nodeObj.transform.SetParent(parent, false);
 
             Image nodeImg = nodeObj.AddComponent<Image>();
-            nodeImg.color = stage.isUnlocked ? new Color(0.85f, 0.65f, 0.2f) : new Color(0.3f, 0.3f, 0.35f, 0.7f);
+            PlayerProfile profile = SaveSystem.CurrentProfile;
+            bool cleared = profile?.claimedStageRewardIds != null && profile.claimedStageRewardIds.Contains(stage.stageId);
+            nodeImg.color = cleared
+                ? new Color(0.25f, 0.55f, 0.35f, 1f)
+                : stage.isUnlocked
+                    ? new Color(0.85f, 0.65f, 0.2f, 1f)
+                    : new Color(0.3f, 0.3f, 0.35f, 0.85f);
             nodeImg.raycastTarget = true;
 
             Button btn = nodeObj.AddComponent<Button>();
@@ -1088,14 +1618,14 @@ namespace MyriadOfDragons.UI
             btn.onClick.AddListener(() => OpenStageDetails(stage));
 
             RectTransform rect = nodeObj.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(180, 180);
+            rect.sizeDelta = new Vector2(220, 220);
 
-            // Stage Number Badge
-            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, 20), 36, TextAnchor.MiddleCenter);
-
-            // Stage Status Label
-            string statusText = stage.isUnlocked ? stage.title : "LOCKED";
-            CreateTextElement(nodeObj.transform, "Status", statusText, new Vector2(0, -45), 20, TextAnchor.MiddleCenter);
+            string badge = stage.isUnlocked
+                ? (cleared ? "CLEARED" : "PLAY")
+                : "LOCKED";
+            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, 35), 34, TextAnchor.MiddleCenter);
+            CreateTextElement(nodeObj.transform, "Status", badge, new Vector2(0, -10), 18, TextAnchor.MiddleCenter);
+            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -50), 16, TextAnchor.MiddleCenter);
         }
 
         /// <summary>Campaign launch feedback contract: invokes the real launch gate
@@ -1130,6 +1660,7 @@ namespace MyriadOfDragons.UI
                 CampaignLaunchOutcome.BlockedLocked => HomePagePresenter.LockedBlockedMessage,
                 CampaignLaunchOutcome.BlockedInsufficientStamina => HomePagePresenter.StaminaBlockedMessage,
                 CampaignLaunchOutcome.BlockedInvalidConfig => HomePagePresenter.InvalidConfigBlockedMessage,
+                CampaignLaunchOutcome.BlockedByGate => HomePagePresenter.GateBlockedMessage,
                 _ => statusText.text,
             };
         }

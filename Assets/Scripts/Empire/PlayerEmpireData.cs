@@ -107,10 +107,26 @@ namespace MyriadOfDragons.Empire
         /// <summary>Fraction (0-1) of lost card HP/soldier count restored after a match ends.</summary>
         public float PostMatchReplenishRate => _postMatchReplenishRate;
 
-        // Deck slots: 10 (new player) up to 20, +1 per 5 Barracks levels (reaches 20 at level 50).
-        private const int BaseDeckSlotCount = 10;
+        // Deck slots: paid Barracks milestones only (docs/EMPIRE_SCHEMA_LOCK_2026-08-22.md).
+        // The old ÷5 formula reached 20 slots at Barracks 50 and granted empty +1 levels
+        // (2, 3, 4…) that construction must never sell. Lookup, not arithmetic.
+        private static readonly int[] PaidBarracksMilestones = { 1, 5, 10, 15, 20, 25, 30 };
+        private static readonly int[] DeckSlotsAtPaidMilestone = { 10, 11, 12, 14, 16, 18, 20 };
+        // Gold to BUY that milestone from the previous paid tier (L1 is free start).
+        // Pacing vs Campaign first-clear Gold (~6.2k Ch1, ~155k through Ch3, ~650k through Ch5,
+        // ~2.2M through Ch8): early tiers after Ch1–2; L30 needs late-campaign Gold and must
+        // compete with Castle/Gate sinks — Barracks-only dump still cannot finish before deep Ch5.
+        private static readonly int[] GoldCostAtPaidMilestone =
+        {
+            0,       // L1 start
+            1_200,   // → L5
+            5_000,   // → L10
+            15_000,  // → L15
+            40_000,  // → L20
+            100_000, // → L25
+            250_000, // → L30
+        };
         private const int MaxDeckSlotCount = 20;
-        private const int BarracksLevelsPerDeckSlotTier = 5;
 
         // Resource cap rescaled 2026-08-05 alongside Avatar HP - the two had drifted out of
         // proportion (HP went to the hundreds/thousands, Resource stayed at 8-20), and a
@@ -124,6 +140,9 @@ namespace MyriadOfDragons.Empire
         private const int ResourceBonusPerTier = 5;
         private const int MaxAvatarResourceBonus = 30; // reached at Avatar level 30
         private const int MaxCastleResourceBonus = 30; // reached at Castle level 30
+
+        /// <summary>Hard cap for Castle building level (Empire construction + cost tables).</summary>
+        public const int MaxCastleLevel = 30;
         // Restored to 0.6 on 2026-08-21 (Chapter 1 systemic combat-balance audit).
         // The 1.0 "full cap from Turn 1" experiment let both sides dump near-full boards in
         // Formation; with a full Turn-1 dump that produced 1-tick Chapter 1 clears under a
@@ -207,11 +226,238 @@ namespace MyriadOfDragons.Empire
             return Mathf.RoundToInt(OnboardingHealthBonus * remaining);
         }
 
+        // Barracks no longer scales unused regen/replenish. Those rates are not match-read
+        // today; tying them to Barracks level would be fake depth when the building's only
+        // shipped combat effect is deck slots.
         private const float BaseResourceRegenRate = 1f;
-        private const float ResourceRegenPerBarracksLevel = 0.01f;
-
         private const float BasePostMatchReplenishRate = 0.5f;
-        private const float ReplenishPerBarracksLevel = 0.005f;
+
+        /// <summary>
+        /// Deck slots granted by a stored Barracks level. Interstitial levels keep the last
+        /// paid milestone's slots; levels past 30 stay capped at 20.
+        /// </summary>
+        public static int DeckSlotsForBarracksLevel(int barracksLevel)
+        {
+            int level = Mathf.Max(1, barracksLevel);
+            int slots = DeckSlotsAtPaidMilestone[0];
+            for (int i = 0; i < PaidBarracksMilestones.Length; i++)
+            {
+                if (level >= PaidBarracksMilestones[i])
+                    slots = DeckSlotsAtPaidMilestone[i];
+                else
+                    break;
+            }
+
+            return Mathf.Min(MaxDeckSlotCount, slots);
+        }
+
+        /// <summary>
+        /// Next construction target. Never current+1. 0 means Barracks is already at the L30 cap.
+        /// </summary>
+        public static int NextPaidBarracksMilestone(int currentBarracksLevel)
+        {
+            int current = Mathf.Max(1, currentBarracksLevel);
+            for (int i = 0; i < PaidBarracksMilestones.Length; i++)
+            {
+                if (PaidBarracksMilestones[i] > current)
+                    return PaidBarracksMilestones[i];
+            }
+
+            return 0;
+        }
+
+        // Gate = meta-only chapter route clearance (EMPIRE_SCHEMA_LOCK). Necessary ≠ sufficient:
+        // Campaign still requires stage unlock (+ later Avatar/collection/mini-game gates).
+        private static readonly int[] GateLevelForChapter =
+        {
+            0,  // unused index 0
+            1,  // Ch1
+            3,  // Ch2
+            6,  // Ch3
+            9,  // Ch4
+            12, // Ch5
+            15, // Ch6
+            18, // Ch7
+            21, // Ch8
+            24, // Ch9
+            27, // Ch10
+        };
+
+        /// <summary>
+        /// Highest Campaign chapter (1–10) this Gate level may attempt. Gate L30 is reserved for
+        /// a future side/endgame route and still returns 10 here — no Chapter 11 invented.
+        /// </summary>
+        public static int GetHighestCampaignChapterAllowed(int gateLevel)
+        {
+            int level = Mathf.Max(1, gateLevel);
+            int highest = 1;
+            for (int chapter = 1; chapter <= 10; chapter++)
+            {
+                if (level >= GateLevelForChapter[chapter])
+                    highest = chapter;
+                else
+                    break;
+            }
+
+            return highest;
+        }
+
+        /// <summary>True if Gate alone permits this chapter. Does not check stage unlock.</summary>
+        public static bool IsCampaignChapterAllowedByGate(int gateLevel, int chapter)
+        {
+            if (chapter < 1 || chapter > 10)
+                return false;
+            return gateLevel >= GateLevelForChapter[chapter];
+        }
+
+        /// <summary>Block W.1: read-only lookup for test/harness setup - the exact Gate level a
+        /// profile needs to reach before <see cref="IsCampaignChapterAllowedByGate"/> allows this
+        /// chapter. Returns 0 for an out-of-range chapter (no valid minimum). Does not change
+        /// GateLevelForChapter itself.</summary>
+        public static int MinimumGateLevelForChapter(int chapter)
+        {
+            if (chapter < 1 || chapter > 10)
+                return 0;
+            return GateLevelForChapter[chapter];
+        }
+
+        /// <summary>
+        /// Minimum Castle level required before a Gate upgrade to <paramref name="targetGateLevel"/>
+        /// may start (feasibility ladder). Returns 0 if target is not a Gate route milestone.
+        /// </summary>
+        public static int MinimumCastleForGateLevel(int targetGateLevel)
+        {
+            switch (targetGateLevel)
+            {
+                case 1: return 1;
+                case 3: return 5;
+                case 6: return 10;
+                case 9: return 15;
+                case 12: return 20;
+                case 15: return 22;
+                case 18: return 24;
+                case 21: return 26;
+                case 24: return 28;
+                case 27: return 30;
+                case 30: return 30;
+                default: return 0;
+            }
+        }
+
+        // Gate Gold — purchasable milestones only (CASTLE_GATE_GOLD_CC_ACCEPT_2026-08-22).
+        private static readonly int[] PaidGateMilestones = { 3, 6, 9, 12, 15, 18, 21, 24, 27, 30 };
+        private static readonly int[] GoldCostAtPaidGateMilestone =
+        {
+            1_900, 7_000, 12_000, 20_000, 35_000, 55_000, 80_000, 110_000, 140_000, 180_000
+        };
+
+        /// <summary>Next purchasable Gate milestone above current. 0 if at L30 cap.</summary>
+        public static int NextPaidGateMilestone(int currentGateLevel)
+        {
+            int current = Mathf.Max(1, currentGateLevel);
+            for (int i = 0; i < PaidGateMilestones.Length; i++)
+            {
+                if (PaidGateMilestones[i] > current)
+                    return PaidGateMilestones[i];
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Gold to start upgrade to <paramref name="targetGateMilestone"/>. 0 unless target is
+        /// exactly the next paid Gate milestone.
+        /// </summary>
+        public static int GoldCostForGateUpgrade(int currentGateLevel, int targetGateMilestone)
+        {
+            int next = NextPaidGateMilestone(currentGateLevel);
+            if (next == 0 || targetGateMilestone != next)
+                return 0;
+
+            for (int i = 0; i < PaidGateMilestones.Length; i++)
+            {
+                if (PaidGateMilestones[i] == targetGateMilestone)
+                    return GoldCostAtPaidGateMilestone[i];
+            }
+
+            return 0;
+        }
+
+        // Castle Gold L2–L30 (CASTLE_GATE_GOLD — publish gate passed 2026-08-22).
+        // Index 0 unused; index N = Gold to buy Castle level N from N-1.
+        private static readonly int[] GoldCostToReachCastleLevel =
+        {
+            0,
+            0,       // L1 start
+            250, 400, 550, 750,                 // L2–L5
+            1_100, 1_400, 1_800, 2_200, 2_800, // L6–L10
+            4_000, 5_000, 6_200, 7_500, 9_000, // L11–L15
+            12_000, 14_500, 17_000, 20_000, 24_000, // L16–L20
+            28_000, 28_000, 34_000, 40_000, 50_000, // L21–L25
+            60_000, 70_000, 82_000, 95_000, 110_000 // L26–L30
+        };
+
+        /// <summary>Gold to raise Castle from current to current+1. 0 at cap or invalid.</summary>
+        public static int GoldCostForCastleUpgrade(int currentCastleLevel)
+        {
+            int current = Mathf.Max(1, currentCastleLevel);
+            int target = current + 1;
+            if (target < 2 || target > MaxCastleLevel)
+                return 0;
+            return GoldCostToReachCastleLevel[target];
+        }
+
+        /// <summary>Total Gold to climb Castle from <paramref name="currentCastleLevel"/> to max.</summary>
+        public static int RemainingGoldToMaxCastle(int currentCastleLevel)
+        {
+            int total = 0;
+            int level = Mathf.Max(1, currentCastleLevel);
+            while (level < MaxCastleLevel)
+            {
+                int cost = GoldCostForCastleUpgrade(level);
+                if (cost <= 0)
+                    break;
+                total += cost;
+                level++;
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// Gold charged to start the upgrade that lands on <paramref name="targetMilestone"/>.
+        /// 0 if the target is not a paid milestone above the current level.
+        /// </summary>
+        public static int GoldCostForBarracksUpgrade(int currentBarracksLevel, int targetMilestone)
+        {
+            int next = NextPaidBarracksMilestone(currentBarracksLevel);
+            if (next == 0 || targetMilestone != next)
+                return 0;
+
+            for (int i = 0; i < PaidBarracksMilestones.Length; i++)
+            {
+                if (PaidBarracksMilestones[i] == targetMilestone)
+                    return GoldCostAtPaidMilestone[i];
+            }
+
+            return 0;
+        }
+
+        /// <summary>Total Gold to climb from <paramref name="currentBarracksLevel"/> to L30.</summary>
+        public static int RemainingGoldToMaxBarracks(int currentBarracksLevel)
+        {
+            int total = 0;
+            int level = Mathf.Max(1, currentBarracksLevel);
+            while (true)
+            {
+                int next = NextPaidBarracksMilestone(level);
+                if (next == 0)
+                    return total;
+
+                total += GoldCostForBarracksUpgrade(level, next);
+                level = next;
+            }
+        }
 
         /// <summary>
         /// Recomputes every meta-progression value this Empire currently grants. Call after
@@ -220,25 +466,44 @@ namespace MyriadOfDragons.Empire
         /// </summary>
         public void InitializeTCGModifiers()
         {
-            int deckSlotTiers = _barracksLevel / BarracksLevelsPerDeckSlotTier;
-            _deckSlotCount = Mathf.Min(MaxDeckSlotCount, BaseDeckSlotCount + deckSlotTiers);
+            _deckSlotCount = DeckSlotsForBarracksLevel(_barracksLevel);
 
             int avatarResourceBonus = Mathf.Min(MaxAvatarResourceBonus, (_avatarLevel / LevelsPerResourceTier) * ResourceBonusPerTier);
-            int castleResourceBonus = Mathf.Min(MaxCastleResourceBonus, (_castleLevel / LevelsPerResourceTier) * ResourceBonusPerTier);
+            int castleResourceBonus = CastleResourceBonusForLevel(_castleLevel);
             _resourceCap = BaseResourceCap + avatarResourceBonus + castleResourceBonus;
             _turn1Resource = Mathf.RoundToInt(_resourceCap * Turn1ResourceFraction);
 
             int avatarHealthBonus = Mathf.Min(MaxAvatarHealthBonus,
                 (_avatarLevel / LevelsPerResourceTier) * HealthBonusPerTier);
-            int castleHealthBonus = Mathf.Min(MaxCastleHealthBonus,
-                (_castleLevel / LevelsPerResourceTier) * HealthBonusPerTier);
+            int castleHealthBonus = CastleHealthBonusForLevel(_castleLevel);
             _startingAvatarHealth = BaseAvatarHealth + avatarHealthBonus + castleHealthBonus
                 + OnboardingBonusFor(_avatarLevel);
 
-            _resourceRegenRate = BaseResourceRegenRate + (_barracksLevel * ResourceRegenPerBarracksLevel);
+            _resourceRegenRate = BaseResourceRegenRate;
+            _postMatchReplenishRate = BasePostMatchReplenishRate;
+        }
 
-            float rawReplenishRate = BasePostMatchReplenishRate + (_barracksLevel * ReplenishPerBarracksLevel);
-            _postMatchReplenishRate = Mathf.Clamp01(rawReplenishRate);
+        /// <summary>Castle-only Resource Cap contribution at a given Castle level (Empire UI payoff).
+        /// Block AA fix: input is clamped to [1, MaxCastleLevel] - the per-tier formula's own Min
+        /// cap already coincided with level 30 for Resource, but the clamp is made explicit here
+        /// too so both readers are symmetric and robust to an out-of-range input (Castle can never
+        /// exceed MaxCastleLevel via EmpireConstructionRules; no in-range output changes).</summary>
+        public static int CastleResourceBonusForLevel(int castleLevel)
+        {
+            int level = Mathf.Clamp(castleLevel, 1, MaxCastleLevel);
+            return Mathf.Min(MaxCastleResourceBonus, (level / LevelsPerResourceTier) * ResourceBonusPerTier);
+        }
+
+        /// <summary>Castle-only starting Avatar HP contribution at a given Castle level (Empire UI payoff).
+        /// Block AA fix: input clamped to [1, MaxCastleLevel] - MaxCastleHealthBonus (210) sat
+        /// above what the per-tier formula actually reaches at level 30 (120), so without this
+        /// clamp an out-of-range level above 30 could silently produce more HP bonus than the
+        /// real maximum level - unreachable in production, but a real reader defect this
+        /// relationship test caught. Level 30's own bonus is unchanged (still 120).</summary>
+        public static int CastleHealthBonusForLevel(int castleLevel)
+        {
+            int level = Mathf.Clamp(castleLevel, 1, MaxCastleLevel);
+            return Mathf.Min(MaxCastleHealthBonus, (level / LevelsPerResourceTier) * HealthBonusPerTier);
         }
     }
 }

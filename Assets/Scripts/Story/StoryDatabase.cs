@@ -463,6 +463,208 @@ namespace MyriadOfDragons.Story
                     isFinal ? "The threshold falls. Whatever comes next, it will have to answer to us." : $"{enemyName} scatter, broken.",
                     isFinal ? "Chapter seven ends here." : $"{title} is behind us. Boiotia's ash still stretches on.");
             }
+
+            // Chapter 8 depth fill, Stages 8-1..8-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
+            // wartime doctrine). Names come from the ChatGPT naming kit
+            // (CAMPAIGN_10_CHAPTER_NAMING_AND_BEAT_DIALOGUE_KIT_2026-08-22.md, Chapter 8 - Crown
+            // of Storms table) - not invented; title/enemyName match
+            // CampaignMapPresenter.Chapter8DepthFlavor. Required beat dialogue applied verbatim
+            // for 8-1_pre, 8-15_pre, 8-30_pre, 8-30_post per the kit's §3 table; every other
+            // stage stays lightly templated, per the kit's own "do not broaden this into dialogue
+            // for every stage" instruction.
+            (string stageId, string title, string enemyName)[] chapter8Stages =
+            {
+                ("8-1", "Stormward Terrace", "Stormward Guard"),
+                ("8-2", "Sun-Split Causeway", "Sun Guard Patrol"),
+                ("8-3", "Thunderhead Court", "Thunder Court Wardens"),
+                ("8-4", "Gilded Rainstairs", "Rainstairs Legion"),
+                ("8-5", "Cloudharrow Bridge", "Bridge Sentinels"),
+                ("8-6", "Dawnfire Bastion", "Dawnfire Guard"),
+                ("8-7", "Tempest Orchard", "Orchard Cohort"),
+                ("8-8", "Brasswind Gallery", "Gallery Wardens"),
+                ("8-9", "Lightning Well", "Well Keepers"),
+                ("8-10", "Sunforge Ramp", "Sunforge Legion"),
+                ("8-11", "Stormglass Arcade", "Arcade Guard"),
+                ("8-12", "High Noon Redoubt", "Noon Redoubt Command"),
+                ("8-13", "Thunderstep Rise", "Thunderstep Sentinels"),
+                ("8-14", "Goldcloud Parapet", "Parapet Cohort"),
+                ("8-15", "Apollo's Broken Court", "Sun Court Guard"),
+                ("8-16", "Boltfall Stair", "Boltfall Legion"),
+                ("8-17", "Skyfire Reservoir", "Reservoir Wardens"),
+                ("8-18", "Tempest Reliquary", "Reliquary Guard"),
+                ("8-19", "Whitecloud Bastion", "Bastion Cohort"),
+                ("8-20", "Sunward Processional", "Processional Command"),
+                ("8-21", "Stormcrown Gate", "Stormcrown Guard"),
+                ("8-22", "Lightning Choir Hall", "Choir Hall Legion"),
+                ("8-23", "Ash-and-Aurum Span", "Aurum Span Wardens"),
+                ("8-24", "Dawnspire Foot", "Dawnspire Guard"),
+                ("8-25", "Thundercliff Traverse", "Traverse Cohort"),
+                ("8-26", "Solar Watchfire", "Watchfire Legion"),
+                ("8-27", "Tempest Crown Wall", "Crown Wall Guard"),
+                ("8-28", "The Sun Gate", "Sun Gate Command"),
+                ("8-29", "Apollo's Stormworks", "Stormworks High Guard"),
+                ("8-30", "Crown of Storms", "Sun Guard High Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter8Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                bool isFinal = stageId == "8-30";
+                string preEnemyLine = stageId switch
+                {
+                    "8-1" => "Apollo's light burns invaders clean.",
+                    "8-15" => "The Sun Guard has never yielded its court.",
+                    "8-30" => "The crown belongs to the gods.",
+                    _ => $"{enemyName} bar the road through {title}. The storm crown does not forgive trespassers.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "8-1" => "Light only reveals what deserves to fall.",
+                    "8-15" => "Then it has never been tested.",
+                    "8-30" => "Crowns belong to whoever can keep them.",
+                    _ => $"Olympus isn't here. Clear {title} and keep moving.",
+                };
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    isFinal ? "Athena's citadel will close around you." : $"{enemyName} scatter, broken.",
+                    isFinal ? "A closed citadel is only a trapped army." : $"{title} is behind us. The storm still rages ahead.");
+            }
+
+            // Chapter 9 — The Aegis Citadel (naming kit + required beats 9-1/9-15/9-30).
+            (string stageId, string title, string enemyName)[] chapter9Stages =
+            {
+                ("9-1", "Aegis Outer Court", "Aegis Court Watch"),
+                ("9-2", "Spearline Causeway", "Spearline Cohort"),
+                ("9-3", "Owlstone Gatehouse", "Gatehouse Wardens"),
+                ("9-4", "Bronze Verdict Hall", "Verdict Guard"),
+                ("9-5", "Strategos' Walk", "Strategos Legion"),
+                ("9-6", "Shieldwall Arcade", "Shieldwall Cohort"),
+                ("9-7", "War Map Gallery", "Gallery Command"),
+                ("9-8", "Iron Laurel Yard", "Laurel Guard"),
+                ("9-9", "Silent Phalanx Court", "Phalanx Wardens"),
+                ("9-10", "Aegis Foundry", "Foundry Cohort"),
+                ("9-11", "Marble Muster Field", "Muster Command"),
+                ("9-12", "Bronze Archive", "Archive Guard"),
+                ("9-13", "Spearpoint Stair", "Spearpoint Legion"),
+                ("9-14", "Citadel Cistern", "Cistern Wardens"),
+                ("9-15", "Athena's War Hall", "War Hall Command"),
+                ("9-16", "Nine-Shield Passage", "Nine-Shield Guard"),
+                ("9-17", "Gorgon Banner Court", "Banner Cohort"),
+                ("9-18", "Oathbound Barracks", "Oathbound Legion"),
+                ("9-19", "Aegis Bastion", "Bastion Guard"),
+                ("9-20", "Iron Verdict Gate", "Verdict Gate Command"),
+                ("9-21", "Tactical Reliquary", "Reliquary Wardens"),
+                ("9-22", "Owlspire Ascent", "Owlspire Guard"),
+                ("9-23", "Shielded Processional", "Processional Cohort"),
+                ("9-24", "Bronze Throne Annex", "Throne Annex Command"),
+                ("9-25", "The War Council Chamber", "War Council Guard"),
+                ("9-26", "Spearwall Rampart", "Spearwall Legion"),
+                ("9-27", "Aegis Inner Gate", "Inner Gate Cohort"),
+                ("9-28", "Athena's Last Redoubt", "Redoubt Command"),
+                ("9-29", "Citadel Heart", "Citadel High Guard"),
+                ("9-30", "The Aegis Citadel", "Aegis High Command"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter9Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                bool isFinal = stageId == "9-30";
+                string preEnemyLine = stageId switch
+                {
+                    "9-1" => "Athena does not lose wars.",
+                    "9-15" => "You cannot outthink the goddess of war.",
+                    "9-30" => "The shield-wall holds the throne.",
+                    _ => $"{enemyName} bar the road through {title}. The Aegis admits no undisciplined force.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "9-1" => "Every war begins with someone believing that.",
+                    "9-15" => "I do not need to. I need you to make one mistake.",
+                    "9-30" => "Then I break the shield before I take the throne.",
+                    _ => $"Olympus isn't here. Clear {title} and keep moving.",
+                };
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    isFinal ? "Zeus will judge this." : $"{enemyName} scatter, broken.",
+                    isFinal ? "At last. Bring me his judgment." : $"{title} is behind us. The citadel still stands ahead.");
+            }
+
+            // Chapter 10 — The Empty Throne (CAMPAIGN_CH10_NAMING_AND_BEATS_v1.md).
+            var unknownVoice = new StorySpeaker("unknown_voice", "Unknown Voice", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            (string stageId, string title, string enemyName)[] chapter10Stages =
+            {
+                ("10-1", "Throneward Causeway", "Throneward Watch"),
+                ("10-2", "Storm-King's Gate", "Storm Gate Guard"),
+                ("10-3", "Eagle Standard Court", "Eagle Cohort"),
+                ("10-4", "Cloudbound Archive", "Archive Wardens"),
+                ("10-5", "Lightning Rod Hall", "Rod Hall Legion"),
+                ("10-6", "High Throne Stair", "Throne Stair Guard"),
+                ("10-7", "Zeus's Empty Forum", "Forum Command"),
+                ("10-8", "Thunderchain Bridge", "Thunderchain Cohort"),
+                ("10-9", "Skyvault Antechamber", "Skyvault Guard"),
+                ("10-10", "Storm Eagle Roost", "Eagle Legion"),
+                ("10-11", "Crownbolt Gallery", "Crownbolt Wardens"),
+                ("10-12", "The Judgment Steps", "Judgment Guard"),
+                ("10-13", "Cloudbreaker Hall", "Cloudbreaker Command"),
+                ("10-14", "Thunder Oath Chamber", "Oath Cohort"),
+                ("10-15", "The Empty Throne Court", "Throne Court Guard"),
+                ("10-16", "Boltscar Processional", "Processional Legion"),
+                ("10-17", "Skyfire Treasury", "Treasury Wardens"),
+                ("10-18", "Eaglewatch Parapet", "Eaglewatch Guard"),
+                ("10-19", "Tempest Engine Room", "Engine Cohort"),
+                ("10-20", "Zeus's War Balcony", "Balcony Command"),
+                ("10-21", "Stormseal Reliquary", "Reliquary Guard"),
+                ("10-22", "Cloud Crown Rampart", "Crown Rampart Legion"),
+                ("10-23", "Thunderbrand Hall", "Thunderbrand Wardens"),
+                ("10-24", "The Last Aegis", "Last Aegis Cohort"),
+                ("10-25", "Thronefire Vestibule", "Vestibule Guard"),
+                ("10-26", "Sky King's Bastion", "Bastion Command"),
+                ("10-27", "The Broken Scepter", "Scepter Legion"),
+                ("10-28", "Stormheart Gate", "Stormheart Guard"),
+                ("10-29", "The Throne Dais", "Throne High Command"),
+                ("10-30", "The Empty Throne", "Zeus's Final Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter10Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "10-1" => "Kneel before the Sky King.",
+                    "10-15" => "The throne is eternal.",
+                    "10-30" => "One mortal cannot end Olympus.",
+                    _ => $"{enemyName} holds {title}. The Sky Throne will not yield.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "10-1" => "I came to see whether he is still sitting.",
+                    "10-15" => "Nothing empty is eternal.",
+                    "10-30" => "One mortal can show it can end.",
+                    _ => "Clear the path. The empty throne still waits.",
+                };
+
+                if (stageId == "10-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The throne is empty. The war is not."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Then take the storm, Sovereign — and pay its price."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The empty throne still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

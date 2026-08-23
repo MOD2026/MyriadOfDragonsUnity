@@ -191,9 +191,10 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsTrue(bootstrap.TutorialGuidanceCaptionActiveForTests,
                 "A normal match with a valid confirmed deck and nothing placed must show the existing, approved deck-onboarding caption.");
-            Assert.AreEqual("Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
+            Assert.AreEqual(
+                GameBootstrap.NormalBattleModeLabel + "\nYour saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
                 bootstrap.TutorialGuidanceCaptionTextForTests,
-                "The caption shown must be the already-approved normal-match copy, never tutorial step text.");
+                "The caption shown must be Soft mode + the approved normal-match copy, never tutorial step text.");
 
             string title = bootstrap.OpenLanePickerAndGetTitleForTests(Lane.Front);
             StringAssert.DoesNotContain("Place cards in the Front row", title,
@@ -651,15 +652,17 @@ namespace MyriadOfDragons.Tests
             bootstrap.ResetLineupForTests();
 
             Assert.IsFalse(bootstrap.IsTutorialMatch, "Setup: expected Reset Lineup to produce a normal (non-tutorial) match.");
-            Assert.AreEqual("Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
+            Assert.AreEqual(
+                GameBootstrap.NormalBattleModeLabel + "\nYour saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
                 bootstrap.TutorialGuidanceCaptionTextForTests,
-                "The caption must show the normal-match copy immediately after leaving the tutorial - no tutorial step text may survive the transition.");
+                "The caption must show Soft mode + normal-match copy immediately after leaving the tutorial - no tutorial step text may survive the transition.");
 
             // Retry (Play Again) on this now-normal match must keep it a normal match with the
             // same normal-match caption contract, never reverting to tutorial content.
             bootstrap.RetryForTests();
             Assert.IsFalse(bootstrap.IsTutorialMatch, "Requirement: retrying a normal match must remain a normal match.");
-            Assert.AreEqual("Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
+            Assert.AreEqual(
+                GameBootstrap.NormalBattleModeLabel + "\nYour saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
                 bootstrap.TutorialGuidanceCaptionTextForTests,
                 "The normal-match caption must remain correct (not tutorial, not stale) after a retry.");
         }

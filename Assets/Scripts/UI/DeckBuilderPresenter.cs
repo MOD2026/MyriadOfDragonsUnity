@@ -53,6 +53,12 @@ namespace MyriadOfDragons.UI
         private Button recommendedDeckButton;
         private string entryStatusOverride;
 
+        /// <summary>Soft first-open / incomplete-deck guidance — Campaign and To Battle need a confirmed deck.</summary>
+        public const string ConfirmedDeckRequiredGuidance =
+            "Confirm and save a 10-card deck before Campaign or To Battle.";
+
+        public Text DeckStatusTextForTests => deckStatusText;
+
         /// <summary>entryStatusMessage: an optional one-time message shown on the existing status
         /// surface (deckStatusText) instead of the normal GetConfirmStatusText() readout, for a
         /// caller that redirected the player here for a specific reason - currently Home's "To
@@ -122,7 +128,7 @@ namespace MyriadOfDragons.UI
             ownedCollectionCards.Clear();
             ownedCardsById.Clear();
 
-            if (profile == null || profile.cardCollection == null)
+            if (profile == null)
             {
                 return;
             }
@@ -130,30 +136,55 @@ namespace MyriadOfDragons.UI
             cardDatabase = EnsureCardDatabase();
             HashSet<string> seenIds = new HashSet<string>();
 
+            if (profile.UsesCollectionV1 && profile.cardProgression != null)
+            {
+                foreach (CardProgressionRecord record in profile.cardProgression)
+                {
+                    if (record == null || string.IsNullOrEmpty(record.cardId) || record.copyCount < 1)
+                    {
+                        continue;
+                    }
+
+                    TryAddOwnedCardById(record.cardId, seenIds);
+                }
+
+                return;
+            }
+
+            if (profile.cardCollection == null)
+            {
+                return;
+            }
+
             foreach (string cardId in profile.cardCollection)
             {
-                if (string.IsNullOrEmpty(cardId) || !seenIds.Add(cardId))
-                {
-                    continue;
-                }
-
-                Card resolved = cardDatabase != null ? cardDatabase.GetCard(cardId) : null;
-                if (resolved == null)
-                {
-                    continue;
-                }
-
-                ownedCollectionCards.Add(new DeckCardData(
-                    resolved.Id,
-                    resolved.DisplayName,
-                    resolved.Class.ToString(),
-                    resolved.ResourceCost,
-                    resolved.Attack,
-                    resolved.Health,
-                    resolved.ResourcePath()));
-
-                ownedCardsById[resolved.Id] = ownedCollectionCards[ownedCollectionCards.Count - 1];
+                TryAddOwnedCardById(cardId, seenIds);
             }
+        }
+
+        private void TryAddOwnedCardById(string cardId, HashSet<string> seenIds)
+        {
+            if (string.IsNullOrEmpty(cardId) || !seenIds.Add(cardId))
+            {
+                return;
+            }
+
+            Card resolved = cardDatabase != null ? cardDatabase.GetCard(cardId) : null;
+            if (resolved == null)
+            {
+                return;
+            }
+
+            ownedCollectionCards.Add(new DeckCardData(
+                resolved.Id,
+                resolved.DisplayName,
+                resolved.Class.ToString(),
+                resolved.ResourceCost,
+                resolved.Attack,
+                resolved.Health,
+                resolved.ResourcePath()));
+
+            ownedCardsById[resolved.Id] = ownedCollectionCards[ownedCollectionCards.Count - 1];
         }
 
         private void LoadSavedDeck()
@@ -207,10 +238,14 @@ namespace MyriadOfDragons.UI
 
         private void BuildUI()
         {
+            TeardownUI();
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
             canvasObj = new GameObject("DeckBuilderCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasObj.transform.SetParent(transform, false);
             Canvas canvas = canvasObj.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 10;
 
             CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -225,7 +260,8 @@ namespace MyriadOfDragons.UI
             GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(canvasObj.transform, false);
             Image topBarBg = topBar.GetComponent<Image>();
-            topBarBg.color = new Color(0.045f, 0.085f, 0.11f, 1f);
+            if (!HomeV3UiLibrary.TryApplyHeaderFrame(topBarBg))
+                topBarBg.color = new Color(0.045f, 0.085f, 0.11f, 1f);
             SetScreenRectFromTopLeftPixels(topBar.GetComponent<RectTransform>(), 0f, 0f, 1920f, 100f);
 
             Text title = CreateTextElement(topBar.transform, "Title", "DECK BUILDER", Vector2.zero, 34, TextAnchor.MiddleCenter, new Vector2(640, 64));
@@ -371,6 +407,7 @@ namespace MyriadOfDragons.UI
 
             GameObject backBtnObj = CreateButton(railObj.transform, "Btn_Back_Rail", "< BACK", new Vector2(0, 0), new Vector2(210, 62), new Color(0.22f, 0.18f, 0.14f));
             SetNormalizedRect(backBtnObj.GetComponent<RectTransform>(), 0.02f, 0.18f, 0.18f, 0.82f);
+            HomeV3UiLibrary.ApplyNavTileButton(backBtnObj.GetComponent<Button>(), backBtnObj.GetComponent<Image>());
             backBtnObj.GetComponent<Button>().onClick.AddListener(() =>
             {
                 DestroyDynamicUIObject(canvasObj);
@@ -379,10 +416,12 @@ namespace MyriadOfDragons.UI
 
             recommendedDeckButton = CreateButton(railObj.transform, "Btn_Recommended", "RECOMMENDED DECK", new Vector2(0, 0), new Vector2(320, 62), new Color(0.08f, 0.34f, 0.3f)).GetComponent<Button>();
             SetNormalizedRect(recommendedDeckButton.GetComponent<RectTransform>(), 0.39f, 0.18f, 0.61f, 0.82f);
+            HomeV3UiLibrary.ApplyNavTileButton(recommendedDeckButton, recommendedDeckButton.GetComponent<Image>());
             recommendedDeckButton.onClick.AddListener(ApplyRecommendedDeck);
 
             confirmDeckButton = CreateButton(railObj.transform, "Btn_Confirm", "CONFIRM / SAVE DECK", new Vector2(0, 0), new Vector2(320, 62), new Color(0.66f, 0.43f, 0.14f)).GetComponent<Button>();
             SetNormalizedRect(confirmDeckButton.GetComponent<RectTransform>(), 0.80f, 0.18f, 0.98f, 0.82f);
+            HomeV3UiLibrary.ApplyNavTileButton(confirmDeckButton, confirmDeckButton.GetComponent<Image>());
             confirmDeckButton.onClick.AddListener(ConfirmDeck);
         }
 
@@ -605,21 +644,48 @@ namespace MyriadOfDragons.UI
         {
             if (ownedCollectionCards.Count == 0)
             {
-                return "No owned cards are available to build a deck.";
+                return $"{ConfirmedDeckRequiredGuidance} No owned cards are available yet.";
             }
 
             if (activeDeck.Count < deckSizeLimit)
             {
                 int missingCards = deckSizeLimit - activeDeck.Count;
-                return $"Confirm disabled: add {missingCards} more card{(missingCards == 1 ? string.Empty : "s")} to reach {deckSizeLimit}.";
+                return $"{ConfirmedDeckRequiredGuidance} Add {missingCards} more card{(missingCards == 1 ? string.Empty : "s")} ({activeDeck.Count}/{deckSizeLimit}).";
             }
 
             if (!CanConfirmDeck())
             {
-                return "Confirm disabled: the deck must contain unique owned cards only.";
+                return $"{ConfirmedDeckRequiredGuidance} Deck must contain unique owned cards only.";
             }
 
-            return "Deck ready to confirm and save.";
+            if (IsSavedDeckConfirmedAndMatchingActive())
+            {
+                return "Deck confirmed and ready for Campaign / To Battle.";
+            }
+
+            return "Deck complete — tap Confirm / Save Deck before Campaign or To Battle.";
+        }
+
+        /// <summary>True when the profile already has a legal confirmed deck that matches the
+        /// current builder selection (post-Confirm Soft status).</summary>
+        private bool IsSavedDeckConfirmedAndMatchingActive()
+        {
+            if (profile?.activeDeckCardIds == null || profile.activeDeckCardIds.Count != deckSizeLimit)
+                return false;
+            if (activeDeck.Count != deckSizeLimit)
+                return false;
+
+            var saved = new HashSet<string>(profile.activeDeckCardIds);
+            if (saved.Count != deckSizeLimit)
+                return false;
+
+            foreach (DeckCardData card in activeDeck)
+            {
+                if (card == null || !saved.Contains(card.id))
+                    return false;
+            }
+
+            return true;
         }
 
         private GameObject CreateCardVisual(string objectName, DeckCardData card, bool compact)
@@ -800,6 +866,19 @@ namespace MyriadOfDragons.UI
 
             CreateTextElement(btnObj.transform, "Text", label, Vector2.zero, 24, TextAnchor.MiddleCenter, size);
             return btnObj;
+        }
+
+        public void TeardownUI()
+        {
+            if (canvasObj == null) return;
+            canvasObj.SetActive(false);
+            DestroyDynamicUIObject(canvasObj);
+            canvasObj = null;
+        }
+
+        private void OnDestroy()
+        {
+            TeardownUI();
         }
     }
 }

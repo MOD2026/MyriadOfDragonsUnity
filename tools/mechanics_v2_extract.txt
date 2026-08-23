@@ -1,0 +1,387 @@
+﻿Myriad of Dragons
+Game Mechanics v2 - Complete Design Reference
+Compiled August 2026. This is the full system carried forward from the original 2017 doc (game mech 13082017.docx), with the active-lane-combat / integer-stat / Empire-decoupling revisions applied only where explicitly requested. Sections marked &quot;[Unchanged from original]&quot; are carried over as-is - no one asked to redesign them, so nothing was.
+
+How to read this document: Parts I, III, IV, V, and VI are the original game's systems, preserved. Part II (Combat) is the v2 revision - the only system that changed shape. Parts VII-IX are the newly proposed server/presentation/tech layers, marked future-phase. Part X is the running list of open questions.
+
+Part I - World, Onboarding & Empire
+1. Storyline
+[Unchanged from original] In ancient times, the world was ruled by Titans. Humans were their servants, treated worse than any other living creature. One day, a mysterious material was discovered that affects only Titans; mankind forged weapons from it and drove off almost all the Titans. Now the world is in chaos with no leader. As a commander of the Titan rebellion, you raise an army to build an empire and rule the world.
+2. Login & Onboarding
+[Unchanged from original] Age restriction: 9+. Login via email, Facebook, Twitter, or Game Center.
+One account per device, with an option to transfer data if a player changes phones.
+Anti-abuse: device registration is validated against the account to stop one account being played from two or more devices at once; logging in on a new device logs the account out everywhere else.
+Character names are unique server-wide (case-sensitive) and can be changed via IAP.
+Referral codes exist, rewarding both parties (boost potions, building upgrades, cards).
+Jailbreak/root detection: no advantage from a jailbroken device; stamina cannot be refilled by changing the device clock.
+3. Tutorial & Avatar Creation
+[Unchanged from original] Skippable, with a back button at every step. Introduces the storyline (Greek-ancient-times theme), then has the player choose an avatar: an Element (Andras, Ktini, or Pnevmas) and a Type (Strong / Tough / Charisma).
+Element choice gives +10% to same-element card stats.
+Type choice gives +10% to the matching stat: Strong -> Attack, Tough -> Defend, Charisma -> Leadership.
+Stat allocation: 30 points to the avatar's main parameter, 20 points each to the other two.
+Every avatar level-up grants 4 stat points to assign, with 1 of the 4 auto-assigned to the class's primary stat.
+Ally capacity starts at 10, +1 per avatar level, reaching 50 at level 40. Max avatar level is 300 (higher levels unlocked in later phases).
+4. Avatar Parameters & Experience
+[Unchanged from original] Avatar stats: Stamina (for questing, +1 every minute), Orb (for battle), Health (survives in battle, replenishes each battle), Attack, Defend, and Skill (later add-on).
+Experience curve escalates by level band - 1.05x per level-up between levels 1-9, rising in steps up to 1.9x between levels 90-100, then continuing to escalate more gradually (1.905x-1.92x) through level 129 and beyond, per the original experience table.
+Leveling fully replenishes all stats. Flag capacity increases at fixed level milestones (10, 15, 25, 50, 75, 100, 125, 150, 175, 200, 220, 240, 260, 280, 300).
+5. Main UI & Notifications
+[Unchanged from original] Dashboard shows player name, level, % to next level, guild name, Stamina, Orb, resources, and Gems. A &quot;profile card&quot; (Flag Bearer) gives a small stat/skill-trigger bonus while healthy, and a stat/trigger penalty for 3 hours if it's captured in a lost battle.
+6. Empire (Base Building)
+Building upgrades require assigning a character (upgrade speed scales with that character's Leadership); characters are locked while assigned. Fame is the sum of all building levels and grants a small Avatar attack/defend bonus. New players get 5 days of high security before they can be attacked.
+6.1 Castle
+[Unchanged from original] Limits total card/character capacity - base 30, +1 per level, max level 100.
+DESIGN NOTE: v2 revision: Castle's TCG role is now specifically deck size and rarity-cap gating (see Part II, 4.3) - this doesn't change the base-building description above, it's the same lever applied to a deck instead of a raw card-capacity number.
+6.2 Barrack
+[Unchanged from original] Recruits/replenishes soldiers, base capacity 5,000. A recruiter can recruit 300% of their Leadership in soldiers at base level; each Barrack level adds 500 to max soldiers and +5% leadership-recruitment efficiency. Each recruiting cycle takes 3 minutes.
+DESIGN NOTE: v2 revision: In addition to the above, Barracks now also governs the TCG meta-economy - faster resource (&quot;Grip of Titans&quot;) regeneration between matches, additional deck slots at milestones, and how much of a card's HP/soldier count is replenished after a match ends (see Part II, 4.1). Not a replacement of the soldier-recruiting role, an addition to it.
+6.3 Storage
+[Unchanged from original] Safekeeps Food and Gold reserves. Starts at 2,000 capacity for each, multiplying by 1.089x per level, capped at 100 levels (~10 million).
+6.4 Training Grounds
+[Unchanged from original] Boosts leveling and fusing of characters. Starts at 0% bonus; leveling bonus rises 0.05% per level (max 50%), fusing probability rises 0.02% per level (max 20%).
+6.5 Barn & Gold Mines
+[Unchanged from original] Produce Food and Gold respectively. Each starts at 100/hr with a 1.094x multiplier per level, capped at 800,000/hr.
+6.6 Gate
+[Unchanged from original] Empire wall defense. Starts at 2,500 gate health, multiplying 1.089x per level, capped at 100 levels (~20 million).
+DESIGN NOTE: v2 revision: Gate's TCG role is redirected entirely to the open-world/raiding layer - stronger world-map defense, less lost when raided. It has zero effect on card-vs-card combat math (see Part II, 4.2). This replaces an earlier proposal where Gate granted flat in-match Armor; that idea was superseded once the &quot;pull multipliers out of match combat&quot; fix was adopted.
+6.7 Laboratory
+[Unchanged from original] Allows research. Deferred to a later phase in the original doc; not yet specified.
+6.8 Tree of Knowledge
+[Unchanged from original] An experience pool (not auto-collected) that lets a player manually assign banked experience to individual characters. Card experience needed scales by rarity (70 for 1*, 80 for 2*, 100 for 3*, 150 for 4*, 200 for 5* to reach level 130), with per-level-band multipliers similar in shape to the avatar experience curve.
+6.9 Prison
+[Unchanged from original] Holds captives taken from raids, used as sacrifices for character leveling (not avatar leveling). Captive experience value scales by rarity (1*=200 up to 5*=2000). Captives can be interrogated (sent to allies) to induce fear, which increases their experience quality up to a 100% fear cap. Lockdown protects specific cards from accidental sacrifice; locked cards don't appear in the Training Ground selection list.
+7. Recruiting & Card Collection
+[Unchanged from original] New players draw 5 random characters at account start. Rarity uses 7 grades: Common (1*, no skill), Rare (2*, no skill), Super Rare (3*, 1 skill), Mega (4*, 2 skills), Ultra (5*, 2 skills), Legendary (6*, 2 skills), Godlike (7*, 2 skills).
+5 card variants per character: Perfect (+15% all stats), Warrior (higher attack), Knight (higher defend), Strategist (higher leadership), and Normal (average). A 6th variant, Perfect+ (+18%), is earned by fusing the Warrior/Knight/Strategist versions of the same character together.
+DESIGN NOTE: v2 revision: base stat values, the exact rarity growth curve, and the Warrior/Knight/Strategist/Perfect stat treatment are all replaced by the integer model in Part II, 3. The variant/fusion concept above is preserved as the collection-layer explanation of why a card is a Warrior vs. a Knight; the actual battle numbers now come from Part II.
+Package
+Cards
+Gems
+Normal draws
+High draws
+Single draw
+1
+300
+1
+0
+5-pack
+5
+1,400
+4
+1
+9-pack
+9
+2,500
+7
+2
+20-pack
+20
+5,000
+16
+4
+[Unchanged from original] Normal draw odds: 70% / 20% / 10% for 3*/4*/5*. High draw odds (bigger packs only): range from 60/25/15 in the 5-pack up to 20/45/35 in the 20-pack, front-loading better odds as package size increases. Each purchase also earns Loyalty Points, redeemable separately for memberships or cards.
+
+Part II - Combat (v2 Revision)
+This is the one system that actually changed shape. Original: a pre-set 3x3 formation resolving automatically in four waves, with compounding stat multipliers. v2: an active, lane-based match modeled on Marvel Snap (the current top-grossing digital card game), with integer stats a player can do mental math on.
+1. Genre Positioning
+Your rows are already a 3-lane structure - v2 doesn't invent a new template, it reframes the one that already exists as live lanes instead of a pre-battle-only setup.
+2. Core Combat Loop
+2.1 Deck & Setup
+Deck size: 30 cards, drafted from your collection.
+Castle level gates deck size and which rarities are draftable (unchanged in spirit from the original Empire proposal - a deckbuilding gate, not a live-match multiplier).
+Board: 3 lanes - Front, Middle, Back - each with 3 card slots (9 slots total, same footprint as the original 3x3 grid, filled turn by turn instead of pre-set).
+2.2 Turn Structure
+Draw 2 cards (raised from 1 - a single draw/turn from a 30-card deck was too high-variance to make Strategist/tutoring synergies reliable; Marvel Snap's consistency comes from seeing ~75% of a 12-card deck over 6 turns, which a 30-card deck can't match at 1 draw/turn).
+Gain 1 &quot;Grip of Titans&quot; (resource), escalating by 1 each turn, capped at 10.
+Play any number of cards into lanes with open slots, paying resource equal to cost.
+End turn - lanes resolve.
+Resolution is simultaneous (Snap-style, both sides' committed lanes clash together) - implemented and confirmed, not sequential Hearthstone-style turn-by-turn.
+DESIGN NOTE: Initiative-based ordering (whoever holds less total board power acts/commits first, creating tactical cede-or-claim decisions) was proposed to add a skill layer on top of simultaneous reveal. It doesn't have a concrete hook yet: lane-clash damage is already computed from a snapshot taken before either side takes damage, so there's no &quot;who goes first&quot; for it to modify there. The likely hook point is card-play order within a turn, or Taunt/Ultimate-skill trigger priority when both sides would trigger at once - not yet specified precisely enough to implement.
+2.3 Lane Identity (rows, preserved)
+Front lane: +Attack bonus to cards played there.
+Middle lane: +Health/Defense bonus.
+Back lane: originally a Leadership/army-size bonus; reframed as a resource or card-draw bonus since Leadership doesn't translate cleanly into a 1-12 integer duel.
+DESIGN NOTE: The Back lane's resource/draw reframing is a placeholder, not a settled call.
+2.4 Win Condition
+A lane's unblocked attack power is dealt as damage directly to the enemy Avatar's HP (blending Snap's lane relevance with the original doc's Avatar-HP stakes). Avatar HP reaching 0 ends the match.
+Formalized and implemented: for each lane, D = max(0, sum of attacker power in that lane - sum of defender Health in that lane). A lane must be fully cleared (all defending cards dead) before its damage overflow carries through to Avatar HP - the &quot;clear the lane first, then overflow&quot; reading, chosen as a direct extension of the wave-overkill model already validated in the earlier Godot prototype. Every point of excess attack power either kills defending cards or, once the lane is empty, pressures Avatar HP directly - no ambiguous cases.
+3. Card Stats (Integer Model)
+Rarity
+Resource Cost
+Attack range
+Health range
+1 star
+1
+1-2
+1-2
+2 star
+2
+2-3
+2-3
+3 star
+3
+3-4
+3-4
+4 star
+4
+4-6
+4-6
+5 star
+5
+5-7
+5-7
+6 star
+6
+6-9
+6-9
+7 star (Godlike)
+7 (deck max)
+7-12
+7-12
+3.1 Element Bonus
+Ktini beats Andras, Andras beats Pnevmas, Pnevmas beats Ktini - now a flat +1 Attack when attacking a card of the element you counter, instead of a percentage multiplier.
+3.2 Class (formerly &quot;Type&quot;)
+Warrior - +1 Attack. Straightforward, aggressive.
+Knight - Taunt: must be attacked/blocked before other cards in its lane.
+Strategist - On play: draw a card, regardless of which lane it's played in.
+Perfect - Dynamic Adaptability: costs the same as its rarity suggests (the flat +1 cost tax was removed), and instead adopts whichever lane's specialist behavior applies wherever it's played - Front/Middle stat bonuses already apply to every card equally, so the only new behavior this adds is gaining Strategist's on-play draw when played in the Back lane specifically. Replaces the earlier &quot;pay more, get a clean stat line&quot; balance lever, which made Perfect resource-inefficient exactly where curve efficiency matters most in competitive play.
+4. Empire Layer (Decoupled from Match Combat)
+4.1 Barracks - Meta-Economy Pacing
+Higher level = faster Grip of Titans stamina regeneration between matches.
+Unlocks additional deck slots at milestones (30 -> 35 -> 40 card deck cap).
+Determines how much of a card's HP/soldier count is replenished between matches (a card that took heavy losses doesn't fully reset for free - Barracks investment still matters here, without touching live in-match stats).
+4.2 Gate - Open-World / Raiding Layer Only
+Higher level = stronger world-map castle defense, less lost when raided.
+Zero effect on card-vs-card combat math.
+4.3 Castle - Deck Capacity & Rarity Cap
+Gates deck size and which rarities can be drafted - unchanged in spirit from the original Empire proposal.
+5. Reconciling the Original PvP Targeting Rules - RESOLVED
+[Unchanged from original] The original doc's PvP targeting system used a Flag economy: players start with 5 Flags (recover 1 every 105 minutes), and flag cost to attack a rival scales with the level gap - 1 flag for a target within 10 levels, 2 flags for 11-20 levels lower, 3 flags for 20+ levels lower. Lower-level targets give reduced loot.
+This overlapped with the newly proposed Kingdom Era + 10-Level Loot Lock system (Part VII) - both are level-gated PvP protection. Resolved into one 4-layer hierarchy instead of two competing systems:
+Layer
+Function
+Rule
+Kingdom Eras
+Server-wide protection window
+Blocks veteran accounts from moving into a newer Kingdom until a 60-day milestone passes.
+10-Level Loot Lock
+Absolute PvP permission gate
+Blocks attacking any target 10+ levels below the attacker outright.
+Flag Economy
+Action resource cost
+The energy cost to launch an attack that's actually permitted; scales up for lower-level valid targets.
+Retaliation Window
+High-risk counterplay exception
+If a lower-level player attacks first, the Loot Lock dissolves for 48 hours - full-power counter-attacks, no flag surcharge.
+6. Hardcore-CCG Enhancements (Future - Not Built Yet)
+Proposed to raise the mechanical skill ceiling once the core loop above is proven fun and stable. None of these are implemented - each needs a targeting/skill system that doesn't exist yet, which is a real prerequisite, not a formality.
+6.1 Lane Displacement Skills
+High-tier cards could force enemy targets into sub-optimal lanes, or bypass Knight Taunt entirely (Knockback, Reposition, Flank). Adds active board manipulation on top of static power drops, without inflating the integer stat range.
+6.2 &quot;Titan's Stake&quot; Risk/Reward
+Adapted from Marvel Snap's &quot;Snapping&quot; mechanic: before Turn 4, either player can raise the stake, doubling rating points/resource spoils/capture rates on the outcome. The opponent folds (loses the base stake) or calls (doubles down). In Guild Wars, staking risks additional Guild Morale or Gate Integrity instead - a clutch-moment lever for guild champions, not just individual matches.
+6.3 Skill-Tag Synergy Chains
+Strict skill tags (e.g. &quot;Titan Slayer,&quot; &quot;Elemental Surge&quot;) that build a Synergy Combo Meter when matching tags are played across adjacent lanes, unlocking a card's level-100 Ultimate Skill. Ties the existing 100-level character progression and Rune system (Part III 1-2) into active combat without touching the integer stat readability that's the whole point of the v2 rework.
+
+7. Implementation Status and Open Decisions (revised 2026-08-06)
+This section records what is actually built and verified in the Unity project, where it diverges from the specification above, and which design questions remain open. Where this section and Sections 2-3 disagree, this section describes the running game.
+7.1 Match flow as built
+Turn-by-turn card deployment was replaced by a three-phase match. This was the single largest change to Part II, and it was driven by play fatigue: deploying two cards, ending the turn, and repeating that a dozen times.
+Formation - the whole squad hand is dealt at once and placed across the 3x3 board. Cards can be recalled and re-placed freely; nothing is locked until the battle starts.
+Combat - the formation locks and lanes clash automatically on a timer. The only player input is casting Avatar spells.
+Resolved - one Avatar reaches 0 Health, or the clash cap is reached.
+Reinforcement windows open on clash 4 and clash 8, letting cards still in hand be deployed into free slots for Resource. Without these, leftover cards and leftover Resource had no use at all once a match began.
+A hard cap of 12 clashes, decided on remaining Health as a fraction of each side own maximum. This is not optional polish: without it a match hangs forever once both squads wipe each other out, because every lane is empty, total Attack is zero on both sides, and no further damage is possible. That state was reached in play.
+7.2 Combat rules that differ from Sections 2 and 3
+An undefended lane passes its full incoming damage to the Avatar behind it. Previously an empty lane absorbed everything and dealt nothing, so attacking into open space achieved literally nothing.
+Overflow damage to an Avatar is multiplied, and the multiplier escalates: x6 for clashes 1-6, x9 for 7-9, x12 for 10-12. This turns the cap from a result into a deadline and removes the incentive to turtle to the tie-breaker.
+Each living card in the Back lane generates +2 Energy per clash. The Back lane previously granted nothing at all and existed only as overflow space.
+Elemental advantage (Ktini over Andras over Pnevmas) is applied as +25% to a lane TOTAL Attack, not per card. Applied per card to a 1-12 stat it rounds to +1, which is exactly the flat bonus it was meant to replace.
+Slot weighting: rarity 1-4 occupies one of a lane three slots, rarity 5-7 occupies two. Board space, not Resource, is the binding constraint, so without this the correct play was always to fill nine slots with the highest rarity owned.
+Formation synergy: two or more deployed cards sharing an affinity tag grant a flat Attack and Health bonus to the whole squad, resolved once when the formation locks.
+A tie-breaker draw counts as a loss for progression and grants nothing. This is deliberate and should not be softened - a rewarded draw is farmable by mutual turtling.
+7.3 Open decision: the stat scale
+Section 3 Integer Model (1-12 Attack and Health) is still what the game runs on. A x10 rescale has been proposed but is NOT decided, and the argument most often made for it does not hold.
+The usual justification is that building upgrades cannot grant granular bonuses at 1-12 scale, since +1 is an 8-100% swing. But Part I Section 6 and Part II Section 4 both require that Empire buildings never grant flat stats to live cards. If buildings never buff card stats, that problem does not arise, and so it cannot justify a rescale.
+The genuine justification is percentage effects that already exist - elemental advantage, and any future percentage modifier. These are currently workable only because the elemental bonus is applied at lane-sum scale rather than per card.
+If a rescale is adopted, x10 is preferred to x100. Both give the same granularity per building level, but x10 keeps values at two to three digits and needs no abbreviation. Abbreviating to 1.2K is a loss of precision - it cannot distinguish 1,150 from 1,249 - so the player would see less than they do today.
+A rescale must be atomic. Six systems move together or the game silently breaks: the rarity stat table, Avatar spell magnitudes, formation synergy bonuses, the Empire Avatar-Health formulas, card costs, and the Avatar damage multiplier. Note that the damage multiplier is scale-invariant if card stats and Avatar Health scale by the same factor, so that one alone may need no change.
+7.4 Known flaw in the proposed rarity curve
+The candidate x10 curve (rarity 4 at 48/48, rarity 7 at 96/112) is claimed to contain high rarity because a wide board of three rarity-4 cards out-damages a tall board of one rarity-7 plus one rarity-1 by 36%. That comparison measures Attack only.
+Attack per slot is flat across the curve: rarity 4 gives 48 per slot, rarity 7 gives 48 per slot.
+Health per slot rises with rarity: rarity 4 gives 48 per slot, rarity 7 gives 56 per slot, which is 17% better.
+Because overflow damage requires a lane to be completely cleared, surviving is worth more than hitting - a lane that holds blocks all damage. Health per slot is therefore the more valuable axis, and the curve hands that axis to high rarity.
+As specified, slot weighting does not contain high rarity. It trades a 36% offence advantage for a 17% defence advantage on the axis that matters more. Either equalise Health per slot (rarity 7 at 96 Health rather than 112), or restate the claim honestly as a trade rather than as containment.
+7.5 Proposals considered and rejected
+Immortal cards (the Avatar Conduit model), where cards are permanent stat conduits that never die. Rejected - it removes the purpose of Taunt, the lane-clearing rule and overflow, and leaves a board that stops changing by round three, after which the match is arithmetic with no decisions in it.
+A single unified resource covering both deployment and spells. Rejected - it makes every spell cost a deployment. The two economies are deliberately separate so neither cannibalises the other.
+Spell catalysts, where casting requires discarding a card of a named class. Rejected - the cards worth discarding are the cards worth playing, and a hand can easily hold no valid class, leaving the entire spell bar dead through no fault of play.
+Percentage bonuses to skill trigger chance. Rejected - every class hook in this game is deterministic. Knight always taunts, Strategist always draws on play, Perfect draws in the Back lane. There is no trigger chance anywhere to modify.
+Per-card levels and fusion level caps. Deferred rather than rejected - these need experience curves and per-card persistence, and the project has no save system at all, so card levels would reset on every launch.
+7.6 Verification and its limits
+The rules in 7.1 and 7.2 are covered by 45 automated tests run headlessly through the Unity test runner. The tests deliberately assert relationships rather than magnitudes - that Avatar damage equals raw overflow times the multiplier, for instance, rather than that it equals a particular number - so that a balance change does not read as a regression. They will survive a rescale and still catch structural breakage, but they cannot detect that a set of numbers has become unbalanced. Any rescale needs a separate balance pass.
+Not covered by tests: anything driven by a coroutine or by Update(), which includes the combat timer, every animation, and the story and tutorial overlays. Unity EditMode runner cannot execute those, so they need manual play verification.
+Part III - Character Progression
+1. Evolution & Fusion
+[Unchanged from original] A new character has a low max level (e.g. 15). Evolving with a duplicate of the same character raises the current max level in steps (design intent: 6 fusions from a 25-level start to reach the level-100 cap). To evolve, the player selects a base card and a sacrifice card; because there are 5 variants per character, the fusion result differs by variant. Fusing is also an alternate path to leveling up to the current max.
+Max character level: 100.
+Each character has 2 skills: an Individual skill and an Ultimate skill (unlocked at level 100), each with a max skill level of 10.
+Only 3* and above cards can be used as sacrifice fodder to raise skill level; the experience needed to fill the next skill gauge doubles each time. Higher-rarity or similar-skill sacrifices give more skill experience.
+A later phase adds a skill-matching bonus when 2+ cards with similar skills are used together in a deck.
+2. Equipment & Runes (Later Phase)
+[Unchanged from original] Avatar and character equipment slots: Armor (defend), Weapon (attack), Accessory (leadership). Players start with 3 empty slots (1 each) and can unlock up to 6 total - the 4th at avatar level 100, 5th at level 150, 6th at level 200.
+An Evolution card mechanic resets a card's level to half its current level but keeps stats and skill intact.
+Reaching max level grants a random Rune; better runes become more likely as card rarity increases.
+Rune tiers: Normal (single stat, e.g. weapon attack), Rare (health/defend/leadership/stamina), Epic (multi-stat, or trigger%/captive-rate bonuses).
+5 runes per weapon; once embedded, permanent. Removing equipped items costs 50% of max resources.
+3. Items
+[Unchanged from original] Potions (health/stamina, or attack/defend recovery via Flags), spell books, Peace Treaty (attack immunity), Signal Fire (army replenishment). Event items are non-tradable; other potions may be tradable or locked depending on type.
+DESIGN NOTE: Renamed &quot;High Security&quot; to &quot;Peace Treaty&quot; - a modern tech-security term read oddly next to Dragon Coins and Titan lore, and the game's own icon asset for this item is already named &quot;ppeace&quot; (peace), so the theming was already implied. Real icon art now exists for every item in this section - see Assets/Resources/UI/Icons/ and Assets/Scripts/Items/ItemDatabase.cs in the Unity project, sourced from Drawing/Jackie/UI/Icons/. Two additions grounded in that same icon set: Dragon Coin (a premium currency icon existed but wasn't written up as its own item before) and Dragon Egg (see Part V 10 - gives the Pet Raising event a concrete collectible instead of generic &quot;event food&quot;).
+
+Part IV - Social Systems
+1. Chat
+[Unchanged from original] Forum-style channels: trading, tips, casual, recruitment (later phase), and live chat (app-internal, Kakao/Line/WhatsApp-style). Trading/tip/casual threads auto-delete a month after the last post. Anti-spam: no repeating the same sentence more than twice; no pornographic, racist, or discriminatory content; one warning per week, escalating punishment after.
+2. Trading
+2.1 Individual Trading
+[Unchanged from original] Players propose trades directly, browsing each other's decks (equipped items are always hidden, other items optionally hidden). Locked for the first 10 days of an account. Trade history rating (1-5 stars) and transaction count are visible to a proposing party. Up to 5 slots per side, max 8 open trades at a time, both parties must accept.
+2.2 Bazaar (Open Market)
+[Unchanged from original] 3 listing slots per player, one item type per slot (cards, potions, gold, food, weapons, armor, accessories, runes) but multiple units of that type per slot. Gems and Dragon Coins are never tradable. Each listing lasts 48 hours; listed items are locked. 13 trades/day; up to 10 cancellations/day. Level gates: no Bazaar access below level 15; no 4*/5* trading below level 15/18 respectively; full access (5*+) at level 20.
+3. Allies
+[Unchanged from original] Open at any level. Adding an ally grants 3 stat points; up to 3 allies/day can be removed to reclaim 9 points (removed stats bank for the player), with any further removals in a day not affecting stats. 1 Ally Point/day is earned per message sent to an ally; sending Gold/Food to an ally also earns points, capped at 3 times.
+4. Guild
+[Unchanged from original] Roster size scales with Guild Castle level, up to 40 (with a possible extension to 50). 4 roles exist: Guild Leader, Guardian Leader, Assault Leader, Warrior Leader (more planned later). Minimum 5 players to found a guild, formed within 24 hours of the founding request. Guild level (max 100) rises via member donations of food/gold/items/characters, and unlocks benefits: attack/defend/leadership boosts, gold/food boosts, extra trade slots, and card-capacity increases at various level milestones. Leaving a guild has a 4-hour cooldown before joining another.
+4.1 Guild War Roles (v2 refinement)
+The original doc already defined Guardian / Assault / Healer roles for the Guild Wars event (see Part V, 3 for the full event mechanics: morale, combos, medals, siege). v2 adds a direct tie from the new lane-based TCG matches into those same roles:
+Guardian - wins in lane-based PvP matches during a Guild War raise a magical shield around the Guild Castle (increases its HP pool for that war cycle) and can plant &quot;Fortify&quot; traps at the gates.
+Assault - wins deal Siege Damage to the enemy guild's perimeter walls, unlocking access to deeper opponent tiers.
+Healer - plays PvE survival matches instead of PvP; wins generate &quot;Aura Shards,&quot; spent to revive a fallen ally's deck or clear their 1-hour defeat cooldown.
+DESIGN NOTE: This is additive to the original Guild War mechanics (morale costs, combo stacking, medal totals, siege-meter triggers all still apply per Part V, 3) - it's specifically how individual match outcomes now feed into those systems, now that matches are active TCG duels instead of instant auto-resolves.
+4.2 Shared Armory & Card Taxation (new)
+Guild Vault: high-tier members can deposit powerful, high-rarity cards.
+Lower-tier members can borrow vaulted cards for their deck during active events.
+A percentage of the Gold/Food a borrower earns while using a borrowed card is automatically taxed back into the Guild Infrastructure fund.
+5. Skills & Hall of Fame
+[Unchanged from original] Skills carry a percentage trigger chance. A Hall of Fame recognizes beta testers and players whose suggestions get implemented (5 bonus event items per event); bug reporters get 5 event items or 5 locked potions but are not in the Hall of Fame, limited to the first 5 reporters of a given bug.
+
+Part V - Events
+Preserved in full from the original doc - no changes were proposed to the event roster, so none were made. Events launch once the server reaches roughly 10,000 players.
+1. Event Reward Tiers
+[Unchanged from original] Individual rankings use 10 tiers (Tier A: rank 1-10 through Tier J: rank 10,000+). Concurrent-cycle tiers group players into brackets that double in size each step (Tier 1: top 50, Tier 2: next 100, Tier 3: next 200, ... ), with 10 random same-tier players grouped per 6-hour cycle. Some cycles are &quot;Bloodlust&quot; cycles with 2x-3x rewards. Most events run 7-10 days; Guild Wars runs on alternate weekends.
+2. Chest Event
+[Unchanged from original] Storyline: after the Titans' fall, human chest-hunters dig for the wealth Titans hoarded. 3 explorable areas trade off stamina cost against chest/key drop rate. Gold and Wooden chests exist (gold requires 3 gold keys or 1 gold + partial normal-key combos to open; wooden opens with 1 normal key at 90%). A meter fills as chests open, triggering a 10-minute &quot;blessed moment&quot; with +50% item drops and a boss spawn.
+3. Raid (Kill Boss) Event
+[Unchanged from original] Storyline: an exiled witch revives Titan remains into an army; the player must stop her. Bosses spawn randomly during questing; each area clearance boosts the player's effective attacking power against the boss (up to +200%). 3 attack options cost 1/3/5 flags for 10%/150%/200% damage respectively. A Rage meter grants 1.5x damage for 10 minutes once filled. Each boss kill raises the next boss's health 1.15x and stats 1.1x. A rare &quot;special boss&quot; occasionally appears, dealing 2x damage rewards for 15 minutes.
+4. Guild Wars
+[Unchanged from original] 2-4 sessions per war day, each a 2-hour window containing two 30-minute battles. Players attack each other and the enemy guild castle for medals; the winning guild gets +20% of total medals won. Guilds are grouped into 7 tiers and matched within-tier, with no repeat opponents in a day (except for the top tier, where the matchmaking pool is too small).
+Morale: 10 granted at session start; skill activation costs 5 morale; morale regenerates via normal questing (10 stamina spent = 1 morale) or a social-media post (once per battle, also revives players).
+Life: each player has 5 lives; losing all 5 blocks attacking (skills still usable). A player only loses 1 life when defending and losing.
+Combo: guild-wide attack combo stacks up to 200 (each combo = 0.001x damage), granting 1.2x attack/defend to all guildmates at max stack; resets after 3 minutes without a guild attack.
+Roles: Guardian (leadership +1.2x to all, reduces medals opponents earn, castle only attackable once 50% of guardians fall), Assault (attack +1.2x to all, can hit 2 enemies per morale), Healer (defend +1.2x to all, heals other Healers on revive, can revive an individual for 5 morale). Switching role mid-battle costs 1 morale; duplicate skills don't stack.
+4 hidden GVG positions: Guild Leader (stays hidden until all 3 captains fall), Guardian Captain, Assault Captain, Medic Captain (each buffs their stat 1.2x guild-wide until defeated). Extra medals for the first successful takedown of the Leader.
+Castle siege attack: hits 50% of remaining enemies at random (including the hidden leader) once its meter is full and a captain activates it; damage scales with guild castle level.
+DESIGN NOTE: v2 addition: how individual PvP match wins feed into these roles is specified in Part IV, 4.1 - this event's morale/combo/siege scaffolding is unchanged, only the underlying match type (now an active lane-based duel) changed.
+5. Battle Royale
+[Unchanged from original] Pre-registered 5-player teams (allies/guildmates only) face off in a 5-team, 6-hour battle field. Win headcounts based on rival strength and damage dealt (including overkill); headcounts split so the winner of a fight gets 2 of 6 portions, the rest split evenly across the team. Players must cycle through at least one member of each other team before hitting a second member of the same team. A same-team follow-up hit within 30 minutes builds a stacking combo (up to 150% normally, 200% once a separate meter triggers &quot;God's Strength&quot; for 10 minutes).
+6. Puzzle Event
+[Unchanged from original] Players collect jigsaw pieces via questing (which alone only yields ~80% of what's needed) and by fighting rivals to steal pieces. Completing an area presents 4 doors (prizes, fight AI, proceed, puzzle/potion), narrowing to 3 doors if the player repeats an area. An &quot;Instinct&quot; item lets a player peek behind a door. A &quot;scout&quot; link with up to 5 guildmates/allies reduces stamina cost up to 25% while all linked players are actively questing.
+7. Conqueror
+[Unchanged from original] Ranked by total land occupied. Completing area exploration lets a player set a 1-hour Rally Point, which can be attacked by other players (based on ranking-tier matchmaking); once attacked by one player, only that player (or their called-in aid) can continue attacking it. First aid attack is free at 30% damage; further attacks cost army losses. Winner of the hour (longest occupation) claims land, split proportionally to time occupied among all participants; the original rally setter/first-encounterer gets a 20% land bonus over aiding players.
+8. Floor Clearance (Prison Break)
+[Unchanged from original] Ranked by floors cleared, via questing or defeating Normal Guards (1 hour) or Mega Guards (1.5 hours). First attack is free at 30% deck power; further attacks use the same 1/3/5-flag, 10%/150%/200%-damage options as the Raid event. Normal guard win = 120% clearance; Mega guard win = 300%. Encountering an ally in the field gives a stacking area-clearance bonus (up to 200%); encountering another player offers persuade (join as friendly, only 1% bonus) or fight (win = 20% clearance, lose = -20% clearance, with a meter-triggered 150% bonus window).
+9. Castle Defend
+[Unchanged from original] Ranked by damage dealt to enemy castles, which scale in strength with the defender's Fame and Gate level. Up to 5 heroes can be assigned to repair a castle (repair rate scales with their combined leadership and Fame); those heroes can't also quest. A breach deals 5x damage points to the attacker's score and grants the attacker +5% attack for the rest of the event (helpers get +0.5%, capped at 200% total). Same 1/3/5-flag attack-option structure as other raid-style events; a meter grants -50% damage taken / +50% damage dealt for 10 minutes once full.
+10. Pet Raising (Dragon Raising)
+[Unchanged from original] Ranked by dragons fed and raised. Dragons eat event food (3 grades), regular food, or captives (each captive has a 1-100% fear rating that scales feed quality; fear rises with prison time or guild-mate interrogation, +10%/interrogation, once per guildmate per captive). A dragon reaching maturity permanently raises the player's item/capture odds (+5% per maturity event, capped at 200%); a separate maturity meter, once full, triggers a 30-minute mega-boss window with boosted food drops and capture odds. Same 1/3/5-flag attack-option structure as other boss events; killing a boss scales the next boss's health 1.15x and stats 1.1x, same as the Raid event.
+DESIGN NOTE: The original doc just says &quot;event food&quot; - Dragon Egg (see Part III 3, and ItemDatabase.cs) gives that a concrete, illustrated item instead of a placeholder noun.
+11. Special Dungeon
+[Unchanged from original] China-market-only variant of the Chest/item-collection event, open to VIP (paying) players. Trading windows open Friday through Sunday, or on public holidays.
+
+Part VI - Live Ops & Monetization
+1. Notifications
+[Unchanged from original] Covers energy/build completion, hourly/daily rewards, upcoming and starting events, being attacked, event support from allies, and new ally messages. Players can disable any individual notification type.
+2. Violations & Punishment
+[Unchanged from original] Misbehavior affecting 5+ players can trigger punishment (subject to game-master approval). Real-money trading is allowed but discouraged; repeat offenders face harsher punishment. Aid/cheat-tool use is dealt with severely. Scam reports require a clear trade agreement screenshot and a transaction record; scammed items are confiscated (not returned), and the scammer faces punishment with possible account suspension. False scam reports are punished the same way.
+Punishment
+Effect
+A
+No chat rooms/forum threads; banned from trading/chat for 3 days.
+B
+1-week event suspension (excluding Guild Wars); 4-week trading ban; can only re-enter events on the 3rd day.
+C
+4-week trading suspension; excluded from the next event.
+3. Feedback & Rewards
+[Unchanged from original] Feedback is submitted via email; implemented suggestions earn rewards. Daily login uses a card-matching minigame (4 cards, pick 2; match = reward, no match = nothing, one attempt/day, can keep flipping until a mismatch) across 5 stages (4-card matches for the first 4 stages, 6-card for the last), resetting weekly. A separate 30-day login calendar gives a different reward each day. Hourly rewards offer a random pick within a 2-hour redemption window.
+Gallery: browsable pages of every collectible card, organized by where it's found (questing chapters, events, card packages); completing a page or maxing a card to level 100 grants bonus rewards.
+New-player starter pack: potions, items, gems for a card draw, 1 week of VIP membership, and 5 days of Peace Treaty.
+Event rewards must be claimed within 14 days or they expire.
+4. In-App Purchases
+Gems
+Price (USD)
+Availability
+100
+$0.99
+Once daily
+280
+$2.99
+Unlimited
+570
+$5.99
+Unlimited
+1,250
+$12.99
+Unlimited
+2,450
+$24.99
+Unlimited
+5,500
+$49.99
+Unlimited
+12,000
+$99.99
+Unlimited
+4.1 VIP Membership Tiers
+Weekly (800 gems): periodic potions/flags/security items on set days, 1 card package, 2% purchase discount, favorable stamina/flag swap rates, bonus stamina per ally message (6-hour refresh), faster stamina regen (55s instead of 60s).
+Fortnight (1,500 gems): similar structure over 14 days with slightly better rates - 2 card packages, 3.5% discount, 5-hour ally-message refresh, 50s stamina regen.
+Monthly (3,000 gems): 30-day structure, 5% discount, 4-hour ally-message refresh, 45s stamina regen. No penalty for missing a login day on any tier.
+4.2 Other Purchases
+[Unchanged from original] Event items (80 gems each, discounted in bundles up to 75-for-5,000, with an occasional 50%-off bulk deal limited to one purchase per player), building-upgrade time skips (1 gem per 12 minutes, plus a resource-collection burst), and event tickets. Special equipment is never purchasable - only earned through questing or events. Payment goes through app-store billing or regional equivalents (e.g. Alipay/WeChat Pay).
+
+Part VII - Server & Progression Safety (Future Phase)
+Requires a live backend (authoritative server, persistent player/kingdom state, server-validated attack permissions - a client-side check is trivially bypassed). Not attempted in the current single-player Godot prototype; documented here as the target design for when real backend infrastructure exists.
+1. Kingdom Eras
+New players spawn into the newest Kingdom (world layer).
+Players from older Kingdoms are blocked from moving into newer ones until a 60-day Server Age Milestone passes, giving new players a protected window to build and spend safely.
+2. 10-Level Loot Lock & Retaliation
+A player cannot raid a rival more than 10 Avatar levels below them; enforced server-side, not just a disabled button client-side.
+If the lower-level player attacks first, the lock breaks for that matchup and the higher-level player gets a 48-hour Retaliation Window to counter-attack at full power.
+DESIGN NOTE: See Part II, 5 for the resolved 4-layer hierarchy reconciling this with the original Flag-based targeting system.
+
+Part VIII - Presentation Layer (Future Phase, Not Specified Further)
+The original proposal called for cinematic camera swings, particle auras on passive triggers, and high-fidelity 3D creature models erupting from card frames with unique attack animations. None of the art in the collection today is 3D - it's entirely 2D illustration - so this needs a new art production pipeline (modeling, rigging, animation) that doesn't exist yet. Left as an aspiration rather than built as a placeholder that undersells the intended fidelity.
+
+Part IX - Proposed Technical Architecture (Future Reference)
+Engine decision made: Unity/C#. The earlier Godot vertical slice (single-player, client-only, no networking/backend/database) is now reference/throwaway - its card placement and battle-resolution logic don't carry over directly, though the design decisions it validated (lanes, integer stats, row identity) do, via this document.
+1. Frontend
+Unity, C#. 3D visuals & combat.
+WebGL / native UI for menus, collection browsing, and trading screens.
+2. Backend
+An authoritative Node.js or Go server - validates every card move and match action server-side (anti-cheat), rather than trusting the client.
+Secure WebSockets for real-time match state; REST API for menus, trading, and account actions.
+Manages real-time Bazaar trading centrally, so trades can't be forged client-side.
+3. Database Layer
+PostgreSQL for relational data - accounts, ledgers, card ownership.
+Redis for caching - chat, morale/resource ticks, anything read-heavy and short-lived.
+
+Part X - Open Design Questions
+A running list of decisions left open rather than guessed silently. Two rounds of hardcore-CCG review have now resolved several items originally listed here (Perfect's balance lever, the lane-loss damage formula, and the Flag/Kingdom-Era/Loot-Lock reconciliation) - struck through below rather than deleted, so the reasoning stays visible. What remains is genuinely open.
+[RESOLVED] Simultaneous reveal vs. sequential turn-based lane resolution -> simultaneous (LaneBattleResolver.ResolveLaneClash). See Part II 2.2 for the still-open Initiative-ordering question layered on top of this.
+Exact resource cap and curve for a 30-card deck. Implemented: +1/turn, capped at 10 (PlayerBattleState.GainResourceForTurn).
+Starting hand size and draw rate. Implemented: 4-card starting hand, 2 cards drawn per turn (PlayerBattleState.StartingHandSize, BattleController.DrawsPerTurn).
+[RESOLVED] The precise lane-loss -> Avatar HP damage formula -> formalized as D = max(0, attacker power - defender Health) per lane, lane must fully clear before overflow reaches Avatar HP (Part II 2.4, LaneBattleResolver.ApplyDamageToLane).
+Starting Avatar Health. Implemented: 20 (PlayerBattleState.StartingAvatarHealth) - picked to survive a few turns of overflow at 1-12 card stats, not derived from anything in the original docs. Needs real playtesting once a match is actually playable.
+[RESOLVED] Whether Perfect's cost-tax balance lever needs a mechanical hook of its own -> reworked to Dynamic Adaptability, no cost tax (Part II 3.2).
+Whether the Back lane's resource/draw identity is satisfying for Warrior/Knight cards played there - currently only Strategist (always) and Perfect (specifically in Back) get a draw hook; a Warrior or Knight in the Back lane gets no lane-specific benefit at all, which may be a gap rather than an intentional choice.
+[RESOLVED] How the original Flag/level-gap targeting system and the new Kingdom/Loot-Lock system merge -> 4-layer hierarchy (Part II 5).
+Where Initiative-based ordering actually hooks into the model, given lane-clash damage is already simultaneous/order-independent by construction - most likely card-play order within a turn, or Taunt/Ultimate trigger priority (Part II 2.2).
+Whether Guild Wars' morale/combo/siege scaffolding needs any numeric rebalancing now that individual matches are active TCG duels instead of instant resolves, or whether the existing numbers still hold.
+Lane Displacement, &quot;Titan's Stake,&quot; and Skill-Tag Synergy (Part II 6) all need their own design pass - targeting rules, UI for staking, and the tag taxonomy - before any of them are buildable, not just a decision to build them.
+

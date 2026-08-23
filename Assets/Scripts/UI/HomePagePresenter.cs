@@ -7,9 +7,14 @@ using MyriadOfDragons.Data;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.Story;
+using MyriadOfDragons.Empire;
 
 public class HomePagePresenter : MonoBehaviour
 {
+    /// <summary>HomeV3 feature-panel Soft invite — must point new players at Start Tutorial.</summary>
+    public const string HomeFeatureTutorialInviteCopy =
+        "New to the Empire? Tap Start Tutorial to learn formation and face your first threat.";
+
     private GameObject homeCanvasObj;
     private BattleController _battleController;
     private GameBootstrap _boundGameBootstrap;
@@ -19,6 +24,7 @@ public class HomePagePresenter : MonoBehaviour
     private Text goldHudText;
     private Text gemsHudText;
     private Text energyHudText;
+    private Text weeklyPermitStatusText;
 
     // Current Active Stage Track
     private CampaignStageData currentActiveStage;
@@ -115,6 +121,7 @@ public class HomePagePresenter : MonoBehaviour
     private void HandleReturnToCityRequested()
     {
         currentActiveStage = null;
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
         if (homeCanvasObj != null)
         {
             homeCanvasObj.SetActive(true);
@@ -136,6 +143,82 @@ public class HomePagePresenter : MonoBehaviour
             _boundGameBootstrap.OnReturnToCityRequested -= HandleReturnToCityRequested;
             _boundGameBootstrap = null;
         }
+    }
+
+    /// <summary>Chapter finale stage ids that grant one Ascension Permit on first clear (milestone, not weekly).</summary>
+    public static readonly string[] ChapterFinalePermitStageIds =
+    {
+        "1-3", "2-21", "3-30", "4-30", "5-30", "6-30", "7-30", "8-30", "9-30", "10-30",
+    };
+
+    /// <summary>Chapter 1 finale — kept for existing call sites / tests.</summary>
+    public const string FirstCampaignChapterClearStageId = "1-3";
+
+    public static bool IsChapterFinalePermitStage(string stageId)
+    {
+        if (string.IsNullOrEmpty(stageId)) return false;
+        for (int i = 0; i < ChapterFinalePermitStageIds.Length; i++)
+        {
+            if (ChapterFinalePermitStageIds[i] == stageId) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Milestone permit on first clear of a chapter finale. Hoard-capped; never touches weekly ledger.
+    /// When hoard is full, returns 0 with no queue (CC-locked silent loss — player still clears the stage).
+    /// </summary>
+    public static int TryGrantChapterFinalePermit(PlayerProfile profile, string stageId)
+    {
+        if (profile == null || !IsChapterFinalePermitStage(stageId)) return 0;
+        return CollectionAscensionPermits.TryGrantMilestone(profile, 1);
+    }
+
+    /// <summary>Alias for <see cref="TryGrantChapterFinalePermit"/> (Ch1 1-3 and later finales).</summary>
+    public static int TryGrantFirstChapterClearPermit(PlayerProfile profile, string stageId) =>
+        TryGrantChapterFinalePermit(profile, stageId);
+
+    /// <summary>
+    /// Option C stopgap: claim this CC week’s Ascension Permits via ManualTrustedWeekKey.
+    /// Idempotent for the same week key. Does not use device clock or DevTrustedWeekKeyPlaceholder.
+    /// </summary>
+    /// <returns>Permits granted (0 if already claimed / hoard full).</returns>
+    public static int TryClaimManualWeeklyPermits(PlayerProfile profile, out string statusMessage)
+    {
+        statusMessage = "No profile.";
+        if (profile == null) return 0;
+
+        CollectionSchemaMigration.NormalizeCollectionFields(profile);
+
+        int granted = CollectionAscensionPermits.TryGrantWeekly(
+            profile,
+            CollectionSchemaRules.AscensionPermitsPerTrustedWeek,
+            CollectionAscensionPermits.ManualTrustedWeekKey);
+
+        if (granted > 0)
+        {
+            statusMessage = $"Granted {granted} Ascension Permit(s).";
+            return granted;
+        }
+
+        if (profile.ascensionPermitBalance >= CollectionSchemaRules.AscensionPermitHoardCap)
+        {
+            statusMessage = "Hoard full.";
+            return 0;
+        }
+
+        statusMessage = "Already claimed this week.";
+        return 0;
+    }
+
+    /// <summary>Exposed for EditMode: runs the Home weekly-claim helper and optional save.</summary>
+    public static int ClaimManualWeeklyPermitsForTests(PlayerProfile profile, bool save, out string statusMessage)
+    {
+        int granted = TryClaimManualWeeklyPermits(profile, out statusMessage);
+        if (granted > 0 && save)
+            SaveManager.Save();
+        return granted;
     }
 
     /// <summary>
@@ -238,6 +321,7 @@ public class HomePagePresenter : MonoBehaviour
         profile.gold += currentActiveStage.goldReward;
         profile.gems += currentActiveStage.gemReward;
         profile.claimedStageRewardIds.Add(stageId);
+        int permitsGranted = TryGrantChapterFinalePermit(profile, stageId);
 
         // Idempotent: the cleared stage must already have been unlocked to have been launchable,
         // but this keeps unlockedStageIds authoritative even for a hand-edited or pre-migration
@@ -256,6 +340,7 @@ public class HomePagePresenter : MonoBehaviour
         RefreshTopHUD();
         Debug.Log($"[Metagame] Awarded {currentActiveStage.goldReward} Gold & {currentActiveStage.gemReward} Gems " +
                   $"for first clear of Stage {stageId}!" +
+                  (permitsGranted > 0 ? $" Granted {permitsGranted} Ascension Permit." : string.Empty) +
                   (nextStageId != null ? $" Unlocked Stage {nextStageId}." : " Chapter 1 complete."));
 
         // Chapter 1 post-victory story bridge: first clear only (replays already returned above).
@@ -294,15 +379,44 @@ public class HomePagePresenter : MonoBehaviour
             backgroundImage.raycastTarget = false;
         }
 
-        // === IDENTITY SURFACE (text-only fallback, no opaque crest) ===
-        // Region (pixels): (24,18)–(704,100) from spec top-origin
-        GameObject identityRoot = new GameObject("IdentityRoot", typeof(RectTransform));
+        // === IDENTITY SURFACE (HomeV3 frame + crest when available) ===
+        GameObject identityRoot = new GameObject("IdentityRoot", typeof(RectTransform), typeof(Image));
         identityRoot.transform.SetParent(homeCanvasObj.transform, false);
         SetScreenRectFromTopLeftPixels(identityRoot.GetComponent<RectTransform>(), 24, 18, 704, 100);
+        Image identityBg = identityRoot.GetComponent<Image>();
+        Sprite identityFrame = HomeV3UiLibrary.Load("home_hud_identity_frame_v3");
+        if (identityFrame != null)
+        {
+            identityBg.sprite = identityFrame;
+            identityBg.type = Image.Type.Sliced;
+            identityBg.color = Color.white;
+        }
+        else
+        {
+            identityBg.color = new Color(0f, 0f, 0f, 0.15f);
+        }
+        identityBg.raycastTarget = false;
 
-        // Neutral identity surface (no frame art needed; text-only layout)
+        GameObject crestObj = new GameObject("IdentityCrest", typeof(RectTransform), typeof(Image));
+        crestObj.transform.SetParent(identityRoot.transform, false);
+        Image crestImg = crestObj.GetComponent<Image>();
+        crestImg.sprite = HomeV3UiLibrary.Load("home_identity_crest_v3");
+        crestImg.preserveAspect = true;
+        crestImg.raycastTarget = false;
+        SetLocalNormalisedRect(crestObj.GetComponent<RectTransform>(), 0.02f, 0.1f, 0.14f, 0.9f);
         string pName = SaveManager.SaveData != null ? SaveManager.SaveData.playerName : "Sovereign";
-        int pLevel = SaveManager.SaveData != null ? SaveManager.SaveData.level : 1;
+        // Avatar combat level (Empire track) — not the legacy `level` field.
+        int avatarLevel = 1;
+        int liveCap = 0;
+        int liveStartHp = 0;
+        if (SaveManager.SaveData != null)
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            profile.ApplyDataToEmpire();
+            avatarLevel = Mathf.Max(1, profile.avatarLevel);
+            liveCap = profile.Empire.ResourceCap;
+            liveStartHp = profile.Empire.StartingAvatarHealth;
+        }
 
         // Player name text (bold, large)
         Text playerNameText = UISharedFoundation.CreateText(
@@ -311,18 +425,17 @@ public class HomePagePresenter : MonoBehaviour
         playerNameText.fontSize = 30;
         playerNameText.fontStyle = FontStyle.Bold;
         playerNameText.raycastTarget = false;
-        SetLocalNormalisedRect(playerNameText.rectTransform, 0.05f, 0.55f, 0.95f, 1.0f);
+        SetLocalNormalisedRect(playerNameText.rectTransform, 0.16f, 0.55f, 0.95f, 1.0f);
 
-        // Player level/role line
+        // Avatar identity line — level + live battle economy from Empire readers.
         Text playerLevelText = UISharedFoundation.CreateText(
-            identityRoot.transform, "PlayerLevelRole", $"Level {pLevel} · Sovereign",
-            MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(300f, 20f));
-        playerLevelText.fontSize = 18;
+            identityRoot.transform, "PlayerLevelRole",
+            $"Avatar L{avatarLevel} · Cap {liveCap} · Start HP {liveStartHp}",
+            MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(420f, 20f));
+        playerLevelText.fontSize = 16;
         playerLevelText.raycastTarget = false;
-        SetLocalNormalisedRect(playerLevelText.rectTransform, 0.05f, 0.0f, 0.95f, 0.45f);
+        SetLocalNormalisedRect(playerLevelText.rectTransform, 0.16f, 0.0f, 0.95f, 0.45f);
 
-        // === RESOURCE ROW (three approved pill backings) ===
-        // Region (pixels): (900,18)–(1896,90) from spec top-origin
         GameObject resourceRow = new GameObject("ResourceRow", typeof(RectTransform));
         resourceRow.transform.SetParent(homeCanvasObj.transform, false);
         SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1896, 90);
@@ -332,156 +445,213 @@ public class HomePagePresenter : MonoBehaviour
         int stamVal = SaveManager.SaveData != null ? SaveManager.SaveData.stamina : 100;
         int maxStamVal = SaveManager.SaveData != null ? SaveManager.SaveData.maxStamina : 100;
 
-        // Gold pill: left 0-33% of row
-        goldHudText = CreateResourcePill(resourceRow.transform, "home_resource_gold_pill_v3", 
+        goldHudText = CreateResourcePill(resourceRow.transform, "home_resource_gold_pill_v3",
             "Gold", $"{goldVal}", 0.0f, 0.33f);
-
-        // Gems pill: middle 33-67% of row
         gemsHudText = CreateResourcePill(resourceRow.transform, "home_resource_gems_pill_v3",
             "Gems", $"{gemsVal}", 0.34f, 0.67f);
-
-        // Energy pill: right 67-100% of row
         energyHudText = CreateResourcePill(resourceRow.transform, "home_resource_energy_pill_v3",
             "Energy", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
 
-        // === TUTORIAL STRIP (neutral fallback, no banner art) ===
-        // Region: (0.063, 0.107)–(0.938, 0.169)
-        BuildNeutralTutorialStrip();
+        BuildWeeklyPermitClaimStrip();
+        TryAutoClaimWeeklyPermitsOnHomeOpen();
 
-        // === NAVIGATION STAGE (four independent hero tiles, no decorative dock) ===
-        // Region: (0.013, 0.670)–(0.988, 0.974)
+        BuildHomeFeaturePanel();
         BuildNavigationStage();
     }
 
-    private void BuildNeutralTutorialStrip()
+    private void BuildWeeklyPermitClaimStrip()
     {
-        // Tutorial strip using intentional neutral fallback (no banner image art - it needs slice metadata)
-        // Region (pixels): (120,116)–(1800,182) from spec top-origin
-        
-        GameObject tutorialRoot = new GameObject("TutorialRoot", typeof(RectTransform), typeof(Image));
-        tutorialRoot.transform.SetParent(homeCanvasObj.transform, false);
-        
-        // Neutral charcoal background
-        Image tutorialBg = tutorialRoot.GetComponent<Image>();
-        tutorialBg.color = HexColor("#2C2C2C");
-        tutorialBg.raycastTarget = false;
-        
-        SetScreenRectFromTopLeftPixels(tutorialRoot.GetComponent<RectTransform>(), 120, 116, 1800, 182);
+        GameObject strip = new GameObject("WeeklyPermitStrip", typeof(RectTransform));
+        strip.transform.SetParent(homeCanvasObj.transform, false);
+        SetScreenRectFromTopLeftPixels(strip.GetComponent<RectTransform>(), 900, 100, 1896, 148);
 
-        // Tutorial copy (text-only, no emblem)
-        Text tutorialCopy = UISharedFoundation.CreateText(
-            tutorialRoot.transform, "TutorialCopy",
-            "Ready to lead your forces into battle? The Empire awaits your command.",
-            MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(1000f, 50f));
-        tutorialCopy.fontSize = 22;
-        tutorialCopy.raycastTarget = false;
-        SetLocalNormalisedRect(tutorialCopy.rectTransform, 0.08f, 0.15f, 0.70f, 0.85f);
+        GameObject claimBtnObj = new GameObject("ClaimWeeklyPermitsButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        claimBtnObj.transform.SetParent(strip.transform, false);
+        Image claimBg = claimBtnObj.GetComponent<Image>();
+        HomeV3UiLibrary.ApplyNavTileButton(claimBtnObj.GetComponent<Button>(), claimBg);
+        if (claimBg.sprite == null)
+            claimBg.color = HexColor("#1A3A4A");
+        claimBtnObj.GetComponent<Button>().onClick.AddListener(OnClaimWeeklyPermitsClicked);
+        SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.0f, 0.15f, 0.28f, 0.95f);
 
-        // Start Tutorial button (intentional neutral action surface, no button art)
+        Text claimLabel = UISharedFoundation.CreateText(
+            claimBtnObj.transform, "ClaimLabel", "WEEKLY PERMITS",
+            UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(220f, 36f));
+        claimLabel.fontSize = 16;
+        claimLabel.fontStyle = FontStyle.Bold;
+        claimLabel.raycastTarget = false;
+
+        weeklyPermitStatusText = UISharedFoundation.CreateText(
+            strip.transform, "WeeklyPermitStatus", string.Empty,
+            UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(500f, 36f));
+        weeklyPermitStatusText.fontSize = 18;
+        weeklyPermitStatusText.raycastTarget = false;
+        SetLocalNormalisedRect(weeklyPermitStatusText.rectTransform, 0.30f, 0.1f, 1.0f, 0.95f);
+    }
+
+    private void TryAutoClaimWeeklyPermitsOnHomeOpen()
+    {
+        PlayerProfile profile = SaveManager.SaveData;
+        if (profile == null) return;
+
+        int granted = TryClaimManualWeeklyPermits(profile, out string status);
+        if (granted > 0)
+            SaveManager.Save();
+        if (weeklyPermitStatusText != null)
+            weeklyPermitStatusText.text = status;
+    }
+
+    private void OnClaimWeeklyPermitsClicked()
+    {
+        PlayerProfile profile = SaveManager.SaveData;
+        if (profile == null) return;
+
+        int granted = TryClaimManualWeeklyPermits(profile, out string status);
+        if (granted > 0)
+            SaveManager.Save();
+        if (weeklyPermitStatusText != null)
+            weeklyPermitStatusText.text = status;
+        RefreshTopHUD();
+    }
+
+    private void BuildHomeFeaturePanel()
+    {
+        GameObject featureRoot = new GameObject("HomeFeatureRoot", typeof(RectTransform), typeof(Image));
+        featureRoot.transform.SetParent(homeCanvasObj.transform, false);
+        SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 190, 1800, 710);
+        Image featureBg = featureRoot.GetComponent<Image>();
+        Sprite banner = HomeV3UiLibrary.Load("home_tutorial_banner_frame_v3");
+        if (banner != null)
+        {
+            featureBg.sprite = banner;
+            featureBg.type = Image.Type.Sliced;
+            featureBg.color = Color.white;
+        }
+        else
+        {
+            featureBg.color = HexColor("#2C2C2C");
+        }
+        featureBg.raycastTarget = false;
+
+        Text featureCopy = UISharedFoundation.CreateText(
+            featureRoot.transform, "FeatureCopy",
+            HomeFeatureTutorialInviteCopy,
+            UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(1100f, 80f));
+        featureCopy.fontSize = 26;
+        featureCopy.raycastTarget = false;
+        SetLocalNormalisedRect(featureCopy.rectTransform, 0.06f, 0.55f, 0.72f, 0.92f);
+
         GameObject startTutorialBtn = new GameObject("StartTutorialButtonRoot", typeof(RectTransform), typeof(Image), typeof(Button));
-        startTutorialBtn.transform.SetParent(tutorialRoot.transform, false);
-        
+        startTutorialBtn.transform.SetParent(featureRoot.transform, false);
         Image btnBg = startTutorialBtn.GetComponent<Image>();
-        btnBg.color = HexColor("#1A3A4A"); // Neutral dark teal
+        Sprite tutorialBtn = HomeV3UiLibrary.Load("home_start_tutorial_button_v3");
+        if (tutorialBtn != null)
+        {
+            btnBg.sprite = tutorialBtn;
+            btnBg.color = Color.white;
+        }
+        else
+        {
+            btnBg.color = HexColor("#1A3A4A");
+        }
         Button btn = startTutorialBtn.GetComponent<Button>();
         btn.onClick.AddListener(OnStartTutorialClicked);
-        btn.transition = Selectable.Transition.ColorTint;
+        SetLocalNormalisedRect(startTutorialBtn.GetComponent<RectTransform>(), 0.06f, 0.12f, 0.34f, 0.38f);
 
-        RectTransform btnRect = startTutorialBtn.GetComponent<RectTransform>();
-        btnRect.anchorMin = new Vector2(0.75f, 0.5f);
-        btnRect.anchorMax = new Vector2(0.75f, 0.5f);
-        btnRect.pivot = new Vector2(0.5f, 0.5f);
-        btnRect.sizeDelta = new Vector2(180f, 45f);
-
-        Text btnLabel = UISharedFoundation.CreateText(
-            startTutorialBtn.transform, "ActionLabel", "START TUTORIAL",
-            MyriadOfDragons.UI.UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(160f, 40f));
-        btnLabel.fontSize = 18;
-        btnLabel.fontStyle = FontStyle.Bold;
-        btnLabel.raycastTarget = false;
+        if (tutorialBtn == null)
+        {
+            Text btnLabel = UISharedFoundation.CreateText(
+                startTutorialBtn.transform, "ActionLabel", "START TUTORIAL",
+                UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(200f, 40f));
+            btnLabel.fontSize = 18;
+            btnLabel.fontStyle = FontStyle.Bold;
+            btnLabel.raycastTarget = false;
+        }
     }
 
     private void BuildNavigationStage()
     {
-        // Four independent hero navigation tiles: Story, Cards, Shop, To Battle
-        // Each tile is 440×306, with consistent spacing
-        // Overall region (pixels): (24,724)–(1896,1052) from spec top-origin
-
-        GameObject navStage = new GameObject("NavigationStage", typeof(RectTransform));
+        GameObject navStage = new GameObject("NavigationStage", typeof(RectTransform), typeof(Image));
         navStage.transform.SetParent(homeCanvasObj.transform, false);
         SetScreenRectFromTopLeftPixels(navStage.GetComponent<RectTransform>(), 24, 724, 1896, 1052);
 
-        // Story tile (pixels): (38,724)–(478,1030)
-        CreateHeroTile("Story", "home_icon_story_v3", 38, 724, 478, 1030, OpenStoryCampaign, navStage.transform);
+        Image dockBg = navStage.GetComponent<Image>();
+        Sprite dock = HomeV3UiLibrary.Load("home_nav_dock_frame_v3");
+        if (dock != null)
+        {
+            dockBg.sprite = dock;
+            dockBg.type = Image.Type.Sliced;
+            dockBg.color = Color.white;
+        }
+        else
+        {
+            dockBg.color = new Color(0f, 0f, 0f, 0.2f);
+        }
+        dockBg.raycastTarget = false;
 
-        // Cards tile (pixels): (498,724)–(938,1030)
-        CreateHeroTile("Cards", "home_icon_cards_v3", 498, 724, 938, 1030, OpenCollection, navStage.transform);
-
-        // Shop tile (pixels): (958,724)–(1398,1030)
-        CreateHeroTile("Shop", "home_icon_shop_v3", 958, 724, 1398, 1030, OpenShop, navStage.transform);
-
-        // To Battle tile (pixels): (1418,724)–(1858,1030)
-        CreateHeroTile("To Battle", "home_icon_battle_v3", 1418, 724, 1858, 1030, () => OnToBattleClicked(), navStage.transform);
+        CreateHeroTile("Campaign", "home_tile_story_hero_v3", "home_icon_story_v3", 38, 724, 388, 1030, OpenStoryCampaign, navStage.transform);
+        CreateHeroTile("Empire", null, null, 406, 724, 756, 1030, OpenEmpire, navStage.transform);
+        CreateHeroTile("Cards", "home_tile_cards_hero_v3", "home_icon_cards_v3", 774, 724, 1124, 1030, OpenCollection, navStage.transform);
+        CreateHeroTile("Shop", "home_tile_shop_hero_v3", "home_icon_shop_v3", 1142, 724, 1492, 1030, OpenShop, navStage.transform);
+        CreateHeroTile("To Battle", "home_tile_battle_hero_v3", "home_icon_battle_v3", 1510, 724, 1860, 1030, () => OnToBattleClicked(), navStage.transform);
     }
 
-    private void CreateHeroTile(string label, string heroSprite, float left, float top, float right, float bottom,
+    private void CreateHeroTile(string label, string heroTileSprite, string iconFallbackSprite, float left, float top, float right, float bottom,
         UnityEngine.Events.UnityAction action, Transform parent)
     {
-        // Hero tile blueprint: HeroTileButtonRoot (440×306) with hero art and label
-        // Positioned using pixel coordinates from screen top-origin
-        
         GameObject tileRoot = new GameObject($"Btn_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
         tileRoot.transform.SetParent(parent, false);
 
         Image tileBackground = tileRoot.GetComponent<Image>();
-        tileBackground.color = new Color(0f, 0f, 0f, 0f);
-        tileBackground.raycastTarget = true;
-
-        Button tileBtn = tileRoot.GetComponent<Button>();
-        tileBtn.targetGraphic = tileBackground;
-        tileBtn.onClick.AddListener(action);
-        tileBtn.transition = Selectable.Transition.ColorTint;
-        tileBtn.colors = new ColorBlock
+        Button tileButton = tileRoot.GetComponent<Button>();
+        Sprite tileSprite = !string.IsNullOrEmpty(heroTileSprite) ? HomeV3UiLibrary.Load(heroTileSprite) : null;
+        if (tileSprite != null)
         {
-            normalColor = Color.white,
-            highlightedColor = new Color(1.2f, 1.2f, 1.2f, 1f),
-            pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f),
-            selectedColor = Color.white,
-            disabledColor = Color.gray,
-            colorMultiplier = 1f,
-            fadeDuration = 0.1f
-        };
-        
-        // Tile bounds are relative to the NavStage parent, not the screen.
-        // Use the actual parent rect bounds so each tile is exactly 440×306 inside the stage.
+            tileBackground.sprite = tileSprite;
+            tileBackground.color = Color.white;
+            tileBackground.raycastTarget = true;
+            tileButton.transition = Selectable.Transition.ColorTint;
+            tileButton.targetGraphic = tileBackground;
+        }
+        else
+        {
+            HomeV3UiLibrary.ApplyNavTileButton(tileButton, tileBackground);
+        }
+
+        tileButton.onClick.AddListener(action);
+
         RectTransform tileParent = parent as RectTransform;
         if (tileParent != null)
         {
             SetChildRectFromParentTopOrigin(tileRoot.GetComponent<RectTransform>(), tileParent, 24f, 724f, 1896f, 1052f, left, top, right, bottom);
         }
 
-        // Hero art layer (approved transparent foreground or intentional fallback)
         GameObject heroArtObj = new GameObject("HeroArt", typeof(RectTransform), typeof(Image));
         heroArtObj.transform.SetParent(tileRoot.transform, false);
-        
+
         Image heroArt = heroArtObj.GetComponent<Image>();
-        heroArt.sprite = LoadHomeSprite(heroSprite);
+        if (label == "Empire")
+        {
+            heroArt.sprite = Resources.Load<Sprite>("UI/Icons/empire tab");
+            if (heroArt.sprite == null && !string.IsNullOrEmpty(iconFallbackSprite))
+                heroArt.sprite = HomeV3UiLibrary.Load(iconFallbackSprite);
+        }
+        else
+        {
+            heroArt.sprite = !string.IsNullOrEmpty(iconFallbackSprite) ? HomeV3UiLibrary.Load(iconFallbackSprite) : tileSprite;
+        }
+
         heroArt.preserveAspect = true;
         heroArt.raycastTarget = false;
-        heroArt.color = heroArt.sprite != null ? Color.white : HexColor("#2C3E50"); // Neutral fallback
-        
-        // Hero art safe box: left 7%, top 7%, right 93%, bottom 69% (top-origin within tile)
-        SetLocalTopOriginRect(heroArt.rectTransform, 0.07f, 0.07f, 0.93f, 0.69f);
+        heroArt.color = heroArt.sprite != null ? Color.white : HexColor("#3D566E");
+        SetLocalTopOriginRect(heroArt.rectTransform, 0.15f, 0.12f, 0.85f, 0.72f);
 
-        // Label layer (over art at bottom, inside safe box)
         Text tileLabel = UISharedFoundation.CreateText(
             tileRoot.transform, "TileLabel", label,
-            MyriadOfDragons.UI.UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(400f, 60f));
-        tileLabel.fontSize = 28;
+            UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(320f, 60f));
+        tileLabel.fontSize = 24;
         tileLabel.fontStyle = FontStyle.Bold;
         tileLabel.raycastTarget = false;
-        
-        // Label safe box: left 9%, top 73%, right 91%, bottom 94% (top-origin within tile)
         SetLocalTopOriginRect(tileLabel.rectTransform, 0.09f, 0.73f, 0.91f, 0.94f);
     }
 
@@ -529,10 +699,7 @@ public class HomePagePresenter : MonoBehaviour
         rect.offsetMax = Vector2.zero;
     }
 
-    private static Sprite LoadHomeSprite(string fileName)
-    {
-        return Resources.Load<Sprite>($"UI/HomeV3/{fileName}");
-    }
+    private static Sprite LoadHomeSprite(string fileName) => HomeV3UiLibrary.Load(fileName);
 
     private static Color HexColor(string hex, float alpha = 1f)
     {
@@ -550,6 +717,8 @@ public class HomePagePresenter : MonoBehaviour
     /// contract's tests, which EditMode cannot reach by clicking through Home's UI.</summary>
     public void OpenStoryCampaignForTests() => OpenStoryCampaign();
 
+    public void OpenEmpireForTests() => OpenEmpire();
+
     /// <summary>Destroy is not legal outside Play Mode (this project's own non-negotiable rule -
     /// DestroyImmediate(), not Destroy(), for anything reachable from Initialize(); EditMode
     /// tests that click through the real Campaign Launch Battle button reach this directly).
@@ -561,9 +730,28 @@ public class HomePagePresenter : MonoBehaviour
         else DestroyImmediate(obj);
     }
 
+    private void OpenEmpire()
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+        EmpirePresenter empire = gameObject.GetComponent<EmpirePresenter>();
+        if (empire == null) empire = gameObject.AddComponent<EmpirePresenter>();
+
+        empire.Initialize(onBackToHome: () =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            SaveManager.Save();
+            RefreshTopHUD();
+            if (empire != null) Destroy(empire);
+        });
+    }
+
     private void OpenStoryCampaign()
     {
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
         CampaignMapPresenter campaign = gameObject.GetComponent<CampaignMapPresenter>();
         if (campaign == null)
@@ -590,6 +778,7 @@ public class HomePagePresenter : MonoBehaviour
     public const string StaminaBlockedMessage = "Need 1 Stamina to launch this stage.";
     public const string LockedBlockedMessage = "This stage is locked. Complete the previous stage first.";
     public const string InvalidConfigBlockedMessage = "This stage cannot launch because its battle setup is invalid.";
+    public const string GateBlockedMessage = "This chapter requires a higher Gate level. Upgrade Gate on the Empire screen to proceed.";
 
     /// <summary>
     /// The real Campaign-stage launch gate, in the exact required order (Campaign stamina-entry
@@ -637,12 +826,25 @@ public class HomePagePresenter : MonoBehaviour
             return CampaignLaunchOutcome.BlockedLocked;
         }
 
+        // Block W: Gate is necessary but not sufficient (EMPIRE_SCHEMA_LOCK) - stage unlock alone
+        // no longer means Campaign will actually launch. Checked after stage-unlock (a locked
+        // stage must always block first, regardless of Gate) and before the deck/Stamina checks.
+        if (CampaignMapPresenter.TryParseStageChapter(stageData.stageId, out int chapter)
+            && !PlayerEmpireData.IsCampaignChapterAllowedByGate(profile.gateLevel, chapter))
+        {
+            return CampaignLaunchOutcome.BlockedByGate;
+        }
+
         if (bootstrap != null && !bootstrap.HasValidConfirmedDeckForNormalBattle())
         {
             // Requirement 3: routed directly to Deck Builder with its own existing status
             // surface - the player is never stranded on a now-meaningless Campaign map.
             bootstrap.EnsureApprovedStarterCollectionGranted();
-            if (campaign != null) SafeDestroy(campaign);
+            if (campaign != null)
+            {
+                campaign.TeardownMapForBattle();
+                SafeDestroy(campaign);
+            }
             OpenDeckBuilder(entryStatusMessage: DeckBlockedMessage);
             return CampaignLaunchOutcome.BlockedNoDeck;
         }
@@ -657,7 +859,11 @@ public class HomePagePresenter : MonoBehaviour
 
         currentActiveStage = stageData;
         Debug.Log($"Launching Battle for Stage {stageData.stageId}: {stageData.title}");
-        if (campaign != null) SafeDestroy(campaign);
+        if (campaign != null)
+        {
+            campaign.TeardownMapForBattle();
+            SafeDestroy(campaign);
+        }
         OnToBattleClicked(stageData);
         return CampaignLaunchOutcome.Launched;
     }
@@ -811,6 +1017,7 @@ public class HomePagePresenter : MonoBehaviour
         }
 
         Debug.Log("Transitioning to Battle...");
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
         if (homeCanvasObj != null)
         {
             homeCanvasObj.SetActive(false);

@@ -1,0 +1,372 @@
+using System;
+using MyriadOfDragons.Data;
+using MyriadOfDragons.Empire;
+using MyriadOfDragons.Save;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace MyriadOfDragons.UI
+{
+    /// <summary>Dedicated Empire screen — construction upgrades live here, not on Home.</summary>
+    public class EmpirePresenter : MonoBehaviour
+    {
+        private GameObject _canvasObj;
+        private Action _onBackToHome;
+        private Text _empireStatusText;
+        private Text _empireMessageText;
+        private Text _avatarSummaryText;
+        private GameObject _empireCollectButtonRoot;
+
+        public void Initialize(Action onBackToHome)
+        {
+            _onBackToHome = onBackToHome;
+            BuildUI();
+            RefreshPanel();
+        }
+
+        public void BuildUIForTests() => BuildUI();
+
+        public void RefreshPanelForTests() => RefreshPanel();
+
+        public GameObject CanvasObjectForTests => _canvasObj;
+
+        private void BuildUI()
+        {
+            TeardownUI();
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+            Canvas canvas = UISharedFoundation.CreateScreenCanvas("EmpireCanvas", new Vector2(1920, 1080));
+            _canvasObj = canvas.gameObject;
+
+            UISharedFoundation.CreateFullscreenBackground(_canvasObj.transform, "UI/Backdrops/Zihan_City_NO NAMES", new Color(0.12f, 0.11f, 0.16f));
+
+            BuildHeader();
+            BuildConstructionPanel();
+        }
+
+        private void BuildHeader()
+        {
+            GameObject topBar = new GameObject("EmpireHeader", typeof(RectTransform), typeof(Image));
+            topBar.transform.SetParent(_canvasObj.transform, false);
+            Image topBg = topBar.GetComponent<Image>();
+            topBg.raycastTarget = false;
+            if (!HomeV3UiLibrary.TryApplyHeaderFrame(topBg))
+                topBg.color = new Color(0.06f, 0.06f, 0.1f, 0.92f);
+            RectTransform topRect = topBar.GetComponent<RectTransform>();
+            topRect.anchorMin = new Vector2(0f, 1f);
+            topRect.anchorMax = Vector2.one;
+            topRect.pivot = new Vector2(0.5f, 1f);
+            topRect.sizeDelta = new Vector2(0f, 100f);
+
+            GameObject backBtn = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
+            backBtn.transform.SetParent(topBar.transform, false);
+            Image backImg = backBtn.GetComponent<Image>();
+            backImg.color = new Color(0.3f, 0.2f, 0.2f);
+            Button back = backBtn.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(back, backImg);
+            back.targetGraphic = backImg;
+            back.onClick.AddListener(() =>
+            {
+                TeardownUI();
+                _onBackToHome?.Invoke();
+            });
+            RectTransform backRect = backBtn.GetComponent<RectTransform>();
+            backRect.anchorMin = new Vector2(0f, 0.5f);
+            backRect.anchorMax = new Vector2(0f, 0.5f);
+            backRect.pivot = new Vector2(0f, 0.5f);
+            backRect.anchoredPosition = new Vector2(30f, 0f);
+            backRect.sizeDelta = new Vector2(160f, 60f);
+            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 50f));
+
+            UISharedFoundation.CreateText(topBar.transform, "Title", "EMPIRE", UITextRole.Display, TextAnchor.MiddleCenter,
+                new Color(0.95f, 0.92f, 0.82f), true, new Vector2(800f, 60f)).fontSize = 32;
+
+            _avatarSummaryText = UISharedFoundation.CreateText(topBar.transform, "AvatarSummary", "Avatar L1",
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(520f, 36f));
+            _avatarSummaryText.fontSize = 18;
+            RectTransform avatarRect = _avatarSummaryText.rectTransform;
+            avatarRect.anchorMin = new Vector2(0f, 0.5f);
+            avatarRect.anchorMax = new Vector2(0f, 0.5f);
+            avatarRect.pivot = new Vector2(0f, 0.5f);
+            avatarRect.anchoredPosition = new Vector2(210f, 0f);
+            avatarRect.sizeDelta = new Vector2(520f, 36f);
+
+            GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            resourceGroup.transform.SetParent(topBar.transform, false);
+            RectTransform resRect = resourceGroup.GetComponent<RectTransform>();
+            resRect.anchorMin = new Vector2(1f, 0.5f);
+            resRect.anchorMax = new Vector2(1f, 0.5f);
+            resRect.pivot = new Vector2(1f, 0.5f);
+            resRect.anchoredPosition = new Vector2(-30f, 0f);
+            resRect.sizeDelta = new Vector2(220f, 60f);
+            HorizontalLayoutGroup hlg = resourceGroup.GetComponent<HorizontalLayoutGroup>();
+            hlg.childAlignment = TextAnchor.MiddleRight;
+            hlg.spacing = 12f;
+            hlg.childControlWidth = false;
+
+            PlayerProfile profile = SaveManager.SaveData;
+            int gold = profile != null ? profile.gold : 0;
+            HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gold_pill_v3", "Gold", $"{gold}", 190f);
+            RefreshAvatarSummary(profile);
+        }
+
+        private void BuildConstructionPanel()
+        {
+            GameObject empireRoot = new GameObject("EmpireConstructionRoot", typeof(RectTransform), typeof(Image));
+            empireRoot.transform.SetParent(_canvasObj.transform, false);
+            Image empireBg = empireRoot.GetComponent<Image>();
+            empireBg.color = HexColor("#1E2630", 0.95f);
+            empireBg.raycastTarget = false;
+            RectTransform empireRect = empireRoot.GetComponent<RectTransform>();
+            empireRect.anchorMin = new Vector2(0.05f, 0.12f);
+            empireRect.anchorMax = new Vector2(0.95f, 0.82f);
+            empireRect.offsetMin = Vector2.zero;
+            empireRect.offsetMax = Vector2.zero;
+
+            UISharedFoundation.CreateText(empireRoot.transform, "EmpireSubtitle", "Castle · Barracks · Gate",
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(800f, 36f)).fontSize = 20;
+
+            CreateBuildingRow(empireRoot.transform, "CastleRow", "UpgradeCastleButton", 0.62f, 0.78f, OnUpgradeCastle);
+            CreateBuildingRow(empireRoot.transform, "BarracksRow", "UpgradeBarracksButton", 0.38f, 0.54f, OnUpgradeBarracks);
+            CreateBuildingRow(empireRoot.transform, "GateRow", "UpgradeGateButton", 0.14f, 0.30f, OnUpgradeGate);
+
+            _empireStatusText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireStatus", "",
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(1200f, 48f));
+            _empireStatusText.fontSize = 18;
+            SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.08f, 0.62f, 0.26f);
+
+            _empireMessageText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireMessage", "",
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#E8A87C"), true, new Vector2(500f, 48f));
+            _empireMessageText.fontSize = 16;
+            SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.0f, 0.62f, 0.10f);
+
+            _empireCollectButtonRoot = CreateActionButton(empireRoot.transform, "CollectConstructionButton",
+                "COLLECT UPGRADE", 0.68f, 0.05f, 0.97f, 0.22f, OnCollectConstruction);
+        }
+
+        private void RefreshPanel()
+        {
+            if (_empireStatusText == null || _canvasObj == null) return;
+
+            PlayerProfile profile = SaveManager.SaveData;
+            if (profile == null)
+            {
+                _empireStatusText.text = "Empire data unavailable.";
+                if (_empireCollectButtonRoot != null) _empireCollectButtonRoot.SetActive(false);
+                return;
+            }
+
+            profile.ApplyDataToEmpire();
+            RefreshAvatarSummary(profile);
+            int deckSlots = profile.Empire.DeckSlotCount;
+            int gateChapter = PlayerEmpireData.GetHighestCampaignChapterAllowed(profile.gateLevel);
+            int castleResourceBonus = PlayerEmpireData.CastleResourceBonusForLevel(profile.castleLevel);
+            int castleHealthBonus = PlayerEmpireData.CastleHealthBonusForLevel(profile.castleLevel);
+            // Live totals after ApplyDataToEmpire (Block AA display-only — same readers battle uses).
+            int liveResourceCap = profile.Empire.ResourceCap;
+            int liveStartHp = profile.Empire.StartingAvatarHealth;
+            string castlePayoff =
+                $"+{castleResourceBonus} Resource · +{castleHealthBonus} HP · Cap {liveResourceCap} · Start HP {liveStartHp}";
+
+            Text castleRow = _canvasObj.transform.Find("EmpireConstructionRoot/CastleRow/RowSummary")?.GetComponent<Text>();
+            Text barracksRow = _canvasObj.transform.Find("EmpireConstructionRoot/BarracksRow/RowSummary")?.GetComponent<Text>();
+            Text gateRow = _canvasObj.transform.Find("EmpireConstructionRoot/GateRow/RowSummary")?.GetComponent<Text>();
+
+            int castleCost = profile.castleLevel >= PlayerEmpireData.MaxCastleLevel
+                ? 0
+                : PlayerEmpireData.GoldCostForCastleUpgrade(profile.castleLevel);
+            if (castleRow != null)
+            {
+                castleRow.text = profile.castleLevel >= PlayerEmpireData.MaxCastleLevel
+                    ? $"Castle L{profile.castleLevel} · {castlePayoff} · MAX"
+                    : $"Castle L{profile.castleLevel} · {castlePayoff} → L{profile.castleLevel + 1} · {castleCost:N0} Gold";
+            }
+
+            int barracksTarget = PlayerEmpireData.NextPaidBarracksMilestone(profile.barracksLevel);
+            int barracksCost = barracksTarget == 0 ? 0 : PlayerEmpireData.GoldCostForBarracksUpgrade(profile.barracksLevel, barracksTarget);
+            if (barracksRow != null)
+            {
+                barracksRow.text = barracksTarget == 0
+                    ? $"Barracks L{profile.barracksLevel} · {deckSlots} deck slots · MAX"
+                    : $"Barracks L{profile.barracksLevel} → L{barracksTarget} · {deckSlots} deck slots · {barracksCost:N0} Gold";
+            }
+
+            int gateTarget = PlayerEmpireData.NextPaidGateMilestone(profile.gateLevel);
+            int gateCost = gateTarget == 0 ? 0 : PlayerEmpireData.GoldCostForGateUpgrade(profile.gateLevel, gateTarget);
+            if (gateRow != null)
+                gateRow.text = FormatGateRowSummary(profile.gateLevel, gateChapter, gateTarget, gateCost);
+
+            EmpireConstructionState construction = profile.empireConstruction;
+            bool ready = construction != null && construction.status == EmpireConstructionStatus.ReadyToCollect;
+            _empireStatusText.text = ready
+                ? $"{construction.buildingId} ready — L{construction.targetLevel} ({construction.costGold:N0} Gold spent). Tap Collect."
+                : "One project at a time. Spend Gold to upgrade, then Collect.";
+
+            if (_empireCollectButtonRoot != null)
+                _empireCollectButtonRoot.SetActive(ready);
+
+            // Offline A: ReadyToCollect is the active project — block starting another upgrade.
+            SetUpgradeButtonsInteractable(!ready);
+        }
+
+        private void SetUpgradeButtonsInteractable(bool interactable)
+        {
+            if (_canvasObj == null) return;
+            foreach (string path in new[]
+                     {
+                         "EmpireConstructionRoot/CastleRow/UpgradeCastleButton",
+                         "EmpireConstructionRoot/BarracksRow/UpgradeBarracksButton",
+                         "EmpireConstructionRoot/GateRow/UpgradeGateButton",
+                     })
+            {
+                Button button = _canvasObj.transform.Find(path)?.GetComponent<Button>();
+                if (button != null) button.interactable = interactable;
+            }
+        }
+
+        private void RefreshAvatarSummary(PlayerProfile profile)
+        {
+            if (_avatarSummaryText == null) return;
+            if (profile == null)
+            {
+                _avatarSummaryText.text = "Avatar unavailable";
+                return;
+            }
+
+            profile.ApplyDataToEmpire();
+            _avatarSummaryText.text =
+                $"Avatar L{Mathf.Max(1, profile.avatarLevel)} · Cap {profile.Empire.ResourceCap} · Start HP {profile.Empire.StartingAvatarHealth}";
+        }
+
+        private void OnUpgradeCastle() => TryStartUpgrade(EmpireBuildingId.Castle);
+        private void OnUpgradeBarracks() => TryStartUpgrade(EmpireBuildingId.Barracks);
+        private void OnUpgradeGate() => TryStartUpgrade(EmpireBuildingId.Gate);
+
+        /// <summary>
+        /// Gate row clarity (Block Z): show which Campaign chapter is open now, and — without
+        /// inventing Gate-level thresholds — prompt upgrading to open the next chapter when
+        /// <see cref="PlayerEmpireData.GetHighestCampaignChapterAllowed"/> is below 10.
+        /// </summary>
+        public static string FormatGateRowSummary(int gateLevel, int highestChapterAllowed, int nextGateMilestone, int gateUpgradeGold)
+        {
+            int openChapter = Mathf.Clamp(highestChapterAllowed, 1, 10);
+            string openCopy = $"Campaign open: Ch{openChapter}";
+
+            string nextChapterCopy = string.Empty;
+            if (openChapter < 10)
+            {
+                int nextChapter = openChapter + 1;
+                if (!PlayerEmpireData.IsCampaignChapterAllowedByGate(gateLevel, nextChapter))
+                    nextChapterCopy = $" · Upgrade Gate to open Ch{nextChapter}";
+            }
+
+            if (nextGateMilestone == 0)
+                return $"Gate L{gateLevel} · {openCopy}{nextChapterCopy} · MAX";
+
+            return $"Gate L{gateLevel} → L{nextGateMilestone} · {openCopy}{nextChapterCopy} · {gateUpgradeGold:N0} Gold";
+        }
+
+        private void TryStartUpgrade(EmpireBuildingId building)
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            if (profile == null) return;
+
+            string projectId = $"empire-{building.ToString().ToLowerInvariant()}-{Guid.NewGuid():N}";
+            if (!EmpireConstructionService.TryStart(profile, building, projectId, out string error))
+            {
+                SetMessage(error ?? "Upgrade could not start.");
+                RefreshPanel();
+                return;
+            }
+
+            SaveManager.Save();
+            SetMessage("");
+            RefreshPanel();
+        }
+
+        private void OnCollectConstruction()
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            if (profile?.empireConstruction == null) return;
+
+            if (!EmpireConstructionService.TryClaimComplete(profile, profile.empireConstruction.projectId))
+            {
+                SetMessage("Nothing ready to collect.");
+                RefreshPanel();
+                return;
+            }
+
+            SaveManager.Save();
+            SetMessage("");
+            RefreshPanel();
+        }
+
+        private void SetMessage(string message)
+        {
+            if (_empireMessageText != null)
+                _empireMessageText.text = message ?? string.Empty;
+        }
+
+        private static void CreateBuildingRow(Transform parent, string rowName, string buttonName,
+            float bottom, float top, UnityEngine.Events.UnityAction onUpgrade)
+        {
+            GameObject row = new GameObject(rowName, typeof(RectTransform));
+            row.transform.SetParent(parent, false);
+            SetNormalizedRect(row.GetComponent<RectTransform>(), 0.03f, bottom, 0.97f, top);
+
+            Text rowText = UISharedFoundation.CreateText(row.transform, "RowSummary", "",
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 40f));
+            rowText.fontSize = 18;
+            SetNormalizedRect(rowText.rectTransform, 0f, 0f, 0.72f, 1f);
+
+            CreateActionButton(row.transform, buttonName, "UPGRADE", 0.74f, 0.1f, 0.98f, 0.9f, onUpgrade);
+        }
+
+        private static GameObject CreateActionButton(Transform parent, string name, string label,
+            float left, float bottom, float right, float top, UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject buttonRoot = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonRoot.transform.SetParent(parent, false);
+            Image bg = buttonRoot.GetComponent<Image>();
+            bg.color = HexColor("#1A3A4A");
+            buttonRoot.GetComponent<Button>().onClick.AddListener(onClick);
+            SetNormalizedRect(buttonRoot.GetComponent<RectTransform>(), left, bottom, right, top);
+
+            Text buttonLabel = UISharedFoundation.CreateText(buttonRoot.transform, "ActionLabel", label,
+                UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(220f, 36f));
+            buttonLabel.fontSize = 16;
+            buttonLabel.fontStyle = FontStyle.Bold;
+            SetNormalizedRect(buttonLabel.rectTransform, 0.05f, 0.05f, 0.95f, 0.95f);
+            return buttonRoot;
+        }
+
+        private static void SetNormalizedRect(RectTransform rect, float left, float bottom, float right, float top)
+        {
+            rect.anchorMin = new Vector2(left, bottom);
+            rect.anchorMax = new Vector2(right, top);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private static Color HexColor(string hex, float alpha = 1f)
+        {
+            if (ColorUtility.TryParseHtmlString(hex, out Color c))
+            {
+                c.a = alpha;
+                return c;
+            }
+
+            return Color.white;
+        }
+
+        public void TeardownUI()
+        {
+            if (_canvasObj == null) return;
+            if (Application.isPlaying) Destroy(_canvasObj);
+            else DestroyImmediate(_canvasObj);
+            _canvasObj = null;
+        }
+
+        private void OnDestroy() => TeardownUI();
+    }
+}

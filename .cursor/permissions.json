@@ -1,0 +1,16 @@
+{
+  "autoRun": {
+    "allow_instructions": [
+      "Allow read-only shell commands: git status, git diff, git log, dir, ls, rg, grep, head, tail, type, Get-ChildItem, Get-Content, Select-String.",
+      "Allow Unity EditMode batch tests for MyriadOfDragonsUnity when Unity Editor is closed.",
+      "Allow copying project docs to the owner's Google Drive WIP folder under card game/Game mech/MOD/Phase 1/Game mech/WIP.",
+      "Allow robocopy or Copy-Item mirroring UI assets from Assets/Resources to Drive UnityReviewMirror for PM review only.",
+      "Allow npm/dotnet build or test commands inside this workspace when the user asked for execution or CI."
+    ],
+    "block_instructions": [
+      "Block git push --force, git reset --hard, git clean -fd, and any command that deletes the Unity project or Drive backups.",
+      "Block editing frozen Save files (PlayerProfile, SaveMigration, SaveSystem) without explicit user approval in the same turn.",
+      "Block network calls except package managers, Unity Hub, GitHub, and Google Drive sync paths the user uses."
+    ]
+  }
+}

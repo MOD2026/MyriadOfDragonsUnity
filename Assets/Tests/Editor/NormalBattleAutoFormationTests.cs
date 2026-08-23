@@ -121,7 +121,8 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(bootstrap.RecommendedLineupButtonActiveForTests,
                 "Auto Formation (the relabeled Recommended control) must be visible for a valid deck with an empty board.");
             Assert.IsTrue(bootstrap.TutorialGuidanceCaptionActiveForTests);
-            Assert.AreEqual("Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
+            Assert.AreEqual(
+                GameBootstrap.NormalBattleModeLabel + "\nYour saved deck fills the hand. Tap Auto Formation to deploy a starting squad.",
                 bootstrap.TutorialGuidanceCaptionTextForTests);
 
             foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
@@ -206,7 +207,9 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(bootstrap.PrimaryActionButtonActiveForTests);
             Assert.IsTrue(bootstrap.PrimaryActionButtonInteractableForTests, "Start Battle must be enabled after Auto Formation.");
             Assert.IsTrue(bootstrap.TutorialGuidanceCaptionActiveForTests);
-            Assert.AreEqual("Formation ready. Tap Start Battle.", bootstrap.TutorialGuidanceCaptionTextForTests);
+            Assert.AreEqual(
+                GameBootstrap.NormalBattleModeLabel + "\nFormation ready. Tap Start Battle.",
+                bootstrap.TutorialGuidanceCaptionTextForTests);
 
             bootstrap.StartBattleForTests();
             Assert.AreEqual(BattlePhase.Combat, bootstrap.Battle.Phase,

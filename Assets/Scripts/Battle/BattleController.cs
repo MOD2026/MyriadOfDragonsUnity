@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MyriadOfDragons.AI;
 using MyriadOfDragons.Cards;
 using UnityEngine;
 
@@ -102,6 +103,7 @@ namespace MyriadOfDragons.Battle
         /// a float timer couldn't be exercised by the EditMode test suite either way.
         /// </summary>
         public int Energy { get; private set; }
+        public int EnemyEnergy { get; private set; }
         public int MaxEnergy { get; private set; } = 100;
         public int EnergyPerTick { get; private set; } = 18;
 
@@ -113,6 +115,9 @@ namespace MyriadOfDragons.Battle
         /// IsTutorialMatch. Does not touch MaxEnergy, EnergyPerTick, or any other rule.
         /// </summary>
         public void SetEnergyForTutorial(int energy) => Energy = Math.Min(MaxEnergy, Math.Max(0, energy));
+
+        /// <summary>EditMode-only hook for AI spell tests.</summary>
+        public void SetEnemyEnergyForTests(int energy) => EnemyEnergy = Math.Min(MaxEnergy, Math.Max(0, energy));
 
         /// <summary>
         /// Energy each living Back-lane card adds per clash.
@@ -158,6 +163,20 @@ namespace MyriadOfDragons.Battle
         public string OutcomeReason { get; private set; } = string.Empty;
 
         public List<AvatarSpell> Spellbook { get; private set; } = new List<AvatarSpell>();
+        public List<AvatarSpell> EnemySpellbook { get; private set; } = new List<AvatarSpell>();
+
+        /// <summary>
+        /// Mirrored enemy spell casting (Option B) — PvE production only.
+        /// Defaults false on every StartMatch so EditMode isolation / balance sims never get surprise casts.
+        /// Production enables via <see cref="EnableMirroredEnemySpellsForPvE"/> after StartMatch.
+        /// </summary>
+        public bool MirroredEnemySpellsEnabled { get; private set; }
+
+        /// <summary>Production (Option B): enable mirrored enemy spells for normal/Campaign PvE. Not used by tutorial.</summary>
+        public void EnableMirroredEnemySpellsForPvE() => MirroredEnemySpellsEnabled = true;
+
+        /// <summary>EditMode-only: opt in/out for AI spell unit tests. Never call from production.</summary>
+        public void SetMirroredEnemySpellsEnabledForTests(bool enabled) => MirroredEnemySpellsEnabled = enabled;
 
         private readonly List<CombatTickRecord> _combatLedger = new List<CombatTickRecord>();
 
@@ -242,7 +261,10 @@ namespace MyriadOfDragons.Battle
             Phase = BattlePhase.Formation;
             TickCount = 0;
             Energy = 0;
+            EnemyEnergy = 0;
             Spellbook = AvatarSpell.CreateDefaultSpellbook();
+            EnemySpellbook = AvatarSpell.CreateDefaultSpellbook();
+            MirroredEnemySpellsEnabled = false;
             _combatLedger.Clear();
             _spellCastLog.Clear();
 
@@ -371,10 +393,19 @@ namespace MyriadOfDragons.Battle
 
             TickCount++;
             Energy = Math.Min(MaxEnergy, Energy + EnergyPerTick + BackLaneEnergy(PlayerState));
+            EnemyEnergy = Math.Min(MaxEnergy, EnemyEnergy + EnergyPerTick + BackLaneEnergy(EnemyState));
             foreach (AvatarSpell spell in Spellbook)
             {
                 spell.TickCooldown();
             }
+
+            foreach (AvatarSpell spell in EnemySpellbook)
+            {
+                spell.TickCooldown();
+            }
+
+            if (MirroredEnemySpellsEnabled)
+                AISpellCaster.TryCastDuringCombatTick(this);
 
             TurnResolutionResult result = ResolveTurnAndAdvance(TickCount);
 
@@ -507,7 +538,7 @@ namespace MyriadOfDragons.Battle
             // Combat Tick Feed data (2026-08-22): logged only once the cast is confirmed legal
             // and has actually happened - never for a rejected attempt (see the early returns
             // above, none of which reach this line).
-            _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt));
+            _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt, castByPlayer: true));
 
             // A spell that kills the enemy Avatar outright must end the match immediately, not
             // leave it running until the next tick happens to notice.
@@ -515,6 +546,33 @@ namespace MyriadOfDragons.Battle
             {
                 Phase = BattlePhase.Resolved;
                 RaiseMatchEnded(true);
+            }
+
+            return true;
+        }
+
+        /// <summary>Mirrored PvE spell cast — same energy/cooldown rules as the player path.</summary>
+        public bool TryCastEnemySpell(int spellIndex, Lane targetLane, out int avatarDamageDealt)
+        {
+            avatarDamageDealt = 0;
+
+            if (Phase != BattlePhase.Combat) return false;
+            if (spellIndex < 0 || spellIndex >= EnemySpellbook.Count) return false;
+
+            AvatarSpell spell = EnemySpellbook[spellIndex];
+            if (!spell.IsOffCooldown) return false;
+            if (spell.EnergyCost > EnemyEnergy) return false;
+
+            EnemyEnergy -= spell.EnergyCost;
+            spell.PutOnCooldown();
+            avatarDamageDealt = spell.Cast(EnemyState, PlayerState, targetLane);
+
+            _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt, castByPlayer: false));
+
+            if (PlayerState.IsDefeated)
+            {
+                Phase = BattlePhase.Resolved;
+                RaiseMatchEnded(false);
             }
 
             return true;

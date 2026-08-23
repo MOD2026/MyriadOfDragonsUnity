@@ -162,8 +162,8 @@ namespace MyriadOfDragons.Battle
                 new AvatarSpell("War Cry", "Permanently grant +2 Attack to a friendly lane.",
                     energyCost: 40, cooldownTicks: 4, SpellEffect.LaneAttackBuff, magnitude: 2),
 
-                new AvatarSpell("Divine Bolt", "Strike the enemy Avatar directly for 150.",
-                    energyCost: 60, cooldownTicks: 5, SpellEffect.AvatarStrike, magnitude: 150),
+                new AvatarSpell("Divine Bolt", "Strike the enemy Avatar directly for 100.",
+                    energyCost: 60, cooldownTicks: 5, SpellEffect.AvatarStrike, magnitude: 100),
             };
         }
     }

@@ -9,10 +9,18 @@ using UnityEngine.UI;
 
 namespace MyriadOfDragons.UI
 {
+    /// <summary>Collection grid sort modes (Block X). Default preserves load order.</summary>
+    public enum CollectionSortMode
+    {
+        Default = 0,
+        NameAscending = 1,
+        RarityDescending = 2,
+    }
+
     /// <summary>
     /// Read-only Collection screen for P1 Task 1.
-    /// Displays cards owned in PlayerProfile.cardCollection with search and UI placeholders
-    /// for filter/sort that can be implemented later without presenter refactoring.
+    /// Displays owned cards from <see cref="PlayerProfile.cardProgression"/> (V1) or legacy list.
+    /// V1 duplicates can be burned or evolved via atomic save services.
     /// </summary>
     public class CollectionPresenter : MonoBehaviour
     {
@@ -22,13 +30,27 @@ namespace MyriadOfDragons.UI
 
         private Text _ownedCountText;
         private InputField _searchInput;
+        private Text _classFilterLabel;
         private Transform _gridRoot;
         private Text _emptyStateText;
 
+        /// <summary>Empty grid when the player owns nothing.</summary>
+        public const string EmptyNoOwnedCopy = "No owned cards to display.";
+        /// <summary>Empty grid when search and/or class filter hide every owned card.</summary>
+        public const string EmptyNoMatchCopy = "No cards match your search or filter.";
+
+        /// <summary>Null = All classes. Block V class filter.</summary>
+        private CardClass? _classFilter;
+        private CollectionSortMode _sortMode = CollectionSortMode.Default;
+        private Text _sortLabel;
+
         private GameObject _detailPanel;
+        private Transform _detailActionsRoot;
         private Text _detailTitleText;
         private Text _detailBodyText;
+        private Text _detailStatusText;
         private Image _detailArtImage;
+        private OwnedCardViewModel _selectedCard;
 
         private readonly List<OwnedCardViewModel> _allCards = new List<OwnedCardViewModel>();
         private readonly List<OwnedCardViewModel> _filteredCards = new List<OwnedCardViewModel>();
@@ -48,9 +70,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildUI()
         {
+            TeardownUI();
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
             _canvasObj = new GameObject("CollectionCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             Canvas canvas = _canvasObj.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 10;
 
             CanvasScaler scaler = _canvasObj.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -79,7 +105,8 @@ namespace MyriadOfDragons.UI
             headerObj.transform.SetParent(_canvasObj.transform, false);
 
             Image headerImg = headerObj.GetComponent<Image>();
-            headerImg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
+            if (!HomeV3UiLibrary.TryApplyHeaderFrame(headerImg))
+                headerImg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
 
             RectTransform headerRect = headerObj.GetComponent<RectTransform>();
             headerRect.anchorMin = new Vector2(0f, 1f);
@@ -110,8 +137,8 @@ namespace MyriadOfDragons.UI
             _searchInput = CreateSearchField(controlsObj.transform, new Vector2(-520f, 0f), new Vector2(720f, 60f));
             _searchInput.onValueChanged.AddListener(_ => ApplySearchFilterSortAndRender());
 
-            CreatePlaceholderControl(controlsObj.transform, "FilterPlaceholder", "Filter (Coming Soon)", new Vector2(300f, 0f), new Vector2(260f, 60f), false);
-            CreatePlaceholderControl(controlsObj.transform, "SortPlaceholder", "Sort (Coming Soon)", new Vector2(580f, 0f), new Vector2(260f, 60f), false);
+            _classFilterLabel = CreateClassFilterControl(controlsObj.transform, new Vector2(300f, 0f), new Vector2(260f, 60f));
+            _sortLabel = CreateSortControl(controlsObj.transform, new Vector2(580f, 0f), new Vector2(260f, 60f));
         }
 
         private void BuildGridPanel()
@@ -205,12 +232,26 @@ namespace MyriadOfDragons.UI
             artRect.anchoredPosition = new Vector2(0f, 75f);
             artRect.sizeDelta = new Vector2(300f, 300f);
 
-            _detailBodyText = CreateTextElement(_detailPanel.transform, "DetailBody", "Tap any owned card in the grid to inspect details.", new Vector2(0f, -190f), 22, TextAnchor.UpperCenter, new Vector2(420f, 240f));
+            _detailBodyText = CreateTextElement(_detailPanel.transform, "DetailBody", "Tap any owned card in the grid to inspect details.", new Vector2(0f, -120f), 20, TextAnchor.UpperCenter, new Vector2(420f, 200f));
+
+            GameObject actionsObj = new GameObject("DetailActions", typeof(RectTransform));
+            actionsObj.transform.SetParent(_detailPanel.transform, false);
+            _detailActionsRoot = actionsObj.transform;
+            RectTransform actionsRect = actionsObj.GetComponent<RectTransform>();
+            actionsRect.anchorMin = new Vector2(0.5f, 0f);
+            actionsRect.anchorMax = new Vector2(0.5f, 0f);
+            actionsRect.pivot = new Vector2(0.5f, 0f);
+            actionsRect.anchoredPosition = new Vector2(0f, 24f);
+            actionsRect.sizeDelta = new Vector2(400f, 180f);
+
+            _detailStatusText = CreateTextElement(_detailPanel.transform, "DetailStatus", string.Empty, new Vector2(0f, -300f), 18, TextAnchor.UpperCenter, new Vector2(420f, 60f));
+            _detailStatusText.color = new Color(0.75f, 0.9f, 0.75f);
         }
 
         private void BuildBottomButtons()
         {
             GameObject backBtnObj = CreateButton(_canvasObj.transform, "BackButton", "< BACK", new Vector2(-560f, 60f), new Vector2(240f, 70f), new Color(0.28f, 0.2f, 0.2f));
+            HomeV3UiLibrary.ApplyNavTileButton(backBtnObj.GetComponent<Button>(), backBtnObj.GetComponent<Image>());
             backBtnObj.GetComponent<Button>().onClick.AddListener(() =>
             {
                 if (_canvasObj != null) Destroy(_canvasObj);
@@ -218,6 +259,7 @@ namespace MyriadOfDragons.UI
             });
 
             GameObject deckBtnObj = CreateButton(_canvasObj.transform, "OpenDeckBuilderButton", "OPEN DECK BUILDER", new Vector2(560f, 60f), new Vector2(360f, 70f), new Color(0.18f, 0.4f, 0.28f));
+            HomeV3UiLibrary.ApplyNavTileButton(deckBtnObj.GetComponent<Button>(), deckBtnObj.GetComponent<Image>());
             deckBtnObj.GetComponent<Button>().onClick.AddListener(() =>
             {
                 if (_canvasObj != null) Destroy(_canvasObj);
@@ -230,36 +272,49 @@ namespace MyriadOfDragons.UI
             _allCards.Clear();
 
             PlayerProfile profile = SaveManager.SaveData;
-            if (profile == null || profile.cardCollection == null)
+            if (profile == null) return;
+
+            CardDatabase db = EnsureCardDatabase();
+
+            if (profile.UsesCollectionV1 && profile.cardProgression != null)
             {
+                foreach (CardProgressionRecord record in profile.cardProgression)
+                {
+                    if (record == null || string.IsNullOrEmpty(record.cardId) || record.copyCount < 1) continue;
+                    TryAddOwnedCard(db, record.cardId, record.copyCount);
+                }
+
                 return;
             }
 
-            CardDatabase db = EnsureCardDatabase();
+            if (profile.cardCollection == null) return;
 
             foreach (string cardId in profile.cardCollection)
             {
                 if (string.IsNullOrEmpty(cardId)) continue;
-
-                Card resolved = db != null ? db.GetCard(cardId) : null;
-                string displayName = resolved != null ? resolved.DisplayName : cardId;
-                int cost = resolved != null ? resolved.ResourceCost : 0;
-                int attack = resolved != null ? resolved.Attack : 0;
-                int health = resolved != null ? resolved.Health : 0;
-                string archetype = resolved != null ? resolved.Class.ToString() : "Unknown";
-                Sprite art = (db != null && resolved != null) ? db.GetArt(resolved) : null;
-
-                _allCards.Add(new OwnedCardViewModel
-                {
-                    CardId = cardId,
-                    DisplayName = displayName,
-                    Archetype = archetype,
-                    Cost = cost,
-                    Attack = attack,
-                    Health = health,
-                    Art = art,
-                });
+                TryAddOwnedCard(db, cardId, 1);
             }
+        }
+
+        private void TryAddOwnedCard(CardDatabase db, string cardId, int copyCount)
+        {
+            Card resolved = db != null ? db.GetCard(cardId) : null;
+            string displayName = resolved != null ? resolved.DisplayName : cardId;
+            if (copyCount > 1) displayName += $" ×{copyCount}";
+
+            _allCards.Add(new OwnedCardViewModel
+            {
+                CardId = cardId,
+                DisplayName = displayName,
+                CopyCount = copyCount,
+                Class = resolved != null ? resolved.Class : (CardClass?)null,
+                Archetype = resolved != null ? resolved.Class.ToString() : "Unknown",
+                Rarity = resolved != null ? resolved.Rarity : 0,
+                Cost = resolved != null ? resolved.ResourceCost : 0,
+                Attack = resolved != null ? resolved.Attack : 0,
+                Health = resolved != null ? resolved.Health : 0,
+                Art = (db != null && resolved != null) ? db.GetArt(resolved) : null,
+            });
         }
 
         private CardDatabase EnsureCardDatabase()
@@ -291,6 +346,10 @@ namespace MyriadOfDragons.UI
                     || c.Archetype.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0);
             }
 
+            _filter = _classFilter.HasValue
+                ? (ICardFilter)new ClassCardFilter(_classFilter.Value)
+                : new NoOpCardFilter();
+            _sort = CreateSortForMode(_sortMode);
             query = _filter.Apply(query);
             query = _sort.Apply(query);
 
@@ -304,7 +363,8 @@ namespace MyriadOfDragons.UI
         {
             foreach (Transform child in _gridRoot)
             {
-                Destroy(child.gameObject);
+                if (Application.isPlaying) Destroy(child.gameObject);
+                else DestroyImmediate(child.gameObject);
             }
 
             bool hasAny = _filteredCards.Count > 0;
@@ -312,14 +372,7 @@ namespace MyriadOfDragons.UI
 
             if (!hasAny)
             {
-                if (_allCards.Count == 0)
-                {
-                    _emptyStateText.text = "No owned cards to display.";
-                }
-                else
-                {
-                    _emptyStateText.text = "No cards match your search.";
-                }
+                _emptyStateText.text = _allCards.Count == 0 ? EmptyNoOwnedCopy : EmptyNoMatchCopy;
                 return;
             }
 
@@ -360,17 +413,219 @@ namespace MyriadOfDragons.UI
 
         private void ShowDetail(OwnedCardViewModel card)
         {
+            _selectedCard = card;
             _detailTitleText.text = card.DisplayName;
             _detailArtImage.sprite = card.Art;
             _detailArtImage.color = card.Art != null ? Color.white : new Color(0.22f, 0.24f, 0.3f, 1f);
 
-            _detailBodyText.text =
-                $"Card ID: {card.CardId}\n" +
-                $"Class: {card.Archetype}\n" +
-                $"Cost: {card.Cost}\n" +
-                $"Attack: {card.Attack}\n" +
-                $"Health: {card.Health}\n\n" +
-                "Collection view is read-only in this phase.";
+            PlayerProfile profile = SaveManager.SaveData;
+            CardProgressionRecord record = profile != null && profile.UsesCollectionV1
+                ? CollectionProgression.FindRecordForTests(profile, card.CardId)
+                : null;
+
+            var body = new System.Text.StringBuilder();
+            body.AppendLine($"Card ID: {card.CardId}");
+            body.AppendLine($"Copies: {card.CopyCount}");
+            body.AppendLine($"Class: {card.Archetype}");
+            body.AppendLine($"Cost: {card.Cost}   ATK: {card.Attack}   HP: {card.Health}");
+            if (record != null)
+            {
+                body.AppendLine($"Level: {record.cardLevel}   Evo step: {record.evolutionStep}");
+                body.AppendLine($"Training XP: {record.trainingXp}");
+                if (profile.collectionWallet != null)
+                {
+                    int rarity = ResolveRarity(card.CardId);
+                    int dust = CollectionEvolutionRules.GetDustBalance(profile.collectionWallet, rarity);
+                    body.AppendLine(
+                        $"Forge: {profile.collectionWallet.forgeCredits}   Dust ({rarity}★): {dust}   Sacrifice: {profile.collectionWallet.genericSacrificeCredits}");
+                    body.AppendLine(CollectionPlayerCopy.ForgeDustWalletCaption);
+                }
+            }
+
+            _detailBodyText.text = body.ToString().TrimEnd();
+            _detailStatusText.text = string.Empty;
+            RebuildDetailActions(card, record, profile);
+        }
+
+        private void RebuildDetailActions(OwnedCardViewModel card, CardProgressionRecord record, PlayerProfile profile)
+        {
+            foreach (Transform child in _detailActionsRoot)
+            {
+                Destroy(child.gameObject);
+            }
+
+            if (profile == null || !profile.UsesCollectionV1 || record == null)
+            {
+                return;
+            }
+
+            if (card.CopyCount < 2)
+            {
+                _detailStatusText.text = CollectionPlayerCopy.BurnEmptyState;
+                return;
+            }
+
+            float y = 130f;
+            CreateDetailActionButton("Burn → XP", new Vector2(0f, y), new Color(0.22f, 0.38f, 0.28f),
+                () => AttemptBurn(CollectionBurnPath.TrainingXp));
+            CreateDetailActionButton("Burn → Sacrifice", new Vector2(0f, y - 44f), new Color(0.28f, 0.32f, 0.42f),
+                () => AttemptBurn(CollectionBurnPath.GenericSacrifice));
+            CreateDetailActionButton("Burn → Forge", new Vector2(0f, y - 88f), new Color(0.38f, 0.28f, 0.2f),
+                () => AttemptBurn(CollectionBurnPath.ForgeCredit));
+            CreateDetailActionButton("Burn → Dust", new Vector2(0f, y - 132f), new Color(0.32f, 0.28f, 0.38f),
+                () => AttemptBurn(CollectionBurnPath.Dust));
+
+            if (record.evolutionStep < CollectionEvolutionRules.MaxEvolutionStep)
+            {
+                int rarity = ResolveRarity(card.CardId);
+                string evolveLabel = FormatEvolveButtonLabel(profile, rarity, record.evolutionStep);
+                CreateDetailActionButton(evolveLabel, new Vector2(0f, y - 176f), new Color(0.45f, 0.22f, 0.38f), AttemptEvolve);
+            }
+        }
+
+        /// <summary>Evolve button cost label using live Gold due after Forge/Dust offsets.</summary>
+        public static string FormatEvolveButtonLabel(PlayerProfile profile, int rarity, int evolutionStep)
+        {
+            int baseGold = CollectionEvolutionRules.GoldCostForNextStep(rarity, evolutionStep);
+            int goldDue = CollectionEvolutionRules.ComputeGoldDue(
+                profile, rarity, baseGold, out _, out _);
+            int sacrificeRequired = CollectionEvolutionRules.GenericSacrificeCreditsRequired(evolutionStep);
+            bool needsPermit = CollectionEvolutionRules.RequiresAscensionPermit(evolutionStep);
+
+            var costParts = new System.Collections.Generic.List<string>();
+            if (goldDue < baseGold)
+                costParts.Add($"{goldDue}g (was {baseGold}g)");
+            else
+                costParts.Add($"{goldDue}g");
+
+            if (sacrificeRequired > 0)
+                costParts.Add($"{sacrificeRequired} Sacrifice");
+            if (needsPermit)
+                costParts.Add("Permit");
+
+            return $"Evolve ({string.Join(" + ", costParts)})";
+        }
+
+        private void CreateDetailActionButton(string label, Vector2 pos, Color tint, UnityEngine.Events.UnityAction action)
+        {
+            GameObject btnObj = CreateButton(_detailActionsRoot, label.Replace(" ", ""), label, pos, new Vector2(360f, 38f), tint);
+            btnObj.GetComponent<Button>().onClick.AddListener(action);
+        }
+
+        private void AttemptBurn(CollectionBurnPath path)
+        {
+            if (_selectedCard == null) return;
+            PlayerProfile profile = SaveManager.SaveData;
+            string receiptId = System.Guid.NewGuid().ToString("N");
+            if (!CollectionBurnService.TryBurnCopy(profile, _selectedCard.CardId, path, receiptId, out CollectionBurnReceiptResult result))
+            {
+                _detailStatusText.text = result.Error == CollectionBurnError.InsufficientCopies
+                    ? CollectionPlayerCopy.BurnEmptyState
+                    : $"Burn failed: {result.Error}";
+                return;
+            }
+
+            SaveManager.Save();
+            _detailStatusText.text = $"Burned 1 copy → +{result.YieldAmount} ({path}).";
+            LoadOwnedCards();
+            ApplySearchFilterSortAndRender();
+            OwnedCardViewModel refreshed = _allCards.Find(c => c.CardId == _selectedCard.CardId);
+            if (refreshed != null) ShowDetail(refreshed);
+        }
+
+        private void AttemptEvolve()
+        {
+            if (_selectedCard == null) return;
+            PlayerProfile profile = SaveManager.SaveData;
+            string receiptId = System.Guid.NewGuid().ToString("N");
+            if (!CollectionEvolutionService.TryEvolve(profile, _selectedCard.CardId, receiptId, out CollectionEvolutionReceiptResult result))
+            {
+                _detailStatusText.text = IsEvolutionShortage(result.Error)
+                    ? CollectionPlayerCopy.EvolutionShortage
+                    : $"Evolve failed: {result.Error}";
+                return;
+            }
+
+            SaveManager.Save();
+            _detailStatusText.text = $"Evolved to step {result.EvolutionStepAfter} (−{result.GoldSpent} gold).";
+            LoadOwnedCards();
+            ApplySearchFilterSortAndRender();
+            OwnedCardViewModel refreshed = _allCards.Find(c => c.CardId == _selectedCard.CardId);
+            if (refreshed != null) ShowDetail(refreshed);
+        }
+
+        private static bool IsEvolutionShortage(CollectionEvolutionError error) =>
+            error == CollectionEvolutionError.InsufficientGold
+            || error == CollectionEvolutionError.InsufficientCopies
+            || error == CollectionEvolutionError.InsufficientSacrificeCredits
+            || error == CollectionEvolutionError.PermitRequired;
+
+        /// <summary>Exposed for EditMode: detail body after ShowDetail.</summary>
+        public string DetailBodyTextForTests => _detailBodyText != null ? _detailBodyText.text : null;
+
+        /// <summary>Exposed for EditMode: empty-state copy currently shown (null if grid has tiles).</summary>
+        public string EmptyStateTextForTests =>
+            _emptyStateText != null && _emptyStateText.gameObject.activeSelf ? _emptyStateText.text : null;
+
+        /// <summary>Exposed for EditMode: visible grid card ids after search/filter/sort.</summary>
+        public IReadOnlyList<string> VisibleCardIdsForTests =>
+            _filteredCards.Select(c => c.CardId).ToList();
+
+        /// <summary>Exposed for EditMode: class filter label (e.g. "Filter: All").</summary>
+        public string ClassFilterLabelForTests => _classFilterLabel != null ? _classFilterLabel.text : null;
+
+        /// <summary>Exposed for EditMode: sort label (e.g. "Sort: Default").</summary>
+        public string SortLabelForTests => _sortLabel != null ? _sortLabel.text : null;
+
+        /// <summary>Exposed for EditMode: set class filter (null = All) and re-render.</summary>
+        public void SetClassFilterForTests(CardClass? classFilter)
+        {
+            _classFilter = classFilter;
+            RefreshClassFilterLabel();
+            ApplySearchFilterSortAndRender();
+        }
+
+        /// <summary>Exposed for EditMode: set sort mode and re-render.</summary>
+        public void SetSortModeForTests(CollectionSortMode mode)
+        {
+            _sortMode = mode;
+            RefreshSortLabel();
+            ApplySearchFilterSortAndRender();
+        }
+
+        /// <summary>Exposed for EditMode: set search box text and re-render.</summary>
+        public void SetSearchTextForTests(string search)
+        {
+            if (_searchInput != null) _searchInput.text = search ?? string.Empty;
+            ApplySearchFilterSortAndRender();
+        }
+
+        /// <summary>Exposed for EditMode: select owned card by id and refresh detail panel.</summary>
+        public void ShowDetailForTests(string cardId)
+        {
+            OwnedCardViewModel card = _allCards.Find(c => c.CardId == cardId);
+            if (card != null) ShowDetail(card);
+        }
+
+        /// <summary>Exposed for EditMode: evolve button label currently shown in detail actions.</summary>
+        public string EvolveButtonLabelForTests()
+        {
+            if (_detailActionsRoot == null) return null;
+            foreach (Transform child in _detailActionsRoot)
+            {
+                Text label = child.GetComponentInChildren<Text>();
+                if (label != null && label.text != null && label.text.StartsWith("Evolve ("))
+                    return label.text;
+            }
+
+            return null;
+        }
+
+        private static int ResolveRarity(string cardId)
+        {
+            CardDatabase db = CardDatabase.Instance;
+            Card card = db != null ? db.GetCard(cardId) : null;
+            return card?.Rarity ?? 1;
         }
 
         private void UpdateOwnedCount()
@@ -450,6 +705,108 @@ namespace MyriadOfDragons.UI
             return root;
         }
 
+        /// <summary>Class filter control (Block V). Cycles All → each <see cref="CardClass"/> on tap.</summary>
+        private Text CreateClassFilterControl(Transform parent, Vector2 position, Vector2 size)
+        {
+            GameObject root = new GameObject("ClassFilter", typeof(RectTransform), typeof(Image), typeof(Button));
+            root.transform.SetParent(parent, false);
+            root.transform.localScale = Vector3.one;
+
+            Image bg = root.GetComponent<Image>();
+            bg.color = new Color(0.22f, 0.28f, 0.36f, 1f);
+
+            RectTransform rect = root.GetComponent<RectTransform>();
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            Text label = CreateTextElement(root.transform, "Label", FormatClassFilterLabel(), Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            Button button = root.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(button, root.GetComponent<Image>());
+            button.onClick.AddListener(CycleClassFilter);
+            return label;
+        }
+
+        private void CycleClassFilter()
+        {
+            if (!_classFilter.HasValue)
+            {
+                _classFilter = CardClass.Warrior;
+            }
+            else
+            {
+                int next = (int)_classFilter.Value + 1;
+                CardClass[] all = (CardClass[])Enum.GetValues(typeof(CardClass));
+                _classFilter = next < all.Length ? all[next] : (CardClass?)null;
+            }
+
+            RefreshClassFilterLabel();
+            ApplySearchFilterSortAndRender();
+        }
+
+        private void RefreshClassFilterLabel()
+        {
+            if (_classFilterLabel != null)
+                _classFilterLabel.text = FormatClassFilterLabel();
+        }
+
+        private string FormatClassFilterLabel() =>
+            _classFilter.HasValue ? $"Filter: {_classFilter.Value}" : "Filter: All";
+
+        /// <summary>Sort control (Block X). Cycles Default → Name A–Z → Rarity High→Low.</summary>
+        private Text CreateSortControl(Transform parent, Vector2 position, Vector2 size)
+        {
+            GameObject root = new GameObject("CollectionSort", typeof(RectTransform), typeof(Image), typeof(Button));
+            root.transform.SetParent(parent, false);
+            root.transform.localScale = Vector3.one;
+
+            Image bg = root.GetComponent<Image>();
+            bg.color = new Color(0.22f, 0.28f, 0.36f, 1f);
+
+            RectTransform rect = root.GetComponent<RectTransform>();
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            Text label = CreateTextElement(root.transform, "Label", FormatSortLabel(), Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            Button button = root.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(button, root.GetComponent<Image>());
+            button.onClick.AddListener(CycleSortMode);
+            return label;
+        }
+
+        private void CycleSortMode()
+        {
+            int next = ((int)_sortMode + 1) % 3;
+            _sortMode = (CollectionSortMode)next;
+            RefreshSortLabel();
+            ApplySearchFilterSortAndRender();
+        }
+
+        private void RefreshSortLabel()
+        {
+            if (_sortLabel != null)
+                _sortLabel.text = FormatSortLabel();
+        }
+
+        private string FormatSortLabel()
+        {
+            switch (_sortMode)
+            {
+                case CollectionSortMode.NameAscending: return "Sort: Name A-Z";
+                case CollectionSortMode.RarityDescending: return "Sort: Rarity";
+                default: return "Sort: Default";
+            }
+        }
+
+        private static ICardSort CreateSortForMode(CollectionSortMode mode)
+        {
+            switch (mode)
+            {
+                case CollectionSortMode.NameAscending: return new NameAscendingSort();
+                case CollectionSortMode.RarityDescending: return new RarityDescendingSort();
+                default: return new NoOpCardSort();
+            }
+        }
+
         private GameObject CreateButton(Transform parent, string name, string label, Vector2 position, Vector2 size, Color color)
         {
             GameObject btnObj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
@@ -494,15 +851,18 @@ namespace MyriadOfDragons.UI
         private sealed class OwnedCardViewModel
         {
             public string CardId;
+            public int CopyCount = 1;
             public string DisplayName;
+            public CardClass? Class;
             public string Archetype;
+            public int Rarity;
             public int Cost;
             public int Attack;
             public int Health;
             public Sprite Art;
         }
 
-        // Reusable interfaces for future functional filter/sort implementations.
+        // Reusable interfaces for filter/sort (Blocks V/X).
         private interface ICardFilter
         {
             IEnumerable<OwnedCardViewModel> Apply(IEnumerable<OwnedCardViewModel> cards);
@@ -518,9 +878,49 @@ namespace MyriadOfDragons.UI
             public IEnumerable<OwnedCardViewModel> Apply(IEnumerable<OwnedCardViewModel> cards) => cards;
         }
 
+        private sealed class ClassCardFilter : ICardFilter
+        {
+            private readonly CardClass _required;
+
+            public ClassCardFilter(CardClass required) => _required = required;
+
+            public IEnumerable<OwnedCardViewModel> Apply(IEnumerable<OwnedCardViewModel> cards) =>
+                cards.Where(c => c.Class.HasValue && c.Class.Value == _required);
+        }
+
         private sealed class NoOpCardSort : ICardSort
         {
             public IEnumerable<OwnedCardViewModel> Apply(IEnumerable<OwnedCardViewModel> cards) => cards;
+        }
+
+        private sealed class NameAscendingSort : ICardSort
+        {
+            public IEnumerable<OwnedCardViewModel> Apply(IEnumerable<OwnedCardViewModel> cards) =>
+                cards.OrderBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(c => c.CardId, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private sealed class RarityDescendingSort : ICardSort
+        {
+            public IEnumerable<OwnedCardViewModel> Apply(IEnumerable<OwnedCardViewModel> cards) =>
+                cards.OrderByDescending(c => c.Rarity)
+                    .ThenBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(c => c.CardId, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public void TeardownUI()
+        {
+            if (_canvasObj == null) return;
+            _canvasObj.SetActive(false);
+            if (Application.isPlaying) Destroy(_canvasObj);
+            else DestroyImmediate(_canvasObj);
+            _canvasObj = null;
+            _detailPanel = null;
+        }
+
+        private void OnDestroy()
+        {
+            TeardownUI();
         }
     }
 }

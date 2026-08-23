@@ -50,13 +50,20 @@ crashlytics-build.properties
 results.xml
 run.log
 *.testresults.xml
+# Every ad-hoc named batch-run result/log dropped at repo root (block_*, _mvp_*, full_run.log, etc.)
+# 104+ of these accumulated uncommitted before the 2026-08-23 cleanup - regenerate, never commit.
+/*.xml
+/*.log
+
+# Claude Code local session settings (machine-specific, not shared)
+.claude/settings.local.json
 
 # OS noise
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Command Centre — local test / batch junk (do not commit)
+# Command Centre ï¿½ local test / batch junk (do not commit)
 *.log
 *-results.xml
 *-results*.xml

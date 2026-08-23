@@ -88,6 +88,7 @@ namespace MyriadOfDragons.Tests
                 stamina = 100,
             };
             if (unlockedStages != null) profile.unlockedStageIds = unlockedStages;
+            GateTestSupport.EnsureGateAllowsChapter(profile, 7);
             Assert.IsTrue(SaveSystem.Save(profile), "Setup: expected the fresh starter profile to save.");
             SaveSystem.ResetCurrentProfileForTests();
         }
@@ -184,31 +185,35 @@ namespace MyriadOfDragons.Tests
         // ---------- Order / unlock chain ----------
 
         [Test]
-        public void ChapterStages_ContainsTheCompleteChainFrom1_1Through7_30_EndingThere()
+        public void ChapterStages_ContainsChapters1Through7InOrder()
         {
+            // Prefix-only check (not "...then the list ends"): Chapter 8's own depth fill
+            // (8-1..8-30, a later task than this file) continues the chain past 7-30 now - see
+            // Chapter8FullDepthTests for the complete, current end-to-end chain assertion.
             string cursor = "1-1";
             var actualOrder = new List<string> { cursor };
-            while (true)
+            for (int i = 0; i < AllStageIdsInOrder.Length - 1; i++)
             {
                 string next = CampaignMapPresenter.GetNextStageId(cursor);
-                if (next == null) break;
+                Assert.IsNotNull(next, $"Setup: expected a real next stage after {cursor}.");
                 actualOrder.Add(next);
                 cursor = next;
-                Assert.LessOrEqual(actualOrder.Count, AllStageIdsInOrder.Length,
-                    "Setup: the ordered campaign list grew unexpectedly long - possible infinite chain or duplicate id.");
             }
 
             CollectionAssert.AreEqual(AllStageIdsInOrder, actualOrder,
-                "The complete ordered campaign list must be exactly 1-1..1-12 then 2-1..2-21 then 3-1..3-30 then 4-1..4-30 then 5-1..5-30 then 6-1..6-30 then 7-1..7-30, in that order, with no gaps.");
+                "The ordered campaign list must begin with exactly 1-1..1-12 then 2-1..2-21 then 3-1..3-30 then 4-1..4-30 then 5-1..5-30 then 6-1..6-30 then 7-1..7-30, in that order, with no gaps.");
         }
 
         [Test]
-        public void GetNextStageId_7_30IsTheTerminalStage_NoChapter8Invented()
+        public void GetNextStageId_ChainsThroughAllOfChapter7()
         {
             Assert.AreEqual("7-1", CampaignMapPresenter.GetNextStageId("6-30"));
             Assert.AreEqual("7-11", CampaignMapPresenter.GetNextStageId("7-10"));
             Assert.AreEqual("7-30", CampaignMapPresenter.GetNextStageId("7-29"));
-            Assert.IsNull(CampaignMapPresenter.GetNextStageId("7-30"), "Stage 7-30 must be the terminal stage - no Chapter 8 invented yet.");
+            // 7-30 is no longer the end of the list - Chapter 8's own depth fill (8-1..8-30, a
+            // later task) continues it further; see Chapter8FullDepthTests for that complete,
+            // current end-of-list contract.
+            Assert.AreEqual("8-1", CampaignMapPresenter.GetNextStageId("7-30"), "Stage 8-1 must be the real next stage after 7-30.");
         }
 
         [Test]

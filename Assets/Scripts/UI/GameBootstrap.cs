@@ -516,6 +516,15 @@ namespace MyriadOfDragons.UI
         public bool TutorialGuidanceCaptionActiveForTests => _tutorialGuidanceCaption != null && _tutorialGuidanceCaption.gameObject.activeSelf;
         public string TutorialGuidanceCaptionTextForTests => _tutorialGuidanceCaption != null ? _tutorialGuidanceCaption.text : null;
 
+        /// <summary>Block P Soft — locked mode strings for Campaign vs ordinary Battle (not Tutorial).</summary>
+        public const string NormalBattleModeLabel = "Normal Battle";
+
+        public static string FormatCampaignModeLabel(string stageId) =>
+            string.IsNullOrEmpty(stageId) ? "Campaign" : $"Campaign · Stage {stageId}";
+
+        /// <summary>Current Soft mode label for tests (null during tutorial).</summary>
+        public string BattleModeLabelForTests => CurrentBattleModeLabel();
+
         /// <summary>Exposed for tests: Reset/Recommended Lineup's current visibility - the
         /// readiness-audit fix hides both for the whole duration of any tutorial match (see
         /// RefreshPhaseControls' own comment).</summary>
@@ -880,6 +889,8 @@ namespace MyriadOfDragons.UI
             var enemyEconomy = new BattleController.MatchEconomy(
                 _empireData.ResourceCap, _empireData.Turn1Resource, _aiProfile.MaxAvatarHealth);
             _battleController.StartMatch(playerDeck, enemyDeck, playerEconomy, enemyEconomy);
+            // Option B: mirrored PvE AI spells for normal + Campaign solo (not tutorial path).
+            _battleController.EnableMirroredEnemySpellsForPvE();
 
             // Deal both sides their whole formation hand up front. The entire point of the
             // formation model is that the squad is built in one sitting rather than dribbled out
@@ -1505,7 +1516,21 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void RefreshNormalMatchGuidanceCaption()
         {
-            if (IsTutorialMatch || _battleController.Phase != BattlePhase.Formation)
+            if (IsTutorialMatch)
+            {
+                _tutorialGuidanceCaption.gameObject.SetActive(false);
+                return;
+            }
+
+            // Soft mode label stays visible in Combat (guidance body is Formation-only).
+            if (_battleController.Phase == BattlePhase.Combat)
+            {
+                _tutorialGuidanceCaption.text = NormalBattleModeLabel;
+                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                return;
+            }
+
+            if (_battleController.Phase != BattlePhase.Formation)
             {
                 _tutorialGuidanceCaption.gameObject.SetActive(false);
                 return;
@@ -1513,29 +1538,47 @@ namespace MyriadOfDragons.UI
 
             if (_normalMatchStartError != null)
             {
-                _tutorialGuidanceCaption.text = _normalMatchStartError;
+                _tutorialGuidanceCaption.text = WithBattleModePrefix(_normalMatchStartError);
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
             }
 
             if (AllPlayerLanesOccupied())
             {
-                _tutorialGuidanceCaption.text = "Formation ready. Tap Start Battle.";
+                _tutorialGuidanceCaption.text = WithBattleModePrefix("Formation ready. Tap Start Battle.");
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
             }
 
             if (!AnyPlayerLaneOccupied())
             {
-                _tutorialGuidanceCaption.text = "Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.";
+                _tutorialGuidanceCaption.text = WithBattleModePrefix(
+                    "Your saved deck fills the hand. Tap Auto Formation to deploy a starting squad.");
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
             }
 
-            // Partial manual placement (1-2 lanes filled, not via Auto Formation) - no
-            // prescribed copy for this in-between state; the existing selected-card/placement
-            // status text already carries what's needed here.
-            _tutorialGuidanceCaption.gameObject.SetActive(false);
+            // Partial manual placement (1-2 lanes filled, not via Auto Formation) - Soft mode
+            // label only (existing selected-card/placement status carries the rest).
+            _tutorialGuidanceCaption.text = NormalBattleModeLabel;
+            _tutorialGuidanceCaption.gameObject.SetActive(true);
+        }
+
+        /// <summary>Block P Soft — Campaign / Normal mode string; null during tutorial.</summary>
+        private string CurrentBattleModeLabel()
+        {
+            if (IsTutorialMatch) return null;
+            if (_pendingCampaignStage != null)
+                return FormatCampaignModeLabel(_pendingCampaignStage.stageId);
+            return NormalBattleModeLabel;
+        }
+
+        private string WithBattleModePrefix(string body)
+        {
+            string mode = CurrentBattleModeLabel();
+            if (string.IsNullOrEmpty(mode)) return body ?? string.Empty;
+            if (string.IsNullOrEmpty(body)) return mode;
+            return mode + "\n" + body;
         }
 
         /// <summary>
@@ -1583,26 +1626,29 @@ namespace MyriadOfDragons.UI
 
             if (_battleController.Phase == BattlePhase.Combat)
             {
-                _tutorialGuidanceCaption.text = "Combat is automatic - your cards attack on their own each clash. Cast a spell below if one is ready; that choice is still yours.";
+                _tutorialGuidanceCaption.text = WithBattleModePrefix(
+                    "Combat is automatic - your cards attack on their own each clash. Cast a spell below if one is ready; that choice is still yours.");
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
             }
 
             if (_normalMatchStartError != null)
             {
-                _tutorialGuidanceCaption.text = _normalMatchStartError;
+                _tutorialGuidanceCaption.text = WithBattleModePrefix(_normalMatchStartError);
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
             }
 
             if (AnyPlayerLaneOccupied())
             {
-                _tutorialGuidanceCaption.text = "You can add more cards from hand if you can afford them - Front gives +1 Attack, Middle gives +1 Health, Back has no bonus but is safest. Tap Start Battle when ready; that begins automatic combat, and your placement (plus any spells you cast) is your strategy.";
+                _tutorialGuidanceCaption.text = WithBattleModePrefix(
+                    "You can add more cards from hand if you can afford them - Front gives +1 Attack, Middle gives +1 Health, Back has no bonus but is safest. Tap Start Battle when ready; that begins automatic combat, and your placement (plus any spells you cast) is your strategy.");
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
             }
 
-            _tutorialGuidanceCaption.text = "Your saved 10-card deck fills the hand below. Tap Auto Formation for an optional basic three-lane squad, or place manually: tap a hand card, then an empty lane slot - Resource is spent as normal.";
+            _tutorialGuidanceCaption.text = WithBattleModePrefix(
+                "Your saved 10-card deck fills the hand below. Tap Auto Formation for an optional basic three-lane squad, or place manually: tap a hand card, then an empty lane slot - Resource is spent as normal.");
             _tutorialGuidanceCaption.gameObject.SetActive(true);
         }
 
@@ -1977,10 +2023,18 @@ namespace MyriadOfDragons.UI
             {
                 if (_battleController.Phase == BattlePhase.Combat)
                 {
-                    TurnResolutionResult result = _battleController.AdvanceCombatTick();
+                    // One Continue tap must finish the scripted encounter - the caption says
+                    // "finish the battle", not "advance one clash". Loop the real tick driver
+                    // until Resolved (same AdvanceCombatTick() path as a manual multi-tap).
+                    int guard = 0;
+                    while (_battleController.Phase == BattlePhase.Combat
+                           && guard++ < BattleController.MaxCombatTicks)
+                    {
+                        TurnResolutionResult result = _battleController.AdvanceCombatTick();
+                        ShowTurnDamage(result);
+                        ShowClashEffects(result);
+                    }
                     RefreshAll();
-                    ShowTurnDamage(result);
-                    ShowClashEffects(result);
                 }
             }
         }
@@ -2116,7 +2170,7 @@ namespace MyriadOfDragons.UI
 
         private void GrantApprovedStarterCardsIfMissing()
         {
-            if (_profile?.cardCollection == null) return;
+            if (_profile == null) return;
 
             // Persisted so the grant survives an app restart - previously this only ever
             // mutated cardCollection in memory, and (per the earlier persistence audit) only
@@ -2126,12 +2180,17 @@ namespace MyriadOfDragons.UI
             // actually saves the exact instance that just received the grant - see this
             // method's call site comment / Initialize()'s own _profile assignment for why the
             // two are not interchangeable in EditMode.
+            //
+            // Collection V1 profiles store ownership in cardProgression only; legacy
+            // cardCollection stays a rollback snapshot (see CollectionProgression).
             bool anyGranted = false;
             foreach (string cardId in ApprovedStarterCollectionCardIds)
             {
-                if (!_profile.cardCollection.Contains(cardId))
+                if (CollectionProgression.TryGrantFirstCopy(
+                        _profile,
+                        cardId,
+                        id => _cardDatabase != null && _cardDatabase.GetCard(id) != null))
                 {
-                    _profile.cardCollection.Add(cardId);
                     anyGranted = true;
                 }
             }
@@ -2373,6 +2432,7 @@ namespace MyriadOfDragons.UI
             var canvasGo = new GameObject("Canvas");
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
 
             var scaler = canvasGo.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -5419,6 +5479,16 @@ namespace MyriadOfDragons.UI
             // cleared it in HandleMatchCompleted, so this is a harmless no-op there). Fires
             // unconditionally, same as this whole method already does for both outcomes.
             _pendingCampaignStage = null;
+
+            // End the tutorial session on leave-to-Home. SetBattleCanvasVisible skips StartNewMatch
+            // while IsTutorialMatch is true (so tutorial entry is not stomped). Without clearing
+            // here, Tutorial → Return to City → Campaign / To Battle would keep the resolved
+            // tutorial board and still treat the next match as tutorial (reward guard skip).
+            if (IsTutorialMatch)
+            {
+                IsTutorialMatch = false;
+                _tutorialStep = null;
+            }
 
             OnReturnToCityRequested?.Invoke();
         }

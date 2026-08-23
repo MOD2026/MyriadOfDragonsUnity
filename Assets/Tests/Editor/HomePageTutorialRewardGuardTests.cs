@@ -331,21 +331,11 @@ namespace MyriadOfDragons.Tests
 
         /// <summary>
         /// GUIDANCE-CONTRACT RECONCILIATION FOLLOW-UP, 2026-08-21 - replaces the retired
-        /// `HomeBanner_ShowsApprovedCopy` test (formerly in TutorialGuidanceTests.cs, added by
-        /// "Add guided tutorial battle messaging"). That test asserted a static, unclickable
-        /// "TutorialGuidanceBanner" caption ("The Empire stands wounded. Learn to form your ranks
-        /// and face the first threat.") that BuildHomePageUI's pre-HomeV3 layout rendered directly
-        /// under TopHUD. HomeV3's redesign (BuildNeutralTutorialStrip, already live in this tree)
-        /// replaced that static banner wholesale with a functional "TutorialRoot" strip: live
-        /// approved copy plus a real "START TUTORIAL" button wired to the actual tutorial entry
-        /// path (OnStartTutorialClicked -> GameBootstrap.StartApprovedTutorialBattle). The old
-        /// banner GameObject no longer exists anywhere in the current Home layout (confirmed via
-        /// grep across HomePagePresenter.cs) - restoring the old test's literal assertions
-        /// unchanged would fail against current, intentional production behavior, not catch a
-        /// regression. This test asserts the CURRENT Home tutorial-entry contract instead: the
-        /// strip's approved copy is present, and a real click on its real button reaches the real
-        /// tutorial battle entry point exactly as production wires it - not a reimplementation of
-        /// OnStartTutorialClicked's own logic, and not a mere "element exists" check.
+        /// `HomeBanner_ShowsApprovedCopy` test (formerly in TutorialGuidanceTests.cs). HomeV3
+        /// originally used a "TutorialRoot" strip; current Home builds the same tutorial-entry
+        /// contract under <c>HomeFeatureRoot</c> (banner + StartTutorialButtonRoot →
+        /// OnStartTutorialClicked → StartApprovedTutorialBattle). Selectors track the live UI
+        /// name; production still has a real tutorial entry button.
         /// </summary>
         [Test]
         public void HomeTutorialStrip_ShowsApprovedCopyAndStartTutorialButtonEntersTheApprovedTutorialBattle()
@@ -359,13 +349,13 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = presenter.HomeCanvasObjectForTests;
             Assert.IsNotNull(homeCanvas, "Setup: expected Home's canvas to exist.");
 
-            Transform tutorialRoot = homeCanvas.transform.Find("TutorialRoot");
-            Assert.IsNotNull(tutorialRoot, "Home must contain the current tutorial-entry strip (TutorialRoot).");
+            Transform tutorialRoot = homeCanvas.transform.Find("HomeFeatureRoot");
+            Assert.IsNotNull(tutorialRoot, "Home must contain the current tutorial-entry strip (HomeFeatureRoot).");
 
-            Text tutorialCopy = tutorialRoot.Find("TutorialCopy")?.GetComponent<Text>();
-            Assert.IsNotNull(tutorialCopy, "The tutorial strip must contain its approved copy text.");
-            Assert.AreEqual("Ready to lead your forces into battle? The Empire awaits your command.", tutorialCopy.text,
-                "The tutorial strip must show the current approved copy, not the retired banner's copy.");
+            Text tutorialCopy = tutorialRoot.Find("FeatureCopy")?.GetComponent<Text>();
+            Assert.IsNotNull(tutorialCopy, "The tutorial strip must contain its feature copy text.");
+            Assert.AreEqual(HomePagePresenter.HomeFeatureTutorialInviteCopy, tutorialCopy.text,
+                "FeatureCopy must invite Start Tutorial for a new player (not only Campaign/Empire lines).");
 
             Button startTutorialButton = tutorialRoot.Find("StartTutorialButtonRoot")?.GetComponent<Button>();
             Assert.IsNotNull(startTutorialButton, "The tutorial strip must contain a real Start Tutorial button.");

@@ -54,10 +54,12 @@ The rest of those two files is yours; those members are not.
 Both of the previous open items are RESOLVED as of 2026-08-07 (see `docs/Mechanics_Gap_Analysis.md`
 §1.2/§1.3 and `docs/MOS_v1.1.md` §6): the AI opponent does not cast spells (asymmetric by design,
 compensates via `SoloAIScalingSystem` HP/Resource scaling instead), and the level-1 onboarding gap
-is fixed via a taper in `PlayerEmpireData` (full +100 HP at level 1, gone by level 5). Still open per
-`docs/MOS_v1.1.md` §20: currency naming (`eventMedals`/`dragonRelics` vs. Economy Blueprint's
-"Event Tokens"/"Market Credits"), Evolution/Limit Break curves, the 1–12 vs. x10 stat scale, and
-whether initiative has any place in the simultaneous combat model.
+is fixed via a taper in `PlayerEmpireData` (full +100 HP at level 1, gone by level 5). The four
+items formerly open per `docs/MOS_v1.1.md` §20 — currency naming, Evolution/Limit Break curves, the
+1–12 vs. x10 stat scale, and initiative in simultaneous combat — are RESOLVED as of 2026-08-23 (see
+`MOS_OPEN_ITEMS_RECONCILIATION_2026-08-23.md` and `docs/MOS_v1.1.md` §20): canonical names are
+Event Medals / Market Credits; Evolution is the sole Phase-1 mechanic (Limit Break retired as a
+label); the 1–12 scale stays; no initiative.
 
 ## This project uses git now
 

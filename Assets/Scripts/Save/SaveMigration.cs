@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MyriadOfDragons.Economy;
+using MyriadOfDragons.Empire;
 
 namespace MyriadOfDragons.Save
 {
@@ -34,6 +35,9 @@ namespace MyriadOfDragons.Save
             profile.gateLevel = AtLeastOne(profile.gateLevel);
             profile.level = AtLeastOne(profile.level);
 
+            if (profile.empireConstruction == null)
+                profile.empireConstruction = new EmpireConstructionState();
+
             profile.gold = AtLeastZero(profile.gold);
             profile.gems = AtLeastZero(profile.gems);
             profile.eventMedals = AtLeastZero(profile.eventMedals);
@@ -53,6 +57,8 @@ namespace MyriadOfDragons.Save
             // Wins can never exceed matches played - a file where they do divides every
             // downstream win-rate calculation into nonsense.
             if (profile.totalWins > profile.totalMatches) profile.totalMatches = profile.totalWins;
+
+            CollectionSchemaMigration.Apply(profile);
         }
 
         private static int AtLeastOne(int value) => value < 1 ? 1 : value;

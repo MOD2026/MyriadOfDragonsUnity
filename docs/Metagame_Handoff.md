@@ -1,5 +1,13 @@
 # Myriad of Dragons — Metagame Handoff
 
+> **2026-08-11 authority update:** Read `MOS_v1.2.md` and
+> `Guild_Competition_Rewards_v1.md` before using this older handoff. Guild identity, chat,
+> one-to-one direct messaging, R1–R5 governance, donations, help, research, store, leagues,
+> achievement rankings, rewards and appointed offices are now Phase 1. Any statement below that
+> places guilds at P3, calls multiplayer entirely absent, or cites 78/78 as the current result is
+> historical. Protected Git baseline is 81/81; latest verified social-contract working-tree result
+> is 100/100.
+
 **Written 2026-08-07, for an AI picking up metagame work (home screen, shop, campaign map, deck
 builder, collection, economy UI) with no prior context on this project.** Battle mechanics (combat,
 cards, AI opponent, progression math) is a separate collaborator's domain and is only covered here
@@ -17,7 +25,7 @@ at the integration points the metagame actually touches.
 | **Project root** | `C:\Users\zihan\Downloads\MyriadOfDragonsUnity` — work here, never on the Google Drive copy (`G:\My Drive\MOD\...` is a sync target only; opening Unity from it has broken the project three separate ways — MAX_PATH, sync-hydration gaps, file locks). |
 | **Unity version** | 6000.5.6f1 exactly. |
 | **UI framework** | Legacy uGUI, procedural — **no scenes, no prefabs.** Every screen is built at runtime in C# (`new GameObject(...)`, `AddComponent<...>()`). This is a deliberate project convention, not a placeholder — follow it. |
-| **Test suite** | 78/78 EditMode tests passing as of this doc. |
+| **Test suite** | Protected Git baseline 81/81; latest verified social-contract working-tree result 100/100, pending clean isolation. |
 
 Run the suite (Unity must be fully closed first — it holds an exclusive project lock):
 
@@ -251,6 +259,25 @@ In rough priority order:
    real, working trade primitive with zero UI in front of them.
 7. **No way to acquire `TradeableAssetInstance`s at all** — nothing mints one. Whatever grants a
    collectible (event reward, milestone, shop pack) needs to actually construct these.
+8. **Phase 1 direct messaging contracts now exist, but the trusted backend, persistence,
+   moderation implementation, and UI remain unimplemented.** Identity bootstrap is implemented;
+   guild/social contracts exist; DM contracts are now represented in the provider-neutral social
+   layer, but no real DM backend, retention enforcement, or UI has been added yet.
+
+9. **Phase 1 trusted social-safety block/mute slice is now locally authored and tested.** The linked Unity project
+   has a non-empty Cloud Project ID, and the Unity Dashboard evidence confirms Cloud Save and
+   Cloud Code availability in `production`; `ProjectSettings.asset`'s legacy `cloudEnabled: 0`
+   is inconclusive metadata only. The Unity client uses `com.unity.services.cloudcode` `2.10.4`,
+   selected from the official Unity Registry as a stable release compatible with Unity 2021.3+.
+   The top-level `CloudCode/SocialSafety/` module uses the official server packages
+   `Com.Unity.Services.CloudCode.Core` `0.0.5` and `Com.Unity.Services.CloudCode.Apis` `0.0.26`.
+   `BlockAccount`, `UnblockAccount`, `MuteAccount` and `UnmuteAccount` use verified
+   `IExecutionContext.PlayerId` identity and real Cloud Save server APIs. The module and client
+   gateway are authored; 13 server tests pass, while the new Unity client fixture awaits manual
+   Unity Test Runner execution. Nothing is deployed or called against production. `SubmitReport` is deferred:
+   the accepted request has neither an idempotency key nor an evidence identifier, so retry-safe
+   reports cannot be implemented without a minimal additive contract amendment and Command Centre
+   approval. No idempotency key is derived from report text.
 
 ---
 
@@ -272,7 +299,52 @@ system, and this project has now hit both failure modes more than once.
 
 ---
 
-## 8. Where to go deeper
+## 8. Social-safety server hardening status (2026-08-12)
+
+The Phase 1 block/mute server slice is authored locally and server-tested locally. Relationship
+records use the Cloud Save `Item.WriteLock` returned by reads and pass it to `SetItemBody.WriteLock`;
+one stale-write reconciliation re-reads authoritative state before retrying. Record IDs are derived
+from the existing SHA-256 relationship key, with separate block and mute namespaces. No raw account
+ID is used in a key or record ID. The server response contract remains unchanged.
+
+Durable relationship mutation limiting is now authored locally. One actor-scoped O(1) rate record is
+stored under a hashed `socialSafety.rateLimit.` key. Block, Unblock, Mute and Unmute reserve the same
+minute/day counters using Cloud Save optimistic locking and trusted server time. A stale reservation
+is re-read and reconciled once; remaining contention returns sanitized `CONFLICT`. A reservation is
+made before relationship storage, so a later relationship failure consumes that quota unit by design.
+
+The production configuration reader uses the installed official `Com.Unity.Services.CloudCode.Apis`
+`0.0.26` Remote Config API. Exact keys and expected positive integer types are:
+
+- `socialSafety.rateLimit.perMinute`: integer, default `10`
+- `socialSafety.rateLimit.perDay`: integer, default `100`
+
+The reader passes `context.AccessToken`, `context.ProjectId` and `context.EnvironmentId` at runtime;
+no credentials, project IDs or environment IDs are embedded in code. If Remote Config is unavailable,
+missing, malformed or non-positive, the protective `10`/`100` fallback is used explicitly. No
+Dashboard values were created or published in this task; the user must create those two Remote Config
+settings in the intended environment before deployment to make the limits configurable operationally.
+
+`config/social-safety-access-policy.json` remains draft and deployment-blocking. Unity documentation,
+support confirmation, or a controlled non-production test is still required to verify that Cloud
+Code writes made with `context.AccessToken` are not denied by the Player write-deny rule. This task
+did not deploy or call production.
+
+The beginner-friendly controlled validation procedure is documented in
+[SocialSafety_NonProduction_Validation_Checklist.md](SocialSafety_NonProduction_Validation_Checklist.md).
+Live non-production validation remains pending; no deployment or production verification is claimed.
+
+Status distinctions: authored locally; server-tested locally (43/43); Unity-client behavior has not
+been manually observed by the user in this task; policy behavior is unverified; deployment was not
+attempted; production behavior is not verified.
+
+Claude follow-up: perform a read-only review of the three SocialSafety implementation files and
+tests, checking the optimistic-lock contract and the unchanged client response casing. Do not launch
+Unity or deploy Cloud Code.
+
+---
+
+## 9. Where to go deeper
 
 | Doc | Read when |
 |---|---|
