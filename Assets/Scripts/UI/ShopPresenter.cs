@@ -415,7 +415,8 @@ namespace MyriadOfDragons.UI
                         {
                             TeardownUI();
                             onOpenCollectionAction.Invoke();
-                        });
+                        },
+                    ownershipProfile: player);
                 SetShopStatus($"Opened {item.title}.");
             }
             else

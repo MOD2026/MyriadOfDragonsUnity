@@ -15,11 +15,14 @@ namespace MyriadOfDragons.UI
         public const string CollectionNextStepCopy =
             "Cards added to Collection — open Collection to view them.";
 
+        /// <summary>Reveal-in-progress hint (Soft #3 clarity — tap advances multi-card packs).</summary>
+        public const string RevealTapHintCopy = "Tap to reveal next";
+
         /// <summary>Last dismiss guidance left on Shop (survives overlay teardown for Soft UI).</summary>
         public static string LastDismissStatusForTests { get; private set; }
 
         public static GameObject Show(Transform shopCanvasRoot, PackReceiptResult result, Action onDismiss,
-            Action onOpenCollection = null)
+            Action onOpenCollection = null, PlayerProfile ownershipProfile = null)
         {
             if (shopCanvasRoot == null || result == null) return null;
 
@@ -42,8 +45,9 @@ namespace MyriadOfDragons.UI
                 Vector2.zero);
             ApplyHomeV3PanelFrame(panel);
 
+            string packTitle = FormatPackTitle(result.SkuId);
             RectTransform titleRect = UISharedFoundation.CreateText(
-                panel, "Title", "PACK OPENED", UITextRole.Display, TextAnchor.MiddleCenter,
+                panel, "Title", packTitle, UITextRole.Display, TextAnchor.MiddleCenter,
                 new Color(0.95f, 0.92f, 0.82f), false,
                 new Vector2(800f, 50f)).GetComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0.5f, 1f);
@@ -51,9 +55,10 @@ namespace MyriadOfDragons.UI
             titleRect.pivot = new Vector2(0.5f, 1f);
             titleRect.anchoredPosition = new Vector2(0f, -24f);
 
+            // Soft #3 Soft-contract subtitle must keep CollectionNextStepCopy (existing EditMode assert).
             string subtitle = result.Success
                 ? $"{result.Draws.Count} card(s) · {result.GemsSpent} gems · {CollectionNextStepCopy}"
-                : $"Pack failed ({result.Error})";
+                : $"Pack failed ({result.Error}) — no cards granted.";
             RectTransform subRect = UISharedFoundation.CreateText(
                 panel, "Subtitle", subtitle, UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.85f, 0.82f, 0.7f),
                 false, new Vector2(860f, 56f)).GetComponent<RectTransform>();
@@ -62,7 +67,17 @@ namespace MyriadOfDragons.UI
             subRect.pivot = new Vector2(0.5f, 1f);
             subRect.anchoredPosition = new Vector2(0f, -72f);
 
-            BuildDrawScroll(panel, result);
+            Text progressText = UISharedFoundation.CreateText(
+                panel, "RevealProgress", "", UITextRole.Body, TextAnchor.MiddleCenter,
+                new Color(0.72f, 0.86f, 0.78f), false, new Vector2(860f, 36f));
+            progressText.fontSize = 18;
+            RectTransform progressRect = progressText.GetComponent<RectTransform>();
+            progressRect.anchorMin = new Vector2(0.5f, 1f);
+            progressRect.anchorMax = new Vector2(0.5f, 1f);
+            progressRect.pivot = new Vector2(0.5f, 1f);
+            progressRect.anchoredPosition = new Vector2(0f, -118f);
+
+            BuildDrawScroll(panel, result, ownershipProfile);
 
             Transform drawContentForRunner = DrawContentForTests(shopCanvasRoot);
 
@@ -112,11 +127,25 @@ namespace MyriadOfDragons.UI
             }
 
             PackOpenRevealRunner runner = overlayRoot.AddComponent<PackOpenRevealRunner>();
-            runner.Initialize(CollectRevealTiles(drawContentForRunner), () =>
-            {
-                continueBtn.interactable = true;
-                if (openCollectionBtn != null) openCollectionBtn.interactable = true;
-            });
+
+            // Tap anywhere on the draw area to advance — avoids dead-wait on multi-card packs.
+            Button tapAdvance = CreateTapAdvanceLayer(panel, runner);
+
+            runner.Initialize(
+                CollectRevealTiles(drawContentForRunner),
+                onAllRevealed: () =>
+                {
+                    continueBtn.interactable = true;
+                    if (openCollectionBtn != null) openCollectionBtn.interactable = true;
+                    if (tapAdvance != null) tapAdvance.gameObject.SetActive(false);
+                    if (progressText != null)
+                        progressText.text = FormatRevealComplete(result.Draws.Count);
+                },
+                onRevealProgress: (revealed, total) =>
+                {
+                    if (progressText == null) return;
+                    progressText.text = FormatRevealProgress(revealed, total);
+                });
 
             return overlayRoot;
         }
@@ -225,13 +254,15 @@ namespace MyriadOfDragons.UI
             if (status != null) status.text = message;
         }
 
-        private static Transform BuildDrawScroll(RectTransform panel, PackReceiptResult result)
+        private static Transform BuildDrawScroll(RectTransform panel, PackReceiptResult result,
+            PlayerProfile ownershipProfile)
         {
             GameObject scrollRoot = new GameObject("DrawScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
             scrollRoot.transform.SetParent(panel, false);
             RectTransform scrollRect = scrollRoot.GetComponent<RectTransform>();
+            // Leave room for RevealProgress under the subtitle.
             scrollRect.anchorMin = new Vector2(0.05f, 0.14f);
-            scrollRect.anchorMax = new Vector2(0.95f, 0.78f);
+            scrollRect.anchorMax = new Vector2(0.95f, 0.72f);
             scrollRect.offsetMin = Vector2.zero;
             scrollRect.offsetMax = Vector2.zero;
             scrollRoot.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.12f);
@@ -274,13 +305,14 @@ namespace MyriadOfDragons.UI
             int index = 0;
             foreach (ResolvedPackDraw draw in result.Draws)
             {
-                CreateDrawTile(content.transform, draw, db, index++);
+                CreateDrawTile(content.transform, draw, db, index++, ownershipProfile);
             }
 
             return content.transform;
         }
 
-        private static void CreateDrawTile(Transform parent, ResolvedPackDraw draw, CardDatabase db, int index)
+        private static void CreateDrawTile(Transform parent, ResolvedPackDraw draw, CardDatabase db, int index,
+            PlayerProfile ownershipProfile)
         {
             GameObject tile = new GameObject($"Draw_{index}_{draw.CardId}", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
             tile.transform.SetParent(parent, false);
@@ -307,24 +339,124 @@ namespace MyriadOfDragons.UI
                 tile.transform, "Name", displayName, UITextRole.Body, TextAnchor.MiddleCenter, Color.white, false,
                 new Vector2(150f, 40f));
             RectTransform nameRect = nameText.GetComponent<RectTransform>();
-            nameRect.anchorMin = new Vector2(0.5f, 0.18f);
-            nameRect.anchorMax = new Vector2(0.5f, 0.18f);
+            nameRect.anchorMin = new Vector2(0.5f, 0.22f);
+            nameRect.anchorMax = new Vector2(0.5f, 0.22f);
 
-            var stars = new string('★', Mathf.Clamp(draw.Rarity, 1, 7));
+            string stars = new string('★', Mathf.Clamp(draw.Rarity, 1, 7));
+            string drawKindLabel = FormatDrawKind(draw.DrawKind);
             var meta = UISharedFoundation.CreateText(
-                tile.transform, "Meta", $"{stars}\n{draw.DrawKind}", UITextRole.Body, TextAnchor.MiddleCenter,
+                tile.transform, "Meta", $"{stars}\n{drawKindLabel}", UITextRole.Body, TextAnchor.MiddleCenter,
                 new Color(0.9f, 0.82f, 0.55f), false, new Vector2(150f, 44f));
+            meta.fontSize = 14;
             RectTransform metaRect = meta.GetComponent<RectTransform>();
             metaRect.anchorMin = new Vector2(0.5f, 0.02f);
             metaRect.anchorMax = new Vector2(0.5f, 0.02f);
 
+            // Ownership after receipt apply — NEW vs EXTRA COPY answers "why it matters".
+            int copies = OwnedCopyCount(ownershipProfile, draw.CardId);
+            string ownershipTag = copies <= 1 ? "NEW" : "EXTRA COPY";
+            Color ownershipColor = copies <= 1
+                ? new Color(0.45f, 0.92f, 0.62f)
+                : new Color(0.85f, 0.78f, 0.55f);
+            var ownership = UISharedFoundation.CreateText(
+                tile.transform, "Ownership", ownershipTag, UITextRole.Body, TextAnchor.UpperLeft,
+                ownershipColor, false, new Vector2(120f, 24f));
+            ownership.fontSize = 14;
+            ownership.fontStyle = FontStyle.Bold;
+            RectTransform ownershipRect = ownership.GetComponent<RectTransform>();
+            ownershipRect.anchorMin = new Vector2(0f, 1f);
+            ownershipRect.anchorMax = new Vector2(0f, 1f);
+            ownershipRect.pivot = new Vector2(0f, 1f);
+            ownershipRect.anchoredPosition = new Vector2(8f, -6f);
+
             if (draw.WasPityForced || draw.WasFloorReroll)
             {
-                var tag = draw.WasPityForced ? "PITY" : "FLOOR";
-                UISharedFoundation.CreateText(
-                    tile.transform, "Tag", tag, UITextRole.Body, TextAnchor.UpperCenter, new Color(1f, 0.75f, 0.35f),
-                    false, new Vector2(80f, 24f));
+                string tag = draw.WasPityForced ? "PITY SAVE" : "FLOOR LIFT";
+                var tagText = UISharedFoundation.CreateText(
+                    tile.transform, "Tag", tag, UITextRole.Body, TextAnchor.UpperRight, new Color(1f, 0.75f, 0.35f),
+                    false, new Vector2(100f, 24f));
+                tagText.fontSize = 12;
+                RectTransform tagRect = tagText.GetComponent<RectTransform>();
+                tagRect.anchorMin = new Vector2(1f, 1f);
+                tagRect.anchorMax = new Vector2(1f, 1f);
+                tagRect.pivot = new Vector2(1f, 1f);
+                tagRect.anchoredPosition = new Vector2(-6f, -6f);
             }
+        }
+
+        private static Button CreateTapAdvanceLayer(RectTransform panel, PackOpenRevealRunner runner)
+        {
+            if (panel == null || runner == null) return null;
+
+            GameObject tapObj = new GameObject("TapToRevealNext", typeof(RectTransform), typeof(Image), typeof(Button));
+            tapObj.transform.SetParent(panel, false);
+            Image tapImg = tapObj.GetComponent<Image>();
+            tapImg.color = new Color(1f, 1f, 1f, 0.01f);
+            RectTransform tapRect = tapObj.GetComponent<RectTransform>();
+            tapRect.anchorMin = new Vector2(0.05f, 0.14f);
+            tapRect.anchorMax = new Vector2(0.95f, 0.72f);
+            tapRect.offsetMin = Vector2.zero;
+            tapRect.offsetMax = Vector2.zero;
+
+            Button tapBtn = tapObj.GetComponent<Button>();
+            tapBtn.targetGraphic = tapImg;
+            tapBtn.transition = Selectable.Transition.None;
+            tapBtn.onClick.AddListener(runner.RequestRevealNext);
+            return tapBtn;
+        }
+
+        private static string FormatPackTitle(string skuId)
+        {
+            if (string.Equals(skuId, CollectionPackCatalog.SingleSigilSkuId, StringComparison.Ordinal))
+                return "SINGLE SIGIL OPENED";
+            if (string.Equals(skuId, CollectionPackCatalog.ScoutCacheSkuId, StringComparison.Ordinal))
+                return "SCOUT CACHE OPENED";
+            if (string.Equals(skuId, CollectionPackCatalog.WarbandCacheSkuId, StringComparison.Ordinal))
+                return "WARBAND CACHE OPENED";
+            if (string.Equals(skuId, CollectionPackCatalog.LegionCacheSkuId, StringComparison.Ordinal))
+                return "LEGION CACHE OPENED";
+            return "PACK OPENED";
+        }
+
+        private static string FormatDrawKind(PackDrawKind kind) =>
+            kind == PackDrawKind.High ? "High pull" : "Standard";
+
+        private static string FormatRevealProgress(int revealed, int total)
+        {
+            if (total <= 0) return string.Empty;
+            if (revealed >= total) return FormatRevealComplete(total);
+            if (total == 1) return "Card revealed";
+            return $"Revealed {revealed} of {total} · {RevealTapHintCopy}";
+        }
+
+        private static string FormatRevealComplete(int total) =>
+            total <= 1
+                ? "Card locked in — ready for Collection"
+                : $"All {total} cards revealed — ready for Collection";
+
+        private static int OwnedCopyCount(PlayerProfile profile, string cardId)
+        {
+            if (profile == null || string.IsNullOrEmpty(cardId)) return 0;
+
+            if (profile.UsesCollectionV1 && profile.cardProgression != null)
+            {
+                foreach (CardProgressionRecord record in profile.cardProgression)
+                {
+                    if (record != null && string.Equals(record.cardId, cardId, StringComparison.Ordinal))
+                        return Mathf.Max(0, record.copyCount);
+                }
+
+                return 0;
+            }
+
+            if (profile.cardCollection == null) return 0;
+            int count = 0;
+            foreach (string id in profile.cardCollection)
+            {
+                if (string.Equals(id, cardId, StringComparison.Ordinal)) count++;
+            }
+
+            return count;
         }
     }
 }
