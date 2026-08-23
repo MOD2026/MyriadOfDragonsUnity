@@ -40,13 +40,12 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void FreshProfile_MvpWindow_ShowsOnlyTwoStages()
+        public void FreshProfile_MvpWindow_ShowsFrontierAndOneLockedTeaser()
         {
             var profile = new PlayerProfile();
             var window = CampaignMapPresenter.GetMvpWindowStagesForTests(1, profile);
 
-            Assert.LessOrEqual(window.Count, 3);
-            Assert.GreaterOrEqual(window.Count, 2);
+            Assert.AreEqual(2, window.Count);
             Assert.AreEqual("1-1", window[0].stageId);
             Assert.AreEqual("1-2", window[1].stageId);
             Assert.IsTrue(window[0].isUnlocked);
@@ -54,17 +53,34 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Chapter2_MvpWindow_UsesSameThreeNodePattern()
+        public void Chapter2_MvpWindow_KeepsUnlockedPlusOneTeaser()
         {
             var profile = new PlayerProfile();
             profile.unlockedStageIds = new List<string> { "2-1" };
             var window = CampaignMapPresenter.GetMvpWindowStagesForTests(2, profile);
 
-            Assert.LessOrEqual(window.Count, 3);
-            Assert.GreaterOrEqual(window.Count, 2);
+            Assert.AreEqual(2, window.Count);
             Assert.AreEqual("2-1", window[0].stageId);
             Assert.IsTrue(window[0].isUnlocked);
             Assert.IsTrue(window.Any(s => s.stageId == "2-2"));
+            Assert.IsFalse(window.Any(s => s.stageId == "2-3"),
+                "Only one locked teaser past the frontier — not the rest of the chapter.");
+        }
+
+        [Test]
+        public void UnlockedThrough1_3_Keeps1_1ReachableForReplay()
+        {
+            var profile = new PlayerProfile
+            {
+                unlockedStageIds = new List<string> { "1-1", "1-2", "1-3" },
+            };
+            var window = CampaignMapPresenter.GetMvpWindowStagesForTests(1, profile);
+
+            CollectionAssert.AreEqual(new[] { "1-1", "1-2", "1-3", "1-4" },
+                window.Select(s => s.stageId).ToArray(),
+                "All unlocked stages must stay in the window for replay; one locked teaser after.");
+            Assert.IsTrue(window[0].isUnlocked);
+            Assert.IsFalse(window.Last().isUnlocked);
         }
 
         [Test]
@@ -85,11 +101,13 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(profile.unlockedStageIds, "1-2");
 
             var window = CampaignMapPresenter.GetMvpWindowStagesForTests(1, profile);
+            Assert.IsTrue(window.Any(s => s.stageId == "1-1" && s.isUnlocked),
+                "Cleared 1-1 must remain in the window after unlock advances.");
             Assert.IsTrue(window.Any(s => s.stageId == "1-2" && s.isUnlocked));
         }
 
         [Test]
-        public void CampaignMap_RendersMvpNodeCount_NotFullChapter()
+        public void CampaignMap_RendersUnlockedHistoryPlusTeaser_NotFullChapter()
         {
             var go = new GameObject("MapMvpHarness");
             _spawned.Add(go);
@@ -98,11 +116,40 @@ namespace MyriadOfDragons.Tests
 
             Transform content = map.StageNodesContentForTests;
             Assert.NotNull(content);
-            Assert.LessOrEqual(content.childCount, 3);
+            Assert.AreEqual(2, content.childCount, "Fresh profile: unlocked 1-1 + locked 1-2 teaser only.");
             Assert.NotNull(content.Find("StageNode_1-1"));
             Assert.NotNull(content.Find("StageNode_1-2"));
             Assert.IsNull(content.Find("StageNode_1-12"));
-            Assert.IsNull(content.Find("StageNode_10-1"), "Chapter 1 MVP view must not render Chapter 10 nodes.");
+            Assert.IsNull(content.Find("StageNode_10-1"), "Chapter 1 view must not render Chapter 10 nodes.");
+
+            Object.DestroyImmediate(GameObject.Find("CampaignMapCanvas"));
+        }
+
+        [Test]
+        public void CampaignMap_WithUnlockedThrough1_3_Instantiates1_1Node()
+        {
+            var profile = new PlayerProfile
+            {
+                unlockedStageIds = new List<string> { "1-1", "1-2", "1-3" },
+            };
+            Assert.IsTrue(SaveSystem.Save(profile));
+            SaveSystem.ResetCurrentProfileForTests();
+
+            var go = new GameObject("MapReplayHarness");
+            _spawned.Add(go);
+            var map = go.AddComponent<CampaignMapPresenter>();
+            map.Initialize(null, _ => CampaignLaunchOutcome.BlockedLocked);
+
+            Transform content = map.StageNodesContentForTests;
+            Assert.NotNull(content.Find("StageNode_1-1"),
+                "1-1 must be instantiated for replay after the frontier moves past it.");
+            Assert.NotNull(content.Find("StageNode_1-2"));
+            Assert.NotNull(content.Find("StageNode_1-3"));
+            Assert.NotNull(content.Find("StageNode_1-4"));
+            Assert.IsNull(content.Find("StageNode_1-5"),
+                "Must not dump further locked stages beyond the one teaser.");
+            Assert.IsTrue(map.ClickStageNodeForTests("1-1"),
+                "Cleared 1-1 must remain clickable for replay.");
 
             Object.DestroyImmediate(GameObject.Find("CampaignMapCanvas"));
         }
@@ -132,6 +179,10 @@ namespace MyriadOfDragons.Tests
 
         private static void PlayOneCardAndWin(BattleController controller)
         {
+            // Undefended-enemy unlock harness (same as FreshProfileChapterOneStageAccessTests):
+            // ConfirmFormation without enemy deploy; disable mirrored AI spells so they cannot KO.
+            controller.SetMirroredEnemySpellsEnabledForTests(false);
+
             Card anyCard = controller.PlayerState.Hand.First(c => c.ResourceCost <= controller.PlayerState.Resource);
             Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, anyCard, Lane.Front));
             Assert.IsTrue(controller.ConfirmFormation());

@@ -1363,26 +1363,36 @@ namespace MyriadOfDragons.UI
             return visible;
         }
 
+        /// <summary>
+        /// Stage nodes shown for the current chapter. Every unlocked stage stays in the list so
+        /// cleared stages remain reachable for replay via the existing horizontal ScrollRect.
+        /// Locked stages are capped to a single teaser past the frontier (not the rest of the
+        /// chapter), preserving the MVP "don't dump 1–N locked nodes" intent.
+        /// </summary>
         private static List<CampaignStageData> GetMvpWindowStages(int chapter, PlayerProfile profile)
         {
             List<CampaignStageData> chapterList = GetStagesForChapter(chapter);
             if (chapterList.Count == 0) return chapterList;
 
-            int focusIndex = 0;
+            int highestUnlockedIndex = -1;
             for (int i = 0; i < chapterList.Count; i++)
             {
-                if (chapterList[i].isUnlocked) focusIndex = i;
+                if (chapterList[i].isUnlocked) highestUnlockedIndex = i;
             }
 
-            // MVP window: previous (context) + current frontier + one locked teaser (max 3 nodes).
-            int start = Mathf.Max(0, focusIndex - 1);
-            int end = Mathf.Min(chapterList.Count - 1, focusIndex + 1);
-            if (focusIndex == 0 && chapterList.Count > 1)
-                end = 1;
-
             var window = new List<CampaignStageData>();
-            for (int i = start; i <= end; i++)
+            if (highestUnlockedIndex < 0)
+            {
+                window.Add(chapterList[0]);
+                if (chapterList.Count > 1) window.Add(chapterList[1]);
+                return window;
+            }
+
+            for (int i = 0; i <= highestUnlockedIndex; i++)
                 window.Add(chapterList[i]);
+
+            if (highestUnlockedIndex + 1 < chapterList.Count)
+                window.Add(chapterList[highestUnlockedIndex + 1]);
 
             return window;
         }
@@ -1555,7 +1565,7 @@ namespace MyriadOfDragons.UI
             statusRect.sizeDelta = new Vector2(900, 40);
             RefreshPersistentStatusText();
 
-            // 4. Stage nodes — horizontal scroll for current chapter only (1-1..1-N visible on open).
+            // 4. Stage nodes — horizontal scroll: all unlocked (replay) + one locked teaser.
             GameObject scrollRoot = new GameObject("StageScrollView", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
             scrollRoot.transform.SetParent(mapCanvasObj.transform, false);
             RectTransform scrollRect = scrollRoot.GetComponent<RectTransform>();
@@ -1572,7 +1582,11 @@ namespace MyriadOfDragons.UI
             viewportRect.anchorMax = Vector2.one;
             viewportRect.offsetMin = Vector2.zero;
             viewportRect.offsetMax = Vector2.zero;
-            viewport.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.01f);
+            Image viewportImage = viewport.GetComponent<Image>();
+            viewportImage.color = new Color(1f, 1f, 1f, 0.01f);
+            // Mask needs an Image; keep it non-raycastable so stage-node Buttons stay clickable.
+            // ScrollRect drag still hits StageScrollView's own Image.
+            viewportImage.raycastTarget = false;
 
             GameObject content = new GameObject("StageNodesContent", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
             content.transform.SetParent(viewport.transform, false);
@@ -1600,11 +1614,13 @@ namespace MyriadOfDragons.UI
             scroll.content = contentRect;
             scroll.movementType = ScrollRect.MovementType.Clamped;
 
+            // Open focused on the frontier (highest unlocked), not the oldest cleared stage —
+            // earlier nodes remain reachable by scrolling left.
             string scrollTargetStageId = null;
             foreach (CampaignStageData stage in visibleStages)
             {
                 CreateStageNode(content.transform, stage);
-                if (scrollTargetStageId == null && stage.isUnlocked)
+                if (stage.isUnlocked)
                     scrollTargetStageId = stage.stageId;
             }
 
