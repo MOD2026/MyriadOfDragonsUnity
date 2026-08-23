@@ -46,10 +46,8 @@ public sealed class RemoteConfigSocialSafetyRateLimitConfiguration : ISocialSafe
                 accessToken,
                 projectId,
                 context.EnvironmentId,
-                null,
-                new List<string> { PerMinuteKey, PerDayKey },
-                null,
-                CancellationToken.None);
+                key: new List<string> { PerMinuteKey, PerDayKey },
+                cancellationToken: CancellationToken.None);
             var settings = response.Data.Configs.Settings;
             return new SocialSafetyRateLimitConfiguration(
                 ReadPositiveInt(settings, PerMinuteKey, SocialSafetyRateLimitConfiguration.FallbackPerMinute, SocialSafetyRateLimitConfiguration.MaximumPerMinute),
