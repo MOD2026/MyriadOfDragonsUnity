@@ -340,3 +340,7 @@ to implement the real store.
 All 4 modules still blocked on the same thing: live deployment needs the
 SocialSafety_NonProduction_Validation_Checklist.md walkthrough (Dashboard + 2 disposable test
 accounts) - in progress with Zihan, paused mid-checklist.
+
+**CC accept — Avatar victory progression, no farming cap (2026-08-23):** Confirmed by design, not
+an oversight - Avatar level is monotonic personal progression touching only Resource/HP tiers, never
+Gold/Gems/Permits/cards/Materials. No tradable/scarce-economy shortcut exists to cap.
