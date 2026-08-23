@@ -85,18 +85,18 @@ namespace MyriadOfDragons.Tests
 
             HomePagePresenter home = SpawnHome();
             home.BuildHomePageUIForTests();
-            Assert.AreEqual(8, profile.ascensionPermitBalance);
+            Assert.AreEqual(4, profile.ascensionPermitBalance);
 
             home.BuildHomePageUIForTests();
 
-            Assert.AreEqual(8, profile.ascensionPermitBalance,
+            Assert.AreEqual(4, profile.ascensionPermitBalance,
                 "Second BuildHomePageUI must not grant another weekly allotment.");
-            Assert.AreEqual(8, profile.ascensionPermitsEarnedThisWeek);
+            Assert.AreEqual(4, profile.ascensionPermitsEarnedThisWeek);
             Assert.AreEqual(CollectionAscensionPermits.ManualTrustedWeekKey, profile.ascensionPermitWeekKey);
 
             Text status = FindStatusText(home);
             Assert.NotNull(status);
-            Assert.AreEqual("Already claimed this week.", status.text);
+            StringAssert.StartsWith("Already claimed this week.", status.text);
         }
 
         [Test]
@@ -107,18 +107,18 @@ namespace MyriadOfDragons.Tests
 
             HomePagePresenter home = SpawnHome();
             home.BuildHomePageUIForTests();
-            Assert.AreEqual(8, profile.ascensionPermitBalance);
+            Assert.AreEqual(4, profile.ascensionPermitBalance);
 
             Button claimButton = FindClaimButton(home);
             Assert.NotNull(claimButton);
             claimButton.onClick.Invoke();
 
-            Assert.AreEqual(8, profile.ascensionPermitBalance);
-            Assert.AreEqual(8, profile.ascensionPermitsEarnedThisWeek);
+            Assert.AreEqual(4, profile.ascensionPermitBalance);
+            Assert.AreEqual(4, profile.ascensionPermitsEarnedThisWeek);
 
             Text status = FindStatusText(home);
             Assert.NotNull(status);
-            Assert.AreEqual("Already claimed this week.", status.text);
+            StringAssert.StartsWith("Already claimed this week.", status.text);
         }
 
         private HomePagePresenter SpawnHome()

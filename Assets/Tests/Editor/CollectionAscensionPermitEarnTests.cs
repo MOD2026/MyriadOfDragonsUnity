@@ -131,24 +131,29 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "2-21");
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "10-30");
 
+            // Each finale grants 1 via the milestone path, which respects the hoard cap - with a
+            // hoard cap of 8 and 10 finale stages, the first 8 each grant 1 and the rest grant 0
+            // once the hoard is full, rather than every one of the 10 granting 1 unconditionally.
             int expectedBalance = 0;
             foreach (string stageId in HomePagePresenter.ChapterFinalePermitStageIds)
             {
                 Assert.IsTrue(HomePagePresenter.IsChapterFinalePermitStage(stageId), stageId);
-                Assert.AreEqual(1, HomePagePresenter.TryGrantChapterFinalePermit(profile, stageId),
-                    $"Finale {stageId} must grant 1 permit.");
-                expectedBalance++;
+                int expectedGrant = expectedBalance < CollectionSchemaRules.AscensionPermitHoardCap ? 1 : 0;
+                Assert.AreEqual(expectedGrant, HomePagePresenter.TryGrantChapterFinalePermit(profile, stageId),
+                    $"Finale {stageId} must grant {expectedGrant} permit(s).");
+                expectedBalance = Mathf.Min(
+                    expectedBalance + expectedGrant, CollectionSchemaRules.AscensionPermitHoardCap);
                 Assert.AreEqual(expectedBalance, profile.ascensionPermitBalance);
             }
 
-            Assert.AreEqual(10, profile.ascensionPermitBalance);
+            Assert.AreEqual(CollectionSchemaRules.AscensionPermitHoardCap, profile.ascensionPermitBalance);
             Assert.AreEqual("locked-week", profile.ascensionPermitWeekKey);
             Assert.AreEqual(2, profile.ascensionPermitsEarnedThisWeek);
 
             Assert.AreEqual(0, HomePagePresenter.TryGrantChapterFinalePermit(profile, "2-1"),
                 "Non-finale must grant 0.");
             Assert.AreEqual(0, HomePagePresenter.TryGrantChapterFinalePermit(profile, "1-1"));
-            Assert.AreEqual(10, profile.ascensionPermitBalance);
+            Assert.AreEqual(CollectionSchemaRules.AscensionPermitHoardCap, profile.ascensionPermitBalance);
             Assert.AreEqual("locked-week", profile.ascensionPermitWeekKey);
             Assert.AreEqual(2, profile.ascensionPermitsEarnedThisWeek);
         }

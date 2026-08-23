@@ -145,21 +145,21 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void AscensionPermit_TrustedWeekKey_CapsAtSixteenHoard()
+        public void AscensionPermit_TrustedWeekKey_CapsAtEightHoard()
         {
             var profile = new PlayerProfile();
             int first = CollectionAscensionPermits.TryGrantWeekly(profile, 10, "week-1");
             int second = CollectionAscensionPermits.TryGrantWeekly(profile, 10, "week-1");
 
-            Assert.AreEqual(8, first, "Weekly cap is 8 per trusted week.");
+            Assert.AreEqual(4, first, "Weekly cap is 4 per trusted week.");
             Assert.AreEqual(0, second, "Weekly cap already exhausted.");
-            Assert.AreEqual(8, profile.ascensionPermitBalance);
-            Assert.AreEqual(8, profile.ascensionPermitsEarnedThisWeek);
+            Assert.AreEqual(4, profile.ascensionPermitBalance);
+            Assert.AreEqual(4, profile.ascensionPermitsEarnedThisWeek);
 
             int week2 = CollectionAscensionPermits.TryGrantWeekly(profile, 10, "week-2");
-            Assert.AreEqual(8, week2);
-            Assert.AreEqual(16, profile.ascensionPermitBalance, "Hoard cap is 16.");
-            Assert.AreEqual(8, profile.ascensionPermitsEarnedThisWeek,
+            Assert.AreEqual(4, week2);
+            Assert.AreEqual(8, profile.ascensionPermitBalance, "Hoard cap is 8.");
+            Assert.AreEqual(4, profile.ascensionPermitsEarnedThisWeek,
                 "New week key must reset the weekly earned counter before granting.");
 
             int overflow = CollectionAscensionPermits.TryGrantWeekly(profile, 1, "week-3");
@@ -170,21 +170,21 @@ namespace MyriadOfDragons.Tests
         public void AscensionPermit_WeekKeyChange_ResetsWeeklyCounter_WithoutClearingHoard()
         {
             var profile = new PlayerProfile();
-            Assert.AreEqual(8, CollectionAscensionPermits.TryGrantWeekly(profile, 8, "week-a"));
-            Assert.AreEqual(8, profile.ascensionPermitsEarnedThisWeek);
-            Assert.AreEqual(8, profile.ascensionPermitBalance);
+            Assert.AreEqual(4, CollectionAscensionPermits.TryGrantWeekly(profile, 8, "week-a"));
+            Assert.AreEqual(4, profile.ascensionPermitsEarnedThisWeek);
+            Assert.AreEqual(4, profile.ascensionPermitBalance);
 
             // Week key change: weekly counter resets; hoard balance is preserved.
             int granted = CollectionAscensionPermits.TryGrantWeekly(profile, 3, "week-b");
             Assert.AreEqual(3, granted);
             Assert.AreEqual("week-b", profile.ascensionPermitWeekKey);
             Assert.AreEqual(3, profile.ascensionPermitsEarnedThisWeek);
-            Assert.AreEqual(11, profile.ascensionPermitBalance);
+            Assert.AreEqual(7, profile.ascensionPermitBalance);
 
             int restOfWeek = CollectionAscensionPermits.TryGrantWeekly(profile, 10, "week-b");
-            Assert.AreEqual(5, restOfWeek, "Weekly remaining is 8-3=5.");
-            Assert.AreEqual(8, profile.ascensionPermitsEarnedThisWeek);
-            Assert.AreEqual(16, profile.ascensionPermitBalance, "Hoard fills to 16.");
+            Assert.AreEqual(1, restOfWeek, "Weekly remaining is 4-3=1.");
+            Assert.AreEqual(4, profile.ascensionPermitsEarnedThisWeek);
+            Assert.AreEqual(8, profile.ascensionPermitBalance, "Hoard fills to 8.");
         }
 
         [Test]
@@ -209,12 +209,12 @@ namespace MyriadOfDragons.Tests
         public void AscensionPermit_MilestoneGrant_RespectsHoardCapOnly()
         {
             var profile = new PlayerProfile();
-            profile.ascensionPermitBalance = 15;
+            profile.ascensionPermitBalance = 6;
             profile.ascensionPermitsEarnedThisWeek = 0;
             profile.ascensionPermitWeekKey = string.Empty;
 
-            Assert.AreEqual(1, CollectionAscensionPermits.TryGrantMilestone(profile, 5));
-            Assert.AreEqual(16, profile.ascensionPermitBalance);
+            Assert.AreEqual(2, CollectionAscensionPermits.TryGrantMilestone(profile, 5));
+            Assert.AreEqual(8, profile.ascensionPermitBalance);
             Assert.AreEqual(0, profile.ascensionPermitsEarnedThisWeek);
             Assert.AreEqual(string.Empty, profile.ascensionPermitWeekKey);
             Assert.AreEqual(0, CollectionAscensionPermits.TryGrantMilestone(profile, 1));
