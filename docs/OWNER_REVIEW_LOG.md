@@ -397,3 +397,27 @@ animation milestones at open/mid/clear (N-1, N-10 or N-15, N-last). Not yet impl
 cast, template correctly applied (choice prompts at 3-1/6/11/16/21/26, animation milestones
 3-1/15/30). Real climax (Eryx defeated, palace saved) with a genuine Chapter 4 hook. Not yet
 implemented - queued behind WH's current work (Gem recompute, Ch1/Ch2 narrative implementation).
+
+**Combat-balance investigation, full 10-chapter evidence (2026-08-23) - MAJOR finding, escalated
+scope beyond the original Stage 1-2/1-3 ask:** Every DEFEAT across all 10 chapters (1-4, 1-7..1-12,
+2-2/2-3/2-4, 3-2, and the first new stage of Ch4-10) hit exactly the 12-tick safety cap - never a
+fast KO, uniform shape across 10 independent chapters. Root mechanism confirmed by source read
+(GameBootstrap.cs:4722, PerformAutoFormation): the one-tap onboarding policy is a deliberate,
+documented 3-card (one per lane) "beginner basic squad path," not a bug. Classification: Balance
+Soft, same as the original Stage 1-2 finding, now confirmed structural across the whole campaign -
+the weak auto-formation shortcut loses reliably at nearly every chapter transition from Ch1 onward.
+Not retuned - holds per the cause-frame doc's own rule, this is bigger than "wait for one first-
+session data point" and needs real owner attention on return, not a quiet fix.
+
+**CC read for owner, not yet decided:** this may not be a raw "stages are too hard" balance problem
+so much as "the Auto Formation feature doesn't scale with player progression" - it stays a flat
+3-card policy for the whole 273-stage campaign even as the player's own deck/Barracks grow. That's a
+genuine design option worth considering (scale AF's card count with progression) alongside "just
+observe first-session and see," but it changes battle outcomes so it counts as a real retune
+decision, not something to greenlight without the owner.
+
+**Evidence gap, flagged not filled:** Chapters 4-10's stage-loop tests abort at the first losing
+stage (hard Assert inside the loop), so there's no data on stages X-2 onward in those 7 chapters.
+Authorizing the coding room to restructure those loops to collect full-sweep diagnostic data
+(soft-assert/collect-all pattern) rather than aborting early - this is data collection, not a
+retune, and directly improves what the owner will have to decide from.
