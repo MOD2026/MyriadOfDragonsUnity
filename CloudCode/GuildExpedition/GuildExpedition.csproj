@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MyriadOfDragons.CloudCode.GuildExpedition</RootNamespace>
+    <AssemblyName>GuildExpedition</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <IsPublishable>true</IsPublishable>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.5" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.26" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="GuildExpedition.ServerTests\**" />
+    <EmbeddedResource Remove="GuildExpedition.ServerTests\**" />
+    <None Remove="GuildExpedition.ServerTests\**" />
+  </ItemGroup>
+</Project>
