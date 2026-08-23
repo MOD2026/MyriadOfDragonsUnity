@@ -254,3 +254,12 @@ updated. No code/economy/Save change. ChatGPT idle pending next theory ask.
 `docs/BAZAAR_PHASE1_CC_ACCEPT_2026-08-23.md`. Design is done; implementation stays blocked on the
 trusted-server/backend dependency, which has no assigned owner. Cursor's Block AC continues to
 exclude Bazaar code.
+
+**CC accept — Recurring Events/Mini-Game brainstorm revision (2026-08-23):** Solo-vs-guild reward
+identity split locked as design direction (solo = Empire/Avatar-side only, never Forge/Dust/Permits/
+Evolution material; Guild Expedition = sole new deck-material source, inside existing rate caps).
+Chronicle/Oracle/Wyrm Draft ship as rewardless practice only until an authoritative claim ledger
+exists - no client-authoritative reward exception for any mode. Multi-resource Empire construction:
+no existing resource is safe as a second cost; Gold-only instant construction stays. A dedicated
+Castle/Barracks material remains a future option requiring separate new-resource approval. Still
+discussion-only overall - no implementation assigned.
