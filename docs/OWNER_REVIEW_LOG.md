@@ -277,3 +277,10 @@ reprice packs. Campaign Ch1-10 Gems are a one-time progression grant, not the on
 per-stage Gem reward formulas need recompute against the intended post-campaign monthly rate, same
 treatment as POST_CH10_GOLD_RECOMPUTE_2026-08-23.md did for Gold. Inverse bulk-discount pricing
 structure stays valid as-is. Next: ChatGPT recompute task issued.
+
+**CC accept — Campaign Gem recompute, milestone-weighted (2026-08-23):** Ch1-10 total corrected
+from 772,551 to 6,504 (263 regular stages x 8 Gems + 10 chapter finales x 440 Gems), ~21.7 months
+at the 300 Gems/month F2P target. Rejected the first pass (2,914, flat trickle, felt thin for a
+273-stage campaign) in favor of milestone weighting. Shop V2 pack pricing/inverse-discount stays
+unchanged - this fixes the source, not the prices. Not yet implemented - needs assignment to a
+coding seat (CampaignMapPresenter.cs stage reward formulas).
