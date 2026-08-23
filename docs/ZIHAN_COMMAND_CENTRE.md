@@ -45,16 +45,18 @@ invocation everywhere (`AI_CONTRIBUTING.md` §5, `CLAUDE.md`). Kills the run and
 stalls for 2+ minutes or the whole run exceeds 25 minutes, instead of hanging silently — built after
 a real run sat stuck for 50+ minutes on 2026-08-23. AV/Bitdefender Advanced Threat Defense **ruled
 out** (folder exceptions added to both the plain Antivirus and Advanced Threat Defense modules;
-identical stall reproduced 4/4 runs regardless). **Known open issue, not a Block AB blocker:**
-`ShopCurrencyIntegrityTests.SuccessfulPurchase_PersistsExactlyOnce_AndSurvivesReload` hangs 4/4 runs
-at the exact same point — `SaveSystem.Load()` called immediately after two back-to-back
-`SaveSystem.Save()` calls in the same test. No loop/deadlock/async visible in `SaveSystem.cs` or
-`CurrencyManager.cs` source (both fully synchronous). Best remaining theory: an OS-level exclusive
-file handle blocking `File.WriteAllText`'s underlying `CreateFile` call, which Windows does not
-time out on its own — not observable from C# source or from an AI session. **Needs you, with
-Process Monitor or `handle.exe` (Sysinternals), if you want it root-caused** — otherwise this test
-stays excluded from batch runs (temporarily relocated out of `Assets/Tests/Editor/` for each run,
-moved back after) and gets reported separately, not folded into the pass/fail count.
+identical stall reproduced 4/4 runs regardless).
+
+**ROOT CAUSE FOUND (2026-08-23, Process Monitor trace, `Logfile.CSV`):** it was never
+`SaveSystem`/`ShopCurrencyIntegrityTests`. The trace shows that test's full save/read/cleanup
+sequence completing successfully well before the kill. The actual "stall" window is Unity.exe
+continuously re-reading one file — `Library\Artifacts\46\4656227513a74cef050c0b894a7634fe` — 3,025
+times in ~2 minutes, same byte offsets repeated over and over, nothing else happening. That's
+Unity's own Asset Database artifact cache, likely corrupted/stale. **Fix: delete `Library/`
+(regenerable, per this project's own `.gitignore`) and let Unity fully reimport.** Coding-room
+session was unreachable when this was found — needs relaying/re-establishing to act on it.
+`ShopCurrencyIntegrityTests.cs` was never the actual problem and should NOT stay excluded once this
+is applied and verified.
 
 ## Real baseline (2026-08-23, fresh full EditMode run — supersedes every prior per-block count)
 
