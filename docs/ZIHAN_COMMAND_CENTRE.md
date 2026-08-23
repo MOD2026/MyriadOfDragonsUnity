@@ -1,7 +1,8 @@
 # Zihan — one page only
 
-**Updated:** 2026-08-23 (post-cleanup) — **CC = Claude** · **Coding seat = separate Claude room** ·
-**Working Hands = Cursor** · see `docs/CC_HANDOVER_TO_CLAUDE_2026-08-23.md`
+**Updated:** 2026-08-23 (evening refresh) — **CC = Claude** · **Coding seat = separate Claude room**
+(`myriadofdragonsunity-a1` — sessions have restarted under new names before, check `ListAgents` if
+unreachable) · **Working Hands = Cursor**.
 
 ---
 
@@ -18,92 +19,66 @@ Ship playable ASAP. Firm assigns only. No Ch1-2 Soft spiral. No idle theater.
 | Live status / board | `docs/ZIHAN_COMMAND_CENTRE.md` (this file) |
 | Master plan | `docs/SINGLE_BIBLE_MASTER_PLAN_2026-08-22.md` |
 | Constitution | `docs/MOS_v1.1.md` + `docs/CORE_SYSTEMS_CONSTITUTION.md` |
-| Decision history | `docs/OWNER_REVIEW_LOG.md` |
+| Decision history | `docs/OWNER_REVIEW_LOG.md` (long — this board is the summary) |
 
-Everything else is either a narrow single-topic packet with an explicit "Supersedes" line, or
-belongs in `docs/_archive/`. `docs/MOS_SINGLE_BIBLE_v1.md` (a duplicate draft skeleton) was archived
-2026-08-23.
+## Real baseline: 717/761, Block AA + AB both accepted
 
-## Repo hygiene (2026-08-23 cleanup)
-
-- **First commit since Ch7 landed:** `a20249e` — checkpoint of everything accepted from Block M
-  through the current metagame push (Gate, Castle Block AA, Empire construction, Collection/Shop
-  backend, HomeV3 UI, Social foundation). There is now an actual revert point. **New rule: commit
-  after every CC-accepted block, red baseline or not** — "wait until fully green" is what let 36+
-  hours of work sit uncommitted.
-- 104 stray `*_results.xml` / ad-hoc log files that had accumulated at repo root across blocks were
-  deleted; `.gitignore` now excludes `/*.xml`, `/*.log`, and `.claude/settings.local.json` at the
-  repo root so this can't silently recur.
-- Stale duplicate project folder `G:\...\Game mech\_DELETE_MyriadOfDragonsUnity_20260806-155959\`
-  — **flagged for you to delete**, blocked by the sandbox from a recursive delete outside this repo.
-- Timeout-guarded test runner added: `tools/run_editmode_tests.ps1` (see below).
-
-## Timeout guard for Unity batch runs (new standard)
-
-`powershell -File tools/run_editmode_tests.ps1` replaces the bare `Unity.exe -batchmode ...`
-invocation everywhere (`AI_CONTRIBUTING.md` §5, `CLAUDE.md`). Kills the run and exits 124 if the log
-stalls for 2+ minutes or the whole run exceeds 25 minutes, instead of hanging silently — built after
-a real run sat stuck for 50+ minutes on 2026-08-23. AV/Bitdefender Advanced Threat Defense **ruled
-out** (folder exceptions added to both the plain Antivirus and Advanced Threat Defense modules;
-identical stall reproduced 4/4 runs regardless).
-
-**ROOT CAUSE FOUND (2026-08-23, Process Monitor trace, `Logfile.CSV`):** it was never
-`SaveSystem`/`ShopCurrencyIntegrityTests`. The trace shows that test's full save/read/cleanup
-sequence completing successfully well before the kill. The actual "stall" window is Unity.exe
-continuously re-reading one file — `Library\Artifacts\46\4656227513a74cef050c0b894a7634fe` — 3,025
-times in ~2 minutes, same byte offsets repeated over and over, nothing else happening. That's
-Unity's own Asset Database artifact cache, likely corrupted/stale. **Fix: delete `Library/`
-(regenerable, per this project's own `.gitignore`) and let Unity fully reimport.** Coding-room
-session was unreachable when this was found — needs relaying/re-establishing to act on it.
-`ShopCurrencyIntegrityTests.cs` was never the actual problem and should NOT stay excluded once this
-is applied and verified.
-
-## Real baseline (2026-08-23, fresh full EditMode run — supersedes every prior per-block count)
-
-**652 / 761 passing, 109 failed** as of the last completed run. Not 81/81, not the various "9/9" /
-"8/8" per-block counts in `OWNER_REVIEW_LOG.md` — those were true in isolation, never re-verified
-together. Block AB (coding seat) is mid-repair; the run that stalled and was killed today is being
-re-attempted. Gate (`GateCampaignLaunchTests`, previously accepted "9/9") showed 5 failing in the
-109 — nothing gets re-accepted without a fresh green full run, not a scoped one.
+Root cause of the day-long stall mystery: a corrupted `Library/` Asset Database artifact, not
+`SaveSystem` or any product code — found via Process Monitor trace, fixed. Standard batch-run
+command is now `powershell -File tools/run_editmode_tests.ps1` (timeout-guarded; supports
+`-ClassListFile` batched-per-class mode, the reliable way to get a real count on this project).
+Remaining 44 failures: all traced test-by-test to the known parked AF/AI-on combat-balance category
+or pre-existing gaps confirmed against this morning's original baseline — no unexplained regressions.
 
 ## Board
 
 | Seat | Status |
 |---|---|
-| **Claude (this room)** | **Command Centre** — reads, assigns, accepts/rejects, does not edit `.cs` itself |
-| **Claude (coding room)** | **Coding seat** — Block AB (full-suite baseline repair) in progress; first attempt stalled 50+ min, killed, re-running |
-| **Cursor** | **Working Hands** — Block AC (Shop/Avatar/Empire/new-UI metagame push), parallel to AB |
-| **ChatGPT** | Idle — Bazaar packet + genesis-liquidity follow-up both delivered and reviewed (below) |
-| **You** | Needed: AV exclusion (above) + delete the stale Drive duplicate (above) |
+| **Claude (this room)** | Command Centre |
+| **Claude (coding room)** | Holding — CloudCode track paused (see below); last assign was warm-cache batched verification |
+| **Cursor (WH)** | Block AC continuing — metagame UI push, currently mid-DeckBuilderPresenter.cs fix |
+| **ChatGPT** | Purchase-package portfolio v2 in progress (rotating offers, subscription, bundle-math redo — first pass had real genre-pattern gaps) |
+| **You** | Nothing blocking right now |
 
----
+## CloudCode/server track — PAUSED, explicitly not MVP work
 
-## Active block — Block AB: full-suite baseline repair (coding seat)
+Four modules authored + locally tested today (SocialSafety, PermitWeekKey, Guild Expedition,
+Bazaar) — see `docs/CLOUDCODE_TRACK_STATUS_2026-08-23.md`. `MVP_PLAYABLE_GATE_v1.md` explicitly
+excludes server/Permit-week-key work as a non-goal — this whole track was CC scope drift chasing
+the trusted-server design question, not an MVP push. **Paused by owner decision 2026-08-23.**
+Everything authored is committed, tested, and ready whenever this resumes — nothing lost by
+stopping. Remaining before it could deploy: figure out the actual module-publish mechanism (no
+`ugs` CLI in repo), 2 disposable test accounts, a Play Mode manual verification pass (none of which
+any AI session can do alone).
 
-Not Block AA. AA does not open until AB reports a green full run via `tools/run_editmode_tests.ps1`.
-Scope: 28-cluster "expected enough real cards" Setup failures + triage of the other ~80 of the 109
-failures. Files: test-support helpers in the affected suites + `CardDatabase.cs` if that's the root
-cause. Frozen files, Save shape, `CampaignMapPresenter.cs`, and economy numbers are out of scope.
+## Standing instruction: new UI replaces old UI
 
-## Active block — Block AC: metagame push (Cursor, parallel to AB)
+HomeV3/new-UI work should retire old UI, not layer alongside it indefinitely. `ShopV1StubCatalog`
+kept only for `PurchaseForTests` hooks is the acceptable exception (test-only, not player-facing).
+Check periodically whether old UI is still reachable by a real player before assuming a new screen
+means the old one is gone.
 
-Shop, Avatar, Empire screens, new UI (HomeV3). Does not touch `CardDatabase.cs`, Gate/Castle files,
-or any `Assets/Tests/Editor/*` file Block AB owns. Market/Bazaar and Chat remain explicitly excluded.
+## Active — Block AC (Cursor)
 
-## Market/Bazaar — design fully LOCKED, still blocked on one thing
+Shop/Avatar/Empire/Collection/DeckBuilder UI. Recent: Permit-rate UI fix, Stamina ladder enforcement,
+Novice Pack retirement, pity-counter display, hardcoded-constant audit, DeckBuilder click-safety fix
+(root-caused by coding room: `Background` Image missing `raycastTarget = false`, DeckBuilderPresenter.cs
+~line 262-264) — in progress. Does not touch `CardDatabase.cs`, Gate/Castle files, `PlayerEmpireData.cs`,
+`Assets/Tests/Editor/*`, Bazaar, Chat/Social. No APK.
 
-Full decision chain reviewed and accepted 2026-08-23 — see `docs/BAZAAR_PHASE1_CC_ACCEPT_2026-08-23.md`
-for the consolidated lock. Catalogue, ledger, genesis mechanism (capped Treasury reverse auction),
-and genesis numbers (Day 60 earliest, 500-cluster snapshot, 40,000 Credit ceiling, no-launch
-fallback if the participation gate isn't met) are all locked. **The only remaining blocker is the
-trusted-server/backend dependency — unassigned, no owner, no approach chosen.** That is what's
-actually stopping code, not the numbers. Cursor's Block AC still excludes Bazaar/trading code.
+## Market/Bazaar, Guild Expedition, Raid Troops — design fully locked, all blocked on the same thing
+
+Trusted-server/backend dependency — unassigned, no owner, no approach chosen. Not urgent (all
+post-MVP). Raid Troops additionally needs a formal `Guild_Competition_Rewards_v1.md` §6 amendment
+(owner sign-off required, MOS v1.2 doc) before implementation.
 
 ## Chat — foundation-only, not assigned
 
-`Assets/Scripts/Social/` exists (now committed) but is still design/review-only per
-`AI_CONTRIBUTING.md` §7 pending a trusted-backend ownership decision. Not assigned to any seat.
+`Assets/Scripts/Social/` exists, design/review-only per `AI_CONTRIBUTING.md` §7.
 
-## Cursor: Block AC. Stand by on APK, Gate/Castle files, any test file, Bazaar/Chat code.
+## Economy corrections locked today
 
-## ChatGPT: idle. Next ask, if any, comes from CC.
+Ascension Permits 8/week→4/week, hoard 16→8 (code + tests both fixed, live drift caught and closed).
+Campaign Gem recompute locked (772,551→6,504, milestone-weighted) — **not yet implemented**, belongs
+to WH (`CampaignMapPresenter.cs` stage reward formulas, metagame-owned). Novice Pack retired from
+live Shop grid (bypassed pity system). Stamina purchase ladder now enforced (was unlimited).
