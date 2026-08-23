@@ -68,8 +68,12 @@ namespace MyriadOfDragons.UI
             this.onBackToHomeAction = onBackToHome;
             this.onOpenCollectionAction = onOpenCollection;
 
+            if (player != null)
+                ShopStaminaCatalog.NormalizeLadderFields(player);
+
             SetupShopItems();
             BuildUI();
+            RefreshStaminaBuyButtons();
         }
 
         /// <summary>Exposed for tests: the real "BUY" button calls the private AttemptPurchase()
@@ -176,19 +180,19 @@ namespace MyriadOfDragons.UI
             if (!CollectionPackCatalog.HasInverseGemPerCardOrdering())
                 Debug.LogError("[Shop] CollectionPackCatalog lost inverse gem/card order (SHOP_V2 lock).");
 
-            // --- Resources (SHOP_V2 Stamina ladder — prices/grant from ShopStaminaCatalog) ---
+            // --- Resources (SHOP_V2 Stamina ladder — prices/grant/cap from ShopStaminaCatalog) ---
             foreach (int gemCost in ShopStaminaCatalog.GemCosts)
                 shopItems.Add(CreateStaminaPotionItem(ShopStaminaCatalog.SkuIdForGemCost(gemCost), gemCost));
 
             // --- V1 leftovers withheld from live grid (still PurchaseForTests) ---
-            // Novice: gold card lane not on V2 Packs tab — kept visible as Campaign-gold sink until CC retires it.
-            shopItems.Add(new ShopItemData("pack_novice", "Novice Card Pack", "Grants one new card for your collection (Gold path).", 500, 0, (p) =>
+            // Novice: deterministic unowned grant bypasses pack pity — not on Shop V2 SKU list.
+            shopItems.Add(new ShopItemData("pack_novice", "Novice Card Pack", "V1 stub — withheld (bypasses pack pity).", 500, 0, (p) =>
             {
                 bool granted = TryGrantNextUnownedCard(p);
                 if (granted) Debug.Log("Purchased Novice Card Pack! Added a new card to your collection.");
                 else Debug.Log("Novice Card Pack: your collection already contains every available card.");
                 return granted;
-            }));
+            }, hideFromShopGrid: true));
 
             // Dragon Booster @ 100 Gems/card beats Single Sigil @ 150 — violates inverse bulk. Hidden.
             shopItems.Add(new ShopItemData("pack_dragon", "Dragon Booster", "V1 stub — withheld (beats Singles gem/card).", 0, 100, (p) =>
@@ -227,21 +231,31 @@ namespace MyriadOfDragons.UI
             }, walletCommittedByCallback: true);
         }
 
-        /// <summary>SHOP_V2 Stamina ladder row — grant amount from <see cref="ShopStaminaCatalog"/>.</summary>
-        private static ShopItemData CreateStaminaPotionItem(string id, int gemCost)
+        /// <summary>SHOP_V2 Stamina ladder row — escalate-in-order + 4/24h cap via <see cref="ShopStaminaCatalog"/>.</summary>
+        private ShopItemData CreateStaminaPotionItem(string id, int gemCost)
         {
             int grant = ShopStaminaCatalog.StaminaGrantPerPotion;
             return new ShopItemData(
                 id,
                 $"Stamina Potion ({gemCost})",
-                $"+{grant} Stamina for campaign battles ({gemCost} Gems).",
+                $"+{grant} Stamina ({gemCost} Gems). Ladder: next tier only · max {ShopStaminaCatalog.MaxPurchasesPerRollingDay}/24h.",
                 0,
                 gemCost,
                 p =>
                 {
+                    long now = ShopStaminaCatalog.NowUtcTicks();
+                    if (!ShopStaminaCatalog.IsGemCostAllowedNow(p, gemCost, now, out string ladderError))
+                    {
+                        Debug.Log($"Stamina ladder blocked: {ladderError}");
+                        return false;
+                    }
+
                     bool granted = CurrencyManager.RestoreStamina(p, grant, persist: false);
-                    if (granted) Debug.Log($"Restored +{grant} Stamina ({gemCost} Gems)!");
-                    return granted;
+                    if (!granted) return false;
+
+                    ShopStaminaCatalog.RecordSuccessfulPurchase(p, now);
+                    Debug.Log($"Restored +{grant} Stamina ({gemCost} Gems)!");
+                    return true;
                 });
         }
 
@@ -426,6 +440,17 @@ namespace MyriadOfDragons.UI
                 return;
             }
 
+            if (IsStaminaLadderSku(item.id))
+            {
+                long now = ShopStaminaCatalog.NowUtcTicks();
+                if (!ShopStaminaCatalog.IsGemCostAllowedNow(player, item.gemCost, now, out string ladderError))
+                {
+                    SetShopStatus(ladderError ?? "Stamina refill not available.");
+                    RefreshStaminaBuyButtons();
+                    return;
+                }
+            }
+
             // The reward is fulfilled BEFORE any currency is spent, and only currency is spent
             // if it actually was fulfilled - a card-granting item whose reward sequence is
             // exhausted (TryGrantNextUnownedCard returns false, having touched nothing) must not
@@ -435,6 +460,7 @@ namespace MyriadOfDragons.UI
             if (!fulfilled)
             {
                 SetShopStatus($"{item.title}: could not be fulfilled — no currency spent.");
+                RefreshStaminaBuyButtons();
                 return;
             }
 
@@ -468,6 +494,35 @@ namespace MyriadOfDragons.UI
                 _pendingPackReceipt = null;
                 SetShopStatus($"Purchased {item.title}.");
                 RefreshResourceDisplay();
+                RefreshStaminaBuyButtons();
+            }
+        }
+
+        private static bool IsStaminaLadderSku(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId)) return false;
+            foreach (int gemCost in ShopStaminaCatalog.GemCosts)
+            {
+                if (string.Equals(itemId, ShopStaminaCatalog.SkuIdForGemCost(gemCost), System.StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void RefreshStaminaBuyButtons()
+        {
+            if (canvasObj == null || player == null) return;
+
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            bool hasNext = ShopStaminaCatalog.TryGetNextGemCost(player, now, out int nextCost, out _);
+
+            foreach (int gemCost in ShopStaminaCatalog.GemCosts)
+            {
+                string id = ShopStaminaCatalog.SkuIdForGemCost(gemCost);
+                Button buyBtn = canvasObj.transform.Find($"ShopGrid/ShopCard_{id}/Btn_Buy")?.GetComponent<Button>();
+                if (buyBtn == null) continue;
+                buyBtn.interactable = hasNext && gemCost == nextCost;
             }
         }
 

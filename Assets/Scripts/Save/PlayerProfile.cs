@@ -22,6 +22,17 @@ namespace MyriadOfDragons.Save
         public int stamina = 100;
         public int maxStamina = 100;
 
+        /// <summary>
+        /// SHOP_V2 Stamina ladder (CC 2026-08-23): UTC ticks when the current rolling 24h window
+        /// started (0 = never). Additive — old saves deserialize as 0.
+        /// </summary>
+        public long staminaShopWindowStartUtcTicks = 0;
+
+        /// <summary>
+        /// Purchases completed in the current rolling window (0..4). Escalates GemCosts in order.
+        /// </summary>
+        public int staminaShopPurchasesInWindow = 0;
+
         // --- PROPERTY WRAPPERS FOR UI PRESENTERS ---
         public string PlayerName { get => playerName; set => playerName = value; }
         public int Level { get => level; set => level = value; }
