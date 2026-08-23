@@ -263,6 +263,7 @@ namespace MyriadOfDragons.UI
             bgObj.transform.SetParent(canvasObj.transform, false);
             Image bgImg = bgObj.GetComponent<Image>();
             bgImg.color = new Color(0.035f, 0.055f, 0.075f, 1f);
+            bgImg.raycastTarget = false;
             SetNormalizedRect(bgObj.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f);
 
             GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
@@ -411,7 +412,10 @@ namespace MyriadOfDragons.UI
             GameObject railObj = new GameObject("ActionRail", typeof(RectTransform), typeof(Image));
             railObj.transform.SetParent(canvasObj.transform, false);
             railObj.GetComponent<Image>().color = new Color(0.045f, 0.085f, 0.105f, 1f);
-            SetScreenRectFromTopLeftPixels(railObj.GetComponent<RectTransform>(), 24f, 16f, 1896f, 120f);
+            // Bottom action rail (below Collection/Deck panels which end at y=960). The old
+            // top=16/bottom=120 placed this under the header and failed release-gate overlap.
+            SetScreenRectFromTopLeftPixels(railObj.GetComponent<RectTransform>(), 24f, 968f, 1896f, 1064f);
+            railObj.GetComponent<Image>().raycastTarget = false;
 
             GameObject backBtnObj = CreateButton(railObj.transform, "Btn_Back_Rail", "< BACK", new Vector2(0, 0), new Vector2(210, 62), new Color(0.22f, 0.18f, 0.14f));
             SetNormalizedRect(backBtnObj.GetComponent<RectTransform>(), 0.02f, 0.18f, 0.14f, 0.82f);
@@ -866,6 +870,8 @@ namespace MyriadOfDragons.UI
             txt.alignment = alignment;
             txt.color = Color.white;
             txt.supportRichText = true;
+            // Labels are decorative — root Button/Image must own the click hit.
+            txt.raycastTarget = false;
 
             RectTransform rect = textObj.GetComponent<RectTransform>();
             rect.anchoredPosition = position;
