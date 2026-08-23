@@ -37,7 +37,33 @@ is still the full history/reasoning; this is the fast-lookup layer that was miss
 | Guild Expedition consumes the shared weekly Permit ceiling, doesn't add to it | `OWNER_REVIEW_LOG.md` Guild Expedition correction | Any future system granting Permits must share this same 4/week budget |
 | No purchase converts to combat/deck power | Implicit across every packet | Cosmetics, subscriptions, passes all had to prove this explicitly |
 
-## Empire construction — REOPENED 2026-08-23, do not treat the 3-building version as final
+## Empire construction — STRUCTURE LOCKED 2026-08-23, exact rates still open
+
+**11-building roster, structure locked; costs/rates/faucet size NOT locked.** Two free simultaneous
+construction slots (no paid slot). Barracks/Gate/Castle/Academy/Embassy available Phase-1 start,
+ungated by Castle level.
+
+| Building | Phase-1 function | Server status |
+|---|---|---|
+| Castle | Progression spine, capacity milestones | Fully functional |
+| Barracks | Recruits new soldiers; deck-slot/Resource-regen/replenishment (milestone levels only: 1/5/10/15/20/25/30) | Fully functional |
+| Storage | Gold/Materials capacity; production pauses at cap, never silently deletes | Fully functional |
+| Training Grounds | Upgrades existing soldiers/cards via deterministic Collection/Evolution rules | Fully functional |
+| Quarry / Materials Yard (name TBD) | Merged Barn+Gold Mine; sole passive Materials producer, never Gold | Fully functional |
+| Gate | World-map defence, protected-loot floor | Solo stand-in; raid enforcement needs server |
+| Academy/Laboratory | Personal research, codex, recipes | Solo works; guild research later |
+| Embassy | Construction-help; scales BOTH charges/day and reduction/help by level; safety cap is a **lifetime cap per project** (not daily), min(30% of timer, approved max hours) | Personal stand-in; guild help needs server |
+| Tree of Knowledge | Evolution/XP home — **grandfather rule: existing accounts keep live Evolution access, no migration may invalidate progress**; minigames explicitly OUT of this packet, needs own brief | Fully functional |
+| Prison | Captive/sacrifice placeholder, non-destructive | Server-dependent stand-in |
+| Guild Hall | Flat, single-level, no upgrade ladder; entry point only | Server-dependent stand-in |
+
+**Open, CC must still lock:** (1) Quarry vs Materials Yard naming, (2) expand campaign Materials
+faucet (currently 1,815,000, sized for 3 buildings, now insufficient for 11) vs. reduce the per-
+building cost ladder, (3) Embassy's exact level-band curve, (4) Academy/Laboratory naming,
+(5) Tree of Knowledge minigame brief, once written. None of these block MVP — Empire roster work is
+explicitly outside `MVP_PLAYABLE_GATE_v1.md`'s scope.
+
+### Superseded — prior reopened/partial versions (kept for history only)
 
 **Owner override:** all 5 buildings (Castle, Barracks, Gate, Academy, Embassy) ship from Phase-1
 start, overriding `EMPIRE_SCHEMA_LOCK_2026-08-22.md` §1's "Academy/Embassy later." Real constraint
