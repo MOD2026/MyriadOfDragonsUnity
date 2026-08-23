@@ -485,3 +485,6 @@ question is resolved - worth knowing for whenever that decision happens.
 One separate item: BalanceSimulationTests.Balance_ExposedAvatarSiege_MeasuredAgainstDisabled missed
 its threshold by a hair (-0.055 vs required >=-0.05) on an unseeded Monte-Carlo test, no code
 changes to that system today - likely sampling noise, not confirmed without a repeat run.
+
+**Siege near-miss confirmed noise (2026-08-23):** BalanceSimulationTests re-run alone, 9/9 clean.
+Closed - no real regression, unseeded Monte-Carlo variance as suspected.
