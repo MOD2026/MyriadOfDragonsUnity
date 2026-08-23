@@ -168,23 +168,28 @@ namespace MyriadOfDragons.Empire
     }
 
     /// <summary>
-    /// Embassy's level-scaling construction-help curve. Only the two band endpoints are locked in
-    /// docs/LOCKED_DECISIONS_REGISTER.md: "1/10min at L1-5 up to 6/90min at L26-30" (charges/day
-    /// and reduction-minutes/charge both scale by level, same 6-band structure as the Materials
-    /// ladder). The four middle bands (L6-10/L11-15/L16-20/L21-25) are NOT given anywhere in the
-    /// locked packet - <see cref="ChargesPerDayForBand"/>/<see cref="ReductionMinutesPerChargeForBand"/>
-    /// intentionally only resolve the two confirmed bands and throw for the other four rather than
-    /// invent numbers; see this task's completion report for the open item.
+    /// Embassy's level-scaling construction-help curve. Full 6-band curve locked (GPT "Exact
+    /// Rates" reply, relayed 2026-08-23 - the register's original text compressed this down to
+    /// just the two endpoints, corrected there too): charges/day and reduction-minutes/charge both
+    /// scale by the same 6 bands as the Materials ladder, 1/10min at L1-5 up through 6/90min at
+    /// L26-30.
     ///
-    /// The lifetime-per-project safety cap IS fully locked and implemented here:
-    /// min(30% of the project's own timer, 6 hours).
+    /// The lifetime-per-project safety cap is also locked: min(30% of the project's own timer,
+    /// 6 hours).
     /// </summary>
     public static class EmpireEmbassyHelp
     {
-        public const int ChargesPerDayAtBandL1To5 = 1;
-        public const int ReductionMinutesPerChargeAtBandL1To5 = 10;
-        public const int ChargesPerDayAtBandL26To30 = 6;
-        public const int ReductionMinutesPerChargeAtBandL26To30 = 90;
+        /// <summary>(band start level inclusive, band end level inclusive, charges/day, reduction
+        /// minutes per charge).</summary>
+        private static readonly (int startLevel, int endLevelInclusive, int chargesPerDay, int reductionMinutesPerCharge)[] Bands =
+        {
+            (1, 5, 1, 10),
+            (6, 10, 2, 20),
+            (11, 15, 3, 30),
+            (16, 20, 4, 45),
+            (21, 25, 5, 60),
+            (26, 30, 6, 90),
+        };
 
         private static readonly TimeSpan LifetimeCapCeiling = TimeSpan.FromHours(6);
         private const double LifetimeCapFractionOfTimer = 0.30;
@@ -197,24 +202,20 @@ namespace MyriadOfDragons.Empire
             return thirtyPercentOfTimer < LifetimeCapCeiling ? thirtyPercentOfTimer : LifetimeCapCeiling;
         }
 
-        /// <summary>Only L1-5 and L26-30 are locked. Throws for any other level - see class doc.</summary>
-        public static int ChargesPerDayForBand(int embassyLevel)
-        {
-            if (embassyLevel >= 1 && embassyLevel <= 5) return ChargesPerDayAtBandL1To5;
-            if (embassyLevel >= 26 && embassyLevel <= 30) return ChargesPerDayAtBandL26To30;
-            throw new NotSupportedException(
-                $"Embassy level {embassyLevel}'s charges/day is not locked anywhere yet - only L1-5 and L26-30 are confirmed. " +
-                "Do not guess an interpolated value; get the real L6-10/L11-15/L16-20/L21-25 numbers first.");
-        }
+        public static int ChargesPerDayForBand(int embassyLevel) => ResolveBand(embassyLevel).chargesPerDay;
 
-        /// <summary>Only L1-5 and L26-30 are locked. Throws for any other level - see class doc.</summary>
-        public static int ReductionMinutesPerChargeForBand(int embassyLevel)
+        public static int ReductionMinutesPerChargeForBand(int embassyLevel) => ResolveBand(embassyLevel).reductionMinutesPerCharge;
+
+        private static (int startLevel, int endLevelInclusive, int chargesPerDay, int reductionMinutesPerCharge) ResolveBand(int embassyLevel)
         {
-            if (embassyLevel >= 1 && embassyLevel <= 5) return ReductionMinutesPerChargeAtBandL1To5;
-            if (embassyLevel >= 26 && embassyLevel <= 30) return ReductionMinutesPerChargeAtBandL26To30;
-            throw new NotSupportedException(
-                $"Embassy level {embassyLevel}'s reduction/charge is not locked anywhere yet - only L1-5 and L26-30 are confirmed. " +
-                "Do not guess an interpolated value; get the real L6-10/L11-15/L16-20/L21-25 numbers first.");
+            foreach (var band in Bands)
+            {
+                if (embassyLevel >= band.startLevel && embassyLevel <= band.endLevelInclusive)
+                    return band;
+            }
+
+            throw new ArgumentOutOfRangeException(nameof(embassyLevel), embassyLevel,
+                "Embassy level must be within the locked 1-30 range.");
         }
     }
 

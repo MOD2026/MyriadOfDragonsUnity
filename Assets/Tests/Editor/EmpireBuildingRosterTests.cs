@@ -124,51 +124,29 @@ namespace MyriadOfDragons.Tests
 
         // ---------- Embassy help ----------
 
-        [Test]
-        public void ChargesPerDay_AtL1To5Band_MatchesTheLockedEndpoint()
+        [TestCase(1, 1, 10)]
+        [TestCase(5, 1, 10)]
+        [TestCase(6, 2, 20)]
+        [TestCase(10, 2, 20)]
+        [TestCase(11, 3, 30)]
+        [TestCase(15, 3, 30)]
+        [TestCase(16, 4, 45)]
+        [TestCase(20, 4, 45)]
+        [TestCase(21, 5, 60)]
+        [TestCase(25, 5, 60)]
+        [TestCase(26, 6, 90)]
+        [TestCase(30, 6, 90)]
+        public void ChargesAndReduction_MatchTheLockedBandForEveryLevel(int embassyLevel, int expectedChargesPerDay, int expectedReductionMinutes)
         {
-            Assert.AreEqual(1, EmpireEmbassyHelp.ChargesPerDayForBand(1));
-            Assert.AreEqual(1, EmpireEmbassyHelp.ChargesPerDayForBand(5));
+            Assert.AreEqual(expectedChargesPerDay, EmpireEmbassyHelp.ChargesPerDayForBand(embassyLevel));
+            Assert.AreEqual(expectedReductionMinutes, EmpireEmbassyHelp.ReductionMinutesPerChargeForBand(embassyLevel));
         }
 
-        [Test]
-        public void ChargesPerDay_AtL26To30Band_MatchesTheLockedEndpoint()
+        [TestCase(0)]
+        [TestCase(31)]
+        public void ChargesPerDay_OutOfRange_Throws(int invalidLevel)
         {
-            Assert.AreEqual(6, EmpireEmbassyHelp.ChargesPerDayForBand(26));
-            Assert.AreEqual(6, EmpireEmbassyHelp.ChargesPerDayForBand(30));
-        }
-
-        [Test]
-        public void ReductionMinutes_AtL1To5Band_MatchesTheLockedEndpoint()
-        {
-            Assert.AreEqual(10, EmpireEmbassyHelp.ReductionMinutesPerChargeForBand(1));
-        }
-
-        [Test]
-        public void ReductionMinutes_AtL26To30Band_MatchesTheLockedEndpoint()
-        {
-            Assert.AreEqual(90, EmpireEmbassyHelp.ReductionMinutesPerChargeForBand(30));
-        }
-
-        [TestCase(6)]
-        [TestCase(10)]
-        [TestCase(11)]
-        [TestCase(15)]
-        [TestCase(16)]
-        [TestCase(20)]
-        [TestCase(21)]
-        [TestCase(25)]
-        public void ChargesPerDay_ForAnUnlockedMiddleBand_ThrowsRatherThanGuessing(int unlockedBandLevel)
-        {
-            Assert.Throws<NotSupportedException>(() => EmpireEmbassyHelp.ChargesPerDayForBand(unlockedBandLevel),
-                "The four middle Embassy bands are not locked anywhere - must fail loudly, not silently interpolate.");
-        }
-
-        [TestCase(6)]
-        [TestCase(21)]
-        public void ReductionMinutes_ForAnUnlockedMiddleBand_ThrowsRatherThanGuessing(int unlockedBandLevel)
-        {
-            Assert.Throws<NotSupportedException>(() => EmpireEmbassyHelp.ReductionMinutesPerChargeForBand(unlockedBandLevel));
+            Assert.Throws<ArgumentOutOfRangeException>(() => EmpireEmbassyHelp.ChargesPerDayForBand(invalidLevel));
         }
 
         [Test]
