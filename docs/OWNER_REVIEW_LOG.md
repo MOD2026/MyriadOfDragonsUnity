@@ -501,3 +501,13 @@ projected once Academy/Embassy add their own scope (now a real computed number, 
 Offline A flow, rollback handling, raid protection all unchanged from earlier locks. This
 supersedes every prior Empire v2 timer/builder proposal - no further iteration on this specific
 packet unless something genuinely new surfaces.
+
+**Empire construction REOPENED (2026-08-23): all 5 buildings from Phase-1 start, not 3+2-later.**
+Owner explicitly overrides EMPIRE_SCHEMA_LOCK_2026-08-22.md §1 ("Ship Castle/Barracks/Gate only;
+Academy/Embassy later"). Real finding before dispatching design work: Academy/Embassy's documented
+function (MOS_v1.2.md §11) is tied to guild timer-help - the same trusted-server dependency
+blocking Bazaar/Guild Expedition/Raid. Owner decision: ship solo-only stripped Phase-1 stand-ins
+now (Academy = personal research + Materials sink, no guild-help; Embassy = near-placeholder given
+it has no real solo function per its own design), full guild-integrated versions later once the
+server exists. Design task issued to ChatGPT. Empire v2's "FINAL" status from the prior entry is
+superseded - 5-building interlock/timeline needs recompute.
