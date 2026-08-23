@@ -506,6 +506,13 @@ namespace MyriadOfDragons.UI
         /// button-visibility state, which tutorial guidance now branches by IsTutorialMatch -
         /// no other way for a test to observe this without a broader UI-inspection API.</summary>
         public string ResultTextForTests => _resultText != null ? _resultText.text : null;
+
+        /// <summary>Exposed for tests: whether the result overlay GameObject itself (not just its
+        /// text/button state) is currently showing - lets a test catch a stale overlay left
+        /// active across a screen transition, which ResultTextForTests/button-active checks alone
+        /// cannot distinguish from "never shown yet" once the overlay's own content has since been
+        /// overwritten by a later real match's HandleMatchEnded call.</summary>
+        public bool ResultOverlayActiveForTests => _resultOverlay != null && _resultOverlay.activeSelf;
         public string PlayAgainLabelForTests => _playAgainLabel != null ? _playAgainLabel.text : null;
         public string ReturnToCityLabelForTests => _returnToCityLabel != null ? _returnToCityLabel.text : null;
         public bool PlayAgainButtonActiveForTests => _playAgainButton != null && _playAgainButton.gameObject.activeSelf;
@@ -5478,6 +5485,17 @@ namespace MyriadOfDragons.UI
             // silence it would silently break if that ever changed, and Home must never hear
             // battle music under any circumstance.
             _musicSource?.Stop();
+
+            // Real playtest bug (2026-08-23): _resultOverlay.SetActive(true) (HandleMatchEnded)
+            // was never paired with an explicit SetActive(false) here - only the whole canvas
+            // above got hidden, which masks the overlay visually but leaves its own activeSelf
+            // flag stuck true. The next time this canvas is revealed for ANY match (StartNewMatch
+            // has not rebuilt Formation UI yet at that exact moment), the overlay - still showing
+            // whatever content it last had - pops back on top of the fresh Formation screen before
+            // the new match's own HandleMatchEnded ever gets a chance to overwrite it. Reproduced
+            // as early as the very first post-tutorial stage launch (TutorialResultOverlayLeakTests);
+            // explicit hide here, same pattern OnPlayAgainPressed/OnLineupButtonPressed already use.
+            _resultOverlay.SetActive(false);
 
             // Campaign match-context lifecycle contract, requirement 4: returning to Home from
             // EITHER a campaign victory or a campaign defeat clears the pending battle
