@@ -157,3 +157,13 @@ Permits on either track (checked against "no purchase = combat/deck power" and "
 Empire/Avatar-side"). 28-day season, UTC-week-anchored - this is a NEW shared value, not something
 Battle Rating already had locked (corrected a false-precedent claim in the packet). Open: XP curve,
 exact reward amounts, price, claim grace period.
+
+## Battle Pass Stamina/purchase/stacking correction + Shop pack pity (LOCKED 2026-08-24)
+
+Pass Stamina claims count against the existing 4/24h cap, no bypass. Paid-track purchase reuses
+existing Shop/IAP entitlement flow, no new backend. Pass Gold claims and Guild +10% Expedition bonus
+are orthogonal (milestone vs. per-clear), never stack. Pack pity: per-SKU counter (prevents cheap-
+pack farming premium-pack pity), floor guarantee only (doesn't change base odds), atomic 5-step
+transaction (spend/draw/grant/pity-update/save, full rollback on failure). Pity counter is a new
+additive PlayerProfile field - flag for frozen-file coordination when implemented. Open: exact
+threshold N.
