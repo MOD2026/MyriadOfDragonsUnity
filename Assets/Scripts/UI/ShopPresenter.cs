@@ -42,6 +42,7 @@ namespace MyriadOfDragons.UI
         private GameObject canvasObj;
         private PlayerProfile player;
         private System.Action onBackToHomeAction;
+        private System.Action onOpenCollectionAction;
 
         private Text goldText;
         private Text gemsText;
@@ -51,10 +52,11 @@ namespace MyriadOfDragons.UI
         private List<ShopItemData> shopItems;
         private PackReceiptResult _pendingPackReceipt;
 
-        public void Initialize(PlayerProfile profile, System.Action onBackToHome)
+        public void Initialize(PlayerProfile profile, System.Action onBackToHome, System.Action onOpenCollection = null)
         {
             this.player = profile;
             this.onBackToHomeAction = onBackToHome;
+            this.onOpenCollectionAction = onOpenCollection;
 
             SetupShopItems();
             BuildUI();
@@ -403,7 +405,17 @@ namespace MyriadOfDragons.UI
             {
                 PackReceiptResult receipt = _pendingPackReceipt;
                 _pendingPackReceipt = null;
-                PackOpenOverlayPresenter.Show(canvasObj.transform, receipt, RefreshResourceDisplay);
+                PackOpenOverlayPresenter.Show(
+                    canvasObj.transform,
+                    receipt,
+                    onDismiss: RefreshResourceDisplay,
+                    onOpenCollection: onOpenCollectionAction == null
+                        ? null
+                        : () =>
+                        {
+                            TeardownUI();
+                            onOpenCollectionAction.Invoke();
+                        });
                 SetShopStatus($"Opened {item.title}.");
             }
             else

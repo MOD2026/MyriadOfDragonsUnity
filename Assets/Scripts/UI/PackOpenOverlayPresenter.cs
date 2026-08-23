@@ -18,7 +18,8 @@ namespace MyriadOfDragons.UI
         /// <summary>Last dismiss guidance left on Shop (survives overlay teardown for Soft UI).</summary>
         public static string LastDismissStatusForTests { get; private set; }
 
-        public static GameObject Show(Transform shopCanvasRoot, PackReceiptResult result, Action onDismiss)
+        public static GameObject Show(Transform shopCanvasRoot, PackReceiptResult result, Action onDismiss,
+            Action onOpenCollection = null)
         {
             if (shopCanvasRoot == null || result == null) return null;
 
@@ -65,6 +66,7 @@ namespace MyriadOfDragons.UI
 
             Transform drawContentForRunner = DrawContentForTests(shopCanvasRoot);
 
+            bool showCollectionCta = result.Success && onOpenCollection != null;
             string continueLabel = result.Success ? "CONTINUE · Check Collection" : "CONTINUE";
             Button continueBtn = UISharedFoundation.CreateButton(
                 panel, "BtnContinue", continueLabel, new Vector2(360f, 64f), new Color(0.2f, 0.45f, 0.32f),
@@ -85,10 +87,36 @@ namespace MyriadOfDragons.UI
             btnRect.anchorMin = new Vector2(0.5f, 0f);
             btnRect.anchorMax = new Vector2(0.5f, 0f);
             btnRect.pivot = new Vector2(0.5f, 0f);
-            btnRect.anchoredPosition = new Vector2(0f, 28f);
+            // Shift left when OPEN COLLECTION sits beside it (Soft stay vs navigate).
+            btnRect.anchoredPosition = new Vector2(showCollectionCta ? -190f : 0f, 28f);
+
+            Button openCollectionBtn = null;
+            if (showCollectionCta)
+            {
+                openCollectionBtn = UISharedFoundation.CreateButton(
+                    panel, "BtnOpenCollection", "OPEN COLLECTION", new Vector2(320f, 64f),
+                    new Color(0.18f, 0.35f, 0.42f),
+                    () =>
+                    {
+                        LastDismissStatusForTests = CollectionNextStepCopy;
+                        Dismiss(shopCanvasRoot);
+                        onOpenCollection.Invoke();
+                    });
+                ApplyHomeV3ContinueButton(openCollectionBtn);
+                openCollectionBtn.interactable = false;
+                RectTransform openRect = openCollectionBtn.GetComponent<RectTransform>();
+                openRect.anchorMin = new Vector2(0.5f, 0f);
+                openRect.anchorMax = new Vector2(0.5f, 0f);
+                openRect.pivot = new Vector2(0.5f, 0f);
+                openRect.anchoredPosition = new Vector2(190f, 28f);
+            }
 
             PackOpenRevealRunner runner = overlayRoot.AddComponent<PackOpenRevealRunner>();
-            runner.Initialize(CollectRevealTiles(drawContentForRunner), () => continueBtn.interactable = true);
+            runner.Initialize(CollectRevealTiles(drawContentForRunner), () =>
+            {
+                continueBtn.interactable = true;
+                if (openCollectionBtn != null) openCollectionBtn.interactable = true;
+            });
 
             return overlayRoot;
         }

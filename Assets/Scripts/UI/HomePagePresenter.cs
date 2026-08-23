@@ -915,6 +915,7 @@ public class HomePagePresenter : MonoBehaviour
     private void OpenDeckBuilder(string entryStatusMessage = null)
     {
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
         DeckBuilderPresenter deckBuilder = gameObject.GetComponent<DeckBuilderPresenter>();
         if (deckBuilder == null) deckBuilder = gameObject.AddComponent<DeckBuilderPresenter>();
@@ -924,15 +925,22 @@ public class HomePagePresenter : MonoBehaviour
             {
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 SaveManager.Save();
+                RefreshTopHUD();
                 if (deckBuilder != null) Destroy(deckBuilder);
             },
-            entryStatusMessage: entryStatusMessage
+            entryStatusMessage: entryStatusMessage,
+            onOpenCollection: () =>
+            {
+                if (deckBuilder != null) Destroy(deckBuilder);
+                OpenCollection();
+            }
         );
     }
 
     private void OpenCollection()
     {
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
         CollectionPresenter collection = gameObject.GetComponent<CollectionPresenter>();
         if (collection == null) collection = gameObject.AddComponent<CollectionPresenter>();
@@ -942,6 +950,7 @@ public class HomePagePresenter : MonoBehaviour
             {
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 SaveManager.Save();
+                RefreshTopHUD();
                 if (collection != null) Destroy(collection);
             },
             onOpenDeckBuilder: () =>
@@ -955,6 +964,7 @@ public class HomePagePresenter : MonoBehaviour
     private void OpenShop()
     {
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
         ShopPresenter shop = gameObject.GetComponent<ShopPresenter>();
         if (shop == null) shop = gameObject.AddComponent<ShopPresenter>();
@@ -967,6 +977,11 @@ public class HomePagePresenter : MonoBehaviour
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 RefreshTopHUD();
                 if (shop != null) Destroy(shop);
+            },
+            onOpenCollection: () =>
+            {
+                if (shop != null) Destroy(shop);
+                OpenCollection();
             }
         );
     }

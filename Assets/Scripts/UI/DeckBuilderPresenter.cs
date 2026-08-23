@@ -34,6 +34,7 @@ namespace MyriadOfDragons.UI
     {
         private GameObject canvasObj;
         private System.Action onBackToHomeAction;
+        private System.Action onOpenCollectionAction;
 
         private PlayerProfile profile;
         private CardDatabase cardDatabase;
@@ -66,9 +67,11 @@ namespace MyriadOfDragons.UI
         /// status surface: BuildUI/UpdateDeckUIState still own deckStatusText, and the very next
         /// deck edit (add/remove a card) replaces this override with the normal readout, same as
         /// it always has.</summary>
-        public void Initialize(System.Action onBackToHome, string entryStatusMessage = null)
+        public void Initialize(System.Action onBackToHome, string entryStatusMessage = null,
+            System.Action onOpenCollection = null)
         {
             this.onBackToHomeAction = onBackToHome;
+            this.onOpenCollectionAction = onOpenCollection;
             this.entryStatusOverride = entryStatusMessage;
 
             LoadProfileState();
@@ -406,13 +409,28 @@ namespace MyriadOfDragons.UI
             SetScreenRectFromTopLeftPixels(railObj.GetComponent<RectTransform>(), 24f, 16f, 1896f, 120f);
 
             GameObject backBtnObj = CreateButton(railObj.transform, "Btn_Back_Rail", "< BACK", new Vector2(0, 0), new Vector2(210, 62), new Color(0.22f, 0.18f, 0.14f));
-            SetNormalizedRect(backBtnObj.GetComponent<RectTransform>(), 0.02f, 0.18f, 0.18f, 0.82f);
+            SetNormalizedRect(backBtnObj.GetComponent<RectTransform>(), 0.02f, 0.18f, 0.14f, 0.82f);
             HomeV3UiLibrary.ApplyNavTileButton(backBtnObj.GetComponent<Button>(), backBtnObj.GetComponent<Image>());
             backBtnObj.GetComponent<Button>().onClick.AddListener(() =>
             {
                 DestroyDynamicUIObject(canvasObj);
                 onBackToHomeAction?.Invoke();
             });
+
+            // Mirror Collection → Deck: optional reverse hop (wired from Home like Avatar ↔ Empire).
+            if (onOpenCollectionAction != null)
+            {
+                GameObject collectionBtnObj = CreateButton(railObj.transform, "OpenCollectionButton", "OPEN COLLECTION",
+                    new Vector2(0, 0), new Vector2(280, 62), new Color(0.18f, 0.32f, 0.4f));
+                SetNormalizedRect(collectionBtnObj.GetComponent<RectTransform>(), 0.155f, 0.18f, 0.34f, 0.82f);
+                HomeV3UiLibrary.ApplyNavTileButton(collectionBtnObj.GetComponent<Button>(),
+                    collectionBtnObj.GetComponent<Image>());
+                collectionBtnObj.GetComponent<Button>().onClick.AddListener(() =>
+                {
+                    DestroyDynamicUIObject(canvasObj);
+                    onOpenCollectionAction.Invoke();
+                });
+            }
 
             recommendedDeckButton = CreateButton(railObj.transform, "Btn_Recommended", "RECOMMENDED DECK", new Vector2(0, 0), new Vector2(320, 62), new Color(0.08f, 0.34f, 0.3f)).GetComponent<Button>();
             SetNormalizedRect(recommendedDeckButton.GetComponent<RectTransform>(), 0.39f, 0.18f, 0.61f, 0.82f);
