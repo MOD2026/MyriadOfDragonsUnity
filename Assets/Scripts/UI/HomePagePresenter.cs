@@ -24,6 +24,7 @@ public class HomePagePresenter : MonoBehaviour
     private Text goldHudText;
     private Text gemsHudText;
     private Text energyHudText;
+    private Text avatarIdentityText;
     private Text weeklyPermitStatusText;
 
     // Current Active Stage Track
@@ -395,7 +396,12 @@ public class HomePagePresenter : MonoBehaviour
         {
             identityBg.color = new Color(0f, 0f, 0f, 0.15f);
         }
-        identityBg.raycastTarget = false;
+        identityBg.raycastTarget = true;
+
+        Button identityButton = identityRoot.AddComponent<Button>();
+        identityButton.targetGraphic = identityBg;
+        identityButton.transition = Selectable.Transition.ColorTint;
+        identityButton.onClick.AddListener(OpenAvatar);
 
         GameObject crestObj = new GameObject("IdentityCrest", typeof(RectTransform), typeof(Image));
         crestObj.transform.SetParent(identityRoot.transform, false);
@@ -428,13 +434,13 @@ public class HomePagePresenter : MonoBehaviour
         SetLocalNormalisedRect(playerNameText.rectTransform, 0.16f, 0.55f, 0.95f, 1.0f);
 
         // Avatar identity line — level + live battle economy from Empire readers.
-        Text playerLevelText = UISharedFoundation.CreateText(
+        avatarIdentityText = UISharedFoundation.CreateText(
             identityRoot.transform, "PlayerLevelRole",
             $"Avatar L{avatarLevel} · Cap {liveCap} · Start HP {liveStartHp}",
             MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(420f, 20f));
-        playerLevelText.fontSize = 16;
-        playerLevelText.raycastTarget = false;
-        SetLocalNormalisedRect(playerLevelText.rectTransform, 0.16f, 0.0f, 0.95f, 0.45f);
+        avatarIdentityText.fontSize = 16;
+        avatarIdentityText.raycastTarget = false;
+        SetLocalNormalisedRect(avatarIdentityText.rectTransform, 0.16f, 0.0f, 0.95f, 0.45f);
 
         GameObject resourceRow = new GameObject("ResourceRow", typeof(RectTransform));
         resourceRow.transform.SetParent(homeCanvasObj.transform, false);
@@ -739,13 +745,41 @@ public class HomePagePresenter : MonoBehaviour
         EmpirePresenter empire = gameObject.GetComponent<EmpirePresenter>();
         if (empire == null) empire = gameObject.AddComponent<EmpirePresenter>();
 
-        empire.Initialize(onBackToHome: () =>
-        {
-            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
-            SaveManager.Save();
-            RefreshTopHUD();
-            if (empire != null) Destroy(empire);
-        });
+        empire.Initialize(
+            onBackToHome: () =>
+            {
+                if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+                SaveManager.Save();
+                RefreshTopHUD();
+                if (empire != null) Destroy(empire);
+            },
+            onOpenAvatar: () =>
+            {
+                if (empire != null) Destroy(empire);
+                OpenAvatar();
+            });
+    }
+
+    private void OpenAvatar()
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+        AvatarPresenter avatar = gameObject.GetComponent<AvatarPresenter>();
+        if (avatar == null) avatar = gameObject.AddComponent<AvatarPresenter>();
+
+        avatar.Initialize(
+            onBackToHome: () =>
+            {
+                if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+                RefreshTopHUD();
+                if (avatar != null) Destroy(avatar);
+            },
+            onOpenEmpire: () =>
+            {
+                if (avatar != null) Destroy(avatar);
+                OpenEmpire();
+            });
     }
 
     private void OpenStoryCampaign()
@@ -943,6 +977,14 @@ public class HomePagePresenter : MonoBehaviour
         if (goldHudText != null) goldHudText.text = $"{SaveManager.SaveData.gold}";
         if (gemsHudText != null) gemsHudText.text = $"{SaveManager.SaveData.gems}";
         if (energyHudText != null) energyHudText.text = $"{SaveManager.SaveData.stamina}/{SaveManager.SaveData.maxStamina}";
+
+        if (avatarIdentityText != null)
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            profile.ApplyDataToEmpire();
+            avatarIdentityText.text =
+                $"Avatar L{Mathf.Max(1, profile.avatarLevel)} · Cap {profile.Empire.ResourceCap} · Start HP {profile.Empire.StartingAvatarHealth}";
+        }
     }
 
     private Text CreateResourcePill(Transform parent, string spriteName, string label, string value, float left, float right)

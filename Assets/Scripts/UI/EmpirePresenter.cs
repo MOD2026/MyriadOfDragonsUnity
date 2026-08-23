@@ -15,11 +15,20 @@ namespace MyriadOfDragons.UI
         private Text _empireStatusText;
         private Text _empireMessageText;
         private Text _avatarSummaryText;
+        private Text _goldPillText;
+        private Text _projectDetailText;
         private GameObject _empireCollectButtonRoot;
+        private Action _onOpenAvatar;
 
         public void Initialize(Action onBackToHome)
         {
+            Initialize(onBackToHome, onOpenAvatar: null);
+        }
+
+        public void Initialize(Action onBackToHome, Action onOpenAvatar)
+        {
             _onBackToHome = onBackToHome;
+            _onOpenAvatar = onOpenAvatar;
             BuildUI();
             RefreshPanel();
         }
@@ -91,6 +100,27 @@ namespace MyriadOfDragons.UI
             avatarRect.anchoredPosition = new Vector2(210f, 0f);
             avatarRect.sizeDelta = new Vector2(520f, 36f);
 
+            if (_onOpenAvatar != null)
+            {
+                GameObject avatarHit = new GameObject("AvatarHit", typeof(RectTransform), typeof(Image), typeof(Button));
+                avatarHit.transform.SetParent(topBar.transform, false);
+                Image hitImg = avatarHit.GetComponent<Image>();
+                hitImg.color = new Color(1f, 1f, 1f, 0.01f);
+                Button hitBtn = avatarHit.GetComponent<Button>();
+                hitBtn.targetGraphic = hitImg;
+                hitBtn.onClick.AddListener(() =>
+                {
+                    TeardownUI();
+                    _onOpenAvatar.Invoke();
+                });
+                RectTransform hitRect = avatarHit.GetComponent<RectTransform>();
+                hitRect.anchorMin = new Vector2(0f, 0.5f);
+                hitRect.anchorMax = new Vector2(0f, 0.5f);
+                hitRect.pivot = new Vector2(0f, 0.5f);
+                hitRect.anchoredPosition = new Vector2(210f, 0f);
+                hitRect.sizeDelta = new Vector2(520f, 50f);
+            }
+
             GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             resourceGroup.transform.SetParent(topBar.transform, false);
             RectTransform resRect = resourceGroup.GetComponent<RectTransform>();
@@ -106,7 +136,7 @@ namespace MyriadOfDragons.UI
 
             PlayerProfile profile = SaveManager.SaveData;
             int gold = profile != null ? profile.gold : 0;
-            HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gold_pill_v3", "Gold", $"{gold}", 190f);
+            _goldPillText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gold_pill_v3", "Gold", $"{gold}", 190f);
             RefreshAvatarSummary(profile);
         }
 
@@ -135,13 +165,18 @@ namespace MyriadOfDragons.UI
             _empireStatusText.fontSize = 18;
             SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.08f, 0.62f, 0.26f);
 
+            _projectDetailText = UISharedFoundation.CreateText(empireRoot.transform, "ActiveProjectDetail", "",
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 40f));
+            _projectDetailText.fontSize = 16;
+            SetNormalizedRect(_projectDetailText.rectTransform, 0.03f, 0.02f, 0.62f, 0.10f);
+
             _empireMessageText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireMessage", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#E8A87C"), true, new Vector2(500f, 48f));
             _empireMessageText.fontSize = 16;
-            SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.0f, 0.62f, 0.10f);
+            SetNormalizedRect(_empireMessageText.rectTransform, 0.64f, 0.0f, 0.97f, 0.08f);
 
             _empireCollectButtonRoot = CreateActionButton(empireRoot.transform, "CollectConstructionButton",
-                "COLLECT UPGRADE", 0.68f, 0.05f, 0.97f, 0.22f, OnCollectConstruction);
+                "COLLECT UPGRADE", 0.68f, 0.10f, 0.97f, 0.26f, OnCollectConstruction);
         }
 
         private void RefreshPanel()
@@ -158,6 +193,9 @@ namespace MyriadOfDragons.UI
 
             profile.ApplyDataToEmpire();
             RefreshAvatarSummary(profile);
+            if (_goldPillText != null)
+                _goldPillText.text = $"{profile.gold}";
+
             int deckSlots = profile.Empire.DeckSlotCount;
             int gateChapter = PlayerEmpireData.GetHighestCampaignChapterAllowed(profile.gateLevel);
             int castleResourceBonus = PlayerEmpireData.CastleResourceBonusForLevel(profile.castleLevel);
@@ -201,6 +239,19 @@ namespace MyriadOfDragons.UI
             _empireStatusText.text = ready
                 ? $"{construction.buildingId} ready — L{construction.targetLevel} ({construction.costGold:N0} Gold spent). Tap Collect."
                 : "One project at a time. Spend Gold to upgrade, then Collect.";
+
+            if (_projectDetailText != null)
+            {
+                if (ready)
+                {
+                    _projectDetailText.text =
+                        $"Active project: {construction.buildingId} → L{construction.targetLevel} · {construction.costGold:N0} Gold charged · Ready to collect";
+                }
+                else
+                {
+                    _projectDetailText.text = "No active construction project.";
+                }
+            }
 
             if (_empireCollectButtonRoot != null)
                 _empireCollectButtonRoot.SetActive(ready);
@@ -280,7 +331,7 @@ namespace MyriadOfDragons.UI
             }
 
             SaveManager.Save();
-            SetMessage("");
+            SetMessage($"{building} upgrade started — Collect when ready.");
             RefreshPanel();
         }
 
@@ -288,6 +339,9 @@ namespace MyriadOfDragons.UI
         {
             PlayerProfile profile = SaveManager.SaveData;
             if (profile?.empireConstruction == null) return;
+
+            EmpireBuildingId finished = profile.empireConstruction.buildingId;
+            int target = profile.empireConstruction.targetLevel;
 
             if (!EmpireConstructionService.TryClaimComplete(profile, profile.empireConstruction.projectId))
             {
@@ -297,7 +351,7 @@ namespace MyriadOfDragons.UI
             }
 
             SaveManager.Save();
-            SetMessage("");
+            SetMessage($"{finished} collected — now L{target}.");
             RefreshPanel();
         }
 
@@ -329,7 +383,9 @@ namespace MyriadOfDragons.UI
             buttonRoot.transform.SetParent(parent, false);
             Image bg = buttonRoot.GetComponent<Image>();
             bg.color = HexColor("#1A3A4A");
-            buttonRoot.GetComponent<Button>().onClick.AddListener(onClick);
+            Button button = buttonRoot.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(button, bg);
+            button.onClick.AddListener(onClick);
             SetNormalizedRect(buttonRoot.GetComponent<RectTransform>(), left, bottom, right, top);
 
             Text buttonLabel = UISharedFoundation.CreateText(buttonRoot.transform, "ActionLabel", label,
