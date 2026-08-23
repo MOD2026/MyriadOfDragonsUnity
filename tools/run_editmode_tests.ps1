@@ -26,6 +26,14 @@
 # values or repeated flags in this Unity version - both collapse into one literal groupNames string
 # that matches nothing. A single exact class name (or a substring, which Unity matches against the
 # full Namespace.Class.Method string) works. -ClassListFile runs one exact class per Unity process.
+#
+# Cross-seat lock file: Working Hands (interactive Editor) and the coding seat (this batch wrapper)
+# both need exclusive access to the same project - a bare `tasklist` check before starting is a
+# race (two seats can both see "clear" within the same second and both launch). This script now
+# claims .unity_batch.lock in the repo root before touching Unity and always releases it on exit,
+# success or failure. Working Hands should honor the same file even without using this script:
+# check for it before opening the Editor, and touch/remove it around any session that needs
+# exclusive Unity access.
 
 param(
     [string]$ProjectPath = "C:\Users\zihan\Downloads\MyriadOfDragonsUnity",
@@ -105,10 +113,31 @@ if (-not (Test-Path $UnityExe)) {
     exit 1
 }
 
+$lockFile = Join-Path $ProjectPath ".unity_batch.lock"
+
+if (Test-Path $lockFile) {
+    $lockInfo = Get-Content $lockFile -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+    $lockPid = $lockInfo.pid
+    $lockOwner = $lockInfo.owner
+    $lockStillAlive = $lockPid -and (Get-Process -Id $lockPid -ErrorAction SilentlyContinue)
+    if ($lockStillAlive) {
+        Write-Error "Unity is locked by another seat ($lockOwner, watcher PID $lockPid, since $($lockInfo.startedAt)). Wait for it to finish - do not delete the lock file or start a run anyway."
+        exit 1
+    }
+    else {
+        Write-Host "Stale lock file found (owner process $lockPid no longer running) - clearing it and proceeding."
+        Remove-Item $lockFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
 if (Get-Process -Name "Unity" -ErrorAction SilentlyContinue) {
-    Write-Error "Unity is already running. Close it fully before starting a batch run (exclusive project lock)."
+    Write-Error "Unity is already running (no lock file, so this wasn't started by this script - likely Working Hands' interactive Editor). Close it fully before starting a batch run (exclusive project lock)."
     exit 1
 }
+
+@{ pid = $PID; owner = "coding-seat-batch-wrapper"; startedAt = (Get-Date).ToString("o") } | ConvertTo-Json | Set-Content -Path $lockFile -Encoding utf8
+
+try {
 
 if ($ClassListFile -ne "") {
     if (-not (Test-Path $ClassListFile)) {
@@ -172,3 +201,8 @@ if ($ClassListFile -ne "") {
 
 $exitCode = Invoke-SingleRun -ResultsPath $ResultsPath -LogPath $LogPath -TestFilter $TestFilter -TimeoutMinutes $TimeoutMinutes -StallCheckSeconds $StallCheckSeconds
 exit $exitCode
+
+}
+finally {
+    Remove-Item $lockFile -Force -ErrorAction SilentlyContinue
+}
