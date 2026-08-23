@@ -75,15 +75,19 @@ owner request.
 
 ## Content backlogs (real, ready-to-code, not design questions)
 
-- ~~10 of 14 locked Phase-1 spells never implemented~~ **RESOLVED 2026-08-23** — all 14 now live in
-  `AvatarSpell.CreatePhase1Catalog()`, matched line-by-line against `SPELL_CATALOG_v1.md`. **But
-  found inert**: `BattleController.StartMatch` hardcodes `CreateDefaultSpellbook()` (starter 4 only)
-  for both player and AI, every match — `CreatePhase1Catalog()` is called nowhere in production, no
-  equip/loadout/unlock system exists anywhere (checked `DeckBuilderPresenter.cs`, `PlayerProfile.cs`
-  — zero matches). **New real gap, now the active coding-room task:** unlock-pool resolver (Avatar
-  level/chapter → which of the 14 are unlocked, per the catalog's own "Unlock" column) + wire
-  `BattleController` to an auto-equip stopgap (4 spells from the unlocked pool, max-1-AvatarStrike)
-  since no player-choice UI exists yet. Real player-choice picker UI stays explicitly out of scope —
-  WH/future work, not guessed at now.
+- ~~10 of 14 locked Phase-1 spells never implemented~~ ~~Phase-1 spells inert, no loadout system~~
+  **RESOLVED 2026-08-23** — all 14 live in `AvatarSpell.CreatePhase1Catalog()`; `SpellUnlockResolver.cs`
+  (Avatar level/chapter → unlocked pool) + `SpellLoadoutAutoEquip.cs` (one spell per effect type,
+  strongest-unlocked-wins, structurally satisfies max-1-AvatarStrike) now wired into
+  `BattleController.StartMatch` and the real `GameBootstrap.cs` Campaign call site. 12 of 14 spells
+  now actually reachable by players; fresh-L1 regression-tested to resolve to the exact old starter
+  four. 213/213 tests, no Save-schema change. Commits `6e88092`/`af324f8`.
+- **Open, real:** 2 of 14 spells (Sun Lance, Tempest Brand) permanently locked — both gate on "Ch2/Ch3
+  spell book" acquisition, and no per-chapter `SpellBook` ItemId variant or inventory/ownership
+  tracking exists on `PlayerProfile` for it. `SpellUnlockResolver.HasUnresolvableSpellBookGates`
+  flags this in code (test asserts it's still true). Not built speculatively — needs its own design
+  pass (how is a spell book earned?) before coding.
+- **Open, real:** real player-choice loadout picker UI (choosing 4 of the unlocked pool, vs. today's
+  auto-equip stopgap) is unbuilt — WH/future work, not guessed at now.
 - **Chapter 1-3 narrative locked, not yet in `StoryDatabase.cs`** — queued for WH.
 - **Chapters 4-10 narrative not yet drafted** — same reusable template as Ch1-3, cheap to commission once WH clears the Ch1-3 backlog.
