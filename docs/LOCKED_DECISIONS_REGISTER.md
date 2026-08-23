@@ -135,3 +135,15 @@ owner request.
   auto-equip stopgap) is unbuilt — WH/future work, not guessed at now.
 - **Chapter 1-3 narrative locked, not yet in `StoryDatabase.cs`** — queued for WH.
 - **Chapters 4-10 narrative not yet drafted** — same reusable template as Ch1-3, cheap to commission once WH clears the Ch1-3 backlog.
+
+## Empire Expedition — post-campaign farm loop (LOCKED 2026-08-24, structure only)
+
+Repeatable Stamina-gated stages, separate from Campaign (which keeps replay=0 unchanged). Pays
+small Gold+Materials/clear, capped by Stamina availability. Auto-Fight toggle uses randomized/
+suboptimal spell choices (manual play stays stronger), same reward as manual win, one authoritative
+server transaction. Guild bonus: active members (3+ validated Guild Contribution actions/UTC week,
+server-recorded only) get +10% Gold on Expedition clears, capped at the existing daily Expedition
+Gold cap (bonus cannot raise the cap), fails closed to base Gold if guild service unavailable.
+Title/frame bonus dropped - no achievement system exists. Backend-dependent (trusted guild service),
+same class as Bazaar/Guild Expedition/Prison. Numbers still open: Stamina cost/clear, tier rewards,
+daily attempts, unlock condition, rotation cadence.
