@@ -167,3 +167,16 @@ pack farming premium-pack pity), floor guarantee only (doesn't change base odds)
 transaction (spend/draw/grant/pity-update/save, full rollback on failure). Pity counter is a new
 additive PlayerProfile field - flag for frozen-file coordination when implemented. Open: exact
 threshold N.
+
+## Daily Login + Daily Quests (LOCKED 2026-08-24, structure only)
+
+Login track: Empire/Avatar-side rewards only (Gold/Materials/Stamina/Avatar XP/Event Medals/
+cosmetics/Pass Season XP), streak PAUSES on a missed day (doesn't reset), no offline-clock
+manipulation can create multiple claims. 3 daily quests/UTC day from a rotating pool, each grants
+small bounded reward + Pass Season XP once/day, no cards/packs/Evolution/Forge-Dust/Permits/Market
+Credits ever. PvP quests explicitly barred from awarding progression loot that harms another player
+(ties to the locked no-offensive-progression rule). No paid skip/streak-protection - Pass ownership
+adds its own track only, never multiplies these. Needs additive PlayerProfile fields
+(lastLoginClaimUtcDate, loginStreakIndex, dailyQuestUtcDate, dailyQuestCompletionMask, optional
+dailyQuestGenerationId) - **implementation dispatch queued behind the Empire Expedition save-field
+change already in flight, not sent concurrently, to avoid two frozen-file edits colliding.**
