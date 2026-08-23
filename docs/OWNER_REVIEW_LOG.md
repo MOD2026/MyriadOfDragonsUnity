@@ -376,3 +376,12 @@ framing line added. Not yet implemented - WH's job (StoryDatabase.cs is Story-ow
 dialogue (no art cost). Animated Cinematics reserved for ~3 milestones per chapter (open/mid-turn/
 clear), not per-stage - avoids overkill across a 273-stage campaign. Same gap (thin depth-fill
 narrative, 2-4..N) confirmed present in every chapter through Ch10, same pattern as Ch1.
+
+**Stage 1-2/1-3 combat-balance finding (2026-08-23), classified per cause-frame doc:** Confirmed
+with fresh 25-seed evidence - Auto Formation's deliberate one-tap onboarding policy (3 cards, one
+per lane) loses Stage 1-2 25/25 and Stage 1-3 23/25, always via tick-cap not fast KO. Same stages
+fall in 4/11 ticks against a full manual-style formation - live route faithful, deterministic,
+rule-correct, not a bug. Per the doc's own prescribed remedy for this exact shape: hold combat
+numbers unchanged, defer to the owner's own first-session playtest
+(MVP_FIRST_SESSION_SCRIPT_v1.md) to determine if this is a real confusion point before any retune.
+Not assigned as a code fix.
