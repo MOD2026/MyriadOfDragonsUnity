@@ -137,5 +137,38 @@ namespace MyriadOfDragons.Tests
             map.TeardownMapForBattle();
             Assert.IsNull(GameObject.Find("CampaignMapCanvas"));
         }
+
+        /// <summary>
+        /// Owner playtest 2026-08-23: Home → Campaign/Empire → Deck Builder hung the game.
+        /// Cause: CleanupStaleMetagameCanvases used while(Find)+Destroy; in Play Mode Destroy is
+        /// deferred so Find never clears. This test plants the same stale canvas names that
+        /// prior screens leave behind and proves Cleanup + Deck Builder open still complete
+        /// (EditMode always used DestroyImmediate so it never hung — regression lock on the fix).
+        /// </summary>
+        [Test]
+        public void CleanupStaleMetagameCanvases_RemovesDeferredStyleStaleCanvases_ThenDeckBuilderOpens()
+        {
+            foreach (string name in new[] { "CampaignMapCanvas", "EmpireCanvas", "CollectionCanvas", "DeckBuilderCanvas" })
+            {
+                var stale = new GameObject(name);
+                _spawned.Add(stale);
+            }
+
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+            Assert.IsNull(GameObject.Find("CampaignMapCanvas"));
+            Assert.IsNull(GameObject.Find("EmpireCanvas"));
+            Assert.IsNull(GameObject.Find("CollectionCanvas"));
+            Assert.IsNull(GameObject.Find("DeckBuilderCanvas"));
+
+            HomePagePresenter home = SpawnHome();
+            // Same production entry Home uses when To Battle / Campaign redirects for no deck.
+            home.OnToBattleClickedForTests();
+
+            Assert.IsNotNull(home.GetComponent<DeckBuilderPresenter>(),
+                "Deck Builder must attach after the no-deck redirect.");
+            Assert.IsNotNull(GameObject.Find("DeckBuilderCanvas"),
+                "Deck Builder open must finish building its canvas — not hang in Cleanup.");
+        }
     }
 }

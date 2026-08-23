@@ -1204,15 +1204,27 @@ namespace MyriadOfDragons.UI
 
         /// <summary>Removes any leftover metagame overlay canvases whose presenter component was
         /// destroyed without tearing down the root GameObject - those GraphicRaycasters block
-        /// Battle input. Safe before Story open, battle entry, or return Home.</summary>
+        /// Battle input. Safe before Story open, battle entry, or return Home.
+        ///
+        /// MUST use DestroyImmediate, never Destroy: these canvases are procedural UI roots
+        /// (Initialize()/BuildUI), and a while(Find)+Destroy loop hangs forever in Play Mode
+        /// because Destroy only marks the object — Find keeps returning it until end of frame.
+        /// EditMode never hits that hang (DestroyImmediate), which is why Deck Builder open
+        /// freezes after Campaign/Empire/Collection in real Play and still passes EditMode.</summary>
         public static void CleanupStaleMetagameCanvases()
         {
             foreach (string canvasName in new[] { "CampaignMapCanvas", "ShopCanvas", "DeckBuilderCanvas", "CollectionCanvas", "EmpireCanvas" })
             {
                 GameObject stale;
+                int guard = 0;
                 while ((stale = GameObject.Find(canvasName)) != null)
                 {
-                    SafeDestroy(stale);
+                    UnityEngine.Object.DestroyImmediate(stale);
+                    if (++guard > 32)
+                    {
+                        Debug.LogError($"[CampaignMap] CleanupStaleMetagameCanvases aborted after {guard} passes on '{canvasName}'.");
+                        break;
+                    }
                 }
             }
         }
