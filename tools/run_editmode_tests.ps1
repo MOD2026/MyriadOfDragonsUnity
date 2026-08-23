@@ -19,7 +19,8 @@ param(
     [string]$LogPath = "run.log",
     [int]$TimeoutMinutes = 25,
     [int]$StallCheckSeconds = 120,
-    [string]$TestFilter = ""
+    [string]$TestFilter = "",
+    [string[]]$TestFilters = @()
 )
 
 if (-not (Test-Path $UnityExe)) {
@@ -44,6 +45,9 @@ $unityArgs = @(
 )
 if ($TestFilter -ne "") {
     $unityArgs += @("-testFilter", $TestFilter)
+}
+foreach ($f in $TestFilters) {
+    $unityArgs += @("-testFilter", $f)
 }
 
 $proc = Start-Process -FilePath $UnityExe -ArgumentList $unityArgs -WorkingDirectory $ProjectPath -PassThru
