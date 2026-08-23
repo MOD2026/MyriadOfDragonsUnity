@@ -107,5 +107,28 @@ namespace MyriadOfDragons.Battle
 
             return result;
         }
+
+        /// <summary>The full match, oldest tick first, uncapped - the post-battle Replay screen's
+        /// data source (Combat pacing redesign, 2026-08-24): the live in-match feed above is
+        /// newest-first and capped for the activity rail; a replay reviewing the whole match after
+        /// the fact wants the opposite - chronological order, nothing dropped. Same per-tick/
+        /// per-cast line text as BuildFeedLines, just ordered and capped differently.</summary>
+        public static List<string> BuildFullMatchLines(IReadOnlyList<CombatTickRecord> ledger,
+            IReadOnlyList<SpellCastRecord> spellCasts)
+        {
+            var result = new List<string>();
+            if (ledger == null) return result;
+
+            foreach (CombatTickRecord record in ledger)
+            {
+                result.AddRange(DescribeTick(record));
+                if (spellCasts != null)
+                {
+                    result.AddRange(spellCasts.Where(c => c.TickNumber == record.TickNumber).Select(DescribeSpellCast));
+                }
+            }
+
+            return result;
+        }
     }
 }
