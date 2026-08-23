@@ -81,17 +81,14 @@ cause. Frozen files, Save shape, `CampaignMapPresenter.cs`, and economy numbers 
 Shop, Avatar, Empire screens, new UI (HomeV3). Does not touch `CardDatabase.cs`, Gate/Castle files,
 or any `Assets/Tests/Editor/*` file Block AB owns. Market/Bazaar and Chat remain explicitly excluded.
 
-## Market/Bazaar — reopened for Phase 1, still gated
+## Market/Bazaar — design fully LOCKED, still blocked on one thing
 
-Owner approved reopening (previously Phase-2-only in `EMPIRE_SCHEMA_LOCK_2026-08-22.md` /
-`Economy_Blueprint.md`). ChatGPT delivered `PHASE1_BAZAAR_SYSTEM_PACKET_2026-08-23.md` — §1/§2/§4
-**locked**. §3 (genesis liquidity) came back via follow-up
-(`BAZAAR_GENESIS_LIQUIDITY_RECOMMENDATION_2026-08-23.md`): **Option 1, capped Treasury reverse
-auction, accepted as the recommended mechanism** — but the packet itself says it still needs a
-bounded economy simulation (budget size, auction window, clearing-price range) before it's
-implementation-ready. §5 (trusted-server dependency) is still open and unassigned. **Bazaar code
-still does not start** — numbers simulation + server-dependency decision are the two remaining
-gates, not "packet accepted."
+Full decision chain reviewed and accepted 2026-08-23 — see `docs/BAZAAR_PHASE1_CC_ACCEPT_2026-08-23.md`
+for the consolidated lock. Catalogue, ledger, genesis mechanism (capped Treasury reverse auction),
+and genesis numbers (Day 60 earliest, 500-cluster snapshot, 40,000 Credit ceiling, no-launch
+fallback if the participation gate isn't met) are all locked. **The only remaining blocker is the
+trusted-server/backend dependency — unassigned, no owner, no approach chosen.** That is what's
+actually stopping code, not the numbers. Cursor's Block AC still excludes Bazaar/trading code.
 
 ## Chat — foundation-only, not assigned
 

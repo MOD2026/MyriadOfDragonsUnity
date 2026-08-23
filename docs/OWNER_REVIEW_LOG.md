@@ -248,3 +248,9 @@ Source: `COLLECTION_PACK_RECEIPT_v1.md` — Claude review patched same day.
 retired as label), 1–12 stat scale retained, no initiative. Docs-only: `docs/Economy_Blueprint.md`
 "Event Tokens" → "Event Medals", `docs/MOS_v1.1.md` §20 struck through, `CLAUDE.md` open-items note
 updated. No code/economy/Save change. ChatGPT idle pending next theory ask.
+
+**CC accept — Bazaar Phase-1 fully locked (2026-08-23):** ChatGPT delivered all four packets
+(catalogue/ledger/non-goals, genesis mechanism, genesis numbers). All reviewed and locked — see
+`docs/BAZAAR_PHASE1_CC_ACCEPT_2026-08-23.md`. Design is done; implementation stays blocked on the
+trusted-server/backend dependency, which has no assigned owner. Cursor's Block AC continues to
+exclude Bazaar code.
