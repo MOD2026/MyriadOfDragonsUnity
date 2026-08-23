@@ -166,5 +166,59 @@ namespace MyriadOfDragons.Battle
                     energyCost: 60, cooldownTicks: 5, SpellEffect.AvatarStrike, magnitude: 100),
             };
         }
+
+        /// <summary>
+        /// Every Phase-1 spell from SPELL_CATALOG_v1.md's "Phase-1 ship slice" table (the starter
+        /// four plus the ten Ch1-3/Avatar-L1-12 unlocks) - all fourteen use only the four live
+        /// <see cref="SpellEffect"/> values per that doc's own "Phase-1 rule", so no new Cast()
+        /// case is needed. This is deliberately NOT what a new player starts with -
+        /// CreateDefaultSpellbook() above stays exactly as it was, still just the starter four, so
+        /// existing callers (BattleController's player/AI spellbook construction) are unaffected.
+        /// This method exists purely so the other ten spells exist and are castable through the
+        /// same TryCastSpell path once something equips them; where/when each one unlocks is not
+        /// implemented here - see the catalog's own "Unlock" column (Ch1-2, Avatar L5, Ch2-4, etc.)
+        /// for what a future equip/spell-book system still needs to gate on.
+        /// </summary>
+        public static List<AvatarSpell> CreatePhase1Catalog()
+        {
+            var catalog = CreateDefaultSpellbook();
+            catalog.AddRange(new[]
+            {
+                new AvatarSpell("Cinder Lash", "Deal 2 damage to every enemy unit in a lane.",
+                    energyCost: 18, cooldownTicks: 2, SpellEffect.LaneDamage, magnitude: 2),
+
+                new AvatarSpell("Ember Wave", "Deal 3 damage to every enemy unit in a lane.",
+                    energyCost: 26, cooldownTicks: 3, SpellEffect.LaneDamage, magnitude: 3),
+
+                // Catalog lock: Fault Line is Ktini school but a LaneDamage effect, unlike every
+                // other Ktini spell here (Sustenance: healing and Attack buffs per the catalog's
+                // own school descriptions) - implemented exactly as the locked table specifies,
+                // not "corrected" toward the school's usual pattern.
+                new AvatarSpell("Fault Line", "Deal 5 damage to every enemy unit in a lane.",
+                    energyCost: 44, cooldownTicks: 5, SpellEffect.LaneDamage, magnitude: 5),
+
+                new AvatarSpell("Vital Spark", "Restore 2 Health to every friendly unit in a lane.",
+                    energyCost: 18, cooldownTicks: 2, SpellEffect.LaneHeal, magnitude: 2),
+
+                new AvatarSpell("Renewal", "Restore 6 Health to every friendly unit in a lane.",
+                    energyCost: 45, cooldownTicks: 5, SpellEffect.LaneHeal, magnitude: 6),
+
+                new AvatarSpell("Rallying Gale", "Permanently grant +1 Attack to a friendly lane.",
+                    energyCost: 24, cooldownTicks: 3, SpellEffect.LaneAttackBuff, magnitude: 1),
+
+                new AvatarSpell("Banner of Ashes", "Permanently grant +3 Attack to a friendly lane.",
+                    energyCost: 55, cooldownTicks: 5, SpellEffect.LaneAttackBuff, magnitude: 3),
+
+                new AvatarSpell("Sun Lance", "Strike the enemy Avatar directly for 75.",
+                    energyCost: 35, cooldownTicks: 3, SpellEffect.AvatarStrike, magnitude: 75),
+
+                new AvatarSpell("Stone Judgment", "Strike the enemy Avatar directly for 120.",
+                    energyCost: 80, cooldownTicks: 7, SpellEffect.AvatarStrike, magnitude: 120),
+
+                new AvatarSpell("Tempest Brand", "Deal 3 damage to every enemy unit in a lane.",
+                    energyCost: 36, cooldownTicks: 4, SpellEffect.LaneDamage, magnitude: 3),
+            });
+            return catalog;
+        }
     }
 }
