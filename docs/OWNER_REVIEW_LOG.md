@@ -529,3 +529,23 @@ implemented - there's no equip action anywhere for it to intercept yet. This mea
 work is real and tested but currently inert to players - a loadout/unlock system is the real next
 piece needed to make it count. Flagged as "when this system exists, remember this rule," not built
 speculatively.
+
+**Spells made reachable (2026-08-23): unlock resolver + Phase-1 auto-equip stopgap, no Save schema
+change.** `SpellUnlockResolver.cs` resolves SPELL_CATALOG_v1.md's Unlock column against real
+`PlayerEmpireData.AvatarLevel`/`PlayerProfile.unlockedStageIds` (both already existed, no new
+field needed). `SpellLoadoutAutoEquip.cs` auto-picks one spell per effect type (strongest unlocked
+wins), wired into `BattleController.StartMatch` - this is what finally gives "max 1 AvatarStrike"
+a real caller, satisfied structurally since there's exactly one AvatarStrike slot. 213/213 tests
+passing (`SpellLoadoutTests.cs` + full spell/battle regression sweep). No player-choice loadout UI
+yet - this is a stopgap auto-pick, not a picker; real UI is future Metagame-seat work.
+
+**Backlog item opened: spell-book acquisition system does not exist.** 2 of the 14 Phase-1 spells
+(sun_lance "Ch2 spell book", tempest_brand "Ch3 spell book") are gated on an acquisition method -
+a per-chapter spell-book reward - that nothing in the codebase tracks. `Items/ItemDatabase.cs` has
+one generic `SpellBook` ItemId shared across every use of the word, no per-chapter variant, and
+PlayerProfile has no inventory count for it at all. `SpellUnlockResolver` leaves both spells
+permanently locked rather than guessing a stand-in condition; `HasUnresolvableSpellBookGates`
+exposes this as a live tripwire (a test asserts it's still true - it should fail loudly, not
+silently, the day this gets built and someone forgets to flip it). Needs: a per-chapter SpellBook
+item variant (or equivalent identifier) plus real inventory/ownership tracking on PlayerProfile
+before Sun Lance/Tempest Brand can ever unlock. Not built - logged so it isn't lost.
