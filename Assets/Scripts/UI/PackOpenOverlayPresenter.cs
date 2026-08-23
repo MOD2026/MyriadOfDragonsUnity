@@ -57,7 +57,7 @@ namespace MyriadOfDragons.UI
 
             // Soft #3 Soft-contract subtitle must keep CollectionNextStepCopy (existing EditMode assert).
             string subtitle = result.Success
-                ? $"{result.Draws.Count} card(s) · {result.GemsSpent} gems · {CollectionNextStepCopy}"
+                ? $"{result.Draws.Count} card(s) · {result.GemsSpent} Gems · {CollectionNextStepCopy}"
                 : $"Pack failed ({result.Error}) — no cards granted.";
             RectTransform subRect = UISharedFoundation.CreateText(
                 panel, "Subtitle", subtitle, UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.85f, 0.82f, 0.7f),

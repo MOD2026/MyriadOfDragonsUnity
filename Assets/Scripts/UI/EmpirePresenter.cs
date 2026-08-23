@@ -91,34 +91,37 @@ namespace MyriadOfDragons.UI
                 new Color(0.95f, 0.92f, 0.82f), true, new Vector2(800f, 60f)).fontSize = 32;
 
             _avatarSummaryText = UISharedFoundation.CreateText(topBar.transform, "AvatarSummary", "Avatar L1",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(520f, 36f));
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(420f, 36f));
             _avatarSummaryText.fontSize = 18;
             RectTransform avatarRect = _avatarSummaryText.rectTransform;
             avatarRect.anchorMin = new Vector2(0f, 0.5f);
             avatarRect.anchorMax = new Vector2(0f, 0.5f);
             avatarRect.pivot = new Vector2(0f, 0.5f);
             avatarRect.anchoredPosition = new Vector2(210f, 0f);
-            avatarRect.sizeDelta = new Vector2(520f, 36f);
+            avatarRect.sizeDelta = new Vector2(420f, 36f);
 
             if (_onOpenAvatar != null)
             {
-                GameObject avatarHit = new GameObject("AvatarHit", typeof(RectTransform), typeof(Image), typeof(Button));
-                avatarHit.transform.SetParent(topBar.transform, false);
-                Image hitImg = avatarHit.GetComponent<Image>();
-                hitImg.color = new Color(1f, 1f, 1f, 0.01f);
-                Button hitBtn = avatarHit.GetComponent<Button>();
-                hitBtn.targetGraphic = hitImg;
-                hitBtn.onClick.AddListener(() =>
+                // Visible HomeV3 nav affordance (was invisible hit-only).
+                GameObject avatarBtnObj = new GameObject("OpenAvatarButton", typeof(RectTransform), typeof(Image), typeof(Button));
+                avatarBtnObj.transform.SetParent(topBar.transform, false);
+                Image avatarBtnImg = avatarBtnObj.GetComponent<Image>();
+                avatarBtnImg.color = HexColor("#1A3A4A");
+                Button avatarBtn = avatarBtnObj.GetComponent<Button>();
+                HomeV3UiLibrary.ApplyNavTileButton(avatarBtn, avatarBtnImg);
+                avatarBtn.onClick.AddListener(() =>
                 {
                     TeardownUI();
                     _onOpenAvatar.Invoke();
                 });
-                RectTransform hitRect = avatarHit.GetComponent<RectTransform>();
+                RectTransform hitRect = avatarBtnObj.GetComponent<RectTransform>();
                 hitRect.anchorMin = new Vector2(0f, 0.5f);
                 hitRect.anchorMax = new Vector2(0f, 0.5f);
                 hitRect.pivot = new Vector2(0f, 0.5f);
-                hitRect.anchoredPosition = new Vector2(210f, 0f);
-                hitRect.sizeDelta = new Vector2(520f, 50f);
+                hitRect.anchoredPosition = new Vector2(640f, 0f);
+                hitRect.sizeDelta = new Vector2(140f, 52f);
+                UISharedFoundation.CreateText(avatarBtnObj.transform, "ActionLabel", "AVATAR",
+                    UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 36f));
             }
 
             GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
@@ -225,8 +228,8 @@ namespace MyriadOfDragons.UI
             if (barracksRow != null)
             {
                 barracksRow.text = barracksTarget == 0
-                    ? $"Barracks L{profile.barracksLevel} · {deckSlots} deck slots · MAX"
-                    : $"Barracks L{profile.barracksLevel} → L{barracksTarget} · {deckSlots} deck slots · {barracksCost:N0} Gold";
+                    ? $"Barracks L{profile.barracksLevel} · {deckSlots} Deck Slots · MAX"
+                    : $"Barracks L{profile.barracksLevel} → L{barracksTarget} · {deckSlots} Deck Slots · {barracksCost:N0} Gold";
             }
 
             int gateTarget = PlayerEmpireData.NextPaidGateMilestone(profile.gateLevel);

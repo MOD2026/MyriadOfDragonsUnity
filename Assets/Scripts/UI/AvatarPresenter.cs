@@ -139,9 +139,9 @@ namespace MyriadOfDragons.UI
             SetNorm(levelText.rectTransform, 0.36f, 0.68f, 0.96f, 0.78f);
 
             string combatBlock =
-                $"Resource Cap  {cap}\n" +
+                $"Cap  {cap}\n" +
                 $"Turn-1 Resource  {turn1}\n" +
-                $"Starting HP  {startHp}\n" +
+                $"Start HP  {startHp}\n" +
                 $"Deck Slots  {deckSlots}";
             Text combatText = UISharedFoundation.CreateText(panel.transform, "CombatStats", combatBlock,
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(700f, 160f));
