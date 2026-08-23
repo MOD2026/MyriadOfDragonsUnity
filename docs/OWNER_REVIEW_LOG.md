@@ -321,3 +321,6 @@ shipped, post-date the doc), and flagged that the Shop evidence line exercises t
 pack_novice SKU, not a live Shop V2 pack. Lead for the (c)-bucket unknowns: AcquiredCardToCombat
 ContractTests and ReleaseProfilePersistenceContractTests both reference pack_novice directly - the
 retirement is a plausible common cause, routed to WH to check.
+
+**Balance health check (2026-08-23): 9/9 BalanceSimulationTests clean.** No regression from today's
+Permit/Shop/Stamina work, as expected - confirms those changes stayed isolated from combat math.
