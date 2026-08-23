@@ -351,3 +351,9 @@ all zero gameplay benefit, no forbidden-edge touches. Held: the two bundle SKUs 
 "preserves inverse bulk-discount philosophy" was asserted without the computed math every other
 pricing table in this project shows, and the 4,000 bundle has no stated contents. Not implementation-
 blocking (no seat is building Shop cosmetics yet) - just not fully locked until the bundle math lands.
+
+**Consolidated re-check (2026-08-23): 717/761**, up from 715/761 - net improvement, no regressions.
+Test-by-test diff (not just count) confirms all 44 remaining failures trace to the known parked
+AF/AI-on category (30) or the already-triaged unknown bucket (13) or one test
+(ChapterOnePostVictoryStoryTests) that depends on the same Stage 1-2 win-variance already tracked
+in the parked category, not an independent new issue.
