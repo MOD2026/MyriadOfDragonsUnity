@@ -357,3 +357,12 @@ Test-by-test diff (not just count) confirms all 44 remaining failures trace to t
 AF/AI-on category (30) or the already-triaged unknown bucket (13) or one test
 (ChapterOnePostVictoryStoryTests) that depends on the same Stage 1-2 win-variance already tracked
 in the parked category, not an independent new issue.
+
+**CC accept — Purchase package portfolio v2, all sections (2026-08-23):** Rotating/time-limited
+cosmetic offers, $4.99/30-day "Empire Blessing" subscription (750 Gems total), $4.99/30-day Chronicle
+Pass (10-tier free/paid ladder, Empire/Avatar-side free track + Gems/cosmetics paid track),
+cosmetic bundle math redone to 31-33% discount with a BEST VALUE tag. Construction Materials stay
+non-purchasable in Phase 1 - reasoned decision (contradicts the resource's earn-through-play design
+identity), not a reflexive DAG rejection. This resolves the real genre-pattern gaps found in v1
+(missing urgency mechanics, missing subscription, weak bundle discounts). Design-locked, not
+implemented - all Phase-2/post-MVP, no coding seat assigned.
