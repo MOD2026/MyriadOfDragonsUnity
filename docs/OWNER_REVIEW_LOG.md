@@ -311,3 +311,13 @@ blind arithmetic), plus fixed 4 brittle exact-string-match tests unrelated to th
 46 = 32 parked AF/AI-on (known) + 12 pre-existing (predate today) + 2 new/unknown (routed).
 Correction to the entry above: Campaign Gem recompute implementation belongs to WH
 (CampaignMapPresenter.cs is metagame-owned per CLAUDE.md), not the coding seat.
+
+**MVP spine re-verified against real state (2026-08-23): 9/11.** No new regressions - the 2
+DeckBuilderReleaseGateTests failures are the same pre-existing geometry gaps already logged in
+Block AB's triage. Onboarding spine (Tutorial->Home->Deck Builder->Campaign 1-1) holds end-to-end
+after today's Avatar/Empire/Shop/Permit/Stamina work. Updated MVP_PLAYABLE_GATE_v1.md for real doc
+drift: added open checklist lines for the Avatar/Empire screen and Permit/Stamina UI (both real,
+shipped, post-date the doc), and flagged that the Shop evidence line exercises the now-retired
+pack_novice SKU, not a live Shop V2 pack. Lead for the (c)-bucket unknowns: AcquiredCardToCombat
+ContractTests and ReleaseProfilePersistenceContractTests both reference pack_novice directly - the
+retirement is a plausible common cause, routed to WH to check.
