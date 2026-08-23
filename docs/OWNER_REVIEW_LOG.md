@@ -471,3 +471,17 @@ Clash of Clans' dozens-of-simultaneous-structures base is an hours-match, not a 
 top tier band (7-10 days x up to 3 buildings back-to-back) risks a 21-30+ consecutive-day endgame
 wait with nothing else happening, right before the completion reward. Sent back to ChatGPT to
 address before final lock.
+
+**Consolidated re-check (2026-08-23): 718/762** (was 718/761 - one new test, net pass-count neutral,
++1 fail). Test-by-test diff confirms no regression in the previously-passing set. The 30 AF/AI-on
+items are unchanged/expected variance (unseeded formation policy). **New structural insight: the
+Balance Soft pattern's blast radius is wider than the 32 originally catalogued tests** - 3 more
+failures today (ChapterOneProgressionTests, HomePageTutorialRewardGuardTests,
+CampaignMatchContextLifecycleTests) are reward/persistence tests that happen to assume an AF win
+without controlling variance, not independent bugs - same root cause surfacing in a different place.
+The true population of vulnerable tests may keep shifting run-to-run until the underlying balance
+question is resolved - worth knowing for whenever that decision happens.
+
+One separate item: BalanceSimulationTests.Balance_ExposedAvatarSiege_MeasuredAgainstDisabled missed
+its threshold by a hair (-0.055 vs required >=-0.05) on an unseeded Monte-Carlo test, no code
+changes to that system today - likely sampling noise, not confirmed without a repeat run.
