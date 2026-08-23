@@ -368,10 +368,14 @@ namespace MyriadOfDragons.Tests
             CampaignStageData stage2_3 = FindStage("2-3");
 
             Assert.Greater(stage2_1.goldReward, stage1_3.goldReward, "Stage 2-1's gold reward must exceed Stage 1-3's.");
-            Assert.Greater(stage2_1.gemReward, stage1_3.gemReward, "Stage 2-1's gem reward must exceed Stage 1-3's.");
+            Assert.AreEqual(CampaignGemRewardRules.ChapterFinaleGems, stage1_3.gemReward,
+                "Stage 1-3 is the Chapter 1 finale — locked finale Gem grant.");
+            Assert.AreEqual(CampaignGemRewardRules.RegularStageGems, stage2_1.gemReward,
+                "Stage 2-1 is a regular stage — locked regular Gem grant.");
             Assert.Greater(stage2_2.goldReward, stage2_1.goldReward, "Rewards must keep escalating through Chapter 2.");
             Assert.Greater(stage2_3.goldReward, stage2_2.goldReward, "Stage 2-3 must be the highest-rewarding stage so far.");
-            Assert.Greater(stage2_3.gemReward, stage2_2.gemReward);
+            Assert.AreEqual(CampaignGemRewardRules.RegularStageGems, stage2_2.gemReward);
+            Assert.AreEqual(CampaignGemRewardRules.RegularStageGems, stage2_3.gemReward);
         }
 
         // ---------- Story ----------

@@ -408,24 +408,27 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Rewards_EscalateAcross1_4Through1_12_AndStayBelowChapter2Opener()
+        public void Rewards_GoldEscalatesAcross1_4Through1_12_GemsFollowLockedMilestoneFormula()
         {
             CampaignStageData stage1_3 = FindStage("1-3");
             CampaignStageData stage2_1 = FindStage("2-1");
             int previousGold = stage1_3.goldReward;
-            int previousGems = stage1_3.gemReward;
+
+            Assert.AreEqual(CampaignGemRewardRules.ChapterFinaleGems, stage1_3.gemReward,
+                "Stage 1-3 is the Chapter 1 finale — locked finale Gem grant.");
 
             foreach (string stageId in NewChapter1StageIds)
             {
                 CampaignStageData stage = FindStage(stageId);
                 Assert.Greater(stage.goldReward, previousGold, $"Stage {stageId}'s gold reward must exceed the previous stage's.");
-                Assert.Greater(stage.gemReward, previousGems, $"Stage {stageId}'s gem reward must exceed the previous stage's.");
+                Assert.AreEqual(CampaignGemRewardRules.ForStage(stageId), stage.gemReward,
+                    $"Stage {stageId} Gems must match CampaignGemRewardRules (OWNER_REVIEW_LOG recompute).");
                 previousGold = stage.goldReward;
-                previousGems = stage.gemReward;
             }
 
             Assert.Less(previousGold, stage2_1.goldReward, "Stage 1-12's gold reward must stay below Chapter 2's own opener (2-1), leaving headroom for Chapter 2.");
-            Assert.Less(previousGems, stage2_1.gemReward, "Stage 1-12's gem reward must stay below Chapter 2's own opener (2-1), leaving headroom for Chapter 2.");
+            Assert.AreEqual(CampaignGemRewardRules.RegularStageGems, stage2_1.gemReward,
+                "Stage 2-1 is a regular stage — locked regular Gem grant.");
         }
 
         // ---------- Story ----------

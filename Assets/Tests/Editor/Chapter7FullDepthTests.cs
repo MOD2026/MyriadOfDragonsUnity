@@ -272,6 +272,13 @@ namespace MyriadOfDragons.Tests
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
 
+            // Collect-all rather than abort-on-first-failure: a per-stage Assert.IsTrue inside
+            // this loop would throw and stop at the first losing stage, hiding whether every
+            // later stage in the chapter is winnable, unwinnable, or mixed - see the CC-owned
+            // AF/AI-on Balance Soft investigation (2026-08-23). This keeps the exact same
+            // per-stage check and reports one final assertion covering the whole chapter, but
+            // never masks data for stages after the first loss.
+            var unwinnableStages = new List<string>();
             foreach (string stageId in NewChapter7StageIds)
             {
                 SaveFreshStarterProfile(unlockedStages: unlockedThroughAll);
@@ -280,10 +287,14 @@ namespace MyriadOfDragons.Tests
                 CampaignStageData stage = FindStage(stageId);
 
                 MatchResult result = RunDeterministicPolicy(bootstrap, home, stage);
-
-                Assert.IsTrue(result.IsVictory,
-                    $"Stage {stageId} must be winnable by a fresh player using the approved starter collection, a valid saved deck, Auto Formation, and this deterministic legal combat policy.");
+                if (!result.IsVictory)
+                {
+                    unwinnableStages.Add(stageId);
+                }
             }
+
+            Assert.IsEmpty(unwinnableStages,
+                $"Stage(s) not winnable by a fresh player using the approved starter collection, a valid saved deck, Auto Formation, and this deterministic legal combat policy: {string.Join(", ", unwinnableStages)}.");
         }
 
         // ---------- Content contracts ----------
@@ -336,20 +347,22 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Rewards_EscalateAcross7_1Through7_30_AboveStage6_30()
+        public void Rewards_GoldEscalates_GemsFollowLockedMilestoneFormula()
         {
             CampaignStageData stage6_30 = FindStage("6-30");
             int previousGold = stage6_30.goldReward;
-            int previousGems = stage6_30.gemReward;
 
             foreach (string stageId in NewChapter7StageIds)
             {
                 CampaignStageData stage = FindStage(stageId);
                 Assert.Greater(stage.goldReward, previousGold, $"Stage {stageId}'s gold reward must exceed the previous stage's.");
-                Assert.Greater(stage.gemReward, previousGems, $"Stage {stageId}'s gem reward must exceed the previous stage's.");
+                Assert.AreEqual(CampaignGemRewardRules.ForStage(stageId), stage.gemReward,
+                    $"Stage {stageId} Gems must match CampaignGemRewardRules (OWNER_REVIEW_LOG recompute).");
                 previousGold = stage.goldReward;
-                previousGems = stage.gemReward;
             }
+
+            Assert.AreEqual(CampaignGemRewardRules.ChapterFinaleGems, FindStage("7-30").gemReward,
+                "Stage 7-30 is the Chapter 7 finale — locked finale Gem grant.");
         }
 
         // ---------- Story ----------

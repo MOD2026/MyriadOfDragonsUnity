@@ -178,6 +178,31 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter8DepthStages());
             chapterStages.AddRange(BuildChapter9DepthStages());
             chapterStages.AddRange(BuildChapter10DepthStages());
+            ApplyLockedCampaignGemRewards();
+        }
+
+        /// <summary>
+        /// OWNER_REVIEW_LOG Campaign Gem recompute (2026-08-23): Gold stays on the per-chapter
+        /// formulas above; every stage's <see cref="CampaignStageData.gemReward"/> is replaced by
+        /// <see cref="CampaignGemRewardRules"/> (8 regular / 440 chapter finale).
+        /// </summary>
+        private static void ApplyLockedCampaignGemRewards()
+        {
+            int total = 0;
+            for (int i = 0; i < chapterStages.Count; i++)
+            {
+                CampaignStageData stage = chapterStages[i];
+                if (stage == null) continue;
+                stage.gemReward = CampaignGemRewardRules.ForStage(stage.stageId);
+                total += stage.gemReward;
+            }
+
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through10)
+            {
+                Debug.LogError(
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through10} " +
+                    $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
+            }
         }
 
         /// <summary>Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION
@@ -1143,6 +1168,9 @@ namespace MyriadOfDragons.UI
         /// could silently drift out of sync with them.</summary>
         public static CampaignStageData GetStageForTests(string stageId) =>
             chapterStages.Find(stage => stage.stageId == stageId);
+
+        /// <summary>Exposed for tests: full Ch1–10 stage list (sole order authority).</summary>
+        public static IReadOnlyList<CampaignStageData> GetAllStagesForTests() => chapterStages;
 
         public void Initialize(System.Action onBackToHome, System.Func<CampaignStageData, CampaignLaunchOutcome> onLaunchBattle)
         {

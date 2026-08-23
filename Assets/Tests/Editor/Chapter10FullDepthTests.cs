@@ -264,6 +264,13 @@ namespace MyriadOfDragons.Tests
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
 
+            // Collect-all rather than abort-on-first-failure: a per-stage Assert.IsTrue inside
+            // this loop would throw and stop at the first losing stage, hiding whether every
+            // later stage in the chapter is winnable, unwinnable, or mixed - see the CC-owned
+            // AF/AI-on Balance Soft investigation (2026-08-23). This keeps the exact same
+            // per-stage check and reports one final assertion covering the whole chapter, but
+            // never masks data for stages after the first loss.
+            var unwinnableStages = new List<string>();
             foreach (string stageId in NewChapter10StageIds)
             {
                 SaveFreshStarterProfile(unlockedStages: unlockedThroughAll);
@@ -272,10 +279,14 @@ namespace MyriadOfDragons.Tests
                 CampaignStageData stage = FindStage(stageId);
 
                 MatchResult result = RunDeterministicPolicy(bootstrap, home, stage);
-
-                Assert.IsTrue(result.IsVictory,
-                    $"Stage {stageId} must be winnable by a fresh player using the approved starter collection, a valid saved deck, Auto Formation, and this deterministic legal combat policy.");
+                if (!result.IsVictory)
+                {
+                    unwinnableStages.Add(stageId);
+                }
             }
+
+            Assert.IsEmpty(unwinnableStages,
+                $"Stage(s) not winnable by a fresh player using the approved starter collection, a valid saved deck, Auto Formation, and this deterministic legal combat policy: {string.Join(", ", unwinnableStages)}.");
         }
 
         // ---------- Content contracts ----------
@@ -328,20 +339,44 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Rewards_EscalateAcross10_1Through10_30_AboveStage9_30()
+        public void Rewards_GoldEscalates_GemsFollowLockedMilestoneFormula()
         {
             CampaignStageData stage9_30 = FindStage("9-30");
             int previousGold = stage9_30.goldReward;
-            int previousGems = stage9_30.gemReward;
 
             foreach (string stageId in NewChapter10StageIds)
             {
                 CampaignStageData stage = FindStage(stageId);
                 Assert.Greater(stage.goldReward, previousGold, $"Stage {stageId}'s gold reward must exceed the previous stage's.");
-                Assert.Greater(stage.gemReward, previousGems, $"Stage {stageId}'s gem reward must exceed the previous stage's.");
+                Assert.AreEqual(CampaignGemRewardRules.ForStage(stageId), stage.gemReward,
+                    $"Stage {stageId} Gems must match CampaignGemRewardRules (OWNER_REVIEW_LOG recompute).");
                 previousGold = stage.goldReward;
-                previousGems = stage.gemReward;
             }
+
+            Assert.AreEqual(CampaignGemRewardRules.ChapterFinaleGems, FindStage("10-30").gemReward,
+                "Stage 10-30 is the Chapter 10 finale — locked finale Gem grant.");
+        }
+
+        [Test]
+        public void CampaignCh1Through10_GemTotal_MatchesLockedMilestoneRecompute()
+        {
+            var stages = CampaignMapPresenter.GetAllStagesForTests();
+            Assert.AreEqual(273, stages.Count, "Ch1-10 spine must remain 273 stages.");
+
+            int total = 0;
+            int finales = 0;
+            foreach (CampaignStageData stage in stages)
+            {
+                Assert.AreEqual(CampaignGemRewardRules.ForStage(stage.stageId), stage.gemReward,
+                    $"Stage {stage.stageId} Gems must match CampaignGemRewardRules.");
+                total += stage.gemReward;
+                if (HomePagePresenter.IsChapterFinalePermitStage(stage.stageId))
+                    finales++;
+            }
+
+            Assert.AreEqual(10, finales, "Expected exactly 10 chapter finales.");
+            Assert.AreEqual(CampaignGemRewardRules.LockedTotalCh1Through10, total,
+                "OWNER_REVIEW_LOG: 263×8 + 10×440 = 6,504.");
         }
 
         // ---------- Story ----------

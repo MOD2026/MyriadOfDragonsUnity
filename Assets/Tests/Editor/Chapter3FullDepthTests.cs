@@ -334,20 +334,22 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Rewards_EscalateAcross3_1Through3_30_AboveStage2_21()
+        public void Rewards_GoldEscalates_GemsFollowLockedMilestoneFormula()
         {
             CampaignStageData stage2_21 = FindStage("2-21");
             int previousGold = stage2_21.goldReward;
-            int previousGems = stage2_21.gemReward;
 
             foreach (string stageId in NewChapter3StageIds)
             {
                 CampaignStageData stage = FindStage(stageId);
                 Assert.Greater(stage.goldReward, previousGold, $"Stage {stageId}'s gold reward must exceed the previous stage's.");
-                Assert.Greater(stage.gemReward, previousGems, $"Stage {stageId}'s gem reward must exceed the previous stage's.");
+                Assert.AreEqual(CampaignGemRewardRules.ForStage(stageId), stage.gemReward,
+                    $"Stage {stageId} Gems must match CampaignGemRewardRules (OWNER_REVIEW_LOG recompute).");
                 previousGold = stage.goldReward;
-                previousGems = stage.gemReward;
             }
+
+            Assert.AreEqual(CampaignGemRewardRules.ChapterFinaleGems, FindStage("3-30").gemReward,
+                "Stage 3-30 is the Chapter 3 finale — locked finale Gem grant.");
         }
 
         // ---------- Story ----------

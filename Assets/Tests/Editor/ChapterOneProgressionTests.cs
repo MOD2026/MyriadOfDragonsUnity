@@ -185,7 +185,8 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsTrue(isVictory, "Setup: expected the undefended enemy to produce a player victory.");
             Assert.AreEqual(goldBefore + 200, profile.gold, "A first clear must grant exactly the stage's configured gold reward.");
-            Assert.AreEqual(gemsBefore + 20, profile.gems, "A first clear must grant exactly the stage's configured gem reward.");
+            Assert.AreEqual(gemsBefore + CampaignGemRewardRules.RegularStageGems, profile.gems,
+                "A first clear must grant exactly the stage's configured gem reward (locked regular-stage grant).");
             CollectionAssert.Contains(profile.claimedStageRewardIds, "1-1", "The stage id must be recorded as claimed after its first clear.");
             CollectionAssert.Contains(profile.unlockedStageIds, "1-1", "The cleared stage itself must remain (or become) unlocked.");
         }
