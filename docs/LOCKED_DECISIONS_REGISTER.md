@@ -61,8 +61,16 @@ ungated by Castle level.
 building: 5×1,100 (L1-5) + 5×2,200 (L6-10) + 5×4,400 (L11-15) + 5×7,700 (L16-20) + 5×11,000 (L21-25)
 + 4×12,375 (L26-30) = **181,500/building exact**, ×10 laddered buildings = **1,815,000 = the
 existing campaign faucet exactly**, no faucet recompute needed (verified by CC's own recomputation,
-not just accepted on assertion). Embassy: both charges/day and reduction/help scale by level
-(1/10min at L1-5 up to 6/90min at L26-30), lifetime-per-project cap of min(6hr, 30% of timer).
+not just accepted on assertion). Embassy full 6-band curve, both axes scale: L1-5 = 1 charge/day,
+10min/help; L6-10 = 2, 20min; L11-15 = 3, 30min; L16-20 = 4, 45min; L21-25 = 5, 60min; L26-30 = 6,
+90min. Lifetime-per-project cap of min(6hr, 30% of timer), whichever is lower.
+
+**Open, real (not yet locked — flagged by coding room 2026-08-23):** the Castle-level interlock
+table (which Castle level unlocks which Barracks/Gate level) has no real 1-30 curve anywhere. The
+only numeric example ("Castle 15 → Barracks max 15 / Gate max 13") lives in the section below marked
+Superseded/stale — one qualitative rule plus one stale data point isn't enough to derive a real
+curve, and it doesn't match the already-shipped `PlayerEmpireData.MinimumCastleForGateLevel` v1
+formula either. Needs a real GPT round before implementation.
 **Owner-confirmed: the ~22-month full-roster maxing tail is intentional, not a problem to solve** —
 matches genre precedent (CoC/RoK: core spine feels fast, maxing everything is a long tail by
 design). The 6-9mo target applies to the 5-building core spine (Castle/Barracks/Gate/Academy/
