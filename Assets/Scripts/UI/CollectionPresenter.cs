@@ -30,6 +30,7 @@ namespace MyriadOfDragons.UI
 
         private Text _ownedCountText;
         private Text _goldPillText;
+        private Text _permitPillText;
         private InputField _searchInput;
         private Text _classFilterLabel;
         private Transform _gridRoot;
@@ -118,23 +119,30 @@ namespace MyriadOfDragons.UI
 
             CreateTextElement(headerObj.transform, "Title", "CARD COLLECTION", new Vector2(-420f, 0f), 34, TextAnchor.MiddleLeft, new Vector2(820f, 70f));
 
-            // Gold pill — Evolve spends Gold; keep balance visible like Shop/Empire (stale-HUD fix).
-            GameObject goldGroup = new GameObject("GoldPillGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-            goldGroup.transform.SetParent(headerObj.transform, false);
-            RectTransform goldGroupRect = goldGroup.GetComponent<RectTransform>();
-            goldGroupRect.anchorMin = new Vector2(1f, 0.5f);
-            goldGroupRect.anchorMax = new Vector2(1f, 0.5f);
-            goldGroupRect.pivot = new Vector2(1f, 0.5f);
-            goldGroupRect.anchoredPosition = new Vector2(-420f, 0f);
-            goldGroupRect.sizeDelta = new Vector2(200f, 56f);
-            HorizontalLayoutGroup goldHlg = goldGroup.GetComponent<HorizontalLayoutGroup>();
-            goldHlg.childAlignment = TextAnchor.MiddleRight;
-            goldHlg.childControlWidth = false;
-            int gold = SaveManager.SaveData != null ? SaveManager.SaveData.gold : 0;
-            _goldPillText = HomeV3UiLibrary.CreateResourcePill(goldGroup.transform, "home_resource_gold_pill_v3",
-                "Gold", $"{gold}", 190f);
+            // Gold + Permit pills — Evolve spends both; keep balances visible (MVP clarity).
+            GameObject currencyGroup = new GameObject("CurrencyPillGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            currencyGroup.transform.SetParent(headerObj.transform, false);
+            RectTransform currencyGroupRect = currencyGroup.GetComponent<RectTransform>();
+            currencyGroupRect.anchorMin = new Vector2(1f, 0.5f);
+            currencyGroupRect.anchorMax = new Vector2(1f, 0.5f);
+            currencyGroupRect.pivot = new Vector2(1f, 0.5f);
+            currencyGroupRect.anchoredPosition = new Vector2(-400f, 0f);
+            currencyGroupRect.sizeDelta = new Vector2(400f, 56f);
+            HorizontalLayoutGroup currencyHlg = currencyGroup.GetComponent<HorizontalLayoutGroup>();
+            currencyHlg.childAlignment = TextAnchor.MiddleRight;
+            currencyHlg.spacing = 10f;
+            currencyHlg.childControlWidth = false;
 
-            _ownedCountText = CreateTextElement(headerObj.transform, "OwnedCount", "Owned: 0", new Vector2(520f, 0f), 26, TextAnchor.MiddleRight, new Vector2(380f, 70f));
+            PlayerProfile headerProfile = SaveManager.SaveData;
+            int gold = headerProfile != null ? headerProfile.gold : 0;
+            int permits = headerProfile != null ? headerProfile.ascensionPermitBalance : 0;
+            _goldPillText = HomeV3UiLibrary.CreateResourcePill(currencyGroup.transform, "home_resource_gold_pill_v3",
+                "Gold", $"{gold}", 180f);
+            // Reuse gems pill frame — no dedicated Permit art yet; label makes the wallet clear.
+            _permitPillText = HomeV3UiLibrary.CreateResourcePill(currencyGroup.transform, "home_resource_gems_pill_v3",
+                "Permits", $"{permits}/{CollectionSchemaRules.AscensionPermitHoardCap}", 200f);
+
+            _ownedCountText = CreateTextElement(headerObj.transform, "OwnedCount", "Owned: 0", new Vector2(520f, 0f), 26, TextAnchor.MiddleRight, new Vector2(360f, 70f));
         }
 
         private void RefreshGoldPill()
@@ -142,6 +150,20 @@ namespace MyriadOfDragons.UI
             if (_goldPillText == null) return;
             PlayerProfile profile = SaveManager.SaveData;
             _goldPillText.text = profile != null ? $"{profile.gold}" : "0";
+        }
+
+        private void RefreshPermitPill()
+        {
+            if (_permitPillText == null) return;
+            PlayerProfile profile = SaveManager.SaveData;
+            int balance = profile != null ? profile.ascensionPermitBalance : 0;
+            _permitPillText.text = $"{balance}/{CollectionSchemaRules.AscensionPermitHoardCap}";
+        }
+
+        private void RefreshCurrencyPills()
+        {
+            RefreshGoldPill();
+            RefreshPermitPill();
         }
 
         private void BuildControlsRow()
@@ -552,7 +574,7 @@ namespace MyriadOfDragons.UI
 
             SaveManager.Save();
             _detailStatusText.text = $"Burned 1 copy → +{result.YieldAmount} ({path}).";
-            RefreshGoldPill();
+            RefreshCurrencyPills();
             LoadOwnedCards();
             ApplySearchFilterSortAndRender();
             OwnedCardViewModel refreshed = _allCards.Find(c => c.CardId == _selectedCard.CardId);
@@ -574,7 +596,7 @@ namespace MyriadOfDragons.UI
 
             SaveManager.Save();
             _detailStatusText.text = $"Evolved to step {result.EvolutionStepAfter} (−{result.GoldSpent} Gold).";
-            RefreshGoldPill();
+            RefreshCurrencyPills();
             LoadOwnedCards();
             ApplySearchFilterSortAndRender();
             OwnedCardViewModel refreshed = _allCards.Find(c => c.CardId == _selectedCard.CardId);

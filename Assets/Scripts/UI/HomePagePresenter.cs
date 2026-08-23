@@ -199,17 +199,23 @@ public class HomePagePresenter : MonoBehaviour
 
         if (granted > 0)
         {
-            statusMessage = $"Granted {granted} Ascension Permit(s).";
+            statusMessage =
+                $"Granted {granted} Ascension Permit(s) this week " +
+                $"(weekly rate {CollectionSchemaRules.AscensionPermitsPerTrustedWeek}). " +
+                $"Balance {profile.ascensionPermitBalance}/{CollectionSchemaRules.AscensionPermitHoardCap}.";
             return granted;
         }
 
         if (profile.ascensionPermitBalance >= CollectionSchemaRules.AscensionPermitHoardCap)
         {
-            statusMessage = "Hoard full.";
+            statusMessage =
+                $"Hoard full ({profile.ascensionPermitBalance}/{CollectionSchemaRules.AscensionPermitHoardCap}).";
             return 0;
         }
 
-        statusMessage = "Already claimed this week.";
+        statusMessage =
+            $"Already claimed this week. Balance {profile.ascensionPermitBalance}/{CollectionSchemaRules.AscensionPermitHoardCap} " +
+            $"(weekly rate {CollectionSchemaRules.AscensionPermitsPerTrustedWeek}).";
         return 0;
     }
 
@@ -481,9 +487,10 @@ public class HomePagePresenter : MonoBehaviour
         SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.0f, 0.15f, 0.28f, 0.95f);
 
         Text claimLabel = UISharedFoundation.CreateText(
-            claimBtnObj.transform, "ClaimLabel", "WEEKLY PERMITS",
+            claimBtnObj.transform, "ClaimLabel",
+            $"WEEKLY · {CollectionSchemaRules.AscensionPermitsPerTrustedWeek} PERMITS",
             UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(220f, 36f));
-        claimLabel.fontSize = 16;
+        claimLabel.fontSize = 15;
         claimLabel.fontStyle = FontStyle.Bold;
         claimLabel.raycastTarget = false;
 

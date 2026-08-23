@@ -5,8 +5,9 @@ namespace MyriadOfDragons.Save
     {
         public const int CurrentCollectionSchemaVersion = 1;
 
-        public const int AscensionPermitHoardCap = 16;
-        public const int AscensionPermitsPerTrustedWeek = 8;
+        public const int AscensionPermitHoardCap = 8;
+        /// <summary>Owner/CC lock 2026-08-23: weekly earn is 4/week (was 8). Tests assert via this constant.</summary>
+        public const int AscensionPermitsPerTrustedWeek = 4;
 
         /// <summary>Bible lock: collection card level hard cap (release blocker).</summary>
         public const int MaxCardLevel = 100;
