@@ -37,24 +37,26 @@ is still the full history/reasoning; this is the fast-lookup layer that was miss
 | Guild Expedition consumes the shared weekly Permit ceiling, doesn't add to it | `OWNER_REVIEW_LOG.md` Guild Expedition correction | Any future system granting Permits must share this same 4/week budget |
 | No purchase converts to combat/deck power | Implicit across every packet | Cosmetics, subscriptions, passes all had to prove this explicitly |
 
-## Empire construction — CURRENTLY BEING REVISED, do not treat as settled
+## Empire construction — FINAL, locked 2026-08-23 (superseded every prior draft)
 
-- Base: Gold (1,779,550 L30) + Construction Materials (Materials amendment 2026-08-23, see
-  `EMPIRE_SCHEMA_LOCK_2026-08-22.md` §2)
-- Timers: client-clock pacing only, no speed-up purchase (blocked on §8 above until a trusted
-  server exists). **Locked bands:** 5-15min (T1-5) → 1-3h (T6-10) → 6-12h (T11-15) → 1-2d (T16-20)
-  → 3-5d (T21-25) → 7-10d (T26-30). **Single builder slot only** — a second slot is explicitly
-  rejected for Phase 1. Total completion target: **6-9 months serial** (owner-confirmed 2026-08-23,
-  independently of GPT's estimate — not previously written down anywhere before this).
-- Construction Contracts (Gem→Materials catch-up): **275,000 Materials/season cap (18.6% of the
-  1,479,000 total)** — locked at this scale, not the original 1,450,000/98% proposal. Contracts
-  never reduce the timer, never raise the level cap, never bypass Gate.
-- **Open right now:** the 3-building-serial-vs-CoC's-many-parallel-structures pacing feel, and the
-  top-tier-band consecutive-wait risk (up to ~21-30 days back-to-back near endgame) — sent back to
-  ChatGPT, not yet resolved.
-- **Known stale downstream reference:** `Guild_Competition_Rewards_v1.md` reconciliation's Master
-  Builder office assumption was written when construction was instant-only — corrected in the Drive
-  doc 2026-08-23, needs re-review before that office ships.
+- 3 Phase-1 buildings only — Castle, Barracks, Gate (unchanged since `EMPIRE_SCHEMA_LOCK_2026-08-22.md`
+  §1, weeks before any of today's revisions). Academy/Embassy deliberately later, not dropped.
+- Base: Gold (1,779,550 L30) + Construction Materials (faucet: 5,000/regular stage, 50,000/finale,
+  1,815,000 campaign total; sink: 3,000→31,000 tier ladder, 1,479,000 for all 3 buildings to L30,
+  336,000 buffer). Materials additive to Gold, not a replacement.
+- **Two simultaneous construction slots**, gated by a Castle-level interlock (Barracks/Gate max
+  level tracks Castle level, e.g. Castle 15 → Barracks max 15 / Gate max 13) — not unlimited
+  parallelism, bounded by the interlock table.
+- Timers: client-clock pacing only, no speed-up purchase (blocked on §8 until a trusted server
+  exists). **Final bands:** 30-60min (T1-5) → 4-8h (T6-10) → 1-3d (T11-15) → 4-8d (T16-20) →
+  8-12d (T21-25) → 7-14d (T26-30), monotonic. Total: **~6.7 months** with 2 builders (owner-
+  confirmed 6-9mo target). Academy/Embassy later add to **~11.1 months** — computed, not hand-waved.
+- Construction Contracts: **275,000 Materials/season cap (18.6% of 1,479,000)** — never reduces
+  timer, never raises level cap, never bypasses the interlock.
+- Downstream note, still needs re-review: `Guild_Competition_Rewards_v1.md`'s Master Builder office
+  assumption (written when construction was instant-only) was corrected in the Drive doc
+  2026-08-23 but the office itself hasn't been re-reviewed against the final 2-builder/interlock
+  model yet.
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
