@@ -176,13 +176,11 @@ namespace MyriadOfDragons.UI
             if (!CollectionPackCatalog.HasInverseGemPerCardOrdering())
                 Debug.LogError("[Shop] CollectionPackCatalog lost inverse gem/card order (SHOP_V2 lock).");
 
-            // --- Resources (packet: Stamina-only lane; +50 @ 30 Gems is the shipped first tier) ---
-            shopItems.Add(new ShopItemData("res_energy", "Stamina Potion", "Restores +50 Stamina for campaign battles.", 0, 30, (p) =>
-            {
-                bool granted = CurrencyManager.RestoreStamina(p, 50, persist: false);
-                if (granted) Debug.Log("Restored +50 Stamina!");
-                return granted;
-            }));
+            // --- Resources (SHOP_V2: Stamina-only lane — +50 @ 30 / 60 / 120 / 240 Gems) ---
+            shopItems.Add(CreateStaminaPotionItem("res_energy", 30));
+            shopItems.Add(CreateStaminaPotionItem("res_stamina_60", 60));
+            shopItems.Add(CreateStaminaPotionItem("res_stamina_120", 120));
+            shopItems.Add(CreateStaminaPotionItem("res_stamina_240", 240));
 
             // --- V1 leftovers withheld from live grid (still PurchaseForTests) ---
             // Novice: gold card lane not on V2 Packs tab — kept visible as Campaign-gold sink until CC retires it.
@@ -229,6 +227,23 @@ namespace MyriadOfDragons.UI
                 _pendingPackReceipt = r;
                 return true;
             }, walletCommittedByCallback: true);
+        }
+
+        /// <summary>SHOP_V2 Stamina ladder row: +50 Stamina at the locked Gem price.</summary>
+        private static ShopItemData CreateStaminaPotionItem(string id, int gemCost)
+        {
+            return new ShopItemData(
+                id,
+                $"Stamina Potion ({gemCost})",
+                $"+50 Stamina for campaign battles ({gemCost} Gems).",
+                0,
+                gemCost,
+                p =>
+                {
+                    bool granted = CurrencyManager.RestoreStamina(p, 50, persist: false);
+                    if (granted) Debug.Log($"Restored +50 Stamina ({gemCost} Gems)!");
+                    return granted;
+                });
         }
 
         private void BuildUI()
