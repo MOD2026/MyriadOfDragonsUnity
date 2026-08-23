@@ -36,6 +36,7 @@ namespace MyriadOfDragons.Tests
         [SetUp]
         public void SetUp()
         {
+            CollectionPackReceiptService.ClearCommittedReceiptsForTests();
             _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MyriadOfDragonsReleaseProfile_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
@@ -45,6 +46,7 @@ namespace MyriadOfDragons.Tests
         [TearDown]
         public void TearDown()
         {
+            CollectionPackReceiptService.ClearCommittedReceiptsForTests();
             foreach (GameObject go in _spawned)
             {
                 if (go != null) Object.DestroyImmediate(go);
@@ -95,20 +97,22 @@ namespace MyriadOfDragons.Tests
             return shop;
         }
 
-        private static void PlayOneCardAndWin(BattleController controller)
+        private static void WinCampaignStageWithAutoFormation(GameBootstrap bootstrap)
         {
-            Card anyCard = controller.PlayerState.Hand.First(c => c.ResourceCost <= controller.PlayerState.Resource);
-            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, anyCard, Lane.Front),
-                "Setup: expected to be able to play at least one card into Front.");
-            Assert.IsTrue(controller.ConfirmFormation(), "Setup: expected the Formation to lock legally.");
+            bootstrap.AutoFormationForTests();
+            bootstrap.StartBattleForTests();
 
             int ticksRun = 0;
-            while (controller.Phase == BattlePhase.Combat)
+            while (bootstrap.Battle.Phase == BattlePhase.Combat)
             {
-                controller.AdvanceCombatTick();
+                bootstrap.Battle.AdvanceCombatTick();
                 ticksRun++;
-                Assert.LessOrEqual(ticksRun, BattleController.MaxCombatTicks, "Setup: expected a knockout well inside the tick cap.");
+                Assert.LessOrEqual(ticksRun, BattleController.MaxCombatTicks,
+                    "Setup: campaign stage must resolve within the combat tick cap under Auto Formation.");
             }
+
+            Assert.AreEqual(BattlePhase.Resolved, bootstrap.Battle.Phase,
+                "Setup: Auto Formation must produce a resolved campaign match.");
         }
 
         [Test]
@@ -152,29 +156,44 @@ namespace MyriadOfDragons.Tests
                 "Requirement 2: the confirmed deck must be exactly the ten cards submitted.");
             Assert.IsTrue(bootstrap.HasValidConfirmedDeckForNormalBattle(), "Setup: expected the confirmed deck to satisfy the normal-battle saved-deck gate.");
 
-            // ===== REQUIREMENT 3: a Shop purchase changes only the intended wallet/card state. =====
+            // ===== REQUIREMENT 3: Shop purchases change only the intended wallet/card state — live
+            // Shop V2 Stamina ladder + Single Sigil gem pack, not retired V1 stubs. =====
             PlayerProfile profile = SaveManager.SaveData;
+            profile.gems = 500;
+            CollectionSchemaMigration.Apply(profile);
             ShopPresenter shop = SpawnShop(profile);
 
-            int gemsBeforeCurrencyPurchase = profile.gems;
-            int goldBeforeCurrencyPurchase = profile.gold;
+            int gemsBeforeStamina = profile.gems;
+            int staminaBefore = profile.stamina;
             var deckBeforeShop = new List<string>(profile.activeDeckCardIds);
-            shop.PurchaseForTests("res_gold"); // 50 Gems -> +1,500 Gold, currency-only
+            var progressionBeforeShop = SnapshotProgression(profile);
 
-            Assert.AreEqual(gemsBeforeCurrencyPurchase - 50, profile.gems, "Requirement 3: Gold Vault must spend exactly 50 Gems.");
-            Assert.AreEqual(goldBeforeCurrencyPurchase + 1500, profile.gold, "Requirement 3: Gold Vault must grant exactly 1,500 Gold.");
-            Assert.AreEqual(approvedStarterIds.Length, profile.cardCollection.Count, "Requirement 3: a currency-only purchase must not touch the card collection.");
-            CollectionAssert.AreEqual(deckBeforeShop, profile.activeDeckCardIds, "Requirement 3: a Shop purchase must never touch the confirmed deck.");
+            Assert.IsTrue(shop.PurchaseForTests(ShopStaminaCatalog.SkuIdForGemCost(30)),
+                "Setup: first Stamina ladder tier must purchase through the live Shop grid.");
 
-            int goldBeforeCardPurchase = profile.gold;
-            string expectedGrantedCardId = database.AllCards.Select(c => c.Id)
-                .First(id => id != "dragon" && !profile.cardCollection.Contains(id));
-            shop.PurchaseForTests("pack_novice"); // 500 Gold -> one new deterministic card
+            Assert.AreEqual(gemsBeforeStamina - 30, profile.gems,
+                "Requirement 3: first Stamina ladder tier must spend exactly 30 Gems.");
+            Assert.AreEqual(System.Math.Min(staminaBefore + ShopStaminaCatalog.StaminaGrantPerPotion, profile.maxStamina),
+                profile.stamina, "Requirement 3: Stamina ladder must grant +50 Stamina (clamped to max).");
+            Assert.AreEqual(approvedStarterIds.Length, profile.cardProgression.Count,
+                "Requirement 3: a Stamina purchase must not touch the card collection.");
+            CollectionAssert.AreEqual(deckBeforeShop, profile.activeDeckCardIds,
+                "Requirement 3: a Shop purchase must never touch the confirmed deck.");
 
-            Assert.AreEqual(goldBeforeCardPurchase - 500, profile.gold, "Requirement 3: Novice Card Pack must spend exactly 500 Gold.");
-            Assert.AreEqual(approvedStarterIds.Length + 1, profile.cardCollection.Count, "Requirement 3: a card-pack purchase must grant exactly one new card.");
-            Assert.AreEqual(expectedGrantedCardId, profile.cardCollection[^1], "Requirement 3: the granted card must be the next id in the real deterministic sequence.");
-            CollectionAssert.AreEqual(deckBeforeShop, profile.activeDeckCardIds, "Requirement 3: a card-granting purchase must still never touch the confirmed deck.");
+            Assert.IsTrue(CollectionPackCatalog.TryGetSku(CollectionPackCatalog.SingleSigilSkuId, out CollectionPackSku singleSigil),
+                "Setup: live Shop V2 Single Sigil SKU must exist.");
+            int gemsBeforePack = profile.gems;
+            shop.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId);
+
+            Assert.AreEqual(gemsBeforePack - singleSigil.GemCost, profile.gems,
+                "Requirement 3: Single Sigil must spend exactly its locked Gem cost.");
+            string expectedGrantedCardId = FindNewlyGrantedCardId(progressionBeforeShop, profile);
+            Assert.IsFalse(string.IsNullOrEmpty(expectedGrantedCardId),
+                "Requirement 3: Single Sigil must grant at least one owned card.");
+            Assert.IsTrue(CollectionProgression.OwnsAnyCopy(profile, expectedGrantedCardId),
+                "Requirement 3: gem pack grant must land in cardProgression.");
+            CollectionAssert.AreEqual(deckBeforeShop, profile.activeDeckCardIds,
+                "Requirement 3: a card-granting purchase must still never touch the confirmed deck.");
 
             // ===== REQUIREMENT 4: a Chapter 1 victory grants its first-clear reward, records its
             // claim, and unlocks the next stage - through the real Campaign match-context lifecycle. =====
@@ -187,7 +206,7 @@ namespace MyriadOfDragons.Tests
             int gemsBeforeStageWin = profile.gems;
             bool? isVictory = null;
             bootstrap.Battle.OnMatchCompleted += result => isVictory = result.IsVictory;
-            PlayOneCardAndWin(bootstrap.Battle);
+            WinCampaignStageWithAutoFormation(bootstrap);
 
             Assert.IsTrue(isVictory, "Setup: expected the undefended enemy to produce a player victory.");
             Assert.AreEqual(goldBeforeStageWin + stage.goldReward, profile.gold, "Requirement 4: the stage win must grant exactly its configured Gold reward.");
@@ -197,10 +216,11 @@ namespace MyriadOfDragons.Tests
 
             // ===== Snapshot every field the reload must preserve, before dropping the in-memory
             // singleton. =====
-            var expectedCardCollection = new List<string>(profile.cardCollection);
             var expectedActiveDeck = new List<string>(profile.activeDeckCardIds);
             int expectedGold = profile.gold;
             int expectedGems = profile.gems;
+            int expectedStamina = profile.stamina;
+            var expectedProgression = SnapshotProgression(profile);
             var expectedClaimedStageRewardIds = new List<string>(profile.claimedStageRewardIds);
             var expectedUnlockedStageIds = new List<string>(profile.unlockedStageIds);
 
@@ -210,10 +230,12 @@ namespace MyriadOfDragons.Tests
             SaveSystem.ResetCurrentProfileForTests();
             PlayerProfile reloaded = SaveSystem.Load();
 
-            CollectionAssert.AreEqual(expectedCardCollection, reloaded.cardCollection, "Requirement 5: owned-card collection (including the starter grant) must survive a full reload.");
+            CollectionAssert.AreEqual(expectedProgression, SnapshotProgression(reloaded),
+                "Requirement 5: owned-card progression (including starter grant + gem pack) must survive a full reload.");
             CollectionAssert.AreEqual(expectedActiveDeck, reloaded.activeDeckCardIds, "Requirement 5: the confirmed deck must survive a full reload.");
             Assert.AreEqual(expectedGold, reloaded.gold, "Requirement 5: the wallet Gold balance must survive a full reload.");
             Assert.AreEqual(expectedGems, reloaded.gems, "Requirement 5: the wallet Gems balance must survive a full reload.");
+            Assert.AreEqual(expectedStamina, reloaded.stamina, "Requirement 5: Stamina must survive a full reload.");
             CollectionAssert.AreEqual(expectedClaimedStageRewardIds, reloaded.claimedStageRewardIds, "Requirement 5: claimed reward ids must survive a full reload.");
             CollectionAssert.AreEqual(expectedUnlockedStageIds, reloaded.unlockedStageIds, "Requirement 5: unlocked stage ids must survive a full reload.");
 
@@ -224,7 +246,8 @@ namespace MyriadOfDragons.Tests
             HomePagePresenter home2 = SpawnHomePagePresenter(bootstrap2);
 
             Assert.AreNotSame(bootstrap, bootstrap2, "Setup: expected a genuinely new GameBootstrap instance for the post-reload session.");
-            CollectionAssert.AreEqual(expectedCardCollection, bootstrap2.Profile.cardCollection, "Requirement 8: a fresh GameBootstrap must read the reloaded card collection, not a stale in-memory copy.");
+            CollectionAssert.AreEqual(expectedProgression, SnapshotProgression(bootstrap2.Profile),
+                "Requirement 8: a fresh GameBootstrap must read the reloaded card progression, not a stale in-memory copy.");
             CollectionAssert.AreEqual(expectedActiveDeck, bootstrap2.Profile.activeDeckCardIds, "Requirement 8: a fresh GameBootstrap must read the reloaded deck, not a stale in-memory copy.");
             Assert.AreEqual(expectedGold, bootstrap2.Profile.gold, "Requirement 8: a fresh GameBootstrap must read the reloaded Gold balance.");
             Assert.IsTrue(bootstrap2.HasValidConfirmedDeckForNormalBattle(), "Requirement 5/8: the reloaded deck must still satisfy the normal-battle saved-deck gate.");
@@ -242,7 +265,7 @@ namespace MyriadOfDragons.Tests
             int claimedCountBeforeRepeatWin = profile2.claimedStageRewardIds.Count;
             bool? isRepeatVictory = null;
             bootstrap2.Battle.OnMatchCompleted += result => isRepeatVictory = result.IsVictory;
-            PlayOneCardAndWin(bootstrap2.Battle);
+            WinCampaignStageWithAutoFormation(bootstrap2);
 
             Assert.IsTrue(isRepeatVictory, "Setup: expected the repeat win to also succeed.");
             Assert.AreEqual(goldBeforeRepeatWin, profile2.gold, "Requirement 6: repeating an already-claimed stage win after reload must grant no duplicate Gold.");
@@ -253,14 +276,18 @@ namespace MyriadOfDragons.Tests
             // ===== REQUIREMENT 6, continued: repeating the same Shop purchase path after reload
             // cannot duplicate a card id. =====
             ShopPresenter shop2 = SpawnShop(profile2);
-            var collectionBeforeRepeatPurchase = new List<string>(profile2.cardCollection);
-            string expectedSecondGrantedCardId = database.AllCards.Select(c => c.Id)
-                .First(id => id != "dragon" && !profile2.cardCollection.Contains(id));
-            shop2.PurchaseForTests("pack_novice");
+            profile2.gems = singleSigil.GemCost + 30;
+            var progressionBeforeRepeat = SnapshotProgression(profile2);
+            shop2.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId);
 
-            Assert.AreEqual(collectionBeforeRepeatPurchase.Count + 1, profile2.cardCollection.Count, "Requirement 6: a repeated card-pack purchase after reload must still grant exactly one new card.");
-            Assert.AreEqual(expectedSecondGrantedCardId, profile2.cardCollection[^1], "Requirement 6: the repeated purchase must grant the next real id in sequence, never a duplicate.");
-            Assert.AreEqual(profile2.cardCollection.Count, profile2.cardCollection.Distinct().Count(), "Requirement 6: the card collection must contain no duplicate ids after the repeat purchase.");
+            Assert.AreEqual(progressionBeforeRepeat.Count + (FindNewlyGrantedCardId(progressionBeforeRepeat, profile2) != null ? 1 : 0),
+                profile2.cardProgression.Count,
+                "Requirement 6: a repeated gem pack purchase after reload must still grant a new owned card when affordable.");
+            string expectedSecondGrantedCardId = FindNewlyGrantedCardId(progressionBeforeRepeat, profile2);
+            Assert.IsFalse(string.IsNullOrEmpty(expectedSecondGrantedCardId),
+                "Requirement 6: repeated Single Sigil must grant the next pack card.");
+            Assert.IsTrue(CollectionProgression.OwnsAnyCopy(profile2, expectedSecondGrantedCardId),
+                "Requirement 6: repeated purchase must land in cardProgression.");
             CollectionAssert.AreEqual(expectedActiveDeck, profile2.activeDeckCardIds, "Requirement 6: a repeated Shop purchase after reload must not corrupt the confirmed deck.");
 
             // ===== REQUIREMENT 7: Tutorial state and normal campaign context remain isolated,
@@ -294,6 +321,28 @@ namespace MyriadOfDragons.Tests
                 .Select(c => c.Id));
             CollectionAssert.AreEquivalent(stage.enemyDeckCardIds, postTutorialEnemyIds,
                 "Requirement 7: Tutorial must never mutate or clear the normal campaign context.");
+        }
+
+        private static Dictionary<string, int> SnapshotProgression(PlayerProfile profile)
+        {
+            var snapshot = new Dictionary<string, int>();
+            if (profile?.cardProgression == null) return snapshot;
+            foreach (CardProgressionRecord record in profile.cardProgression)
+                snapshot[record.cardId] = record.copyCount;
+            return snapshot;
+        }
+
+        private static string FindNewlyGrantedCardId(
+            Dictionary<string, int> before, PlayerProfile after)
+        {
+            foreach (CardProgressionRecord record in after.cardProgression)
+            {
+                before.TryGetValue(record.cardId, out int countBefore);
+                if (record.copyCount > countBefore)
+                    return record.cardId;
+            }
+
+            return null;
         }
     }
 }

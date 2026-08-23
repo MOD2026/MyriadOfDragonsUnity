@@ -144,6 +144,22 @@ namespace MyriadOfDragons.UI
         public PackOpenRevealRunner PackRevealRunnerForTests =>
             canvasObj != null ? PackOpenOverlayPresenter.RevealRunnerForTests(canvasObj.transform) : null;
 
+        /// <summary>Exposed for tests: Shop status line after ladder blocks or successful purchase.</summary>
+        public string ShopStatusTextForTests => statusText != null ? statusText.text : null;
+
+        /// <summary>Exposed for tests: whether a live grid tile exists for the SKU (hidden V1 stubs excluded).</summary>
+        public bool ShopGridContainsSkuForTests(string skuId) =>
+            canvasObj != null && canvasObj.transform.Find($"ShopGrid/ShopCard_{skuId}") != null;
+
+        /// <summary>Exposed for tests: Stamina ladder BUY interactable state after RefreshStaminaBuyButtons.</summary>
+        public bool StaminaBuyButtonInteractableForTests(int gemCost)
+        {
+            if (canvasObj == null) return false;
+            string id = ShopStaminaCatalog.SkuIdForGemCost(gemCost);
+            Button buyBtn = canvasObj.transform.Find($"ShopGrid/ShopCard_{id}/Btn_Buy")?.GetComponent<Button>();
+            return buyBtn != null && buyBtn.interactable;
+        }
+
         private static bool TryOpenGemPack(PlayerProfile profile, string skuId, out PackReceiptResult result)
         {
             result = null;

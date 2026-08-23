@@ -14,7 +14,7 @@ namespace MyriadOfDragons.Tests
     /// mutates player.gold/gems/stamina directly and instead routes every affordability check,
     /// deduction, and non-card resource grant through CurrencyManager, the sole wallet authority.
     /// Exercised through PurchaseForTests, the same private handler the real "BUY" button calls -
-    /// not reimplemented here.
+    /// not reimplemented here. Card-pack coverage uses live Shop V2 Single Sigil, not pack_novice.
     /// </summary>
     public class ShopCurrencyIntegrityTests
     {
@@ -25,6 +25,7 @@ namespace MyriadOfDragons.Tests
         [SetUp]
         public void SetUp()
         {
+            CollectionPackReceiptService.ClearCommittedReceiptsForTests();
             _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MyriadOfDragonsShopCurrency_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
@@ -39,6 +40,7 @@ namespace MyriadOfDragons.Tests
         [TearDown]
         public void TearDown()
         {
+            CollectionPackReceiptService.ClearCommittedReceiptsForTests();
             foreach (GameObject go in _spawned)
             {
                 if (go != null) Object.DestroyImmediate(go);
@@ -103,17 +105,23 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void CardPackReward_RemainsDeterministicAndUnchanged()
+        public void CardPackReward_LiveSingleSigil_SpendsGemsAndGrantsOneCopy()
         {
-            var profile = new PlayerProfile { gold = 500, gems = 0 };
-            int cardsBefore = profile.cardCollection.Count;
+            Assert.IsTrue(CollectionPackCatalog.TryGetSku(CollectionPackCatalog.SingleSigilSkuId, out CollectionPackSku singleSigil),
+                "Setup: live Shop V2 Single Sigil SKU must exist.");
+            var profile = new PlayerProfile { gems = singleSigil.GemCost };
+            CollectionSchemaMigration.Apply(profile);
+            int copiesBefore = TotalCopyCount(profile);
             ShopPresenter shop = SpawnAndInitializeShop(profile);
 
-            shop.PurchaseForTests("pack_novice");
+            shop.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId);
 
-            Assert.AreEqual(0, profile.gold, "Novice Card Pack cost must still be spent in full.");
-            Assert.AreEqual(cardsBefore + 1, profile.cardCollection.Count, "A card-pack purchase must still grant exactly one card.");
-            string grantedId = profile.cardCollection[^1];
+            Assert.AreEqual(0, CurrencyManager.GetBalance(profile, CurrencyType.Gems),
+                "Single Sigil Gem cost must be spent in full via the pack receipt path.");
+            Assert.AreEqual(copiesBefore + 1, TotalCopyCount(profile),
+                "A Single Sigil purchase must grant exactly one card copy.");
+            Assert.IsTrue(profile.cardProgression.Count > 0, "Granted card must land in cardProgression.");
+            string grantedId = profile.cardProgression[^1].cardId;
             Assert.IsNotNull(CardDatabase.Instance.GetCard(grantedId), "The granted id must still resolve through CardDatabase.");
         }
 
@@ -136,14 +144,25 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Purchase_DoesNotModifyActiveDeckCardIds()
         {
-            var profile = new PlayerProfile { gold = 500, gems = 0 };
+            Assert.IsTrue(CollectionPackCatalog.TryGetSku(CollectionPackCatalog.SingleSigilSkuId, out CollectionPackSku singleSigil));
+            var profile = new PlayerProfile { gems = singleSigil.GemCost };
+            CollectionSchemaMigration.Apply(profile);
             var deckBefore = new List<string>(profile.activeDeckCardIds);
             ShopPresenter shop = SpawnAndInitializeShop(profile);
 
-            shop.PurchaseForTests("pack_novice");
+            shop.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId);
 
             CollectionAssert.AreEqual(deckBefore, profile.activeDeckCardIds,
                 "A Shop purchase must never silently modify activeDeckCardIds - deck selection remains Deck Builder's own job.");
+        }
+
+        private static int TotalCopyCount(PlayerProfile profile)
+        {
+            int total = 0;
+            if (profile?.cardProgression == null) return 0;
+            foreach (CardProgressionRecord record in profile.cardProgression)
+                total += record.copyCount;
+            return total;
         }
 
         [Test]

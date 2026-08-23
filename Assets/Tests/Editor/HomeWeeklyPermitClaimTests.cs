@@ -100,6 +100,30 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void BuildHome_WhenHoardFull_ShowsHoardFullStatus_ClaimStillReachable()
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            CollectionSchemaMigration.Apply(profile);
+            profile.ascensionPermitBalance = CollectionSchemaRules.AscensionPermitHoardCap;
+
+            HomePagePresenter home = SpawnHome();
+            home.BuildHomePageUIForTests();
+
+            Text status = FindStatusText(home);
+            Assert.NotNull(status);
+            StringAssert.Contains("Hoard full", status.text,
+                "Home open at hoard cap must explain why weekly claim grants nothing.");
+
+            Button claimButton = FindClaimButton(home);
+            Assert.NotNull(claimButton, "Claim control must remain present — not a dead-end screen.");
+            claimButton.onClick.Invoke();
+
+            Assert.AreEqual(CollectionSchemaRules.AscensionPermitHoardCap, profile.ascensionPermitBalance,
+                "Claim at hoard cap must not overflow the cap.");
+            StringAssert.Contains("Hoard full", FindStatusText(home).text);
+        }
+
+        [Test]
         public void ClaimButton_AfterAutoClaim_Invoke_DoesNotDoubleGrant()
         {
             PlayerProfile profile = SaveManager.SaveData;

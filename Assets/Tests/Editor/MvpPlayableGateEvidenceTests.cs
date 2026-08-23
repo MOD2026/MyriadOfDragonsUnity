@@ -16,11 +16,15 @@ namespace MyriadOfDragons.Tests
             // Campaign 1-1: MvpOnboardingSpineTests (launch+win), CampaignLaunchFeedbackContractTests,
             //   CampaignAfMirroredAiSpellSmokeTests (AI-on resolve), Chapter1CampaignPlayabilityTests
             //   (AF taught-path spells-off win).
-            // Shop Soft: PackOpenOverlayTests (Collection next-step).
+            // Shop: PackOpenOverlayTests + CollectionPackReceiptTests (live Single Sigil / Scout Cache),
+            //   ShopStaminaLadderUiTests (Gem-tier Stamina ladder), AcquiredCardToCombatContractTests +
+            //   ReleaseProfilePersistenceContractTests (Single Sigil + Stamina tier — not pack_novice).
             // Collection Soft: CollectionForgeDustUiTests / evolution burn honesty suites.
             // Legal battle deck: MvpOnboardingSpineTests (Deck Builder confirm before 1-1),
             //   DeckBuilderFirstOpenSoftTests (first-open Soft guidance), DeckPersistenceTests /
             //   NormalBattleEntryContractTests (saved-deck gate).
+            // Permit + Stamina ladder UI: HomeWeeklyPermitClaimTests + CollectionWeeklyPermitClaimTests,
+            //   ShopStaminaLadderUiTests.
             // Empire Soft: EmpireConstructionHomeTests (Castle Resource/HP payoff).
             Assert.Pass(
                 "Evidence map only — see class doc comment and docs/MVP_PLAYABLE_GATE_v1.md.");
