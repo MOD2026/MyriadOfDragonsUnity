@@ -37,10 +37,18 @@ is still the full history/reasoning; this is the fast-lookup layer that was miss
 | Guild Expedition consumes the shared weekly Permit ceiling, doesn't add to it | `OWNER_REVIEW_LOG.md` Guild Expedition correction | Any future system granting Permits must share this same 4/week budget |
 | No purchase converts to combat/deck power | Implicit across every packet | Cosmetics, subscriptions, passes all had to prove this explicitly |
 
-## Empire construction — FINAL, locked 2026-08-23 (superseded every prior draft)
+## Empire construction — REOPENED 2026-08-23, do not treat the 3-building version as final
 
-- 3 Phase-1 buildings only — Castle, Barracks, Gate (unchanged since `EMPIRE_SCHEMA_LOCK_2026-08-22.md`
-  §1, weeks before any of today's revisions). Academy/Embassy deliberately later, not dropped.
+**Owner override:** all 5 buildings (Castle, Barracks, Gate, Academy, Embassy) ship from Phase-1
+start, overriding `EMPIRE_SCHEMA_LOCK_2026-08-22.md` §1's "Academy/Embassy later." Real constraint
+found: Academy/Embassy's documented function (`MOS_v1.2.md` §11) is guild timer-help — same
+trusted-server dependency blocking Bazaar/Guild Expedition/Raid. Owner decision: **solo-only
+stripped Phase-1 stand-ins now** — Academy = personal research + Materials sink, no guild-help;
+Embassy = near-placeholder (little/no real solo function per its own design) — full guild-
+integrated versions wait for the server. Design task with ChatGPT; interlock/timeline below is
+STALE until the 5-building recompute lands.
+
+### Stale, superseded pending recompute — Castle/Barracks/Gate only version (kept for reference)
 - Base: Gold (1,779,550 L30) + Construction Materials (faucet: 5,000/regular stage, 50,000/finale,
   1,815,000 campaign total; sink: 3,000→31,000 tier ladder, 1,479,000 for all 3 buildings to L30,
   336,000 buffer). Materials additive to Gold, not a replacement.
