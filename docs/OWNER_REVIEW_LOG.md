@@ -304,3 +304,10 @@ is resolved. Remaining 58: 32 parked AF/AI-on combat-balance (known category), 1
 asserting stale pre-4/8-correction numbers (assigned to coding room to update), 12 confirmed
 pre-existing (cross-referenced against this morning's baseline, predate today's work), 2 genuinely
 new/unknown (EmpireConstructionHomeTests routed to WH, CampaignMatchContextLifecycleTests parked).
+
+**Block AB fully closed (2026-08-23): real final total 715/761.** Coding room updated the 12 stale
+Permit-test assertions to the locked 4/8 numbers (careful recompute through real clamp logic, not
+blind arithmetic), plus fixed 4 brittle exact-string-match tests unrelated to the number. Remaining
+46 = 32 parked AF/AI-on (known) + 12 pre-existing (predate today) + 2 new/unknown (routed).
+Correction to the entry above: Campaign Gem recompute implementation belongs to WH
+(CampaignMapPresenter.cs is metagame-owned per CLAUDE.md), not the coding seat.
