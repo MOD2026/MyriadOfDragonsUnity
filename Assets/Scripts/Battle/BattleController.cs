@@ -260,8 +260,18 @@ namespace MyriadOfDragons.Battle
             }
         }
 
+        /// <summary>
+        /// avatarLevel/unlockedStageIds default to "fresh player" (level 1, no stage progress) so
+        /// every existing caller that doesn't yet pass real progress - every EditMode test, the
+        /// scripted tutorial encounter which must stay on its fixed spell-lesson target - gets
+        /// exactly the same spellbook as before (SpellLoadoutAutoEquip.AutoEquip resolves those
+        /// defaults to precisely the starter four, in the same order CreateDefaultSpellbook() used
+        /// to return). Only a caller that explicitly supplies real profile progress (see
+        /// GameBootstrap.StartNewMatch) gets a loadout that actually varies with it.
+        /// </summary>
         public void StartMatch(List<Card> playerDeck, List<Card> enemyDeck,
-            MatchEconomy playerEconomy, MatchEconomy enemyEconomy)
+            MatchEconomy playerEconomy, MatchEconomy enemyEconomy,
+            int avatarLevel = 1, IReadOnlyCollection<string> unlockedStageIds = null)
         {
             PlayerState = new PlayerBattleState(playerDeck,
                 playerEconomy.ResourceCap, playerEconomy.Turn1Resource, playerEconomy.StartingAvatarHealth);
@@ -272,8 +282,8 @@ namespace MyriadOfDragons.Battle
             TickCount = 0;
             Energy = 0;
             EnemyEnergy = 0;
-            Spellbook = AvatarSpell.CreateDefaultSpellbook();
-            EnemySpellbook = AvatarSpell.CreateDefaultSpellbook();
+            Spellbook = SpellLoadoutAutoEquip.AutoEquip(avatarLevel, unlockedStageIds);
+            EnemySpellbook = SpellLoadoutAutoEquip.AutoEquip(avatarLevel, unlockedStageIds);
             MirroredEnemySpellsEnabled = false;
             _combatLedger.Clear();
             _spellCastLog.Clear();
