@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Data;
+using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 
 namespace MyriadOfDragons.UI
@@ -54,9 +55,13 @@ namespace MyriadOfDragons.UI
         private Button recommendedDeckButton;
         private string entryStatusOverride;
 
-        /// <summary>Soft first-open / incomplete-deck guidance — Campaign and To Battle need a confirmed deck.</summary>
+        /// <summary>Soft first-open / incomplete-deck guidance — Campaign and To Battle need a confirmed deck.
+        /// Literal kept for EditMode Soft asserts; live status uses <see cref="FormatConfirmedDeckRequiredGuidance"/>.</summary>
         public const string ConfirmedDeckRequiredGuidance =
             "Confirm and save a 10-card deck before Campaign or To Battle.";
+
+        public static string FormatConfirmedDeckRequiredGuidance(int deckSlots) =>
+            $"Confirm and save a {deckSlots}-card deck before Campaign or To Battle.";
 
         public Text DeckStatusTextForTests => deckStatusText;
 
@@ -111,7 +116,7 @@ namespace MyriadOfDragons.UI
             profile = SaveManager.SaveData;
             if (profile == null)
             {
-                deckSizeLimit = 10;
+                deckSizeLimit = PlayerEmpireData.DeckSlotsForBarracksLevel(1);
                 return;
             }
 
@@ -122,7 +127,7 @@ namespace MyriadOfDragons.UI
             }
             else
             {
-                deckSizeLimit = 10;
+                deckSizeLimit = PlayerEmpireData.DeckSlotsForBarracksLevel(1);
             }
         }
 
@@ -660,20 +665,22 @@ namespace MyriadOfDragons.UI
 
         private string GetConfirmStatusText()
         {
+            string guidance = FormatConfirmedDeckRequiredGuidance(deckSizeLimit);
+
             if (ownedCollectionCards.Count == 0)
             {
-                return $"{ConfirmedDeckRequiredGuidance} No owned cards are available yet.";
+                return $"{guidance} No owned cards are available yet.";
             }
 
             if (activeDeck.Count < deckSizeLimit)
             {
                 int missingCards = deckSizeLimit - activeDeck.Count;
-                return $"{ConfirmedDeckRequiredGuidance} Add {missingCards} more card{(missingCards == 1 ? string.Empty : "s")} ({activeDeck.Count}/{deckSizeLimit}).";
+                return $"{guidance} Add {missingCards} more card{(missingCards == 1 ? string.Empty : "s")} ({activeDeck.Count}/{deckSizeLimit}).";
             }
 
             if (!CanConfirmDeck())
             {
-                return $"{ConfirmedDeckRequiredGuidance} Deck must contain unique owned cards only.";
+                return $"{guidance} Deck must contain unique owned cards only.";
             }
 
             if (IsSavedDeckConfirmedAndMatchingActive())

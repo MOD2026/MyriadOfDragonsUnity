@@ -176,11 +176,9 @@ namespace MyriadOfDragons.UI
             if (!CollectionPackCatalog.HasInverseGemPerCardOrdering())
                 Debug.LogError("[Shop] CollectionPackCatalog lost inverse gem/card order (SHOP_V2 lock).");
 
-            // --- Resources (SHOP_V2: Stamina-only lane — +50 @ 30 / 60 / 120 / 240 Gems) ---
-            shopItems.Add(CreateStaminaPotionItem("res_energy", 30));
-            shopItems.Add(CreateStaminaPotionItem("res_stamina_60", 60));
-            shopItems.Add(CreateStaminaPotionItem("res_stamina_120", 120));
-            shopItems.Add(CreateStaminaPotionItem("res_stamina_240", 240));
+            // --- Resources (SHOP_V2 Stamina ladder — prices/grant from ShopStaminaCatalog) ---
+            foreach (int gemCost in ShopStaminaCatalog.GemCosts)
+                shopItems.Add(CreateStaminaPotionItem(ShopStaminaCatalog.SkuIdForGemCost(gemCost), gemCost));
 
             // --- V1 leftovers withheld from live grid (still PurchaseForTests) ---
             // Novice: gold card lane not on V2 Packs tab — kept visible as Campaign-gold sink until CC retires it.
@@ -229,19 +227,20 @@ namespace MyriadOfDragons.UI
             }, walletCommittedByCallback: true);
         }
 
-        /// <summary>SHOP_V2 Stamina ladder row: +50 Stamina at the locked Gem price.</summary>
+        /// <summary>SHOP_V2 Stamina ladder row — grant amount from <see cref="ShopStaminaCatalog"/>.</summary>
         private static ShopItemData CreateStaminaPotionItem(string id, int gemCost)
         {
+            int grant = ShopStaminaCatalog.StaminaGrantPerPotion;
             return new ShopItemData(
                 id,
                 $"Stamina Potion ({gemCost})",
-                $"+50 Stamina for campaign battles ({gemCost} Gems).",
+                $"+{grant} Stamina for campaign battles ({gemCost} Gems).",
                 0,
                 gemCost,
                 p =>
                 {
-                    bool granted = CurrencyManager.RestoreStamina(p, 50, persist: false);
-                    if (granted) Debug.Log($"Restored +50 Stamina ({gemCost} Gems)!");
+                    bool granted = CurrencyManager.RestoreStamina(p, grant, persist: false);
+                    if (granted) Debug.Log($"Restored +{grant} Stamina ({gemCost} Gems)!");
                     return granted;
                 });
         }

@@ -365,15 +365,18 @@ namespace MyriadOfDragons.UI
         /// <summary>
         /// Gate row clarity (Block Z): show which Campaign chapter is open now, and — without
         /// inventing Gate-level thresholds — prompt upgrading to open the next chapter when
-        /// <see cref="PlayerEmpireData.GetHighestCampaignChapterAllowed"/> is below 10.
+        /// <see cref="PlayerEmpireData.GetHighestCampaignChapterAllowed"/> is below max (1–10).
+        /// Chapter ceiling mirrors PlayerEmpireData GateLevelForChapter (read-only; do not invent 11).
         /// </summary>
+        public const int MaxCampaignChapterForGateCopy = 10;
+
         public static string FormatGateRowSummary(int gateLevel, int highestChapterAllowed, int nextGateMilestone, int gateUpgradeGold)
         {
-            int openChapter = Mathf.Clamp(highestChapterAllowed, 1, 10);
+            int openChapter = Mathf.Clamp(highestChapterAllowed, 1, MaxCampaignChapterForGateCopy);
             string openCopy = $"Campaign open: Ch{openChapter}";
 
             string nextChapterCopy = string.Empty;
-            if (openChapter < 10)
+            if (openChapter < MaxCampaignChapterForGateCopy)
             {
                 int nextChapter = openChapter + 1;
                 if (!PlayerEmpireData.IsCampaignChapterAllowedByGate(gateLevel, nextChapter))

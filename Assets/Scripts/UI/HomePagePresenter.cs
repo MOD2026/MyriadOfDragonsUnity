@@ -822,7 +822,27 @@ public class HomePagePresenter : MonoBehaviour
     /// (Campaign launch feedback contract, requirement 2) - one source of truth so the Campaign
     /// map's status surface and the Deck Builder redirect never drift apart from each other or
     /// from what LaunchCampaignStage/TryLaunchCampaignStage actually checks.</summary>
+    /// <summary>Exact Campaign→Deck redirect copy when Barracks still grants the L1 default (10).
+    /// EditMode contracts assert this literal; live redirects use <see cref="FormatDeckBlockedMessage"/>.</summary>
     public const string DeckBlockedMessage = "Build and confirm a 10-card deck before launching a Campaign stage.";
+
+    public static string FormatDeckBlockedMessage(int deckSlots) =>
+        $"Build and confirm a {deckSlots}-card deck before launching a Campaign stage.";
+
+    public static string FormatNormalBattleDeckBlockedMessage(int deckSlots) =>
+        $"Build and confirm a {deckSlots}-card deck before normal Battle.";
+
+    /// <summary>Live Barracks Deck Slots for player-facing copy (falls back to L1 Barracks slots).</summary>
+    public static int ResolveDeckSlotCountForCopy()
+    {
+        PlayerProfile profile = SaveManager.SaveData;
+        if (profile == null)
+            return PlayerEmpireData.DeckSlotsForBarracksLevel(1);
+
+        profile.ApplyDataToEmpire();
+        int slots = profile.Empire != null ? profile.Empire.DeckSlotCount : 0;
+        return slots > 0 ? slots : PlayerEmpireData.DeckSlotsForBarracksLevel(1);
+    }
     public const string StaminaBlockedMessage = "Need 1 Stamina to launch this stage.";
     public const string LockedBlockedMessage = "This stage is locked. Complete the previous stage first.";
     public const string InvalidConfigBlockedMessage = "This stage cannot launch because its battle setup is invalid.";
@@ -893,7 +913,7 @@ public class HomePagePresenter : MonoBehaviour
                 campaign.TeardownMapForBattle();
                 SafeDestroy(campaign);
             }
-            OpenDeckBuilder(entryStatusMessage: DeckBlockedMessage);
+            OpenDeckBuilder(entryStatusMessage: FormatDeckBlockedMessage(ResolveDeckSlotCountForCopy()));
             return CampaignLaunchOutcome.BlockedNoDeck;
         }
 
@@ -1090,7 +1110,7 @@ public class HomePagePresenter : MonoBehaviour
         if (bootstrap != null && !bootstrap.HasValidConfirmedDeckForNormalBattle())
         {
             bootstrap.EnsureApprovedStarterCollectionGranted();
-            OpenDeckBuilder(entryStatusMessage: "Build and confirm a 10-card deck before normal Battle.");
+            OpenDeckBuilder(entryStatusMessage: FormatNormalBattleDeckBlockedMessage(ResolveDeckSlotCountForCopy()));
             return;
         }
 
