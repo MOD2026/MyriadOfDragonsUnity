@@ -344,3 +344,10 @@ accounts) - in progress with Zihan, paused mid-checklist.
 **CC accept — Avatar victory progression, no farming cap (2026-08-23):** Confirmed by design, not
 an oversight - Avatar level is monotonic personal progression touching only Resource/HP tiers, never
 Gold/Gems/Permits/cards/Materials. No tradable/scarce-economy shortcut exists to cap.
+
+**CC partial accept — Cosmetics/skins portfolio (2026-08-23):** Individually-priced items locked
+(card frame 150 / Avatar skin 500 / arena theme 1,000 / victory VFX 300 / deployment VFX 450 Gems),
+all zero gameplay benefit, no forbidden-edge touches. Held: the two bundle SKUs (1,650 / 4,000) -
+"preserves inverse bulk-discount philosophy" was asserted without the computed math every other
+pricing table in this project shows, and the 4,000 bundle has no stated contents. Not implementation-
+blocking (no seat is building Shop cosmetics yet) - just not fully locked until the bundle math lands.
