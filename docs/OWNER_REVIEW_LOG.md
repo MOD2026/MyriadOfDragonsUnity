@@ -392,3 +392,8 @@ carried forward, ends on a real Ch3 hook ("the gates of Olympus"). Reusable temp
 recurring cast (carry >=2 forward, add <=1 new major per chapter), 6 story beats grouping stages
 (3 each for 18-stage chapters, 5 each for 30-stage), one choice-prompt per beat not per stage,
 animation milestones at open/mid/clear (N-1, N-10 or N-15, N-last). Not yet implemented - WH's job.
+
+**CC accept — Chapter 3 narrative, "The Gates of Olympus" (2026-08-23):** Full 3-1..3-30 arc, same
+cast, template correctly applied (choice prompts at 3-1/6/11/16/21/26, animation milestones
+3-1/15/30). Real climax (Eryx defeated, palace saved) with a genuine Chapter 4 hook. Not yet
+implemented - queued behind WH's current work (Gem recompute, Ch1/Ch2 narrative implementation).
