@@ -57,11 +57,21 @@ ungated by Castle level.
 | Prison | Captive/sacrifice placeholder, non-destructive | Server-dependent stand-in |
 | Guild Hall | Flat, single-level, no upgrade ladder; entry point only | Server-dependent stand-in |
 
-**Open, CC must still lock:** (1) Quarry vs Materials Yard naming, (2) expand campaign Materials
-faucet (currently 1,815,000, sized for 3 buildings, now insufficient for 11) vs. reduce the per-
-building cost ladder, (3) Embassy's exact level-band curve, (4) Academy/Laboratory naming,
-(5) Tree of Knowledge minigame brief, once written. None of these block MVP — Empire roster work is
-explicitly outside `MVP_PLAYABLE_GATE_v1.md`'s scope.
+**RATES LOCKED 2026-08-23 — full packet closed.** Names: Quarry, Academy. Materials ladder per
+building: 5×1,100 (L1-5) + 5×2,200 (L6-10) + 5×4,400 (L11-15) + 5×7,700 (L16-20) + 5×11,000 (L21-25)
++ 4×12,375 (L26-30) = **181,500/building exact**, ×10 laddered buildings = **1,815,000 = the
+existing campaign faucet exactly**, no faucet recompute needed (verified by CC's own recomputation,
+not just accepted on assertion). Embassy: both charges/day and reduction/help scale by level
+(1/10min at L1-5 up to 6/90min at L26-30), lifetime-per-project cap of min(6hr, 30% of timer).
+**Owner-confirmed: the ~22-month full-roster maxing tail is intentional, not a problem to solve** —
+matches genre precedent (CoC/RoK: core spine feels fast, maxing everything is a long tail by
+design). The 6-9mo target applies to the 5-building core spine (Castle/Barracks/Gate/Academy/
+Embassy) only. Remaining real work: **Tree of Knowledge's "Memory Expedition" minigame** (Empire/
+Avatar-side rewards only: Avatar XP, small Gold, Stamina, Event Medals, temp research points; no
+cards/Forge/Dust/Permits/Evolution materials/Market Credits; 1/day, fixed daily seed, account-level
+completion ledger) needs its own implementation brief before coding — scoped, not started. None of
+this blocks MVP — Empire roster work is explicitly outside `MVP_PLAYABLE_GATE_v1.md`'s scope; this
+is the next milestone after MVP closes, not concurrent with it unless owner says otherwise.
 
 ### Superseded — prior reopened/partial versions (kept for history only)
 
