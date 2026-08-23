@@ -76,7 +76,10 @@ namespace MyriadOfDragons.Tests
             Assert.Greater(resourceBonus, 0, "Setup: Castle L5 must grant a Resource bonus.");
             Assert.Greater(healthBonus, 0, "Setup: Castle L5 must grant an HP bonus.");
 
-            StringAssert.Contains($"+{resourceBonus} Resource", castleRow.text);
+            // "Cap" is the row's own live terminology throughout (matches "Cap {live.Empire.ResourceCap}"
+            // asserted below, and FormatCastleRow's own "+{dCap} Cap" wording) - "Resource" was a stale
+            // label from before that terminology settled, never updated here.
+            StringAssert.Contains($"+{resourceBonus} Cap", castleRow.text);
             StringAssert.Contains($"+{healthBonus} HP", castleRow.text);
             StringAssert.Contains("Castle L5", castleRow.text);
 

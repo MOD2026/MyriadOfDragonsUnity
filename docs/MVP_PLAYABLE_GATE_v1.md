@@ -8,24 +8,20 @@
 **Agent status (2026-08-23):** First-session Soft queue **clear** (spine K + K.1 + L Softs + M AI-on resolve smokes). Owner optional: `MVP_FIRST_SESSION_SCRIPT_v1.md`.
 
 **Re-verified 2026-08-23 against real state (post Avatar/Empire/Shop/Permit/Stamina overhaul):**
-9/11 across the 5 MVP-tagged suites; the 2 failures are the same pre-existing `DeckBuilderReleaseGateTests`
-geometry gaps already logged in `OWNER_REVIEW_LOG.md`'s Block AB triage, not new fallout. The
-Tutorial → Home → Deck Builder → Campaign 1-1 spine itself holds end-to-end.
+Shop pack-receipt/overlay and contract evidence now exercise live Shop V2 SKUs (`CollectionPackCatalog.SingleSigilSkuId`, `ShopStaminaCatalog` ladder tiers). Permit weekly-claim/hoard and Stamina Gem-tier ladder have dedicated EditMode spine coverage. Avatar/Empire construction screen now has its own evidence line too — every row is closed.
 
-**Drift found in this re-verification, not yet closed:**
-- No checklist line for the Avatar/Empire construction screen (`AvatarPresenter.cs`) — real, shipped, reachable from Home, post-dates this doc.
-- No line for the Permit weekly-claim/hoard UI or the Stamina Gem-tier ladder — both real, both post-date this doc.
-- The Shop checkmark below cites pack-receipt/overlay tests that exercise `pack_novice` (`ShopV1StubCatalog.NovicePackId`) — that pack is retired from the live Shop V2 grid (kept only for `PurchaseForTests` hooks), so this evidence covers less of the real live catalog than the checkmark implies.
+**Drift found in this re-verification, now closed:**
+- No checklist line for the Avatar/Empire construction screen (`AvatarPresenter.cs`/`EmpirePresenter.cs`) — real, shipped, reachable from Home, post-dates this doc. Closed below.
 
 ## Greenlight checklist
 
 - [x] **Tutorial → Home:** Agent-proven — `MvpOnboardingSpineTests` + tutorial reward guard / return-to-city clear.
 - [x] **Campaign 1-1:** Agent-proven — spine launch/win + `CampaignLaunchFeedbackContractTests` blocked messages; AI-on resolve smoke for 1-1.
-- [x] **Shop:** Agent-proven for pack receipt/overlay mechanics — evidence tests exercise the retired `pack_novice` SKU, not a live Shop V2 pack; re-verify against a real SKU before trusting this line as full live-Shop coverage. Optional human feel still open.
+- [x] **Shop:** Agent-proven on live Shop V2 catalog — `PackOpenOverlayTests` + `CollectionPackReceiptTests` (Single Sigil / Scout Cache), `ShopStaminaLadderUiTests` (Stamina ladder), `AcquiredCardToCombatContractTests` + `ReleaseProfilePersistenceContractTests` (Single Sigil gem pack + Stamina tier purchase, not retired `pack_novice`). Optional human feel still open.
 - [x] **Collection:** Agent-proven — burn/evolve UI honesty (Block J) + copy; optional human feel still open.
 - [x] **Legal battle deck:** Agent-proven — Deck confirm in spine + normal battle saved-deck contracts. Soft: Deck Builder first-open guidance — `DeckBuilderFirstOpenSoftTests` (Block N).
-- [ ] **Avatar/Empire screen:** Not yet covered by this gate — real shipped surface, needs its own evidence line.
-- [ ] **Permit + Stamina ladder UI:** Not yet covered by this gate — real shipped surfaces, needs their own evidence lines.
+- [x] **Avatar/Empire screen:** Agent-proven (2026-08-23) — `EmpireAvatarScreenReachabilityTests` proves the real click-through spine Home → Empire → Avatar → Empire → Home never dead-ends (real production button clicks, not direct method calls); `EmpireConstructionHomeTests` covers the construction panel's own upgrade/collect mechanics in isolation (6/6, one stale-wording assertion fixed — the row's own `resourceBonus` value was always correct, only its expected label text ("Resource" vs. the row's real "Cap" wording) was stale). Known non-blocking finding logged separately, not fixed here (file out of scope): `HomePagePresenter.cs`'s nav callbacks call `Destroy()` instead of `DestroyImmediate()` on screen transitions (project rule #7) — harmless in real Play Mode, EditMode-only log noise.
+- [x] **Permit + Stamina ladder UI:** Agent-proven — `HomeWeeklyPermitClaimTests` + `CollectionWeeklyPermitClaimTests` (weekly claim, hoard-full status, no dead-end); `ShopStaminaLadderUiTests` (four live Gem tiers on grid, ordered escalation, blocked skip with status).
 
 ## Evidence required for greenlight
 

@@ -23,6 +23,8 @@ namespace MyriadOfDragons.UI
             BuildUI();
         }
 
+        public GameObject CanvasObjectForTests => _canvasObj;
+
         private void BuildUI()
         {
             TeardownUI();
