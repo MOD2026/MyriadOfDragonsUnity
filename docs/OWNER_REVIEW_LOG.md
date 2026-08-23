@@ -270,3 +270,10 @@ collection timeline exactly (168 / 4 = 42 weeks). Two 7-day Expeditions per 14-d
 up to 4 Permits, together consuming the full weekly 4-Permit budget (replace, not stack, per the
 existing rule). Gates 1-5 all confirmed. Still READY FOR IMPLEMENTATION: No - blocked on trusted
 guild identity/time/result/score/claim service, same as before.
+
+**CC accept — Shop V2 vs Campaign Gem reconciliation (2026-08-23):** Confirmed real conflict
+(Ch1-10 grants ~772,551 Gems vs Shop's 250-400/month F2P planning assumption). Decision: do NOT
+reprice packs. Campaign Ch1-10 Gems are a one-time progression grant, not the ongoing economy - the
+per-stage Gem reward formulas need recompute against the intended post-campaign monthly rate, same
+treatment as POST_CH10_GOLD_RECOMPUTE_2026-08-23.md did for Gold. Inverse bulk-discount pricing
+structure stays valid as-is. Next: ChatGPT recompute task issued.
