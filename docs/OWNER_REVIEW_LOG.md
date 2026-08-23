@@ -263,3 +263,10 @@ exists - no client-authoritative reward exception for any mode. Multi-resource E
 no existing resource is safe as a second cost; Gold-only instant construction stays. A dedicated
 Castle/Barracks material remains a future option requiring separate new-resource approval. Still
 discussion-only overall - no implementation assigned.
+
+**CC accept — Guild Expedition + Competition reconciliation, corrected (2026-08-23):** Permit rate
+fixed to 4/week (was incorrectly assumed 8/week) - matches the already-locked ~9.7-month full-
+collection timeline exactly (168 / 4 = 42 weeks). Two 7-day Expeditions per 14-day season each grant
+up to 4 Permits, together consuming the full weekly 4-Permit budget (replace, not stack, per the
+existing rule). Gates 1-5 all confirmed. Still READY FOR IMPLEMENTATION: No - blocked on trusted
+guild identity/time/result/score/claim service, same as before.
