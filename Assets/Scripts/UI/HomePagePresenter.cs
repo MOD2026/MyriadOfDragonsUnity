@@ -736,7 +736,7 @@ public class HomePagePresenter : MonoBehaviour
 
     /// <summary>Destroy is not legal outside Play Mode (this project's own non-negotiable rule -
     /// DestroyImmediate(), not Destroy(), for anything reachable from Initialize(); EditMode
-    /// tests that click through the real Campaign Launch Battle button reach this directly).
+    /// tests that click through Empire/Avatar/Campaign nav reach this directly).
     /// Production (Play Mode) behavior and timing are unchanged - Destroy still runs there.</summary>
     private static void SafeDestroy(Object obj)
     {
@@ -760,11 +760,11 @@ public class HomePagePresenter : MonoBehaviour
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 SaveManager.Save();
                 RefreshTopHUD();
-                if (empire != null) Destroy(empire);
+                SafeDestroy(empire);
             },
             onOpenAvatar: () =>
             {
-                if (empire != null) Destroy(empire);
+                SafeDestroy(empire);
                 OpenAvatar(returnToEmpireOnBack: true);
             });
     }
@@ -782,18 +782,18 @@ public class HomePagePresenter : MonoBehaviour
             {
                 if (returnToEmpireOnBack)
                 {
-                    if (avatar != null) Destroy(avatar);
+                    SafeDestroy(avatar);
                     OpenEmpire();
                     return;
                 }
 
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 RefreshTopHUD();
-                if (avatar != null) Destroy(avatar);
+                SafeDestroy(avatar);
             },
             onOpenEmpire: () =>
             {
-                if (avatar != null) Destroy(avatar);
+                SafeDestroy(avatar);
                 OpenEmpire();
             });
     }

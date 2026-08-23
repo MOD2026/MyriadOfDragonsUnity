@@ -1,10 +1,8 @@
 using System.IO;
-using System.Text.RegularExpressions;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityEngine.UI;
 
 namespace MyriadOfDragons.Tests
@@ -67,21 +65,6 @@ namespace MyriadOfDragons.Tests
             return button;
         }
 
-        /// <summary>
-        /// HomePagePresenter.cs's own OpenEmpire()/OpenAvatar() nav callbacks call raw Destroy() on
-        /// the outgoing presenter (not DestroyImmediate()) - a real violation of this project's own
-        /// non-negotiable #7 ("DestroyImmediate(), not Destroy(), in anything reachable from
-        /// Initialize()"), logged as an Error by EditMode on every one of these transitions. It's
-        /// harmless in real Play Mode (Destroy() is correct there) but not this seat's file to fix
-        /// (HomePagePresenter.cs is Metagame-owned) - reported separately. Expecting the exact log
-        /// here proves the navigation itself still completes despite it, rather than silently
-        /// passing or silently failing on an unrelated log assertion.
-        /// </summary>
-        private static void ExpectHomePagePresenterEditModeDestroyWarning()
-        {
-            LogAssert.Expect(LogType.Error, new Regex(Regex.Escape("Destroy may not be called from edit mode")));
-        }
-
         [Test]
         public void FromHome_OpeningEmpire_ThenAvatar_ThenBackToEmpire_ThenBackToHome_NeverDeadEnds()
         {
@@ -104,7 +87,6 @@ namespace MyriadOfDragons.Tests
             // --- Empire -> Avatar, via the real on-screen "AVATAR" nav button ---
             Button openAvatarButton = FindButton(empire.CanvasObjectForTests, "EmpireHeader/OpenAvatarButton");
             Assert.IsTrue(openAvatarButton.interactable, "The Avatar nav button on the Empire screen must be clickable.");
-            ExpectHomePagePresenterEditModeDestroyWarning();
             openAvatarButton.onClick.Invoke();
 
             var avatar = home.GetComponent<AvatarPresenter>();
@@ -117,7 +99,6 @@ namespace MyriadOfDragons.Tests
             // --- Avatar -> Empire, via the real on-screen "OPEN EMPIRE" button (round trip, not a one-way door) ---
             Button openEmpireButton = FindButton(avatar.CanvasObjectForTests, "AvatarBody/Btn_OpenEmpire");
             Assert.IsTrue(openEmpireButton.interactable, "The Empire nav button on the Avatar screen must be clickable.");
-            ExpectHomePagePresenterEditModeDestroyWarning();
             openEmpireButton.onClick.Invoke();
 
             empire = home.GetComponent<EmpirePresenter>();
@@ -128,7 +109,6 @@ namespace MyriadOfDragons.Tests
             // --- Empire -> Home, via the real "< BACK" button ---
             Button backButton = FindButton(empire.CanvasObjectForTests, "EmpireHeader/Btn_Back");
             Assert.IsTrue(backButton.interactable, "The Empire screen's Back button must be clickable.");
-            ExpectHomePagePresenterEditModeDestroyWarning();
             backButton.onClick.Invoke();
 
             Assert.IsTrue(homeCanvas.activeSelf, "Backing out of Empire must restore Home - the whole path must be a round trip, not a dead end.");
