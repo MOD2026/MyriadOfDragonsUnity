@@ -458,3 +458,16 @@ corrected in the Drive doc directly, flagged for re-review before that office sh
 Also checked and confirmed NOT a bug: SPELL_CATALOG_v1.md's own flagged "Divine Bolt 100 vs live
 code stub 150" discrepancy - checked AvatarSpell.cs directly, live magnitude is genuinely 100,
 matches the lock. The catalog doc's warning note is just stale text, not a real bug.
+
+**CC accept, partial — Empire L30 timer bands, 6-9 month target confirmed (2026-08-23):** Owner
+confirmed the 6-9 month total completion target independently (was not previously locked anywhere -
+GPT's citation of it as an existing intention was actually a coincidental match, now formally
+locked here). Arithmetic roughly verified (~6.4-7.2 months depending on band-boundary assumptions,
+consistent). Timer bands 5-15min through 7-10 days, single builder slot, 275,000 Materials seasonal
+contract cap (18.6% of total - matches the requested 15-20% catch-up scale) all accepted.
+
+**Held, not yet locked:** structural pacing risk - MOD's 3-building serial system compared against
+Clash of Clans' dozens-of-simultaneous-structures base is an hours-match, not a feel-match; the
+top tier band (7-10 days x up to 3 buildings back-to-back) risks a 21-30+ consecutive-day endgame
+wait with nothing else happening, right before the completion reward. Sent back to ChatGPT to
+address before final lock.
