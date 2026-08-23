@@ -295,3 +295,12 @@ on it alongside Bazaar/Echo Arena/Guild Expedition. No raid implementation assig
 **WH audit (2026-08-23, findings only, no code):** Empire/HomeV3 UI structurally ready for a second
 resource pill + timer status copy - add-a-pill, not a redesign. Reference when Empire construction
 v2 gets built.
+
+**Block AB accepted; Block AA opens (2026-08-23):** Real baseline via batched per-class runs (zero
+stalls across 98 classes, confirms the stall only surfaces in one continuous long process, not a
+code bug) - 703/761, 28-cluster CardDatabase.cs issue confirmed fully closed. Castle Phase-1 (Block
+AA) accepted - its own tests aren't among the 58 failures and its blocker (CardDatabase reliability)
+is resolved. Remaining 58: 32 parked AF/AI-on combat-balance (known category), 12 Permit tests
+asserting stale pre-4/8-correction numbers (assigned to coding room to update), 12 confirmed
+pre-existing (cross-referenced against this morning's baseline, predate today's work), 2 genuinely
+new/unknown (EmpireConstructionHomeTests routed to WH, CampaignMatchContextLifecycleTests parked).
