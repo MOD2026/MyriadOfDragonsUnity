@@ -128,7 +128,7 @@ public sealed class BazaarOperationsTests
         store.Seed(EligibleInstance("inst-1", ownerId: "actor"));
         await Create(store).ListItemAsync(Context(), null!, ListRequest("inst-1", 100));
 
-        var instance = await store.LoadInstanceAsync("inst-1");
+        var instance = await store.LoadInstanceAsync(null!, null!, "inst-1");
         Assert.That(instance!.State, Is.EqualTo(ItemInstanceState.Listed));
     }
 
@@ -208,10 +208,10 @@ public sealed class BazaarOperationsTests
 
         await Create(store).BuyItemAsync(Context("buyer"), null!, BuyRequest("listing-1", "key-1"));
 
-        Assert.That((await store.LoadWalletAsync("buyer")).BalanceCredits, Is.EqualTo(100));
-        Assert.That((await store.LoadWalletAsync("seller")).BalanceCredits, Is.EqualTo(176)); // 200 - 12% = 176
+        Assert.That((await store.LoadWalletAsync(null!, null!, "buyer")).BalanceCredits, Is.EqualTo(100));
+        Assert.That((await store.LoadWalletAsync(null!, null!, "seller")).BalanceCredits, Is.EqualTo(176)); // 200 - 12% = 176
 
-        var instance = await store.LoadInstanceAsync(store.Listings["listing-1"].InstanceId);
+        var instance = await store.LoadInstanceAsync(null!, null!, store.Listings["listing-1"].InstanceId);
         Assert.That(instance!.OwnerId, Is.EqualTo("buyer"));
         Assert.That(instance.State, Is.EqualTo(ItemInstanceState.Owned));
         Assert.That(instance.LastAcquisitionWasPurchase, Is.True, "So the buyer's own next listing attempt uses the 72h relist hold, not the 7-day mint hold.");
@@ -226,7 +226,7 @@ public sealed class BazaarOperationsTests
 
         await Create(store).BuyItemAsync(Context("buyer"), null!, BuyRequest("listing-1", "key-1"));
 
-        var listing = await store.LoadListingAsync("listing-1");
+        var listing = await store.LoadListingAsync(null!, null!, "listing-1");
         Assert.That(listing!.State, Is.EqualTo(BazaarListingState.Sold));
     }
 
@@ -243,7 +243,7 @@ public sealed class BazaarOperationsTests
 
         Assert.That(second.PricePaidCredits, Is.EqualTo(first.PricePaidCredits));
         Assert.That(second.ListingId, Is.EqualTo(first.ListingId));
-        Assert.That((await store.LoadWalletAsync("buyer")).BalanceCredits, Is.EqualTo(400), "Only the first call may debit - the retry must not charge again.");
+        Assert.That((await store.LoadWalletAsync(null!, null!, "buyer")).BalanceCredits, Is.EqualTo(400), "Only the first call may debit - the retry must not charge again.");
     }
 
     [Test]
@@ -313,9 +313,9 @@ public sealed class BazaarOperationsTests
         var result = await Create(store).CancelListingAsync(Context("seller"), null!, new CancelListingRequest { ListingId = "listing-1" });
 
         Assert.That(result.Success, Is.True);
-        var listing = await store.LoadListingAsync("listing-1");
+        var listing = await store.LoadListingAsync(null!, null!, "listing-1");
         Assert.That(listing!.State, Is.EqualTo(BazaarListingState.Cancelled));
-        var instance = await store.LoadInstanceAsync(listing.InstanceId);
+        var instance = await store.LoadInstanceAsync(null!, null!, listing.InstanceId);
         Assert.That(instance!.State, Is.EqualTo(ItemInstanceState.Owned));
     }
 
@@ -445,25 +445,25 @@ public sealed class BazaarOperationsTests
 
         public void Seed(ItemInstance instance) => Instances[instance.InstanceId] = instance;
 
-        public Task<ItemInstance?> LoadInstanceAsync(string instanceId)
+        public Task<ItemInstance?> LoadInstanceAsync(IExecutionContext context, IGameApiClient apiClient, string instanceId)
             => Task.FromResult(Instances.TryGetValue(instanceId, out var instance) ? Clone(instance) : null);
 
-        public Task SaveInstanceAsync(ItemInstance instance)
+        public Task SaveInstanceAsync(IExecutionContext context, IGameApiClient apiClient, ItemInstance instance)
         {
             Instances[instance.InstanceId] = Clone(instance);
             return Task.CompletedTask;
         }
 
-        public Task<BazaarListing?> LoadListingAsync(string listingId)
+        public Task<BazaarListing?> LoadListingAsync(IExecutionContext context, IGameApiClient apiClient, string listingId)
             => Task.FromResult(Listings.TryGetValue(listingId, out var listing) ? Clone(listing) : null);
 
-        public Task SaveListingAsync(BazaarListing listing)
+        public Task SaveListingAsync(IExecutionContext context, IGameApiClient apiClient, BazaarListing listing)
         {
             Listings[listing.ListingId] = Clone(listing);
             return Task.CompletedTask;
         }
 
-        public Task<WalletState> LoadWalletAsync(string accountId)
+        public Task<WalletState> LoadWalletAsync(IExecutionContext context, IGameApiClient apiClient, string accountId)
         {
             if (!Wallets.TryGetValue(accountId, out var wallet))
             {
@@ -473,16 +473,16 @@ public sealed class BazaarOperationsTests
             return Task.FromResult(Clone(wallet));
         }
 
-        public Task SaveWalletAsync(WalletState wallet)
+        public Task SaveWalletAsync(IExecutionContext context, IGameApiClient apiClient, WalletState wallet)
         {
             Wallets[wallet.AccountId] = Clone(wallet);
             return Task.CompletedTask;
         }
 
-        public Task<BuyResult?> TryGetIdempotentBuyResultAsync(string buyerId, string idempotencyKey)
+        public Task<BuyResult?> TryGetIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey)
             => Task.FromResult(_idempotency.TryGetValue((buyerId, idempotencyKey), out var result) ? result : null);
 
-        public Task SaveIdempotentBuyResultAsync(string buyerId, string idempotencyKey, BuyResult result)
+        public Task SaveIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey, BuyResult result)
         {
             _idempotency[(buyerId, idempotencyKey)] = result;
             return Task.CompletedTask;

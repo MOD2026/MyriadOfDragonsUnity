@@ -56,7 +56,7 @@ public sealed class BazaarOperations
         {
             try
             {
-                var instance = await _store.LoadInstanceAsync(request.InstanceId);
+                var instance = await _store.LoadInstanceAsync(context, apiClient, request.InstanceId);
                 if (instance == null)
                 {
                     return new ListingResult { ErrorCode = "INSTANCE_NOT_FOUND" };
@@ -94,8 +94,8 @@ public sealed class BazaarOperations
                 };
 
                 instance.State = ItemInstanceState.Listed;
-                await _store.SaveInstanceAsync(instance);
-                await _store.SaveListingAsync(listing);
+                await _store.SaveInstanceAsync(context, apiClient, instance);
+                await _store.SaveListingAsync(context, apiClient, listing);
 
                 int goldFee = Math.Max(rules.ListingFeeMinimumGold, (request.AskCredits * rules.ListingFeePercent) / 100);
                 return new ListingResult { Success = true, ListingId = listing.ListingId, GoldFeeDue = goldFee };
@@ -139,7 +139,7 @@ public sealed class BazaarOperations
 
         string buyerId = context.PlayerId;
 
-        var existing = await _store.TryGetIdempotentBuyResultAsync(buyerId, request.IdempotencyKey);
+        var existing = await _store.TryGetIdempotentBuyResultAsync(context, apiClient, buyerId, request.IdempotencyKey);
         if (existing != null)
         {
             return existing;
@@ -148,7 +148,7 @@ public sealed class BazaarOperations
         var rules = await _rules.LoadAsync(context, apiClient);
         long now = _clock.UtcNowMs;
 
-        var listing = await _store.LoadListingAsync(request.ListingId);
+        var listing = await _store.LoadListingAsync(context, apiClient, request.ListingId);
         if (listing == null || listing.State != BazaarListingState.Active)
         {
             return new BuyResult { ErrorCode = "LISTING_NOT_AVAILABLE" };
@@ -159,19 +159,19 @@ public sealed class BazaarOperations
             return new BuyResult { ErrorCode = "SELF_TRADE_NOT_ALLOWED" };
         }
 
-        var buyerWallet = await _store.LoadWalletAsync(buyerId);
+        var buyerWallet = await _store.LoadWalletAsync(context, apiClient, buyerId);
         if (buyerWallet.BalanceCredits < listing.AskCredits)
         {
             return new BuyResult { ErrorCode = "INSUFFICIENT_CREDITS" };
         }
 
-        var sellerWallet = await _store.LoadWalletAsync(listing.SellerId);
+        var sellerWallet = await _store.LoadWalletAsync(context, apiClient, listing.SellerId);
         if (CountRecentSales(sellerWallet, now, rules.RollingSalesWindowMs) >= rules.MaxSalesPerRollingWindow)
         {
             return new BuyResult { ErrorCode = "SELLER_SALE_LIMIT_REACHED" };
         }
 
-        var instance = await _store.LoadInstanceAsync(listing.InstanceId);
+        var instance = await _store.LoadInstanceAsync(context, apiClient, listing.InstanceId);
         if (instance == null || instance.State != ItemInstanceState.Listed)
         {
             return new BuyResult { ErrorCode = "LISTING_NOT_AVAILABLE" };
@@ -195,10 +195,10 @@ public sealed class BazaarOperations
 
         try
         {
-            await _store.SaveWalletAsync(buyerWallet);
-            await _store.SaveWalletAsync(sellerWallet);
-            await _store.SaveInstanceAsync(instance);
-            await _store.SaveListingAsync(listing);
+            await _store.SaveWalletAsync(context, apiClient, buyerWallet);
+            await _store.SaveWalletAsync(context, apiClient, sellerWallet);
+            await _store.SaveInstanceAsync(context, apiClient, instance);
+            await _store.SaveListingAsync(context, apiClient, listing);
         }
         catch (BazaarStorageException exception)
         {
@@ -215,7 +215,7 @@ public sealed class BazaarOperations
             TaxTreasuryCredits = taxTreasury,
         };
 
-        await _store.SaveIdempotentBuyResultAsync(buyerId, request.IdempotencyKey, result);
+        await _store.SaveIdempotentBuyResultAsync(context, apiClient, buyerId, request.IdempotencyKey, result);
         return result;
     }
 
@@ -231,7 +231,7 @@ public sealed class BazaarOperations
             return new CancelListingResult { ErrorCode = "INVALID_REQUEST" };
         }
 
-        var listing = await _store.LoadListingAsync(request.ListingId);
+        var listing = await _store.LoadListingAsync(context, apiClient, request.ListingId);
         if (listing == null || listing.State != BazaarListingState.Active)
         {
             return new CancelListingResult { ErrorCode = "LISTING_NOT_AVAILABLE" };
@@ -242,7 +242,7 @@ public sealed class BazaarOperations
             return new CancelListingResult { ErrorCode = "NOT_SELLER" };
         }
 
-        var instance = await _store.LoadInstanceAsync(listing.InstanceId);
+        var instance = await _store.LoadInstanceAsync(context, apiClient, listing.InstanceId);
         if (instance == null)
         {
             return new CancelListingResult { ErrorCode = "INSTANCE_NOT_FOUND" };
@@ -253,8 +253,8 @@ public sealed class BazaarOperations
 
         try
         {
-            await _store.SaveInstanceAsync(instance);
-            await _store.SaveListingAsync(listing);
+            await _store.SaveInstanceAsync(context, apiClient, instance);
+            await _store.SaveListingAsync(context, apiClient, listing);
         }
         catch (BazaarStorageException exception)
         {
@@ -271,7 +271,7 @@ public sealed class BazaarOperations
             return new WalletResult { ErrorCode = "AUTHENTICATION_REQUIRED" };
         }
 
-        var wallet = await _store.LoadWalletAsync(context.PlayerId);
+        var wallet = await _store.LoadWalletAsync(context, apiClient, context.PlayerId);
         return new WalletResult { BalanceCredits = wallet.BalanceCredits };
     }
 
@@ -293,6 +293,11 @@ public sealed class BazaarOperations
 public sealed class BazaarModule
 {
     private readonly BazaarOperations _operations;
+
+    public BazaarModule()
+        : this(new CloudSaveBazaarStore())
+    {
+    }
 
     public BazaarModule(IBazaarStore store, IBazaarClock? clock = null, IBazaarRulesConfiguration? rules = null)
     {

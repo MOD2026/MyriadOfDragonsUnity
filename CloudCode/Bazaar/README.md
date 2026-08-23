@@ -25,18 +25,26 @@ system packet's §§1-3:
 - **Cancelling** (`CancelBazaarListing`): seller-only, returns the instance to `Owned`.
 - **Wallet read** (`GetBazaarWallet`).
 
+**Persistence backend: CLOSED.** `CloudSaveBazaarStore` is a real implementation, using Cloud
+Save's **Game Data / Custom Items** feature - confirmed via docs.unity.com/en-us/cloud-save/
+concepts/game-data and verified against the actual installed `Com.Unity.Services.CloudCode.Apis`
+0.0.26 assembly by reflection (not assumed from docs alone): `ICloudSaveDataApi.
+GetCustomItemsAsync`/`SetCustomItemAsync`/`DeleteCustomItemAsync` exist with the same
+`(executionContext, accessToken, projectId, customId, ...)` shape as this project's existing
+player-scoped calls, `customId` standing in for `playerId`. Both `ItemInstance` and
+`BazaarListing` live under one fixed shared `customId` ("bazaar-board") since ownership moves
+between two different accounts on every sale; Custom Items' default Access Class is exactly
+"readable by any player, writeable only from a server," matching the packet's server-authoritative
+requirement precisely. Wallets and the idempotent-buy-result ledger stay on ordinary player-scoped
+Cloud Save, keyed explicitly by account ID rather than always `context.PlayerId` (a purchase must
+credit the seller, not just debit the buyer). See `CloudSaveBazaarStore`'s own doc comment for the
+full reasoning, including the known scale limitation (2,000 keys per customId - fine for Phase 1,
+would need sharding or Game Data's query/index support at real scale, not implemented here).
+`Bazaar.ServerTests` still exercises all business logic against the in-memory reference store from
+the first pass; that coverage is unaffected by adding the real store alongside it.
+
 **Deliberately deferred:**
 
-- **The persistence backend for `BazaarListing`.** This is the biggest open item, bigger than the
-  genesis auction below. Wallets and item instances are naturally per-account data - the same
-  player-scoped Cloud Save pattern the other three modules already use with a real, verified
-  `apiClient.CloudSaveData` implementation. A `BazaarListing` is different in kind: it must be
-  visible to every prospective buyer, not just its seller, which needs shared/cross-account
-  storage (Cloud Save's Custom/non-player data scope, or an external database). This scaffold does
-  not select or implement that - see `IBazaarStore`'s own doc comment for why guessing at an
-  unverified API surface here was rejected in favor of being explicit about the gap. All business
-  logic (fees, tax math, holds, self-trade rejection, idempotency) is fully implemented and tested
-  against an in-memory reference store instead.
 - **The one-time capped Treasury genesis-liquidity reverse auction** (accept doc decisions 3-4). A
   separate, later module per CC's own instruction - a fundamentally different one-time mechanism
   (Treasury buys lowest asks at a uniform clearing price, once, budget never refills), not part of
@@ -87,8 +95,7 @@ dotnet test CloudCode/Bazaar/Bazaar.ServerTests/Bazaar.ServerTests.csproj --conf
 
 ## Status
 
-Authored locally; server-tested locally. Not deployed. `BazaarModule` has no parameterless
-constructor (unlike the other three modules) - it requires an explicit `IBazaarStore`, since there
-is no default concrete implementation to fall back to. This is a scaffold for the recurring
-list/buy/sell loop only; genesis liquidity, the Gold ledger, and the shared-listing persistence
-backend all remain open, separately-owned decisions.
+Authored locally; server-tested locally. Not deployed. `BazaarModule` has its parameterless
+constructor back (defaults to `CloudSaveBazaarStore`), matching the other three modules, now that
+the persistence backend gap is closed. This is a scaffold for the recurring list/buy/sell loop
+only; genesis liquidity and the Gold ledger remain open, separately-owned decisions.

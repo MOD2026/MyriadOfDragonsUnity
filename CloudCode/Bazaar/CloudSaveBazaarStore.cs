@@ -1,0 +1,227 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Unity.Services.CloudCode.Apis;
+using Unity.Services.CloudCode.Core;
+using Unity.Services.CloudSave.Model;
+
+namespace MyriadOfDragons.CloudCode.Bazaar;
+
+/// <summary>
+/// Real Cloud Save-backed <see cref="IBazaarStore"/>, closing the storage gap flagged when this
+/// module was first authored. Verified against the actual installed
+/// Com.Unity.Services.CloudCode.Apis 0.0.26 assembly via reflection (not assumed from the concept
+/// docs alone) - <c>ICloudSaveDataApi.GetCustomItemsAsync</c>/<c>SetCustomItemAsync</c>/
+/// <c>DeleteCustomItemAsync</c> take the same (executionContext, accessToken, projectId, customId,
+/// ...) shape as this project's existing player-scoped calls, with <c>customId</c> replacing
+/// <c>playerId</c>. Confirmed via Unity's own docs (docs.unity.com/en-us/cloud-save/concepts/
+/// game-data): Custom Items' default Access Class is readable by any player client-side but
+/// writeable only from a server - exactly "anyone can browse the board, only Cloud Code can
+/// mutate a listing," the server-authoritative requirement the source packet calls for.
+///
+/// Listings AND item instances both live under one fixed shared customId
+/// (<see cref="BoardCustomId"/>) rather than per-player storage, because ownership of an
+/// ItemInstance changes hands between two different accounts on every sale - keeping it in a
+/// single shared bucket avoids an awkward "move a record between two players' Cloud Save buckets"
+/// step. A real launch with many concurrent listings would likely need to shard across multiple
+/// customIds (each capped at 2,000 keys) or move to Game Data's query/index support - not
+/// implemented here; see README.
+///
+/// Wallets and the idempotent-buy-result ledger stay on ordinary player-scoped Cloud Save (the
+/// same proven pattern SocialSafety/PermitWeekKey/GuildExpedition already use), keyed by the
+/// account that actually owns that data - which is why <see cref="IBazaarStore"/>'s wallet methods
+/// take an explicit accountId rather than always trusting context.PlayerId: a purchase must credit
+/// the SELLER's wallet too, not just the buyer's.
+/// </summary>
+public sealed class CloudSaveBazaarStore : IBazaarStore
+{
+    private const string BoardCustomId = "bazaar-board";
+    private const string InstanceKeyPrefix = "instance.";
+    private const string ListingKeyPrefix = "listing.";
+    private const string WalletKey = "bazaar.wallet";
+    private const string IdempotencyKeyPrefix = "bazaar.idempotency.";
+
+    public Task<ItemInstance?> LoadInstanceAsync(IExecutionContext context, IGameApiClient apiClient, string instanceId)
+        => LoadCustomItemAsync<ItemInstance>(context, apiClient, InstanceKeyPrefix + instanceId);
+
+    public Task SaveInstanceAsync(IExecutionContext context, IGameApiClient apiClient, ItemInstance instance)
+        => SaveCustomItemAsync(context, apiClient, InstanceKeyPrefix + instance.InstanceId, instance, instance.WriteLock);
+
+    public Task<BazaarListing?> LoadListingAsync(IExecutionContext context, IGameApiClient apiClient, string listingId)
+        => LoadCustomItemAsync<BazaarListing>(context, apiClient, ListingKeyPrefix + listingId);
+
+    public Task SaveListingAsync(IExecutionContext context, IGameApiClient apiClient, BazaarListing listing)
+        => SaveCustomItemAsync(context, apiClient, ListingKeyPrefix + listing.ListingId, listing, listing.WriteLock);
+
+    public async Task<WalletState> LoadWalletAsync(IExecutionContext context, IGameApiClient apiClient, string accountId)
+    {
+        try
+        {
+            var response = await apiClient.CloudSaveData.GetItemsAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                accountId,
+                new List<string> { WalletKey });
+            if (response.Data.Results.Count == 0)
+            {
+                return new WalletState { AccountId = accountId };
+            }
+
+            var item = response.Data.Results[0];
+            var value = item.Value?.ToString();
+            var wallet = string.IsNullOrWhiteSpace(value)
+                ? new WalletState { AccountId = accountId }
+                : JsonConvert.DeserializeObject<WalletState>(value) ?? new WalletState { AccountId = accountId };
+            wallet.WriteLock = item.WriteLock;
+            return wallet;
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task SaveWalletAsync(IExecutionContext context, IGameApiClient apiClient, WalletState wallet)
+    {
+        try
+        {
+            var body = new SetItemBody(WalletKey, JsonConvert.SerializeObject(wallet));
+            if (wallet.WriteLock != null)
+            {
+                body.WriteLock = wallet.WriteLock;
+            }
+
+            await apiClient.CloudSaveData.SetItemAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                wallet.AccountId,
+                body);
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task<BuyResult?> TryGetIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey)
+    {
+        try
+        {
+            var response = await apiClient.CloudSaveData.GetItemsAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                buyerId,
+                new List<string> { IdempotencyKeyPrefix + idempotencyKey });
+            if (response.Data.Results.Count == 0)
+            {
+                return null;
+            }
+
+            var value = response.Data.Results[0].Value?.ToString();
+            return string.IsNullOrWhiteSpace(value) ? null : JsonConvert.DeserializeObject<BuyResult>(value);
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task SaveIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey, BuyResult result)
+    {
+        try
+        {
+            var body = new SetItemBody(IdempotencyKeyPrefix + idempotencyKey, JsonConvert.SerializeObject(result));
+            await apiClient.CloudSaveData.SetItemAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                buyerId,
+                body);
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    private static async Task<T?> LoadCustomItemAsync<T>(IExecutionContext context, IGameApiClient apiClient, string key) where T : class
+    {
+        try
+        {
+            var response = await apiClient.CloudSaveData.GetCustomItemsAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                BoardCustomId,
+                new List<string> { key });
+            if (response.Data.Results.Count == 0)
+            {
+                return null;
+            }
+
+            var item = response.Data.Results[0];
+            var value = item.Value?.ToString();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            var deserialized = JsonConvert.DeserializeObject<T>(value);
+            if (deserialized == null)
+            {
+                return null;
+            }
+
+            SetWriteLock(deserialized, item.WriteLock);
+            return deserialized;
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    private static async Task SaveCustomItemAsync<T>(IExecutionContext context, IGameApiClient apiClient, string key, T value, string? writeLock) where T : class
+    {
+        try
+        {
+            var body = new SetItemBody(key, JsonConvert.SerializeObject(value));
+            if (writeLock != null)
+            {
+                body.WriteLock = writeLock;
+            }
+
+            await apiClient.CloudSaveData.SetCustomItemAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                BoardCustomId,
+                body);
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    private static void SetWriteLock<T>(T state, string? writeLock) where T : class
+    {
+        switch (state)
+        {
+            case ItemInstance instance: instance.WriteLock = writeLock; break;
+            case BazaarListing listing: listing.WriteLock = writeLock; break;
+        }
+    }
+
+    private static string ClassifyStorageError(Exception exception)
+    {
+        string text = exception.GetType().Name + " " + exception.Message;
+        return text.IndexOf("409", StringComparison.OrdinalIgnoreCase) >= 0 || text.IndexOf("Conflict", StringComparison.OrdinalIgnoreCase) >= 0
+            ? "CONFLICT"
+            : "STORAGE_UNAVAILABLE";
+    }
+}
