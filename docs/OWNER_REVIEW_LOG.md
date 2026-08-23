@@ -284,3 +284,14 @@ at the 300 Gems/month F2P target. Rejected the first pass (2,914, flat trickle, 
 273-stage campaign) in favor of milestone weighting. Shop V2 pack pricing/inverse-discount stays
 unchanged - this fixes the source, not the prices. Not yet implemented - needs assignment to a
 coding seat (CampaignMapPresenter.cs stage reward formulas).
+
+**CC accept — Raid Troop training-time economics locked (2026-08-23):** Barracks-scaled storage
+(10->30) and training rate (30min->5min), 5-troop attack cost, asymmetric win/lose (net -1 vs -5),
+no purchase/refill path. Design is sound. Still blocked on two real prerequisites, unchanged: (1) a
+formal Guild_Competition_Rewards_v1.md §6 amendment - that's an MOS v1.2 owner-approved doc, needs
+Zihan's explicit sign-off, not just CC's; (2) trusted-server authority, now the 4th system waiting
+on it alongside Bazaar/Echo Arena/Guild Expedition. No raid implementation assigned to any seat.
+
+**WH audit (2026-08-23, findings only, no code):** Empire/HomeV3 UI structurally ready for a second
+resource pill + timer status copy - add-a-pill, not a redesign. Reference when Empire construction
+v2 gets built.
