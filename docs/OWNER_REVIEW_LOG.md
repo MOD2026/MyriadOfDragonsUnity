@@ -519,3 +519,13 @@ became "Academy"), Tree of Knowledge, and Prison (captive/sacrifice system tied 
 Barracks/Gate already have "v2 revision" notes mapping them to the current TCG model. Prison
 requires the same trusted-server/raid infrastructure as Bazaar/Raid Troops - not standalone.
 Superseding the earlier "propose from scratch" ChatGPT task with this real source material.
+
+**Real gap found (2026-08-23): no spell equip/loadout system exists in production.** BattleController
+hardcodes CreateDefaultSpellbook() (starter 4) unconditionally for both player and AI, every match.
+CreatePhase1Catalog() (today's 14-spell catalog) is called nowhere in production, only from its own
+test file. No branch/config/save-field for spell selection exists anywhere (checked
+DeckBuilderPresenter.cs, PlayerProfile.cs - zero matches). "Max 1 AvatarStrike" correctly not
+implemented - there's no equip action anywhere for it to intercept yet. This means today's spell
+work is real and tested but currently inert to players - a loadout/unlock system is the real next
+piece needed to make it count. Flagged as "when this system exists, remember this rule," not built
+speculatively.
