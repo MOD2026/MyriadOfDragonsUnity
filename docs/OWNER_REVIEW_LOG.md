@@ -366,3 +366,13 @@ non-purchasable in Phase 1 - reasoned decision (contradicts the resource's earn-
 identity), not a reflexive DAG rejection. This resolves the real genre-pattern gaps found in v1
 (missing urgency mechanics, missing subscription, weak bundle discounts). Design-locked, not
 implemented - all Phase-2/post-MVP, no coding seat assigned.
+
+**CC accept — Chapter 1 narrative continuation, 1-4 through 1-12 (2026-08-23):** Real escalating
+arc (Thaleia/Rusk/Ione, the Olympus-conflict hook from 1-3's unused "Olympus will notice this
+wound" line), ends on a real Chapter 2 hook. Tutorial confirmed correctly mechanical-only, one
+framing line added. Not yet implemented - WH's job (StoryDatabase.cs is Story-owned/metagame).
+
+**Locked production rule: animation scoping.** Every stage keeps cheap text-only StorySequence
+dialogue (no art cost). Animated Cinematics reserved for ~3 milestones per chapter (open/mid-turn/
+clear), not per-stage - avoids overkill across a 273-stage campaign. Same gap (thin depth-fill
+narrative, 2-4..N) confirmed present in every chapter through Ch10, same pattern as Ch1.
