@@ -511,3 +511,11 @@ now (Academy = personal research + Materials sink, no guild-help; Embassy = near
 it has no real solo function per its own design), full guild-integrated versions later once the
 server exists. Design task issued to ChatGPT. Empire v2's "FINAL" status from the prior entry is
 superseded - 5-building interlock/timeline needs recompute.
+
+**Real source found for Empire building roster (2026-08-23):** tools/mechanics_v2_extract.txt (the
+original Mechanics v2 docx, already extracted) has a full 10-building original design: Castle,
+Barrack, Storage, Training Grounds, Barn, Gold Mines, Gate, Laboratory (unspecified research -
+became "Academy"), Tree of Knowledge, and Prison (captive/sacrifice system tied to raiding). Castle/
+Barracks/Gate already have "v2 revision" notes mapping them to the current TCG model. Prison
+requires the same trusted-server/raid infrastructure as Bazaar/Raid Troops - not standalone.
+Superseding the earlier "propose from scratch" ChatGPT task with this real source material.
