@@ -23,14 +23,30 @@ namespace MyriadOfDragons.Story
         private static void AddStageDialogue(string stageId, string title, StorySpeaker enemy,
             string preEnemyLine, string prePlayerLine, string postEnemyLine, string postPlayerLine)
         {
+            AddAuthoredStageDialogue(stageId, title,
+                new[]
+                {
+                    new DialogueLine(enemy, preEnemyLine),
+                    new DialogueLine(playerSpeaker, prePlayerLine),
+                },
+                new[]
+                {
+                    new DialogueLine(enemy, postEnemyLine),
+                    new DialogueLine(playerSpeaker, postPlayerLine),
+                });
+        }
+
+        /// <summary>Authored multi-speaker pre/post for Ch1-3 continuation
+        /// (docs/CAMPAIGN_NARRATIVE_CH1_3_2026-08-23.md).</summary>
+        private static void AddAuthoredStageDialogue(string stageId, string title,
+            DialogueLine[] preLines, DialogueLine[] postLines)
+        {
             var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
-            pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
-            pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+            pre.lines.AddRange(preLines);
             sequences[$"{stageId}_pre"] = pre;
 
             var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
-            post.lines.Add(new DialogueLine(enemy, postEnemyLine));
-            post.lines.Add(new DialogueLine(playerSpeaker, postPlayerLine));
+            post.lines.AddRange(postLines);
             sequences[$"{stageId}_post"] = post;
         }
 
@@ -84,72 +100,120 @@ namespace MyriadOfDragons.Story
             stage1_3Post.lines.Add(new DialogueLine(playerSpeaker, "Let them. Chapter one ends here - but the war for Boiotia has only begun."));
             sequences["1-3_post"] = stage1_3Post;
 
-            // Chapter 1 depth expansion, Stages 1-4..1-12 (2026-08-22, owner: "stickiness = many
-            // sequential fights") - one speaker per stage (matching that stage's enemyName in
-            // CampaignMapPresenter), short two-line pre/post dialogue via the light template above.
-            var foothillRaiders = new StorySpeaker("foothill_raiders", "Foothill Raiders", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var bridgeWardens = new StorySpeaker("bridge_wardens", "Bridge Wardens", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var groveCultists = new StorySpeaker("grove_cultists", "Grove Cultists", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var quarryOverseers = new StorySpeaker("quarry_overseers", "Quarry Overseers", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var passMarauders = new StorySpeaker("pass_marauders", "Pass Marauders", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var aqueductGuard = new StorySpeaker("aqueduct_guard", "Aqueduct Guard", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var watchtowerGarrison = new StorySpeaker("watchtower_garrison", "Watchtower Garrison", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var hollowBornVanguard = new StorySpeaker("hollow_born_vanguard", "Hollow-Born Vanguard", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var gatekeeper = new StorySpeaker("gatekeeper", "Gatekeeper of Boiotia", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            // Chapter 1 continuation, Stages 1-4..1-12 (docs/CAMPAIGN_NARRATIVE_CH1_3_2026-08-23.md).
+            // Recurring cast: Thaleia / Rusk / Ione. Interaction prompts are resolved in the
+            // post-dialogue lines (no separate choice UI in Phase 1).
+            var thaleia = new StorySpeaker("thaleia", "Thaleia, the Olympus Envoy", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var rusk = new StorySpeaker("rusk", "Rusk Ashrunner", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var ione = new StorySpeaker("ione", "Ione of the Glass Choir", "UI/Portraits/Paladin", SpeakerPosition.Right);
 
-            AddStageDialogue("1-4", "Ashen Foothills", foothillRaiders,
-                "Gorn is dead, but his foothills are still ours! You'll not pass unchallenged.",
-                "Scatter them. The citadel's fall means nothing while stragglers still bar the road.",
-                "Fall back - regroup at the bridge!",
-                "The foothills are clear. On to the crossing.");
+            AddAuthoredStageDialogue("1-4", "Ashen Foothills",
+                new[]
+                {
+                    new DialogueLine(rusk, "Gorn is dead, but his soldiers are not. They are searching the ruins for the signal stone."),
+                    new DialogueLine(playerSpeaker, "Then we reach it first."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You chose the ruins. Good. The stone is warm—and marked with an Olympus seal."),
+                    new DialogueLine(thaleia, "You were not supposed to see that."),
+                });
 
-            AddStageDialogue("1-5", "Sundered Bridge", bridgeWardens,
-                "This bridge is the only crossing left standing. You'll not take it from us.",
-                "Then we take it anyway. Hold the line and push them off the span!",
-                "The bridge... it's yours. May it hold your weight better than it held ours.",
-                "It will. Forward, into the grove.");
+            AddAuthoredStageDialogue("1-5", "Sundered Bridge",
+                new[]
+                {
+                    new DialogueLine(thaleia, "Gorn's defeat was registered above. Withdraw, and Olympus may forget your name."),
+                    new DialogueLine(playerSpeaker, "You came all this way to ask?"),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You challenged it. Then hear this: the wound is widening beneath the old bridge."),
+                    new DialogueLine(rusk, "And every raider in the foothills is being driven toward it."),
+                });
 
-            AddStageDialogue("1-6", "Whispering Grove", groveCultists,
-                "The Warlord's spirit still commands these oaks. Turn back, or feed the roots.",
-                "Superstition won't stop steel. Clear the grove.",
-                "The oaks... go silent. Our cult dies with them.",
-                "Let it. The quarry is next.");
+            AddAuthoredStageDialogue("1-6", "Whispering Grove",
+                new[]
+                {
+                    new DialogueLine(rusk, "The raiders are not attacking for land. They are being herded."),
+                    new DialogueLine(playerSpeaker, "By whom?"),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You protected the villages. The survivors saw a woman with a cracked halo."),
+                    new DialogueLine(thaleia, "That was not my order. Someone is wearing Olympus's authority."),
+                });
 
-            AddStageDialogue("1-7", "Iron Quarry", quarryOverseers,
-                "This quarry feeds what's left of Gorn's war machine. You'll not shut it down.",
-                "Every chain you're holding here is a reason to end this quickly.",
-                "The overseers... routed. The slaves are free.",
-                "Free, and armed with what we find here. Onward to the pass.");
+            AddAuthoredStageDialogue("1-7", "Iron Quarry",
+                new[]
+                {
+                    new DialogueLine(ione, "The glass showed me three fires: one below, one above, and one inside your own ranks."),
+                    new DialogueLine(playerSpeaker, "Which fire do we extinguish first?"),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You trusted your scouts. They found an Olympus relay beneath the bridge."),
+                    new DialogueLine(thaleia, "Destroy it, and the signal will become a summons."),
+                });
 
-            AddStageDialogue("1-8", "Wolfsbane Pass", passMarauders,
-                "Few of us are left, but we hold the only pass north. Come and see how few is enough.",
-                "Few or not, you stand between us and the aqueduct. Move.",
-                "The pass... falls. There's nothing left to hold it with.",
-                "Then hold nothing. We march on.");
+            AddAuthoredStageDialogue("1-8", "Wolfsbane Pass",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The relay is a gate-key. Gorn was never the true target—the valley was."),
+                    new DialogueLine(playerSpeaker, "Then why warn me?"),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You demanded surrender. I will not give it—but I will tell you the truth."),
+                    new DialogueLine(thaleia, "Olympus is divided, and one faction wants your victory turned into a beacon."),
+                });
 
-            AddStageDialogue("1-9", "Sunken Aqueduct", aqueductGuard,
-                "This old aqueduct still moves supplies no one was meant to see. Turn back now.",
-                "All the more reason to see it sealed. Clear the guard.",
-                "The aqueduct is yours. Whatever moved through it moves no longer.",
-                "Good. Now the watchtower stands between us and the hollow.");
+            AddAuthoredStageDialogue("1-9", "Sunken Aqueduct",
+                new[]
+                {
+                    new DialogueLine(rusk, "The beacon is active. Villages are seeing stars in daylight."),
+                    new DialogueLine(playerSpeaker, "Then we cut its power."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You struck the beacon. It broke, but something answered from the mountain."),
+                    new DialogueLine(ione, "The answer had a name: the Crown Below."),
+                });
 
-            AddStageDialogue("1-10", "Obsidian Watchtower", watchtowerGarrison,
-                "This tower still signals for reinforcements that will never come. Try your luck anyway.",
-                "Then let's make sure that signal never reaches anyone. Silence it.",
-                "The tower falls silent. No one is coming to relieve us.",
-                "No one is coming for any of you. Ember Hollow awaits.");
+            AddAuthoredStageDialogue("1-10", "Obsidian Watchtower",
+                new[]
+                {
+                    new DialogueLine(ione, "The Crown Below was buried before Olympus had a throne."),
+                    new DialogueLine(playerSpeaker, "What happens if it wakes?"),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You descended. The chamber was empty except for Gorn's war-banner."),
+                    new DialogueLine(thaleia, "His fall was staged. His last command is still moving armies."),
+                });
 
-            AddStageDialogue("1-11", "Ember Hollow", hollowBornVanguard,
-                "We are what remains of Gorn's true vanguard. We do not break, Sovereign.",
-                "Everything breaks eventually. Today, it's your turn.",
-                "The vanguard... breaks. Gorn's line ends here, truly.",
-                "Then only the gate remains. Boiotia is almost ours.");
+            AddAuthoredStageDialogue("1-11", "Ember Hollow",
+                new[]
+                {
+                    new DialogueLine(thaleia, "Gorn's surviving host is marching on the summit, carrying the Crown's broken seal."),
+                    new DialogueLine(playerSpeaker, "And Olympus?"),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You kept Olympus out. For the first time, the valley stands by its own decision."),
+                    new DialogueLine(rusk, "Then let the summit hear it."),
+                });
 
-            AddStageDialogue("1-12", "Boiotia's Gate", gatekeeper,
-                "Beyond this gate lies Boiotia itself - and ash enough to bury an army. You first.",
-                "Open it, or we open it for you. Chapter one ends at this gate.",
-                "The gate... gives way. Boiotia's ashes are yours to walk through now.",
-                "Chapter one ends here - but the war for Boiotia has only begun.");
+            AddAuthoredStageDialogue("1-12", "Boiotia's Gate",
+                new[]
+                {
+                    new DialogueLine(rusk, "The summit is burning. Gorn's banner flies above the gate, but Gorn is not there."),
+                    new DialogueLine(ione, "The Crown Below is speaking through the dead."),
+                },
+                new[]
+                {
+                    new DialogueLine(playerSpeaker, "The banner falls. The voice remains."),
+                    new DialogueLine(thaleia, "You have wounded Olympus's enemy—and now it knows your name. Chapter Two will not be a rescue. It will be an invasion."),
+                });
 
             // Chapter 2 "Ashes of Boiotia" (2026-08-22) - Stage 2-1/2-2/2-3 pre/post-battle
             // dialogue, same short two-line pattern every Chapter 1 stage already uses.
@@ -184,90 +248,541 @@ namespace MyriadOfDragons.Story
             stage2_3Post.lines.Add(new DialogueLine(playerSpeaker, "It just did. Chapter two ends here - Olympus will send worse next."));
             sequences["2-3_post"] = stage2_3Post;
 
-            // Chapter 2 depth fill, Stages 2-4..2-21 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
-            // wartime doctrine - token efficiency, no docs essays): a small templated generator
-            // instead of eighteen hand-authored speaker/line pairs. Same short two-line pre/post
-            // shape every other stage already uses; enemyName/title match
-            // CampaignMapPresenter.Chapter2DepthFlavor exactly so the story and the map agree.
-            (string stageId, string title, string enemyName)[] depthStages =
-            {
-                ("2-4", "Cinder Watch", "Cinder Sentries"),
-                ("2-5", "Sulfur Flats", "Flat-Born Raiders"),
-                ("2-6", "Broken Kiln", "Kiln Wardens"),
-                ("2-7", "Slagpour Ridge", "Slagpour Sentinels"),
-                ("2-8", "Charcoal Hollow", "Hollow Stalkers"),
-                ("2-9", "Ember Causeway", "Causeway Guard"),
-                ("2-10", "Grey Ash Fields", "Ashfield Marauders"),
-                ("2-11", "Titan's Cradle", "Cradle Keepers"),
-                ("2-12", "Smouldering Vault", "Vault Sentries"),
-                ("2-13", "Cracked Foundry", "Foundry Remnant"),
-                ("2-14", "Pale Ash Crossing", "Crossing Wardens"),
-                ("2-15", "Blackrock Descent", "Descent Guard"),
-                ("2-16", "Cinderfall Bastion", "Bastion Legionnaires"),
-                ("2-17", "Ruined Signal Tower", "Tower Remnant"),
-                ("2-18", "Molten Scar", "Scarborn Vanguard"),
-                ("2-19", "Last Ember Camp", "Ember Camp Guard"),
-                ("2-20", "Ashen Threshold", "Threshold Wardens"),
-                ("2-21", "Legion's End", "Legion Remnant Command"),
-            };
+            // Chapter 2 continuation, Stages 2-4..2-21 (docs/CAMPAIGN_NARRATIVE_CH1_3_2026-08-23.md).
+            // Same Thaleia / Rusk / Ione cast. Titles match CampaignMapPresenter.Chapter2DepthFlavor.
+            AddAuthoredStageDialogue("2-4", "Cinder Watch",
+                new[]
+                {
+                    new DialogueLine(rusk, "The invasion crossed the eastern ridge before dawn."),
+                    new DialogueLine(thaleia, "That army bears Olympus colours, but not Olympus orders."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You secured the ridge. The villages still stand—but the invaders now know we are watching."),
+                });
 
-            foreach ((string stageId, string title, string enemyName) in depthStages)
-            {
-                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
-                AddStageDialogue(stageId, title, enemy,
-                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
-                    $"Olympus isn't here. Clear {title} and keep moving.",
-                    $"{enemyName} scatter, broken.",
-                    $"{title} is behind us. Boiotia's ash still stretches on.");
-            }
+            AddAuthoredStageDialogue("2-5", "Sulfur Flats",
+                new[]
+                {
+                    new DialogueLine(ione, "The ash falling from the sky is not ash. It is memory burned into dust."),
+                    new DialogueLine(playerSpeaker, "Then someone is burning history."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You followed the ash. It led to a sealed Boiotian road beneath the battlefield."),
+                });
 
-            // Chapter 3 depth fill, Stages 3-1..3-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
-            // wartime doctrine - token efficiency): same templated generator as Chapter 2's own
-            // depth fill above. title/enemyName match CampaignMapPresenter.Chapter3DepthFlavor.
-            (string stageId, string title, string enemyName)[] chapter3Stages =
-            {
-                ("3-1", "Blackglass Shore", "Shore Wardens"),
-                ("3-2", "Sundered Causeway", "Causeway Remnant"),
-                ("3-3", "Cinder Marsh", "Marsh Stalkers"),
-                ("3-4", "Iron Spine Ridge", "Ridge Legionnaires"),
-                ("3-5", "Hollow Cistern", "Cistern Guard"),
-                ("3-6", "Ashwind Bluffs", "Bluff Sentries"),
-                ("3-7", "Charred Vineyard", "Vineyard Remnant"),
-                ("3-8", "Obsidian Trench", "Trench Legion"),
-                ("3-9", "Smokeveil Pass", "Veil Marauders"),
-                ("3-10", "Ruined Aquifer", "Aquifer Guard"),
-                ("3-11", "Ember Terrace", "Terrace Sentinels"),
-                ("3-12", "Grey Salt Flats", "Flat Legion Remnant"),
-                ("3-13", "Cracked Aqueduct Span", "Span Wardens"),
-                ("3-14", "Molten Foothills", "Foothill Legionnaires"),
-                ("3-15", "Ashfall Watchpost", "Watchpost Guard"),
-                ("3-16", "Titan's Rib", "Rib Keepers"),
-                ("3-17", "Cindergate Hollow", "Hollow Legion"),
-                ("3-18", "Scorched Reliquary", "Reliquary Guard"),
-                ("3-19", "Ember Palisade", "Palisade Sentries"),
-                ("3-20", "Deep Ash Descent", "Descent Legion"),
-                ("3-21", "Cinderfall Chasm", "Chasm Wardens"),
-                ("3-22", "Obsidian Colonnade", "Colonnade Guard"),
-                ("3-23", "Ashen Necropolis", "Necropolis Remnant"),
-                ("3-24", "Molten Crown Ridge", "Crown Legionnaires"),
-                ("3-25", "Titan's Last Forge", "Forge Keepers"),
-                ("3-26", "Cindersea Shallows", "Shallows Guard"),
-                ("3-27", "Legion's Deep Camp", "Deep Camp Command"),
-                ("3-28", "Boiotia's Ember Core", "Ember Core Guard"),
-                ("3-29", "Olympus' Ashen Gate", "Gate Legion Command"),
-                ("3-30", "Boiotia's Last Stand", "Legion High Command"),
-            };
+            AddAuthoredStageDialogue("2-6", "Broken Kiln",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The road leads toward the old city. If it opens, the invasion will bypass every defence."),
+                    new DialogueLine(playerSpeaker, "Then the road becomes our battlefield."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You sealed it. Something on the other side answered with a human voice."),
+                });
 
-            foreach ((string stageId, string title, string enemyName) in chapter3Stages)
-            {
-                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
-                bool isFinal = stageId == "3-30";
-                AddStageDialogue(stageId, title, enemy,
-                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
-                    isFinal ? "This is the last of them. Finish it." : $"Olympus isn't here. Clear {title} and keep moving.",
-                    isFinal ? "Command falls. There is nothing left standing between us and Olympus." : $"{enemyName} scatter, broken.",
-                    isFinal ? "Chapter three ends here. What Olympus does next is its own choice to answer for." : $"{title} is behind us. Boiotia's ash still stretches on.");
-            }
+            AddAuthoredStageDialogue("2-7", "Slagpour Ridge",
+                new[]
+                {
+                    new DialogueLine(rusk, "Refugees are gathering at the river. The enemy is using them as cover."),
+                    new DialogueLine(playerSpeaker, "No army hides behind civilians and keeps its honour."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You rescued them. One survivor carried a burned Olympus writ bearing Thaleia's seal."),
+                });
+
+            AddAuthoredStageDialogue("2-8", "Charcoal Hollow",
+                new[]
+                {
+                    new DialogueLine(thaleia, "That writ is forged. Someone wants Boiotia to believe Olympus ordered the slaughter."),
+                    new DialogueLine(playerSpeaker, "Then find the forger."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You confronted me. Good. Trust that cannot survive questions is not trust."),
+                });
+
+            AddAuthoredStageDialogue("2-9", "Ember Causeway",
+                new[]
+                {
+                    new DialogueLine(ione, "The forged writ was copied from a voice-recording crystal."),
+                    new DialogueLine(playerSpeaker, "Where is the original?"),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "The courier spoke one name before the crystal broke: the Ash Regent."),
+                });
+
+            AddAuthoredStageDialogue("2-10", "Grey Ash Fields",
+                new[]
+                {
+                    new DialogueLine(rusk, "The Ash Regent is no ruler. It is a title passed between bodies."),
+                    new DialogueLine(playerSpeaker, "Then we stop the title, not the body."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You destroyed the records. The bearer escaped—but now cannot inherit the next name."),
+                });
+
+            AddAuthoredStageDialogue("2-11", "Titan's Cradle",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The invasion is feeding on Boiotia's old wars. Every burned banner gives it another soldier."),
+                    new DialogueLine(playerSpeaker, "Then we deny it the dead."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You preserved them. Proof matters—but so does knowing what proof can summon."),
+                });
+
+            AddAuthoredStageDialogue("2-12", "Smouldering Vault",
+                new[]
+                {
+                    new DialogueLine(ione, "The banners are not symbols. They are anchors."),
+                    new DialogueLine(playerSpeaker, "Then the next battle is against the ground itself."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You broke the anchors. The army lost its shape, and something beneath the city woke."),
+                });
+
+            AddAuthoredStageDialogue("2-13", "Cracked Foundry",
+                new[]
+                {
+                    new DialogueLine(thaleia, "Olympus has ordered me to return. If I stay, it will declare me an enemy."),
+                    new DialogueLine(playerSpeaker, "Then choose where you stand."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You asked me to stay. I will stand with Boiotia until the truth reaches Olympus."),
+                });
+
+            AddAuthoredStageDialogue("2-14", "Pale Ash Crossing",
+                new[]
+                {
+                    new DialogueLine(rusk, "The eastern garrison has opened its gates without a fight."),
+                    new DialogueLine(playerSpeaker, "A surrender that easy is a trap."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You infiltrated. The garrison was empty except for soldiers asleep beneath black ash."),
+                });
+
+            AddAuthoredStageDialogue("2-15", "Blackrock Descent",
+                new[]
+                {
+                    new DialogueLine(ione, "They are not asleep. They are listening."),
+                    new DialogueLine(playerSpeaker, "To what?"),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You followed the voice. It spoke in Gorn's voice and called the player 'the wound.'"),
+                });
+
+            AddAuthoredStageDialogue("2-16", "Cinderfall Bastion",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The voice is using Gorn's memory to command the invasion."),
+                    new DialogueLine(playerSpeaker, "Then we take the memory away."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You used the relics. The trail led to the Boiotian archive, already burning from within."),
+                });
+
+            AddAuthoredStageDialogue("2-17", "Ruined Signal Tower",
+                new[]
+                {
+                    new DialogueLine(rusk, "The archive holds every treaty between Boiotia and Olympus."),
+                    new DialogueLine(playerSpeaker, "And someone wants both sides to forget the treaty."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You saved the people. The treaties burned—but Ione found one surviving seal."),
+                });
+
+            AddAuthoredStageDialogue("2-18", "Molten Scar",
+                new[]
+                {
+                    new DialogueLine(ione, "The seal predates Olympus. It belongs to the first empire beneath the mountain."),
+                    new DialogueLine(playerSpeaker, "So this invasion is older than the throne."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You took the seal. It opened a map showing one final destination: the Ashen Gate."),
+                });
+
+            AddAuthoredStageDialogue("2-19", "Last Ember Camp",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The Ashen Gate is not a fortress. It is a passage for whatever the Crown Below released."),
+                    new DialogueLine(playerSpeaker, "Then Boiotia is not being conquered. It is being opened."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You closed the gate. The thing beyond it left one message in the stone: 'Olympus is next.'"),
+                });
+
+            AddAuthoredStageDialogue("2-20", "Ashen Threshold",
+                new[]
+                {
+                    new DialogueLine(rusk, "The invaders are retreating toward the summit. They are carrying the last anchor."),
+                    new DialogueLine(playerSpeaker, "Then they intend to reopen the gate from above."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You pursued them. The summit is lost—but the city has time to survive."),
+                });
+
+            AddAuthoredStageDialogue("2-21", "Legion's End",
+                new[]
+                {
+                    new DialogueLine(ione, "The last anchor is broken. The invasion has failed, but the sky above Olympus is burning."),
+                    new DialogueLine(thaleia, "Boiotia survives because you chose it. Now Olympus will answer."),
+                },
+                new[]
+                {
+                    new DialogueLine(playerSpeaker, "Let it answer."),
+                    new DialogueLine(thaleia, "Chapter Three begins where the smoke rises: at the gates of Olympus."),
+                });
+
+            // Chapter 3 — The Gates of Olympus, Stages 3-1..3-30
+            // (docs/CAMPAIGN_NARRATIVE_CH1_3_2026-08-23.md). Fresh authored content; titles match
+            // CampaignMapPresenter.Chapter3DepthFlavor.
+            AddAuthoredStageDialogue("3-1", "Blackglass Shore",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The gates of Olympus are burning, but the city behind them is silent."),
+                    new DialogueLine(rusk, "Then we do not wait for permission."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You entered through the main gate. The silence was a welcome—and a warning."),
+                });
+
+            AddAuthoredStageDialogue("3-2", "Sundered Causeway",
+                new[]
+                {
+                    new DialogueLine(rusk, "No guards. No civilians. Only fresh footprints leading uphill."),
+                    new DialogueLine(playerSpeaker, "Someone cleared the road for us."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "The footprints end at the Hall of Oaths."),
+                });
+
+            AddAuthoredStageDialogue("3-3", "Cinder Marsh",
+                new[]
+                {
+                    new DialogueLine(ione, "The stones remember thousands of vows. Tonight, they remember only one word: exile."),
+                    new DialogueLine(thaleia, "Olympus has already judged us."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "The judgement seal is false, but the doors obey it."),
+                });
+
+            AddAuthoredStageDialogue("3-4", "Iron Spine Ridge",
+                new[]
+                {
+                    new DialogueLine(rusk, "A city that locks its own doors is already under siege."),
+                    new DialogueLine(playerSpeaker, "Find another entrance."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "We found a servants' passage beneath the western colonnade."),
+                });
+
+            AddAuthoredStageDialogue("3-5", "Hollow Cistern",
+                new[]
+                {
+                    new DialogueLine(ione, "The passage descends below the city, toward the first throne."),
+                    new DialogueLine(playerSpeaker, "Then the gates are only the beginning."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "The throne chamber is empty. Someone removed the crown before we arrived."),
+                });
+
+            AddAuthoredStageDialogue("3-6", "Ashwind Bluffs",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The crown-bearer was the only voice capable of stopping the invasion."),
+                    new DialogueLine(playerSpeaker, "Then we find the voice."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You followed the attendants. They were carrying ashes from the Senate."),
+                });
+
+            AddAuthoredStageDialogue("3-7", "Charred Vineyard",
+                new[]
+                {
+                    new DialogueLine(rusk, "The Senate was not attacked. It was erased."),
+                    new DialogueLine(playerSpeaker, "By whom?"),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "By soldiers wearing Olympus masks."),
+                });
+
+            AddAuthoredStageDialogue("3-8", "Obsidian Trench",
+                new[]
+                {
+                    new DialogueLine(ione, "Masks do not hide faces here. They replace them."),
+                    new DialogueLine(playerSpeaker, "Then we break every mask we find."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "The broken masks whispered the same name: Eryx."),
+                });
+
+            AddAuthoredStageDialogue("3-9", "Smokeveil Pass",
+                new[]
+                {
+                    new DialogueLine(thaleia, "Eryx was Olympus's First Witness. He disappeared before my initiation."),
+                    new DialogueLine(playerSpeaker, "And now he rules from the shadows."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "He does not rule. He prepares a coronation."),
+                });
+
+            AddAuthoredStageDialogue("3-10", "Ruined Aquifer",
+                new[]
+                {
+                    new DialogueLine(rusk, "The coronation bells are ringing below us."),
+                    new DialogueLine(playerSpeaker, "Then the city still has a pulse."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "It has a pulse—and it is not human."),
+                });
+
+            AddAuthoredStageDialogue("3-11", "Ember Terrace",
+                new[]
+                {
+                    new DialogueLine(ione, "The bells are waking the buried colossi beneath Olympus."),
+                    new DialogueLine(playerSpeaker, "Do we silence them or use their awakening?"),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "You silenced the bells. One colossus still opened its eye."),
+                });
+
+            AddAuthoredStageDialogue("3-12", "Grey Salt Flats",
+                new[]
+                {
+                    new DialogueLine(rusk, "The colossus is walking toward the lower districts."),
+                    new DialogueLine(playerSpeaker, "Then every minute matters."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "The lower districts are empty. Eryx evacuated them before the bells rang."),
+                });
+
+            AddAuthoredStageDialogue("3-13", "Cracked Aqueduct Span",
+                new[]
+                {
+                    new DialogueLine(thaleia, "He wants us to chase the colossus while he takes the upper city."),
+                    new DialogueLine(playerSpeaker, "Then we split his attention."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "Your signal reached the palace. Someone answered from inside."),
+                });
+
+            AddAuthoredStageDialogue("3-14", "Molten Foothills",
+                new[]
+                {
+                    new DialogueLine(ione, "The answer came through a sealed mirror."),
+                    new DialogueLine(playerSpeaker, "Who is behind it?"),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "A child wearing the crown of Olympus."),
+                });
+
+            AddAuthoredStageDialogue("3-15", "Ashfall Watchpost",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The child is the last legitimate heir. Eryx needs the heir alive."),
+                    new DialogueLine(playerSpeaker, "Then the crown has a hostage."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "The mirror shattered. The heir is being taken to the upper sanctum."),
+                });
+
+            AddAuthoredStageDialogue("3-16", "Titan's Rib",
+                new[]
+                {
+                    new DialogueLine(rusk, "We have two paths: rescue the heir or strike Eryx's command tower."),
+                    new DialogueLine(playerSpeaker, "A throne without an heir is still a weapon."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "You rescued the heir. Eryx's tower remains, but the city now has a witness."),
+                });
+
+            AddAuthoredStageDialogue("3-17", "Cindergate Hollow",
+                new[]
+                {
+                    new DialogueLine(ione, "The heir says Eryx is not seeking the throne."),
+                    new DialogueLine(playerSpeaker, "Then what does he want?"),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "He wants Olympus to kneel voluntarily."),
+                });
+
+            AddAuthoredStageDialogue("3-18", "Scorched Reliquary",
+                new[]
+                {
+                    new DialogueLine(thaleia, "Every faction that resisted him has received the same offer: surrender your name, and keep your life."),
+                    new DialogueLine(playerSpeaker, "That is not peace."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "No. It is obedience wearing peace's face."),
+                });
+
+            AddAuthoredStageDialogue("3-19", "Ember Palisade",
+                new[]
+                {
+                    new DialogueLine(rusk, "The command tower is broadcasting the offer across the city."),
+                    new DialogueLine(playerSpeaker, "Then let Olympus hear a refusal."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "The refusal is heard. So is our location."),
+                });
+
+            AddAuthoredStageDialogue("3-20", "Deep Ash Descent",
+                new[]
+                {
+                    new DialogueLine(ione, "The tower has marked us as the new enemy of Olympus."),
+                    new DialogueLine(playerSpeaker, "We were already marked."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "Not like this. The city's remaining armies are marching toward us."),
+                });
+
+            AddAuthoredStageDialogue("3-21", "Cinderfall Chasm",
+                new[]
+                {
+                    new DialogueLine(thaleia, "They are not Eryx's armies. They are frightened citizens wearing armour."),
+                    new DialogueLine(playerSpeaker, "Then we must make them choose."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "You exposed the broadcast. The soldiers lowered their weapons—but Eryx opened the sky."),
+                });
+
+            AddAuthoredStageDialogue("3-22", "Obsidian Colonnade",
+                new[]
+                {
+                    new DialogueLine(rusk, "A black sun is forming above the palace."),
+                    new DialogueLine(playerSpeaker, "Another gate."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "The gate is not opening outward. Something is trying to enter Olympus."),
+                });
+
+            AddAuthoredStageDialogue("3-23", "Ashen Necropolis",
+                new[]
+                {
+                    new DialogueLine(ione, "The Crown Below is answering the black sun."),
+                    new DialogueLine(playerSpeaker, "The thing from Boiotia followed us."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "It followed the seal, not us. The seal is inside the heir's crown."),
+                });
+
+            AddAuthoredStageDialogue("3-24", "Molten Crown Ridge",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The heir must remove the crown before Eryx reaches the sanctum."),
+                    new DialogueLine(playerSpeaker, "And if removal kills them?"),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "The crown came free. The heir survived—but the black sun has found a new host."),
+                });
+
+            AddAuthoredStageDialogue("3-25", "Titan's Last Forge",
+                new[]
+                {
+                    new DialogueLine(rusk, "Eryx is standing beneath it."),
+                    new DialogueLine(playerSpeaker, "Then the First Witness is finally visible."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "Visible, yes. Human, no longer."),
+                });
+
+            AddAuthoredStageDialogue("3-26", "Cindersea Shallows",
+                new[]
+                {
+                    new DialogueLine(ione, "Eryx offers one final bargain: leave Olympus, and the gates will close behind you."),
+                    new DialogueLine(playerSpeaker, "What does he demand in return?"),
+                },
+                new[]
+                {
+                    new DialogueLine(playerSpeaker, "We challenge him."),
+                    new DialogueLine(thaleia, "Then Olympus will witness what its silence created."),
+                });
+
+            AddAuthoredStageDialogue("3-27", "Legion's Deep Camp",
+                new[]
+                {
+                    new DialogueLine(thaleia, "Eryx has chained the palace to the black sun."),
+                    new DialogueLine(playerSpeaker, "Cut the chains."),
+                },
+                new[]
+                {
+                    new DialogueLine(thaleia, "The first chain broke. The palace began to collapse around the sanctum."),
+                });
+
+            AddAuthoredStageDialogue("3-28", "Boiotia's Ember Core",
+                new[]
+                {
+                    new DialogueLine(rusk, "The heir is trapped beneath the throne."),
+                    new DialogueLine(playerSpeaker, "Get them out. I will hold the gate."),
+                },
+                new[]
+                {
+                    new DialogueLine(rusk, "The heir is free. Eryx has stepped through the opening."),
+                });
+
+            AddAuthoredStageDialogue("3-29", "Olympus' Ashen Gate",
+                new[]
+                {
+                    new DialogueLine(ione, "Beyond the gate is not darkness. It is a road lined with dead stars."),
+                    new DialogueLine(playerSpeaker, "Then we close it from both sides."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "Eryx is gone, but the road remains open for one breath."),
+                });
+
+            AddAuthoredStageDialogue("3-30", "Boiotia's Last Stand",
+                new[]
+                {
+                    new DialogueLine(thaleia, "The gates of Olympus stand, but the old throne is broken."),
+                    new DialogueLine(playerSpeaker, "Then we build no new throne."),
+                },
+                new[]
+                {
+                    new DialogueLine(ione, "The road beyond the gate leads to a sea of dead stars."),
+                    new DialogueLine(thaleia, "Chapter Four begins there. Olympus has survived—but something beyond it has learned how to return."),
+                });
 
             // Chapter 4 depth fill, Stages 4-1..4-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
             // wartime doctrine - token efficiency): same templated generator. title/enemyName
