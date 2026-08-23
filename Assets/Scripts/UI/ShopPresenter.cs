@@ -58,6 +58,8 @@ namespace MyriadOfDragons.UI
         private Text gemsText;
         private Text energyText;
         private Text statusText;
+        private Text pityBannerText;
+        private readonly List<Text> packPityLineTexts = new List<Text>();
 
         private List<ShopItemData> shopItems;
         private PackReceiptResult _pendingPackReceipt;
@@ -355,12 +357,26 @@ namespace MyriadOfDragons.UI
             statusText.color = new Color(0.9f, 0.82f, 0.64f);
             statusObj.GetComponent<RectTransform>().sizeDelta = new Vector2(1200f, 40f);
 
+            // High-draw pity (10/60) — same counters that drive PITY SAVE on pack-open tiles.
+            GameObject pityObj = CreateTextElement(
+                canvasObj.transform,
+                "PityProgress",
+                CollectionPackPityCopy.FormatShopBanner(player),
+                new Vector2(0, 360),
+                17,
+                TextAnchor.MiddleCenter);
+            pityBannerText = pityObj.GetComponent<Text>();
+            pityBannerText.color = new Color(1f, 0.75f, 0.35f);
+            pityObj.GetComponent<RectTransform>().sizeDelta = new Vector2(1400f, 36f);
+
             // 4. Shop Items Grid Container
             BuildShopGrid();
         }
 
         private void BuildShopGrid()
         {
+            packPityLineTexts.Clear();
+
             GameObject gridObj = new GameObject("ShopGrid", typeof(RectTransform), typeof(GridLayoutGroup));
             gridObj.transform.SetParent(canvasObj.transform, false);
 
@@ -396,7 +412,23 @@ namespace MyriadOfDragons.UI
             CreateTextElement(cardObj.transform, "Title", item.title, new Vector2(0, 110), 22, TextAnchor.MiddleCenter);
 
             // Description
-            CreateTextElement(cardObj.transform, "Desc", item.description, new Vector2(0, 20), 18, TextAnchor.MiddleCenter);
+            CreateTextElement(cardObj.transform, "Desc", item.description, new Vector2(0, 30), 16, TextAnchor.MiddleCenter);
+
+            // High-draw packs: live pity toward PITY SAVE (bundle FLOOR LIFT stays in pack description).
+            if (CollectionPackCatalog.TryGetSku(item.id, out CollectionPackSku sku) && sku.HighDrawCount > 0)
+            {
+                GameObject pityLineObj = CreateTextElement(
+                    cardObj.transform,
+                    "PityLine",
+                    CollectionPackPityCopy.FormatPackTileLine(player),
+                    new Vector2(0, -40),
+                    14,
+                    TextAnchor.MiddleCenter);
+                Text pityLine = pityLineObj.GetComponent<Text>();
+                pityLine.color = new Color(1f, 0.75f, 0.35f);
+                pityLineObj.GetComponent<RectTransform>().sizeDelta = new Vector2(300f, 40f);
+                packPityLineTexts.Add(pityLine);
+            }
 
             // Buy Button
             GameObject buyBtnObj = new GameObject("Btn_Buy", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -478,6 +510,7 @@ namespace MyriadOfDragons.UI
             {
                 PackReceiptResult receipt = _pendingPackReceipt;
                 _pendingPackReceipt = null;
+                RefreshPityDisplay();
                 PackOpenOverlayPresenter.Show(
                     canvasObj.transform,
                     receipt,
@@ -540,6 +573,20 @@ namespace MyriadOfDragons.UI
             if (goldText != null) goldText.text = $"{player.gold}";
             if (gemsText != null) gemsText.text = $"{player.gems}";
             if (energyText != null) energyText.text = $"{player.stamina}/{player.maxStamina}";
+            RefreshPityDisplay();
+        }
+
+        private void RefreshPityDisplay()
+        {
+            if (pityBannerText != null)
+                pityBannerText.text = CollectionPackPityCopy.FormatShopBanner(player);
+
+            string tileLine = CollectionPackPityCopy.FormatPackTileLine(player);
+            for (int i = 0; i < packPityLineTexts.Count; i++)
+            {
+                if (packPityLineTexts[i] != null)
+                    packPityLineTexts[i].text = tileLine;
+            }
         }
 
         private GameObject CreateTextElement(Transform parent, string objectName, string content, Vector2 position, int fontSize, TextAnchor alignment)
@@ -565,6 +612,8 @@ namespace MyriadOfDragons.UI
 
         public void TeardownUI()
         {
+            packPityLineTexts.Clear();
+            pityBannerText = null;
             if (canvasObj == null) return;
             canvasObj.SetActive(false);
             if (Application.isPlaying) Destroy(canvasObj);
