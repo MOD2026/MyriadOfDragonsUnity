@@ -324,3 +324,19 @@ retirement is a plausible common cause, routed to WH to check.
 
 **Balance health check (2026-08-23): 9/9 BalanceSimulationTests clean.** No regression from today's
 Permit/Shop/Stamina work, as expected - confirms those changes stayed isolated from combat math.
+
+**CloudCode track milestone (2026-08-23): 4 modules authored, locally validated, none deployed.**
+SocialSafety (43/43, pre-existing), PermitWeekKey (33/33), GuildExpedition (38/38, scoped to core
+attempt/score/claim), Bazaar (33/33, scoped to core list/buy/sell). Real gaps flagged not guessed
+around: Bazaar's cross-account listing-visibility storage shape (resolved below), Gold listing-fee
+enforcement (Gold lives in frozen PlayerProfile only, unreachable from any server ledger - real
+launch blocker, separate from storage), genesis-liquidity auction deferred as its own module.
+CC researched and answered the storage gap: Unity Cloud Save's "Game Data"/Custom Items scope
+(distinct from Player Data) supports unlimited independent records with an Access Class of Default
+(any-player-readable, server-only-writeable) - exactly matches "browsable board, Cloud-Code-only
+mutation." Source: docs.unity.com/en-us/cloud-save/concepts/game-data. Routed back to coding room
+to implement the real store.
+
+All 4 modules still blocked on the same thing: live deployment needs the
+SocialSafety_NonProduction_Validation_Checklist.md walkthrough (Dashboard + 2 disposable test
+accounts) - in progress with Zihan, paused mid-checklist.
