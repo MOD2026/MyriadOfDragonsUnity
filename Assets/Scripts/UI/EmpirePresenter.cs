@@ -206,53 +206,63 @@ namespace MyriadOfDragons.UI
             // Live totals after ApplyDataToEmpire (Block AA display-only — same readers battle uses).
             int liveResourceCap = profile.Empire.ResourceCap;
             int liveStartHp = profile.Empire.StartingAvatarHealth;
-            string castlePayoff =
-                $"+{castleResourceBonus} Resource · +{castleHealthBonus} HP · Cap {liveResourceCap} · Start HP {liveStartHp}";
+
+            EmpireConstructionState construction = profile.empireConstruction;
+            bool ready = construction != null && construction.status == EmpireConstructionStatus.ReadyToCollect;
+            EmpireBuildingId? queuedBuilding = ready ? construction.buildingId : (EmpireBuildingId?)null;
 
             Text castleRow = _canvasObj.transform.Find("EmpireConstructionRoot/CastleRow/RowSummary")?.GetComponent<Text>();
             Text barracksRow = _canvasObj.transform.Find("EmpireConstructionRoot/BarracksRow/RowSummary")?.GetComponent<Text>();
             Text gateRow = _canvasObj.transform.Find("EmpireConstructionRoot/GateRow/RowSummary")?.GetComponent<Text>();
 
-            int castleCost = profile.castleLevel >= PlayerEmpireData.MaxCastleLevel
-                ? 0
-                : PlayerEmpireData.GoldCostForCastleUpgrade(profile.castleLevel);
             if (castleRow != null)
             {
-                castleRow.text = profile.castleLevel >= PlayerEmpireData.MaxCastleLevel
-                    ? $"Castle L{profile.castleLevel} · {castlePayoff} · MAX"
-                    : $"Castle L{profile.castleLevel} · {castlePayoff} → L{profile.castleLevel + 1} · {castleCost:N0} Gold";
+                castleRow.text = FormatCastleRow(
+                    profile.castleLevel, castleResourceBonus, castleHealthBonus,
+                    liveResourceCap, liveStartHp, queuedBuilding == EmpireBuildingId.Castle);
             }
 
             int barracksTarget = PlayerEmpireData.NextPaidBarracksMilestone(profile.barracksLevel);
             int barracksCost = barracksTarget == 0 ? 0 : PlayerEmpireData.GoldCostForBarracksUpgrade(profile.barracksLevel, barracksTarget);
             if (barracksRow != null)
             {
-                barracksRow.text = barracksTarget == 0
-                    ? $"Barracks L{profile.barracksLevel} · {deckSlots} Deck Slots · MAX"
-                    : $"Barracks L{profile.barracksLevel} → L{barracksTarget} · {deckSlots} Deck Slots · {barracksCost:N0} Gold";
+                barracksRow.text = FormatBarracksRow(
+                    profile.barracksLevel, barracksTarget, deckSlots, barracksCost,
+                    queuedBuilding == EmpireBuildingId.Barracks);
             }
 
             int gateTarget = PlayerEmpireData.NextPaidGateMilestone(profile.gateLevel);
             int gateCost = gateTarget == 0 ? 0 : PlayerEmpireData.GoldCostForGateUpgrade(profile.gateLevel, gateTarget);
             if (gateRow != null)
-                gateRow.text = FormatGateRowSummary(profile.gateLevel, gateChapter, gateTarget, gateCost);
+            {
+                gateRow.text = FormatGateRowWithPreview(
+                    profile.gateLevel, gateChapter, gateTarget, gateCost,
+                    queuedBuilding == EmpireBuildingId.Gate);
+            }
 
-            EmpireConstructionState construction = profile.empireConstruction;
-            bool ready = construction != null && construction.status == EmpireConstructionStatus.ReadyToCollect;
-            _empireStatusText.text = ready
-                ? $"{construction.buildingId} ready — L{construction.targetLevel} ({construction.costGold:N0} Gold spent). Tap Collect."
-                : "One project at a time. Spend Gold to upgrade, then Collect.";
+            // Queue clarity (Offline A): start charges Gold and lands ReadyToCollect instantly — Collect finishes it.
+            if (ready)
+            {
+                _empireStatusText.text =
+                    $"QUEUE · {construction.buildingId} → L{construction.targetLevel} · DONE — Collect to apply ({construction.costGold:N0} Gold already spent).";
+            }
+            else
+            {
+                _empireStatusText.text =
+                    "QUEUE · empty · One project at a time. Upgrade charges Gold and finishes instantly — then Collect.";
+            }
 
             if (_projectDetailText != null)
             {
                 if (ready)
                 {
                     _projectDetailText.text =
-                        $"Active project: {construction.buildingId} → L{construction.targetLevel} · {construction.costGold:N0} Gold charged · Ready to collect";
+                        $"Building now: {construction.buildingId} · Target L{construction.targetLevel} · Status: Ready to Collect (no wait timer)";
                 }
                 else
                 {
-                    _projectDetailText.text = "No active construction project.";
+                    _projectDetailText.text =
+                        "No active project. Next-tier payoffs are shown on each row before you spend Gold.";
                 }
             }
 
@@ -261,6 +271,62 @@ namespace MyriadOfDragons.UI
 
             // Offline A: ReadyToCollect is the active project — block starting another upgrade.
             SetUpgradeButtonsInteractable(!ready);
+        }
+
+        /// <summary>Castle row: current live Cap/Start HP + next-level delta before Gold commit.</summary>
+        private static string FormatCastleRow(
+            int castleLevel, int castleResourceBonus, int castleHealthBonus,
+            int liveCap, int liveStartHp, bool isQueued)
+        {
+            string queueMark = isQueued ? "▶ QUEUE · " : string.Empty;
+            string current =
+                $"{queueMark}Castle L{castleLevel} · Cap {liveCap} · Start HP {liveStartHp} (+{castleResourceBonus} Cap / +{castleHealthBonus} HP from Castle)";
+
+            if (castleLevel >= PlayerEmpireData.MaxCastleLevel)
+                return $"{current} · MAX";
+
+            int nextLevel = castleLevel + 1;
+            int cost = PlayerEmpireData.GoldCostForCastleUpgrade(castleLevel);
+            int nextResBonus = PlayerEmpireData.CastleResourceBonusForLevel(nextLevel);
+            int nextHpBonus = PlayerEmpireData.CastleHealthBonusForLevel(nextLevel);
+            int dCap = nextResBonus - castleResourceBonus;
+            int dHp = nextHpBonus - castleHealthBonus;
+            string deltaCap = dCap > 0 ? $"+{dCap} Cap" : "Cap unchanged";
+            string deltaHp = dHp > 0 ? $"+{dHp} Start HP" : "Start HP unchanged";
+            return $"{current} → Next L{nextLevel}: {deltaCap}, {deltaHp} · {cost:N0} Gold";
+        }
+
+        /// <summary>Barracks row: current Deck Slots + next milestone slot count before Gold commit.</summary>
+        private static string FormatBarracksRow(
+            int barracksLevel, int targetMilestone, int currentDeckSlots, int goldCost, bool isQueued)
+        {
+            string queueMark = isQueued ? "▶ QUEUE · " : string.Empty;
+            string current = $"{queueMark}Barracks L{barracksLevel} · {currentDeckSlots} Deck Slots";
+
+            if (targetMilestone == 0)
+                return $"{current} · MAX";
+
+            int nextSlots = PlayerEmpireData.DeckSlotsForBarracksLevel(targetMilestone);
+            string slotDelta = nextSlots > currentDeckSlots
+                ? $"{currentDeckSlots} → {nextSlots} Deck Slots"
+                : $"{nextSlots} Deck Slots (unchanged)";
+            return $"{current} → Next L{targetMilestone}: {slotDelta} · {goldCost:N0} Gold";
+        }
+
+        /// <summary>Gate row: Campaign chapter open now + next milestone chapter unlock before Gold commit.</summary>
+        private static string FormatGateRowWithPreview(
+            int gateLevel, int highestChapterAllowed, int nextGateMilestone, int gateUpgradeGold, bool isQueued)
+        {
+            string queueMark = isQueued ? "▶ QUEUE · " : string.Empty;
+            string baseSummary = FormatGateRowSummary(gateLevel, highestChapterAllowed, nextGateMilestone, gateUpgradeGold);
+            if (nextGateMilestone == 0)
+                return queueMark + baseSummary;
+
+            int chapterAtNext = PlayerEmpireData.GetHighestCampaignChapterAllowed(nextGateMilestone);
+            string nextPreview = chapterAtNext > highestChapterAllowed
+                ? $" · Next L{nextGateMilestone} unlocks through Ch{chapterAtNext}"
+                : $" · Next L{nextGateMilestone} (Campaign still Ch{highestChapterAllowed})";
+            return queueMark + baseSummary + nextPreview;
         }
 
         private void SetUpgradeButtonsInteractable(bool interactable)
@@ -334,7 +400,7 @@ namespace MyriadOfDragons.UI
             }
 
             SaveManager.Save();
-            SetMessage($"{building} upgrade started — Collect when ready.");
+            SetMessage($"{building} queued — Ready to Collect now (instant Offline build).");
             RefreshPanel();
         }
 
@@ -354,7 +420,7 @@ namespace MyriadOfDragons.UI
             }
 
             SaveManager.Save();
-            SetMessage($"{finished} collected — now L{target}.");
+            SetMessage($"{finished} collected — now L{target}. Queue empty.");
             RefreshPanel();
         }
 

@@ -401,7 +401,7 @@ public class HomePagePresenter : MonoBehaviour
         Button identityButton = identityRoot.AddComponent<Button>();
         identityButton.targetGraphic = identityBg;
         identityButton.transition = Selectable.Transition.ColorTint;
-        identityButton.onClick.AddListener(OpenAvatar);
+        identityButton.onClick.AddListener(() => OpenAvatar());
 
         GameObject crestObj = new GameObject("IdentityCrest", typeof(RectTransform), typeof(Image));
         crestObj.transform.SetParent(identityRoot.transform, false);
@@ -456,7 +456,7 @@ public class HomePagePresenter : MonoBehaviour
         gemsHudText = CreateResourcePill(resourceRow.transform, "home_resource_gems_pill_v3",
             "Gems", $"{gemsVal}", 0.34f, 0.67f);
         energyHudText = CreateResourcePill(resourceRow.transform, "home_resource_energy_pill_v3",
-            "Energy", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
+            "Stamina", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
 
         BuildWeeklyPermitClaimStrip();
         TryAutoClaimWeeklyPermitsOnHomeOpen();
@@ -756,11 +756,11 @@ public class HomePagePresenter : MonoBehaviour
             onOpenAvatar: () =>
             {
                 if (empire != null) Destroy(empire);
-                OpenAvatar();
+                OpenAvatar(returnToEmpireOnBack: true);
             });
     }
 
-    private void OpenAvatar()
+    private void OpenAvatar(bool returnToEmpireOnBack = false)
     {
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
@@ -771,6 +771,13 @@ public class HomePagePresenter : MonoBehaviour
         avatar.Initialize(
             onBackToHome: () =>
             {
+                if (returnToEmpireOnBack)
+                {
+                    if (avatar != null) Destroy(avatar);
+                    OpenEmpire();
+                    return;
+                }
+
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 RefreshTopHUD();
                 if (avatar != null) Destroy(avatar);
@@ -912,7 +919,7 @@ public class HomePagePresenter : MonoBehaviour
     public CampaignLaunchOutcome LaunchCampaignStageForTests(CampaignStageData stageData, CampaignMapPresenter campaignPresenterOrNull = null) =>
         TryLaunchCampaignStage(stageData, campaignPresenterOrNull);
 
-    private void OpenDeckBuilder(string entryStatusMessage = null)
+    private void OpenDeckBuilder(string entryStatusMessage = null, bool returnToCollectionOnBack = false)
     {
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
@@ -923,6 +930,13 @@ public class HomePagePresenter : MonoBehaviour
         deckBuilder.Initialize(
             onBackToHome: () =>
             {
+                if (returnToCollectionOnBack)
+                {
+                    if (deckBuilder != null) Destroy(deckBuilder);
+                    OpenCollection();
+                    return;
+                }
+
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 SaveManager.Save();
                 RefreshTopHUD();
@@ -956,7 +970,7 @@ public class HomePagePresenter : MonoBehaviour
             onOpenDeckBuilder: () =>
             {
                 if (collection != null) Destroy(collection);
-                OpenDeckBuilder();
+                OpenDeckBuilder(returnToCollectionOnBack: true);
             }
         );
     }

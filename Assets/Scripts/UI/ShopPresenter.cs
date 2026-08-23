@@ -287,7 +287,7 @@ namespace MyriadOfDragons.UI
             gemsText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gems_pill_v3",
                 "Gems", $"{player.gems}", 185f);
             energyText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_energy_pill_v3",
-                "Energy", $"{player.stamina}/{player.maxStamina}", 200f);
+                "Stamina", $"{player.stamina}/{player.maxStamina}", 200f);
 
             GameObject statusObj = CreateTextElement(canvasObj.transform, "ShopStatus", "Tap BUY on a supply to purchase.",
                 new Vector2(0, -480), 20, TextAnchor.MiddleCenter);
