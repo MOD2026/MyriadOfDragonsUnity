@@ -39,6 +39,25 @@ namespace MyriadOfDragons.UI
 
         public GameObject CanvasObjectForTests => _canvasObj;
 
+        public void OpenExpeditionForTests() => OpenExpedition();
+
+        private void OpenExpedition()
+        {
+            TeardownUI();
+            EmpireExpeditionPresenter expedition = gameObject.GetComponent<EmpireExpeditionPresenter>();
+            if (expedition == null) expedition = gameObject.AddComponent<EmpireExpeditionPresenter>();
+
+            expedition.Initialize(
+                onBack: () =>
+                {
+                    if (Application.isPlaying) Destroy(expedition);
+                    else DestroyImmediate(expedition);
+                    BuildUI();
+                    RefreshPanel();
+                },
+                guildBonusQuery: UnavailableGuildExpeditionBonusQuery.Instance);
+        }
+
         private void BuildUI()
         {
             TeardownUI();
@@ -123,6 +142,23 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.CreateText(avatarBtnObj.transform, "ActionLabel", "AVATAR",
                     UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 36f));
             }
+
+            // Empire Expedition (structure-locked farm loop) — opens the rotation shell.
+            GameObject expeditionBtnObj = new GameObject("OpenExpeditionButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            expeditionBtnObj.transform.SetParent(topBar.transform, false);
+            Image expeditionImg = expeditionBtnObj.GetComponent<Image>();
+            expeditionImg.color = HexColor("#1A3A4A");
+            Button expeditionBtn = expeditionBtnObj.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(expeditionBtn, expeditionImg);
+            expeditionBtn.onClick.AddListener(OpenExpedition);
+            RectTransform expeditionRect = expeditionBtnObj.GetComponent<RectTransform>();
+            expeditionRect.anchorMin = new Vector2(0f, 0.5f);
+            expeditionRect.anchorMax = new Vector2(0f, 0.5f);
+            expeditionRect.pivot = new Vector2(0f, 0.5f);
+            expeditionRect.anchoredPosition = new Vector2(_onOpenAvatar != null ? 790f : 640f, 0f);
+            expeditionRect.sizeDelta = new Vector2(170f, 52f);
+            UISharedFoundation.CreateText(expeditionBtnObj.transform, "ActionLabel", "EXPEDITION",
+                UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(150f, 36f));
 
             GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             resourceGroup.transform.SetParent(topBar.transform, false);

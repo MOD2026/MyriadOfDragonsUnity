@@ -1213,7 +1213,7 @@ namespace MyriadOfDragons.UI
         /// freezes after Campaign/Empire/Collection in real Play and still passes EditMode.</summary>
         public static void CleanupStaleMetagameCanvases()
         {
-            foreach (string canvasName in new[] { "CampaignMapCanvas", "ShopCanvas", "DeckBuilderCanvas", "CollectionCanvas", "EmpireCanvas" })
+            foreach (string canvasName in new[] { "CampaignMapCanvas", "ShopCanvas", "DeckBuilderCanvas", "CollectionCanvas", "EmpireCanvas", "EmpireExpeditionCanvas" })
             {
                 GameObject stale;
                 int guard = 0;
