@@ -98,11 +98,25 @@ Before building anything, check whether it exists:
 A change is not done until **all** of these pass:
 
 ```
-"C:\Program Files\Unity\Hub\Editor\6000.5.6f1\Editor\Unity.exe" -batchmode -projectPath "C:\Users\zihan\Downloads\MyriadOfDragonsUnity" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
+powershell -File tools/run_editmode_tests.ps1
 ```
 
+This wraps the same batch invocation with a timeout guard (default 25 min hard cap, and an earlier
+kill if the log stops growing for 2+ minutes). **Use this, not the bare `Unity.exe` command** — on
+2026-08-23 a bare run stalled inside `SaveSystem.Save` (suspected Windows file lock / AV scan on the
+write) and sat unnoticed with a live process and a dead log for 50+ minutes before anyone caught it.
+Exit code 124 means it was killed for stalling/timing out — report that as a **failed** run, not
+"should pass," and include the log's last lines (the stall point) in your report. Pass
+`-ResultsPath`/`-LogPath`/`-TimeoutMinutes` to override the defaults; see the script header.
+
+If you must run the bare command directly (e.g. the wrapper itself needs debugging):
+```
+"C:\Program Files\Unity\Hub\Editor\6000.5.6f1\Editor\Unity.exe" -batchmode -projectPath "C:\Users\zihan\Downloads\MyriadOfDragonsUnity" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
+```
+watch it yourself — don't walk away from an unguarded run.
+
 - Unity must be **fully closed** first — it holds an exclusive lock (check for `Unity.exe` /
-  `UnityPackageManager.exe` processes).
+  `UnityPackageManager.exe` processes). The wrapper checks this and refuses to start otherwise.
 - **Never add `-quit`** — the run silently does nothing.
 - Check `run.log` for `error CS` and `Aborting batchmode` **before** trusting `results.xml` — a
   compile failure means no tests ran at all.

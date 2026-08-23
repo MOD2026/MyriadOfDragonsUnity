@@ -32,11 +32,17 @@ The rest of those two files is yours; those members are not.
 2. **Grep all of `Assets/` (including `Assets/Tests/`) for usages before changing any public member.**
 3. **Run the EditMode suite before AND after any battle-logic change.** Unity must be fully closed
    first; never add `-quit`; check the log for `error CS` before trusting the results file.
-   Baseline: **81/81**. Report real numbers, never "should pass".
+   Real baseline as of 2026-08-23: **652/761** (Block AB baseline-repair in progress) — the old
+   81/81 figure predates Ch8–10 and the metagame systems and is no longer the number to cite.
+   Report real numbers, never "should pass".
 
 ```
-"C:\Program Files\Unity\Hub\Editor\6000.5.6f1\Editor\Unity.exe" -batchmode -projectPath "C:\Users\zihan\Downloads\MyriadOfDragonsUnity" -runTests -testPlatform EditMode -testResults "results.xml" -logFile "run.log"
+powershell -File tools/run_editmode_tests.ps1
 ```
+
+Timeout-guarded (see `docs/AI_CONTRIBUTING.md` §5) — use this instead of the bare `Unity.exe`
+invocation. A bare run stalled silently for 50+ minutes on 2026-08-23; this wrapper kills a stalled
+or over-time run and exits 124 instead of hanging unwatched.
 
 4. **Simulate in-engine, never in an external model.** An external Python replica of this combat
    math predicted ~89% knockouts where the real game produced ~50%, because it silently ignored a
