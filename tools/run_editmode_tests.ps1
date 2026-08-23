@@ -18,7 +18,8 @@ param(
     [string]$ResultsPath = "results.xml",
     [string]$LogPath = "run.log",
     [int]$TimeoutMinutes = 25,
-    [int]$StallCheckSeconds = 120
+    [int]$StallCheckSeconds = 120,
+    [string]$TestFilter = ""
 )
 
 if (-not (Test-Path $UnityExe)) {
@@ -36,11 +37,16 @@ $logFull = Join-Path $ProjectPath $LogPath
 if (Test-Path $logFull) { Remove-Item $logFull -Force }
 if (Test-Path $resultsFull) { Remove-Item $resultsFull -Force }
 
-$proc = Start-Process -FilePath $UnityExe -ArgumentList @(
+$unityArgs = @(
     "-batchmode", "-projectPath", $ProjectPath,
     "-runTests", "-testPlatform", "EditMode",
     "-testResults", $ResultsPath, "-logFile", $LogPath
-) -WorkingDirectory $ProjectPath -PassThru
+)
+if ($TestFilter -ne "") {
+    $unityArgs += @("-testFilter", $TestFilter)
+}
+
+$proc = Start-Process -FilePath $UnityExe -ArgumentList $unityArgs -WorkingDirectory $ProjectPath -PassThru
 
 $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
 $lastLogLength = -1
