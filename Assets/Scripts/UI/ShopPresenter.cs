@@ -25,7 +25,16 @@ namespace MyriadOfDragons.UI
         /// <summary>When true, <see cref="onPurchase"/> already spent currency and saved (e.g. pack receipt).</summary>
         public bool walletCommittedByCallback;
 
-        public ShopItemData(string id, string title, string desc, int goldCost, int gemCost, System.Func<PlayerProfile, bool> onPurchase, bool walletCommittedByCallback = false)
+        /// <summary>
+        /// When true, omitted from the live Shop grid but still reachable via
+        /// <see cref="ShopPresenter.PurchaseForTests"/> (V1 EditMode contracts).
+        /// Used to withhold SKUs that violate SHOP_V2_NUMBERS_PACKET without deleting test harnesses.
+        /// </summary>
+        public bool hideFromShopGrid;
+
+        public ShopItemData(string id, string title, string desc, int goldCost, int gemCost,
+            System.Func<PlayerProfile, bool> onPurchase, bool walletCommittedByCallback = false,
+            bool hideFromShopGrid = false)
         {
             this.id = id;
             this.title = title;
@@ -34,6 +43,7 @@ namespace MyriadOfDragons.UI
             this.gemCost = gemCost;
             this.onPurchase = onPurchase;
             this.walletCommittedByCallback = walletCommittedByCallback;
+            this.hideFromShopGrid = hideFromShopGrid;
         }
     }
 
@@ -147,59 +157,78 @@ namespace MyriadOfDragons.UI
 
         private void SetupShopItems()
         {
-            shopItems = new List<ShopItemData>()
+            shopItems = new List<ShopItemData>();
+
+            // --- SHOP_V2_NUMBERS_PACKET locked Packs (prices + draw counts from CollectionPackCatalog) ---
+            shopItems.Add(CreateLockedGemPackItem(
+                CollectionPackCatalog.SingleSigilSkuId, "Single Sigil",
+                sku => $"{sku.NormalDrawCount} Normal draw — best gem/card value ({sku.GemsPerCard:0.#} Gems/card)."));
+            shopItems.Add(CreateLockedGemPackItem(
+                CollectionPackCatalog.ScoutCacheSkuId, "Scout Cache",
+                sku => $"{sku.NormalDrawCount} Normal + {sku.HighDrawCount} High — at least one {sku.FloorMinRarity}★+ ({sku.GemsPerCard:0.#} Gems/card)."));
+            shopItems.Add(CreateLockedGemPackItem(
+                CollectionPackCatalog.WarbandCacheSkuId, "Warband Cache",
+                sku => $"{sku.NormalDrawCount} Normal + {sku.HighDrawCount} High — at least one {sku.FloorMinRarity}★+ ({sku.GemsPerCard:0.#} Gems/card)."));
+            shopItems.Add(CreateLockedGemPackItem(
+                CollectionPackCatalog.LegionCacheSkuId, "Legion Cache",
+                sku => $"{sku.NormalDrawCount} Normal + {sku.HighDrawCount} High — at least one {sku.FloorMinRarity}★+ ({sku.GemsPerCard:0.#} Gems/card)."));
+
+            if (!CollectionPackCatalog.HasInverseGemPerCardOrdering())
+                Debug.LogError("[Shop] CollectionPackCatalog lost inverse gem/card order (SHOP_V2 lock).");
+
+            // --- Resources (packet: Stamina-only lane; +50 @ 30 Gems is the shipped first tier) ---
+            shopItems.Add(new ShopItemData("res_energy", "Stamina Potion", "Restores +50 Stamina for campaign battles.", 0, 30, (p) =>
             {
-                new ShopItemData("pack_novice", "Novice Card Pack", "Grants one new card for your collection.", 500, 0, (p) =>
-                {
-                    bool granted = TryGrantNextUnownedCard(p);
-                    if (granted) Debug.Log("Purchased Novice Card Pack! Added a new card to your collection.");
-                    else Debug.Log("Novice Card Pack: your collection already contains every available card.");
-                    return granted;
-                }),
-                new ShopItemData("pack_dragon", "Dragon Booster", "Grants one new card for your collection.", 0, 100, (p) =>
-                {
-                    bool granted = TryGrantNextUnownedCard(p);
-                    if (granted) Debug.Log("Purchased Dragon Booster! Added a new card to your collection.");
-                    else Debug.Log("Dragon Booster: your collection already contains every available card.");
-                    return granted;
-                }),
-                new ShopItemData(CollectionPackCatalog.SingleSigilSkuId, "Single Sigil", "1 Normal draw — best gem/card value.", 0, 150, p =>
-                {
-                    if (!TryOpenGemPack(p, CollectionPackCatalog.SingleSigilSkuId, out PackReceiptResult r)) return false;
-                    _pendingPackReceipt = r;
-                    return true;
-                }, walletCommittedByCallback: true),
-                new ShopItemData(CollectionPackCatalog.ScoutCacheSkuId, "Scout Cache", "4 Normal + 1 High — at least one 2★+.", 0, 800, p =>
-                {
-                    if (!TryOpenGemPack(p, CollectionPackCatalog.ScoutCacheSkuId, out PackReceiptResult r)) return false;
-                    _pendingPackReceipt = r;
-                    return true;
-                }, walletCommittedByCallback: true),
-                new ShopItemData(CollectionPackCatalog.WarbandCacheSkuId, "Warband Cache", "7 Normal + 2 High — at least one 3★+.", 0, 1650, p =>
-                {
-                    if (!TryOpenGemPack(p, CollectionPackCatalog.WarbandCacheSkuId, out PackReceiptResult r)) return false;
-                    _pendingPackReceipt = r;
-                    return true;
-                }, walletCommittedByCallback: true),
-                new ShopItemData(CollectionPackCatalog.LegionCacheSkuId, "Legion Cache", "16 Normal + 4 High — at least one 5★+.", 0, 4000, p =>
-                {
-                    if (!TryOpenGemPack(p, CollectionPackCatalog.LegionCacheSkuId, out PackReceiptResult r)) return false;
-                    _pendingPackReceipt = r;
-                    return true;
-                }, walletCommittedByCallback: true),
-                new ShopItemData("res_gold", "Gold Vault", "Instantly adds 1,500 Gold to your wallet.", 0, 50, (p) =>
-                {
-                    bool granted = CurrencyManager.AddCurrency(p, CurrencyType.Gold, 1500, persist: false);
-                    if (granted) Debug.Log("Purchased 1,500 Gold!");
-                    return granted;
-                }),
-                new ShopItemData("res_energy", "Energy Potion", "Restores +50 Stamina for campaign battles.", 0, 30, (p) =>
-                {
-                    bool granted = CurrencyManager.RestoreStamina(p, 50, persist: false);
-                    if (granted) Debug.Log("Restored +50 Energy!");
-                    return granted;
-                })
-            };
+                bool granted = CurrencyManager.RestoreStamina(p, 50, persist: false);
+                if (granted) Debug.Log("Restored +50 Stamina!");
+                return granted;
+            }));
+
+            // --- V1 leftovers withheld from live grid (still PurchaseForTests) ---
+            // Novice: gold card lane not on V2 Packs tab — kept visible as Campaign-gold sink until CC retires it.
+            shopItems.Add(new ShopItemData("pack_novice", "Novice Card Pack", "Grants one new card for your collection (Gold path).", 500, 0, (p) =>
+            {
+                bool granted = TryGrantNextUnownedCard(p);
+                if (granted) Debug.Log("Purchased Novice Card Pack! Added a new card to your collection.");
+                else Debug.Log("Novice Card Pack: your collection already contains every available card.");
+                return granted;
+            }));
+
+            // Dragon Booster @ 100 Gems/card beats Single Sigil @ 150 — violates inverse bulk. Hidden.
+            shopItems.Add(new ShopItemData("pack_dragon", "Dragon Booster", "V1 stub — withheld (beats Singles gem/card).", 0, 100, (p) =>
+            {
+                bool granted = TryGrantNextUnownedCard(p);
+                if (granted) Debug.Log("Purchased Dragon Booster! Added a new card to your collection.");
+                else Debug.Log("Dragon Booster: your collection already contains every available card.");
+                return granted;
+            }, hideFromShopGrid: true));
+
+            // Gold Vault: Phase-1 gem→gold banned by SHOP_V2_NUMBERS_PACKET. Hidden.
+            shopItems.Add(new ShopItemData("res_gold", "Gold Vault", "V1 stub — withheld (no Phase-1 Gem→Gold).", 0, 50, (p) =>
+            {
+                bool granted = CurrencyManager.AddCurrency(p, CurrencyType.Gold, 1500, persist: false);
+                if (granted) Debug.Log("Purchased 1,500 Gold!");
+                return granted;
+            }, hideFromShopGrid: true));
+        }
+
+        /// <summary>Gem pack tile priced from <see cref="CollectionPackCatalog"/> — sole lock authority.</summary>
+        private ShopItemData CreateLockedGemPackItem(string skuId, string title,
+            System.Func<CollectionPackSku, string> descriptionFactory)
+        {
+            if (!CollectionPackCatalog.TryGetSku(skuId, out CollectionPackSku sku))
+            {
+                Debug.LogError($"[Shop] Missing locked SKU '{skuId}' in CollectionPackCatalog.");
+                return new ShopItemData(skuId, title, "Catalog miss", 0, 0, _ => false);
+            }
+
+            string description = descriptionFactory(sku);
+            return new ShopItemData(skuId, title, description, 0, sku.GemCost, p =>
+            {
+                if (!TryOpenGemPack(p, skuId, out PackReceiptResult r)) return false;
+                _pendingPackReceipt = r;
+                return true;
+            }, walletCommittedByCallback: true);
         }
 
         private void BuildUI()
@@ -318,6 +347,7 @@ namespace MyriadOfDragons.UI
 
             foreach (var item in shopItems)
             {
+                if (item == null || item.hideFromShopGrid) continue;
                 CreateShopCardTile(gridObj.transform, item);
             }
         }
