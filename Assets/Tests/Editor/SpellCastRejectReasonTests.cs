@@ -188,6 +188,7 @@ namespace MyriadOfDragons.Tests
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("RejectReason_CooldownBootstrap");
             BattleController controller = bootstrap.Battle;
             OverrideWithSurvivableMatchAndConfirm(controller);
+            for (int i = 0; i < BattleController.MinimumCombatTickForAvatarStrike; i++) controller.AdvanceCombatTick(); // clear the clash-3 AvatarStrike gate
 
             controller.SetEnergyForTutorial(60);
             bootstrap.SpellTappedForTests(3); // Divine Bolt (AvatarStrike) - casts immediately, no lane tap needed.
@@ -225,8 +226,12 @@ namespace MyriadOfDragons.Tests
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("RejectReason_ClearsBootstrap");
             BattleController controller = bootstrap.Battle;
             OverrideWithSurvivableMatchAndConfirm(controller);
+            for (int i = 0; i < BattleController.MinimumCombatTickForAvatarStrike; i++) controller.AdvanceCombatTick(); // clear the clash-3 AvatarStrike gate
 
-            // First produce a real reject hint.
+            // First produce a real reject hint. Ticking above to clear the gate also accrues
+            // Energy, so it must be zeroed back out here for the "Not enough Energy" rejection to
+            // still be the real, live reason rather than a stale assumption from before the gate.
+            controller.SetEnergyForTutorial(0);
             bootstrap.SpellTappedForTests(0); // Firestorm, 0 Energy - rejected.
             StringAssert.Contains("Not enough Energy", bootstrap.HandHintTextForTests);
 

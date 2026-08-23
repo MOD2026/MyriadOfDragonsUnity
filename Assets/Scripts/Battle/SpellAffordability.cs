@@ -13,17 +13,22 @@ namespace MyriadOfDragons.Battle
     /// </summary>
     public static class SpellAffordability
     {
-        public static bool IsCastable(AvatarSpell spell, int energy) =>
-            spell != null && spell.IsOffCooldown && spell.EnergyCost <= energy;
+        /// <summary>tickCount defaults to "always past the gate" so every existing caller that
+        /// doesn't yet pass a real tick count (tests predating the clash-3 rule, any future
+        /// non-AvatarStrike-only use) keeps its exact prior behaviour - only a caller that
+        /// explicitly supplies BattleController.TickCount gets the real gate applied.</summary>
+        public static bool IsCastable(AvatarSpell spell, int energy, int tickCount = int.MaxValue) =>
+            spell != null && spell.IsOffCooldown && spell.EnergyCost <= energy
+            && (spell.Effect != SpellEffect.AvatarStrike || tickCount >= BattleController.MinimumCombatTickForAvatarStrike);
 
         /// <summary>True as soon as any one spell in the list is castable - the aggregate the
         /// hint cue itself shows.</summary>
-        public static bool AnyCastable(IEnumerable<AvatarSpell> spells, int energy)
+        public static bool AnyCastable(IEnumerable<AvatarSpell> spells, int energy, int tickCount = int.MaxValue)
         {
             if (spells == null) return false;
             foreach (AvatarSpell spell in spells)
             {
-                if (IsCastable(spell, energy)) return true;
+                if (IsCastable(spell, energy, tickCount)) return true;
             }
             return false;
         }
@@ -41,14 +46,23 @@ namespace MyriadOfDragons.Battle
             WrongPhase,
             OnCooldown,
             NotEnoughEnergy,
+
+            /// <summary>SPELL_CATALOG_v1.md §2 direct-strike safety rule: an AvatarStrike spell
+            /// cannot be cast before combat tick/clash 3.</summary>
+            TooEarlyForAvatarStrike,
         }
 
-        public static SpellCastRejectReason GetRejectReason(AvatarSpell spell, BattlePhase phase, int energy)
+        /// <summary>tickCount defaults to "always past the gate" for the same backward-
+        /// compatibility reason as IsCastable's own default - only a caller that explicitly
+        /// passes BattleController.TickCount gets TooEarlyForAvatarStrike checked at all.</summary>
+        public static SpellCastRejectReason GetRejectReason(AvatarSpell spell, BattlePhase phase, int energy, int tickCount = int.MaxValue)
         {
             if (spell == null) return SpellCastRejectReason.None;
             if (phase != BattlePhase.Combat) return SpellCastRejectReason.WrongPhase;
             if (!spell.IsOffCooldown) return SpellCastRejectReason.OnCooldown;
             if (spell.EnergyCost > energy) return SpellCastRejectReason.NotEnoughEnergy;
+            if (spell.Effect == SpellEffect.AvatarStrike && tickCount < BattleController.MinimumCombatTickForAvatarStrike)
+                return SpellCastRejectReason.TooEarlyForAvatarStrike;
             return SpellCastRejectReason.None;
         }
 
@@ -65,6 +79,7 @@ namespace MyriadOfDragons.Battle
                 SpellCastRejectReason.WrongPhase => $"{spell.Name} can only be cast during Combat.",
                 SpellCastRejectReason.OnCooldown => $"{spell.Name} is still cooling down - {spell.CooldownRemaining} tick(s) left.",
                 SpellCastRejectReason.NotEnoughEnergy => $"Not enough Energy for {spell.Name} - needs {spell.EnergyCost}, have {energy}.",
+                SpellCastRejectReason.TooEarlyForAvatarStrike => $"{spell.Name} cannot strike the Avatar before clash {BattleController.MinimumCombatTickForAvatarStrike}.",
                 _ => string.Empty,
             };
         }

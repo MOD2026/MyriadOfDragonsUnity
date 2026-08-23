@@ -1156,11 +1156,10 @@ namespace MyriadOfDragons.UI
             "Cinematics/Chapter1/Victory/CLOSE_05_ATMOS_LIGHT_FX",
         };
 
-        /// <summary>Opening line 1 and 2, verbatim from the handoff's Copy contract, shown
-        /// together for Phase A rather than the timing sheet's separate 1.00-2.70s/3.00-5.20s
-        /// crossfade windows.</summary>
+        /// <summary>Tutorial framing line (docs/CAMPAIGN_NARRATIVE_CH1_3_2026-08-23.md) - shown on
+        /// the opening cinematic before the mechanical CardCost step caption.</summary>
         private const string OpeningCinematicCopy =
-            "The Empire stands wounded.\nLearn to form your ranks and face the first threat.";
+            "Your first formation is a test of command. Place each card, learn the lanes, and survive the opening clash.";
 
         private const string VictoryCinematicCopy = "Victory. The first threat has been driven back.";
 
@@ -4912,7 +4911,7 @@ namespace MyriadOfDragons.UI
                 // plain, testable GetRejectReason/DescribeRejectReason (mirroring TryCastSpell's
                 // own phase/cooldown/Energy checks in the same order) now names the real reason.
                 SpellAffordability.SpellCastRejectReason rejectReason =
-                    SpellAffordability.GetRejectReason(spell, _battleController.Phase, _battleController.Energy);
+                    SpellAffordability.GetRejectReason(spell, _battleController.Phase, _battleController.Energy, _battleController.TickCount);
                 ShowLaneHint(SpellAffordability.DescribeRejectReason(spell, rejectReason, _battleController.Energy));
                 if (_spellBar != null)
                 {
@@ -5077,7 +5076,7 @@ namespace MyriadOfDragons.UI
                 // re-derived here, not assumed from the earlier tap.
                 AvatarSpell armedSpell = spellIndex < _battleController.Spellbook.Count ? _battleController.Spellbook[spellIndex] : null;
                 SpellAffordability.SpellCastRejectReason rejectReason =
-                    SpellAffordability.GetRejectReason(armedSpell, _battleController.Phase, _battleController.Energy);
+                    SpellAffordability.GetRejectReason(armedSpell, _battleController.Phase, _battleController.Energy, _battleController.TickCount);
                 ShowLaneHint(SpellAffordability.DescribeRejectReason(armedSpell, rejectReason, _battleController.Energy));
                 return;
             }
@@ -5859,7 +5858,7 @@ namespace MyriadOfDragons.UI
                 bool tutorialAllowsThisSpell = _tutorialStep == null
                     || (_tutorialStep == TutorialStep.SpellLesson && i == TutorialLessonSpellIndex);
                 bool ready = inCombat && tutorialAllowsThisSpell
-                    && SpellAffordability.IsCastable(spell, _battleController.Energy);
+                    && SpellAffordability.IsCastable(spell, _battleController.Energy, _battleController.TickCount);
                 anySpellReady |= ready;
 
                 if (i < _spellNameLabels.Count) _spellNameLabels[i].text = spell.Name;

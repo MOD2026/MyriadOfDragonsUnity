@@ -137,7 +137,7 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(realCard, "Setup: expected at least one card in the starting hand.");
             Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, realCard, Lane.Front));
             Assert.IsTrue(controller.ConfirmFormation());
-            controller.AdvanceCombatTick();
+            for (int i = 0; i < BattleController.MinimumCombatTickForAvatarStrike; i++) controller.AdvanceCombatTick(); // clear the clash-3 AvatarStrike gate
             controller.SetEnergyForTutorial(60);
             Assert.IsTrue(controller.TryCastSpell(3, Lane.Front, out _), "Setup: expected Divine Bolt (index 3, cost 60) to cast legally.");
 
@@ -168,7 +168,7 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(realCard, "Setup: expected at least one card in the starting hand.");
             Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, realCard, Lane.Front));
             Assert.IsTrue(controller.ConfirmFormation());
-            controller.AdvanceCombatTick();
+            for (int i = 0; i < BattleController.MinimumCombatTickForAvatarStrike; i++) controller.AdvanceCombatTick(); // clear the clash-3 AvatarStrike gate
 
             controller.SetEnergyForTutorial(60);
             bool cast = controller.TryCastSpell(3, Lane.Front, out int avatarDamageDealt);

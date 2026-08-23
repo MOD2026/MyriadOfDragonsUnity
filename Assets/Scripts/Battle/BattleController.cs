@@ -147,6 +147,16 @@ namespace MyriadOfDragons.Battle
         public const int MaxCombatTicks = 12;
 
         /// <summary>
+        /// SPELL_CATALOG_v1.md §2 "Direct-strike safety rule": an AvatarStrike spell cannot be
+        /// cast before combat tick/clash 3 - it prevents a direct spell from ending an early fight
+        /// before lane counterplay exists. Applies uniformly to every AvatarStrike spell (Divine
+        /// Bolt included, not just the later-added Sun Lance/Stone Judgment) and to both the
+        /// player and the mirrored PvE cast path, since the catalog's own AI policy section
+        /// states the AI gets "the same...tick-3 direct-strike gate as the player" once it casts.
+        /// </summary>
+        public const int MinimumCombatTickForAvatarStrike = 3;
+
+        /// <summary>
         /// Ticks on which the reinforcement window opens. Cards left in hand after formation -
         /// and leftover Resource - had no use whatsoever once the fight began; these windows are
         /// what give both of them a purpose. Deliberately gated to specific ticks rather than
@@ -530,6 +540,7 @@ namespace MyriadOfDragons.Battle
             AvatarSpell spell = Spellbook[spellIndex];
             if (!spell.IsOffCooldown) return false;
             if (spell.EnergyCost > Energy) return false;
+            if (spell.Effect == SpellEffect.AvatarStrike && TickCount < MinimumCombatTickForAvatarStrike) return false;
 
             Energy -= spell.EnergyCost;
             spell.PutOnCooldown();
@@ -562,6 +573,7 @@ namespace MyriadOfDragons.Battle
             AvatarSpell spell = EnemySpellbook[spellIndex];
             if (!spell.IsOffCooldown) return false;
             if (spell.EnergyCost > EnemyEnergy) return false;
+            if (spell.Effect == SpellEffect.AvatarStrike && TickCount < MinimumCombatTickForAvatarStrike) return false;
 
             EnemyEnergy -= spell.EnergyCost;
             spell.PutOnCooldown();
