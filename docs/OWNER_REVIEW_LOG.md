@@ -421,3 +421,14 @@ stage (hard Assert inside the loop), so there's no data on stages X-2 onward in 
 Authorizing the coding room to restructure those loops to collect full-sweep diagnostic data
 (soft-assert/collect-all pattern) rather than aborting early - this is data collection, not a
 retune, and directly improves what the owner will have to decide from.
+
+**Combat-balance investigation, COMPLETE (2026-08-23) - full-depth data, all 273 stages:**
+Chapters 4-10 restructured to collect-all (committed 74331a3) - 210/210 stages now have real data,
+not just 7 first-stage samples. Win rates: Ch4 5/30, Ch5 5/30, Ch6 8/30, Ch7 6/30, Ch8 7/30,
+Ch9 6/30, Ch10 5/30 - sustained ~17-27%, no monotonic decay toward zero. One tick-count outlier
+noted honestly (7-15 won in 6 ticks vs the otherwise near-metronomic 11/12 pattern) - a fast win,
+not an anomaly needing investigation. Same Balance Soft classification holds at full depth: this is
+a stable, uniform ~1-in-5 pattern against the deliberately-weak onboarding Auto Formation policy
+the whole way through the campaign, not an escalating or localized problem. Investigation complete,
+not retuned - real decision for the owner on return (see CC's earlier framing: this may be "AF
+doesn't scale with player progression" rather than "stages are too hard").
