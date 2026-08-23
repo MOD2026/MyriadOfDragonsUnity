@@ -147,3 +147,13 @@ Gold cap (bonus cannot raise the cap), fails closed to base Gold if guild servic
 Title/frame bonus dropped - no achievement system exists. Backend-dependent (trusted guild service),
 same class as Bazaar/Guild Expedition/Prison. Numbers still open: Stamina cost/clear, tier rewards,
 daily attempts, unlock condition, rotation cadence.
+
+## Battle Pass / Season Pass (LOCKED 2026-08-24, structure only)
+
+Free+paid track, shared Season XP (Campaign first-clears, Expedition clears, Tower/PvP later).
+Free track: cosmetics, small Gold/Materials/Stamina/Avatar XP/Event Medals. Paid track: more of the
+same bounded resources + cosmetic exclusivity + volume only - no cards/packs/Evolution/Forge-Dust/
+Permits on either track (checked against "no purchase = combat/deck power" and "solo rewards stay
+Empire/Avatar-side"). 28-day season, UTC-week-anchored - this is a NEW shared value, not something
+Battle Rating already had locked (corrected a false-precedent claim in the packet). Open: XP curve,
+exact reward amounts, price, claim grace period.
