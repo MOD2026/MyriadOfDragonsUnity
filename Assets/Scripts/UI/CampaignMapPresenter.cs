@@ -1292,7 +1292,8 @@ namespace MyriadOfDragons.UI
             PlayerProfile profile = SaveSystem.CurrentProfile;
             int current = CurrencyManager.GetStamina(profile);
             int max = profile?.maxStamina ?? 0;
-            statusText.text = $"Stamina: {current}/{max} • Stage entry: 1";
+            statusText.text =
+                $"Stamina: {current}/{max} • Stage entry: {GameBootstrap.CampaignStaminaCostPerAttempt}";
         }
 
         /// <summary>Show only the chapter the player is progressing through — not all 273 nodes.</summary>

@@ -185,31 +185,34 @@ namespace MyriadOfDragons.UI
                 shopItems.Add(CreateStaminaPotionItem(ShopStaminaCatalog.SkuIdForGemCost(gemCost), gemCost));
 
             // --- V1 leftovers withheld from live grid (still PurchaseForTests) ---
-            // Novice: deterministic unowned grant bypasses pack pity — not on Shop V2 SKU list.
-            shopItems.Add(new ShopItemData("pack_novice", "Novice Card Pack", "V1 stub — withheld (bypasses pack pity).", 500, 0, (p) =>
-            {
-                bool granted = TryGrantNextUnownedCard(p);
-                if (granted) Debug.Log("Purchased Novice Card Pack! Added a new card to your collection.");
-                else Debug.Log("Novice Card Pack: your collection already contains every available card.");
-                return granted;
-            }, hideFromShopGrid: true));
+            shopItems.Add(new ShopItemData(
+                ShopV1StubCatalog.NovicePackId, "Novice Card Pack", "V1 stub — withheld (bypasses pack pity).",
+                ShopV1StubCatalog.NoviceGoldCost, 0, (p) =>
+                {
+                    bool granted = TryGrantNextUnownedCard(p);
+                    if (granted) Debug.Log("Purchased Novice Card Pack! Added a new card to your collection.");
+                    else Debug.Log("Novice Card Pack: your collection already contains every available card.");
+                    return granted;
+                }, hideFromShopGrid: true));
 
-            // Dragon Booster @ 100 Gems/card beats Single Sigil @ 150 — violates inverse bulk. Hidden.
-            shopItems.Add(new ShopItemData("pack_dragon", "Dragon Booster", "V1 stub — withheld (beats Singles gem/card).", 0, 100, (p) =>
-            {
-                bool granted = TryGrantNextUnownedCard(p);
-                if (granted) Debug.Log("Purchased Dragon Booster! Added a new card to your collection.");
-                else Debug.Log("Dragon Booster: your collection already contains every available card.");
-                return granted;
-            }, hideFromShopGrid: true));
+            shopItems.Add(new ShopItemData(
+                ShopV1StubCatalog.DragonBoosterId, "Dragon Booster", "V1 stub — withheld (beats Singles gem/card).",
+                0, ShopV1StubCatalog.DragonBoosterGemCost, (p) =>
+                {
+                    bool granted = TryGrantNextUnownedCard(p);
+                    if (granted) Debug.Log("Purchased Dragon Booster! Added a new card to your collection.");
+                    else Debug.Log("Dragon Booster: your collection already contains every available card.");
+                    return granted;
+                }, hideFromShopGrid: true));
 
-            // Gold Vault: Phase-1 gem→gold banned by SHOP_V2_NUMBERS_PACKET. Hidden.
-            shopItems.Add(new ShopItemData("res_gold", "Gold Vault", "V1 stub — withheld (no Phase-1 Gem→Gold).", 0, 50, (p) =>
-            {
-                bool granted = CurrencyManager.AddCurrency(p, CurrencyType.Gold, 1500, persist: false);
-                if (granted) Debug.Log("Purchased 1,500 Gold!");
-                return granted;
-            }, hideFromShopGrid: true));
+            shopItems.Add(new ShopItemData(
+                ShopV1StubCatalog.GoldVaultId, "Gold Vault", "V1 stub — withheld (no Phase-1 Gem→Gold).",
+                0, ShopV1StubCatalog.GoldVaultGemCost, (p) =>
+                {
+                    bool granted = CurrencyManager.AddCurrency(p, CurrencyType.Gold, ShopV1StubCatalog.GoldVaultGoldGrant, persist: false);
+                    if (granted) Debug.Log($"Purchased {ShopV1StubCatalog.GoldVaultGoldGrant:N0} Gold!");
+                    return granted;
+                }, hideFromShopGrid: true));
         }
 
         /// <summary>Gem pack tile priced from <see cref="CollectionPackCatalog"/> — sole lock authority.</summary>

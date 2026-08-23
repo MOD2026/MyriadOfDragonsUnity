@@ -416,7 +416,9 @@ public class HomePagePresenter : MonoBehaviour
         crestImg.preserveAspect = true;
         crestImg.raycastTarget = false;
         SetLocalNormalisedRect(crestObj.GetComponent<RectTransform>(), 0.02f, 0.1f, 0.14f, 0.9f);
-        string pName = SaveManager.SaveData != null ? SaveManager.SaveData.playerName : "Sovereign";
+        // HUD placeholders before Save is ready — must mirror PlayerProfile field defaults (not re-typed).
+        PlayerProfile hudDefaults = new PlayerProfile();
+        string pName = SaveManager.SaveData != null ? SaveManager.SaveData.playerName : hudDefaults.playerName;
         // Avatar combat level (Empire track) — not the legacy `level` field.
         int avatarLevel = 1;
         int liveCap = 0;
@@ -452,10 +454,10 @@ public class HomePagePresenter : MonoBehaviour
         resourceRow.transform.SetParent(homeCanvasObj.transform, false);
         SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1896, 90);
 
-        int goldVal = SaveManager.SaveData != null ? SaveManager.SaveData.gold : 1000;
-        int gemsVal = SaveManager.SaveData != null ? SaveManager.SaveData.gems : 150;
-        int stamVal = SaveManager.SaveData != null ? SaveManager.SaveData.stamina : 100;
-        int maxStamVal = SaveManager.SaveData != null ? SaveManager.SaveData.maxStamina : 100;
+        int goldVal = SaveManager.SaveData != null ? SaveManager.SaveData.gold : hudDefaults.gold;
+        int gemsVal = SaveManager.SaveData != null ? SaveManager.SaveData.gems : hudDefaults.gems;
+        int stamVal = SaveManager.SaveData != null ? SaveManager.SaveData.stamina : hudDefaults.stamina;
+        int maxStamVal = SaveManager.SaveData != null ? SaveManager.SaveData.maxStamina : hudDefaults.maxStamina;
 
         goldHudText = CreateResourcePill(resourceRow.transform, "home_resource_gold_pill_v3",
             "Gold", $"{goldVal}", 0.0f, 0.33f);
@@ -843,7 +845,9 @@ public class HomePagePresenter : MonoBehaviour
         int slots = profile.Empire != null ? profile.Empire.DeckSlotCount : 0;
         return slots > 0 ? slots : PlayerEmpireData.DeckSlotsForBarracksLevel(1);
     }
-    public const string StaminaBlockedMessage = "Need 1 Stamina to launch this stage.";
+    /// <summary>Campaign launch Stamina gate — copy tracks <see cref="GameBootstrap.CampaignStaminaCostPerAttempt"/>.</summary>
+    public static string StaminaBlockedMessage =>
+        $"Need {GameBootstrap.CampaignStaminaCostPerAttempt} Stamina to launch this stage.";
     public const string LockedBlockedMessage = "This stage is locked. Complete the previous stage first.";
     public const string InvalidConfigBlockedMessage = "This stage cannot launch because its battle setup is invalid.";
     public const string GateBlockedMessage = "This chapter requires a higher Gate level. Upgrade Gate on the Empire screen to proceed.";

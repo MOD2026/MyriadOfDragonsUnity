@@ -1647,8 +1647,11 @@ namespace MyriadOfDragons.UI
                 return;
             }
 
+            int deckSlotsForCopy = _empireData != null && _empireData.DeckSlotCount > 0
+                ? _empireData.DeckSlotCount
+                : PlayerEmpireData.DeckSlotsForBarracksLevel(1);
             _tutorialGuidanceCaption.text = WithBattleModePrefix(
-                "Your saved 10-card deck fills the hand below. Tap Auto Formation for an optional basic three-lane squad, or place manually: tap a hand card, then an empty lane slot - Resource is spent as normal.");
+                $"Your saved {deckSlotsForCopy}-card deck fills the hand below. Tap Auto Formation for an optional basic three-lane squad, or place manually: tap a hand card, then an empty lane slot - Resource is spent as normal.");
             _tutorialGuidanceCaption.gameObject.SetActive(true);
         }
 
@@ -2310,9 +2313,9 @@ namespace MyriadOfDragons.UI
             TryResolveCampaignEnemyDeck(stage, out _);
 
         /// <summary>How much a single Campaign stage attempt costs - launch and retry alike
-        /// (Campaign stamina-entry contract, requirements 1 and 4). Not a balancing knob this
-        /// task touches beyond satisfying "exactly 1" - no other value is used anywhere.</summary>
-        private const int CampaignStaminaCostPerAttempt = 1;
+        /// (Campaign stamina-entry contract, requirements 1 and 4). Public so Home/Campaign UI
+        /// copy cannot drift from the spend choke point.</summary>
+        public const int CampaignStaminaCostPerAttempt = 1;
 
         /// <summary>
         /// The sole Campaign-stamina spend choke point: called from exactly two real sites -
