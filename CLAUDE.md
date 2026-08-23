@@ -59,10 +59,16 @@ or over-time run and exits 124 instead of hanging unwatched.
 
 ## Open design decisions — escalate, don't guess
 
-Both of the previous open items are RESOLVED as of 2026-08-07 (see `docs/Mechanics_Gap_Analysis.md`
-§1.2/§1.3 and `docs/MOS_v1.1.md` §6): the AI opponent does not cast spells (asymmetric by design,
-compensates via `SoloAIScalingSystem` HP/Resource scaling instead), and the level-1 onboarding gap
-is fixed via a taper in `PlayerEmpireData` (full +100 HP at level 1, gone by level 5). The four
+Both of the previous open items are RESOLVED, but the first one has since moved again — **superseded,
+not current:** `docs/Mechanics_Gap_Analysis.md` §1.2/§1.3 and `docs/MOS_v1.1.md` §6 (2026-08-07)
+said the AI opponent does not cast spells (Option A, asymmetric by design, compensates via
+`SoloAIScalingSystem` HP/Resource scaling). **The owner approved moving to Option B (mirrored PvE AI
+spellcasting) on 2026-08-22** (`docs/OWNER_REVIEW_LOG.md` decision table) and it is now live in
+production for normal/Campaign PvE via `BattleController.EnableMirroredEnemySpellsForPvE()` — the AI
+casts from the same Phase-1 catalog under the same Energy/cooldown/clash-3 rules as the player (see
+`SPELL_CATALOG_v1.md` §5). Do not cite the 2026-08-07 "AI never casts" line as current. The level-1
+onboarding gap is still fixed via a taper in `PlayerEmpireData` (full +100 HP at level 1, gone by
+level 5) — that half is unchanged. The four
 items formerly open per `docs/MOS_v1.1.md` §20 — currency naming, Evolution/Limit Break curves, the
 1–12 vs. x10 stat scale, and initiative in simultaneous combat — are RESOLVED as of 2026-08-23 (see
 `MOS_OPEN_ITEMS_RECONCILIATION_2026-08-23.md` and `docs/MOS_v1.1.md` §20): canonical names are
