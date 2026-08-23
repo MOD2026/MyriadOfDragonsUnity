@@ -432,3 +432,16 @@ a stable, uniform ~1-in-5 pattern against the deliberately-weak onboarding Auto 
 the whole way through the campaign, not an escalating or localized problem. Investigation complete,
 not retuned - real decision for the owner on return (see CC's earlier framing: this may be "AF
 doesn't scale with player progression" rather than "stages are too hard").
+
+**CC accept — Empire construction v2, Materials + timers (2026-08-23):** Materials 5,000/stage +
+50,000/finale = 1,815,000 total, 3,000-31,000 tier ladder = 1,479,000 for 3 buildings to L30, Gold
+sink stays additive/unreduced. Timer bands 5-15min (T1-5) through 18-30hr (T26-30), client-clock
+only, rollback-detection holds eligibility without punishing, no speed-up purchase. Offline A state
+flow (Idle->Building->ReadyToCollect->CompleteClaimed) unchanged. Design-locked, not implemented.
+
+**Real gap found (2026-08-23): spell catalog implementation backlog.** SPELL_CATALOG_v1.md locks 36
+spells (14 Phase-1 ship slice, reviewed and accepted weeks ago); AvatarSpell.cs ships only 4
+(Firestorm/Mend/War Cry/Divine Bolt - the catalog's "Starter" tier). 10 already-locked, already-
+reviewed Phase-1 spells (cinder_lash, ember_wave, fault_line, vital_spark, renewal, rallying_gale,
+banner_of_ashes, sun_lance, stone_judgment, tempest_brand) were never implemented. No design work
+needed - this is a ready-to-code backlog, queued for the coding seat.
