@@ -445,3 +445,16 @@ spells (14 Phase-1 ship slice, reviewed and accepted weeks ago); AvatarSpell.cs 
 reviewed Phase-1 spells (cinder_lash, ember_wave, fault_line, vital_spark, renewal, rallying_gale,
 banner_of_ashes, sun_lance, stone_judgment, tempest_brand) were never implemented. No design work
 needed - this is a ready-to-code backlog, queued for the coding seat.
+
+**Cross-document alignment sweep, real misalignment found and fixed (2026-08-23):** Empire
+construction v2's client-clock timers directly contradicted EMPIRE_SCHEMA_LOCK_2026-08-22.md §2/§9
+("Gold+time construction is Phase 2 only", "timed builds wait for server") - accepted without
+flagging it as the amendment it actually was. Owner decided: formally amend, not revert. §2 amended
+in place with explicit scope (pacing-only, no speed-up purchase, doesn't reopen §8/§9's server
+requirement for monetised builds). Downstream consequence found and corrected: Guild Expedition
+reconciliation's "Master Builder has no effect while construction is instant" line is now stale -
+corrected in the Drive doc directly, flagged for re-review before that office ships.
+
+Also checked and confirmed NOT a bug: SPELL_CATALOG_v1.md's own flagged "Divine Bolt 100 vs live
+code stub 150" discrepancy - checked AvatarSpell.cs directly, live magnitude is genuinely 100,
+matches the lock. The catalog doc's warning note is just stale text, not a real bug.
