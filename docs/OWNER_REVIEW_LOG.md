@@ -385,3 +385,10 @@ rule-correct, not a bug. Per the doc's own prescribed remedy for this exact shap
 numbers unchanged, defer to the owner's own first-session playtest
 (MVP_FIRST_SESSION_SCRIPT_v1.md) to determine if this is a real confusion point before any retune.
 Not assigned as a code fix.
+
+**CC accept — Chapter 2 narrative continuation + reusable chapter template (2026-08-23):** Full
+2-4..2-21 arc (invasion/resistance/ash-road/Thaleia's-fracture/archive/climax beats), same cast
+carried forward, ends on a real Ch3 hook ("the gates of Olympus"). Reusable template locked: 2-3
+recurring cast (carry >=2 forward, add <=1 new major per chapter), 6 story beats grouping stages
+(3 each for 18-stage chapters, 5 each for 30-stage), one choice-prompt per beat not per stage,
+animation milestones at open/mid/clear (N-1, N-10 or N-15, N-last). Not yet implemented - WH's job.
