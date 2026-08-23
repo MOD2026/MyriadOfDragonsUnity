@@ -10,7 +10,8 @@ one). Read it first if anything here seems to conflict with it; MOS wins.
 ## You own
 
 - `Assets/Scripts/Battle/`, `Cards/`, `AI/`, `Empire/`, `Combat/`
-- `Assets/Scripts/UI/GameBootstrap.cs`, `UI/SpellIconPointerHandler.cs`
+- `Assets/Scripts/UI/GameBootstrap.cs`, `UI/SpellIconPointerHandler.cs`, `UI/EmpirePresenter.cs`,
+  `UI/AvatarPresenter.cs` (Empire/Avatar screens — previously undocumented, clarified 2026-08-23)
 - `Assets/Tests/Editor/BattleLogicTests.cs`, `ExposedAvatarSiegeTests.cs`, `BalanceSimulationTests.cs`
 
 ## You must NOT edit
