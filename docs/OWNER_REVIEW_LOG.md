@@ -488,3 +488,16 @@ changes to that system today - likely sampling noise, not confirmed without a re
 
 **Siege near-miss confirmed noise (2026-08-23):** BalanceSimulationTests re-run alone, 9/9 clean.
 Closed - no real regression, unseeded Monte-Carlo variance as suspected.
+
+**Spell backlog independently verified (2026-08-23):** grepped catalog + live code directly, all
+14 Phase-1 spells confirmed matching exactly (cost/cooldown/magnitude), not just trusting the report.
+
+**CC accept, FINAL — Empire construction v2, consolidated (2026-08-23):** Two construction slots
+(reversal from single-builder, now properly justified via a Castle-gates-Barracks/Gate interlock
+table, not just restated). Materials 1,815,000 campaign supply / 1,479,000 L30 sink / 336,000
+buffer. Timer curve corrected to genuinely monotonic, top band 7-14 days (genre-consistent).
+Contracts 275,000/18.6% seasonal cap, math verified correct. 6.7-month current target, 11.1-month
+projected once Academy/Embassy add their own scope (now a real computed number, not a vague risk).
+Offline A flow, rollback handling, raid protection all unchanged from earlier locks. This
+supersedes every prior Empire v2 timer/builder proposal - no further iteration on this specific
+packet unless something genuinely new surfaces.
