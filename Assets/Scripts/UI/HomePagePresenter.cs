@@ -487,22 +487,38 @@ public class HomePagePresenter : MonoBehaviour
         if (claimBg.sprite == null)
             claimBg.color = HexColor("#1A3A4A");
         claimBtnObj.GetComponent<Button>().onClick.AddListener(OnClaimWeeklyPermitsClicked);
-        SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.0f, 0.15f, 0.28f, 0.95f);
+        SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.0f, 0.15f, 0.22f, 0.95f);
 
         Text claimLabel = UISharedFoundation.CreateText(
             claimBtnObj.transform, "ClaimLabel",
-            $"WEEKLY · {CollectionSchemaRules.AscensionPermitsPerTrustedWeek} PERMITS",
+            $"WEEKLY · {CollectionSchemaRules.AscensionPermitsPerTrustedWeek}",
             UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(220f, 36f));
-        claimLabel.fontSize = 15;
+        claimLabel.fontSize = 14;
         claimLabel.fontStyle = FontStyle.Bold;
         claimLabel.raycastTarget = false;
+
+        // Server-authoritative PermitWeekKey path (does not replace CollectionAscensionPermits stopgap).
+        GameObject serverBtnObj = new GameObject("Btn_PermitWeekKey", typeof(RectTransform), typeof(Image), typeof(Button));
+        serverBtnObj.transform.SetParent(strip.transform, false);
+        Image serverBg = serverBtnObj.GetComponent<Image>();
+        HomeV3UiLibrary.ApplyNavTileButton(serverBtnObj.GetComponent<Button>(), serverBg);
+        if (serverBg.sprite == null)
+            serverBg.color = HexColor("#2A4A3A");
+        serverBtnObj.GetComponent<Button>().onClick.AddListener(OpenPermitWeekKey);
+        SetLocalNormalisedRect(serverBtnObj.GetComponent<RectTransform>(), 0.23f, 0.15f, 0.40f, 0.95f);
+        Text serverLabel = UISharedFoundation.CreateText(
+            serverBtnObj.transform, "Label", "SERVER KEY",
+            UITextRole.Caption, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(140f, 36f));
+        serverLabel.fontSize = 13;
+        serverLabel.fontStyle = FontStyle.Bold;
+        serverLabel.raycastTarget = false;
 
         weeklyPermitStatusText = UISharedFoundation.CreateText(
             strip.transform, "WeeklyPermitStatus", string.Empty,
             UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(500f, 36f));
         weeklyPermitStatusText.fontSize = 18;
         weeklyPermitStatusText.raycastTarget = false;
-        SetLocalNormalisedRect(weeklyPermitStatusText.rectTransform, 0.30f, 0.1f, 1.0f, 0.95f);
+        SetLocalNormalisedRect(weeklyPermitStatusText.rectTransform, 0.42f, 0.1f, 1.0f, 0.95f);
     }
 
     private void TryAutoClaimWeeklyPermitsOnHomeOpen()
@@ -836,6 +852,7 @@ public class HomePagePresenter : MonoBehaviour
     public void OpenFriendsForTests() => OpenFriends();
     public void OpenMemoryExpeditionForTests() => OpenMemoryExpedition();
     public void OpenVipSubscriptionForTests() => OpenVipSubscription();
+    public void OpenPermitWeekKeyForTests() => OpenPermitWeekKey();
 
     private void OpenMetagameShellPresenter<T>(System.Action<T> initialize) where T : MonoBehaviour
     {
@@ -900,6 +917,16 @@ public class HomePagePresenter : MonoBehaviour
     private void OpenVipSubscription()
     {
         OpenMetagameShellPresenter<VipSubscriptionPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenPermitWeekKey()
+    {
+        OpenMetagameShellPresenter<PermitWeekKeyPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
             RefreshTopHUD();

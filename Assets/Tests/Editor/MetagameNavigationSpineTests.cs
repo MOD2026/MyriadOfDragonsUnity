@@ -35,11 +35,13 @@ namespace MyriadOfDragons.Tests
             "EmpireBuildingDetailCanvas",
             "BazaarCanvas",
             "GuildHallEntryCanvas",
+            "GuildExpeditionCanvas",
             "ChatSocialCanvas",
             "MemoryExpeditionCanvas",
             "MailInboxCanvas",
             "FriendsCanvas",
             "VipSubscriptionCanvas",
+            "PermitWeekKeyCanvas",
         };
 
         [SetUp]

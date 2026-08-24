@@ -24,12 +24,7 @@ namespace MyriadOfDragons.UI
         }
 
 
-        public GuildHallEntryResult PressEntryForTests()
-        {
-            var r = GuildHallEntryOpenValues.TryEntryAction();
-            SetStatus(r.Message);
-            return r;
-        }
+        public void PressEntryForTests() => OpenGuildExpedition();
 
 
         private void BuildUI()
@@ -111,10 +106,29 @@ namespace MyriadOfDragons.UI
             entry.transform.SetParent(panel.transform, false);
             Image eImg = entry.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(entry.GetComponent<Button>(), eImg, new Color(0.22f, 0.36f, 0.28f));
-            entry.GetComponent<Button>().onClick.AddListener(() => SetStatus(GuildHallEntryOpenValues.TryEntryAction().Message));
+            entry.GetComponent<Button>().onClick.AddListener(OpenGuildExpedition);
             SetNorm(entry.GetComponent<RectTransform>(), 0.58f, 0.08f, 0.95f, 0.24f);
-            UISharedFoundation.CreateText(entry.transform, "Text", "ENTRY", UITextRole.Body,
+            UISharedFoundation.CreateText(entry.transform, "Text", "EXPEDITION", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
+        }
+
+        /// <summary>Opens the live Guild Expedition gateway shell from Guild Hall entry.</summary>
+        public void OpenGuildExpeditionForTests() => OpenGuildExpedition();
+
+        private void OpenGuildExpedition()
+        {
+            Action returnToCaller = _onBack;
+            TeardownUI();
+
+            GuildExpeditionPresenter expedition = gameObject.GetComponent<GuildExpeditionPresenter>();
+            if (expedition == null) expedition = gameObject.AddComponent<GuildExpeditionPresenter>();
+
+            expedition.Initialize(() =>
+            {
+                if (Application.isPlaying) Destroy(expedition);
+                else DestroyImmediate(expedition);
+                returnToCaller?.Invoke();
+            });
         }
 
         private void SetStatus(string message)

@@ -1,0 +1,381 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using MyriadOfDragons.Empire;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace MyriadOfDragons.UI
+{
+    /// <summary>
+    /// Guild Expedition shell wired to <see cref="IGuildExpeditionGateway"/>.
+    /// Objective ids / milestone thresholds mirror the deployed CloudCode scaffold catalog
+    /// (StaticExpeditionManifest + §5.1 bands) — not a tuned production week manifest.
+    /// </summary>
+    public class GuildExpeditionPresenter : MonoBehaviour
+    {
+        public const string CanvasName = "GuildExpeditionCanvas";
+
+        /// <summary>Server scaffold objective ids (CloudCode StaticExpeditionManifest).</summary>
+        public static readonly string[] ScaffoldObjectiveIds =
+        {
+            "scout.revealEnemyDeck",
+            "scout.winWithInfoHandicap",
+            "scout.defeatMarkedTarget",
+            "supply.cooperativeDelivery",
+            "supply.protectFormation",
+            "assault.clearFormation",
+            "assault.defeatObstacle",
+            "builder.focusComplete",
+            "raid.phaseOne",
+            "raid.phaseTwo",
+            "raid.phaseThree",
+        };
+
+        /// <summary>Server §5.1 personal milestone bands (Guild Contribution only).</summary>
+        public static readonly int[] MilestoneThresholds = { 100, 250, 400, 700, 1000 };
+
+        private GameObject _canvasObj;
+        private Action _onBack;
+        private Text _statusText;
+        private Text _detailsText;
+        private IGuildExpeditionGateway _gateway;
+        private CancellationTokenSource _cts;
+        private string _selectedObjectiveId;
+        private int _selectedMilestone = 100;
+        private bool _busy;
+
+        public GameObject CanvasObjectForTests => _canvasObj;
+        public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+        public string SelectedObjectiveIdForTests => _selectedObjectiveId;
+        public int SelectedMilestoneForTests => _selectedMilestone;
+
+        public void Initialize(Action onBack, IGuildExpeditionGateway gateway = null)
+        {
+            _onBack = onBack;
+            _gateway = gateway ?? new UnityCloudCodeGuildExpeditionGateway();
+            _selectedObjectiveId = ScaffoldObjectiveIds[0];
+            _selectedMilestone = MilestoneThresholds[0];
+            BuildUI();
+        }
+
+        public Task<GuildExpeditionAttemptResult> ConsumeAttemptForTests() => ConsumeAttemptAsync();
+
+        public Task<GuildExpeditionObjectiveResult> SubmitSelectedObjectiveForTests() =>
+            SubmitObjectiveAsync(_selectedObjectiveId);
+
+        public Task<GuildExpeditionMilestoneResult> ClaimSelectedMilestoneForTests() =>
+            ClaimMilestoneAsync(_selectedMilestone);
+
+        private void BuildUI()
+        {
+            TeardownUI();
+            _cts = new CancellationTokenSource();
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+            Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
+            _canvasObj = canvas.gameObject;
+            canvas.sortingOrder = 41;
+
+            GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            bg.transform.SetParent(_canvasObj.transform, false);
+            UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
+            Image bgImg = bg.GetComponent<Image>();
+            bgImg.color = new Color(0.07f, 0.09f, 0.11f, 1f);
+            bgImg.raycastTarget = false;
+
+            BuildHeader();
+            BuildBody();
+            RefreshDetails();
+        }
+
+        private void BuildHeader()
+        {
+            GameObject topBar = new GameObject("GuildExpeditionHeader", typeof(RectTransform));
+            topBar.transform.SetParent(_canvasObj.transform, false);
+            SetNorm(topBar.GetComponent<RectTransform>(), 0f, 0.90f, 1f, 1f);
+
+            GameObject backBtn = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
+            backBtn.transform.SetParent(topBar.transform, false);
+            Image backImg = backBtn.GetComponent<Image>();
+            HomeV3UiLibrary.ApplyNavTileButton(backBtn.GetComponent<Button>(), backImg);
+            backImg.color = new Color(0.3f, 0.2f, 0.2f);
+            backBtn.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                TeardownUI();
+                _onBack?.Invoke();
+            });
+            RectTransform backRect = backBtn.GetComponent<RectTransform>();
+            backRect.anchorMin = new Vector2(0f, 0.5f);
+            backRect.anchorMax = new Vector2(0f, 0.5f);
+            backRect.pivot = new Vector2(0f, 0.5f);
+            backRect.anchoredPosition = new Vector2(30f, 0f);
+            backRect.sizeDelta = new Vector2(160f, 56f);
+            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+
+            Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "GUILD EXPEDITION",
+                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                new Vector2(720f, 48f));
+            title.fontSize = 28;
+            SetNorm(title.rectTransform, 0.22f, 0.15f, 0.78f, 0.9f);
+
+            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", "Ready.",
+                UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
+                new Vector2(420f, 40f));
+            SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
+        }
+
+        private void BuildBody()
+        {
+            GameObject panel = new GameObject("ExpeditionPanel", typeof(RectTransform));
+            panel.transform.SetParent(_canvasObj.transform, false);
+            SetNorm(panel.GetComponent<RectTransform>(), 0.05f, 0.08f, 0.95f, 0.88f);
+
+            _detailsText = UISharedFoundation.CreateText(panel.transform, "Details", string.Empty,
+                UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 120f));
+            SetNorm(_detailsText.rectTransform, 0.02f, 0.78f, 0.98f, 0.98f);
+
+            GameObject objGrid = new GameObject("ObjectiveGrid", typeof(RectTransform));
+            objGrid.transform.SetParent(panel.transform, false);
+            SetNorm(objGrid.GetComponent<RectTransform>(), 0.02f, 0.28f, 0.62f, 0.76f);
+            int cols = 3;
+            int rows = 4;
+            for (int i = 0; i < ScaffoldObjectiveIds.Length; i++)
+            {
+                int idx = i;
+                int col = i % cols;
+                int row = i / cols;
+                float cw = 1f / cols;
+                float rh = 1f / rows;
+                string id = ScaffoldObjectiveIds[i];
+                GameObject well = new GameObject($"Objective_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
+                well.transform.SetParent(objGrid.transform, false);
+                Image img = well.GetComponent<Image>();
+                HomeV3UiLibrary.ApplyNeutralActionButton(well.GetComponent<Button>(), img, new Color(0.16f, 0.22f, 0.28f, 0.85f));
+                well.GetComponent<Button>().onClick.AddListener(() =>
+                {
+                    _selectedObjectiveId = ScaffoldObjectiveIds[idx];
+                    RefreshDetails();
+                    SetStatus($"Objective: {_selectedObjectiveId}");
+                });
+                SetNorm(well.GetComponent<RectTransform>(),
+                    col * cw + 0.01f, 1f - (row + 1) * rh + 0.02f,
+                    (col + 1) * cw - 0.01f, 1f - row * rh - 0.02f);
+                Text label = UISharedFoundation.CreateText(well.transform, "Label", ShortId(id),
+                    UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
+                label.fontSize = 14;
+                SetNorm(label.rectTransform, 0.04f, 0.1f, 0.96f, 0.9f);
+            }
+
+            GameObject mileStrip = new GameObject("MilestoneStrip", typeof(RectTransform));
+            mileStrip.transform.SetParent(panel.transform, false);
+            SetNorm(mileStrip.GetComponent<RectTransform>(), 0.64f, 0.28f, 0.98f, 0.76f);
+            for (int i = 0; i < MilestoneThresholds.Length; i++)
+            {
+                int idx = i;
+                float h = 1f / MilestoneThresholds.Length;
+                int threshold = MilestoneThresholds[i];
+                GameObject chip = new GameObject($"Milestone_{threshold}", typeof(RectTransform), typeof(Image), typeof(Button));
+                chip.transform.SetParent(mileStrip.transform, false);
+                Image img = chip.GetComponent<Image>();
+                HomeV3UiLibrary.ApplyNeutralActionButton(chip.GetComponent<Button>(), img, new Color(0.22f, 0.28f, 0.18f, 0.9f));
+                chip.GetComponent<Button>().onClick.AddListener(() =>
+                {
+                    _selectedMilestone = MilestoneThresholds[idx];
+                    RefreshDetails();
+                    SetStatus($"Milestone: {_selectedMilestone}");
+                });
+                SetNorm(chip.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.02f, 0.95f, 1f - i * h - 0.02f);
+                UISharedFoundation.CreateText(chip.transform, "Label", $"BAND {threshold}",
+                    UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 36f));
+            }
+
+            CreateActionButton(panel.transform, "Btn_ConsumeAttempt", "CONSUME ATTEMPT", 0.02f, 0.04f, 0.32f, 0.22f,
+                () => _ = ConsumeAttemptAsync());
+            CreateActionButton(panel.transform, "Btn_SubmitObjective", "SUBMIT OBJECTIVE", 0.35f, 0.04f, 0.65f, 0.22f,
+                () => _ = SubmitObjectiveAsync(_selectedObjectiveId));
+            CreateActionButton(panel.transform, "Btn_ClaimMilestone", "CLAIM MILESTONE", 0.68f, 0.04f, 0.98f, 0.22f,
+                () => _ = ClaimMilestoneAsync(_selectedMilestone));
+        }
+
+        private void CreateActionButton(Transform parent, string name, string label,
+            float left, float bottom, float right, float top, UnityEngine.Events.UnityAction onClick)
+        {
+            GameObject btn = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            btn.transform.SetParent(parent, false);
+            Image img = btn.GetComponent<Image>();
+            HomeV3UiLibrary.ApplyNeutralActionButton(btn.GetComponent<Button>(), img, new Color(0.2f, 0.36f, 0.28f));
+            btn.GetComponent<Button>().onClick.AddListener(onClick);
+            SetNorm(btn.GetComponent<RectTransform>(), left, bottom, right, top);
+            UISharedFoundation.CreateText(btn.transform, "Text", label, UITextRole.Body,
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
+        }
+
+        private async Task<GuildExpeditionAttemptResult> ConsumeAttemptAsync()
+        {
+            if (!BeginBusy("Consuming attempt…"))
+                return new GuildExpeditionAttemptResult { errorCode = "BUSY" };
+            try
+            {
+                GuildExpeditionAttemptResult result = await _gateway.ConsumeAttemptAsync(Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStatus("Consume: null response.");
+                    return new GuildExpeditionAttemptResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (result.success)
+                    SetStatus($"Attempt consumed. Remaining={result.remaining}");
+                else
+                    SetStatus($"Consume failed: {result.errorCode ?? "unknown"}");
+                SetDetails($"ConsumeAttempt success={result.success} remaining={result.remaining} error={result.errorCode}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Consume failed: {ex.Message}");
+                return new GuildExpeditionAttemptResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
+        }
+
+        private async Task<GuildExpeditionObjectiveResult> SubmitObjectiveAsync(string objectiveId)
+        {
+            if (!BeginBusy("Submitting objective…"))
+                return new GuildExpeditionObjectiveResult { errorCode = "BUSY" };
+            try
+            {
+                GuildExpeditionObjectiveResult result =
+                    await _gateway.SubmitObjectiveResultAsync(objectiveId, Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStatus("Submit: null response.");
+                    return new GuildExpeditionObjectiveResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (result.success)
+                    SetStatus($"Scored +{result.pointsAwarded} (total {result.totalPoints})");
+                else
+                    SetStatus($"Submit failed: {result.errorCode ?? "unknown"}");
+                SetDetails(
+                    $"SubmitObjective id={objectiveId}\n" +
+                    $"success={result.success} points={result.pointsAwarded} total={result.totalPoints} " +
+                    $"alreadyScored={result.alreadyScored} week={result.weekKey} error={result.errorCode}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Submit failed: {ex.Message}");
+                return new GuildExpeditionObjectiveResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
+        }
+
+        private async Task<GuildExpeditionMilestoneResult> ClaimMilestoneAsync(int threshold)
+        {
+            if (!BeginBusy($"Claiming milestone {threshold}…"))
+                return new GuildExpeditionMilestoneResult { errorCode = "BUSY" };
+            try
+            {
+                GuildExpeditionMilestoneResult result =
+                    await _gateway.ClaimMilestoneAsync(threshold, Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStatus("Claim: null response.");
+                    return new GuildExpeditionMilestoneResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (result.success)
+                    SetStatus($"Claimed {threshold}: +{result.guildContributionGranted} GC");
+                else
+                    SetStatus($"Claim failed: {result.errorCode ?? "unknown"}");
+                SetDetails(
+                    $"ClaimMilestone threshold={threshold}\n" +
+                    $"success={result.success} granted={result.guildContributionGranted} " +
+                    $"alreadyClaimed={result.alreadyClaimed} error={result.errorCode}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Claim failed: {ex.Message}");
+                return new GuildExpeditionMilestoneResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
+        }
+
+        private void RefreshDetails()
+        {
+            SetDetails(
+                $"Selected objective: {_selectedObjectiveId}\n" +
+                $"Selected milestone: {_selectedMilestone}\n" +
+                "Catalog = CloudCode StaticExpeditionManifest scaffold (not a tuned week).");
+        }
+
+        private static string ShortId(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return id;
+            int dot = id.LastIndexOf('.');
+            return dot >= 0 && dot < id.Length - 1 ? id.Substring(dot + 1) : id;
+        }
+
+        private bool BeginBusy(string message)
+        {
+            if (_busy) return false;
+            _busy = true;
+            SetStatus(message);
+            return true;
+        }
+
+        private void EndBusy() => _busy = false;
+
+        private CancellationToken Token =>
+            _cts != null ? _cts.Token : CancellationToken.None;
+
+        private void SetStatus(string message)
+        {
+            if (_statusText != null)
+                _statusText.text = message ?? string.Empty;
+        }
+
+        private void SetDetails(string message)
+        {
+            if (_detailsText != null)
+                _detailsText.text = message ?? string.Empty;
+        }
+
+        private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)
+        {
+            rect.anchorMin = new Vector2(left, bottom);
+            rect.anchorMax = new Vector2(right, top);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        public void TeardownUI()
+        {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+
+            if (_canvasObj == null) return;
+            if (Application.isPlaying) Destroy(_canvasObj);
+            else DestroyImmediate(_canvasObj);
+            _canvasObj = null;
+        }
+
+        private void OnDestroy() => TeardownUI();
+    }
+}

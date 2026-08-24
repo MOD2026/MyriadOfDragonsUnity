@@ -1217,8 +1217,9 @@ namespace MyriadOfDragons.UI
             foreach (string canvasName in new[] {
                 "CampaignMapCanvas", "ShopCanvas", "DeckBuilderCanvas", "CollectionCanvas",
                 "EmpireCanvas", "EmpireExpeditionCanvas", "BattlePassCanvas", "DailyLoginQuestsCanvas",
-                "EmpireBuildingDetailCanvas", "BazaarCanvas", "GuildHallEntryCanvas", "ChatSocialCanvas",
-                "MemoryExpeditionCanvas", "MailInboxCanvas", "FriendsCanvas", "VipSubscriptionCanvas" })
+                "EmpireBuildingDetailCanvas", "BazaarCanvas", "GuildHallEntryCanvas", "GuildExpeditionCanvas",
+                "ChatSocialCanvas", "MemoryExpeditionCanvas", "MailInboxCanvas", "FriendsCanvas",
+                "VipSubscriptionCanvas", "PermitWeekKeyCanvas" })
             {
                 GameObject stale;
                 int guard = 0;

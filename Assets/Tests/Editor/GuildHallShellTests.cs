@@ -63,9 +63,8 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.AreEqual(GuildHallEntryOpenValues.FlatNonUpgradeCopy,
                 canvas.transform.Find("EntryPanel/FlatStatus")?.GetComponent<Text>()?.text);
-            var refuse = presenter.PressEntryForTests();
-            Assert.AreEqual(GuildHallEntryStatus.OpenValuesNotLocked, refuse.Status);
-
+            Assert.AreEqual("EXPEDITION",
+                canvas.transform.Find("EntryPanel/Btn_EntryAction/Text")?.GetComponent<Text>()?.text);
         }
 
         [Test]

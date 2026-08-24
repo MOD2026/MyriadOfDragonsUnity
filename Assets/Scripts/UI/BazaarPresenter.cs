@@ -1,37 +1,63 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using MyriadOfDragons.Metagame;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace MyriadOfDragons.UI
 {
-    /// <summary>BAZAAR V1 art shell. Actions refuse while OpenValues stay OPEN.</summary>
+    /// <summary>
+    /// BAZAAR V1 art shell wired to <see cref="IBazaarGateway"/>. Wallet reads are live;
+    /// List/Buy/Cancel are real plumbing (Collection ItemInstance creation is still deferred —
+    /// ListItem expects INSTANCE_NOT_FOUND until that lands).
+    /// </summary>
     public class BazaarPresenter : MonoBehaviour
     {
         public const string CanvasName = "BazaarCanvas";
 
+        /// <summary>Placeholder instance id until Collection can mint real ItemInstances.</summary>
+        public const string DeferredInstanceIdPlaceholder = "collection-pending-instance";
+
         private GameObject _canvasObj;
         private Action _onBack;
         private Text _statusText;
+        private Text _detailsText;
+        private IBazaarGateway _gateway;
+        private CancellationTokenSource _cts;
+        private int _activeTab;
+        private int _selectedWell = -1;
+        private string _selectedListingId = string.Empty;
+        private bool _busy;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+        public int ActiveTabForTests => _activeTab;
 
-        public void Initialize(Action onBack)
+        public void Initialize(Action onBack, IBazaarGateway gateway = null)
         {
             _onBack = onBack;
+            _gateway = gateway ?? new UnityCloudCodeBazaarGateway();
             BuildUI();
         }
 
+        public Task<BazaarWalletResult> RefreshWalletForTests() => RefreshWalletAsync();
 
-        public BazaarActionResult ConfirmTransactionForTests() =>
-            Apply(BazaarOpenValues.TryConfirmTransaction());
-        private BazaarActionResult Apply(BazaarActionResult result) { SetStatus(result.Message); return result; }
+        public Task<BazaarListingResult> ListDeferredInstanceForTests(int askCredits = 100) =>
+            ListItemAsync(DeferredInstanceIdPlaceholder, askCredits);
 
+        public Task<BazaarBuyResult> BuySelectedForTests(string listingId = null) =>
+            BuyItemAsync(string.IsNullOrWhiteSpace(listingId) ? _selectedListingId : listingId);
+
+        public Task<BazaarCancelResult> CancelSelectedForTests(string listingId = null) =>
+            CancelListingAsync(string.IsNullOrWhiteSpace(listingId) ? _selectedListingId : listingId);
+
+        public Task RunPrimaryActionForTests() => RunPrimaryActionAsync();
 
         private void BuildUI()
         {
             TeardownUI();
+            _cts = new CancellationTokenSource();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
@@ -44,11 +70,10 @@ namespace MyriadOfDragons.UI
             BazaarUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), new Color(0.08f, 0.09f, 0.12f));
 
             BuildHeader();
-            
             BuildTabs();
             BuildListingGrid();
             BuildSelectedPanel();
-
+            SelectTab(0);
         }
 
         private void BuildHeader()
@@ -82,7 +107,7 @@ namespace MyriadOfDragons.UI
             title.fontSize = 30;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
-            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", BazaarOpenValues.StatusNote,
+            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", "Ready.",
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
                 new Vector2(520f, 40f));
             SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
@@ -102,7 +127,7 @@ namespace MyriadOfDragons.UI
                 tab.transform.SetParent(tabs.transform, false);
                 Image img = tab.GetComponent<Image>();
                 HomeV3UiLibrary.ApplyNeutralActionButton(tab.GetComponent<Button>(), img, new Color(0.18f, 0.22f, 0.28f, 0.55f));
-                tab.GetComponent<Button>().onClick.AddListener(() => SetStatus(BazaarOpenValues.TrySelectTab(idx).Message));
+                tab.GetComponent<Button>().onClick.AddListener(() => SelectTab(idx));
                 SetNorm(tab.GetComponent<RectTransform>(), i * w + 0.01f, 0.1f, (i + 1) * w - 0.01f, 0.9f);
                 UISharedFoundation.CreateText(tab.transform, "Text", labels[i].ToUpperInvariant(), UITextRole.Caption,
                     TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 36f));
@@ -127,7 +152,7 @@ namespace MyriadOfDragons.UI
                 img.color = new Color(0.1f, 0.12f, 0.16f, 0.35f);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
-                btn.onClick.AddListener(() => SetStatus(BazaarOpenValues.TrySelectListing(slot).Message));
+                btn.onClick.AddListener(() => SelectListingWell(slot));
                 SetNorm(well.GetComponent<RectTransform>(), col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f, (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
                 Text t = UISharedFoundation.CreateText(well.transform, "Placeholder", BazaarOpenValues.RuntimePlaceholder,
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(160f, 40f));
@@ -140,23 +165,245 @@ namespace MyriadOfDragons.UI
             GameObject panel = new GameObject("SelectedPanel", typeof(RectTransform));
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.60f, 0.18f, 0.97f, 0.86f);
-            Text details = UISharedFoundation.CreateText(panel.transform, "Details", BazaarOpenValues.RuntimePlaceholder,
+            _detailsText = UISharedFoundation.CreateText(panel.transform, "Details", BazaarOpenValues.RuntimePlaceholder,
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(480f, 220f));
-            SetNorm(details.rectTransform, 0.05f, 0.35f, 0.95f, 0.95f);
+            SetNorm(_detailsText.rectTransform, 0.05f, 0.35f, 0.95f, 0.95f);
             GameObject action = new GameObject("Btn_PrimaryAction", typeof(RectTransform), typeof(Image), typeof(Button));
             action.transform.SetParent(panel.transform, false);
             Image aImg = action.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(action.GetComponent<Button>(), aImg, new Color(0.2f, 0.4f, 0.3f));
-            action.GetComponent<Button>().onClick.AddListener(() => SetStatus(BazaarOpenValues.TryConfirmTransaction().Message));
+            action.GetComponent<Button>().onClick.AddListener(() => _ = RunPrimaryActionAsync());
             SetNorm(action.GetComponent<RectTransform>(), 0.05f, 0.05f, 0.95f, 0.22f);
             UISharedFoundation.CreateText(action.transform, "Text", "CONFIRM", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
         }
 
+        private void SelectTab(int tabIndex)
+        {
+            _activeTab = Mathf.Clamp(tabIndex, 0, 3);
+            switch (_activeTab)
+            {
+                case 0:
+                    SetDetails("Browse — select a listing well, then CONFIRM to BuyItem (needs a real listingId).");
+                    SetStatus("Browse tab.");
+                    break;
+                case 1:
+                    SetDetails(
+                        $"Sell — CONFIRM lists placeholder instance '{DeferredInstanceIdPlaceholder}' " +
+                        "(expects INSTANCE_NOT_FOUND until Collection mints ItemInstances).");
+                    SetStatus("Sell tab.");
+                    break;
+                case 2:
+                    SetDetails("My Listings — select a well (sets listing id placeholder), CONFIRM cancels that listing.");
+                    SetStatus("My Listings tab.");
+                    break;
+                case 3:
+                    SetDetails("Wallet — CONFIRM calls GetBazaarWallet (live).");
+                    SetStatus("Wallet tab.");
+                    _ = RefreshWalletAsync();
+                    break;
+            }
+        }
+
+        private void SelectListingWell(int wellIndex)
+        {
+            _selectedWell = wellIndex;
+            // No browse catalog yet — well index becomes a deterministic placeholder listing id for Buy/Cancel plumbing.
+            _selectedListingId = $"listing-well-{wellIndex}";
+            SetDetails($"Selected well {wellIndex}. Listing id placeholder: {_selectedListingId}");
+            SetStatus($"Selected well {wellIndex}.");
+        }
+
+        private async Task RunPrimaryActionAsync()
+        {
+            if (_busy) return;
+            switch (_activeTab)
+            {
+                case 0:
+                    await BuyItemAsync(_selectedListingId).ConfigureAwait(true);
+                    break;
+                case 1:
+                    await ListItemAsync(DeferredInstanceIdPlaceholder, askCredits: 100).ConfigureAwait(true);
+                    break;
+                case 2:
+                    await CancelListingAsync(_selectedListingId).ConfigureAwait(true);
+                    break;
+                case 3:
+                    await RefreshWalletAsync().ConfigureAwait(true);
+                    break;
+            }
+        }
+
+        private async Task<BazaarWalletResult> RefreshWalletAsync()
+        {
+            if (!BeginBusy("Loading wallet…"))
+                return new BazaarWalletResult { errorCode = "BUSY" };
+            try
+            {
+                BazaarWalletResult result = await _gateway.GetWalletAsync(Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStatus("Wallet: null response.");
+                    return new BazaarWalletResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (!string.IsNullOrEmpty(result.errorCode))
+                {
+                    SetStatus($"Wallet error: {result.errorCode}");
+                    SetDetails($"Wallet errorCode={result.errorCode}");
+                }
+                else
+                {
+                    SetStatus($"Wallet: {result.balanceCredits} Market Credits");
+                    SetDetails($"balanceCredits={result.balanceCredits}");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Wallet failed: {ex.Message}");
+                return new BazaarWalletResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
+        }
+
+        private async Task<BazaarListingResult> ListItemAsync(string instanceId, int askCredits)
+        {
+            if (!BeginBusy("Listing item…"))
+                return new BazaarListingResult { errorCode = "BUSY" };
+            try
+            {
+                BazaarListingResult result = await _gateway.ListItemAsync(instanceId, askCredits, Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStatus("List: null response.");
+                    return new BazaarListingResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (result.success)
+                    SetStatus($"Listed {result.listingId} (fee {result.goldFeeDue}g)");
+                else
+                    SetStatus($"List failed: {result.errorCode ?? "unknown"}");
+                SetDetails(
+                    $"ListItem instanceId={instanceId} askCredits={askCredits}\n" +
+                    $"success={result.success} listingId={result.listingId} errorCode={result.errorCode}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"List failed: {ex.Message}");
+                return new BazaarListingResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
+        }
+
+        private async Task<BazaarBuyResult> BuyItemAsync(string listingId)
+        {
+            if (string.IsNullOrWhiteSpace(listingId))
+            {
+                SetStatus("Buy: select a listing well first.");
+                return new BazaarBuyResult { errorCode = "INVALID_REQUEST" };
+            }
+
+            if (!BeginBusy("Buying…"))
+                return new BazaarBuyResult { errorCode = "BUSY" };
+            try
+            {
+                string idempotencyKey = Guid.NewGuid().ToString("N");
+                BazaarBuyResult result = await _gateway.BuyItemAsync(listingId, idempotencyKey, Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStatus("Buy: null response.");
+                    return new BazaarBuyResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (result.success)
+                    SetStatus($"Bought {result.listingId} for {result.pricePaidCredits} credits");
+                else
+                    SetStatus($"Buy failed: {result.errorCode ?? "unknown"}");
+                SetDetails(
+                    $"BuyItem listingId={listingId}\n" +
+                    $"success={result.success} errorCode={result.errorCode} paid={result.pricePaidCredits}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Buy failed: {ex.Message}");
+                return new BazaarBuyResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
+        }
+
+        private async Task<BazaarCancelResult> CancelListingAsync(string listingId)
+        {
+            if (string.IsNullOrWhiteSpace(listingId))
+            {
+                SetStatus("Cancel: select a listing well first.");
+                return new BazaarCancelResult { errorCode = "INVALID_REQUEST" };
+            }
+
+            if (!BeginBusy("Cancelling…"))
+                return new BazaarCancelResult { errorCode = "BUSY" };
+            try
+            {
+                BazaarCancelResult result = await _gateway.CancelListingAsync(listingId, Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStatus("Cancel: null response.");
+                    return new BazaarCancelResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (result.success)
+                    SetStatus($"Cancelled {listingId}");
+                else
+                    SetStatus($"Cancel failed: {result.errorCode ?? "unknown"}");
+                SetDetails($"CancelListing listingId={listingId}\nsuccess={result.success} errorCode={result.errorCode}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Cancel failed: {ex.Message}");
+                return new BazaarCancelResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
+        }
+
+        private bool BeginBusy(string message)
+        {
+            if (_busy) return false;
+            _busy = true;
+            SetStatus(message);
+            return true;
+        }
+
+        private void EndBusy() => _busy = false;
+
+        private CancellationToken Token =>
+            _cts != null ? _cts.Token : CancellationToken.None;
+
         private void SetStatus(string message)
         {
             if (_statusText != null)
                 _statusText.text = message ?? string.Empty;
+        }
+
+        private void SetDetails(string message)
+        {
+            if (_detailsText != null)
+                _detailsText.text = message ?? string.Empty;
         }
 
         private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)
@@ -169,6 +416,13 @@ namespace MyriadOfDragons.UI
 
         public void TeardownUI()
         {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+
             if (_canvasObj == null) return;
             if (Application.isPlaying) Destroy(_canvasObj);
             else DestroyImmediate(_canvasObj);
