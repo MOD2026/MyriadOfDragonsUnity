@@ -141,6 +141,15 @@ namespace MyriadOfDragons.Save
         /// <summary>Empire Expedition clear attempts so far on expeditionDayKeyUtc.</summary>
         public int expeditionAttemptsTodayUtc = 0;
 
+        /// <summary>Player Settings (2026-08-24, additive) — audio/notifications/language for utility screen + day-1 translation.</summary>
+        public bool settingsAudioEnabled = true;
+
+        /// <summary>Push/notification opt-in stored on profile for cross-device sync.</summary>
+        public bool settingsNotificationsEnabled = true;
+
+        /// <summary>BCP-47 language code consumed by realtime translation (Settings screen).</summary>
+        public string preferredLanguageCode = "en";
+
         // Battle History & Stats
         public int winStreak = 0;
         public int totalMatches = 0;

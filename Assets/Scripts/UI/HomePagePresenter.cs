@@ -450,6 +450,11 @@ public class HomePagePresenter : MonoBehaviour
         energyHudText = CreateResourcePill(resourceRow.transform, "home_resource_energy_pill_v3",
             "Stamina", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
 
+        BuildSettingsEntryButton();
+
+        if (SaveManager.SaveData != null)
+            PlayerSettingsService.ApplyFromProfile(SaveManager.SaveData);
+
         BuildWeeklyPermitClaimStrip();
         TryAutoClaimWeeklyPermitsOnHomeOpen();
 
@@ -692,6 +697,9 @@ public class HomePagePresenter : MonoBehaviour
     /// <summary>Exposed for tests: same hook the Home Avatar tile uses (direct entry, Back → Home).</summary>
     public void OpenAvatarForTests() => OpenAvatar(returnToEmpireOnBack: false);
 
+    /// <summary>Exposed for tests: same hook the Home Settings gear uses.</summary>
+    public void OpenSettingsForTests() => OpenSettings();
+
     /// <summary>Destroy is not legal outside Play Mode (this project's own non-negotiable rule -
     /// DestroyImmediate(), not Destroy(), for anything reachable from Initialize(); EditMode
     /// tests that click through Empire/Avatar/Campaign nav reach this directly).
@@ -753,6 +761,61 @@ public class HomePagePresenter : MonoBehaviour
             {
                 SafeDestroy(avatar);
                 OpenEmpire();
+            });
+    }
+
+    private void BuildSettingsEntryButton()
+    {
+        GameObject btnObj = new GameObject("Btn_Settings", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(homeCanvasObj.transform, false);
+        SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), 1780, 18, 1896, 90);
+
+        Image img = btnObj.GetComponent<Image>();
+        Sprite gear = Resources.Load<Sprite>("UI/Icons/icon_settings_gear");
+        if (gear != null)
+        {
+            img.sprite = gear;
+            img.preserveAspect = true;
+            img.color = Color.white;
+        }
+        else
+        {
+            img.color = new Color(0.2f, 0.24f, 0.3f, 0.9f);
+        }
+
+        Button btn = btnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(1f, 1f, 1f, gear != null ? 1f : 0.85f));
+        btn.onClick.AddListener(OpenSettings);
+
+        if (gear == null)
+        {
+            Text label = UISharedFoundation.CreateText(btnObj.transform, "Label", "⚙", UITextRole.Display,
+                TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(80f, 60f));
+            label.fontSize = 28;
+            label.raycastTarget = false;
+        }
+    }
+
+    private void OpenSettings()
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+        SettingsPresenter settings = gameObject.GetComponent<SettingsPresenter>();
+        if (settings == null) settings = gameObject.AddComponent<SettingsPresenter>();
+
+        settings.Initialize(
+            onBackToHome: () =>
+            {
+                if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+                RefreshTopHUD();
+                SafeDestroy(settings);
+            },
+            onLogoutCompleted: _ =>
+            {
+                if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+                RefreshTopHUD();
+                SafeDestroy(settings);
             });
     }
 

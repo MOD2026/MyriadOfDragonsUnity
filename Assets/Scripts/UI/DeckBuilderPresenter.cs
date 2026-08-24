@@ -320,7 +320,9 @@ namespace MyriadOfDragons.UI
             contentRect.sizeDelta = Vector2.zero;
 
             GridLayoutGroup grid = contentObj.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(190, 260);
+            grid.cellSize = CardTileCompositionV1.HasPack
+                ? CardTileCompositionV1.DisplaySizeForDeck(compact: false)
+                : new Vector2(190, 260);
             grid.spacing = new Vector2(16, 16);
             grid.padding = new RectOffset(8, 8, 8, 8);
             grid.childAlignment = TextAnchor.UpperCenter;
@@ -380,7 +382,9 @@ namespace MyriadOfDragons.UI
             contentRect.sizeDelta = new Vector2(0f, 0f);
 
             GridLayoutGroup grid = contentObj.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(150, 205);
+            grid.cellSize = CardTileCompositionV1.HasPack
+                ? CardTileCompositionV1.DisplaySizeForDeck(compact: true)
+                : new Vector2(150, 205);
             grid.spacing = new Vector2(12, 12);
             grid.padding = new RectOffset(8, 8, 8, 8);
             grid.childAlignment = TextAnchor.UpperCenter;
@@ -719,7 +723,9 @@ namespace MyriadOfDragons.UI
 
         private GameObject CreateCardVisual(string objectName, DeckCardData card, bool compact)
         {
-            Vector2 cardSize = compact ? new Vector2(150f, 205f) : new Vector2(190f, 260f);
+            Vector2 cardSize = CardTileCompositionV1.ShouldUseComposition(card.id)
+                ? CardTileCompositionV1.DisplaySizeForDeck(compact)
+                : compact ? new Vector2(150f, 205f) : new Vector2(190f, 260f);
             GameObject cardObj = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
             cardObj.GetComponent<RectTransform>().sizeDelta = cardSize;
 
@@ -738,6 +744,28 @@ namespace MyriadOfDragons.UI
                 colorMultiplier = 1f,
                 fadeDuration = 0.08f
             };
+
+            Card resolvedForTile = cardDatabase != null ? cardDatabase.GetCard(card.id) : null;
+            Sprite fallbackArt = resolvedForTile != null && cardDatabase != null ? cardDatabase.GetArt(resolvedForTile) : null;
+            var tileContent = CardTileCompositionV1.ContentFromCard(
+                card.id,
+                card.cardName,
+                card.cost,
+                card.attack,
+                card.health,
+                resolvedForTile,
+                fallbackArt);
+            if (CardTileCompositionV1.TryBuildLayers(cardObj.transform, tileContent, compact))
+            {
+                if (!compact && IsCardInDeck(card.id))
+                {
+                    var cardBorderOutline = cardObj.AddComponent<Outline>();
+                    cardBorderOutline.effectColor = new Color(0.35f, 0.85f, 0.75f, 1f);
+                    cardBorderOutline.effectDistance = new Vector2(2f, -2f);
+                }
+
+                return cardObj;
+            }
 
             // OpaqueArt card base BELOW art (foundation portrait-card primitive).
             GameObject baseObj = new GameObject("OpaqueCardBase", typeof(RectTransform), typeof(Image));

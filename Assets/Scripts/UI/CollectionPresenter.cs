@@ -232,7 +232,9 @@ namespace MyriadOfDragons.UI
             contentRect.sizeDelta = new Vector2(0f, 0f);
 
             GridLayoutGroup grid = contentObj.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(220f, 300f);
+            grid.cellSize = CardTileCompositionV1.HasPack
+                ? CardTileCompositionV1.DisplaySizeForCollection() + new Vector2(10f, 15f)
+                : new Vector2(220f, 300f);
             grid.spacing = new Vector2(18f, 18f);
             grid.childAlignment = TextAnchor.UpperLeft;
             grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
@@ -435,12 +437,28 @@ namespace MyriadOfDragons.UI
             GameObject tileObj = new GameObject($"OwnedCard_{card.CardId}", typeof(RectTransform), typeof(Image), typeof(Button));
             tileObj.transform.SetParent(parent, false);
             tileObj.transform.localScale = Vector3.one;
-            tileObj.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 280f);
+            Vector2 tileSize = CardTileCompositionV1.ShouldUseComposition(card.CardId)
+                ? CardTileCompositionV1.DisplaySizeForCollection()
+                : new Vector2(210f, 280f);
+            tileObj.GetComponent<RectTransform>().sizeDelta = tileSize;
 
             Image hit = tileObj.GetComponent<Image>();
             hit.color = new Color(1f, 1f, 1f, 0.01f);
             Button tileBtn = tileObj.GetComponent<Button>();
             tileBtn.targetGraphic = hit;
+
+            Card resolved = EnsureCardDatabase()?.GetCard(card.CardId);
+            string tileName = resolved != null ? resolved.DisplayName : card.DisplayName;
+            var tileContent = CardTileCompositionV1.ContentFromCard(
+                card.CardId,
+                tileName,
+                card.Cost,
+                card.Attack,
+                card.Health,
+                resolved,
+                card.Art);
+            if (CardTileCompositionV1.TryBuildLayers(tileObj.transform, tileContent, compact: false))
+                return tileObj;
 
             GameObject baseObj = new GameObject("OpaqueCardBase", typeof(RectTransform), typeof(Image));
             baseObj.transform.SetParent(tileObj.transform, false);

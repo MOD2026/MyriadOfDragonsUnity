@@ -49,6 +49,10 @@ namespace MyriadOfDragons.Save
             profile.expeditionGoldEarnedTodayUtc = AtLeastZero(profile.expeditionGoldEarnedTodayUtc);
             profile.expeditionAttemptsTodayUtc = AtLeastZero(profile.expeditionAttemptsTodayUtc);
 
+            profile.preferredLanguageCode = string.IsNullOrWhiteSpace(profile.preferredLanguageCode)
+                ? "en"
+                : profile.preferredLanguageCode.Trim();
+
             profile.gold = AtLeastZero(profile.gold);
             profile.gems = AtLeastZero(profile.gems);
             profile.eventMedals = AtLeastZero(profile.eventMedals);
