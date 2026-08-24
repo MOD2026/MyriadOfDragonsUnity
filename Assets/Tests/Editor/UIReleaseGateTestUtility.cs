@@ -202,10 +202,24 @@ namespace MyriadOfDragons.Tests
                 return;
             }
 
-            Image art = cardRoot.GetComponentsInChildren<Image>(true).FirstOrDefault(img => img.gameObject.name == "Art");
-            Assert.NotNull(art, $"Card gate: '{cardRoot.name}' missing an 'Art' image.");
+            RectTransform rootRect = cardRoot.GetComponent<RectTransform>();
+            if (rootRect != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rootRect);
+
+            // Legacy tiles use "Art" / "CardArt"; CardTileCompositionV1 uses "CardPortrait".
+            Image art = cardRoot.GetComponentsInChildren<Image>(true).FirstOrDefault(img =>
+                img.gameObject.name == "Art"
+                || img.gameObject.name == "CardPortrait"
+                || img.gameObject.name == "CardArt");
+            Assert.NotNull(art, $"Card gate: '{cardRoot.name}' missing an Art/CardPortrait/CardArt image.");
             Assert.Greater(art.rectTransform.rect.width, 0f, $"Card gate: art rect for '{cardRoot.name}' must have positive width; bounds={BoundsText(art.rectTransform)}.");
             Assert.Greater(art.rectTransform.rect.height, 0f, $"Card gate: art rect for '{cardRoot.name}' must have positive height; bounds={BoundsText(art.rectTransform)}.");
+
+            // V1 composition deliberately draws CardFrame above CardPortrait (transparent well).
+            bool isV1Composition = cardRoot.transform.Find("CardPortrait") != null
+                && cardRoot.transform.Find("CardFrame") != null;
+            if (isV1Composition)
+                return;
 
             int artIndex = art.transform.GetSiblingIndex();
             foreach (Image image in cardRoot.GetComponentsInChildren<Image>(true))

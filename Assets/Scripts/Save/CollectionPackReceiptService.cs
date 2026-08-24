@@ -387,10 +387,12 @@ namespace MyriadOfDragons.Save
 
         private static CardProgressionRecord FindRecord(PlayerProfile profile, string cardId)
         {
-            if (profile.cardProgression == null) return null;
+            if (profile.cardProgression == null || string.IsNullOrEmpty(cardId)) return null;
             foreach (CardProgressionRecord record in profile.cardProgression)
             {
-                if (record.cardId == cardId) return record;
+                if (record != null
+                    && string.Equals(record.cardId, cardId, StringComparison.Ordinal))
+                    return record;
             }
 
             return null;
