@@ -310,3 +310,32 @@ still gate candidacy (quality); the roll gates frequency - different problems, b
 themselves NOT revised - correctly rejected as "would redefine overwhelming dominance as
 acceptable." Full matrix rerun required after implementation; if win-delta still exceeds band,
 escalate to CC as balance evidence, do not auto-retune.
+
+## AvatarStrike Once-Per-Match Commitment Throttle (LOCKED 2026-08-24, amends the gate above)
+
+Second matrix re-run: general 40/60 gate fixed cast-frequency but spell-contribution-to-wins stayed
+71-79% vs the locked ≤40% cap, root-caused to AvatarStrike's lethal-only candidacy gate making it
+dominate win-attribution whenever it fires, independent of frequency. GPT decision (Option 2 of 2
+presented, NOT the exemption option): AvatarStrike does not get exempted from the 40% contribution
+cap - a spell dominating outcomes is still dominating outcomes even if each individual cast is
+"intelligent." Fix: AvatarStrike receives a SEPARATE, stricter roll that REPLACES (does not stack
+with) the general 40/60 gate for AvatarStrike candidates specifically:
+- Non-AvatarStrike candidates: unchanged 40% cast / 60% pass, every eligible tick.
+- AvatarStrike candidate: exactly ONE 10% commitment roll per match, taken the first time an
+  AvatarStrike satisfies all existing legal+lethal-finish conditions. Success = cast it. Failure =
+  AvatarStrike disabled for the AI for the rest of that match, no retry on later ticks.
+Reasoning stated by GPT: a fresh 10% roll every lethal tick would asymptote toward certainty and
+just delay the same dominant finish - the once-per-match commitment is the actual restraint.
+Energy cost/cooldown/clash-3 rules unchanged. Existing matrix bands unchanged (cast rate 25-70%,
+win-rate delta -5/+8pp, spell contribution ≤40%) - report misses to CC, do not auto-widen.
+
+## AI Tier -> Stage-Gated Spell Access - CONFIRMED (2026-08-24, ratifies the LOCKED entry above)
+
+GPT independently re-derived the same cumulative tier mapping already locked above (Novice=Cinder
+Lash+Vital Spark; Apprentice adds Fault Line+Renewal; Veteran adds Sun Lance+Banner of Ashes;
+Master adds Tempest Brand; Titan inherits all 7, no exclusive) with matching stage/book grounding
+(Ch1 1-2/1-6, Ch2 2-4/2-8 pre-finale, Ch2-finale-book Sun Lance + Ch3 3-3 Banner of Ashes,
+Ch3-finale-book Tempest Brand). No changes required. Confirms the existing implementation is
+correctly grounded, not just internally consistent. Tests must keep distinguishing eligible-in-pool
+from actually-equipped (auto-equip heuristic still suppresses Cinder Lash/Vital Spark/Sun Lance/
+Tempest Brand behind stronger same-effect options) - no heuristic correction is in scope here.
