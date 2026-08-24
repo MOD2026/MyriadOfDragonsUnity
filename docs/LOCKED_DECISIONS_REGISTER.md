@@ -329,6 +329,14 @@ just delay the same dominant finish - the once-per-match commitment is the actua
 Energy cost/cooldown/clash-3 rules unchanged. Existing matrix bands unchanged (cast rate 25-70%,
 win-rate delta -5/+8pp, spell contribution ≤40%) - report misses to CC, do not auto-widen.
 
+**Implemented and matrix-rerun 2026-08-24** (`BattleController.RollAvatarStrikeCommitmentGate()` +
+`AISpellCaster` branching to it for AvatarStrike candidates only). Real result, not a bug: spell-
+contribution concentration is fixed, but the throttle over-corrected the other direction -
+Apprentice/VeteranPlus spells/match crashed to ~0.28 (below the locked 0.5 floor) and Novice
+player win-rate rose 9.5% vs baseline (exceeds the locked 8pp cap) - AI now casts too rarely
+overall and is measurably weaker at Novice. Escalated to CC/GPT per this entry's own failure
+policy, not auto-retuned.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
