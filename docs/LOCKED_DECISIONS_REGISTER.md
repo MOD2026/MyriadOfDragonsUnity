@@ -426,6 +426,20 @@ spells/match is 0.12 (both assertions exist; NUnit only surfaced the first one h
 method aborted). The restraint fixed win-rate but over-corrected into near-total Firestorm silence
 at Novice. Escalated, not auto-loosened.
 
+**GPT's loosened single-unit exception, implemented + independently verified 2026-08-25**
+("can damage" Attack&gt;0 replacing "can defeat" Attack&gt;=CurrentHealth, new
+`LaneIsActiveReciprocalThreat` helper). Verified twice - once by CC, once independently by VS
+(2000 trials each, numbers within rounding of each other, confirms this is real not sample noise):
+- **Novice: win-rate delta now solved** (+2.4pp, well inside the ±8pp band). But cast-rate
+  (17.7-17.9%, floor 25%), spells/match (0.12-0.13, floor 0.5), and fallback (87.5-88.3%, ceiling
+  45%) are all still badly over-corrected, unchanged from the tighter "can defeat" version - the
+  loosened exception did not measurably recover Novice's ordinary cast frequency. Still open.
+- **Apprentice: fully solved** - win delta +6.4pp, cast rate 34.6% (band 25-70%), spells/match
+  0.34 (floor 0.30), fallback 66.7% (ceiling 70%).
+- **VeteranPlus: one new miss** - fallback rate 71.9%, just over its own 70% ceiling. Everything
+  else at VeteranPlus reads as passing.
+Reported to GPT with full numbers, not auto-loosened further.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
