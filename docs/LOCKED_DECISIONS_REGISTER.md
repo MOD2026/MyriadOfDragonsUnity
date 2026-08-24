@@ -228,3 +228,17 @@ accents + 5 bespoke AvatarStrike sequences, not 36 independent VFX systems.
 
 Real gap flagged, not yet resolved: AI spellbooks currently mirror the PLAYER's progression-derived
 loadout rather than having their own stage/archetype-authored one - needs fixing in Wave 1.
+
+## Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24, owner-authorized frozen field)
+
+Spell Books: chapter-finale first-clear-only grant (no drop/purchase/trade/farm), permanent
+ownership, not consumable. ownedSpellIds : List<string> is a new additive PlayerProfile field
+(OWNER AUTHORIZED), equippedSpellIds is the separate Wave-1 loadout field. Sync service runs inside
+every authoritative progression transaction (Avatar level-up, stage first-clear, Spell Book grant,
+new-profile creation) plus once as a migration repair pass - NEVER at battle start (battle stays
+read-only/validation-only, no save mutation) and never on-demand/polling. SpellUnlockResolver stays
+a pure eligibility calculator; it no longer directly builds the battle spellbook - that's now
+ownedSpellIds -> equippedSpellIds (subset) -> catalogue resolution. This makes the existing
+battle-start resolver call in BattleController.StartMatch obsolete - real refactor needed on
+already-shipped code, not just new code. Migration for old saves: infer Sun Lance/Tempest Brand
+ownership only from confirmed chapter-2/3 finale completion evidence, not just chapter visibility.
