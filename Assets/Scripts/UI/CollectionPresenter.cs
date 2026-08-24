@@ -107,8 +107,8 @@ namespace MyriadOfDragons.UI
             headerObj.transform.SetParent(_canvasObj.transform, false);
 
             Image headerImg = headerObj.GetComponent<Image>();
-            if (!HomeV3UiLibrary.TryApplyHeaderFrame(headerImg))
-                headerImg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
+            headerImg.sprite = null;
+            headerImg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
 
             RectTransform headerRect = headerObj.GetComponent<RectTransform>();
             headerRect.anchorMin = new Vector2(0f, 1f);
@@ -435,25 +435,60 @@ namespace MyriadOfDragons.UI
             GameObject tileObj = new GameObject($"OwnedCard_{card.CardId}", typeof(RectTransform), typeof(Image), typeof(Button));
             tileObj.transform.SetParent(parent, false);
             tileObj.transform.localScale = Vector3.one;
+            tileObj.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 280f);
 
-            Image bg = tileObj.GetComponent<Image>();
-            bg.color = new Color(0.19f, 0.23f, 0.32f, 1f);
+            Image hit = tileObj.GetComponent<Image>();
+            hit.color = new Color(1f, 1f, 1f, 0.01f);
+            Button tileBtn = tileObj.GetComponent<Button>();
+            tileBtn.targetGraphic = hit;
 
-            CreateTextElement(tileObj.transform, "Name", card.DisplayName, new Vector2(0f, 118f), 20, TextAnchor.MiddleCenter, new Vector2(205f, 54f));
+            GameObject baseObj = new GameObject("OpaqueCardBase", typeof(RectTransform), typeof(Image));
+            baseObj.transform.SetParent(tileObj.transform, false);
+            Image baseImg = baseObj.GetComponent<Image>();
+            int rarity = ResolveRarity(card.CardId);
+            Sprite frame = HomeV3UiLibrary.LoadCardFrameForRarity(rarity);
+            if (frame != null)
+            {
+                baseImg.sprite = frame;
+                baseImg.preserveAspect = true;
+                baseImg.color = Color.white;
+            }
+            else
+            {
+                baseImg.color = new Color(0.19f, 0.23f, 0.32f, 1f);
+            }
+            baseImg.raycastTarget = false;
+            RectTransform baseRect = baseObj.GetComponent<RectTransform>();
+            baseRect.anchorMin = Vector2.zero;
+            baseRect.anchorMax = Vector2.one;
+            baseRect.offsetMin = Vector2.zero;
+            baseRect.offsetMax = Vector2.zero;
 
-            GameObject artObj = new GameObject("Art", typeof(RectTransform), typeof(Image));
-            artObj.transform.SetParent(tileObj.transform, false);
+            GameObject artMask = new GameObject("CardArtMask", typeof(RectTransform), typeof(RectMask2D));
+            artMask.transform.SetParent(tileObj.transform, false);
+            RectTransform maskRect = artMask.GetComponent<RectTransform>();
+            maskRect.anchorMin = new Vector2(0.08f, 0.33f);
+            maskRect.anchorMax = new Vector2(0.92f, 0.87f);
+            maskRect.offsetMin = Vector2.zero;
+            maskRect.offsetMax = Vector2.zero;
+
+            GameObject artObj = new GameObject("CardArt", typeof(RectTransform), typeof(Image));
+            artObj.transform.SetParent(artMask.transform, false);
             Image artImg = artObj.GetComponent<Image>();
             artImg.preserveAspect = true;
             artImg.color = card.Art != null ? Color.white : new Color(0.3f, 0.32f, 0.4f);
             artImg.sprite = card.Art;
-
+            artImg.raycastTarget = false;
             RectTransform artRect = artObj.GetComponent<RectTransform>();
-            artRect.anchoredPosition = new Vector2(0f, 18f);
-            artRect.sizeDelta = new Vector2(178f, 178f);
+            artRect.anchorMin = Vector2.zero;
+            artRect.anchorMax = Vector2.one;
+            artRect.offsetMin = Vector2.zero;
+            artRect.offsetMax = Vector2.zero;
 
-            CreateTextElement(tileObj.transform, "Type", card.Archetype, new Vector2(0f, -84f), 16, TextAnchor.MiddleCenter, new Vector2(200f, 40f));
-            CreateTextElement(tileObj.transform, "Stats", $"Cost {card.Cost}   ATK {card.Attack}   HP {card.Health}", new Vector2(0f, -122f), 15, TextAnchor.MiddleCenter, new Vector2(210f, 36f));
+            CreateTextElement(tileObj.transform, "Cost", $"{card.Cost}", new Vector2(-70f, 110f), 18, TextAnchor.MiddleCenter, new Vector2(48f, 36f));
+            CreateTextElement(tileObj.transform, "Name", card.DisplayName, new Vector2(0f, -50f), 16, TextAnchor.MiddleCenter, new Vector2(190f, 40f));
+            CreateTextElement(tileObj.transform, "AtkStat", $"ATK {card.Attack}", new Vector2(-48f, -100f), 16, TextAnchor.MiddleCenter, new Vector2(100f, 32f));
+            CreateTextElement(tileObj.transform, "HpStat", $"HP {card.Health}", new Vector2(48f, -100f), 16, TextAnchor.MiddleCenter, new Vector2(100f, 32f));
 
             return tileObj;
         }

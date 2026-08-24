@@ -269,8 +269,8 @@ namespace MyriadOfDragons.UI
             GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(canvasObj.transform, false);
             Image topBarBg = topBar.GetComponent<Image>();
-            if (!HomeV3UiLibrary.TryApplyHeaderFrame(topBarBg))
-                topBarBg.color = new Color(0.045f, 0.085f, 0.11f, 1f);
+            topBarBg.sprite = null;
+            topBarBg.color = new Color(0.045f, 0.085f, 0.11f, 1f);
             SetScreenRectFromTopLeftPixels(topBar.GetComponent<RectTransform>(), 0f, 0f, 1920f, 100f);
 
             Text title = CreateTextElement(topBar.transform, "Title", "DECK BUILDER", Vector2.zero, 34, TextAnchor.MiddleCenter, new Vector2(640, 64));
@@ -721,9 +721,12 @@ namespace MyriadOfDragons.UI
         {
             Vector2 cardSize = compact ? new Vector2(150f, 205f) : new Vector2(190f, 260f);
             GameObject cardObj = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
-            Image cardBackground = cardObj.GetComponent<Image>();
-            cardBackground.color = new Color(0.08f, 0.10f, 0.14f, 0.75f);
+            cardObj.GetComponent<RectTransform>().sizeDelta = cardSize;
+
+            Image cardHit = cardObj.GetComponent<Image>();
+            cardHit.color = new Color(1f, 1f, 1f, 0.01f);
             Button cardButton = cardObj.GetComponent<Button>();
+            cardButton.targetGraphic = cardHit;
             cardButton.transition = Selectable.Transition.ColorTint;
             cardButton.colors = new ColorBlock
             {
@@ -736,54 +739,69 @@ namespace MyriadOfDragons.UI
                 fadeDuration = 0.08f
             };
 
-            GameObject borderObj = new GameObject("CardBorder", typeof(RectTransform), typeof(Image));
-            borderObj.transform.SetParent(cardObj.transform, false);
-            Image borderImage = borderObj.GetComponent<Image>();
-            borderImage.color = new Color(0.28f, 0.35f, 0.40f, 0.90f);
-            borderImage.raycastTarget = false;
-            SetLocalNormalisedRect(borderImage.rectTransform, 0.02f, 0.02f, 0.98f, 0.98f);
-
-            GameObject artViewport = new GameObject("ArtViewport", typeof(RectTransform), typeof(RectMask2D));
-            artViewport.transform.SetParent(cardObj.transform, false);
-            SetLocalNormalisedRect(artViewport.GetComponent<RectTransform>(), 0.08f, 0.28f, 0.92f, 0.84f);
-
-            GameObject artObj = new GameObject("Art", typeof(RectTransform), typeof(Image), typeof(AspectRatioFitter));
-            artObj.transform.SetParent(artViewport.transform, false);
-
-            Image artImage = artObj.GetComponent<Image>();
+            // OpaqueArt card base BELOW art (foundation portrait-card primitive).
+            GameObject baseObj = new GameObject("OpaqueCardBase", typeof(RectTransform), typeof(Image));
+            baseObj.transform.SetParent(cardObj.transform, false);
+            Image baseImage = baseObj.GetComponent<Image>();
             Card resolved = cardDatabase != null ? cardDatabase.GetCard(card.id) : null;
+            int rarity = resolved != null ? resolved.Rarity : 1;
+            Sprite frame = HomeV3UiLibrary.LoadCardFrameForRarity(rarity);
+            if (frame != null)
+            {
+                baseImage.sprite = frame;
+                baseImage.preserveAspect = true;
+                baseImage.color = Color.white;
+            }
+            else
+            {
+                baseImage.sprite = null;
+                baseImage.color = new Color(0.08f, 0.10f, 0.14f, 0.95f);
+            }
+            baseImage.raycastTarget = false;
+            SetLocalNormalisedRect(baseImage.rectTransform, 0f, 0f, 1f, 1f);
+
+            GameObject artViewport = new GameObject("CardArtMask", typeof(RectTransform), typeof(RectMask2D));
+            artViewport.transform.SetParent(cardObj.transform, false);
+            // Art safe box: x 8–92%, y 13–67%
+            SetLocalNormalisedRect(artViewport.GetComponent<RectTransform>(), 0.08f, 0.33f, 0.92f, 0.87f);
+
+            GameObject artObj = new GameObject("CardArt", typeof(RectTransform), typeof(Image));
+            artObj.transform.SetParent(artViewport.transform, false);
+            Image artImage = artObj.GetComponent<Image>();
             Sprite art = resolved != null && cardDatabase != null ? cardDatabase.GetArt(resolved) : null;
             artImage.sprite = art;
             artImage.color = art != null ? Color.white : Color.clear;
             artImage.preserveAspect = true;
             artImage.raycastTarget = false;
+            SetLocalNormalisedRect(artImage.rectTransform, 0f, 0f, 1f, 1f);
 
-            RectTransform artRect = artObj.GetComponent<RectTransform>();
-            artRect.anchorMin = Vector2.zero;
-            artRect.anchorMax = Vector2.one;
-            artRect.offsetMin = Vector2.zero;
-            artRect.offsetMax = Vector2.zero;
+            int costSize = compact ? 16 : 18;
+            int statSize = compact ? 16 : 18;
 
-            AspectRatioFitter artFitter = artObj.GetComponent<AspectRatioFitter>();
-            artFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-            artFitter.aspectRatio = art != null ? art.rect.width / art.rect.height : 1f;
+            Text cost = CreateTextElement(cardObj.transform, "Cost", $"{card.cost}", Vector2.zero, costSize, TextAnchor.MiddleCenter, new Vector2(48f, 36f));
+            cost.color = new Color(0.95f, 0.9f, 0.55f);
+            cost.fontStyle = FontStyle.Bold;
+            SetLocalNormalisedRect(cost.rectTransform, 0.07f, 0.76f, 0.28f, 0.93f);
 
-            Text name = CreateTextElement(cardObj.transform, "Name", card.cardName, Vector2.zero, compact ? 14 : 16, TextAnchor.MiddleCenter, new Vector2(160f, 30f));
+            Text name = CreateTextElement(cardObj.transform, "Name", card.cardName, Vector2.zero, compact ? 12 : 14, TextAnchor.MiddleCenter, new Vector2(160f, 28f));
             name.color = new Color(0.95f, 0.94f, 0.84f);
-            SetLocalNormalisedRect(name.rectTransform, 0.08f, 0.17f, 0.92f, 0.29f);
+            SetLocalNormalisedRect(name.rectTransform, 0.08f, 0.22f, 0.92f, 0.32f);
 
-            Text type = CreateTextElement(cardObj.transform, "Type", card.archetype, Vector2.zero, compact ? 11 : 12, TextAnchor.MiddleCenter, new Vector2(160f, 24f));
-            type.color = new Color(0.55f, 0.85f, 0.84f);
-            SetLocalNormalisedRect(type.rectTransform, 0.08f, 0.08f, 0.92f, 0.17f);
+            Text atk = CreateTextElement(cardObj.transform, "AtkStat", $"ATK {card.attack}", Vector2.zero, statSize, TextAnchor.MiddleLeft, new Vector2(90f, 28f));
+            atk.color = new Color(0.9f, 0.95f, 0.9f);
+            atk.fontStyle = FontStyle.Bold;
+            SetLocalNormalisedRect(atk.rectTransform, 0.08f, 0.07f, 0.50f, 0.20f);
 
-            Text stats = CreateTextElement(cardObj.transform, "Stats", $"COST {card.cost}   ATK {card.attack}   HP {card.health}", Vector2.zero, compact ? 10 : 12, TextAnchor.MiddleCenter, new Vector2(180f, 24f));
-            stats.color = new Color(0.9f, 0.95f, 0.9f);
-            SetLocalNormalisedRect(stats.rectTransform, 0.04f, 0.01f, 0.96f, 0.09f);
+            Text hp = CreateTextElement(cardObj.transform, "HpStat", $"HP {card.health}", Vector2.zero, statSize, TextAnchor.MiddleRight, new Vector2(90f, 28f));
+            hp.color = new Color(0.9f, 0.95f, 0.9f);
+            hp.fontStyle = FontStyle.Bold;
+            SetLocalNormalisedRect(hp.rectTransform, 0.50f, 0.07f, 0.92f, 0.20f);
 
             if (!compact && IsCardInDeck(card.id))
             {
+                // Selection state via Outline only — Card_Glow / Selected_Frame are foundation-excluded.
                 var cardBorderOutline = cardObj.AddComponent<Outline>();
-                cardBorderOutline.effectColor = new Color(0.88f, 0.76f, 0.28f, 1f);
+                cardBorderOutline.effectColor = new Color(0.35f, 0.85f, 0.75f, 1f);
                 cardBorderOutline.effectDistance = new Vector2(2f, -2f);
             }
 

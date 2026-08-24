@@ -119,10 +119,11 @@ namespace MyriadOfDragons.UI
             GameObject crestObj = new GameObject("Crest", typeof(RectTransform), typeof(Image));
             crestObj.transform.SetParent(panel.transform, false);
             Image crest = crestObj.GetComponent<Image>();
-            crest.sprite = HomeV3UiLibrary.Load("home_identity_crest_v3");
+            // Crest Production Master is RGB / excluded from HomeV3 Approved set — neutral placeholder only.
+            crest.sprite = null;
             crest.preserveAspect = true;
             crest.raycastTarget = false;
-            crest.color = crest.sprite != null ? Color.white : new Color(0.3f, 0.35f, 0.42f);
+            crest.color = new Color(0.3f, 0.35f, 0.42f);
             RectTransform crestRect = crestObj.GetComponent<RectTransform>();
             crestRect.anchorMin = new Vector2(0.08f, 0.35f);
             crestRect.anchorMax = new Vector2(0.32f, 0.88f);

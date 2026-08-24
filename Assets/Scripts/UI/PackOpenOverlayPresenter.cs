@@ -174,17 +174,16 @@ namespace MyriadOfDragons.UI
             return tiles;
         }
 
+        // Pack-open/reveal has no approved art in the Home/Deck/Collection V3 pack.
+        // Do not borrow retired HomeV3 chrome (tutorial banner, square nav tiles).
         private static void ApplyHomeV3PanelFrame(RectTransform panel)
         {
             Image panelImage = panel.GetComponent<Image>();
             if (panelImage == null) return;
 
-            Sprite frame = HomeV3UiLibrary.Load("home_tutorial_banner_frame_v3");
-            if (frame == null) return;
-
-            panelImage.sprite = frame;
-            panelImage.type = Image.Type.Sliced;
-            panelImage.color = Color.white;
+            panelImage.sprite = null;
+            panelImage.type = Image.Type.Simple;
+            panelImage.color = new Color(0.12f, 0.14f, 0.18f, 0.96f);
         }
 
         private static void ApplyHomeV3ContinueButton(Button button)
@@ -192,19 +191,16 @@ namespace MyriadOfDragons.UI
             if (button == null) return;
 
             Image graphic = button.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNavTileButton(button, graphic);
+            HomeV3UiLibrary.ApplyNeutralActionButton(button, graphic);
         }
 
         private static void ApplyHomeV3TileFrame(Image tileImage)
         {
             if (tileImage == null) return;
 
-            Sprite tile = HomeV3UiLibrary.Load("home_nav_tile_normal_v3");
-            if (tile == null) return;
-
-            tileImage.sprite = tile;
-            tileImage.type = Image.Type.Sliced;
-            tileImage.color = Color.white;
+            tileImage.sprite = null;
+            tileImage.type = Image.Type.Simple;
+            tileImage.color = new Color(0.16f, 0.18f, 0.22f, 0.92f);
         }
 
         public static void Dismiss(Transform shopCanvasRoot)

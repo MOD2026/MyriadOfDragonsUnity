@@ -3,10 +3,15 @@ using UnityEngine.UI;
 
 namespace MyriadOfDragons.UI
 {
-    /// <summary>Loads HomeV3 sprites from Resources/UI/HomeV3/ — single source for presenters.</summary>
+    /// <summary>
+    /// Home / Deck / Collection V3 chrome from <c>Resources/UI/HomeV3/</c>, gated by
+    /// docs pack <c>01_Shared_Foundation</c>. Only manifest-Approved sprites live in that folder;
+    /// excluded square nav tiles, dock frame, RGB masters, and unsliced frames are not loaded.
+    /// </summary>
     public static class HomeV3UiLibrary
     {
         public const string ResourceRoot = "UI/HomeV3/";
+        public const string FramesRoot = "UI/Frames/";
 
         public static Sprite Load(string fileNameWithoutExtension)
         {
@@ -14,40 +19,51 @@ namespace MyriadOfDragons.UI
             return Resources.Load<Sprite>(ResourceRoot + fileNameWithoutExtension);
         }
 
-        public static void ApplyNavTileButton(Button button, Image targetGraphic)
-        {
-            if (button == null || targetGraphic == null) return;
+        /// <summary>True when the approved resource-pill pack is present (not the retired dock/nav tiles).</summary>
+        public static bool HasHomeV3Pack => Load("home_resource_gold_pill_v3") != null;
 
-            Sprite normal = Load("home_nav_tile_normal_v3");
-            if (normal == null) return;
-
-            targetGraphic.sprite = normal;
-            targetGraphic.type = Image.Type.Sliced;
-            targetGraphic.color = Color.white;
-            button.targetGraphic = targetGraphic;
-            button.transition = Selectable.Transition.SpriteSwap;
-            button.spriteState = new SpriteState
-            {
-                highlightedSprite = Load("home_nav_tile_hover_v3") ?? normal,
-                pressedSprite = Load("home_nav_tile_pressed_v3") ?? normal,
-                disabledSprite = Load("home_nav_tile_disabled_v3") ?? normal,
-            };
-        }
-
-        public static bool HasHomeV3Pack => Load("home_nav_dock_frame_v3") != null;
-
-        /// <summary>Applies HomeV3 identity/header frame when the art pack is present.</summary>
+        /// <summary>Identity/header frame is not Approved without slice metadata — always false.</summary>
         public static bool TryApplyHeaderFrame(Image headerImage)
         {
             if (headerImage == null) return false;
+            headerImage.sprite = null;
+            headerImage.type = Image.Type.Simple;
+            return false;
+        }
 
-            Sprite frame = Load("home_hud_identity_frame_v3");
-            if (frame == null) return false;
+        /// <summary>Neutral charcoal/bronze action chrome — never square Home nav tiles or V2 buttons.</summary>
+        public static void ApplyNeutralActionButton(Button button, Image targetGraphic, Color? fill = null)
+        {
+            if (button == null || targetGraphic == null) return;
 
-            headerImage.sprite = frame;
-            headerImage.type = Image.Type.Sliced;
-            headerImage.color = Color.white;
-            return true;
+            targetGraphic.sprite = null;
+            targetGraphic.type = Image.Type.Simple;
+            targetGraphic.color = fill ?? new Color(0.14f, 0.18f, 0.22f, 0.96f);
+            button.targetGraphic = targetGraphic;
+            button.transition = Selectable.Transition.ColorTint;
+            button.colors = new ColorBlock
+            {
+                normalColor = Color.white,
+                highlightedColor = new Color(0.85f, 0.95f, 0.95f, 1f),
+                pressedColor = new Color(0.7f, 0.85f, 0.9f, 1f),
+                selectedColor = Color.white,
+                disabledColor = new Color(0.45f, 0.48f, 0.5f, 0.7f),
+                colorMultiplier = 1f,
+                fadeDuration = 0.08f,
+            };
+        }
+
+        /// <summary>Legacy name kept for call sites — redirects to neutral action chrome.</summary>
+        public static void ApplyNavTileButton(Button button, Image targetGraphic) =>
+            ApplyNeutralActionButton(button, targetGraphic);
+
+        public static Sprite LoadCardFrameForRarity(int rarity)
+        {
+            string name = rarity >= 6 ? "Legendary_Card_Frame"
+                : rarity >= 4 ? "Epic_Card_Frame"
+                : rarity >= 3 ? "Rare_Card_Frame"
+                : "Common_Card_Frame";
+            return Resources.Load<Sprite>(FramesRoot + name);
         }
 
         /// <summary>HomeV3 resource pill (label + value) for metagame screen headers.</summary>
@@ -87,8 +103,8 @@ namespace MyriadOfDragons.UI
             labelText.fontSize = 16;
             labelText.raycastTarget = false;
             RectTransform labelRect = labelText.rectTransform;
-            labelRect.anchorMin = new Vector2(0.12f, 0.2f);
-            labelRect.anchorMax = new Vector2(0.45f, 0.8f);
+            labelRect.anchorMin = new Vector2(0.27f, 0.2f);
+            labelRect.anchorMax = new Vector2(0.55f, 0.8f);
             labelRect.offsetMin = Vector2.zero;
             labelRect.offsetMax = Vector2.zero;
 
@@ -99,8 +115,8 @@ namespace MyriadOfDragons.UI
             valueText.fontStyle = FontStyle.Bold;
             valueText.raycastTarget = false;
             RectTransform valueRect = valueText.rectTransform;
-            valueRect.anchorMin = new Vector2(0.45f, 0.2f);
-            valueRect.anchorMax = new Vector2(0.9f, 0.8f);
+            valueRect.anchorMin = new Vector2(0.55f, 0.2f);
+            valueRect.anchorMax = new Vector2(0.91f, 0.8f);
             valueRect.offsetMin = Vector2.zero;
             valueRect.offsetMax = Vector2.zero;
 

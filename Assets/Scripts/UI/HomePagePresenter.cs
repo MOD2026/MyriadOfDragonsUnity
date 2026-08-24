@@ -386,22 +386,13 @@ public class HomePagePresenter : MonoBehaviour
             backgroundImage.raycastTarget = false;
         }
 
-        // === IDENTITY SURFACE (HomeV3 frame + crest when available) ===
+        // === IDENTITY SURFACE (text-only — identity frame needs slice metadata; crest RGB excluded) ===
         GameObject identityRoot = new GameObject("IdentityRoot", typeof(RectTransform), typeof(Image));
         identityRoot.transform.SetParent(homeCanvasObj.transform, false);
         SetScreenRectFromTopLeftPixels(identityRoot.GetComponent<RectTransform>(), 24, 18, 704, 100);
         Image identityBg = identityRoot.GetComponent<Image>();
-        Sprite identityFrame = HomeV3UiLibrary.Load("home_hud_identity_frame_v3");
-        if (identityFrame != null)
-        {
-            identityBg.sprite = identityFrame;
-            identityBg.type = Image.Type.Sliced;
-            identityBg.color = Color.white;
-        }
-        else
-        {
-            identityBg.color = new Color(0f, 0f, 0f, 0.15f);
-        }
+        identityBg.sprite = null;
+        identityBg.color = new Color(0.08f, 0.10f, 0.14f, 0.72f);
         identityBg.raycastTarget = true;
 
         Button identityButton = identityRoot.AddComponent<Button>();
@@ -409,13 +400,6 @@ public class HomePagePresenter : MonoBehaviour
         identityButton.transition = Selectable.Transition.ColorTint;
         identityButton.onClick.AddListener(() => OpenAvatar());
 
-        GameObject crestObj = new GameObject("IdentityCrest", typeof(RectTransform), typeof(Image));
-        crestObj.transform.SetParent(identityRoot.transform, false);
-        Image crestImg = crestObj.GetComponent<Image>();
-        crestImg.sprite = HomeV3UiLibrary.Load("home_identity_crest_v3");
-        crestImg.preserveAspect = true;
-        crestImg.raycastTarget = false;
-        SetLocalNormalisedRect(crestObj.GetComponent<RectTransform>(), 0.02f, 0.1f, 0.14f, 0.9f);
         // HUD placeholders before Save is ready — must mirror PlayerProfile field defaults (not re-typed).
         PlayerProfile hudDefaults = new PlayerProfile();
         string pName = SaveManager.SaveData != null ? SaveManager.SaveData.playerName : hudDefaults.playerName;
@@ -439,7 +423,7 @@ public class HomePagePresenter : MonoBehaviour
         playerNameText.fontSize = 30;
         playerNameText.fontStyle = FontStyle.Bold;
         playerNameText.raycastTarget = false;
-        SetLocalNormalisedRect(playerNameText.rectTransform, 0.16f, 0.55f, 0.95f, 1.0f);
+        SetLocalNormalisedRect(playerNameText.rectTransform, 0.06f, 0.55f, 0.95f, 1.0f);
 
         // Avatar identity line — level + live battle economy from Empire readers.
         avatarIdentityText = UISharedFoundation.CreateText(
@@ -448,7 +432,7 @@ public class HomePagePresenter : MonoBehaviour
             MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(420f, 20f));
         avatarIdentityText.fontSize = 16;
         avatarIdentityText.raycastTarget = false;
-        SetLocalNormalisedRect(avatarIdentityText.rectTransform, 0.16f, 0.0f, 0.95f, 0.45f);
+        SetLocalNormalisedRect(avatarIdentityText.rectTransform, 0.06f, 0.0f, 0.95f, 0.45f);
 
         GameObject resourceRow = new GameObject("ResourceRow", typeof(RectTransform));
         resourceRow.transform.SetParent(homeCanvasObj.transform, false);
@@ -531,108 +515,62 @@ public class HomePagePresenter : MonoBehaviour
 
     private void BuildHomeFeaturePanel()
     {
+        // Tutorial strip — neutral surface until banner slice metadata exists (foundation fallback).
         GameObject featureRoot = new GameObject("HomeFeatureRoot", typeof(RectTransform), typeof(Image));
         featureRoot.transform.SetParent(homeCanvasObj.transform, false);
-        SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 190, 1800, 710);
+        SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 116, 1800, 182);
         Image featureBg = featureRoot.GetComponent<Image>();
-        Sprite banner = HomeV3UiLibrary.Load("home_tutorial_banner_frame_v3");
-        if (banner != null)
-        {
-            featureBg.sprite = banner;
-            featureBg.type = Image.Type.Sliced;
-            featureBg.color = Color.white;
-        }
-        else
-        {
-            featureBg.color = HexColor("#2C2C2C");
-        }
+        featureBg.sprite = null;
+        featureBg.color = HexColor("#2C2C2C");
         featureBg.raycastTarget = false;
 
         Text featureCopy = UISharedFoundation.CreateText(
             featureRoot.transform, "FeatureCopy",
             HomeFeatureTutorialInviteCopy,
             UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(1100f, 80f));
-        featureCopy.fontSize = 26;
+        featureCopy.fontSize = 22;
         featureCopy.raycastTarget = false;
-        SetLocalNormalisedRect(featureCopy.rectTransform, 0.06f, 0.55f, 0.72f, 0.92f);
+        SetLocalNormalisedRect(featureCopy.rectTransform, 0.04f, 0.14f, 0.72f, 0.86f);
 
         GameObject startTutorialBtn = new GameObject("StartTutorialButtonRoot", typeof(RectTransform), typeof(Image), typeof(Button));
         startTutorialBtn.transform.SetParent(featureRoot.transform, false);
         Image btnBg = startTutorialBtn.GetComponent<Image>();
-        Sprite tutorialBtn = HomeV3UiLibrary.Load("home_start_tutorial_button_v3");
-        if (tutorialBtn != null)
-        {
-            btnBg.sprite = tutorialBtn;
-            btnBg.color = Color.white;
-        }
-        else
-        {
-            btnBg.color = HexColor("#1A3A4A");
-        }
-        Button btn = startTutorialBtn.GetComponent<Button>();
-        btn.onClick.AddListener(OnStartTutorialClicked);
-        SetLocalNormalisedRect(startTutorialBtn.GetComponent<RectTransform>(), 0.06f, 0.12f, 0.34f, 0.38f);
+        HomeV3UiLibrary.ApplyNeutralActionButton(startTutorialBtn.GetComponent<Button>(), btnBg, HexColor("#1A3A4A"));
+        startTutorialBtn.GetComponent<Button>().onClick.AddListener(OnStartTutorialClicked);
+        SetLocalNormalisedRect(startTutorialBtn.GetComponent<RectTransform>(), 0.76f, 0.14f, 0.96f, 0.86f);
 
-        if (tutorialBtn == null)
-        {
-            Text btnLabel = UISharedFoundation.CreateText(
-                startTutorialBtn.transform, "ActionLabel", "START TUTORIAL",
-                UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(200f, 40f));
-            btnLabel.fontSize = 18;
-            btnLabel.fontStyle = FontStyle.Bold;
-            btnLabel.raycastTarget = false;
-        }
+        Text btnLabel = UISharedFoundation.CreateText(
+            startTutorialBtn.transform, "ActionLabel", "START TUTORIAL",
+            UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(200f, 40f));
+        btnLabel.fontSize = 18;
+        btnLabel.fontStyle = FontStyle.Bold;
+        btnLabel.raycastTarget = false;
     }
 
     private void BuildNavigationStage()
     {
-        GameObject navStage = new GameObject("NavigationStage", typeof(RectTransform), typeof(Image));
+        // No dock frame (excluded). Five live actions retained (Campaign + Empire + pack's four).
+        GameObject navStage = new GameObject("NavigationStage", typeof(RectTransform));
         navStage.transform.SetParent(homeCanvasObj.transform, false);
         SetScreenRectFromTopLeftPixels(navStage.GetComponent<RectTransform>(), 24, 724, 1896, 1052);
 
-        Image dockBg = navStage.GetComponent<Image>();
-        Sprite dock = HomeV3UiLibrary.Load("home_nav_dock_frame_v3");
-        if (dock != null)
-        {
-            dockBg.sprite = dock;
-            dockBg.type = Image.Type.Sliced;
-            dockBg.color = Color.white;
-        }
-        else
-        {
-            dockBg.color = new Color(0f, 0f, 0f, 0.2f);
-        }
-        dockBg.raycastTarget = false;
-
-        CreateHeroTile("Campaign", "home_tile_story_hero_v3", "home_icon_story_v3", 38, 724, 388, 1030, OpenStoryCampaign, navStage.transform);
+        CreateHeroTile("Campaign", null, "home_icon_story_v3", 38, 724, 388, 1030, OpenStoryCampaign, navStage.transform);
         CreateHeroTile("Empire", null, null, 406, 724, 756, 1030, OpenEmpire, navStage.transform);
         CreateHeroTile("Cards", "home_tile_cards_hero_v3", "home_icon_cards_v3", 774, 724, 1124, 1030, OpenCollection, navStage.transform);
         CreateHeroTile("Shop", "home_tile_shop_hero_v3", "home_icon_shop_v3", 1142, 724, 1492, 1030, OpenShop, navStage.transform);
-        CreateHeroTile("To Battle", "home_tile_battle_hero_v3", "home_icon_battle_v3", 1510, 724, 1860, 1030, () => OnToBattleClicked(), navStage.transform);
+        CreateHeroTile("To Battle", null, "home_icon_battle_v3", 1510, 724, 1860, 1030, () => OnToBattleClicked(), navStage.transform);
     }
 
     private void CreateHeroTile(string label, string heroTileSprite, string iconFallbackSprite, float left, float top, float right, float bottom,
         UnityEngine.Events.UnityAction action, Transform parent)
     {
+        // HeroTileButtonRoot — neutral target; hero art is PreserveAspect foreground only (never square nav tile body).
         GameObject tileRoot = new GameObject($"Btn_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
         tileRoot.transform.SetParent(parent, false);
 
         Image tileBackground = tileRoot.GetComponent<Image>();
         Button tileButton = tileRoot.GetComponent<Button>();
-        Sprite tileSprite = !string.IsNullOrEmpty(heroTileSprite) ? HomeV3UiLibrary.Load(heroTileSprite) : null;
-        if (tileSprite != null)
-        {
-            tileBackground.sprite = tileSprite;
-            tileBackground.color = Color.white;
-            tileBackground.raycastTarget = true;
-            tileButton.transition = Selectable.Transition.ColorTint;
-            tileButton.targetGraphic = tileBackground;
-        }
-        else
-        {
-            HomeV3UiLibrary.ApplyNavTileButton(tileButton, tileBackground);
-        }
-
+        HomeV3UiLibrary.ApplyNeutralActionButton(tileButton, tileBackground, new Color(0.10f, 0.14f, 0.18f, 0.88f));
         tileButton.onClick.AddListener(action);
 
         RectTransform tileParent = parent as RectTransform;
@@ -645,29 +583,26 @@ public class HomePagePresenter : MonoBehaviour
         heroArtObj.transform.SetParent(tileRoot.transform, false);
 
         Image heroArt = heroArtObj.GetComponent<Image>();
-        if (label == "Empire")
-        {
-            heroArt.sprite = Resources.Load<Sprite>("UI/Icons/empire tab");
-            if (heroArt.sprite == null && !string.IsNullOrEmpty(iconFallbackSprite))
-                heroArt.sprite = HomeV3UiLibrary.Load(iconFallbackSprite);
-        }
-        else
-        {
-            heroArt.sprite = !string.IsNullOrEmpty(iconFallbackSprite) ? HomeV3UiLibrary.Load(iconFallbackSprite) : tileSprite;
-        }
+        Sprite hero = !string.IsNullOrEmpty(heroTileSprite) ? HomeV3UiLibrary.Load(heroTileSprite) : null;
+        if (hero == null && !string.IsNullOrEmpty(iconFallbackSprite))
+            hero = HomeV3UiLibrary.Load(iconFallbackSprite);
+        if (hero == null && label == "Empire")
+            hero = Resources.Load<Sprite>("UI/Icons/empire tab");
 
+        heroArt.sprite = hero;
         heroArt.preserveAspect = true;
         heroArt.raycastTarget = false;
-        heroArt.color = heroArt.sprite != null ? Color.white : HexColor("#3D566E");
-        SetLocalTopOriginRect(heroArt.rectTransform, 0.15f, 0.12f, 0.85f, 0.72f);
+        heroArt.color = hero != null ? Color.white : HexColor("#3D566E");
+        // Foundation hero window: x 7–93%, y 7–69% (bottom-origin normalised).
+        SetLocalNormalisedRect(heroArt.rectTransform, 0.07f, 0.31f, 0.93f, 0.93f);
 
         Text tileLabel = UISharedFoundation.CreateText(
             tileRoot.transform, "TileLabel", label,
             UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(320f, 60f));
-        tileLabel.fontSize = 24;
+        tileLabel.fontSize = 28;
         tileLabel.fontStyle = FontStyle.Bold;
         tileLabel.raycastTarget = false;
-        SetLocalTopOriginRect(tileLabel.rectTransform, 0.09f, 0.73f, 0.91f, 0.94f);
+        SetLocalNormalisedRect(tileLabel.rectTransform, 0.09f, 0.06f, 0.91f, 0.27f);
     }
 
     private static void SetLocalTopOriginRect(RectTransform rect, float leftPercent, float topPercent, float rightPercent, float bottomPercent)

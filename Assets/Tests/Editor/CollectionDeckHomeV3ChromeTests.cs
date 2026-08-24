@@ -65,14 +65,14 @@ namespace MyriadOfDragons.Tests
             Assert.NotNull(header);
             Image headerImage = header.GetComponent<Image>();
             Assert.NotNull(headerImage);
-
-            if (HomeV3UiLibrary.HasHomeV3Pack)
-                Assert.NotNull(headerImage.sprite, "HomeV3 pack present → Collection Header sprite must be applied.");
+            // Foundation: identity/header frame needs slice metadata — neutral fill only.
+            Assert.IsNull(headerImage.sprite);
 
             Assert.NotNull(canvas.transform.Find("BackButton"));
             Assert.NotNull(canvas.transform.Find("OpenDeckBuilderButton"));
             Assert.NotNull(canvas.transform.Find("ControlsRow/ClassFilter"));
             Assert.NotNull(canvas.transform.Find("ControlsRow/CollectionSort"));
+            Assert.IsTrue(HomeV3UiLibrary.HasHomeV3Pack, "Approved HomeV3 pill pack must be present.");
         }
 
         [Test]
@@ -88,15 +88,14 @@ namespace MyriadOfDragons.Tests
             Assert.NotNull(header);
             Image headerImage = header.GetComponent<Image>();
             Assert.NotNull(headerImage);
-
-            if (HomeV3UiLibrary.HasHomeV3Pack)
-                Assert.NotNull(headerImage.sprite, "HomeV3 pack present → Deck Builder HeaderBar sprite must be applied.");
+            Assert.IsNull(headerImage.sprite, "Deck header uses neutral fill — no unsliced Home frame.");
 
             Transform rail = canvas.transform.Find("ActionRail");
             Assert.NotNull(rail);
             Assert.NotNull(rail.Find("Btn_Back_Rail"));
             Assert.NotNull(rail.Find("Btn_Recommended"));
             Assert.NotNull(rail.Find("Btn_Confirm"));
+            Assert.IsTrue(HomeV3UiLibrary.HasHomeV3Pack);
         }
     }
 }
