@@ -297,3 +297,16 @@ auto-retunes balance values - same as the Auto-Formation Balance Soft precedent.
 representative scenario may cover a group if chapters genuinely share identical AI config
 (deck/spell-list/resource-profile/SoloAIScalingSystem tier) - coding room's own call based on real
 config, not assumed.
+
+## AI Spell Cast Probability Gate (LOCKED 2026-08-24)
+
+Real fix for the simulation matrix's blown bands (AI cast rate ~99.9%, win delta +45-55pp vs bands
+25-70%/-5 to +8pp) - root cause was §5's tactical clauses having no frequency limit, not a coding
+bug. Added: after AI selects its best legal spell+target for the tick, roll once (match-seeded RNG,
+reproducible) - 40% cast, 60% deliberate pass. No reroll on pass, no roll if no valid candidate,
+still max 1 cast/tick on success. Applies equally to all 5 tiers - HP/resource scaling stays the
+only difficulty lever, cast frequency is not a second hidden tier multiplier. §5's tactical clauses
+still gate candidacy (quality); the roll gates frequency - different problems, both needed. Bands
+themselves NOT revised - correctly rejected as "would redefine overwhelming dominance as
+acceptable." Full matrix rerun required after implementation; if win-delta still exceeds band,
+escalate to CC as balance evidence, do not auto-retune.
