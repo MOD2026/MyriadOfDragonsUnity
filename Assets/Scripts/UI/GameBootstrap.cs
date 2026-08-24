@@ -2834,6 +2834,37 @@ namespace MyriadOfDragons.UI
         };
 
         /// <summary>
+        /// Card-illustration inset, closing the audit's open item: "an inset fraction ... is
+        /// required per frame type. This should be verified visually before implementation, not
+        /// assumed from bounding-box dimensions alone" (docs/Battle_Screen_Landscape_Asset_Audit_
+        /// 2026-08-18.md §3). No Play Mode/GUI access available to eyeball it, so this uses the
+        /// one source that already IS a real per-frame visual verification, done by whoever set up
+        /// these sprites: each frame's own Texture Importer spriteBorder (the 9-slice border Unity
+        /// itself will never stretch) -
+        ///   Common/Rare/Epic_Card_Frame.png.meta: spriteBorder {x:68,y:92,z:68,w:92} on a 340x460
+        ///   canvas = exactly 20% left/right (68/340), exactly 20% top/bottom (92/460).
+        ///   Legendary_Card_Frame.png.meta: spriteBorder {x:80,y:92,z:80,w:92} on a 400x460 canvas
+        ///   = exactly 20% left/right (80/400), exactly 20% top/bottom (92/460) - same proportion.
+        /// All four rarities land on the identical 20% figure once read as a fraction of their own
+        /// canvas, despite the different absolute pixel borders and different overall aspects - so
+        /// "verified per frame type" turns out to mean "the same inset for every rarity," not a
+        /// different one each. The two call sites previously guessed two different, smaller,
+        /// unverified values (hand cards 10%/10%-90%/95%, board tiles 12%/12%-88%/88%) - both
+        /// placed art closer to the ornamental border than the frame's own authored 9-slice
+        /// boundary, i.e. inside the part of the frame meant to stay fixed art, not be covered.
+        /// </summary>
+        private static readonly Vector2 RarityFrameArtInsetMin = new Vector2(0.20f, 0.20f);
+        private static readonly Vector2 RarityFrameArtInsetMax = new Vector2(0.80f, 0.80f);
+
+        /// <summary>Exposed for tests: the real per-rarity frame aspect ratio used to size a card
+        /// tile without stretching the frame.</summary>
+        public static float GetRarityFrameAspectForTests(int rarity) => GetRarityFrameAspect(rarity);
+
+        /// <summary>Exposed for tests: the shared, spriteBorder-derived art-fit inset every card
+        /// rarity actually uses (see RarityFrameArtInsetMin/Max's own doc comment).</summary>
+        public static (Vector2 min, Vector2 max) RarityFrameArtInsetForTests => (RarityFrameArtInsetMin, RarityFrameArtInsetMax);
+
+        /// <summary>
         /// V4 Top HUD: a background strip (TopHudMin/Max) with three independently-anchored
         /// clusters inside it - Player HUD (left), Phase HUD (center), Enemy HUD (right), each
         /// its own fixed normalized rect per the handoff table rather than fractions of one
@@ -6565,8 +6596,10 @@ namespace MyriadOfDragons.UI
 
             // V4 hard requirement: never crop-to-fill card illustrations. Preserve-aspect fit
             // instead (see CreateFittedArt) - letterboxes rather than cropping or squashing.
+            // Inset is the frame's own real 9-slice art window (see RarityFrameArtInsetMin/Max),
+            // not an assumed flat percentage.
             CreateFittedArt(go.transform, _cardDatabase.GetArt(card),
-                new Vector2(0.10f, 0.10f), new Vector2(0.90f, 0.95f));
+                RarityFrameArtInsetMin, RarityFrameArtInsetMax);
 
             // Class corner badge (e.g. "Perfect") - the card's type wasn't visible anywhere on
             // the hand thumbnail before, only in the detail overlay after tapping it.
@@ -6699,8 +6732,11 @@ namespace MyriadOfDragons.UI
 
             // V4 hard requirement: never crop-to-fill card illustrations. Preserve-aspect fit
             // instead (see CreateFittedArt) - letterboxes rather than cropping or squashing.
+            // Inset is the frame's own real 9-slice art window (see RarityFrameArtInsetMin/Max),
+            // not an assumed flat percentage - now matches the hand card's own inset too, since
+            // the underlying frame art window is identical proportionally for both card sizes.
             CreateFittedArt(go.transform, _cardDatabase.GetArt(instance.Definition),
-                new Vector2(0.12f, 0.12f), new Vector2(0.88f, 0.88f));
+                RarityFrameArtInsetMin, RarityFrameArtInsetMax);
 
             // Ownership rim - a thin tinted overlay, since the slot plate that used to carry
             // this information is no longer the background.
