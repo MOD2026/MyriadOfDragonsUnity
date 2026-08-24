@@ -242,3 +242,14 @@ ownedSpellIds -> equippedSpellIds (subset) -> catalogue resolution. This makes t
 battle-start resolver call in BattleController.StartMatch obsolete - real refactor needed on
 already-shipped code, not just new code. Migration for old saves: infer Sun Lance/Tempest Brand
 ownership only from confirmed chapter-2/3 finale completion evidence, not just chapter visibility.
+
+## AI Tier -> Stage-Gated Spell Access (LOCKED 2026-08-24)
+
+Cumulative pool, authored progression fiction (not a mirror of player state): Novice=Cinder Lash+
+Vital Spark; Apprentice adds Fault Line+Renewal; Veteran adds Sun Lance (Ch2 book)+Banner of Ashes;
+Master adds Tempest Brand (Ch3 book); Titan inherits all 7, no Titan-exclusive spell. AI resolver
+must never read player ownedSpellIds/equippedSpellIds/stage completion/Spell Book claims - tier
+membership alone determines the pool. Verified against SPELL_CATALOG_v1.md - all stage/book unlocks
+match exactly. Existing highest-magnitude-per-effect auto-equip heuristic still applies on top -
+Cinder Lash/Vital Spark/Sun Lance/Tempest Brand become eligible but stay unselected (weaker same-
+effect-type options win); Fault Line/Renewal/Banner of Ashes do materially change tier loadouts.
