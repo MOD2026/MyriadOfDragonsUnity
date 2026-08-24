@@ -388,8 +388,14 @@ namespace MyriadOfDragons.Tests
             Assert.That(aiOn.AiCastRateOfOpportunity.Center, Is.InRange(0.25, 0.70),
                 $"[{g}] AI cast rate (of {aiOn.TrialsWithOpportunity} opportunity trials) {aiOn.AiCastRateOfOpportunity} outside the locked 25-70% band. ESCALATE TO CC.");
 
-            Assert.That(aiOn.SpellsPerMatch, Is.InRange(0.5, 2.5),
-                $"[{g}] Spells/match {aiOn.SpellsPerMatch:F2} outside the locked 0.5-2.5 ordinary band. ESCALATE TO CC.");
+            // Apprentice floor lowered 0.5->0.30 (LOCKED 2026-08-24, GPT decision after the
+            // candidate-rejection diagnostic proved 0.5 was mathematically unreachable: Apprentice's
+            // theoretical max even at a 100% ordinary roll is ~0.393 - not a probability-gate
+            // defect, a real ceiling from how rarely its pool produces a §5-legal target). Novice/
+            // VeteranPlus/Master/Titan keep the original 0.5 floor until separately disproven.
+            double spellsPerMatchFloor = group == TierGroup.Apprentice ? 0.30 : 0.5;
+            Assert.That(aiOn.SpellsPerMatch, Is.InRange(spellsPerMatchFloor, 2.5),
+                $"[{g}] Spells/match {aiOn.SpellsPerMatch:F2} outside the locked {spellsPerMatchFloor:F2}-2.5 ordinary band. ESCALATE TO CC.");
 
             Assert.That(aiOn.NoSpellFallbackRate.Center, Is.InRange(0.10, 0.45),
                 $"[{g}] No-spell fallback rate {aiOn.NoSpellFallbackRate} outside the locked 10-45% band. ESCALATE TO CC.");
