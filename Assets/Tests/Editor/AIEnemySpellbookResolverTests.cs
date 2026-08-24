@@ -7,19 +7,17 @@ using NUnit.Framework;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// Real gap closure (see AIEnemySpellbookResolver's own doc comment): the AI's spellbook must
-    /// come from its own difficulty tier, never from the player's ownedSpellIds/equippedSpellIds.
-    /// Also proves the deliberate exclusions: every Stage-gated and SpellBookGrant-gated spell
-    /// (Cinder Lash, Fault Line, Vital Spark, Renewal, Banner of Ashes, Sun Lance, Tempest Brand)
-    /// never appears at any tier - that's a real, flagged-not-guessed gap, not an oversight.
+    /// AI Tier -> Stage-Gated Spell Access (LOCKED 2026-08-24, docs/LOCKED_DECISIONS_REGISTER.md):
+    /// cumulative, authored progression fiction, verified here against the register's own worked
+    /// magnitudes rather than re-derived - Novice=Cinder Lash+Vital Spark; Apprentice adds Fault
+    /// Line+Renewal; Veteran adds Sun Lance+Banner of Ashes; Master adds Tempest Brand; Titan
+    /// inherits all 7, no exclusive. The register's own note that Cinder Lash/Vital Spark/Sun
+    /// Lance/Tempest Brand become eligible but stay unselected (weaker same-effect-type options
+    /// always win), while Fault Line/Renewal/Banner of Ashes do change tier loadouts, is exactly
+    /// what these tests prove against the real catalog Magnitudes - not assumed.
     /// </summary>
     public class AIEnemySpellbookResolverTests
     {
-        private static readonly string[] NeverAvailable =
-        {
-            "Cinder Lash", "Fault Line", "Vital Spark", "Renewal", "Banner of Ashes", "Sun Lance", "Tempest Brand",
-        };
-
         [TestCase(AIDifficultyTier.Novice)]
         [TestCase(AIDifficultyTier.Apprentice)]
         [TestCase(AIDifficultyTier.Veteran)]
@@ -31,22 +29,6 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsTrue(spellbook.Count > 0, $"{tier}: must never resolve to an empty spellbook.");
             Assert.IsTrue(spellbook.All(s => !string.IsNullOrEmpty(s.Id)), $"{tier}: every resolved spell must be a real catalog entry.");
-        }
-
-        [TestCase(AIDifficultyTier.Novice)]
-        [TestCase(AIDifficultyTier.Apprentice)]
-        [TestCase(AIDifficultyTier.Veteran)]
-        [TestCase(AIDifficultyTier.Master)]
-        [TestCase(AIDifficultyTier.Titan)]
-        public void ResolveSpellbook_EveryTier_NeverIncludesAStageOrSpellBookGatedSpell(AIDifficultyTier tier)
-        {
-            List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Name).ToList();
-
-            foreach (string forbidden in NeverAvailable)
-            {
-                CollectionAssert.DoesNotContain(names, forbidden,
-                    $"{tier}: {forbidden} is Stage/SpellBookGrant-gated - no locked tier-to-stage mapping exists, so it must never appear.");
-            }
         }
 
         [Test]
@@ -69,45 +51,71 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void ResolveSpellbook_EveryTier_FirestormAlwaysOutclassesEmberWaveOnMagnitude()
+        public void ResolveSpellbook_Novice_IsExactlyTheStarterFour()
         {
-            // Ember Wave (magnitude 3, L5-gated) can never win the LaneDamage slot over Firestorm
-            // (magnitude 4, always unlocked) under "highest magnitude wins per effect type" - the
-            // same structural quirk the Locked Decisions Register flagged for the player's own
-            // auto-equip. Real and expected, not a bug: proves tier boundaries clearing a gate
-            // (Novice's band-top of 10 clears Ember Wave's L5) don't by themselves guarantee a
-            // spell gets equipped if a stronger same-type option is always available too.
-            foreach (AIDifficultyTier tier in System.Enum.GetValues(typeof(AIDifficultyTier)).Cast<AIDifficultyTier>())
-            {
-                List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Name).ToList();
-                CollectionAssert.Contains(names, "Firestorm", $"{tier}: expected Firestorm as the LaneDamage pick.");
-                CollectionAssert.DoesNotContain(names, "Ember Wave", $"{tier}: Ember Wave can never outclass Firestorm's magnitude.");
-            }
-        }
-
-        [Test]
-        public void ResolveSpellbook_ApprenticeAndAbove_UseStoneJudgmentOverDivineBolt()
-        {
-            // Stone Judgment (magnitude 120) beats Divine Bolt (magnitude 100) under the same
-            // "highest magnitude wins per effect type" selection SpellLoadoutAutoEquip already
-            // uses - once a tier's own band-top clears Stone Judgment's L12 gate (Apprentice's
-            // top is 25, already past it), it must be the one AvatarStrike slot, not Divine Bolt.
-            foreach (AIDifficultyTier tier in new[] { AIDifficultyTier.Apprentice, AIDifficultyTier.Veteran, AIDifficultyTier.Master, AIDifficultyTier.Titan })
-            {
-                List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Name).ToList();
-                CollectionAssert.Contains(names, "Stone Judgment", $"{tier}: expected Stone Judgment as the AvatarStrike pick.");
-                CollectionAssert.DoesNotContain(names, "Divine Bolt", $"{tier}: Divine Bolt should have been outclassed by Stone Judgment.");
-            }
-        }
-
-        [Test]
-        public void ResolveSpellbook_NoviceTier_StillUsesDivineBolt_StoneJudgmentNotYetCleared()
-        {
-            // Novice's own band-top (10) sits below Stone Judgment's L12 gate - the only tier
-            // where Divine Bolt should still be the AvatarStrike pick.
+            // Novice's own band-top (10) hasn't cleared Stone Judgment's L12 gate yet, and neither
+            // Cinder Lash (magnitude 2) nor Vital Spark (magnitude 2) can outclass Firestorm(4)/
+            // Mend(4) - the register's own "become eligible but stay unselected" case.
             List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Novice).Select(s => s.Name).ToList();
-            CollectionAssert.Contains(names, "Divine Bolt");
-            CollectionAssert.DoesNotContain(names, "Stone Judgment");
+            CollectionAssert.AreEquivalent(new[] { "Firestorm", "Mend", "War Cry", "Divine Bolt" }, names);
+        }
+
+        [Test]
+        public void ResolveSpellbook_Apprentice_FaultLineAndRenewalTakeOver_WarCryStillHolds()
+        {
+            // Fault Line (magnitude 5) and Renewal (magnitude 6) both outclass their starter
+            // counterparts once unlocked at Apprentice - the register's "materially change tier
+            // loadouts" case. Banner of Ashes isn't unlocked until Veteran, so War Cry still holds
+            // LaneAttackBuff. Stone Judgment (L12, cleared at rep level 25) replaces Divine Bolt.
+            List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Apprentice).Select(s => s.Name).ToList();
+            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "War Cry", "Stone Judgment" }, names);
+        }
+
+        [TestCase(AIDifficultyTier.Veteran)]
+        [TestCase(AIDifficultyTier.Master)]
+        [TestCase(AIDifficultyTier.Titan)]
+        public void ResolveSpellbook_VeteranAndAbove_BannerOfAshesTakesOverLaneAttackBuff(AIDifficultyTier tier)
+        {
+            // Banner of Ashes (magnitude 3) outclasses War Cry (2) and Rallying Gale (1) once
+            // unlocked at Veteran - stays the pick through Master/Titan too (Tempest Brand, Master's
+            // own addition, never competes for this slot - it's LaneDamage, magnitude 3, and always
+            // loses to Fault Line's 5).
+            List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Name).ToList();
+            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "Banner of Ashes", "Stone Judgment" }, names,
+                $"{tier}: expected the same converged loadout as Veteran - Master/Titan's own additions (Tempest Brand) never win a slot.");
+        }
+
+        [Test]
+        public void ResolveSpellbook_MasterAndTitan_ResolveToTheIdenticalLoadout()
+        {
+            // Register: "Titan inherits all 7, no [Titan-]exclusive" - Titan's own pool differs
+            // from Master's only in name, not composition, so the two tiers must converge exactly.
+            List<string> master = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Master).Select(s => s.Id).ToList();
+            List<string> titan = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Titan).Select(s => s.Id).ToList();
+            CollectionAssert.AreEquivalent(master, titan);
+        }
+
+        [TestCase(AIDifficultyTier.Novice, "cinder_lash")]
+        [TestCase(AIDifficultyTier.Novice, "vital_spark")]
+        [TestCase(AIDifficultyTier.Veteran, "sun_lance")]
+        [TestCase(AIDifficultyTier.Master, "tempest_brand")]
+        public void ResolveSpellbook_TheFourNeverSelectedSpells_StayEligibleButUnselected(AIDifficultyTier tier, string neverSelectedId)
+        {
+            // The register's own explicit case: these become part of the pool at their tier but a
+            // same-effect-type option with higher Magnitude always wins the slot instead.
+            List<string> ids = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Id).ToList();
+            CollectionAssert.DoesNotContain(ids, neverSelectedId, $"{tier}: {neverSelectedId} should stay eligible-but-unselected, per the locked decision.");
+        }
+
+        [Test]
+        public void ResolveSpellbook_NeverReadsAnyPlayerState()
+        {
+            // Structural proof, not just a naming convention: ResolveSpellbook's only parameter is
+            // the tier itself - there is no PlayerProfile, no ownedSpellIds, no unlockedStageIds
+            // input path into this method at all, so it cannot read player state even by accident.
+            var method = typeof(AIEnemySpellbookResolver).GetMethod("ResolveSpellbook");
+            Assert.AreEqual(1, method.GetParameters().Length);
+            Assert.AreEqual(typeof(AIDifficultyTier), method.GetParameters()[0].ParameterType);
         }
     }
 }

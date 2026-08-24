@@ -33,7 +33,14 @@ namespace MyriadOfDragons.Battle
         public static List<AvatarSpell> AutoEquip(int avatarLevel, IReadOnlyCollection<string> unlockedStageIds)
         {
             List<AvatarSpell> unlocked = SpellUnlockResolver.ResolveUnlockedSpells(avatarLevel, unlockedStageIds);
+            return SelectHighestMagnitudePerEffect(unlocked);
+        }
 
+        /// <summary>The same "exactly one per SpellEffect type, highest Magnitude wins" reduction
+        /// AutoEquip uses, exposed for callers (AIEnemySpellbookResolver) that build their own
+        /// unlocked-spell pool by a different rule than avatarLevel/unlockedStageIds.</summary>
+        public static List<AvatarSpell> SelectHighestMagnitudePerEffect(IEnumerable<AvatarSpell> unlocked)
+        {
             var loadout = new List<AvatarSpell>();
             foreach (SpellEffect effect in EquipSlotOrder)
             {
