@@ -393,6 +393,20 @@ its own unchanged 0.5 floor) remain open, exactly the two GPT explicitly kept se
 fix. Candidate-scarcity itself stays flagged for a later Apprentice spell-pool/content review, not
 solved here.
 
+**GPT's per-spell impact diagnostic, run 2026-08-24** (`AiSpellCastImpactDiagnosticTests`, paired
+baseline/on with identical seeds, 1500 trials/tier). Decisive - Novice and VeteranPlus are
+genuinely different problems, not the same one:
+- **Novice = an impact problem, not a frequency problem.** Already clears its 0.5 floor (0.52
+  spells/match). Firestorm (LaneDamage) casts 646/1500 trials (0.43/match) with a 95.7% same-tick
+  kill rate, appearing in 25.5% of AI wins - the real driver of the -11pp player win-rate swing
+  (45.1%->34.1%). Divine Bolt/War Cry contribute far less (16.1%/4% of wins).
+- **VeteranPlus = a frequency problem, matches Apprentice's pattern, not Novice's.** Fault Line has
+  a similarly high 98.1% same-tick kill rate but only 3.9% win-correlation (vs Stone Judgment/
+  AvatarStrike's 17.4%) - win-rate stays within its own 8pp cap at the current 45% gate; the real
+  problem is candidate scarcity (0.31 spells/match, below its unchanged 0.5 floor), same shape as
+  Apprentice's original issue.
+Escalated with full per-spell numbers, not auto-retuned.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
