@@ -203,7 +203,12 @@ namespace MyriadOfDragons.Battle
         /// candidate at all (quality); this gates whether a legal candidate is actually taken
         /// (frequency). Applies to all 5 AIDifficultyTier bands equally - HP/Resource scaling
         /// stays the only difficulty lever, cast frequency is not a second hidden tier multiplier.</summary>
-        public bool RollAiSpellCastProbabilityGate() => _aiSpellCastRng.NextDouble() < 0.40;
+        /// <summary>Raised 40%->60% (LOCKED 2026-08-24, GPT Option 2): the AvatarStrike throttle's
+        /// matrix re-run showed ordinary spells/match crashed to ~0.28 (below the 0.5 floor) and
+        /// Novice player win-rate rose 9.5pp (over the 8pp cap) once AvatarStrike stopped carrying
+        /// most of the AI's cast volume. Non-AvatarStrike spells are the correct lever to recover
+        /// ordinary cast frequency without reopening AvatarStrike's already-fixed win-dominance.</summary>
+        public bool RollAiSpellCastProbabilityGate() => _aiSpellCastRng.NextDouble() < 0.60;
 
         private bool _avatarStrikeCommitmentDecided;
         private bool _avatarStrikeCommitmentAllowed;
