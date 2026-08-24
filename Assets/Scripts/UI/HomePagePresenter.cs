@@ -822,11 +822,12 @@ public class HomePagePresenter : MonoBehaviour
     private void BuildSocialShellEntryButtons()
     {
         // Secondary strip under Identity — stays left of WeeklyPermitStrip (x≥900).
-        CreateHeaderTextButton("Btn_Bazaar", "BAZAAR", 40, 100, 200, 168, OpenBazaar);
-        CreateHeaderTextButton("Btn_Chat", "CHAT", 212, 100, 360, 168, OpenChatSocial);
-        CreateHeaderTextButton("Btn_Mail", "MAIL", 372, 100, 520, 168, OpenMailInbox);
-        CreateHeaderTextButton("Btn_Friends", "FRIENDS", 532, 100, 700, 168, OpenFriends);
-        CreateHeaderTextButton("Btn_MemoryExpedition", "MEMORY", 712, 100, 880, 168, OpenMemoryExpedition);
+        CreateHeaderTextButton("Btn_Bazaar", "BAZAAR", 40, 100, 175, 168, OpenBazaar);
+        CreateHeaderTextButton("Btn_Chat", "CHAT", 183, 100, 318, 168, OpenChatSocial);
+        CreateHeaderTextButton("Btn_Mail", "MAIL", 326, 100, 461, 168, OpenMailInbox);
+        CreateHeaderTextButton("Btn_Friends", "FRIENDS", 469, 100, 604, 168, OpenFriends);
+        CreateHeaderTextButton("Btn_MemoryExpedition", "MEMORY", 612, 100, 747, 168, OpenMemoryExpedition);
+        CreateHeaderTextButton("Btn_Vip", "VIP", 755, 100, 890, 168, OpenVipSubscription);
     }
 
     public void OpenBazaarForTests() => OpenBazaar();
@@ -834,6 +835,7 @@ public class HomePagePresenter : MonoBehaviour
     public void OpenMailInboxForTests() => OpenMailInbox();
     public void OpenFriendsForTests() => OpenFriends();
     public void OpenMemoryExpeditionForTests() => OpenMemoryExpedition();
+    public void OpenVipSubscriptionForTests() => OpenVipSubscription();
 
     private void OpenMetagameShellPresenter<T>(System.Action<T> initialize) where T : MonoBehaviour
     {
@@ -888,6 +890,16 @@ public class HomePagePresenter : MonoBehaviour
     private void OpenMemoryExpedition()
     {
         OpenMetagameShellPresenter<MemoryExpeditionPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenVipSubscription()
+    {
+        OpenMetagameShellPresenter<VipSubscriptionPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
             RefreshTopHUD();

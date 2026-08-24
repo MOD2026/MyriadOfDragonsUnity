@@ -1218,7 +1218,7 @@ namespace MyriadOfDragons.UI
                 "CampaignMapCanvas", "ShopCanvas", "DeckBuilderCanvas", "CollectionCanvas",
                 "EmpireCanvas", "EmpireExpeditionCanvas", "BattlePassCanvas", "DailyLoginQuestsCanvas",
                 "EmpireBuildingDetailCanvas", "BazaarCanvas", "GuildHallEntryCanvas", "ChatSocialCanvas",
-                "MemoryExpeditionCanvas", "MailInboxCanvas", "FriendsCanvas" })
+                "MemoryExpeditionCanvas", "MailInboxCanvas", "FriendsCanvas", "VipSubscriptionCanvas" })
             {
                 GameObject stale;
                 int guard = 0;

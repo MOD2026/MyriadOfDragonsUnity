@@ -39,6 +39,7 @@ namespace MyriadOfDragons.Tests
             "MemoryExpeditionCanvas",
             "MailInboxCanvas",
             "FriendsCanvas",
+            "VipSubscriptionCanvas",
         };
 
         [SetUp]
