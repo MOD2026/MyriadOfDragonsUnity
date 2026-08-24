@@ -111,35 +111,21 @@ namespace MyriadOfDragons.UI
             panelBg.color = new Color(0.12f, 0.14f, 0.19f, 0.94f);
             panelBg.raycastTarget = false;
             RectTransform panelRect = panel.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.12f, 0.18f);
-            panelRect.anchorMax = new Vector2(0.88f, 0.82f);
+            panelRect.anchorMin = new Vector2(0.03f, 0.04f);
+            panelRect.anchorMax = new Vector2(0.97f, 0.88f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
 
-            GameObject crestObj = new GameObject("Crest", typeof(RectTransform), typeof(Image));
-            crestObj.transform.SetParent(panel.transform, false);
-            Image crest = crestObj.GetComponent<Image>();
-            // Crest Production Master is RGB / excluded from HomeV3 Approved set — neutral placeholder only.
-            crest.sprite = null;
-            crest.preserveAspect = true;
-            crest.raycastTarget = false;
-            crest.color = new Color(0.3f, 0.35f, 0.42f);
-            RectTransform crestRect = crestObj.GetComponent<RectTransform>();
-            crestRect.anchorMin = new Vector2(0.08f, 0.35f);
-            crestRect.anchorMax = new Vector2(0.32f, 0.88f);
-            crestRect.offsetMin = Vector2.zero;
-            crestRect.offsetMax = Vector2.zero;
-
             Text nameText = UISharedFoundation.CreateText(panel.transform, "AvatarName", name.ToUpperInvariant(),
                 UITextRole.Display, TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(700f, 48f));
-            nameText.fontSize = 34;
+            nameText.fontSize = 36;
             nameText.fontStyle = FontStyle.Bold;
-            SetNorm(nameText.rectTransform, 0.36f, 0.78f, 0.96f, 0.92f);
+            SetNorm(nameText.rectTransform, 0.04f, 0.84f, 0.96f, 0.96f);
 
             Text levelText = UISharedFoundation.CreateText(panel.transform, "AvatarLevel", $"Avatar Level {avatarLevel}",
                 UITextRole.Title, TextAnchor.MiddleLeft, new Color(0.72f, 0.66f, 0.56f), true, new Vector2(700f, 36f));
-            levelText.fontSize = 22;
-            SetNorm(levelText.rectTransform, 0.36f, 0.68f, 0.96f, 0.78f);
+            levelText.fontSize = 24;
+            SetNorm(levelText.rectTransform, 0.04f, 0.74f, 0.96f, 0.84f);
 
             string combatBlock =
                 $"Cap  {cap}\n" +
@@ -148,16 +134,16 @@ namespace MyriadOfDragons.UI
                 $"Deck Slots  {deckSlots}";
             Text combatText = UISharedFoundation.CreateText(panel.transform, "CombatStats", combatBlock,
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(700f, 160f));
-            combatText.fontSize = 22;
-            SetNorm(combatText.rectTransform, 0.36f, 0.38f, 0.96f, 0.66f);
+            combatText.fontSize = 26;
+            SetNorm(combatText.rectTransform, 0.04f, 0.36f, 0.96f, 0.72f);
 
             string buildings =
                 $"Empire context (upgrade on Empire screen)\n" +
                 $"Castle L{castle} · Barracks L{barracks} · Gate L{gate}";
             Text buildingText = UISharedFoundation.CreateText(panel.transform, "BuildingContext", buildings,
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.72f, 0.66f, 0.56f), true, new Vector2(900f, 80f));
-            buildingText.fontSize = 18;
-            SetNorm(buildingText.rectTransform, 0.08f, 0.18f, 0.96f, 0.34f);
+            buildingText.fontSize = 20;
+            SetNorm(buildingText.rectTransform, 0.04f, 0.18f, 0.96f, 0.34f);
 
             if (_onOpenEmpire != null)
             {
@@ -172,7 +158,7 @@ namespace MyriadOfDragons.UI
                     TeardownUI();
                     _onOpenEmpire.Invoke();
                 });
-                SetNorm(empireBtn.GetComponent<RectTransform>(), 0.36f, 0.04f, 0.72f, 0.14f);
+                SetNorm(empireBtn.GetComponent<RectTransform>(), 0.04f, 0.04f, 0.36f, 0.14f);
                 UISharedFoundation.CreateText(empireBtn.transform, "Label", "OPEN EMPIRE", UITextRole.Body,
                     TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(280f, 40f));
             }

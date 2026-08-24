@@ -106,18 +106,25 @@ namespace MyriadOfDragons.UI
             backRect.sizeDelta = new Vector2(160f, 60f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 50f));
 
-            UISharedFoundation.CreateText(topBar.transform, "Title", "EMPIRE", UITextRole.Display, TextAnchor.MiddleCenter,
-                new Color(0.95f, 0.92f, 0.82f), true, new Vector2(800f, 60f)).fontSize = 32;
+            Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "EMPIRE", UITextRole.Display,
+                TextAnchor.MiddleLeft, new Color(0.95f, 0.92f, 0.82f), true, new Vector2(220f, 60f));
+            title.fontSize = 32;
+            RectTransform titleRect = title.rectTransform;
+            titleRect.anchorMin = new Vector2(0f, 0.5f);
+            titleRect.anchorMax = new Vector2(0f, 0.5f);
+            titleRect.pivot = new Vector2(0f, 0.5f);
+            titleRect.anchoredPosition = new Vector2(210f, 0f);
+            titleRect.sizeDelta = new Vector2(220f, 60f);
 
             _avatarSummaryText = UISharedFoundation.CreateText(topBar.transform, "AvatarSummary", "Avatar L1",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(420f, 36f));
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(360f, 36f));
             _avatarSummaryText.fontSize = 18;
             RectTransform avatarRect = _avatarSummaryText.rectTransform;
             avatarRect.anchorMin = new Vector2(0f, 0.5f);
             avatarRect.anchorMax = new Vector2(0f, 0.5f);
             avatarRect.pivot = new Vector2(0f, 0.5f);
-            avatarRect.anchoredPosition = new Vector2(210f, 0f);
-            avatarRect.sizeDelta = new Vector2(420f, 36f);
+            avatarRect.anchoredPosition = new Vector2(440f, 0f);
+            avatarRect.sizeDelta = new Vector2(360f, 36f);
 
             if (_onOpenAvatar != null)
             {
@@ -137,7 +144,7 @@ namespace MyriadOfDragons.UI
                 hitRect.anchorMin = new Vector2(0f, 0.5f);
                 hitRect.anchorMax = new Vector2(0f, 0.5f);
                 hitRect.pivot = new Vector2(0f, 0.5f);
-                hitRect.anchoredPosition = new Vector2(640f, 0f);
+                hitRect.anchoredPosition = new Vector2(820f, 0f);
                 hitRect.sizeDelta = new Vector2(140f, 52f);
                 UISharedFoundation.CreateText(avatarBtnObj.transform, "ActionLabel", "AVATAR",
                     UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 36f));
@@ -155,7 +162,7 @@ namespace MyriadOfDragons.UI
             expeditionRect.anchorMin = new Vector2(0f, 0.5f);
             expeditionRect.anchorMax = new Vector2(0f, 0.5f);
             expeditionRect.pivot = new Vector2(0f, 0.5f);
-            expeditionRect.anchoredPosition = new Vector2(_onOpenAvatar != null ? 790f : 640f, 0f);
+            expeditionRect.anchoredPosition = new Vector2(_onOpenAvatar != null ? 980f : 820f, 0f);
             expeditionRect.sizeDelta = new Vector2(170f, 52f);
             UISharedFoundation.CreateText(expeditionBtnObj.transform, "ActionLabel", "EXPEDITION",
                 UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(150f, 36f));
@@ -187,35 +194,40 @@ namespace MyriadOfDragons.UI
             empireBg.color = HexColor("#1E2630", 0.95f);
             empireBg.raycastTarget = false;
             RectTransform empireRect = empireRoot.GetComponent<RectTransform>();
-            empireRect.anchorMin = new Vector2(0.05f, 0.12f);
-            empireRect.anchorMax = new Vector2(0.95f, 0.82f);
+            // Fill the working area under the 100px header (y≈0.907–1.0). The old 0.12–0.82 band
+            // left unused strips above and below, and status/collect overlapped the Gate row.
+            empireRect.anchorMin = new Vector2(0.03f, 0.03f);
+            empireRect.anchorMax = new Vector2(0.97f, 0.88f);
             empireRect.offsetMin = Vector2.zero;
             empireRect.offsetMax = Vector2.zero;
 
-            UISharedFoundation.CreateText(empireRoot.transform, "EmpireSubtitle", "Castle · Barracks · Gate",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(800f, 36f)).fontSize = 20;
+            Text subtitle = UISharedFoundation.CreateText(empireRoot.transform, "EmpireSubtitle",
+                "Castle · Barracks · Gate", UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"),
+                true, new Vector2(800f, 36f));
+            subtitle.fontSize = 20;
+            SetNormalizedRect(subtitle.rectTransform, 0.03f, 0.92f, 0.70f, 0.99f);
 
-            CreateBuildingRow(empireRoot.transform, "CastleRow", "UpgradeCastleButton", 0.62f, 0.78f, OnUpgradeCastle);
-            CreateBuildingRow(empireRoot.transform, "BarracksRow", "UpgradeBarracksButton", 0.38f, 0.54f, OnUpgradeBarracks);
-            CreateBuildingRow(empireRoot.transform, "GateRow", "UpgradeGateButton", 0.14f, 0.30f, OnUpgradeGate);
+            CreateBuildingRow(empireRoot.transform, "CastleRow", "UpgradeCastleButton", 0.68f, 0.90f, OnUpgradeCastle);
+            CreateBuildingRow(empireRoot.transform, "BarracksRow", "UpgradeBarracksButton", 0.45f, 0.66f, OnUpgradeBarracks);
+            CreateBuildingRow(empireRoot.transform, "GateRow", "UpgradeGateButton", 0.22f, 0.43f, OnUpgradeGate);
 
             _empireStatusText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireStatus", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(1200f, 48f));
             _empireStatusText.fontSize = 18;
-            SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.08f, 0.62f, 0.26f);
+            SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.12f, 0.68f, 0.20f);
 
             _projectDetailText = UISharedFoundation.CreateText(empireRoot.transform, "ActiveProjectDetail", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 40f));
             _projectDetailText.fontSize = 16;
-            SetNormalizedRect(_projectDetailText.rectTransform, 0.03f, 0.02f, 0.62f, 0.10f);
+            SetNormalizedRect(_projectDetailText.rectTransform, 0.03f, 0.05f, 0.68f, 0.11f);
 
             _empireMessageText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireMessage", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#E8A87C"), true, new Vector2(500f, 48f));
             _empireMessageText.fontSize = 16;
-            SetNormalizedRect(_empireMessageText.rectTransform, 0.64f, 0.0f, 0.97f, 0.08f);
+            SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.00f, 0.68f, 0.05f);
 
             _empireCollectButtonRoot = CreateActionButton(empireRoot.transform, "CollectConstructionButton",
-                "COLLECT UPGRADE", 0.68f, 0.10f, 0.97f, 0.26f, OnCollectConstruction);
+                "COLLECT UPGRADE", 0.71f, 0.04f, 0.97f, 0.20f, OnCollectConstruction);
         }
 
         private void RefreshPanel()
@@ -472,14 +484,19 @@ namespace MyriadOfDragons.UI
         private static void CreateBuildingRow(Transform parent, string rowName, string buttonName,
             float bottom, float top, UnityEngine.Events.UnityAction onUpgrade)
         {
-            GameObject row = new GameObject(rowName, typeof(RectTransform));
+            GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
+            Image rowBg = row.GetComponent<Image>();
+            rowBg.color = HexColor("#141A22", 0.92f);
+            rowBg.raycastTarget = false;
             SetNormalizedRect(row.GetComponent<RectTransform>(), 0.03f, bottom, 0.97f, top);
 
             Text rowText = UISharedFoundation.CreateText(row.transform, "RowSummary", "",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 40f));
-            rowText.fontSize = 18;
-            SetNormalizedRect(rowText.rectTransform, 0f, 0f, 0.72f, 1f);
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 80f));
+            rowText.fontSize = 20;
+            rowText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            rowText.verticalOverflow = VerticalWrapMode.Overflow;
+            SetNormalizedRect(rowText.rectTransform, 0.02f, 0.08f, 0.72f, 0.92f);
 
             CreateActionButton(row.transform, buttonName, "UPGRADE", 0.74f, 0.1f, 0.98f, 0.9f, onUpgrade);
         }

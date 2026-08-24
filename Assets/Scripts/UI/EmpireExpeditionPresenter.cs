@@ -130,8 +130,8 @@ namespace MyriadOfDragons.UI
             rail.GetComponent<Image>().color = new Color(0.05f, 0.07f, 0.09f, 0.9f);
             rail.GetComponent<Image>().raycastTarget = false;
             RectTransform railRect = rail.GetComponent<RectTransform>();
-            railRect.anchorMin = new Vector2(0.05f, 0.78f);
-            railRect.anchorMax = new Vector2(0.95f, 0.88f);
+            railRect.anchorMin = new Vector2(0.04f, 0.80f);
+            railRect.anchorMax = new Vector2(0.96f, 0.88f);
             railRect.offsetMin = Vector2.zero;
             railRect.offsetMax = Vector2.zero;
 
@@ -161,8 +161,8 @@ namespace MyriadOfDragons.UI
             GameObject scrollRoot = new GameObject("StageScrollView", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
             scrollRoot.transform.SetParent(_canvasObj.transform, false);
             RectTransform scrollRect = scrollRoot.GetComponent<RectTransform>();
-            scrollRect.anchorMin = new Vector2(0.05f, 0.18f);
-            scrollRect.anchorMax = new Vector2(0.95f, 0.74f);
+            scrollRect.anchorMin = new Vector2(0.04f, 0.05f);
+            scrollRect.anchorMax = new Vector2(0.96f, 0.77f);
             scrollRect.offsetMin = Vector2.zero;
             scrollRect.offsetMax = Vector2.zero;
             scrollRoot.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.15f);
@@ -187,11 +187,13 @@ namespace MyriadOfDragons.UI
             contentRect.anchoredPosition = Vector2.zero;
 
             HorizontalLayoutGroup hlg = content.GetComponent<HorizontalLayoutGroup>();
-            hlg.childAlignment = TextAnchor.MiddleLeft;
-            hlg.spacing = 40f;
-            hlg.padding = new RectOffset(24, 24, 0, 0);
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.spacing = 28f;
+            hlg.padding = new RectOffset(24, 24, 16, 16);
             hlg.childControlWidth = false;
+            hlg.childControlHeight = true;
             hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = true;
 
             ContentSizeFitter fitter = content.GetComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -222,14 +224,34 @@ namespace MyriadOfDragons.UI
             btn.onClick.AddListener(() => OnStageNodeClicked(capturedId));
 
             RectTransform rect = nodeObj.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(260f, 280f);
+            rect.sizeDelta = new Vector2(340f, 520f);
+            var layout = nodeObj.AddComponent<LayoutElement>();
+            layout.preferredWidth = 340f;
+            layout.minHeight = 480f;
+            layout.flexibleHeight = 1f;
 
-            UISharedFoundation.CreateText(nodeObj.transform, "StageId", stage.StageId, UITextRole.Body,
-                TextAnchor.MiddleCenter, new Color(0.9f, 0.95f, 0.85f), true, new Vector2(220f, 40f)).fontSize = 28;
-            UISharedFoundation.CreateText(nodeObj.transform, "Title", stage.Title, UITextRole.Body,
-                TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 40f)).fontSize = 20;
-            UISharedFoundation.CreateText(nodeObj.transform, "Hint", "CLEAR (shell)", UITextRole.Caption,
+            Text idText = UISharedFoundation.CreateText(nodeObj.transform, "StageId", stage.StageId, UITextRole.Body,
+                TextAnchor.MiddleCenter, new Color(0.9f, 0.95f, 0.85f), true, new Vector2(220f, 40f));
+            idText.fontSize = 28;
+            SetNormalizedRect(idText.rectTransform, 0.08f, 0.72f, 0.92f, 0.94f);
+
+            Text titleText = UISharedFoundation.CreateText(nodeObj.transform, "Title", stage.Title, UITextRole.Body,
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 40f));
+            titleText.fontSize = 22;
+            titleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            SetNormalizedRect(titleText.rectTransform, 0.08f, 0.36f, 0.92f, 0.70f);
+
+            Text hintText = UISharedFoundation.CreateText(nodeObj.transform, "Hint", "CLEAR (shell)", UITextRole.Caption,
                 TextAnchor.MiddleCenter, new Color(0.85f, 0.75f, 0.45f), true, new Vector2(220f, 30f));
+            SetNormalizedRect(hintText.rectTransform, 0.08f, 0.08f, 0.92f, 0.30f);
+        }
+
+        private static void SetNormalizedRect(RectTransform rect, float left, float bottom, float right, float top)
+        {
+            rect.anchorMin = new Vector2(left, bottom);
+            rect.anchorMax = new Vector2(right, top);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private void OnStageNodeClicked(string stageId)

@@ -72,7 +72,7 @@ namespace MyriadOfDragons.UI
 
             UISharedFoundation.CreateText(topBar.transform, "Title", "SETTINGS & OPTIONS",
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
-                new Vector2(800f, 60f)).fontSize = 32;
+                new Vector2(720f, 60f)).fontSize = 32;
         }
 
         private void BuildForm()
@@ -84,14 +84,14 @@ namespace MyriadOfDragons.UI
             panelBg.raycastTarget = false;
 
             RectTransform panelRect = panel.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.22f, 0.18f);
-            panelRect.anchorMax = new Vector2(0.78f, 0.82f);
+            panelRect.anchorMin = new Vector2(0.05f, 0.06f);
+            panelRect.anchorMax = new Vector2(0.95f, 0.88f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
 
-            float y = 0.82f;
-            const float rowHeight = 0.12f;
-            const float gap = 0.02f;
+            float y = 0.92f;
+            const float rowHeight = 0.16f;
+            const float gap = 0.025f;
 
             CreateToggleRow(panel.transform, "AudioRow", "AUDIO", ref y, rowHeight, gap, ToggleAudio, out _audioValueText);
             CreateToggleRow(panel.transform, "NotificationsRow", "NOTIFICATIONS", ref y, rowHeight, gap,
@@ -103,35 +103,31 @@ namespace MyriadOfDragons.UI
                 UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.85f, 0.82f, 0.7f), true,
                 new Vector2(900f, 36f));
             _statusText.fontSize = 16;
-            RectTransform statusRect = _statusText.rectTransform;
-            statusRect.anchorMin = new Vector2(0.08f, 0.04f);
-            statusRect.anchorMax = new Vector2(0.92f, 0.12f);
-            statusRect.offsetMin = Vector2.zero;
-            statusRect.offsetMax = Vector2.zero;
+            SetNormalizedRect(_statusText.rectTransform, 0.04f, 0.03f, 0.96f, 0.12f);
         }
 
         private void CreateToggleRow(Transform parent, string rowName, string label, ref float yTop,
             float rowHeight, float gap, Action onToggle, out Text valueText)
         {
-            GameObject row = new GameObject(rowName, typeof(RectTransform));
+            GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
+            Image rowBg = row.GetComponent<Image>();
+            rowBg.color = new Color(0.10f, 0.12f, 0.16f, 0.9f);
+            rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0.08f, yTop - rowHeight);
-            rowRect.anchorMax = new Vector2(0.92f, yTop);
+            rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
+            rowRect.anchorMax = new Vector2(0.96f, yTop);
             rowRect.offsetMin = Vector2.zero;
             rowRect.offsetMax = Vector2.zero;
             yTop -= rowHeight + gap;
 
-            UISharedFoundation.CreateText(row.transform, "Label", label, UITextRole.Title, TextAnchor.MiddleLeft,
-                new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
+            Text labelText = UISharedFoundation.CreateText(row.transform, "Label", label, UITextRole.Title,
+                TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
+            SetNormalizedRect(labelText.rectTransform, 0.03f, 0.15f, 0.38f, 0.85f);
 
             valueText = UISharedFoundation.CreateText(row.transform, "Value", "", UITextRole.Body,
                 TextAnchor.MiddleLeft, new Color(0.72f, 0.66f, 0.56f), true, new Vector2(220f, 36f));
-            RectTransform valueRect = valueText.rectTransform;
-            valueRect.anchorMin = new Vector2(0.42f, 0.15f);
-            valueRect.anchorMax = new Vector2(0.62f, 0.85f);
-            valueRect.offsetMin = Vector2.zero;
-            valueRect.offsetMax = Vector2.zero;
+            SetNormalizedRect(valueText.rectTransform, 0.40f, 0.15f, 0.68f, 0.85f);
 
             Button toggleBtn = CreateRowButton(row.transform, "Btn_Toggle", "TOGGLE", new Vector2(-20f, 0f), onToggle);
             toggleBtn.GetComponent<RectTransform>().anchorMin = new Vector2(1f, 0.5f);
@@ -141,25 +137,25 @@ namespace MyriadOfDragons.UI
 
         private void CreateLanguageRow(Transform parent, ref float yTop, float rowHeight, float gap)
         {
-            GameObject row = new GameObject("LanguageRow", typeof(RectTransform));
+            GameObject row = new GameObject("LanguageRow", typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
+            Image rowBg = row.GetComponent<Image>();
+            rowBg.color = new Color(0.10f, 0.12f, 0.16f, 0.9f);
+            rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0.08f, yTop - rowHeight);
-            rowRect.anchorMax = new Vector2(0.92f, yTop);
+            rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
+            rowRect.anchorMax = new Vector2(0.96f, yTop);
             rowRect.offsetMin = Vector2.zero;
             rowRect.offsetMax = Vector2.zero;
             yTop -= rowHeight + gap;
 
-            UISharedFoundation.CreateText(row.transform, "Label", "LANGUAGE PREFERENCE", UITextRole.Title,
-                TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
+            Text labelText = UISharedFoundation.CreateText(row.transform, "Label", "LANGUAGE PREFERENCE",
+                UITextRole.Title, TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
+            SetNormalizedRect(labelText.rectTransform, 0.03f, 0.15f, 0.38f, 0.85f);
 
             _languageValueText = UISharedFoundation.CreateText(row.transform, "Value", "", UITextRole.Body,
                 TextAnchor.MiddleLeft, new Color(0.72f, 0.66f, 0.56f), true, new Vector2(420f, 36f));
-            RectTransform valueRect = _languageValueText.rectTransform;
-            valueRect.anchorMin = new Vector2(0.42f, 0.15f);
-            valueRect.anchorMax = new Vector2(0.72f, 0.85f);
-            valueRect.offsetMin = Vector2.zero;
-            valueRect.offsetMax = Vector2.zero;
+            SetNormalizedRect(_languageValueText.rectTransform, 0.40f, 0.15f, 0.72f, 0.85f);
 
             Button cycleBtn = CreateRowButton(row.transform, "Btn_CycleLanguage", "CHANGE", new Vector2(-20f, 0f),
                 CycleLanguage);
@@ -170,17 +166,21 @@ namespace MyriadOfDragons.UI
 
         private void CreateLogoutRow(Transform parent, ref float yTop, float rowHeight, float gap)
         {
-            GameObject row = new GameObject("LogoutRow", typeof(RectTransform));
+            GameObject row = new GameObject("LogoutRow", typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
+            Image rowBg = row.GetComponent<Image>();
+            rowBg.color = new Color(0.10f, 0.12f, 0.16f, 0.9f);
+            rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0.08f, yTop - rowHeight);
-            rowRect.anchorMax = new Vector2(0.92f, yTop);
+            rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
+            rowRect.anchorMax = new Vector2(0.96f, yTop);
             rowRect.offsetMin = Vector2.zero;
             rowRect.offsetMax = Vector2.zero;
             yTop -= rowHeight + gap;
 
-            UISharedFoundation.CreateText(row.transform, "Label", "ACCOUNT", UITextRole.Title, TextAnchor.MiddleLeft,
-                new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
+            Text labelText = UISharedFoundation.CreateText(row.transform, "Label", "ACCOUNT", UITextRole.Title,
+                TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
+            SetNormalizedRect(labelText.rectTransform, 0.03f, 0.15f, 0.38f, 0.85f);
 
             Button logoutBtn = CreateRowButton(row.transform, "Btn_Logout", "LOG OUT", new Vector2(-20f, 0f), OnLogout);
             logoutBtn.GetComponent<RectTransform>().anchorMin = new Vector2(1f, 0.5f);
@@ -233,6 +233,14 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
                 new Color(0.95f, 0.9f, 0.79f), true, new Vector2(160f, 44f));
             return btn;
+        }
+
+        private static void SetNormalizedRect(RectTransform rect, float left, float bottom, float right, float top)
+        {
+            rect.anchorMin = new Vector2(left, bottom);
+            rect.anchorMax = new Vector2(right, top);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private void ToggleAudio()
