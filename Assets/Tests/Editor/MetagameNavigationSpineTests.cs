@@ -28,6 +28,9 @@ namespace MyriadOfDragons.Tests
             "EmpireExpeditionCanvas",
             "SettingsCanvas",
             "AvatarCanvas",
+            "BattlePassCanvas",
+            "DailyLoginQuestsCanvas",
+            "EmpireBuildingDetailCanvas",
         };
 
         [SetUp]

@@ -41,6 +41,8 @@ namespace MyriadOfDragons.UI
 
         public void OpenExpeditionForTests() => OpenExpedition();
 
+        public void OpenBuildingDetailForTests(EmpireBuildingKind kind) => OpenBuildingDetail(kind);
+
         private void OpenExpedition()
         {
             TeardownUI();
@@ -207,9 +209,12 @@ namespace MyriadOfDragons.UI
             subtitle.fontSize = 20;
             SetNormalizedRect(subtitle.rectTransform, 0.03f, 0.92f, 0.70f, 0.99f);
 
-            CreateBuildingRow(empireRoot.transform, "CastleRow", "UpgradeCastleButton", 0.68f, 0.90f, OnUpgradeCastle);
-            CreateBuildingRow(empireRoot.transform, "BarracksRow", "UpgradeBarracksButton", 0.45f, 0.66f, OnUpgradeBarracks);
-            CreateBuildingRow(empireRoot.transform, "GateRow", "UpgradeGateButton", 0.22f, 0.43f, OnUpgradeGate);
+            CreateBuildingRow(empireRoot.transform, "CastleRow", "UpgradeCastleButton",
+                EmpireBuildingKind.Castle, 0.68f, 0.90f, OnUpgradeCastle);
+            CreateBuildingRow(empireRoot.transform, "BarracksRow", "UpgradeBarracksButton",
+                EmpireBuildingKind.Barracks, 0.45f, 0.66f, OnUpgradeBarracks);
+            CreateBuildingRow(empireRoot.transform, "GateRow", "UpgradeGateButton",
+                EmpireBuildingKind.Gate, 0.22f, 0.43f, OnUpgradeGate);
 
             _empireStatusText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireStatus", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(1200f, 48f));
@@ -481,14 +486,39 @@ namespace MyriadOfDragons.UI
                 _empireMessageText.text = message ?? string.Empty;
         }
 
-        private static void CreateBuildingRow(Transform parent, string rowName, string buttonName,
-            float bottom, float top, UnityEngine.Events.UnityAction onUpgrade)
+        private void OpenBuildingDetail(EmpireBuildingKind kind)
         {
-            GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image));
+            EmpireBuildingDetailPresenter detail = gameObject.GetComponent<EmpireBuildingDetailPresenter>();
+            if (detail == null) detail = gameObject.AddComponent<EmpireBuildingDetailPresenter>();
+
+            detail.Initialize(
+                kind,
+                onClose: () =>
+                {
+                    if (Application.isPlaying) Destroy(detail);
+                    else DestroyImmediate(detail);
+                },
+                onV1Upgrade: requested =>
+                {
+                    if (requested == EmpireBuildingKind.Castle) OnUpgradeCastle();
+                    else if (requested == EmpireBuildingKind.Barracks) OnUpgradeBarracks();
+                    else if (requested == EmpireBuildingKind.Gate) OnUpgradeGate();
+                    RefreshPanel();
+                });
+        }
+
+        private void CreateBuildingRow(Transform parent, string rowName, string buttonName,
+            EmpireBuildingKind kind, float bottom, float top, UnityEngine.Events.UnityAction onUpgrade)
+        {
+            GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image), typeof(Button));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
             rowBg.color = HexColor("#141A22", 0.92f);
-            rowBg.raycastTarget = false;
+            rowBg.raycastTarget = true;
+            Button rowButton = row.GetComponent<Button>();
+            rowButton.targetGraphic = rowBg;
+            EmpireBuildingKind captured = kind;
+            rowButton.onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(row.GetComponent<RectTransform>(), 0.03f, bottom, 0.97f, top);
 
             Text rowText = UISharedFoundation.CreateText(row.transform, "RowSummary", "",
@@ -496,6 +526,7 @@ namespace MyriadOfDragons.UI
             rowText.fontSize = 20;
             rowText.horizontalOverflow = HorizontalWrapMode.Wrap;
             rowText.verticalOverflow = VerticalWrapMode.Overflow;
+            rowText.raycastTarget = false;
             SetNormalizedRect(rowText.rectTransform, 0.02f, 0.08f, 0.72f, 0.92f);
 
             CreateActionButton(row.transform, buttonName, "UPGRADE", 0.74f, 0.1f, 0.98f, 0.9f, onUpgrade);
@@ -542,6 +573,14 @@ namespace MyriadOfDragons.UI
 
         public void TeardownUI()
         {
+            EmpireBuildingDetailPresenter detail = GetComponent<EmpireBuildingDetailPresenter>();
+            if (detail != null)
+            {
+                detail.TeardownUI();
+                if (Application.isPlaying) Destroy(detail);
+                else DestroyImmediate(detail);
+            }
+
             if (_canvasObj == null) return;
             if (Application.isPlaying) Destroy(_canvasObj);
             else DestroyImmediate(_canvasObj);

@@ -451,6 +451,7 @@ public class HomePagePresenter : MonoBehaviour
             "Stamina", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
 
         BuildSettingsEntryButton();
+        BuildSeasonEntryButtons();
 
         if (SaveManager.SaveData != null)
             PlayerSettingsService.ApplyFromProfile(SaveManager.SaveData);
@@ -700,6 +701,10 @@ public class HomePagePresenter : MonoBehaviour
     /// <summary>Exposed for tests: same hook the Home Settings gear uses.</summary>
     public void OpenSettingsForTests() => OpenSettings();
 
+    public void OpenBattlePassForTests() => OpenBattlePass();
+
+    public void OpenDailyLoginQuestsForTests() => OpenDailyLoginQuests();
+
     /// <summary>Destroy is not legal outside Play Mode (this project's own non-negotiable rule -
     /// DestroyImmediate(), not Destroy(), for anything reachable from Initialize(); EditMode
     /// tests that click through Empire/Avatar/Campaign nav reach this directly).
@@ -796,6 +801,28 @@ public class HomePagePresenter : MonoBehaviour
         }
     }
 
+    private void BuildSeasonEntryButtons()
+    {
+        CreateHeaderTextButton("Btn_BattlePass", "PASS", 1488, 18, 1632, 90, OpenBattlePass);
+        CreateHeaderTextButton("Btn_DailyLogin", "LOGIN", 1644, 18, 1768, 90, OpenDailyLoginQuests);
+    }
+
+    private void CreateHeaderTextButton(string name, string label, float left, float top, float right, float bottom,
+        UnityEngine.Events.UnityAction action)
+    {
+        GameObject btnObj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(homeCanvasObj.transform, false);
+        SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), left, top, right, bottom);
+        Image img = btnObj.GetComponent<Image>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(btnObj.GetComponent<Button>(), img, new Color(0.16f, 0.22f, 0.2f, 0.92f));
+        btnObj.GetComponent<Button>().onClick.AddListener(action);
+        Text text = UISharedFoundation.CreateText(btnObj.transform, "Label", label, UITextRole.Caption,
+            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 40f));
+        text.fontSize = 16;
+        text.fontStyle = FontStyle.Bold;
+        text.raycastTarget = false;
+    }
+
     private void OpenSettings()
     {
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
@@ -817,6 +844,38 @@ public class HomePagePresenter : MonoBehaviour
                 RefreshTopHUD();
                 SafeDestroy(settings);
             });
+    }
+
+    private void OpenBattlePass()
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+        BattlePassPresenter pass = gameObject.GetComponent<BattlePassPresenter>();
+        if (pass == null) pass = gameObject.AddComponent<BattlePassPresenter>();
+
+        pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        });
+    }
+
+    private void OpenDailyLoginQuests()
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+        DailyLoginQuestsPresenter daily = gameObject.GetComponent<DailyLoginQuestsPresenter>();
+        if (daily == null) daily = gameObject.AddComponent<DailyLoginQuestsPresenter>();
+
+        daily.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(daily);
+        });
     }
 
     private void OpenStoryCampaign()
