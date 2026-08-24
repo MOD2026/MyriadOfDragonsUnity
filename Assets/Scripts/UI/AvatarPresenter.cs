@@ -15,11 +15,13 @@ namespace MyriadOfDragons.UI
         private GameObject _canvasObj;
         private Action _onBackToHome;
         private Action _onOpenEmpire;
+        private Action _onOpenSpellLoadout;
 
-        public void Initialize(Action onBackToHome, Action onOpenEmpire = null)
+        public void Initialize(Action onBackToHome, Action onOpenEmpire = null, Action onOpenSpellLoadout = null)
         {
             _onBackToHome = onBackToHome;
             _onOpenEmpire = onOpenEmpire;
+            _onOpenSpellLoadout = onOpenSpellLoadout;
             BuildUI();
         }
 
@@ -160,6 +162,24 @@ namespace MyriadOfDragons.UI
                 });
                 SetNorm(empireBtn.GetComponent<RectTransform>(), 0.04f, 0.04f, 0.36f, 0.14f);
                 UISharedFoundation.CreateText(empireBtn.transform, "Label", "OPEN EMPIRE", UITextRole.Body,
+                    TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(280f, 40f));
+            }
+
+            if (_onOpenSpellLoadout != null)
+            {
+                GameObject loadoutBtn = new GameObject("Btn_SpellLoadout", typeof(RectTransform), typeof(Image), typeof(Button));
+                loadoutBtn.transform.SetParent(panel.transform, false);
+                Image loadoutImg = loadoutBtn.GetComponent<Image>();
+                loadoutImg.color = new Color(0.22f, 0.32f, 0.4f);
+                Button loadoutButton = loadoutBtn.GetComponent<Button>();
+                HomeV3UiLibrary.ApplyNavTileButton(loadoutButton, loadoutImg);
+                loadoutButton.onClick.AddListener(() =>
+                {
+                    TeardownUI();
+                    _onOpenSpellLoadout.Invoke();
+                });
+                SetNorm(loadoutBtn.GetComponent<RectTransform>(), 0.40f, 0.04f, 0.72f, 0.14f);
+                UISharedFoundation.CreateText(loadoutBtn.transform, "Label", "SPELL LOADOUT", UITextRole.Body,
                     TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(280f, 40f));
             }
         }

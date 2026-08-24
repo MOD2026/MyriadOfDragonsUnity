@@ -896,13 +896,11 @@ namespace MyriadOfDragons.UI
             var enemyEconomy = new BattleController.MatchEconomy(
                 _empireData.ResourceCap, _empireData.Turn1Resource, _aiProfile.MaxAvatarHealth);
             // Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24): real player-choice
-            // loadout, not the auto-derived one - _profile.equippedSpellIds is now the real source
-            // (kept in sync by SpellOwnershipSync/SpellLoadoutAutoEquip until manual loadout UI
-            // exists). avatarLevel/unlockedStageIds still passed too, purely as StartMatch's own
-            // fallback path for a profile whose equippedSpellIds is somehow still empty.
-            // _aiProfile.DifficultyTier (set just above) gives the enemy its own tier-authored
-            // spellbook (AIEnemySpellbookResolver) instead of mirroring the player's own loadout -
-            // closes the gap flagged in the Full 36-Spell Catalogue Diagnosis.
+            // loadout from _profile.equippedSpellIds (manual SpellLoadoutPickerPresenter, or
+            // SpellOwnershipSync/SpellLoadoutAutoEquip backfill when still empty).
+            // avatarLevel/unlockedStageIds still passed as StartMatch's fallback for an empty
+            // equippedSpellIds. _aiProfile.DifficultyTier gives the enemy its own tier-authored
+            // spellbook (AIEnemySpellbookResolver) instead of mirroring the player's loadout.
             _battleController.StartMatch(playerDeck, enemyDeck, playerEconomy, enemyEconomy,
                 _empireData.AvatarLevel, _profile.unlockedStageIds, _profile.equippedSpellIds,
                 _aiProfile.DifficultyTier);

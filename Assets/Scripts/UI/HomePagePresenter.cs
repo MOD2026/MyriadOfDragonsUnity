@@ -446,7 +446,7 @@ public class HomePagePresenter : MonoBehaviour
 
         GameObject resourceRow = new GameObject("ResourceRow", typeof(RectTransform));
         resourceRow.transform.SetParent(homeCanvasObj.transform, false);
-        SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1476, 90);
+        SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1328, 90);
 
         int goldVal = SaveManager.SaveData != null ? SaveManager.SaveData.gold : hudDefaults.gold;
         int gemsVal = SaveManager.SaveData != null ? SaveManager.SaveData.gems : hudDefaults.gems;
@@ -793,6 +793,11 @@ public class HomePagePresenter : MonoBehaviour
             {
                 SafeDestroy(avatar);
                 OpenEmpire();
+            },
+            onOpenSpellLoadout: () =>
+            {
+                SafeDestroy(avatar);
+                OpenSpellLoadoutPicker();
             });
     }
 
@@ -830,6 +835,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void BuildSeasonEntryButtons()
     {
+        CreateHeaderTextButton("Btn_SpellLoadout", "SPELLS", 1340, 18, 1476, 90, OpenSpellLoadoutPicker);
         CreateHeaderTextButton("Btn_BattlePass", "PASS", 1488, 18, 1632, 90, OpenBattlePass);
         CreateHeaderTextButton("Btn_DailyLogin", "LOGIN", 1644, 18, 1768, 90, OpenDailyLoginQuests);
     }
@@ -853,6 +859,7 @@ public class HomePagePresenter : MonoBehaviour
     public void OpenMemoryExpeditionForTests() => OpenMemoryExpedition();
     public void OpenVipSubscriptionForTests() => OpenVipSubscription();
     public void OpenPermitWeekKeyForTests() => OpenPermitWeekKey();
+    public void OpenSpellLoadoutPickerForTests() => OpenSpellLoadoutPicker();
 
     private void OpenMetagameShellPresenter<T>(System.Action<T> initialize) where T : MonoBehaviour
     {
@@ -927,6 +934,16 @@ public class HomePagePresenter : MonoBehaviour
     private void OpenPermitWeekKey()
     {
         OpenMetagameShellPresenter<PermitWeekKeyPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenSpellLoadoutPicker()
+    {
+        OpenMetagameShellPresenter<SpellLoadoutPickerPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
             RefreshTopHUD();
