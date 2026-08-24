@@ -372,6 +372,18 @@ tier's gate (Apprentice 538+163=0.35/2000; Novice 856+138≈0.497/2000; VeteranP
 0.32/2000), validating the harness. Reported to GPT with full numbers; no further tuning without
 direction.
 
+**GPT's Option 1 decision, implemented 2026-08-24**: Apprentice's spells/match floor lowered
+0.5->0.30 (its measured 0.35 now passes) - the diagnostic proved 0.5 was mathematically
+unreachable (theoretical max ~0.393 even at a 100% ordinary roll), not a probability-gate defect.
+Novice/VeteranPlus/Master/Titan keep the 0.5 floor. GPT explicitly ruled out loosening §5's
+target-legality clauses (would worsen already-problematic win-rate deltas) and explicitly said not
+to fix Novice/VeteranPlus's separate issues via this change.
+**New real finding after the fix, not yet addressed by any GPT decision:** Apprentice's no-spell
+fallback rate is 65.8% (locked ceiling 45%) - same root cause (only 3.2% of ticks produce a legal
+ordinary candidate), a different metric tripped by the identical scarcity. Novice (AI win-rate
++9.2pp, over 8pp) and VeteranPlus (spells/match 0.30, at/below its own unchanged 0.5 floor) remain
+open too. Escalated, not auto-retuned.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
