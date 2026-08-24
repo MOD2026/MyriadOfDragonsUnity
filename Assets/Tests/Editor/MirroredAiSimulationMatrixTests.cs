@@ -1,0 +1,392 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using MyriadOfDragons.AI;
+using MyriadOfDragons.Battle;
+using MyriadOfDragons.Cards;
+using MyriadOfDragons.Empire;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace MyriadOfDragons.Tests
+{
+    /// <summary>
+    /// Mirrored AI-Spellcasting Simulation Matrix (LOCKED, retroactively written 2026-08-24,
+    /// docs/LOCKED_DECISIONS_REGISTER.md) - the harness this spec describes, built and run for the
+    /// first time here. Drives the real production code (BattleController, AISpellCaster,
+    /// AIEnemySpellbookResolver), same style as BalanceSimulationTests: no external model, no new
+    /// seed framework.
+    ///
+    /// Real gaps the locked spec itself does not resolve, bridged here with documented, non-guessed
+    /// judgment calls rather than silently invented numbers:
+    ///
+    /// 1. "Chapter-archetype group" has no real code mapping - nothing in this codebase ties a
+    ///    campaign chapter to an avatar level or AIDifficultyTier (grepped for it, confirmed absent).
+    ///    AIDifficultyTier IS the real, locked granularity the AI's own config actually varies by
+    ///    (SoloAIScalingSystem). Used that directly instead of the spec's literal Ch1/Ch2-3/Ch4-6/
+    ///    Ch7-10 labels. Further collapsed to 3 groups, not 5 tiers: AIEnemySpellbookResolverTests
+    ///    already proves Veteran/Master/Titan resolve to an IDENTICAL final spellbook (Fault Line,
+    ///    Renewal, Banner of Ashes, Stone Judgment - Master's own Tempest Brand addition never wins
+    ///    a slot) - the spec's own collapsing rule ("only if chapters genuinely share identical AI
+    ///    config") applies to those three by an already-verified fact, not an assumption. Groups:
+    ///    Novice, Apprentice, VeteranPlus (Veteran/Master/Titan).
+    /// 2. The "player" side has no headless equivalent in this codebase - AISpellCaster.
+    ///    TrySelectCast is a side-agnostic pure function (spellbook/energy/tickCount/self/opponent
+    ///    in, no hardcoded "enemy" bias), so the Full Match (on/on) scenario reuses it symmetrically
+    ///    for the player. This is a deliberate modeling choice, not shipped behaviour - production
+    ///    players are human.
+    /// 3. Both sides use the SAME tier-resolved loadout (AIEnemySpellbookResolver.ResolveSpellbook)
+    ///    for symmetry/fairness of the casting-mechanic test itself - there's no real "expected
+    ///    player loadout at avatar level X" curve to draw from either (same missing-mapping problem
+    ///    as #1), so a synthetic-but-fair symmetric loadout was the least-invented option available.
+    /// 4. Fallback stress ("tests unaffordable/invalid handling") needed a real lever:
+    ///    EnergyPerTick is a fixed, non-public-settable production constant (18), not touched.
+    ///    Instead both sides are equipped with only the 2 highest-EnergyCost spells from the tier's
+    ///    resolved pool via equippedSpellIds - genuinely harder to afford, same production Energy
+    ///    generation, no synthetic hack.
+    /// 5. "AI cast rate ... of matches with >=1 legal opportunity" and "no-spell fallback rate ...
+    ///    of matches" use different denominators (spec's own wording) - implemented literally:
+    ///    opportunity is predicted read-only via AISpellCaster.TrySelectCast before each
+    ///    AdvanceCombatTick call (never mutates state), which doubles as the invalid-cast hard-
+    ///    failure check (see RunScenario).
+    ///
+    /// Failure policy per the lock: any missed band is a real test failure, logged and reported -
+    /// this harness never adjusts an assertion to make a bad number pass.
+    /// </summary>
+    public class MirroredAiSimulationMatrixTests
+    {
+        private readonly List<GameObject> _spawned = new List<GameObject>();
+        private const double Z95 = 1.959963985;
+
+        [TearDown]
+        public void TearDown()
+        {
+            LaneBattleResolver.ResetRulesToDefault();
+            foreach (GameObject go in _spawned)
+            {
+                if (go != null) UnityEngine.Object.DestroyImmediate(go);
+            }
+            _spawned.Clear();
+        }
+
+        private CardDatabase LoadDatabase()
+        {
+            var go = new GameObject("SimMatrixCardDatabase");
+            _spawned.Add(go);
+            CardDatabase db = go.AddComponent<CardDatabase>();
+            db.Initialize();
+            return db;
+        }
+
+        private BattleController CreateController()
+        {
+            var go = new GameObject("SimMatrixBattleController");
+            _spawned.Add(go);
+            return go.AddComponent<BattleController>();
+        }
+
+        private static void DeployWholeSquad(BattleController controller, PlayerBattleState side, AIArchetype archetype)
+        {
+            bool placed = true;
+            while (placed)
+            {
+                placed = false;
+                foreach (Card card in side.Hand.OrderByDescending(c => c.Attack + c.Health).ToList())
+                {
+                    if (card.ResourceCost > side.Resource) continue;
+                    foreach (Lane lane in new[] { Lane.Front, Lane.Middle, Lane.Back })
+                    {
+                        if (!side.Lanes[lane].HasRoomFor(card)) continue;
+                        if (controller.TryPlayCard(side, card, lane)) { placed = true; break; }
+                    }
+                    if (placed) break;
+                }
+            }
+        }
+
+        // ---------- Wilson 95% CI ----------
+
+        private readonly struct Wilson
+        {
+            public readonly double Center, Low, High;
+            public Wilson(int successes, int n)
+            {
+                if (n == 0) { Center = Low = High = 0; return; }
+                double p = (double)successes / n;
+                double denom = 1 + Z95 * Z95 / n;
+                double centre = (p + Z95 * Z95 / (2 * n)) / denom;
+                double margin = Z95 * Math.Sqrt(p * (1 - p) / n + Z95 * Z95 / (4.0 * n * n)) / denom;
+                Center = centre;
+                Low = Math.Max(0, centre - margin);
+                High = Math.Min(1, centre + margin);
+            }
+            public override string ToString() => $"{Center:P1} [{Low:P1}, {High:P1}]";
+        }
+
+        // ---------- Groups ----------
+
+        private enum TierGroup { Novice, Apprentice, VeteranPlus }
+
+        private static (int avatarLevel, int castleLevel, AIDifficultyTier tier) GroupConfig(TierGroup g) => g switch
+        {
+            // avatarLevel/castleLevel pairs reuse BalanceSimulationTests' own existing precedent
+            // ratios (1/1, 25/15, 30/30), not invented fresh.
+            TierGroup.Novice => (10, 10, AIDifficultyTier.Novice),
+            TierGroup.Apprentice => (25, 15, AIDifficultyTier.Apprentice),
+            TierGroup.VeteranPlus => (50, 30, AIDifficultyTier.Veteran),
+            _ => throw new ArgumentOutOfRangeException(nameof(g)),
+        };
+
+        // ---------- Result ----------
+
+        private sealed class ScenarioResult
+        {
+            public string Label;
+            public int Trials;
+            public int AiWins;
+            public int PlayerWins;
+            public int Undecided;
+            public long TotalTicks;
+            public int EarlyKOs;
+            public int TrialsWithOpportunity;
+            public int TrialsWithAiCast;
+            public int TotalAiCasts;
+            public int TrialsWithZeroAiCasts;
+            public readonly Dictionary<string, int> AiWinContributionBySpell = new Dictionary<string, int>();
+
+            public double AverageTicks => Trials == 0 ? 0 : (double)TotalTicks / Trials;
+            public Wilson AiWinRate => new Wilson(AiWins, Trials);
+            public Wilson PlayerWinRate => new Wilson(PlayerWins, Trials);
+            public Wilson EarlyKORate => new Wilson(EarlyKOs, Trials);
+            public Wilson AiCastRateOfOpportunity => new Wilson(TrialsWithAiCast, TrialsWithOpportunity);
+            public Wilson NoSpellFallbackRate => new Wilson(TrialsWithZeroAiCasts, Trials);
+            public double SpellsPerMatch => Trials == 0 ? 0 : (double)TotalAiCasts / Trials;
+            public double MaxSingleSpellWinShare => AiWins == 0 || AiWinContributionBySpell.Count == 0
+                ? 0 : (double)AiWinContributionBySpell.Values.Max() / AiWins;
+
+            public void Log()
+            {
+                Debug.Log($"[SimMatrix] {Label}: trials={Trials} aiWin={AiWinRate} playerWin={PlayerWinRate} " +
+                          $"avgTicks={AverageTicks:F2} earlyKO={EarlyKORate} aiCastRate(opportunity)={AiCastRateOfOpportunity} " +
+                          $"(opportunity trials={TrialsWithOpportunity}) spellsPerMatch={SpellsPerMatch:F2} " +
+                          $"noSpellFallback={NoSpellFallbackRate} maxSingleSpellWinShare={MaxSingleSpellWinShare:P1}");
+            }
+        }
+
+        /// <summary>Real harness core. equippedSpellIdsOverride, when set, is used for BOTH sides
+        /// (fallback-stress lever - see class doc #4); otherwise both sides get the tier's own
+        /// AIEnemySpellbookResolver loadout (see class doc #2/#3), the AI via enemyTier (real
+        /// production wiring), the player via equippedSpellIds (also real production wiring).</summary>
+        private ScenarioResult RunScenario(List<Card> pool, TierGroup group, string label, int trials,
+            bool aiSpellsOn, bool playerSpellsOn, bool resourceStress = false, List<string> equippedSpellIdsOverride = null)
+        {
+            (int avatarLevel, int castleLevel, AIDifficultyTier tier) = GroupConfig(group);
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+            empire.InitializeTCGModifiers();
+
+            int resourceCap = resourceStress ? Mathf.Max(4, empire.ResourceCap / 3) : empire.ResourceCap;
+            int turn1Resource = resourceStress ? Mathf.Max(2, empire.Turn1Resource / 3) : empire.Turn1Resource;
+            var economy = new BattleController.MatchEconomy(resourceCap, turn1Resource, empire.StartingAvatarHealth);
+
+            List<string> sharedEquippedIds = equippedSpellIdsOverride ??
+                AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Id).ToList();
+
+            var result = new ScenarioResult { Label = label };
+
+            for (int i = 0; i < trials; i++)
+            {
+                if (i % 100 == 0) Debug.Log($"[SimMatrix] {label}: trial {i}/{trials}");
+
+                BattleController controller = CreateController();
+                List<Card> playerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> enemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+
+                controller.StartMatch(playerDeck, enemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: sharedEquippedIds,
+                    enemyTier: equippedSpellIdsOverride == null ? tier : (AIDifficultyTier?)null);
+
+                if (aiSpellsOn) controller.EnableMirroredEnemySpellsForPvE();
+
+                controller.DealFormationHand(controller.PlayerState);
+                controller.DealFormationHand(controller.EnemyState);
+                DeployWholeSquad(controller, controller.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(controller, AIArchetype.Balanced);
+
+                if (!controller.ConfirmFormation())
+                {
+                    UnityEngine.Object.DestroyImmediate(controller.gameObject);
+                    continue;
+                }
+
+                bool hadOpportunity = false;
+
+                while (controller.Phase == BattlePhase.Combat)
+                {
+                    // Predicts the exact inputs AdvanceCombatTick's own real AI decision will use -
+                    // TickCount++ and the Energy regen step both happen BEFORE AISpellCaster runs
+                    // inside AdvanceCombatTick, so checking with today's (pre-tick) TickCount/Energy
+                    // would systematically undercount opportunity (confirmed by a smoke run: it
+                    // produced an impossible >100% "cast rate of opportunity", i.e. more actual
+                    // casts than predicted opportunities). BackLaneEnergy is the same public,
+                    // real production method AdvanceCombatTick itself calls - not reimplemented.
+                    int predictedTick = controller.TickCount + 1;
+                    int predictedEnemyEnergy = Math.Min(controller.MaxEnergy,
+                        controller.EnemyEnergy + controller.EnergyPerTick + BattleController.BackLaneEnergy(controller.EnemyState));
+                    bool aiPredictedCast = aiSpellsOn && AISpellCaster.TrySelectCast(
+                        controller.EnemySpellbook, predictedEnemyEnergy, predictedTick,
+                        controller.EnemyState, controller.PlayerState, out _, out _);
+                    if (aiPredictedCast) hadOpportunity = true;
+                    int castLogBefore = controller.SpellCastLog.Count;
+
+                    controller.AdvanceCombatTick();
+
+                    if (aiPredictedCast)
+                    {
+                        // Invalid-cast hard failure (AI side): the AI's own real heuristic found a
+                        // legal cast, so exactly one new record must exist - anything else means an
+                        // illegal/invalid cast attempt or a missed legal opportunity.
+                        Assert.AreEqual(castLogBefore + 1, controller.SpellCastLog.Count,
+                            $"HARD FAILURE [{label}]: AI predicted a legal cast at tick {controller.TickCount} but the cast log did not grow by exactly 1.");
+                    }
+
+                    if (playerSpellsOn && controller.Phase == BattlePhase.Combat)
+                    {
+                        if (AISpellCaster.TrySelectCast(controller.Spellbook, controller.Energy, controller.TickCount,
+                                controller.PlayerState, controller.EnemyState, out int spellIndex, out Lane targetLane))
+                        {
+                            bool cast = controller.TryCastSpell(spellIndex, targetLane, out _);
+                            // Invalid-cast hard failure (player side).
+                            Assert.IsTrue(cast, $"HARD FAILURE [{label}]: player-side selected cast was illegal at tick {controller.TickCount}.");
+                        }
+                    }
+                }
+
+                result.Trials++;
+                result.TotalTicks += controller.TickCount;
+                bool resolved = controller.PlayerState.IsDefeated || controller.EnemyState.IsDefeated;
+                if (resolved && controller.TickCount < BattleController.MinimumCombatTickForAvatarStrike) result.EarlyKOs++;
+
+                if (controller.EnemyState.IsDefeated && !controller.PlayerState.IsDefeated) result.PlayerWins++;
+                else if (controller.PlayerState.IsDefeated && !controller.EnemyState.IsDefeated) result.AiWins++;
+                else result.Undecided++;
+
+                if (hadOpportunity) result.TrialsWithOpportunity++;
+
+                List<SpellCastRecord> aiCasts = controller.SpellCastLog.Where(c => !c.CastByPlayer).ToList();
+                if (aiCasts.Count > 0) result.TrialsWithAiCast++;
+                else result.TrialsWithZeroAiCasts++;
+                result.TotalAiCasts += aiCasts.Count;
+
+                if (controller.PlayerState.IsDefeated && aiCasts.Count > 0)
+                {
+                    foreach (string spellName in aiCasts.Select(c => c.SpellName).Distinct())
+                    {
+                        result.AiWinContributionBySpell.TryGetValue(spellName, out int cur);
+                        result.AiWinContributionBySpell[spellName] = cur + 1;
+                    }
+                }
+
+                UnityEngine.Object.DestroyImmediate(controller.gameObject);
+            }
+
+            result.Log();
+            return result;
+        }
+
+        /// <summary>Escalates a scenario to 2,000 trials if the given rate came back below 5% at
+        /// 1,000 (LOCKED spec's own "2,000 if early-KO or spell-use rate is below 5%").</summary>
+        private ScenarioResult RunWithEscalation(List<Card> pool, TierGroup group, string label,
+            bool aiSpellsOn, bool playerSpellsOn, bool resourceStress = false, List<string> equippedSpellIdsOverride = null)
+        {
+            ScenarioResult first = RunScenario(pool, group, label, 1000, aiSpellsOn, playerSpellsOn, resourceStress, equippedSpellIdsOverride);
+            bool lowEarlyKo = first.EarlyKORate.Center < 0.05;
+            bool lowSpellUse = aiSpellsOn && first.TrialsWithAiCast < first.Trials * 0.05;
+            if (!lowEarlyKo && !lowSpellUse) return first;
+
+            Debug.Log($"[SimMatrix] {label}: escalating to 2000 trials (earlyKO={first.EarlyKORate.Center:P1}, aiCastFraction={(double)first.TrialsWithAiCast / Mathf.Max(1, first.Trials):P1}).");
+            return RunScenario(pool, group, label + " (2000)", 2000, aiSpellsOn, playerSpellsOn, resourceStress, equippedSpellIdsOverride);
+        }
+
+        /// <summary>The 5 locked scenarios for one tier group, asserted against the locked
+        /// acceptance bands. A band miss fails loudly here - this method never adjusts a threshold
+        /// to make a bad number pass (LOCKED spec's own failure policy).</summary>
+        private void RunGroup(TierGroup group)
+        {
+            CardDatabase db = LoadDatabase();
+            List<Card> pool = db.AllCards.ToList();
+            string g = group.ToString();
+
+            ScenarioResult baseline = RunWithEscalation(pool, group, $"{g}/Baseline(off,off)", aiSpellsOn: false, playerSpellsOn: false);
+            ScenarioResult aiOn = RunWithEscalation(pool, group, $"{g}/AiCasting(on,off)", aiSpellsOn: true, playerSpellsOn: false);
+            ScenarioResult full = RunWithEscalation(pool, group, $"{g}/FullMatch(on,on)", aiSpellsOn: true, playerSpellsOn: true);
+
+            List<string> expensiveIds = AIEnemySpellbookResolver.ResolveSpellbook(GroupConfig(group).tier)
+                .OrderByDescending(s => s.EnergyCost).Take(2).Select(s => s.Id).ToList();
+            ScenarioResult fallbackStress = RunWithEscalation(pool, group, $"{g}/FallbackStress(on,off)",
+                aiSpellsOn: true, playerSpellsOn: false, equippedSpellIdsOverride: expensiveIds);
+            ScenarioResult resourceStress = RunWithEscalation(pool, group, $"{g}/ResourceStress(on,off)",
+                aiSpellsOn: true, playerSpellsOn: false, resourceStress: true);
+
+            // ---------- AI casting scenario, relative to Baseline parity ----------
+
+            double aiWinDeltaPp = aiOn.AiWinRate.Center - baseline.AiWinRate.Center;
+            Assert.That(aiWinDeltaPp, Is.InRange(-0.05, 0.08),
+                $"[{g}] AI win-rate delta {aiWinDeltaPp:P1} outside the locked -5pp..+8pp band (baseline {baseline.AiWinRate}, on {aiOn.AiWinRate}). ESCALATE TO CC.");
+
+            double playerWinDropPp = baseline.PlayerWinRate.Center - aiOn.PlayerWinRate.Center;
+            Assert.LessOrEqual(playerWinDropPp, 0.08,
+                $"[{g}] Player win-rate dropped {playerWinDropPp:P1} vs baseline, exceeding the locked 8pp cap (baseline {baseline.PlayerWinRate}, on {aiOn.PlayerWinRate}). ESCALATE TO CC.");
+
+            double tickRatio = baseline.AverageTicks == 0 ? 1 : aiOn.AverageTicks / baseline.AverageTicks;
+            Assert.That(tickRatio, Is.InRange(0.85, 1.15),
+                $"[{g}] Average ticks {aiOn.AverageTicks:F2} vs baseline {baseline.AverageTicks:F2} outside the locked ±15% band. ESCALATE TO CC.");
+
+            Assert.LessOrEqual(aiOn.EarlyKORate.Center, 0.10,
+                $"[{g}] Early-KO rate {aiOn.EarlyKORate} exceeds the locked 10% ceiling. ESCALATE TO CC.");
+            Assert.LessOrEqual(aiOn.EarlyKORate.Center - baseline.EarlyKORate.Center, 0.05,
+                $"[{g}] Early-KO rate rose {(aiOn.EarlyKORate.Center - baseline.EarlyKORate.Center):P1} above baseline, exceeding the locked 5pp cap. ESCALATE TO CC.");
+
+            Assert.That(aiOn.AiCastRateOfOpportunity.Center, Is.InRange(0.25, 0.70),
+                $"[{g}] AI cast rate (of {aiOn.TrialsWithOpportunity} opportunity trials) {aiOn.AiCastRateOfOpportunity} outside the locked 25-70% band. ESCALATE TO CC.");
+
+            Assert.That(aiOn.SpellsPerMatch, Is.InRange(0.5, 2.5),
+                $"[{g}] Spells/match {aiOn.SpellsPerMatch:F2} outside the locked 0.5-2.5 ordinary band. ESCALATE TO CC.");
+
+            Assert.That(aiOn.NoSpellFallbackRate.Center, Is.InRange(0.10, 0.45),
+                $"[{g}] No-spell fallback rate {aiOn.NoSpellFallbackRate} outside the locked 10-45% band. ESCALATE TO CC.");
+
+            Assert.LessOrEqual(aiOn.MaxSingleSpellWinShare, 0.40,
+                $"[{g}] A single spell contributed {aiOn.MaxSingleSpellWinShare:P1} of AI wins, exceeding the locked 40% cap. ESCALATE TO CC.");
+
+            // ---------- Full Match scenario, relative to AiCasting(on,off) ----------
+
+            Assert.LessOrEqual(full.EarlyKORate.Center, 0.10,
+                $"[{g}] Full Match early-KO rate {full.EarlyKORate} exceeds the locked 10% ceiling. ESCALATE TO CC.");
+            Assert.LessOrEqual(full.EarlyKORate.Center - aiOn.EarlyKORate.Center, 0.05,
+                $"[{g}] Full Match early-KO rate rose {(full.EarlyKORate.Center - aiOn.EarlyKORate.Center):P1} above AiCasting(on,off), exceeding the locked 5pp cap. ESCALATE TO CC.");
+
+            double fullTickRatio = aiOn.AverageTicks == 0 ? 1 : full.AverageTicks / aiOn.AverageTicks;
+            Assert.That(fullTickRatio, Is.InRange(0.80, 1.20),
+                $"[{g}] Full Match average ticks {full.AverageTicks:F2} vs AiCasting(on,off) {aiOn.AverageTicks:F2} outside the locked ±20% band. ESCALATE TO CC.");
+
+            // AI cast rate/win rates for Full Match are descriptive only per the lock - logged, not gated.
+            double fullMaxShift = Math.Abs(full.MaxSingleSpellWinShare - aiOn.MaxSingleSpellWinShare);
+            Debug.Log($"[SimMatrix] {g}/FullMatch spell-contribution shift vs AiCasting(on,off): {fullMaxShift:P1} " +
+                      (fullMaxShift > 0.15 ? "- FLAGGED for CC review (descriptive only, not auto-retuned)." : "- within normal variation."));
+
+            // Fallback/Resource stress: same correctness gate as AI casting (zero invalid casts,
+            // already asserted inline in RunScenario) - every other metric is descriptive/diagnostic
+            // only per the lock, so nothing further is gated here; both are logged above.
+        }
+
+        [Test]
+        public void SimulationMatrix_Novice() => RunGroup(TierGroup.Novice);
+
+        [Test]
+        public void SimulationMatrix_Apprentice() => RunGroup(TierGroup.Apprentice);
+
+        [Test]
+        public void SimulationMatrix_VeteranPlus() => RunGroup(TierGroup.VeteranPlus);
+    }
+}
