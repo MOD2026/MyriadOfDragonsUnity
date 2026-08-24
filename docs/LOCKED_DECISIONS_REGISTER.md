@@ -346,6 +346,18 @@ instruction to report the measured result rather than tune further on expectatio
   win-rate dropped 9.1% (exceeds the 8pp cap) - AI got measurably stronger at both tiers now, not
   just more active. Escalated, not auto-retuned.
 
+**GPT's "structural, not a single percentage" call, implemented 2026-08-24**: a flat gate can't
+satisfy all 3 measured tiers - tier-specific `NonAvatarStrikeGateProbability`: Novice 45%,
+Apprentice 85%, Veteran 45%, Master/Titan unchanged at 40% (never separately measured by the
+matrix - VeteranPlus stands in for Veteran specifically - so left alone pending real measurement).
+Decisive result: **Apprentice's spells/match did NOT move at all** going from 60%->85% (0.35 both
+times) - strong real evidence the 0.5 floor may be structurally incompatible with Apprentice's
+available spell pool (fewer legal candidates than the other tiers), exactly the fallback
+conclusion GPT named if this happened. Novice (player win-rate dropped 9.6%, over the 8pp cap) and
+VeteranPlus (spells/match 0.31, back below the floor at 45%) both still fail too, in different
+directions from before. Escalated with full numbers, not auto-retuned - awaiting GPT's read on
+whether the Apprentice floor itself needs revisiting.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
