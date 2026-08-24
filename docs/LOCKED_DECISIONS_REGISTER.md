@@ -253,3 +253,47 @@ membership alone determines the pool. Verified against SPELL_CATALOG_v1.md - all
 match exactly. Existing highest-magnitude-per-effect auto-equip heuristic still applies on top -
 Cinder Lash/Vital Spark/Sun Lance/Tempest Brand become eligible but stay unselected (weaker same-
 effect-type options win); Fault Line/Renewal/Banner of Ashes do materially change tier loadouts.
+
+## Mirrored AI-Spellcasting Simulation Matrix (LOCKED, retroactively written 2026-08-24)
+
+Was fully specced and agreed earlier this session but never committed to this file until now -
+coding room correctly refused to guess it and flagged the gap. Real spec, now real:
+
+**Metrics per scenario:** AI win rate, player win rate, average combat ticks, early-KO rate (match
+resolved before Clash 3), AI spell-cast rate, spells cast per match, no-spell fallback rate, spell
+contribution delta (derived: AI-casting scenario metrics minus Baseline-parity scenario metrics -
+not separately collected).
+
+**Trial shape:** matches existing unseeded Monte Carlo style (BalanceSimulationTests), no new seed
+framework. 1,000 trials/scenario minimum; 2,000 if early-KO or spell-use rate is below 5%. Fresh
+battle state/hands/spell state every trial. Report count, percentage, AND Wilson 95% CI per metric.
+Paired scenario groups, spells off vs on, identical deck/config.
+
+**5 scenarios per chapter-archetype group** (not run globally once): Baseline parity (spells off/
+off), AI casting (on/off), Full match (on/on), Fallback stress (on/off, tests unaffordable/invalid
+handling), Resource stress (on/off, low-resource deployment/timing).
+
+**Acceptance bands, AI casting scenario** (relative to Baseline parity unless noted): AI win-rate
+delta within -5 to +8pp. Player win-rate delta no unexplained drop >8pp. Average ticks within ±15%.
+Early-KO rate ≤10%, no more than 5pp above baseline. AI cast rate 25-70% of matches with ≥1 legal
+opportunity. Spells/match 0.5-2.5 ordinary. No-spell fallback 10-45% of matches. Invalid-target/
+illegal-cost casts: HARD FAILURE on first occurrence (a per-trial assert, not a percentage). Spell
+contribution: no single spell >40% of AI wins.
+
+**Full Match scenario** (relative to AI-casting/player-off scenario, not Baseline parity):
+invalid-cast hard failure same as above. Early-KO ≤10%, no more than 5pp above the AI-on/player-off
+scenario. Average ticks within ±20% of the AI-on/player-off result. AI cast rate and win rates are
+DESCRIPTIVE ONLY, not gated. Spell contribution: compare vs AI-on/player-off, flag unusually large
+shifts for CC review, never auto-retune.
+
+**Fallback/Resource stress scenarios:** same correctness gates as AI casting (zero invalid casts);
+other metrics descriptive/diagnostic only.
+
+**Failure policy:** any missed target is logged and escalated to CC. The harness itself NEVER
+auto-retunes balance values - same as the Auto-Formation Balance Soft precedent.
+
+**Chapter coverage:** run by chapter-archetype group - Ch1 (novice/low-resource AI), Ch2-3
+(standard, basic spell access), Ch4-6 (advanced archetypes), Ch7-10 (endgame patterns). One
+representative scenario may cover a group if chapters genuinely share identical AI config
+(deck/spell-list/resource-profile/SoloAIScalingSystem tier) - coding room's own call based on real
+config, not assumed.
