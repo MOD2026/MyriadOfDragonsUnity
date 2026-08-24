@@ -278,7 +278,12 @@ namespace MyriadOfDragons.Tests
                 else result.TrialsWithZeroAiCasts++;
                 result.TotalAiCasts += aiCasts.Count;
 
-                if (controller.PlayerState.IsDefeated && aiCasts.Count > 0)
+                // Real bug found post-fix-verification: a >100% maxSingleSpellWinShare surfaced,
+                // which is mathematically impossible under this method's own definition unless
+                // this condition disagrees with AiWins' own (PlayerState.IsDefeated &&
+                // !EnemyState.IsDefeated) - it did, missing the !EnemyState.IsDefeated half, so a
+                // double-KO trial (counted as Undecided, not a win) could still credit a spell here.
+                if (controller.PlayerState.IsDefeated && !controller.EnemyState.IsDefeated && aiCasts.Count > 0)
                 {
                     foreach (string spellName in aiCasts.Select(c => c.SpellName).Distinct())
                     {
