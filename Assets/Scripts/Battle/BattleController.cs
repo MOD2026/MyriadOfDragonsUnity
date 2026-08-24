@@ -289,11 +289,17 @@ namespace MyriadOfDragons.Battle
         /// CreateDefaultSpellbook() always returned. Only a caller that explicitly supplies a
         /// non-empty equippedSpellIds (see GameBootstrap.StartNewMatch, reading the real profile's
         /// equippedSpellIds) gets the new ownership-driven loadout.
+        ///
+        /// enemyTier: the AI's own real difficulty tier (SoloAIScalingSystem.AIDifficultyTier).
+        /// When supplied, EnemySpellbook comes from AIEnemySpellbookResolver - a stage/archetype-
+        /// authored loadout keyed on that tier - instead of mirroring the player's own
+        /// equippedSpellIds/progression. Defaults to null so every existing caller keeps the old
+        /// mirrored behaviour exactly.
         /// </summary>
         public void StartMatch(List<Card> playerDeck, List<Card> enemyDeck,
             MatchEconomy playerEconomy, MatchEconomy enemyEconomy,
             int avatarLevel = 1, IReadOnlyCollection<string> unlockedStageIds = null,
-            IReadOnlyList<string> equippedSpellIds = null)
+            IReadOnlyList<string> equippedSpellIds = null, AIDifficultyTier? enemyTier = null)
         {
             PlayerState = new PlayerBattleState(playerDeck,
                 playerEconomy.ResourceCap, playerEconomy.Turn1Resource, playerEconomy.StartingAvatarHealth);
@@ -305,12 +311,15 @@ namespace MyriadOfDragons.Battle
             Energy = 0;
             EnemyEnergy = 0;
             Spellbook = ResolveMatchSpellbook(equippedSpellIds, avatarLevel, unlockedStageIds);
-            // Real gap, flagged not fixed here (out of this task's scope - see
-            // docs/LOCKED_DECISIONS_REGISTER.md's own "AI spellbooks currently mirror the PLAYER's
-            // progression-derived loadout rather than having their own stage/archetype-authored
-            // one - needs fixing in Wave 1"): the enemy still mirrors the SAME equippedSpellIds/
-            // progression inputs as the player, unchanged from before this refactor.
-            EnemySpellbook = ResolveMatchSpellbook(equippedSpellIds, avatarLevel, unlockedStageIds);
+            // Closes the "AI mirrors the player's own loadout" gap (see
+            // AIEnemySpellbookResolver's own doc comment for the real design behind this): when a
+            // caller supplies the AI's own real difficulty tier, the enemy gets a tier-authored
+            // loadout instead of reading the player's equippedSpellIds/progression. enemyTier
+            // defaults to null so every pre-existing caller (every test, the scripted tutorial)
+            // keeps the exact old mirrored behaviour unchanged.
+            EnemySpellbook = enemyTier.HasValue
+                ? AIEnemySpellbookResolver.ResolveSpellbook(enemyTier.Value)
+                : ResolveMatchSpellbook(equippedSpellIds, avatarLevel, unlockedStageIds);
             MirroredEnemySpellsEnabled = false;
             _combatLedger.Clear();
             _spellCastLog.Clear();

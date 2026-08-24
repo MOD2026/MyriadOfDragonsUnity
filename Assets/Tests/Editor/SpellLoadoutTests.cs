@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using MyriadOfDragons.AI;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Cards;
 using NUnit.Framework;
@@ -272,6 +273,43 @@ namespace MyriadOfDragons.Tests
                 avatarLevel: 1, unlockedStageIds: null, equippedSpellIds: equipped);
 
             Assert.IsTrue(controller.Spellbook.Count > 0, "A caller must never end up with an empty castable spellbook.");
+        }
+
+        // ---------- StartMatch's enemyTier wiring (AI's own loadout, not mirrored) ----------
+
+        [Test]
+        public void StartMatch_WithEnemyTier_TheEnemySpellbookIsTierAuthored_NotMirroredFromThePlayer()
+        {
+            BattleController controller = CreateController();
+            Card card = MakeWeakCard("loadout_tiered_" + System.Guid.NewGuid().ToString("N"));
+            var economy = new BattleController.MatchEconomy(20, 20, 1000);
+            var playerEquipped = new List<string> { "cinder_lash", "vital_spark", "rallying_gale", "sun_lance" };
+
+            controller.StartMatch(new List<Card> { card }, new List<Card> { card }, economy, economy,
+                avatarLevel: 1, unlockedStageIds: null, equippedSpellIds: playerEquipped, enemyTier: AIDifficultyTier.Titan);
+
+            CollectionAssert.AreEqual(new[] { "Cinder Lash", "Vital Spark", "Rallying Gale", "Sun Lance" },
+                controller.Spellbook.Select(s => s.Name).ToList(), "The player's own spellbook must be unaffected by enemyTier.");
+            CollectionAssert.AreEqual(AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Titan).Select(s => s.Name).ToList(),
+                controller.EnemySpellbook.Select(s => s.Name).ToList(),
+                "With enemyTier supplied, the enemy spellbook must come from AIEnemySpellbookResolver, not the player's equippedSpellIds.");
+            CollectionAssert.AreNotEqual(controller.Spellbook.Select(s => s.Name).ToList(), controller.EnemySpellbook.Select(s => s.Name).ToList(),
+                "Setup: expected the player's stage/spell-book-only loadout to genuinely differ from the Titan-tier AI loadout.");
+        }
+
+        [Test]
+        public void StartMatch_WithoutEnemyTier_KeepsTheOldMirroredBehaviour()
+        {
+            BattleController controller = CreateController();
+            Card card = MakeWeakCard("loadout_notier_" + System.Guid.NewGuid().ToString("N"));
+            var economy = new BattleController.MatchEconomy(20, 20, 1000);
+            var equipped = new List<string> { "firestorm", "mend", "war_cry", "divine_bolt" };
+
+            controller.StartMatch(new List<Card> { card }, new List<Card> { card }, economy, economy,
+                avatarLevel: 1, unlockedStageIds: null, equippedSpellIds: equipped); // enemyTier omitted.
+
+            CollectionAssert.AreEqual(controller.Spellbook.Select(s => s.Name).ToList(), controller.EnemySpellbook.Select(s => s.Name).ToList(),
+                "Backward compatibility: no enemyTier means the enemy still mirrors the player's own resolved spellbook, exactly as before this change.");
         }
     }
 }

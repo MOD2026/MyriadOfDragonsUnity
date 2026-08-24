@@ -900,8 +900,12 @@ namespace MyriadOfDragons.UI
             // (kept in sync by SpellOwnershipSync/SpellLoadoutAutoEquip until manual loadout UI
             // exists). avatarLevel/unlockedStageIds still passed too, purely as StartMatch's own
             // fallback path for a profile whose equippedSpellIds is somehow still empty.
+            // _aiProfile.DifficultyTier (set just above) gives the enemy its own tier-authored
+            // spellbook (AIEnemySpellbookResolver) instead of mirroring the player's own loadout -
+            // closes the gap flagged in the Full 36-Spell Catalogue Diagnosis.
             _battleController.StartMatch(playerDeck, enemyDeck, playerEconomy, enemyEconomy,
-                _empireData.AvatarLevel, _profile.unlockedStageIds, _profile.equippedSpellIds);
+                _empireData.AvatarLevel, _profile.unlockedStageIds, _profile.equippedSpellIds,
+                _aiProfile.DifficultyTier);
             // Option B: mirrored PvE AI spells for normal + Campaign solo (not tutorial path).
             _battleController.EnableMirroredEnemySpellsForPvE();
 
