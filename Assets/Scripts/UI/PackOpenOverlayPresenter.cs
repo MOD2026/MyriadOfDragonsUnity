@@ -174,16 +174,37 @@ namespace MyriadOfDragons.UI
             return tiles;
         }
 
-        // Pack-open/reveal has no approved art in the Home/Deck/Collection V3 pack.
-        // Do not borrow retired HomeV3 chrome (tutorial banner, square nav tiles).
+        // Shop V1 pack-open frame — pack-agnostic; runtime owns title/progress/cards/actions.
         private static void ApplyHomeV3PanelFrame(RectTransform panel)
         {
             Image panelImage = panel.GetComponent<Image>();
             if (panelImage == null) return;
 
-            panelImage.sprite = null;
-            panelImage.type = Image.Type.Simple;
-            panelImage.color = new Color(0.12f, 0.14f, 0.18f, 0.96f);
+            Sprite frame = ShopV1UiLibrary.Load(ShopV1UiLibrary.PackOpenFrameName);
+            if (frame != null)
+            {
+                // Frame art is full-screen; expand the modal panel and leave centre transparent.
+                panelImage.sprite = frame;
+                panelImage.type = Image.Type.Simple;
+                panelImage.preserveAspect = false;
+                panelImage.color = Color.white;
+                panel.anchorMin = Vector2.zero;
+                panel.anchorMax = Vector2.one;
+                panel.offsetMin = Vector2.zero;
+                panel.offsetMax = Vector2.zero;
+                panel.sizeDelta = Vector2.zero;
+                panel.anchoredPosition = Vector2.zero;
+
+                Image dim = panel.parent != null ? panel.parent.GetComponent<Image>() : null;
+                if (dim != null)
+                    dim.color = new Color(0f, 0f, 0f, 0.35f);
+            }
+            else
+            {
+                panelImage.sprite = null;
+                panelImage.type = Image.Type.Simple;
+                panelImage.color = new Color(0.12f, 0.14f, 0.18f, 0.96f);
+            }
         }
 
         private static void ApplyHomeV3ContinueButton(Button button)

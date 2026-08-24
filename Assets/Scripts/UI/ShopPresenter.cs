@@ -60,6 +60,7 @@ namespace MyriadOfDragons.UI
         private Text statusText;
         private Text pityBannerText;
         private readonly List<Text> packPityLineTexts = new List<Text>();
+        private readonly Dictionary<int, Image> staminaTierImages = new Dictionary<int, Image>();
 
         private List<ShopItemData> shopItems;
         private PackReceiptResult _pendingPackReceipt;
@@ -284,6 +285,7 @@ namespace MyriadOfDragons.UI
         {
             TeardownUI();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
+            staminaTierImages.Clear();
 
             // 1. Canvas Setup
             canvasObj = new GameObject("ShopCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -295,23 +297,21 @@ namespace MyriadOfDragons.UI
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
 
-            // 2. Backdrop
+            // 2. Shop V1 catalog shell (1920×1080 RGBA) — empty wells; runtime owns all text/values.
             GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bgObj.transform.SetParent(canvasObj.transform, false);
             Image bgImg = bgObj.GetComponent<Image>();
-            bgImg.color = new Color(0.08f, 0.08f, 0.12f, 0.98f);
+            ShopV1UiLibrary.ApplyFullscreenShell(
+                bgImg, ShopV1UiLibrary.CatalogShellName, new Color(0.08f, 0.08f, 0.12f, 0.98f));
+            bgImg.raycastTarget = false;
+            UISharedFoundation.StretchFull(bgObj.GetComponent<RectTransform>());
 
-            RectTransform bgRect = bgObj.GetComponent<RectTransform>();
-            bgRect.anchorMin = Vector2.zero;
-            bgRect.anchorMax = Vector2.one;
-            bgRect.sizeDelta = Vector2.zero;
-
-            // 3. Top Header Bar
+            // 3. Top Header Bar (transparent over shell header wells)
             GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(canvasObj.transform, false);
             Image topBarBg = topBar.GetComponent<Image>();
-            if (!HomeV3UiLibrary.TryApplyHeaderFrame(topBarBg))
-                topBarBg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
+            topBarBg.color = new Color(0f, 0f, 0f, 0f);
+            topBarBg.raycastTarget = false;
 
             RectTransform topRect = topBar.GetComponent<RectTransform>();
             topRect.anchorMin = new Vector2(0, 1);
@@ -323,7 +323,7 @@ namespace MyriadOfDragons.UI
             GameObject backBtnObj = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
             backBtnObj.transform.SetParent(topBar.transform, false);
             Image backImg = backBtnObj.GetComponent<Image>();
-            backImg.color = new Color(0.3f, 0.2f, 0.2f);
+            backImg.color = new Color(0.3f, 0.2f, 0.2f, 0.85f);
 
             Button backBtn = backBtnObj.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(backBtn, backImg);
@@ -385,50 +385,95 @@ namespace MyriadOfDragons.UI
             pityBannerText.color = new Color(1f, 0.75f, 0.35f);
             pityObj.GetComponent<RectTransform>().sizeDelta = new Vector2(1400f, 36f);
 
-            // 4. Shop Items Grid Container
+            // 4. Shop Items — packs over left shell wells; stamina ladder over right sidebar rows.
             BuildShopGrid();
         }
 
         private void BuildShopGrid()
         {
             packPityLineTexts.Clear();
+            staminaTierImages.Clear();
 
-            GameObject gridObj = new GameObject("ShopGrid", typeof(RectTransform), typeof(GridLayoutGroup));
+            GameObject gridObj = new GameObject("ShopGrid", typeof(RectTransform));
             gridObj.transform.SetParent(canvasObj.transform, false);
-
             RectTransform gridRect = gridObj.GetComponent<RectTransform>();
-            gridRect.anchorMin = new Vector2(0.5f, 0.5f);
-            gridRect.anchorMax = new Vector2(0.5f, 0.5f);
-            gridRect.pivot = new Vector2(0.5f, 0.5f);
-            gridRect.anchoredPosition = new Vector2(0, -40);
-            gridRect.sizeDelta = new Vector2(1400, 750);
+            UISharedFoundation.StretchFull(gridRect);
 
-            GridLayoutGroup grid = gridObj.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(320, 340);
-            grid.spacing = new Vector2(30, 30);
-            grid.childAlignment = TextAnchor.MiddleCenter;
+            // Catalog shell product wells (top-left pixel space, measured from RGBA source).
+            float[,] packBounds =
+            {
+                { 40f, 210f, 275f, 790f },
+                { 328f, 210f, 564f, 790f },
+                { 618f, 210f, 855f, 790f },
+                { 908f, 180f, 1126f, 790f },
+            };
 
+            // Right sidebar ladder rows (shell chrome is opaque; atlas tiles overlay).
+            float[,] staminaBounds =
+            {
+                { 1220f, 290f, 1860f, 440f },
+                { 1220f, 460f, 1860f, 610f },
+                { 1220f, 625f, 1860f, 775f },
+                { 1220f, 795f, 1860f, 945f },
+            };
+
+            int packIndex = 0;
+            int staminaIndex = 0;
             foreach (var item in shopItems)
             {
                 if (item == null || item.hideFromShopGrid) continue;
-                CreateShopCardTile(gridObj.transform, item);
+
+                if (IsStaminaLadderSku(item.id))
+                {
+                    if (staminaIndex >= 4) continue;
+                    float left = staminaBounds[staminaIndex, 0];
+                    float top = staminaBounds[staminaIndex, 1];
+                    float right = staminaBounds[staminaIndex, 2];
+                    float bottom = staminaBounds[staminaIndex, 3];
+                    CreateShopCardTile(gridObj.transform, item, left, top, right, bottom, staminaTierIndex1Based: staminaIndex + 1);
+                    staminaIndex++;
+                }
+                else
+                {
+                    if (packIndex >= 4) continue;
+                    float left = packBounds[packIndex, 0];
+                    float top = packBounds[packIndex, 1];
+                    float right = packBounds[packIndex, 2];
+                    float bottom = packBounds[packIndex, 3];
+                    CreateShopCardTile(gridObj.transform, item, left, top, right, bottom, staminaTierIndex1Based: 0);
+                    packIndex++;
+                }
             }
         }
 
-        private void CreateShopCardTile(Transform parent, ShopItemData item)
+        private void CreateShopCardTile(Transform parent, ShopItemData item,
+            float leftPx, float topPx, float rightPx, float bottomPx, int staminaTierIndex1Based)
         {
             GameObject cardObj = new GameObject($"ShopCard_{item.id}", typeof(RectTransform), typeof(Image));
             cardObj.transform.SetParent(parent, false);
             cardObj.transform.localScale = Vector3.one;
 
             Image cardBg = cardObj.GetComponent<Image>();
-            cardBg.color = new Color(0.14f, 0.16f, 0.22f);
+            bool isStamina = staminaTierIndex1Based > 0;
+            if (isStamina)
+            {
+                ShopV1UiLibrary.ApplyStaminaTierSprite(cardBg, staminaTierIndex1Based, unlocked: false);
+                staminaTierImages[staminaTierIndex1Based] = cardBg;
+            }
+            else
+            {
+                // Transparent over catalog product well — shell provides the frame.
+                cardBg.sprite = null;
+                cardBg.color = new Color(0.08f, 0.1f, 0.14f, 0.35f);
+            }
+
+            SetScreenRectFromTopLeftPixels(cardObj.GetComponent<RectTransform>(), leftPx, topPx, rightPx, bottomPx);
 
             // Item Title
-            CreateTextElement(cardObj.transform, "Title", item.title, new Vector2(0, 110), 22, TextAnchor.MiddleCenter);
+            CreateTextElement(cardObj.transform, "Title", item.title, new Vector2(0, isStamina ? 28f : 110f), 20, TextAnchor.MiddleCenter);
 
             // Description
-            CreateTextElement(cardObj.transform, "Desc", item.description, new Vector2(0, 30), 16, TextAnchor.MiddleCenter);
+            CreateTextElement(cardObj.transform, "Desc", item.description, new Vector2(0, isStamina ? -8f : 30f), 14, TextAnchor.MiddleCenter);
 
             // High-draw packs: live pity toward PITY SAVE (bundle FLOOR LIFT stays in pack description).
             if (CollectionPackCatalog.TryGetSku(item.id, out CollectionPackSku sku) && sku.HighDrawCount > 0)
@@ -442,7 +487,7 @@ namespace MyriadOfDragons.UI
                     TextAnchor.MiddleCenter);
                 Text pityLine = pityLineObj.GetComponent<Text>();
                 pityLine.color = new Color(1f, 0.75f, 0.35f);
-                pityLineObj.GetComponent<RectTransform>().sizeDelta = new Vector2(300f, 40f);
+                pityLineObj.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 40f);
                 packPityLineTexts.Add(pityLine);
             }
 
@@ -452,18 +497,29 @@ namespace MyriadOfDragons.UI
             buyBtnObj.transform.localScale = Vector3.one;
 
             Image buyImg = buyBtnObj.GetComponent<Image>();
-            buyImg.color = item.goldCost > 0 ? new Color(0.85f, 0.65f, 0.15f) : new Color(0.55f, 0.25f, 0.85f);
+            buyImg.color = item.goldCost > 0 ? new Color(0.85f, 0.65f, 0.15f, 0.92f) : new Color(0.55f, 0.25f, 0.85f, 0.92f);
 
             RectTransform buyRect = buyBtnObj.GetComponent<RectTransform>();
-            buyRect.anchoredPosition = new Vector2(0, -100);
-            buyRect.sizeDelta = new Vector2(240, 55);
+            buyRect.anchorMin = new Vector2(0.5f, 0f);
+            buyRect.anchorMax = new Vector2(0.5f, 0f);
+            buyRect.pivot = new Vector2(0.5f, 0f);
+            buyRect.anchoredPosition = new Vector2(0, isStamina ? 10f : 16f);
+            buyRect.sizeDelta = new Vector2(isStamina ? 200f : 200f, 48f);
 
             Button buyBtn = buyBtnObj.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(buyBtn, buyImg);
             buyBtn.onClick.AddListener(() => AttemptPurchase(item));
 
             string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
-            CreateTextElement(buyBtnObj.transform, "PriceText", $"BUY ({priceLabel})", Vector2.zero, 20, TextAnchor.MiddleCenter);
+            CreateTextElement(buyBtnObj.transform, "PriceText", $"BUY ({priceLabel})", Vector2.zero, 18, TextAnchor.MiddleCenter);
+        }
+
+        private static void SetScreenRectFromTopLeftPixels(RectTransform rect, float left, float top, float right, float bottom)
+        {
+            rect.anchorMin = new Vector2(left / 1920f, 1f - bottom / 1080f);
+            rect.anchorMax = new Vector2(right / 1920f, 1f - top / 1080f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         /// <summary>
@@ -569,12 +625,18 @@ namespace MyriadOfDragons.UI
             long now = ShopStaminaCatalog.NowUtcTicks();
             bool hasNext = ShopStaminaCatalog.TryGetNextGemCost(player, now, out int nextCost, out _);
 
-            foreach (int gemCost in ShopStaminaCatalog.GemCosts)
+            for (int tier = 0; tier < ShopStaminaCatalog.GemCosts.Length; tier++)
             {
+                int gemCost = ShopStaminaCatalog.GemCosts[tier];
                 string id = ShopStaminaCatalog.SkuIdForGemCost(gemCost);
                 Button buyBtn = canvasObj.transform.Find($"ShopGrid/ShopCard_{id}/Btn_Buy")?.GetComponent<Button>();
-                if (buyBtn == null) continue;
-                buyBtn.interactable = hasNext && gemCost == nextCost;
+                bool unlocked = hasNext && gemCost == nextCost;
+                if (buyBtn != null)
+                    buyBtn.interactable = unlocked;
+
+                int tierIndex1Based = tier + 1;
+                if (staminaTierImages.TryGetValue(tierIndex1Based, out Image tierImage) && tierImage != null)
+                    ShopV1UiLibrary.ApplyStaminaTierSprite(tierImage, tierIndex1Based, unlocked);
             }
         }
 
@@ -630,6 +692,7 @@ namespace MyriadOfDragons.UI
         {
             packPityLineTexts.Clear();
             pityBannerText = null;
+            staminaTierImages.Clear();
             if (canvasObj == null) return;
             canvasObj.SetActive(false);
             if (Application.isPlaying) Destroy(canvasObj);
