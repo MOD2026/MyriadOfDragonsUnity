@@ -53,6 +53,44 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void SynchronizeEligibleSpellOwnership_AvatarLevelEighteen_GrantsBloodPrice()
+        {
+            // Wave 2 (LOCKED 2026-08-24): Blood Price is "Avatar L18" - a real AvatarLevel gate,
+            // same shape as Ember Wave/Rallying Gale/Stone Judgment from Wave 1.
+            var profile = new PlayerProfile { avatarLevel = 18 };
+
+            SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
+
+            CollectionAssert.Contains(profile.ownedSpellIds, "blood_price");
+        }
+
+        [Test]
+        public void SynchronizeEligibleSpellOwnership_BelowAvatarLevelEighteen_NeverGrantsBloodPrice()
+        {
+            var profile = new PlayerProfile { avatarLevel = 17 };
+
+            SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
+
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "blood_price");
+        }
+
+        [Test]
+        public void SynchronizeEligibleSpellOwnership_NeverGrantsWave2SpellBookGatedSpells_OrAegisReturn()
+        {
+            // Magma Rend/Grave Mend/Celestial Verdict are SpellBookGrant-only (see SpellBookGrantTests).
+            // Aegis Return ("Event book later") has no acquisition channel at all yet - see
+            // SpellUnlockResolver's own class doc for why that's deliberate, not a gap.
+            var profile = new PlayerProfile { avatarLevel = 999, unlockedStageIds = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3" } };
+
+            SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
+
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "magma_rend");
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "grave_mend");
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "celestial_verdict");
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "aegis_return");
+        }
+
+        [Test]
         public void SynchronizeEligibleSpellOwnership_NeverRemovesAnAlreadyOwnedSpellBookSpell()
         {
             var profile = new PlayerProfile();

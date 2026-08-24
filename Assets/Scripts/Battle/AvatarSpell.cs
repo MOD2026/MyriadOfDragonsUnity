@@ -265,5 +265,63 @@ namespace MyriadOfDragons.Battle
             });
             return catalog;
         }
+
+        /// <summary>
+        /// Wave 2 (Full 36-Spell Catalogue Diagnosis, LOCKED 2026-08-24, "expand to 19 using
+        /// already-implemented effects"): five Phase-2-catalog spells that use only the four live
+        /// <see cref="SpellEffect"/> values, so no new Cast() case or state is needed - unlike the
+        /// rest of the 22-spell Phase-2 list (LaneShield, CrossLaneDamage, Silence, etc.), which
+        /// stays genuinely blocked until those effect contracts exist.
+        ///
+        /// Locked corrections applied here, not the catalog doc's raw numbers: Celestial Verdict
+        /// 110-&gt;100 Energy (110 exceeds BattleController.MaxEnergy=100 - literally uncastable as
+        /// printed). Blood Price Energy 38-&gt;55 ("the price is commitment cost, no self-damage" -
+        /// see the register's own note on why 38 was too cheap for a 90-flat direct strike).
+        /// </summary>
+        public static List<AvatarSpell> CreatePhase2ExpansionSpells()
+        {
+            return new List<AvatarSpell>
+            {
+                new AvatarSpell("Magma Rend", "Deal 6 damage to every enemy unit in a lane.",
+                    energyCost: 62, cooldownTicks: 6, SpellEffect.LaneDamage, magnitude: 6,
+                    id: "magma_rend", school: SpellSchool.Andras),
+
+                // Locked correction: Energy 38->55.
+                new AvatarSpell("Blood Price", "Strike the enemy Avatar directly for 90.",
+                    energyCost: 55, cooldownTicks: 4, SpellEffect.AvatarStrike, magnitude: 90,
+                    id: "blood_price", school: SpellSchool.Andras),
+
+                new AvatarSpell("Grave Mend", "Restore 9 Health to every friendly unit in a lane.",
+                    energyCost: 68, cooldownTicks: 7, SpellEffect.LaneHeal, magnitude: 9,
+                    id: "grave_mend", school: SpellSchool.Ktini),
+
+                // Locked correction: Energy 110->100 (110 exceeds the hard-capped MaxEnergy=100 -
+                // uncastable as originally printed in the catalog doc). Magnitude (150 flat) is
+                // unaffected - that's Avatar-HP damage, not Energy, and the doc's own balance
+                // section already stacks it against a pool measured in the hundreds/thousands.
+                new AvatarSpell("Celestial Verdict", "Strike the enemy Avatar directly for 150.",
+                    energyCost: 100, cooldownTicks: 9, SpellEffect.AvatarStrike, magnitude: 150,
+                    id: "celestial_verdict", school: SpellSchool.Pnevmas),
+
+                new AvatarSpell("Aegis Return", "Restore 7 Health to every friendly unit in a lane.",
+                    energyCost: 52, cooldownTicks: 5, SpellEffect.LaneHeal, magnitude: 7,
+                    id: "aegis_return", school: SpellSchool.Ktini),
+            };
+        }
+
+        /// <summary>
+        /// The real, full castable catalog (19 as of Wave 2 - CreatePhase1Catalog's 14 plus this
+        /// wave's 5) - the source of truth for anything that must resolve a spell id into a real
+        /// AvatarSpell: BattleController.ResolveMatchSpellbook, SpellBookGrant's id validation,
+        /// and (as of Wave 2) SpellUnlockResolver's own iteration - a catalog member with no Rule
+        /// entry (Aegis Return, "Event book later" - no acquisition channel exists yet) simply
+        /// never unlocks, the same behaviour a stale/unrecognized id already had.
+        /// </summary>
+        public static List<AvatarSpell> CreateCatalog()
+        {
+            List<AvatarSpell> catalog = CreatePhase1Catalog();
+            catalog.AddRange(CreatePhase2ExpansionSpells());
+            return catalog;
+        }
     }
 }

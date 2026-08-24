@@ -21,10 +21,8 @@ namespace MyriadOfDragons.Battle
     /// SpellBookGrant, new-profile creation, and once as a migration repair pass
     /// (SaveMigration.Normalize) - explicitly NEVER at battle start (BattleController.StartMatch
     /// stays read-only: it resolves equippedSpellIds into real AvatarSpell instances, it never
-    /// mutates ownership). Stage first-clear is also a required call site per the lock, but that
-    /// reward-grant transaction lives in HomePagePresenter.cs (Metagame-owned, not Battle) - not
-    /// wired here; flagged separately rather than guessed at or edited without that seat's
-    /// coordination.
+    /// mutates ownership). Stage first-clear is wired from HomePagePresenter.HandleMatchCompleted
+    /// (Metagame-owned reward transaction) after unlockedStageIds is updated.
     /// </summary>
     public static class SpellOwnershipSync
     {

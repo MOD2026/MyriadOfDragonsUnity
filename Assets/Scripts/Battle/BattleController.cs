@@ -330,17 +330,18 @@ namespace MyriadOfDragons.Battle
         }
 
         /// <summary>ownedSpellIds -> equippedSpellIds (subset) -> catalogue resolution, the
-        /// second half of that pipeline. equippedSpellIds is resolved against the full Phase-1
-        /// catalog by id (AvatarSpell.Id, not display Name); an id that doesn't resolve is skipped
-        /// rather than crashing the match over a stale/corrupt saved id. Falls back to the old
-        /// avatarLevel/unlockedStageIds-driven SpellLoadoutAutoEquip path when no non-empty
-        /// equippedSpellIds is supplied, preserving every pre-existing caller's exact behaviour.</summary>
+        /// second half of that pipeline. equippedSpellIds is resolved against the full catalog
+        /// (19 as of Wave 2, AvatarSpell.CreateCatalog) by id (AvatarSpell.Id, not display Name);
+        /// an id that doesn't resolve is skipped rather than crashing the match over a stale/
+        /// corrupt saved id. Falls back to the old avatarLevel/unlockedStageIds-driven
+        /// SpellLoadoutAutoEquip path when no non-empty equippedSpellIds is supplied, preserving
+        /// every pre-existing caller's exact behaviour.</summary>
         private static List<AvatarSpell> ResolveMatchSpellbook(
             IReadOnlyList<string> equippedSpellIds, int avatarLevel, IReadOnlyCollection<string> unlockedStageIds)
         {
             if (equippedSpellIds != null && equippedSpellIds.Count > 0)
             {
-                List<AvatarSpell> catalog = AvatarSpell.CreatePhase1Catalog();
+                List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
                 var resolved = new List<AvatarSpell>();
                 foreach (string id in equippedSpellIds)
                 {

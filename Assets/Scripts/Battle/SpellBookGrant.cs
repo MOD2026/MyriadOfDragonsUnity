@@ -41,6 +41,13 @@ namespace MyriadOfDragons.Battle
         {
             ["2-21"] = new[] { "sun_lance" },
             ["3-30"] = new[] { "tempest_brand" },
+            // Wave 2 (LOCKED 2026-08-24): Magma Rend "Ch4 spell book", Grave Mend "Ch9 spell
+            // book", Celestial Verdict "Ch10 finale book" - same HomePagePresenter.
+            // ChapterFinalePermitStageIds values as Wave 1's two, cited not imported (see the class
+            // doc comment above for why).
+            ["4-30"] = new[] { "magma_rend" },
+            ["9-30"] = new[] { "grave_mend" },
+            ["10-30"] = new[] { "celestial_verdict" },
         };
 
         /// <summary>
@@ -83,8 +90,10 @@ namespace MyriadOfDragons.Battle
             }
 
             // Validate every id resolves to a real catalog spell BEFORE mutating anything - an
-            // unknown id fails the whole transaction, never a partial grant.
-            List<AvatarSpell> catalog = AvatarSpell.CreatePhase1Catalog();
+            // unknown id fails the whole transaction, never a partial grant. CreateCatalog() (19,
+            // Wave 2), not CreatePhase1Catalog() - Magma Rend/Grave Mend/Celestial Verdict would
+            // otherwise never validate and every one of their grants would hit UnknownSpellId.
+            List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
             foreach (string id in spellIds)
             {
                 if (catalog.All(s => s.Id != id))

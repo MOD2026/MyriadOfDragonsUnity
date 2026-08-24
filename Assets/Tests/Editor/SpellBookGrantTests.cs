@@ -64,6 +64,20 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(profile.ownedSpellIds, "tempest_brand");
         }
 
+        [TestCase("4-30", "magma_rend", "Magma Rend")]
+        [TestCase("9-30", "grave_mend", "Grave Mend")]
+        [TestCase("10-30", "celestial_verdict", "Celestial Verdict")]
+        public void TryGrant_Wave2FinaleStages_GrantTheirRealSpell(string finaleStageId, string spellId, string spellName)
+        {
+            var profile = new PlayerProfile { claimedStageRewardIds = new List<string> { finaleStageId } };
+
+            SpellBookGrantResult result = SpellBookGrant.TryGrant(profile, finaleStageId, persist: false);
+
+            Assert.AreEqual(SpellBookGrantStatus.Applied, result.Status);
+            CollectionAssert.Contains(result.UnlockedSpellNames, spellName);
+            CollectionAssert.Contains(profile.ownedSpellIds, spellId);
+        }
+
         [Test]
         public void TryGrant_FinaleNotCleared_RefusesAndOwnsNothing()
         {

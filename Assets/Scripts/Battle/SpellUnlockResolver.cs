@@ -21,6 +21,16 @@ namespace MyriadOfDragons.Battle
     /// this resolver's Rules would mean guessing a stand-in condition, exactly what this class
     /// used to warn against) - but the class-level claim "nothing tracks this" is no longer true,
     /// which is what <see cref="HasUnresolvableSpellBookGates"/> now reports.
+    ///
+    /// Wave 2 (LOCKED 2026-08-24, "expand to 19"): iterates AvatarSpell.CreateCatalog() (19) now,
+    /// not just the Phase-1 14. Blood Price ("Avatar L18") gets a real AvatarLevel Rule, same shape
+    /// as Ember Wave/Rallying Gale/Stone Judgment. Magma Rend/Grave Mend/Celestial Verdict
+    /// ("Ch4/Ch9/Ch10 finale spell book") get SpellBookGrant-kind Rules, same shape as Sun Lance/
+    /// Tempest Brand - never unlocked BY THIS RESOLVER, real via SpellBookGrant instead. Aegis
+    /// Return ("Event book later") deliberately has NO Rule at all: there is no real acquisition
+    /// channel for it yet, and inventing a stand-in condition here would be exactly what this
+    /// class's own class-doc has always warned against - the `rule == null` branch below already
+    /// does the honest thing (never auto-unlocked) without a special case.
     /// </summary>
     public static class SpellUnlockResolver
     {
@@ -71,6 +81,13 @@ namespace MyriadOfDragons.Battle
             new Rule("Sun Lance", UnlockKind.SpellBookGrant), // catalog: "Ch2 spell book"
             new Rule("Stone Judgment", UnlockKind.AvatarLevel, requiredAvatarLevel: 12),
             new Rule("Tempest Brand", UnlockKind.SpellBookGrant), // catalog: "Ch3 spell book"
+
+            // Wave 2 (LOCKED 2026-08-24): Aegis Return ("Event book later") deliberately has no
+            // Rule here - see the class doc comment.
+            new Rule("Magma Rend", UnlockKind.SpellBookGrant), // catalog: "Ch4 spell book"
+            new Rule("Blood Price", UnlockKind.AvatarLevel, requiredAvatarLevel: 18),
+            new Rule("Grave Mend", UnlockKind.SpellBookGrant), // catalog: "Ch9 spell book"
+            new Rule("Celestial Verdict", UnlockKind.SpellBookGrant), // catalog: "Ch10 finale book"
         };
 
         /// <summary>RESOLVED 2026-08-24 - always false now. Kept (rather than deleted outright) as
@@ -83,7 +100,7 @@ namespace MyriadOfDragons.Battle
         public static bool IsUnlocked(AvatarSpell spell, int avatarLevel, IReadOnlyCollection<string> unlockedStageIds)
         {
             Rule rule = Rules.FirstOrDefault(r => r.SpellName == spell.Name);
-            if (rule == null) return false; // Not a Phase-1 catalog spell at all - never auto-unlocked.
+            if (rule == null) return false; // No Rule for this spell (e.g. Aegis Return) - never auto-unlocked.
 
             switch (rule.Kind)
             {
@@ -94,10 +111,12 @@ namespace MyriadOfDragons.Battle
             }
         }
 
-        /// <summary>Every Phase-1 catalog spell currently reachable for this player's progress.</summary>
+        /// <summary>Every catalog spell (19 as of Wave 2) currently reachable for this player's
+        /// progress via a Starter/Stage/AvatarLevel rule - SpellBookGrant-kind spells and any
+        /// spell with no Rule at all (Aegis Return) never come back from this, by design.</summary>
         public static List<AvatarSpell> ResolveUnlockedSpells(int avatarLevel, IReadOnlyCollection<string> unlockedStageIds)
         {
-            return AvatarSpell.CreatePhase1Catalog()
+            return AvatarSpell.CreateCatalog()
                 .Where(s => IsUnlocked(s, avatarLevel, unlockedStageIds))
                 .ToList();
         }
