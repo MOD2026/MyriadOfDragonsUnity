@@ -31,6 +31,7 @@ namespace MyriadOfDragons.UI
         private System.Action onBackToHomeAction;
         private System.Func<CampaignStageData, CampaignLaunchOutcome> onLaunchBattleAction;
         private Text statusText;
+        private RectTransform stageScrollRect;
 
         // The sole order authority for Chapter 1 stage progression (Chapter 1 progression
         // contract) - static so it survives independently of any one CampaignMapPresenter
@@ -1500,13 +1501,7 @@ namespace MyriadOfDragons.UI
             Image bgImg = bgObj.AddComponent<Image>();
             bgImg.raycastTarget = false; // Campaign input contract, requirement 5: decorative backdrop must never intercept clicks.
 
-            Sprite mapSprite = Resources.Load<Sprite>("UI/Backdrops/Dark_Forest");
-            if (mapSprite == null) mapSprite = Resources.Load<Sprite>("UI/Backdrops/Desert_Ruins");
-
-            if (mapSprite != null)
-                bgImg.sprite = mapSprite;
-            else
-                bgImg.color = new Color(0.1f, 0.08f, 0.12f);
+            CampaignMapUiLibrary.ApplyPathBackdrop(bgImg, new Color(0.1f, 0.08f, 0.12f));
 
             RectTransform bgRect = bgObj.GetComponent<RectTransform>();
             bgRect.anchorMin = Vector2.zero;
@@ -1581,11 +1576,12 @@ namespace MyriadOfDragons.UI
             GameObject scrollRoot = new GameObject("StageScrollView", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
             scrollRoot.transform.SetParent(mapCanvasObj.transform, false);
             RectTransform scrollRect = scrollRoot.GetComponent<RectTransform>();
-            scrollRect.anchorMin = new Vector2(0.05f, 0.25f);
-            scrollRect.anchorMax = new Vector2(0.95f, 0.75f);
-            scrollRect.offsetMin = Vector2.zero;
-            scrollRect.offsetMax = Vector2.zero;
-            scrollRoot.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.15f);
+            // RUNTIME_ASSET_NOTES map region (0, 96, 1420, 984); right 500px reserved for modal.
+            SetScreenRectFromTopLeftPixels(scrollRect, 0f, 96f, 1420f, 1080f);
+            stageScrollRect = scrollRect;
+            Image scrollBg = scrollRoot.GetComponent<Image>();
+            scrollBg.color = new Color(0f, 0f, 0f, 0.05f);
+            scrollBg.raycastTarget = true;
 
             GameObject viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Mask), typeof(Image));
             viewport.transform.SetParent(scrollRoot.transform, false);
@@ -1662,11 +1658,12 @@ namespace MyriadOfDragons.UI
             Image nodeImg = nodeObj.AddComponent<Image>();
             PlayerProfile profile = SaveSystem.CurrentProfile;
             bool cleared = profile?.claimedStageRewardIds != null && profile.claimedStageRewardIds.Contains(stage.stageId);
-            nodeImg.color = cleared
-                ? new Color(0.25f, 0.55f, 0.35f, 1f)
+            CampaignStageNodeVisualState visual = cleared
+                ? CampaignStageNodeVisualState.Cleared
                 : stage.isUnlocked
-                    ? new Color(0.85f, 0.65f, 0.2f, 1f)
-                    : new Color(0.3f, 0.3f, 0.35f, 0.85f);
+                    ? CampaignStageNodeVisualState.Playable
+                    : CampaignStageNodeVisualState.Locked;
+            CampaignMapUiLibrary.ApplyNodeSprite(nodeImg, visual);
             nodeImg.raycastTarget = true;
 
             Button btn = nodeObj.AddComponent<Button>();
@@ -1677,12 +1674,8 @@ namespace MyriadOfDragons.UI
             RectTransform rect = nodeObj.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(220, 220);
 
-            string badge = stage.isUnlocked
-                ? (cleared ? "CLEARED" : "PLAY")
-                : "LOCKED";
-            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, 35), 34, TextAnchor.MiddleCenter);
-            CreateTextElement(nodeObj.transform, "Status", badge, new Vector2(0, -10), 18, TextAnchor.MiddleCenter);
-            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -50), 16, TextAnchor.MiddleCenter);
+            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, -78), 18, TextAnchor.MiddleCenter);
+            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -104), 14, TextAnchor.MiddleCenter);
         }
 
         /// <summary>Campaign launch feedback contract: invokes the real launch gate
@@ -1730,9 +1723,8 @@ namespace MyriadOfDragons.UI
             detailModalObj = new GameObject("StageDetailModal");
             detailModalObj.transform.SetParent(mapCanvasObj.transform, false);
 
-            // Dark Backdrop Dimmer
             Image dimImg = detailModalObj.AddComponent<Image>();
-            dimImg.color = new Color(0f, 0f, 0f, 0.75f);
+            dimImg.color = new Color(0f, 0f, 0f, 0.35f);
             dimImg.raycastTarget = false; // Campaign input contract, requirement 5: modal backdrop must never intercept clicks.
 
             RectTransform dimRect = detailModalObj.GetComponent<RectTransform>();
@@ -1740,40 +1732,79 @@ namespace MyriadOfDragons.UI
             dimRect.anchorMax = Vector2.one;
             dimRect.sizeDelta = Vector2.zero;
 
-            // Panel Window
             GameObject panelObj = new GameObject("DetailPanel");
             panelObj.transform.SetParent(detailModalObj.transform, false);
-            Image panelImg = panelObj.AddComponent<Image>();
-            panelImg.color = new Color(0.12f, 0.14f, 0.2f);
-            panelImg.raycastTarget = false; // Campaign input contract, requirement 5: decorative panel background must never intercept clicks - Launch/Close own their own click targets.
+            Image panelBg = panelObj.AddComponent<Image>();
+            panelBg.color = new Color(0.08f, 0.09f, 0.12f, 0.4f);
+            panelBg.raycastTarget = false;
 
             RectTransform panelRect = panelObj.GetComponent<RectTransform>();
-            panelRect.sizeDelta = new Vector2(800, 500);
+            // Right 500px reserved strip; height preserves 1122x1402 chrome aspect.
+            const float modalW = 500f;
+            float modalH = modalW * (1402f / 1122f);
+            float top = 96f + Mathf.Max(0f, (984f - modalH) * 0.5f);
+            SetScreenRectFromTopLeftPixels(panelRect, 1420f, top, 1920f, top + modalH);
 
-            // Enemy Title & Description
-            CreateTextElement(panelObj.transform, "Title", $"STAGE {stage.stageId}: {stage.title}", new Vector2(0, 190), 30, TextAnchor.MiddleCenter);
-            CreateTextElement(panelObj.transform, "Enemy", $"Target: <color=#FFD700>{stage.enemyName}</color>", new Vector2(0, 130), 26, TextAnchor.MiddleCenter);
-            CreateTextElement(panelObj.transform, "Desc", stage.description, new Vector2(0, 40), 22, TextAnchor.MiddleCenter);
+            GameObject titleObj = CreateWellText(panelObj.transform, "Title",
+                $"STAGE {stage.stageId}: {stage.title}", 22, TextAnchor.MiddleCenter);
+            CampaignMapUiLibrary.SetModalWell(titleObj.GetComponent<RectTransform>(), 315f, 115f, 500f, 105f);
 
-            // Reward Info
-            CreateTextElement(panelObj.transform, "Rewards", $"First Clear Rewards: <color=#FFD700>{stage.goldReward} Gold</color> | <color=#A020F0>{stage.gemReward} Gems</color>", new Vector2(0, -60), 24, TextAnchor.MiddleCenter);
+            GameObject descObj = CreateWellText(panelObj.transform, "Desc", stage.description, 16, TextAnchor.UpperCenter);
+            CampaignMapUiLibrary.SetModalWell(descObj.GetComponent<RectTransform>(), 110f, 330f, 900f, 310f);
 
-            // Launch Button
+            float[] enemyXs = { 115f, 405f, 695f };
+            for (int i = 0; i < 3; i++)
+            {
+                GameObject well = CreateWellText(
+                    panelObj.transform,
+                    i == 0 ? "Enemy" : $"EnemyWell_{i}",
+                    i == 0 ? stage.enemyName : string.Empty,
+                    16,
+                    TextAnchor.MiddleCenter);
+                CampaignMapUiLibrary.SetModalWell(well.GetComponent<RectTransform>(), enemyXs[i], 680f, 280f, 225f);
+                well.SetActive(i == 0);
+            }
+
+            string[] rewardLines =
+            {
+                stage.goldReward > 0 ? $"{stage.goldReward} Gold" : string.Empty,
+                stage.gemReward > 0 ? $"{stage.gemReward} Gems" : string.Empty,
+                string.Empty,
+                string.Empty,
+            };
+            float[] rewardXs = { 105f, 325f, 545f, 765f };
+            for (int i = 0; i < 4; i++)
+            {
+                GameObject well = CreateWellText(
+                    panelObj.transform,
+                    i == 0 ? "Rewards" : $"RewardWell_{i}",
+                    rewardLines[i],
+                    16,
+                    TextAnchor.MiddleCenter);
+                CampaignMapUiLibrary.SetModalWell(well.GetComponent<RectTransform>(), rewardXs[i], 930f, 210f, 205f);
+                well.SetActive(!string.IsNullOrEmpty(rewardLines[i]));
+            }
+
+            GameObject chromeObj = new GameObject("ModalChrome", typeof(RectTransform), typeof(Image));
+            chromeObj.transform.SetParent(panelObj.transform, false);
+            RectTransform chromeRect = chromeObj.GetComponent<RectTransform>();
+            chromeRect.anchorMin = Vector2.zero;
+            chromeRect.anchorMax = Vector2.one;
+            chromeRect.offsetMin = Vector2.zero;
+            chromeRect.offsetMax = Vector2.zero;
+            CampaignMapUiLibrary.ApplyModalChrome(chromeObj.GetComponent<Image>());
+
             GameObject launchBtnObj = new GameObject("Btn_Launch");
             launchBtnObj.transform.SetParent(panelObj.transform, false);
             Image launchImg = launchBtnObj.AddComponent<Image>();
-            launchImg.color = new Color(0.8f, 0.25f, 0.2f);
+            launchImg.color = new Color(1f, 1f, 1f, 0.01f);
             launchImg.raycastTarget = true;
 
             Button launchBtn = launchBtnObj.AddComponent<Button>();
-            launchBtn.targetGraphic = launchImg; // Campaign input contract, requirement 4: root Image + Button + assigned targetGraphic.
+            launchBtn.targetGraphic = launchImg;
+            launchBtn.interactable = stage.isUnlocked;
             launchBtn.onClick.AddListener(() =>
             {
-                // Campaign launch feedback contract, requirement 3: the map is no longer
-                // destroyed unconditionally up front - a blocked attempt must leave the player on
-                // a working Campaign map with a visible reason, not a torn-down screen. Whether
-                // (and how) this screen gets torn down now depends entirely on AttemptLaunch's
-                // real outcome.
                 string storyKey = $"{stage.stageId}_pre";
                 StorySequence seq = StoryDatabase.GetSequence(storyKey);
 
@@ -1787,28 +1818,59 @@ namespace MyriadOfDragons.UI
                 }
             });
 
-            RectTransform launchRect = launchBtnObj.GetComponent<RectTransform>();
-            launchRect.anchoredPosition = new Vector2(-120, -170);
-            launchRect.sizeDelta = new Vector2(220, 65);
+            CampaignMapUiLibrary.SetModalWell(launchBtnObj.GetComponent<RectTransform>(), 180f, 1170f, 760f, 140f);
+            CreateWellText(launchBtnObj.transform, "Text", "LAUNCH BATTLE", 22, TextAnchor.MiddleCenter);
+            launchBtnObj.SetActive(stage.isUnlocked);
 
-            CreateTextElement(launchBtnObj.transform, "Text", "LAUNCH BATTLE", Vector2.zero, 24, TextAnchor.MiddleCenter);
-
-            // Close Button
             GameObject closeBtnObj = new GameObject("Btn_Close");
             closeBtnObj.transform.SetParent(panelObj.transform, false);
             Image closeImg = closeBtnObj.AddComponent<Image>();
-            closeImg.color = new Color(0.3f, 0.3f, 0.35f);
+            closeImg.color = new Color(1f, 1f, 1f, 0.01f);
             closeImg.raycastTarget = true;
 
             Button closeBtn = closeBtnObj.AddComponent<Button>();
-            closeBtn.targetGraphic = closeImg; // Campaign input contract, requirement 4: root Image + Button + assigned targetGraphic.
+            closeBtn.targetGraphic = closeImg;
             closeBtn.onClick.AddListener(() => SafeDestroy(detailModalObj));
 
             RectTransform closeRect = closeBtnObj.GetComponent<RectTransform>();
-            closeRect.anchoredPosition = new Vector2(150, -170);
-            closeRect.sizeDelta = new Vector2(180, 65);
+            closeRect.anchorMin = new Vector2(0.82f, 0.90f);
+            closeRect.anchorMax = new Vector2(0.98f, 0.98f);
+            closeRect.offsetMin = Vector2.zero;
+            closeRect.offsetMax = Vector2.zero;
+            CreateWellText(closeBtnObj.transform, "Text", "CLOSE", 16, TextAnchor.MiddleCenter);
+        }
 
-            CreateTextElement(closeBtnObj.transform, "Text", "CLOSE", Vector2.zero, 24, TextAnchor.MiddleCenter);
+        private GameObject CreateWellText(Transform parent, string objectName, string content, int fontSize, TextAnchor alignment)
+        {
+            GameObject textObj = new GameObject(objectName);
+            textObj.transform.SetParent(parent, false);
+
+            Text txt = textObj.AddComponent<Text>();
+            txt.text = content;
+            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            txt.fontSize = fontSize;
+            txt.alignment = alignment;
+            txt.color = Color.white;
+            txt.supportRichText = true;
+            txt.raycastTarget = false;
+            txt.resizeTextForBestFit = true;
+            txt.resizeTextMinSize = 10;
+            txt.resizeTextMaxSize = fontSize;
+
+            RectTransform rect = textObj.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return textObj;
+        }
+
+        private static void SetScreenRectFromTopLeftPixels(RectTransform rect, float left, float top, float right, float bottom)
+        {
+            rect.anchorMin = new Vector2(left / 1920f, 1f - bottom / 1080f);
+            rect.anchorMax = new Vector2(right / 1920f, 1f - top / 1080f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private void CreateTextElement(Transform parent, string objectName, string content, Vector2 position, int fontSize, TextAnchor alignment)

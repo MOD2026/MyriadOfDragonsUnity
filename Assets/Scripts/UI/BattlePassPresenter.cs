@@ -98,8 +98,9 @@ namespace MyriadOfDragons.UI
             xp.transform.SetParent(_canvasObj.transform, false);
             SetNorm(xp.GetComponent<RectTransform>(), 0.18f, 0.78f, 0.82f, 0.86f);
 
-            UISharedFoundation.CreateText(xp.transform, "Label", "SEASON XP", UITextRole.Caption,
+            Text xpLabel = UISharedFoundation.CreateText(xp.transform, "Label", "SEASON XP", UITextRole.Caption,
                 TextAnchor.MiddleLeft, new Color(0.7f, 0.9f, 0.72f), true, new Vector2(160f, 24f));
+            SetNorm(xpLabel.rectTransform, 0.00f, 0.15f, 0.16f, 0.85f);
 
             GameObject bar = new GameObject("XpBar", typeof(RectTransform), typeof(Image));
             bar.transform.SetParent(xp.transform, false);

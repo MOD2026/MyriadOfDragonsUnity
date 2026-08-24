@@ -19,11 +19,60 @@ namespace MyriadOfDragons.UI
             return Resources.Load<Sprite>(ResourceRoot + fileNameWithoutExtension);
         }
 
+        public const string GemPackTileName = "shop_gem_pack_tile_shared_v1";
+
+        /// <summary>GEM_PACK_WELL_MAP.md — normalised (x, y, w, h) top-left on the shared tile.</summary>
+        public static readonly Vector4 ProductArtWell = new Vector4(0.184f, 0.074f, 0.632f, 0.482f);
+        public static readonly Vector4 ProductNameWell = new Vector4(0.138f, 0.590f, 0.724f, 0.074f);
+        public static readonly Vector4 PriceWell = new Vector4(0.136f, 0.711f, 0.355f, 0.103f);
+        public static readonly Vector4 PityWell = new Vector4(0.524f, 0.710f, 0.336f, 0.103f);
+        public static readonly Vector4 BuyActionWell = new Vector4(0.141f, 0.843f, 0.718f, 0.101f);
+
+        public static bool HasGemPackTile => Load(GemPackTileName) != null;
+
         public static bool HasShopV1Pack =>
             Load(CatalogShellName) != null
             && Load(PackOpenFrameName) != null
             && LoadStaminaTierSprite(1, unlocked: true) != null
-            && LoadStaminaTierSprite(4, unlocked: false) != null;
+            && LoadStaminaTierSprite(4, unlocked: false) != null
+            && HasGemPackTile;
+
+        public static Sprite LoadGemPackTile() => Load(GemPackTileName);
+
+        /// <summary>Apply shared gem-pack frame full-bleed on a tile Image (raycast off).</summary>
+        public static void ApplyGemPackTileFrame(Image target)
+        {
+            if (target == null) return;
+            Sprite sprite = LoadGemPackTile();
+            if (sprite != null)
+            {
+                target.sprite = sprite;
+                target.type = Image.Type.Simple;
+                target.preserveAspect = true;
+                target.color = Color.white;
+            }
+            else
+            {
+                target.sprite = null;
+                target.color = new Color(0.12f, 0.14f, 0.18f, 0.9f);
+            }
+
+            target.raycastTarget = false;
+        }
+
+        /// <summary>Top-left normalised (x,y,w,h) → Unity anchors on a parent RectTransform.</summary>
+        public static void SetNormalizedWellFromTopLeft(RectTransform rect, Vector4 wellXywh)
+        {
+            if (rect == null) return;
+            float x = wellXywh.x;
+            float y = wellXywh.y;
+            float w = wellXywh.z;
+            float h = wellXywh.w;
+            rect.anchorMin = new Vector2(x, 1f - (y + h));
+            rect.anchorMax = new Vector2(x + w, 1f - y);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
 
         public static Sprite LoadStaminaTierSprite(int tierIndex1Based, bool unlocked)
         {

@@ -89,5 +89,50 @@ namespace MyriadOfDragons.Tests
                     ?.GetComponent<Image>()?.sprite,
                 "After buying tier 1, tier 1 must swap to locked sprite (no longer the next step).");
         }
+
+        [Test]
+        public void BuildShop_GemPackTiles_UseSharedFrameAndRuntimeWells()
+        {
+            var profile = new PlayerProfile { gems = 500, stamina = 20, maxStamina = 100 };
+            CollectionSchemaMigration.Apply(profile);
+
+            _shopGo = new GameObject("ShopV1GemPackHarness");
+            var shop = _shopGo.AddComponent<ShopPresenter>();
+            shop.Initialize(profile, onBackToHome: null);
+            _shopCanvas = GameObject.Find("ShopCanvas");
+            Assert.IsNotNull(_shopCanvas);
+            Assert.IsTrue(ShopV1UiLibrary.HasGemPackTile);
+
+            Transform sigil = _shopCanvas.transform.Find($"ShopGrid/ShopCard_{CollectionPackCatalog.SingleSigilSkuId}");
+            Assert.IsNotNull(sigil, "Single Sigil pack tile must exist in the catalog wells.");
+
+            Image frame = sigil.Find("GemPackFrame")?.GetComponent<Image>();
+            Assert.IsNotNull(frame);
+            Assert.AreEqual(ShopV1UiLibrary.GemPackTileName, frame.sprite.name);
+            Assert.IsFalse(frame.raycastTarget, "Shared frame is decorative; BUY owns the hit target.");
+            Assert.IsTrue(frame.preserveAspect, "Gem-pack frame must not stretch.");
+
+            Text title = sigil.Find("Title")?.GetComponent<Text>();
+            Assert.IsNotNull(title);
+            Assert.AreEqual("Single Sigil", title.text);
+
+            Text price = sigil.Find("PriceLabel")?.GetComponent<Text>();
+            Assert.IsNotNull(price);
+            StringAssert.Contains("150", price.text);
+            StringAssert.Contains("Gem", price.text);
+
+            Transform pity = sigil.Find("PityLine");
+            Assert.IsNotNull(pity);
+            Assert.IsFalse(pity.gameObject.activeSelf, "Single Sigil has no high-draw pity; hide the pity well.");
+
+            Button buy = sigil.Find("Btn_Buy")?.GetComponent<Button>();
+            Assert.IsNotNull(buy);
+            Assert.AreEqual("BUY", sigil.Find("Btn_Buy/PriceText")?.GetComponent<Text>()?.text);
+
+            Transform scout = _shopCanvas.transform.Find($"ShopGrid/ShopCard_{CollectionPackCatalog.ScoutCacheSkuId}");
+            Assert.IsNotNull(scout);
+            Assert.IsTrue(scout.Find("PityLine").gameObject.activeSelf,
+                "Scout Cache has high draws; pity well must stay live and runtime-owned.");
+        }
     }
 }

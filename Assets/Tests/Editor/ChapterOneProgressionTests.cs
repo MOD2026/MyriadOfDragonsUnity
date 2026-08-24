@@ -189,6 +189,63 @@ namespace MyriadOfDragons.Tests
                 "A first clear must grant exactly the stage's configured gem reward (locked regular-stage grant).");
             CollectionAssert.Contains(profile.claimedStageRewardIds, "1-1", "The stage id must be recorded as claimed after its first clear.");
             CollectionAssert.Contains(profile.unlockedStageIds, "1-1", "The cleared stage itself must remain (or become) unlocked.");
+            CollectionAssert.Contains(profile.ownedSpellIds, "cinder_lash",
+                "First-clear of 1-1 unlocks 1-2, which must immediately grant Cinder Lash via SpellOwnershipSync.");
+        }
+
+        [Test]
+        public void FirstClear_SynchronizesEligibleSpells_AndReplayDoesNotDuplicate()
+        {
+            SaveValidDeckForNormalMatch();
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Chapter1_SpellSyncBootstrap");
+            BattleController controller = bootstrap.Battle;
+            HomePagePresenter presenter = SpawnHomePagePresenter(controller);
+            presenter.SetActiveStageForTests(FindStage("1-1"));
+
+            PlayerProfile profile = SaveManager.SaveData;
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "cinder_lash",
+                "Setup: a fresh profile must not already own the 1-2 stage-gated spell.");
+
+            PlayOneCardAndWin(controller);
+
+            CollectionAssert.Contains(profile.ownedSpellIds, "cinder_lash");
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "sun_lance",
+                "Stage first-clear sync must never grant SpellBookGrant-only spells.");
+            int cinderCount = profile.ownedSpellIds.Count(id => id == "cinder_lash");
+            Assert.AreEqual(1, cinderCount);
+
+            bootstrap.PlayAgainForTests();
+            controller = bootstrap.Battle;
+            PlayOneCardAndWin(controller);
+
+            Assert.AreEqual(1, profile.ownedSpellIds.Count(id => id == "cinder_lash"),
+                "Replaying an already-cleared stage must not duplicate ownedSpellIds entries.");
+
+            PlayerProfile reloaded = SaveSystem.Load();
+            CollectionAssert.Contains(reloaded.ownedSpellIds, "cinder_lash",
+                "First-clear spell ownership must persist with the rest of the reward transaction.");
+        }
+
+        [Test]
+        public void ReplayingClaimedStage_ThatRepairsNextUnlock_AlsoSyncsEligibleSpells()
+        {
+            SaveValidDeckForNormalMatch();
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Chapter1_SpellSyncRepairBootstrap");
+            BattleController controller = bootstrap.Battle;
+            HomePagePresenter presenter = SpawnHomePagePresenter(controller);
+            presenter.SetActiveStageForTests(FindStage("1-1"));
+
+            PlayerProfile profile = SaveManager.SaveData;
+            profile.claimedStageRewardIds.Add("1-1");
+            Assert.IsFalse(profile.unlockedStageIds.Contains("1-2"),
+                "Setup: drifted save has 1-1 claimed without unlocking 1-2.");
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "cinder_lash");
+
+            PlayOneCardAndWin(controller);
+
+            CollectionAssert.Contains(profile.unlockedStageIds, "1-2");
+            CollectionAssert.Contains(profile.ownedSpellIds, "cinder_lash",
+                "Repairing a missing next-stage unlock must also run SpellOwnershipSync.");
         }
 
         [Test]
@@ -378,6 +435,8 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(claimedCountBefore, profile.claimedStageRewardIds.Count, "A tutorial victory must never claim a campaign stage reward.");
             Assert.AreEqual(unlockedCountBefore, profile.unlockedStageIds.Count, "A tutorial victory must never unlock a campaign stage.");
             Assert.AreEqual(goldBefore, profile.gold, "A tutorial victory must never grant gold.");
+            CollectionAssert.DoesNotContain(profile.ownedSpellIds, "cinder_lash",
+                "A tutorial victory must never run the campaign first-clear spell ownership sync.");
         }
 
         [Test]

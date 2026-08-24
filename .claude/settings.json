@@ -4,7 +4,14 @@
       "Bash(tasklist *)",
       "mcp__Claude_Browser__read_page",
       "mcp__Claude_Browser__get_page_text",
-      "mcp__Claude_Browser__find"
+      "mcp__Claude_Browser__find",
+      "mcp__f9c7c418-a214-46fe-b8f3-0c4299b77a54__search_files",
+      "mcp__f9c7c418-a214-46fe-b8f3-0c4299b77a54__read_file_content",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-CimInstance *)",
+      "PowerShell(Get-ChildItem *)",
+      "Edit",
+      "Write"
     ]
   }
 }

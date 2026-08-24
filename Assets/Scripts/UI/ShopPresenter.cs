@@ -448,49 +448,32 @@ namespace MyriadOfDragons.UI
         private void CreateShopCardTile(Transform parent, ShopItemData item,
             float leftPx, float topPx, float rightPx, float bottomPx, int staminaTierIndex1Based)
         {
+            bool isStamina = staminaTierIndex1Based > 0;
+            if (isStamina)
+            {
+                CreateStaminaShopCardTile(parent, item, leftPx, topPx, rightPx, bottomPx, staminaTierIndex1Based);
+                return;
+            }
+
+            CreateGemPackShopCardTile(parent, item, leftPx, topPx, rightPx, bottomPx);
+        }
+
+        private void CreateStaminaShopCardTile(Transform parent, ShopItemData item,
+            float leftPx, float topPx, float rightPx, float bottomPx, int staminaTierIndex1Based)
+        {
             GameObject cardObj = new GameObject($"ShopCard_{item.id}", typeof(RectTransform), typeof(Image));
             cardObj.transform.SetParent(parent, false);
             cardObj.transform.localScale = Vector3.one;
 
             Image cardBg = cardObj.GetComponent<Image>();
-            bool isStamina = staminaTierIndex1Based > 0;
-            if (isStamina)
-            {
-                ShopV1UiLibrary.ApplyStaminaTierSprite(cardBg, staminaTierIndex1Based, unlocked: false);
-                staminaTierImages[staminaTierIndex1Based] = cardBg;
-            }
-            else
-            {
-                // Transparent over catalog product well — shell provides the frame.
-                cardBg.sprite = null;
-                cardBg.color = new Color(0.08f, 0.1f, 0.14f, 0.35f);
-            }
+            ShopV1UiLibrary.ApplyStaminaTierSprite(cardBg, staminaTierIndex1Based, unlocked: false);
+            staminaTierImages[staminaTierIndex1Based] = cardBg;
 
             SetScreenRectFromTopLeftPixels(cardObj.GetComponent<RectTransform>(), leftPx, topPx, rightPx, bottomPx);
 
-            // Item Title
-            CreateTextElement(cardObj.transform, "Title", item.title, new Vector2(0, isStamina ? 28f : 110f), 20, TextAnchor.MiddleCenter);
+            CreateTextElement(cardObj.transform, "Title", item.title, new Vector2(0, 28f), 20, TextAnchor.MiddleCenter);
+            CreateTextElement(cardObj.transform, "Desc", item.description, new Vector2(0, -8f), 14, TextAnchor.MiddleCenter);
 
-            // Description
-            CreateTextElement(cardObj.transform, "Desc", item.description, new Vector2(0, isStamina ? -8f : 30f), 14, TextAnchor.MiddleCenter);
-
-            // High-draw packs: live pity toward PITY SAVE (bundle FLOOR LIFT stays in pack description).
-            if (CollectionPackCatalog.TryGetSku(item.id, out CollectionPackSku sku) && sku.HighDrawCount > 0)
-            {
-                GameObject pityLineObj = CreateTextElement(
-                    cardObj.transform,
-                    "PityLine",
-                    CollectionPackPityCopy.FormatPackTileLine(player),
-                    new Vector2(0, -40),
-                    14,
-                    TextAnchor.MiddleCenter);
-                Text pityLine = pityLineObj.GetComponent<Text>();
-                pityLine.color = new Color(1f, 0.75f, 0.35f);
-                pityLineObj.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 40f);
-                packPityLineTexts.Add(pityLine);
-            }
-
-            // Buy Button
             GameObject buyBtnObj = new GameObject("Btn_Buy", typeof(RectTransform), typeof(Image), typeof(Button));
             buyBtnObj.transform.SetParent(cardObj.transform, false);
             buyBtnObj.transform.localScale = Vector3.one;
@@ -502,8 +485,8 @@ namespace MyriadOfDragons.UI
             buyRect.anchorMin = new Vector2(0.5f, 0f);
             buyRect.anchorMax = new Vector2(0.5f, 0f);
             buyRect.pivot = new Vector2(0.5f, 0f);
-            buyRect.anchoredPosition = new Vector2(0, isStamina ? 10f : 16f);
-            buyRect.sizeDelta = new Vector2(isStamina ? 200f : 200f, 48f);
+            buyRect.anchoredPosition = new Vector2(0, 10f);
+            buyRect.sizeDelta = new Vector2(200f, 48f);
 
             Button buyBtn = buyBtnObj.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(buyBtn, buyImg);
@@ -511,6 +494,123 @@ namespace MyriadOfDragons.UI
 
             string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
             CreateTextElement(buyBtnObj.transform, "PriceText", $"BUY ({priceLabel})", Vector2.zero, 18, TextAnchor.MiddleCenter);
+        }
+
+        /// <summary>
+        /// Gem-pack product tile - shared frame + GEM_PACK_WELL_MAP wells. One template x four SKUs;
+        /// names/prices/pity from runtime catalog, never baked into art.
+        /// </summary>
+        private void CreateGemPackShopCardTile(Transform parent, ShopItemData item,
+            float leftPx, float topPx, float rightPx, float bottomPx)
+        {
+            GameObject cardObj = new GameObject($"ShopCard_{item.id}", typeof(RectTransform), typeof(Image));
+            cardObj.transform.SetParent(parent, false);
+            cardObj.transform.localScale = Vector3.one;
+
+            Image cardBg = cardObj.GetComponent<Image>();
+            cardBg.sprite = null;
+            cardBg.color = new Color(0.08f, 0.1f, 0.14f, 0f);
+            cardBg.raycastTarget = false;
+
+            SetScreenRectFromTopLeftPixels(cardObj.GetComponent<RectTransform>(), leftPx, topPx, rightPx, bottomPx);
+
+            GameObject artObj = new GameObject("ProductArt", typeof(RectTransform), typeof(Image));
+            artObj.transform.SetParent(cardObj.transform, false);
+            Image artImg = artObj.GetComponent<Image>();
+            artImg.raycastTarget = false;
+            artImg.preserveAspect = true;
+            artImg.type = Image.Type.Simple;
+            Sprite productArt = Resources.Load<Sprite>($"UI/ShopV1/product_art_{item.id}");
+            if (productArt != null)
+            {
+                artImg.sprite = productArt;
+                artImg.color = Color.white;
+            }
+            else
+            {
+                artImg.sprite = null;
+                artImg.color = new Color(0.15f, 0.18f, 0.22f, 0.35f);
+            }
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(artObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ProductArtWell);
+
+            GameObject frameObj = new GameObject("GemPackFrame", typeof(RectTransform), typeof(Image));
+            frameObj.transform.SetParent(cardObj.transform, false);
+            RectTransform frameRect = frameObj.GetComponent<RectTransform>();
+            frameRect.anchorMin = Vector2.zero;
+            frameRect.anchorMax = Vector2.one;
+            frameRect.offsetMin = Vector2.zero;
+            frameRect.offsetMax = Vector2.zero;
+            ShopV1UiLibrary.ApplyGemPackTileFrame(frameObj.GetComponent<Image>());
+
+            GameObject nameObj = CreateWellText(cardObj.transform, "Title", item.title, 22, TextAnchor.MiddleCenter);
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(nameObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ProductNameWell);
+            Text nameText = nameObj.GetComponent<Text>();
+            nameText.resizeTextForBestFit = true;
+            nameText.resizeTextMinSize = 12;
+            nameText.resizeTextMaxSize = 24;
+            nameText.fontStyle = FontStyle.Bold;
+
+            string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
+            GameObject priceObj = CreateWellText(cardObj.transform, "PriceLabel", priceLabel, 20, TextAnchor.MiddleCenter);
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(priceObj.GetComponent<RectTransform>(), ShopV1UiLibrary.PriceWell);
+            Text priceText = priceObj.GetComponent<Text>();
+            priceText.resizeTextForBestFit = true;
+            priceText.resizeTextMinSize = 12;
+            priceText.resizeTextMaxSize = 22;
+
+            bool showPity = CollectionPackCatalog.TryGetSku(item.id, out CollectionPackSku sku) && sku.HighDrawCount > 0;
+            GameObject pityObj = CreateWellText(
+                cardObj.transform,
+                "PityLine",
+                showPity ? CollectionPackPityCopy.FormatPackTileLine(player) : string.Empty,
+                14,
+                TextAnchor.MiddleCenter);
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(pityObj.GetComponent<RectTransform>(), ShopV1UiLibrary.PityWell);
+            Text pityLine = pityObj.GetComponent<Text>();
+            pityLine.color = new Color(1f, 0.75f, 0.35f);
+            pityLine.resizeTextForBestFit = true;
+            pityLine.resizeTextMinSize = 10;
+            pityLine.resizeTextMaxSize = 16;
+            pityObj.SetActive(showPity);
+            if (showPity)
+                packPityLineTexts.Add(pityLine);
+
+            GameObject buyBtnObj = new GameObject("Btn_Buy", typeof(RectTransform), typeof(Image), typeof(Button));
+            buyBtnObj.transform.SetParent(cardObj.transform, false);
+            buyBtnObj.transform.localScale = Vector3.one;
+            Image buyImg = buyBtnObj.GetComponent<Image>();
+            buyImg.color = new Color(1f, 1f, 1f, 0.01f);
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(buyBtnObj.GetComponent<RectTransform>(), ShopV1UiLibrary.BuyActionWell);
+
+            CreateWellText(buyBtnObj.transform, "PriceText", "BUY", 22, TextAnchor.MiddleCenter);
+
+            Button buyBtn = buyBtnObj.GetComponent<Button>();
+            HomeV3UiLibrary.ApplyNavTileButton(buyBtn, buyImg);
+            buyBtn.onClick.AddListener(() => AttemptPurchase(item));
+        }
+
+        private GameObject CreateWellText(Transform parent, string objectName, string content, int fontSize, TextAnchor alignment)
+        {
+            GameObject textObj = new GameObject(objectName, typeof(RectTransform), typeof(Text));
+            textObj.transform.SetParent(parent, false);
+            textObj.transform.localScale = Vector3.one;
+
+            Text txt = textObj.GetComponent<Text>();
+            txt.text = content;
+            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            txt.fontSize = fontSize;
+            txt.alignment = alignment;
+            txt.color = Color.white;
+            txt.supportRichText = true;
+            txt.raycastTarget = false;
+
+            RectTransform rect = textObj.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            return textObj;
         }
 
         private static void SetScreenRectFromTopLeftPixels(RectTransform rect, float left, float top, float right, float bottom)

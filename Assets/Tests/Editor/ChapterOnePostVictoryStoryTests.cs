@@ -137,18 +137,18 @@ namespace MyriadOfDragons.Tests
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("PostStory_FirstClear");
             BattleController controller = bootstrap.Battle;
             HomePagePresenter presenter = SpawnHomePagePresenter(controller);
-            presenter.SetActiveStageForTests(FindStage("1-2"));
+            presenter.SetActiveStageForTests(FindStage("1-1"));
 
             PlayerProfile profile = SaveManager.SaveData;
             int goldBefore = profile.gold;
 
             PlayOneCardAndWin(controller);
 
-            Assert.AreEqual("1-2_post", StoryOverlayPresenter.LastPlayedSequenceIdForTests,
+            Assert.AreEqual("1-1_post", StoryOverlayPresenter.LastPlayedSequenceIdForTests,
                 "A first clear must request the matching post-victory story sequence.");
-            Assert.AreEqual(goldBefore + FindStage("1-2").goldReward, profile.gold,
+            Assert.AreEqual(goldBefore + FindStage("1-1").goldReward, profile.gold,
                 "Post-victory story must not block or replace the gold grant.");
-            CollectionAssert.Contains(profile.claimedStageRewardIds, "1-2");
+            CollectionAssert.Contains(profile.claimedStageRewardIds, "1-1");
         }
 
         [Test]

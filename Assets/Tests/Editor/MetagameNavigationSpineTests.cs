@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
@@ -9,9 +10,10 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// Session-shipped metagame screens — chained navigation (not isolated reachability).
-    /// Home → Collection → Deck (POC tiles) → Collection → Home → Shop → Home → Settings → Home
-    /// → Empire → Expedition → Empire → Home → Avatar → Home.
+        /// Session-shipped metagame screens — chained navigation (not isolated reachability).
+        /// Home → Collection → Deck → Collection → Home → Shop → Home → Pass → Home → Login → Home
+        /// → Settings → Home → Empire → building-detail variants → Expedition → Empire → Home
+        /// → Avatar → Home.
     /// </summary>
     public class MetagameNavigationSpineTests
     {
@@ -147,6 +149,30 @@ namespace MyriadOfDragons.Tests
             AssertNoMetagameCanvases();
             Assert.AreEqual(goldBeforeShop, SaveSystem.CurrentProfile.gold, "Shop back must not mutate wallet.");
 
+            // --- Home → Battle Pass ---
+            Click(homeCanvas, "Btn_BattlePass");
+            Assert.IsFalse(homeCanvas.activeSelf);
+            Assert.NotNull(GameObject.Find(BattlePassPresenter.CanvasName));
+            Assert.NotNull(home.GetComponent<BattlePassPresenter>());
+            Assert.AreEqual("28-DAY SEASON",
+                GameObject.Find(BattlePassPresenter.CanvasName).transform
+                    .Find("BattlePassHeader/SeasonLength")?.GetComponent<Text>()?.text);
+            Click(GameObject.Find(BattlePassPresenter.CanvasName), "BattlePassHeader/Btn_Back");
+            Assert.IsTrue(homeCanvas.activeSelf);
+            Assert.IsNull(home.GetComponent<BattlePassPresenter>());
+            AssertNoMetagameCanvases();
+
+            // --- Home → Daily Login / Quests ---
+            Click(homeCanvas, "Btn_DailyLogin");
+            Assert.IsFalse(homeCanvas.activeSelf);
+            Assert.NotNull(GameObject.Find(DailyLoginQuestsPresenter.CanvasName));
+            Assert.NotNull(home.GetComponent<DailyLoginQuestsPresenter>());
+            StringAssert.Contains("PAUSED", home.GetComponent<DailyLoginQuestsPresenter>().StatusTextForTests);
+            Click(GameObject.Find(DailyLoginQuestsPresenter.CanvasName), "DailyLoginHeader/Btn_Back");
+            Assert.IsTrue(homeCanvas.activeSelf);
+            Assert.IsNull(home.GetComponent<DailyLoginQuestsPresenter>());
+            AssertNoMetagameCanvases();
+
             // --- Home → Settings ---
             Click(homeCanvas, "Btn_Settings");
             Assert.IsFalse(homeCanvas.activeSelf);
@@ -163,7 +189,24 @@ namespace MyriadOfDragons.Tests
             GameObject empireCanvas = GameObject.Find("EmpireCanvas");
             Assert.NotNull(empireCanvas);
 
-            Click(empireCanvas, "EmpireHeader/OpenExpeditionButton");
+            OpenAndCloseBuildingDetail(home, empireCanvas, "EmpireConstructionRoot/CastleRow",
+                EmpireBuildingKind.Castle);
+            OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"), "EmpireConstructionRoot/BarracksRow",
+                EmpireBuildingKind.Barracks);
+            OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"), "EmpireConstructionRoot/GateRow",
+                EmpireBuildingKind.Gate);
+            OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"),
+                "EmpireConstructionRoot/VariantStrip/Chip_GuildHall", EmpireBuildingKind.GuildHall);
+            OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"),
+                "EmpireConstructionRoot/VariantStrip/Chip_Prison", EmpireBuildingKind.Prison);
+            OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"),
+                "EmpireConstructionRoot/VariantStrip/Chip_Embassy", EmpireBuildingKind.Embassy);
+
+            Assert.NotNull(GameObject.Find("EmpireCanvas"), "Empire must remain after closing every building popup.");
+            Assert.IsNull(GameObject.Find(EmpireBuildingDetailPresenter.CanvasName));
+            Assert.IsNull(home.GetComponent<EmpireBuildingDetailPresenter>());
+
+            Click(GameObject.Find("EmpireCanvas"), "EmpireHeader/OpenExpeditionButton");
             Assert.IsNull(GameObject.Find("EmpireCanvas"));
             GameObject expeditionCanvas = GameObject.Find(EmpireExpeditionPresenter.CanvasName);
             Assert.NotNull(expeditionCanvas);
@@ -197,6 +240,23 @@ namespace MyriadOfDragons.Tests
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             return home;
+        }
+
+        private static void OpenAndCloseBuildingDetail(HomePagePresenter home, GameObject empireCanvas, string rowPath,
+            EmpireBuildingKind expectedKind)
+        {
+            Click(empireCanvas, rowPath);
+            GameObject detail = GameObject.Find(EmpireBuildingDetailPresenter.CanvasName);
+            Assert.NotNull(detail, $"Expected building detail after tapping '{rowPath}'.");
+            Assert.NotNull(GameObject.Find("EmpireCanvas"), "Empire canvas must stay under the popup.");
+            var presenter = home.GetComponent<EmpireBuildingDetailPresenter>();
+            Assert.NotNull(presenter);
+            Assert.AreEqual(expectedKind, presenter.KindForTests);
+            Click(detail, "DetailPanel/DetailHeader/Btn_Return");
+            Assert.IsNull(GameObject.Find(EmpireBuildingDetailPresenter.CanvasName),
+                $"Detail canvas must die after Return from {expectedKind}.");
+            Assert.IsNull(home.GetComponent<EmpireBuildingDetailPresenter>());
+            Assert.NotNull(GameObject.Find("EmpireCanvas"));
         }
 
         private static void Click(GameObject canvas, string path)

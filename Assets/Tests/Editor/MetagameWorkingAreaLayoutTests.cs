@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
@@ -69,6 +70,7 @@ namespace MyriadOfDragons.Tests
 
             string[] regions =
             {
+                "EmpireConstructionRoot/VariantStrip",
                 "EmpireConstructionRoot/CastleRow",
                 "EmpireConstructionRoot/BarracksRow",
                 "EmpireConstructionRoot/GateRow",
@@ -145,6 +147,82 @@ namespace MyriadOfDragons.Tests
                 .Find("StageScrollView/Viewport/StageNodesContent/StageNode_exp-1");
             Assert.NotNull(node);
             AssertNoPairOverlaps(node, new[] { "StageId", "Title", "Hint" });
+        }
+
+        [Test]
+        public void BattlePass_TrackTableFillsShell_AndSeasonXpLabelDoesNotOverlapBar()
+        {
+            var go = new GameObject("BattlePassWorkingAreaHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<BattlePassPresenter>();
+            presenter.Initialize(onBackToHome: null);
+            PrepareCanvas(presenter.CanvasObjectForTests);
+
+            RectTransform tracks = (RectTransform)presenter.CanvasObjectForTests.transform.Find("TrackTable");
+            Assert.NotNull(tracks);
+            Rect trackBounds = WorldBounds(tracks);
+            Assert.Greater(trackBounds.width, 1600f, "Dual-track table must use the shell width, not a centre island.");
+            Assert.Greater(trackBounds.height, 500f, "Dual-track table must use the mid-screen well.");
+
+            RectTransform xpLabel = (RectTransform)presenter.CanvasObjectForTests.transform.Find("SeasonXpRow/Label");
+            RectTransform xpBar = (RectTransform)presenter.CanvasObjectForTests.transform.Find("SeasonXpRow/XpBar");
+            Assert.IsFalse(Inset(WorldBounds(xpLabel), 2f).Overlaps(Inset(WorldBounds(xpBar), 2f)));
+            Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("PremiumBar/Btn_UnlockPremium"));
+        }
+
+        [Test]
+        public void DailyLogin_BothPanelsUseWorkingColumns_AndQuestCopyDoesNotOverlapClaim()
+        {
+            var go = new GameObject("DailyLoginWorkingAreaHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<DailyLoginQuestsPresenter>();
+            presenter.Initialize(onBackToHome: null);
+            PrepareCanvas(presenter.CanvasObjectForTests);
+
+            RectTransform login = (RectTransform)presenter.CanvasObjectForTests.transform.Find("DailyLoginPanel");
+            RectTransform quests = (RectTransform)presenter.CanvasObjectForTests.transform.Find("DailyQuestsPanel");
+            Assert.Greater(WorldBounds(login).height, 800f);
+            Assert.Greater(WorldBounds(quests).height, 800f);
+            Assert.Greater(WorldBounds(login).width + WorldBounds(quests).width, 1500f);
+
+            Transform row = presenter.CanvasObjectForTests.transform.Find("DailyQuestsPanel/QuestRow_0");
+            AssertNoPairOverlaps(row, new[] { "QuestCopy", "Btn_Claim" });
+        }
+
+        [Test]
+        public void BuildingDetail_PanelFillsOverlay_AndReturnDoesNotOverlapTitle()
+        {
+            var go = new GameObject("BuildingDetailWorkingAreaHarness");
+            _spawned.Add(go);
+            var empire = go.AddComponent<EmpirePresenter>();
+            empire.Initialize(onBackToHome: null, onOpenAvatar: () => { });
+            empire.OpenBuildingDetailForTests(EmpireBuildingKind.Castle);
+            GameObject canvas = GameObject.Find(EmpireBuildingDetailPresenter.CanvasName);
+            PrepareCanvas(canvas);
+
+            RectTransform panel = (RectTransform)canvas.transform.Find("DetailPanel");
+            Assert.Greater(WorldBounds(panel).width, 1500f, "Detail popup must use the overlay, not a small centre card.");
+            Assert.Greater(WorldBounds(panel).height, 800f);
+            AssertNoPairOverlaps(canvas.transform.Find("DetailPanel/DetailHeader"),
+                new[] { "Btn_Return", "Title", "Btn_Close" });
+        }
+
+        [Test]
+        public void Home_PassAndLogin_DoNotCoverResourcePills()
+        {
+            var go = new GameObject("HomeSeasonHudHarness");
+            _spawned.Add(go);
+            var home = go.AddComponent<HomePagePresenter>();
+            home.BuildHomePageUIForTests();
+            PrepareCanvas(home.HomeCanvasObjectForTests);
+
+            Rect pills = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("ResourceRow"));
+            Rect pass = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("Btn_BattlePass"));
+            Rect login = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("Btn_DailyLogin"));
+            Rect settings = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("Btn_Settings"));
+            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(pass, 2f)), "PASS must not sit on Gold/Gems/Stamina pills.");
+            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(login, 2f)), "LOGIN must not sit on resource pills.");
+            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(settings, 2f)));
         }
 
         private static void PrepareCanvas(GameObject canvasGo)

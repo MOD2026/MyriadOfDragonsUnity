@@ -314,6 +314,9 @@ public class HomePagePresenter : MonoBehaviour
             // next-stage repair above must still be saved if it just changed anything.
             if (nextStageNewlyUnlocked)
             {
+                // Stage-gated spells key off unlockedStageIds - a repair that just added the
+                // next stage must grant newly-eligible ownership the same way a first-clear does.
+                SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
                 SaveManager.Save();
                 Debug.Log($"[Metagame] Stage {stageId} already cleared - repaired missing unlock of Stage {nextStageId}.");
             }
@@ -337,6 +340,13 @@ public class HomePagePresenter : MonoBehaviour
         {
             profile.unlockedStageIds.Add(stageId);
         }
+
+        // Spell-Book Acquisition + Ownership Sync: stage first-clear is a required call site
+        // (same service as Avatar level-up). Must run after unlockedStageIds mutations above
+        // (this stage + next) so stage-gated spells (e.g. Cinder Lash at 1-2) land in
+        // ownedSpellIds immediately - RecordMatchResult's level-up sync may already have
+        // fired with the pre-unlock stage list.
+        SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
 
         // Saved immediately after the first-clear reward/unlock mutation (Chapter 1 progression
         // contract #7) - not deferred to OnDestroy, OpenDeckBuilder's own save-on-close, or any
@@ -436,7 +446,7 @@ public class HomePagePresenter : MonoBehaviour
 
         GameObject resourceRow = new GameObject("ResourceRow", typeof(RectTransform));
         resourceRow.transform.SetParent(homeCanvasObj.transform, false);
-        SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1896, 90);
+        SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1476, 90);
 
         int goldVal = SaveManager.SaveData != null ? SaveManager.SaveData.gold : hudDefaults.gold;
         int gemsVal = SaveManager.SaveData != null ? SaveManager.SaveData.gems : hudDefaults.gems;

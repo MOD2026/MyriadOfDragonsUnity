@@ -207,14 +207,15 @@ namespace MyriadOfDragons.UI
                 "Castle · Barracks · Gate", UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"),
                 true, new Vector2(800f, 36f));
             subtitle.fontSize = 20;
-            SetNormalizedRect(subtitle.rectTransform, 0.03f, 0.92f, 0.70f, 0.99f);
+            SetNormalizedRect(subtitle.rectTransform, 0.03f, 0.93f, 0.50f, 0.99f);
 
+            BuildVariantStrip(empireRoot.transform);
             CreateBuildingRow(empireRoot.transform, "CastleRow", "UpgradeCastleButton",
-                EmpireBuildingKind.Castle, 0.68f, 0.90f, OnUpgradeCastle);
+                EmpireBuildingKind.Castle, 0.64f, 0.84f, OnUpgradeCastle);
             CreateBuildingRow(empireRoot.transform, "BarracksRow", "UpgradeBarracksButton",
-                EmpireBuildingKind.Barracks, 0.45f, 0.66f, OnUpgradeBarracks);
+                EmpireBuildingKind.Barracks, 0.43f, 0.62f, OnUpgradeBarracks);
             CreateBuildingRow(empireRoot.transform, "GateRow", "UpgradeGateButton",
-                EmpireBuildingKind.Gate, 0.22f, 0.43f, OnUpgradeGate);
+                EmpireBuildingKind.Gate, 0.22f, 0.41f, OnUpgradeGate);
 
             _empireStatusText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireStatus", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(1200f, 48f));
@@ -505,6 +506,31 @@ namespace MyriadOfDragons.UI
                     else if (requested == EmpireBuildingKind.Gate) OnUpgradeGate();
                     RefreshPanel();
                 });
+        }
+
+        private void BuildVariantStrip(Transform parent)
+        {
+            GameObject strip = new GameObject("VariantStrip", typeof(RectTransform));
+            strip.transform.SetParent(parent, false);
+            SetNormalizedRect(strip.GetComponent<RectTransform>(), 0.03f, 0.855f, 0.97f, 0.925f);
+
+            CreateVariantChip(strip.transform, "Chip_GuildHall", "GUILD HALL", EmpireBuildingKind.GuildHall, 0.00f, 0.32f);
+            CreateVariantChip(strip.transform, "Chip_Prison", "PRISON", EmpireBuildingKind.Prison, 0.34f, 0.66f);
+            CreateVariantChip(strip.transform, "Chip_Embassy", "EMBASSY", EmpireBuildingKind.Embassy, 0.68f, 1f);
+        }
+
+        private void CreateVariantChip(Transform parent, string name, string label, EmpireBuildingKind kind,
+            float left, float right)
+        {
+            GameObject chip = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            chip.transform.SetParent(parent, false);
+            Image img = chip.GetComponent<Image>();
+            HomeV3UiLibrary.ApplyNeutralActionButton(chip.GetComponent<Button>(), img, HexColor("#1A3A4A"));
+            EmpireBuildingKind captured = kind;
+            chip.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
+            SetNormalizedRect(chip.GetComponent<RectTransform>(), left, 0.08f, right, 0.92f);
+            UISharedFoundation.CreateText(chip.transform, "Label", label, UITextRole.Caption, TextAnchor.MiddleCenter,
+                HexColor("#F2E5C9"), true, new Vector2(200f, 28f));
         }
 
         private void CreateBuildingRow(Transform parent, string rowName, string buttonName,
