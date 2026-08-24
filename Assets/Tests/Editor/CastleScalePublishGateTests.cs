@@ -15,7 +15,15 @@ namespace MyriadOfDragons.Tests
     /// </summary>
     public class CastleScalePublishGateTests
     {
-        private const int MatchesPerCell = 80;
+        // Bumped 80->300 (2026-08-24): real, verified flakiness at n=80 - two back-to-back runs
+        // with identical code showed L30 KO swinging 50%->58%, and the original failing sample
+        // (36.25%) sits ~2.5-4 standard errors below that observed rate at n=80 (SE~5.6pp at
+        // p~0.5). Unseeded by design, matching BalanceSimulationTests' own MatchesPerRun=400
+        // precedent for its main sweeps - a bigger sample shrinks the noise itself rather than
+        // pinning which single random outcome occurs, which is the right fix for a threshold this
+        // close to the true rate (SE~2.9pp at n=300, p~0.5 - the original 36% outlier would now
+        // be ~5 SE out, not 3).
+        private const int MatchesPerCell = 300;
         private static readonly int[] CastleRows = { 1, 5, 10, 15, 20, 25, 30 };
 
         private readonly List<GameObject> _spawned = new List<GameObject>();
