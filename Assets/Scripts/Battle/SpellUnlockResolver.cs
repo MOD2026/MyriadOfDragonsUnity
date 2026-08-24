@@ -13,13 +13,14 @@ namespace MyriadOfDragons.Battle
     /// avatar level directly.
     ///
     /// Two catalog rows (Sun Lance "Ch2 spell book", Tempest Brand "Ch3 spell book") name an
-    /// acquisition method - a spell book reward - that has no tracking anywhere in the codebase:
-    /// Items/ItemDatabase.cs has one generic SpellBook ItemId shared
-    /// across every use of that word in the game, no per-chapter variant, and PlayerProfile has no
-    /// inventory count for it at all. Guessing a stand-in condition (e.g. "unlocked once Chapter 2
-    /// is reached") would silently misrepresent a reward the player was never actually given.
-    /// Instead this resolver leaves those two permanently locked - see
-    /// <see cref="HasUnresolvableSpellBookGates"/> - until that acquisition system is real.
+    /// acquisition method this resolver's own inputs (Avatar level, unlocked stage ids) cannot
+    /// see - "do you own the Ch2/Ch3 finale spell book," not a level or a stage. RESOLVED
+    /// 2026-08-24: that acquisition is now real, via <see cref="SpellBookGrant"/> and
+    /// PlayerProfile.ownedSpellIds (owner-authorized). This resolver still never unlocks those two
+    /// itself (their gate genuinely isn't Avatar-level/stage progression, so folding them into
+    /// this resolver's Rules would mean guessing a stand-in condition, exactly what this class
+    /// used to warn against) - but the class-level claim "nothing tracks this" is no longer true,
+    /// which is what <see cref="HasUnresolvableSpellBookGates"/> now reports.
     /// </summary>
     public static class SpellUnlockResolver
     {
@@ -29,9 +30,12 @@ namespace MyriadOfDragons.Battle
             Stage,
             AvatarLevel,
 
-            /// <summary>Gated on a per-chapter "spell book" acquisition that nothing in the
-            /// codebase tracks yet - see the class doc comment. Never unlocked by this resolver.</summary>
-            SpellBookNotYetTracked,
+            /// <summary>Gated on the Ch2/Ch3 finale Spell Book grant (see SpellBookGrant), a real
+            /// but different acquisition channel this resolver's own (Avatar level, stage)
+            /// inputs cannot evaluate. Never unlocked BY THIS RESOLVER - not because nothing
+            /// tracks it (something now does), but because the resolver genuinely has no way to
+            /// check spell-book ownership from just a level and a stage list.</summary>
+            SpellBookGrant,
         }
 
         private class Rule
@@ -64,15 +68,17 @@ namespace MyriadOfDragons.Battle
             new Rule("Renewal", UnlockKind.Stage, stageId: "2-8"),
             new Rule("Rallying Gale", UnlockKind.AvatarLevel, requiredAvatarLevel: 8),
             new Rule("Banner of Ashes", UnlockKind.Stage, stageId: "3-3"),
-            new Rule("Sun Lance", UnlockKind.SpellBookNotYetTracked), // catalog: "Ch2 spell book"
+            new Rule("Sun Lance", UnlockKind.SpellBookGrant), // catalog: "Ch2 spell book"
             new Rule("Stone Judgment", UnlockKind.AvatarLevel, requiredAvatarLevel: 12),
-            new Rule("Tempest Brand", UnlockKind.SpellBookNotYetTracked), // catalog: "Ch3 spell book"
+            new Rule("Tempest Brand", UnlockKind.SpellBookGrant), // catalog: "Ch3 spell book"
         };
 
-        /// <summary>True while any catalog spell is gated on the untracked "spell book"
-        /// acquisition method - exposed so a caller or test can assert this known gap is still
-        /// open rather than silently assuming every catalog spell became reachable.</summary>
-        public static bool HasUnresolvableSpellBookGates => Rules.Any(r => r.Kind == UnlockKind.SpellBookNotYetTracked);
+        /// <summary>RESOLVED 2026-08-24 - always false now. Kept (rather than deleted outright) as
+        /// a permanent regression flag: if this property or its underlying Rule kind is ever used
+        /// to mean "this can never become true" again, that would be reintroducing exactly the gap
+        /// SpellBookGrant closed. The two SpellBookGrant-kind spells are real and ownable today -
+        /// just not unlocked BY THIS RESOLVER (see the class doc comment for why).</summary>
+        public static bool HasUnresolvableSpellBookGates => false;
 
         public static bool IsUnlocked(AvatarSpell spell, int avatarLevel, IReadOnlyCollection<string> unlockedStageIds)
         {
@@ -84,7 +90,7 @@ namespace MyriadOfDragons.Battle
                 case UnlockKind.Starter: return true;
                 case UnlockKind.Stage: return unlockedStageIds != null && unlockedStageIds.Contains(rule.StageId);
                 case UnlockKind.AvatarLevel: return avatarLevel >= rule.RequiredAvatarLevel;
-                default: return false; // SpellBookNotYetTracked
+                default: return false; // SpellBookGrant - see SpellBookGrant, not this resolver
             }
         }
 

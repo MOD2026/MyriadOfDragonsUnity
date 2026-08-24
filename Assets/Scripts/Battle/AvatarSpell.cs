@@ -25,6 +25,22 @@ namespace MyriadOfDragons.Battle
     }
 
     /// <summary>
+    /// SPELL_CATALOG_v1.md's three schools (§1): Andras - Assault (lane damage/controlled Avatar
+    /// pressure), Ktini - Sustenance (lane healing/permanent Attack buffs), Pnevmas - Divine
+    /// (precise Avatar pressure/recovery/rally). Cosmetic/loadout-flavor metadata only - School
+    /// does not gate what a spell can do; SpellEffect already owns that. Not a 1:1 map with
+    /// SpellEffect either - the catalog's own lock explicitly keeps Fault Line (Ktini/LaneDamage)
+    /// as written rather than "corrected" toward its school's usual pattern (see
+    /// CreatePhase1Catalog's own comment on that exact spell).
+    /// </summary>
+    public enum SpellSchool
+    {
+        Andras,
+        Ktini,
+        Pnevmas,
+    }
+
+    /// <summary>
     /// An Avatar spell - the player's active input during the automated combat phase.
     ///
     /// This is the half of the "pre-battle formation + auto-combat" model that keeps the player
@@ -39,25 +55,38 @@ namespace MyriadOfDragons.Battle
     [Serializable]
     public class AvatarSpell
     {
+        /// <summary>SPELL_CATALOG_v1.md's own snake_case catalog id (e.g. "divine_bolt") - the
+        /// stable join key for PlayerProfile.ownedSpellIds/equippedSpellIds. Display Name is not
+        /// safe to use for this: it's presentation text, not an identifier.</summary>
+        public readonly string Id;
         public readonly string Name;
         public readonly string Description;
         public readonly int EnergyCost;
         public readonly int CooldownTicks;
         public readonly SpellEffect Effect;
         public readonly int Magnitude;
+        public readonly SpellSchool School;
 
         /// <summary>Ticks remaining before this can be cast again. 0 means ready.</summary>
         public int CooldownRemaining { get; private set; }
 
+        /// <summary>id/school are trailing optional params, not inserted into the existing
+        /// positional order - every pre-existing call site (production catalog and several test
+        /// files that construct synthetic spells directly) keeps compiling unchanged. A spell
+        /// built without an explicit id gets "" (never a real catalog member, never matches a
+        /// real ownedSpellIds/equippedSpellIds entry - correct for a synthetic test spell that
+        /// isn't part of the real catalog anyway).</summary>
         public AvatarSpell(string name, string description, int energyCost, int cooldownTicks,
-            SpellEffect effect, int magnitude)
+            SpellEffect effect, int magnitude, string id = "", SpellSchool school = SpellSchool.Andras)
         {
+            Id = id;
             Name = name;
             Description = description;
             EnergyCost = energyCost;
             CooldownTicks = cooldownTicks;
             Effect = effect;
             Magnitude = magnitude;
+            School = school;
         }
 
         /// <summary>
@@ -154,16 +183,22 @@ namespace MyriadOfDragons.Battle
             return new List<AvatarSpell>
             {
                 new AvatarSpell("Firestorm", "Deal 4 damage to every enemy unit in a lane.",
-                    energyCost: 30, cooldownTicks: 3, SpellEffect.LaneDamage, magnitude: 4),
+                    energyCost: 30, cooldownTicks: 3, SpellEffect.LaneDamage, magnitude: 4,
+                    id: "firestorm", school: SpellSchool.Andras),
 
                 new AvatarSpell("Mend", "Restore 4 Health to every friendly unit in a lane.",
-                    energyCost: 25, cooldownTicks: 3, SpellEffect.LaneHeal, magnitude: 4),
+                    energyCost: 25, cooldownTicks: 3, SpellEffect.LaneHeal, magnitude: 4,
+                    id: "mend", school: SpellSchool.Ktini),
 
+                // Catalog lock: War Cry is Pnevmas, not Andras - verified directly against
+                // SPELL_CATALOG_v1.md's real table (an earlier draft had this wrong).
                 new AvatarSpell("War Cry", "Permanently grant +2 Attack to a friendly lane.",
-                    energyCost: 40, cooldownTicks: 4, SpellEffect.LaneAttackBuff, magnitude: 2),
+                    energyCost: 40, cooldownTicks: 4, SpellEffect.LaneAttackBuff, magnitude: 2,
+                    id: "war_cry", school: SpellSchool.Pnevmas),
 
                 new AvatarSpell("Divine Bolt", "Strike the enemy Avatar directly for 100.",
-                    energyCost: 60, cooldownTicks: 5, SpellEffect.AvatarStrike, magnitude: 100),
+                    energyCost: 60, cooldownTicks: 5, SpellEffect.AvatarStrike, magnitude: 100,
+                    id: "divine_bolt", school: SpellSchool.Pnevmas),
             };
         }
 
@@ -185,38 +220,48 @@ namespace MyriadOfDragons.Battle
             catalog.AddRange(new[]
             {
                 new AvatarSpell("Cinder Lash", "Deal 2 damage to every enemy unit in a lane.",
-                    energyCost: 18, cooldownTicks: 2, SpellEffect.LaneDamage, magnitude: 2),
+                    energyCost: 18, cooldownTicks: 2, SpellEffect.LaneDamage, magnitude: 2,
+                    id: "cinder_lash", school: SpellSchool.Andras),
 
                 new AvatarSpell("Ember Wave", "Deal 3 damage to every enemy unit in a lane.",
-                    energyCost: 26, cooldownTicks: 3, SpellEffect.LaneDamage, magnitude: 3),
+                    energyCost: 26, cooldownTicks: 3, SpellEffect.LaneDamage, magnitude: 3,
+                    id: "ember_wave", school: SpellSchool.Andras),
 
                 // Catalog lock: Fault Line is Ktini school but a LaneDamage effect, unlike every
                 // other Ktini spell here (Sustenance: healing and Attack buffs per the catalog's
                 // own school descriptions) - implemented exactly as the locked table specifies,
                 // not "corrected" toward the school's usual pattern.
                 new AvatarSpell("Fault Line", "Deal 5 damage to every enemy unit in a lane.",
-                    energyCost: 44, cooldownTicks: 5, SpellEffect.LaneDamage, magnitude: 5),
+                    energyCost: 44, cooldownTicks: 5, SpellEffect.LaneDamage, magnitude: 5,
+                    id: "fault_line", school: SpellSchool.Ktini),
 
                 new AvatarSpell("Vital Spark", "Restore 2 Health to every friendly unit in a lane.",
-                    energyCost: 18, cooldownTicks: 2, SpellEffect.LaneHeal, magnitude: 2),
+                    energyCost: 18, cooldownTicks: 2, SpellEffect.LaneHeal, magnitude: 2,
+                    id: "vital_spark", school: SpellSchool.Ktini),
 
                 new AvatarSpell("Renewal", "Restore 6 Health to every friendly unit in a lane.",
-                    energyCost: 45, cooldownTicks: 5, SpellEffect.LaneHeal, magnitude: 6),
+                    energyCost: 45, cooldownTicks: 5, SpellEffect.LaneHeal, magnitude: 6,
+                    id: "renewal", school: SpellSchool.Ktini),
 
                 new AvatarSpell("Rallying Gale", "Permanently grant +1 Attack to a friendly lane.",
-                    energyCost: 24, cooldownTicks: 3, SpellEffect.LaneAttackBuff, magnitude: 1),
+                    energyCost: 24, cooldownTicks: 3, SpellEffect.LaneAttackBuff, magnitude: 1,
+                    id: "rallying_gale", school: SpellSchool.Pnevmas),
 
                 new AvatarSpell("Banner of Ashes", "Permanently grant +3 Attack to a friendly lane.",
-                    energyCost: 55, cooldownTicks: 5, SpellEffect.LaneAttackBuff, magnitude: 3),
+                    energyCost: 55, cooldownTicks: 5, SpellEffect.LaneAttackBuff, magnitude: 3,
+                    id: "banner_of_ashes", school: SpellSchool.Andras),
 
                 new AvatarSpell("Sun Lance", "Strike the enemy Avatar directly for 75.",
-                    energyCost: 35, cooldownTicks: 3, SpellEffect.AvatarStrike, magnitude: 75),
+                    energyCost: 35, cooldownTicks: 3, SpellEffect.AvatarStrike, magnitude: 75,
+                    id: "sun_lance", school: SpellSchool.Pnevmas),
 
                 new AvatarSpell("Stone Judgment", "Strike the enemy Avatar directly for 120.",
-                    energyCost: 80, cooldownTicks: 7, SpellEffect.AvatarStrike, magnitude: 120),
+                    energyCost: 80, cooldownTicks: 7, SpellEffect.AvatarStrike, magnitude: 120,
+                    id: "stone_judgment", school: SpellSchool.Ktini),
 
                 new AvatarSpell("Tempest Brand", "Deal 3 damage to every enemy unit in a lane.",
-                    energyCost: 36, cooldownTicks: 4, SpellEffect.LaneDamage, magnitude: 3),
+                    energyCost: 36, cooldownTicks: 4, SpellEffect.LaneDamage, magnitude: 3,
+                    id: "tempest_brand", school: SpellSchool.Pnevmas),
             });
             return catalog;
         }

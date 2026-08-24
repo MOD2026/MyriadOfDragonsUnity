@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MyriadOfDragons.Battle;
 using MyriadOfDragons.Save;
 using NUnit.Framework;
 
@@ -93,6 +95,8 @@ namespace MyriadOfDragons.Tests
             written.cardCollection.Add("dragon_007");
             written.activeDeckCardIds.Clear();
             written.activeDeckCardIds.Add("dragon_007");
+            written.ownedSpellIds = new List<string> { "firestorm", "mend", "war_cry", "divine_bolt", "sun_lance" };
+            written.equippedSpellIds = new List<string> { "firestorm", "mend", "war_cry", "sun_lance" };
 
             Assert.IsTrue(SaveSystem.Save(written));
 
@@ -116,6 +120,13 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.AreEqual(new[] { "prologue", "chapter_two" }, read.seenChapters);
             CollectionAssert.AreEqual(new[] { "dragon_007" }, read.activeDeckCardIds);
             CollectionAssert.Contains(read.cardCollection, "dragon_007");
+            // Not exact equality: Load() runs SaveMigration.Normalize, which runs
+            // SpellOwnershipSync - with this profile's real avatarLevel (31), that legitimately
+            // adds every Avatar-level-gated spell (ember_wave/rallying_gale/stone_judgment) on
+            // top of what was explicitly written, same as it would for a real returning player.
+            CollectionAssert.IsSubsetOf(new[] { "firestorm", "mend", "war_cry", "divine_bolt", "sun_lance" }, read.ownedSpellIds);
+            CollectionAssert.AreEqual(new[] { "firestorm", "mend", "war_cry", "sun_lance" }, read.equippedSpellIds,
+                "equippedSpellIds was written non-empty, so the sync's backfill-only-when-empty rule must leave it untouched.");
         }
 
         [Test]
@@ -210,6 +221,8 @@ namespace MyriadOfDragons.Tests
                 activeDeckCardIds = null,
                 unlockedStageIds = null,
                 inventoryAssets = null,
+                ownedSpellIds = null,
+                equippedSpellIds = null,
             };
 
             SaveMigration.Normalize(profile);
@@ -219,6 +232,33 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(profile.activeDeckCardIds);
             Assert.IsNotNull(profile.unlockedStageIds);
             Assert.IsNotNull(profile.inventoryAssets);
+            Assert.IsNotNull(profile.ownedSpellIds);
+            Assert.IsNotNull(profile.equippedSpellIds);
+        }
+
+        [Test]
+        public void Normalize_MigrationRepairPass_BackfillsARealReturningPlayersProgressDerivedSpells()
+        {
+            // Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24): a pre-existing save
+            // that predates ownedSpellIds/equippedSpellIds (both null, as JsonUtility leaves them
+            // for any key absent from an old file) but has real Avatar-level/stage progress must
+            // not regress to the starter four on its first load under the new schema.
+            var profile = new PlayerProfile
+            {
+                avatarLevel = 12,
+                unlockedStageIds = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3" },
+                ownedSpellIds = null,
+                equippedSpellIds = null,
+            };
+
+            SaveMigration.Normalize(profile);
+
+            CollectionAssert.Contains(profile.ownedSpellIds, "stone_judgment",
+                "Avatar L12 progress should have backfilled Stone Judgment ownership, not just the starter four.");
+            CollectionAssert.Contains(profile.ownedSpellIds, "cinder_lash");
+            CollectionAssert.Contains(profile.ownedSpellIds, "fault_line");
+            Assert.IsTrue(profile.equippedSpellIds.Count > 0,
+                "A profile with no equippedSpellIds and a non-empty backfilled ownedSpellIds must get a real auto-equipped loadout, not stay empty.");
         }
 
         [Test]

@@ -50,21 +50,25 @@ namespace MyriadOfDragons.Tests
 
         [TestCase("Sun Lance")]
         [TestCase("Tempest Brand")]
-        public void IsUnlocked_SpellBookGatedSpells_NeverUnlockRegardlessOfProgress(string name)
+        public void IsUnlocked_SpellBookGatedSpells_NeverUnlockViaAvatarLevelOrStageAlone(string name)
         {
-            // Catalog rows "Ch2 spell book" / "Ch3 spell book" name an acquisition method nothing
-            // in the codebase tracks - see SpellUnlockResolver's own class doc comment. Proven
-            // here with a deliberately absurd amount of progress, so this can't pass by accident.
+            // Catalog rows "Ch2 spell book" / "Ch3 spell book" name a real acquisition channel
+            // now (SpellBookGrant) - but it's a fundamentally different gate (own the finale spell
+            // book) this resolver's own inputs (Avatar level, unlocked stage ids) cannot evaluate.
+            // Proven here with a deliberately absurd amount of level/stage progress, so this can't
+            // pass by accident - see SpellBookGrantTests for the real acquisition path.
             AvatarSpell spell = AvatarSpell.CreatePhase1Catalog().Single(s => s.Name == name);
             var everyStage = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3" };
             Assert.IsFalse(SpellUnlockResolver.IsUnlocked(spell, avatarLevel: 999, unlockedStageIds: everyStage));
         }
 
         [Test]
-        public void HasUnresolvableSpellBookGates_IsTrue_DocumentingTheKnownGap()
+        public void HasUnresolvableSpellBookGates_IsNowFalse_TheGapIsResolved()
         {
-            Assert.IsTrue(SpellUnlockResolver.HasUnresolvableSpellBookGates,
-                "This must flip to false (and this test updated) the day a real spell-book acquisition system ships.");
+            // RESOLVED 2026-08-24: SpellBookGrant is the real acquisition channel Sun Lance/
+            // Tempest Brand were missing. This flag existing at all, still true, would mean that
+            // gap had silently regressed back to "nothing tracks this."
+            Assert.IsFalse(SpellUnlockResolver.HasUnresolvableSpellBookGates);
         }
 
         [Test]
@@ -208,6 +212,66 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(controller.Spellbook.Any(s => s.Name == "Stone Judgment"), "The player's spellbook should reflect real unlocked progress.");
             Assert.AreEqual(1, controller.Spellbook.Count(s => s.Effect == SpellEffect.AvatarStrike), "Still exactly one AvatarStrike, never two.");
             Assert.IsTrue(controller.EnemySpellbook.Any(s => s.Name == "Stone Judgment"), "The mirrored enemy spellbook uses the same progress inputs.");
+        }
+
+        // ---------- StartMatch's equippedSpellIds resolution ----------
+
+        [Test]
+        public void StartMatch_WithEquippedSpellIds_ResolvesTheRealPlayerChosenLoadout_NotAutoEquip()
+        {
+            BattleController controller = CreateController();
+            Card card = MakeWeakCard("loadout_equipped_" + System.Guid.NewGuid().ToString("N"));
+            var economy = new BattleController.MatchEconomy(20, 20, 1000);
+            var equipped = new List<string> { "cinder_lash", "vital_spark", "rallying_gale", "sun_lance" };
+
+            controller.StartMatch(new List<Card> { card }, new List<Card> { card }, economy, economy,
+                avatarLevel: 1, unlockedStageIds: null, equippedSpellIds: equipped);
+
+            CollectionAssert.AreEqual(new[] { "Cinder Lash", "Vital Spark", "Rallying Gale", "Sun Lance" },
+                controller.Spellbook.Select(s => s.Name).ToList(),
+                "Real player-choice loadout must resolve exactly the equipped ids, in order - not the auto-equip heuristic.");
+        }
+
+        [Test]
+        public void StartMatch_WithNullOrEmptyEquippedSpellIds_FallsBackToAutoEquip()
+        {
+            BattleController controller = CreateController();
+            Card card = MakeWeakCard("loadout_fallback_" + System.Guid.NewGuid().ToString("N"));
+            var economy = new BattleController.MatchEconomy(20, 20, 1000);
+
+            controller.StartMatch(new List<Card> { card }, new List<Card> { card }, economy, economy,
+                avatarLevel: 1, unlockedStageIds: null, equippedSpellIds: new List<string>());
+
+            CollectionAssert.AreEqual(new[] { "Firestorm", "Mend", "War Cry", "Divine Bolt" }, controller.Spellbook.Select(s => s.Name).ToList());
+        }
+
+        [Test]
+        public void StartMatch_WithAnUnknownEquippedSpellId_SkipsItGracefully()
+        {
+            BattleController controller = CreateController();
+            Card card = MakeWeakCard("loadout_unknown_" + System.Guid.NewGuid().ToString("N"));
+            var economy = new BattleController.MatchEconomy(20, 20, 1000);
+            var equipped = new List<string> { "firestorm", "not_a_real_spell_id", "mend" };
+
+            controller.StartMatch(new List<Card> { card }, new List<Card> { card }, economy, economy,
+                avatarLevel: 1, unlockedStageIds: null, equippedSpellIds: equipped);
+
+            CollectionAssert.AreEqual(new[] { "Firestorm", "Mend" }, controller.Spellbook.Select(s => s.Name).ToList(),
+                "An unknown equipped id must be skipped, not crash or blank the whole spellbook.");
+        }
+
+        [Test]
+        public void StartMatch_WithOnlyUnknownEquippedSpellIds_FallsBackToAutoEquipRatherThanAnEmptySpellbook()
+        {
+            BattleController controller = CreateController();
+            Card card = MakeWeakCard("loadout_allunknown_" + System.Guid.NewGuid().ToString("N"));
+            var economy = new BattleController.MatchEconomy(20, 20, 1000);
+            var equipped = new List<string> { "not_a_real_spell_id", "also_not_real" };
+
+            controller.StartMatch(new List<Card> { card }, new List<Card> { card }, economy, economy,
+                avatarLevel: 1, unlockedStageIds: null, equippedSpellIds: equipped);
+
+            Assert.IsTrue(controller.Spellbook.Count > 0, "A caller must never end up with an empty castable spellbook.");
         }
     }
 }

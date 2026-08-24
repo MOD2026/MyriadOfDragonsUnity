@@ -895,11 +895,13 @@ namespace MyriadOfDragons.UI
             // everywhere both normal and Campaign matches reach this method.
             var enemyEconomy = new BattleController.MatchEconomy(
                 _empireData.ResourceCap, _empireData.Turn1Resource, _aiProfile.MaxAvatarHealth);
-            // Real spell loadout, not the fixed starter four: SpellLoadoutAutoEquip resolves the
-            // Phase-1 catalog against this player's real progress (avatar level, unlocked
-            // campaign stages), same source _empireData.AvatarLevel already used for economy above.
+            // Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24): real player-choice
+            // loadout, not the auto-derived one - _profile.equippedSpellIds is now the real source
+            // (kept in sync by SpellOwnershipSync/SpellLoadoutAutoEquip until manual loadout UI
+            // exists). avatarLevel/unlockedStageIds still passed too, purely as StartMatch's own
+            // fallback path for a profile whose equippedSpellIds is somehow still empty.
             _battleController.StartMatch(playerDeck, enemyDeck, playerEconomy, enemyEconomy,
-                _empireData.AvatarLevel, _profile.unlockedStageIds);
+                _empireData.AvatarLevel, _profile.unlockedStageIds, _profile.equippedSpellIds);
             // Option B: mirrored PvE AI spells for normal + Campaign solo (not tutorial path).
             _battleController.EnableMirroredEnemySpellsForPvE();
 

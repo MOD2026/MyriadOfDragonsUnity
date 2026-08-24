@@ -204,6 +204,18 @@ namespace MyriadOfDragons.Battle
         /// successful TryCastSpell - a rejected cast changes nothing and logs nothing.</summary>
         public IReadOnlyList<SpellCastRecord> SpellCastLog => _spellCastLog;
 
+        /// <summary>Full 36-Spell Catalogue Diagnosis (LOCKED 2026-08-24): "max 1 successful cast
+        /// per side per combat tick (player path currently has no equivalent guard to AI's -
+        /// needs adding)". The AI already gets this for free structurally - AISpellCaster.
+        /// TryCastDuringCombatTick is invoked at most once per AdvanceCombatTick and returns after
+        /// its first successful cast - but the player path (TryCastSpell, driven by UI taps, not
+        /// one call per tick) had no equivalent limit: nothing stopped tapping two different
+        /// off-cooldown, affordable spells inside the same tick. -1 is never a valid TickCount (it
+        /// starts at 0 pre-combat, increments to 1+ once real ticks resolve), so it always allows
+        /// the very first cast of a match.</summary>
+        private int _lastSuccessfulPlayerCastTick = -1;
+        private int _lastSuccessfulEnemyCastTick = -1;
+
         public event Action<TurnResolutionResult> OnTurnResolved;
         public event Action<bool> OnMatchEnded; // argument: true if the player won
 
@@ -261,17 +273,27 @@ namespace MyriadOfDragons.Battle
         }
 
         /// <summary>
-        /// avatarLevel/unlockedStageIds default to "fresh player" (level 1, no stage progress) so
-        /// every existing caller that doesn't yet pass real progress - every EditMode test, the
-        /// scripted tutorial encounter which must stay on its fixed spell-lesson target - gets
-        /// exactly the same spellbook as before (SpellLoadoutAutoEquip.AutoEquip resolves those
-        /// defaults to precisely the starter four, in the same order CreateDefaultSpellbook() used
-        /// to return). Only a caller that explicitly supplies real profile progress (see
-        /// GameBootstrap.StartNewMatch) gets a loadout that actually varies with it.
+        /// Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24): battle start is real-only/
+        /// validation-only for spell ownership - it NEVER mutates PlayerProfile (StartMatch takes
+        /// no PlayerProfile at all, only the plain values it needs). The real flow is now
+        /// ownedSpellIds -> equippedSpellIds (a subset, chosen by SpellLoadoutAutoEquip today since
+        /// no manual-loadout UI exists yet - see that class's own doc comment) -> catalogue
+        /// resolution, computed by the caller and handed in as equippedSpellIds; this method only
+        /// resolves those ids into real AvatarSpell instances.
+        ///
+        /// avatarLevel/unlockedStageIds/equippedSpellIds all default to "fresh player, no chosen
+        /// loadout" so every existing caller that doesn't pass real progress - every EditMode test,
+        /// the scripted tutorial encounter which must stay on its fixed spell-lesson target - gets
+        /// exactly the same spellbook as before: SpellLoadoutAutoEquip.AutoEquip(avatarLevel,
+        /// unlockedStageIds) resolves those defaults to precisely the starter four, same order as
+        /// CreateDefaultSpellbook() always returned. Only a caller that explicitly supplies a
+        /// non-empty equippedSpellIds (see GameBootstrap.StartNewMatch, reading the real profile's
+        /// equippedSpellIds) gets the new ownership-driven loadout.
         /// </summary>
         public void StartMatch(List<Card> playerDeck, List<Card> enemyDeck,
             MatchEconomy playerEconomy, MatchEconomy enemyEconomy,
-            int avatarLevel = 1, IReadOnlyCollection<string> unlockedStageIds = null)
+            int avatarLevel = 1, IReadOnlyCollection<string> unlockedStageIds = null,
+            IReadOnlyList<string> equippedSpellIds = null)
         {
             PlayerState = new PlayerBattleState(playerDeck,
                 playerEconomy.ResourceCap, playerEconomy.Turn1Resource, playerEconomy.StartingAvatarHealth);
@@ -282,13 +304,44 @@ namespace MyriadOfDragons.Battle
             TickCount = 0;
             Energy = 0;
             EnemyEnergy = 0;
-            Spellbook = SpellLoadoutAutoEquip.AutoEquip(avatarLevel, unlockedStageIds);
-            EnemySpellbook = SpellLoadoutAutoEquip.AutoEquip(avatarLevel, unlockedStageIds);
+            Spellbook = ResolveMatchSpellbook(equippedSpellIds, avatarLevel, unlockedStageIds);
+            // Real gap, flagged not fixed here (out of this task's scope - see
+            // docs/LOCKED_DECISIONS_REGISTER.md's own "AI spellbooks currently mirror the PLAYER's
+            // progression-derived loadout rather than having their own stage/archetype-authored
+            // one - needs fixing in Wave 1"): the enemy still mirrors the SAME equippedSpellIds/
+            // progression inputs as the player, unchanged from before this refactor.
+            EnemySpellbook = ResolveMatchSpellbook(equippedSpellIds, avatarLevel, unlockedStageIds);
             MirroredEnemySpellsEnabled = false;
             _combatLedger.Clear();
             _spellCastLog.Clear();
+            _lastSuccessfulPlayerCastTick = -1;
+            _lastSuccessfulEnemyCastTick = -1;
 
             BeginTurn();
+        }
+
+        /// <summary>ownedSpellIds -> equippedSpellIds (subset) -> catalogue resolution, the
+        /// second half of that pipeline. equippedSpellIds is resolved against the full Phase-1
+        /// catalog by id (AvatarSpell.Id, not display Name); an id that doesn't resolve is skipped
+        /// rather than crashing the match over a stale/corrupt saved id. Falls back to the old
+        /// avatarLevel/unlockedStageIds-driven SpellLoadoutAutoEquip path when no non-empty
+        /// equippedSpellIds is supplied, preserving every pre-existing caller's exact behaviour.</summary>
+        private static List<AvatarSpell> ResolveMatchSpellbook(
+            IReadOnlyList<string> equippedSpellIds, int avatarLevel, IReadOnlyCollection<string> unlockedStageIds)
+        {
+            if (equippedSpellIds != null && equippedSpellIds.Count > 0)
+            {
+                List<AvatarSpell> catalog = AvatarSpell.CreatePhase1Catalog();
+                var resolved = new List<AvatarSpell>();
+                foreach (string id in equippedSpellIds)
+                {
+                    AvatarSpell spell = catalog.FirstOrDefault(s => s.Id == id);
+                    if (spell != null) resolved.Add(spell);
+                }
+                if (resolved.Count > 0) return resolved;
+            }
+
+            return SpellLoadoutAutoEquip.AutoEquip(avatarLevel, unlockedStageIds);
         }
 
         public void BeginTurn()
@@ -551,10 +604,13 @@ namespace MyriadOfDragons.Battle
             if (!spell.IsOffCooldown) return false;
             if (spell.EnergyCost > Energy) return false;
             if (spell.Effect == SpellEffect.AvatarStrike && TickCount < MinimumCombatTickForAvatarStrike) return false;
+            // Catalogue diagnosis lock: max 1 successful cast per side per combat tick.
+            if (TickCount == _lastSuccessfulPlayerCastTick) return false;
 
             Energy -= spell.EnergyCost;
             spell.PutOnCooldown();
             avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane);
+            _lastSuccessfulPlayerCastTick = TickCount;
 
             // Combat Tick Feed data (2026-08-22): logged only once the cast is confirmed legal
             // and has actually happened - never for a rejected attempt (see the early returns
@@ -584,10 +640,16 @@ namespace MyriadOfDragons.Battle
             if (!spell.IsOffCooldown) return false;
             if (spell.EnergyCost > EnemyEnergy) return false;
             if (spell.Effect == SpellEffect.AvatarStrike && TickCount < MinimumCombatTickForAvatarStrike) return false;
+            // Catalogue diagnosis lock: max 1 successful cast per side per combat tick. Already
+            // structurally true via AISpellCaster's own call-once-per-tick pattern, but an explicit
+            // guard here makes both cast paths symmetric and keeps that true even if a future
+            // caller ever invokes this outside AISpellCaster's single per-tick call.
+            if (TickCount == _lastSuccessfulEnemyCastTick) return false;
 
             EnemyEnergy -= spell.EnergyCost;
             spell.PutOnCooldown();
             avatarDamageDealt = spell.Cast(EnemyState, PlayerState, targetLane);
+            _lastSuccessfulEnemyCastTick = TickCount;
 
             _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt, castByPlayer: false));
 

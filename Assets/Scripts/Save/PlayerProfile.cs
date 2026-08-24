@@ -92,6 +92,27 @@ namespace MyriadOfDragons.Save
         /// (like every other List field here) replaces null with an empty list on load.</summary>
         public List<string> claimedStageRewardIds = new List<string>();
         public List<string> activeDeckCardIds = new List<string>() { "c1", "c3", "c4", "c6" };
+
+        /// <summary>
+        /// Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24, owner-authorized frozen
+        /// field). Every spell this player has ever earned/unlocked - permanent, never removed.
+        /// Defaults to the current starter four's real catalog ids (see AvatarSpell.
+        /// CreateDefaultSpellbook) so a fresh profile's real ownership already matches what it
+        /// could always cast, unchanged from before this field existed. Populated going forward by
+        /// MyriadOfDragons.Battle.SpellOwnershipSync.SynchronizeEligibleSpellOwnership (Avatar
+        /// level-up, stage first-clear, Spell Book grant, new-profile creation, and once as a
+        /// migration repair pass) - not mutated directly anywhere else.
+        /// </summary>
+        public List<string> ownedSpellIds = new List<string>() { "firestorm", "mend", "war_cry", "divine_bolt" };
+
+        /// <summary>The subset of ownedSpellIds currently equipped for battle (max 4 - see
+        /// SPELL_CATALOG_v1.md §4, "player eventually owns 36 and equips 4 per battle"). Defaults
+        /// to the same starter four, in the same order, as ownedSpellIds - a fresh profile's real
+        /// battle spellbook is unchanged from before this field existed. Real player-choice
+        /// loadout UI is separate, future work (not this Wave); until it exists, SpellLoadoutAutoEquip
+        /// keeps this in sync with the strongest currently-owned spell per effect type.</summary>
+        public List<string> equippedSpellIds = new List<string>() { "firestorm", "mend", "war_cry", "divine_bolt" };
+
         public List<string> cardCollection = new List<string>();
         public List<TradeableAssetInstance> inventoryAssets = new List<TradeableAssetInstance>();
 
@@ -269,6 +290,12 @@ namespace MyriadOfDragons.Save
             Empire.ApplyMatchResult(isVictory);
             avatarLevel = Empire.AvatarLevel;
             Empire.InitializeTCGModifiers();
+
+            // Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24): Avatar level-up is one
+            // of the sync service's required call sites - a level crossing an Avatar-L threshold
+            // (e.g. Ember Wave at L5) must grant real ownership the moment it happens, not wait
+            // for the player to next open a screen that happens to re-derive it.
+            MyriadOfDragons.Battle.SpellOwnershipSync.SynchronizeEligibleSpellOwnership(this);
 
             totalMatches++;
             if (isVictory)

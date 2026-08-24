@@ -61,6 +61,35 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(magnitude, spell.Magnitude, $"{name}: magnitude.");
         }
 
+        [TestCase("Firestorm", "firestorm", SpellSchool.Andras)]
+        [TestCase("Mend", "mend", SpellSchool.Ktini)]
+        [TestCase("War Cry", "war_cry", SpellSchool.Pnevmas)] // catalog-verified correction, not Andras
+        [TestCase("Divine Bolt", "divine_bolt", SpellSchool.Pnevmas)]
+        [TestCase("Cinder Lash", "cinder_lash", SpellSchool.Andras)]
+        [TestCase("Ember Wave", "ember_wave", SpellSchool.Andras)]
+        [TestCase("Fault Line", "fault_line", SpellSchool.Ktini)]
+        [TestCase("Vital Spark", "vital_spark", SpellSchool.Ktini)]
+        [TestCase("Renewal", "renewal", SpellSchool.Ktini)]
+        [TestCase("Rallying Gale", "rallying_gale", SpellSchool.Pnevmas)]
+        [TestCase("Banner of Ashes", "banner_of_ashes", SpellSchool.Andras)]
+        [TestCase("Sun Lance", "sun_lance", SpellSchool.Pnevmas)]
+        [TestCase("Stone Judgment", "stone_judgment", SpellSchool.Ktini)]
+        [TestCase("Tempest Brand", "tempest_brand", SpellSchool.Pnevmas)]
+        public void EverySpell_HasTheRealCatalogIdAndSchool(string name, string id, SpellSchool school)
+        {
+            AvatarSpell spell = AvatarSpell.CreatePhase1Catalog().Single(s => s.Name == name);
+            Assert.AreEqual(id, spell.Id, $"{name}: catalog id.");
+            Assert.AreEqual(school, spell.School, $"{name}: school.");
+        }
+
+        [Test]
+        public void EveryPhase1SpellId_IsUniqueAndNeverEmpty()
+        {
+            List<AvatarSpell> catalog = AvatarSpell.CreatePhase1Catalog();
+            Assert.IsTrue(catalog.All(s => !string.IsNullOrEmpty(s.Id)), "Every real catalog spell needs a stable id - it's the ownedSpellIds/equippedSpellIds join key.");
+            Assert.AreEqual(catalog.Count, catalog.Select(s => s.Id).Distinct().Count(), "No two catalog spells may share an id.");
+        }
+
         [Test]
         public void EveryNewSpell_ExistsExactlyOnce_NoAccidentalDuplicateOrTypo()
         {

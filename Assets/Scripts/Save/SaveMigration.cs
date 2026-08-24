@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MyriadOfDragons.Battle;
 using MyriadOfDragons.Economy;
 using MyriadOfDragons.Empire;
 
@@ -27,6 +28,8 @@ namespace MyriadOfDragons.Save
             profile.activeDeckCardIds ??= new List<string>();
             profile.cardCollection ??= new List<string>();
             profile.inventoryAssets ??= new List<TradeableAssetInstance>();
+            profile.ownedSpellIds ??= new List<string>();
+            profile.equippedSpellIds ??= new List<string>();
             if (string.IsNullOrEmpty(profile.playerName)) profile.playerName = "Sovereign";
 
             profile.avatarLevel = AtLeastOne(profile.avatarLevel);
@@ -72,6 +75,15 @@ namespace MyriadOfDragons.Save
             // Wins can never exceed matches played - a file where they do divides every
             // downstream win-rate calculation into nonsense.
             if (profile.totalWins > profile.totalMatches) profile.totalMatches = profile.totalWins;
+
+            // Spell-Book Acquisition + Ownership Sync (LOCKED 2026-08-24): the required "once as
+            // a migration repair pass" call site. Runs after avatarLevel/unlockedStageIds above are
+            // already normalized, so a pre-existing save's REAL progress (not just the starter
+            // four) backfills ownedSpellIds correctly - a returning player who had already reached,
+            // say, Avatar L12 under the old avatarLevel-driven spellbook must not lose access to
+            // Stone Judgment just because ownedSpellIds didn't exist yet when they last saved.
+            // Idempotent, so this is also a harmless no-op safety net on every other load.
+            SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
 
             CollectionSchemaMigration.Apply(profile);
         }
