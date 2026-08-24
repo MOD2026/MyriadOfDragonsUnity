@@ -337,6 +337,15 @@ player win-rate rose 9.5% vs baseline (exceeds the locked 8pp cap) - AI now cast
 overall and is measurably weaker at Novice. Escalated to CC/GPT per this entry's own failure
 policy, not auto-retuned.
 
+**GPT Option 2 implemented 2026-08-24**: raised the general (non-AvatarStrike) cast gate 40%->60%,
+AvatarStrike's throttle left unchanged. Real result, mixed, not a clean fix - re-run per GPT's own
+instruction to report the measured result rather than tune further on expectation:
+- Apprentice spells/match improved 0.29 -> 0.35, still below the 0.5 floor.
+- VeteranPlus spells/match cleared the floor (no longer flagged).
+- New failures: Novice AI win-rate delta 8.5% (just over the 8pp cap) and VeteranPlus player
+  win-rate dropped 9.1% (exceeds the 8pp cap) - AI got measurably stronger at both tiers now, not
+  just more active. Escalated, not auto-retuned.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
