@@ -462,6 +462,7 @@ public class HomePagePresenter : MonoBehaviour
 
         BuildSettingsEntryButton();
         BuildSeasonEntryButtons();
+        BuildSocialShellEntryButtons();
 
         if (SaveManager.SaveData != null)
             PlayerSettingsService.ApplyFromProfile(SaveManager.SaveData);
@@ -815,6 +816,83 @@ public class HomePagePresenter : MonoBehaviour
     {
         CreateHeaderTextButton("Btn_BattlePass", "PASS", 1488, 18, 1632, 90, OpenBattlePass);
         CreateHeaderTextButton("Btn_DailyLogin", "LOGIN", 1644, 18, 1768, 90, OpenDailyLoginQuests);
+    }
+
+    /// <summary>Art-ready social / meta shells (OpenValues refuse until numbers/backend lock).</summary>
+    private void BuildSocialShellEntryButtons()
+    {
+        // Secondary strip under Identity — stays left of WeeklyPermitStrip (x≥900).
+        CreateHeaderTextButton("Btn_Bazaar", "BAZAAR", 40, 100, 200, 168, OpenBazaar);
+        CreateHeaderTextButton("Btn_Chat", "CHAT", 212, 100, 360, 168, OpenChatSocial);
+        CreateHeaderTextButton("Btn_Mail", "MAIL", 372, 100, 520, 168, OpenMailInbox);
+        CreateHeaderTextButton("Btn_Friends", "FRIENDS", 532, 100, 700, 168, OpenFriends);
+        CreateHeaderTextButton("Btn_MemoryExpedition", "MEMORY", 712, 100, 880, 168, OpenMemoryExpedition);
+    }
+
+    public void OpenBazaarForTests() => OpenBazaar();
+    public void OpenChatSocialForTests() => OpenChatSocial();
+    public void OpenMailInboxForTests() => OpenMailInbox();
+    public void OpenFriendsForTests() => OpenFriends();
+    public void OpenMemoryExpeditionForTests() => OpenMemoryExpedition();
+
+    private void OpenMetagameShellPresenter<T>(System.Action<T> initialize) where T : MonoBehaviour
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+        T presenter = gameObject.GetComponent<T>();
+        if (presenter == null) presenter = gameObject.AddComponent<T>();
+        initialize(presenter);
+    }
+
+    private void OpenBazaar()
+    {
+        OpenMetagameShellPresenter<BazaarPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenChatSocial()
+    {
+        OpenMetagameShellPresenter<ChatSocialPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenMailInbox()
+    {
+        OpenMetagameShellPresenter<MailInboxPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenFriends()
+    {
+        OpenMetagameShellPresenter<FriendsPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenMemoryExpedition()
+    {
+        OpenMetagameShellPresenter<MemoryExpeditionPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
     }
 
     private void CreateHeaderTextButton(string name, string label, float left, float top, float right, float bottom,

@@ -508,26 +508,50 @@ namespace MyriadOfDragons.UI
                 });
         }
 
+        private void OpenGuildHallEntry()
+        {
+            // Close any open building-detail overlay first so only one popup is live.
+            EmpireBuildingDetailPresenter existingDetail = gameObject.GetComponent<EmpireBuildingDetailPresenter>();
+            if (existingDetail != null)
+            {
+                if (Application.isPlaying) Destroy(existingDetail);
+                else DestroyImmediate(existingDetail);
+            }
+
+            GuildHallEntryPresenter entry = gameObject.GetComponent<GuildHallEntryPresenter>();
+            if (entry == null) entry = gameObject.AddComponent<GuildHallEntryPresenter>();
+
+            entry.Initialize(() =>
+            {
+                if (Application.isPlaying) Destroy(entry);
+                else DestroyImmediate(entry);
+            });
+        }
+
         private void BuildVariantStrip(Transform parent)
         {
             GameObject strip = new GameObject("VariantStrip", typeof(RectTransform));
             strip.transform.SetParent(parent, false);
             SetNormalizedRect(strip.GetComponent<RectTransform>(), 0.03f, 0.855f, 0.97f, 0.925f);
 
-            CreateVariantChip(strip.transform, "Chip_GuildHall", "GUILD HALL", EmpireBuildingKind.GuildHall, 0.00f, 0.32f);
+            CreateVariantChip(strip.transform, "Chip_GuildHall", "GUILD HALL", EmpireBuildingKind.GuildHall, 0.00f, 0.32f,
+                onClickOverride: OpenGuildHallEntry);
             CreateVariantChip(strip.transform, "Chip_Prison", "PRISON", EmpireBuildingKind.Prison, 0.34f, 0.66f);
             CreateVariantChip(strip.transform, "Chip_Embassy", "EMBASSY", EmpireBuildingKind.Embassy, 0.68f, 1f);
         }
 
         private void CreateVariantChip(Transform parent, string name, string label, EmpireBuildingKind kind,
-            float left, float right)
+            float left, float right, System.Action onClickOverride = null)
         {
             GameObject chip = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             chip.transform.SetParent(parent, false);
             Image img = chip.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(chip.GetComponent<Button>(), img, HexColor("#1A3A4A"));
             EmpireBuildingKind captured = kind;
-            chip.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
+            if (onClickOverride != null)
+                chip.GetComponent<Button>().onClick.AddListener(() => onClickOverride());
+            else
+                chip.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(chip.GetComponent<RectTransform>(), left, 0.08f, right, 0.92f);
             UISharedFoundation.CreateText(chip.transform, "Label", label, UITextRole.Caption, TextAnchor.MiddleCenter,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 28f));

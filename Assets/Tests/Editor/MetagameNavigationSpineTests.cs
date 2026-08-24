@@ -33,6 +33,12 @@ namespace MyriadOfDragons.Tests
             "BattlePassCanvas",
             "DailyLoginQuestsCanvas",
             "EmpireBuildingDetailCanvas",
+            "BazaarCanvas",
+            "GuildHallEntryCanvas",
+            "ChatSocialCanvas",
+            "MemoryExpeditionCanvas",
+            "MailInboxCanvas",
+            "FriendsCanvas",
         };
 
         [SetUp]
@@ -195,8 +201,7 @@ namespace MyriadOfDragons.Tests
                 EmpireBuildingKind.Barracks);
             OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"), "EmpireConstructionRoot/GateRow",
                 EmpireBuildingKind.Gate);
-            OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"),
-                "EmpireConstructionRoot/VariantStrip/Chip_GuildHall", EmpireBuildingKind.GuildHall);
+            OpenAndCloseGuildHallEntry(home, GameObject.Find("EmpireCanvas"));
             OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"),
                 "EmpireConstructionRoot/VariantStrip/Chip_Prison", EmpireBuildingKind.Prison);
             OpenAndCloseBuildingDetail(home, GameObject.Find("EmpireCanvas"),
@@ -205,6 +210,8 @@ namespace MyriadOfDragons.Tests
             Assert.NotNull(GameObject.Find("EmpireCanvas"), "Empire must remain after closing every building popup.");
             Assert.IsNull(GameObject.Find(EmpireBuildingDetailPresenter.CanvasName));
             Assert.IsNull(home.GetComponent<EmpireBuildingDetailPresenter>());
+            Assert.IsNull(GameObject.Find(GuildHallEntryPresenter.CanvasName));
+            Assert.IsNull(home.GetComponent<GuildHallEntryPresenter>());
 
             Click(GameObject.Find("EmpireCanvas"), "EmpireHeader/OpenExpeditionButton");
             Assert.IsNull(GameObject.Find("EmpireCanvas"));
@@ -240,6 +247,19 @@ namespace MyriadOfDragons.Tests
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             return home;
+        }
+
+        private static void OpenAndCloseGuildHallEntry(HomePagePresenter home, GameObject empireCanvas)
+        {
+            Click(empireCanvas, "EmpireConstructionRoot/VariantStrip/Chip_GuildHall");
+            GameObject entry = GameObject.Find(GuildHallEntryPresenter.CanvasName);
+            Assert.NotNull(entry, "Guild Hall chip must open the flat-entry art popup.");
+            Assert.NotNull(GameObject.Find("EmpireCanvas"), "Empire canvas must stay under the Guild Hall popup.");
+            Assert.NotNull(home.GetComponent<GuildHallEntryPresenter>());
+            Click(entry, "GuildHallHeader/Btn_Back");
+            Assert.IsNull(GameObject.Find(GuildHallEntryPresenter.CanvasName));
+            Assert.IsNull(home.GetComponent<GuildHallEntryPresenter>());
+            Assert.NotNull(GameObject.Find("EmpireCanvas"));
         }
 
         private static void OpenAndCloseBuildingDetail(HomePagePresenter home, GameObject empireCanvas, string rowPath,
