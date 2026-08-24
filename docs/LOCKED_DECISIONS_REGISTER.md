@@ -329,6 +329,34 @@ just delay the same dominant finish - the once-per-match commitment is the actua
 Energy cost/cooldown/clash-3 rules unchanged. Existing matrix bands unchanged (cast rate 25-70%,
 win-rate delta -5/+8pp, spell contribution ≤40%) - report misses to CC, do not auto-widen.
 
+## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
+
+All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
+real `nonprod-validation` UGS environment via the UGS CLI and confirmed live-working, not just unit
+tested. Real deployment blockers found and fixed via a live PlayMode validation test run against
+the actual deployed environment (not guessed, not local-only tests):
+1. Each module had 2 public constructors - Cloud Code requires exactly 1. DI constructor made
+   internal, only the parameterless production constructor stays public.
+2. Missing `ICloudCodeSetup`/`config.AddGameApiClient()` registration (`ModuleConfig.cs`, added to
+   all 4) - without it `IGameApiClient` arrives null on every function call, confirmed via
+   diagnostic logging at the function entry point before any module code ran.
+3. Cloud Save item keys violated the real key contract (1-50 chars, `[A-Za-z0-9_-]` only, no dots) -
+   all 4 modules used dotted/64-char-hash keys. Replaced with `<short-prefix>_<32-hex-char-hash>`
+   keys everywhere (relationship/rate-limit/permit/attempt/contribution/instance/listing/
+   idempotency keys).
+4. The live production client (`UnityAuthenticationSocialService.cs`'s
+   `UnityCloudCodeSocialSafetyGateway`) used a flat `{"targetAccountId": "..."}` call shape - Cloud
+   Code function args must be wrapped as `{"request": {...}}` matching the method's parameter name.
+   Fixed; this had never been exercised end-to-end against a live deployment before.
+
+Confirmed via `Assets/Tests/PlayMode/SocialSafetyLiveValidationPlayModeTests.cs` (real network
+calls against the live environment, not mocked) - 11/11 passing: Block/Unblock/Mute/Unmute,
+duplicate-call idempotency, self-target rejection, blank-target rejection, rate-limit exhaustion.
+GuildExpedition/PermitWeekKey/Bazaar have no client-side wiring yet, so only SocialSafety has an
+end-to-end live-verified path; the other 3 got the same constructor/DI/key-format fixes applied
+proactively (same bug pattern, confirmed via code inspection) and passed their server test suites,
+but are not yet live-round-trip-tested themselves.
+
 ## AI Tier -> Stage-Gated Spell Access - CONFIRMED (2026-08-24, ratifies the LOCKED entry above)
 
 GPT independently re-derived the same cumulative tier mapping already locked above (Novice=Cinder
