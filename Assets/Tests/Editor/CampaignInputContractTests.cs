@@ -144,6 +144,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckProfile(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignInput_SelectBootstrap");
@@ -163,6 +164,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             string[] enemyIds = CampaignMapPresenter.GetStageForTests("1-1").enemyDeckCardIds;
             SaveValidDeckProfile(database, p => { p.stamina = 5; p.unlockedStageIds.Add("test-valid"); });
 
@@ -186,6 +188,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             string[] enemyIds = CampaignMapPresenter.GetStageForTests("1-1").enemyDeckCardIds;
             SaveValidDeckProfile(database, p => { p.stamina = 0; p.unlockedStageIds.Add("test-blocked"); }); // insufficient Stamina blocks the launch
 
@@ -208,6 +211,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckProfile(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignInput_RootContractBootstrap");
@@ -231,6 +235,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckProfile(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignInput_DecorativeBootstrap");
@@ -254,6 +259,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckProfile(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignInput_NoBlockBootstrap");

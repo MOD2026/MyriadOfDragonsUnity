@@ -163,6 +163,7 @@ namespace MyriadOfDragons.Tests
             _databaseGo = new GameObject("CardDatabase_SameClassUniformScan");
             CardDatabase database = _databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             string[] allIds = AllCampaignStageIds().ToArray();
             Assert.AreEqual(273, allIds.Length, "Setup: Ch1–10 full chain must stay 273 stages.");

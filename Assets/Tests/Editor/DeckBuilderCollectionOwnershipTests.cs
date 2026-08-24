@@ -50,6 +50,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             realCardIds = database.AllCards.Select(c => c.Id).Take(25).ToList();
             Assert.GreaterOrEqual(realCardIds.Count, 10, "Setup: expected at least 10 real cards.");
 

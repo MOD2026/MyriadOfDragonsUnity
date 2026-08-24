@@ -166,6 +166,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             SaveFreshStarterProfile();
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("FullFormation_Bootstrap_1_1");
@@ -184,6 +185,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             SaveFreshStarterProfile(new List<string> { "1-1", "1-2", "1-3" });
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("FullFormation_Bootstrap_1_2");
@@ -202,6 +204,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             SaveFreshStarterProfile(new List<string> { "1-1", "1-2", "1-3" });
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("FullFormation_Bootstrap_1_3");
@@ -232,6 +235,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             SaveFreshStarterProfile();
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("FullFormation_LegalityBootstrap");

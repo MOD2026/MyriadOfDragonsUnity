@@ -38,6 +38,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(dbGo);
             CardDatabase db = dbGo.AddComponent<CardDatabase>();
             db.Initialize();
+            db = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             List<Card> pool = db.AllCards.ToList();
             Assert.Greater(pool.Count, 20);
 

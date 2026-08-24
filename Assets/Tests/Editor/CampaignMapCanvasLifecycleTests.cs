@@ -76,6 +76,7 @@ namespace MyriadOfDragons.Tests
             var databaseGo = new GameObject("Lifecycle_CardDatabase");
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             var sizing = new PlayerProfile();
             sizing.ApplyDataToEmpire();

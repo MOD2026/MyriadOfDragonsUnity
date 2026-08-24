@@ -161,6 +161,7 @@ namespace MyriadOfDragons.Tests
             var databaseGo = new GameObject("Chapter6Depth_CardDatabase_Deck");
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             var sizingProfile = new PlayerProfile();
             sizingProfile.ApplyDataToEmpire();
             int deckSize = sizingProfile.Empire.DeckSlotCount;
@@ -270,6 +271,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             // Collect-all rather than abort-on-first-failure: a per-stage Assert.IsTrue inside
             // this loop would throw and stop at the first losing stage, hiding whether every
@@ -305,6 +307,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             var realIds = new HashSet<string>(database.AllCards.Select(c => c.Id));
 
             foreach (string stageId in NewChapter6StageIds)

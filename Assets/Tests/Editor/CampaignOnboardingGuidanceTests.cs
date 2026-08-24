@@ -102,6 +102,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveFreshStarterProfile();
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignOnboarding_FormationBootstrap");
@@ -126,6 +127,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveFreshStarterProfile();
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignOnboarding_AutoBootstrap");
@@ -153,6 +155,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveFreshStarterProfile();
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignOnboarding_ManualBootstrap");
@@ -176,6 +179,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveFreshStarterProfile();
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignOnboarding_CombatBootstrap");
@@ -200,6 +204,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveFreshStarterProfile();
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignOnboarding_VictoryBootstrap");
@@ -232,6 +237,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             CampaignStageData stage = CampaignMapPresenter.GetStageForTests("1-2");
             var profile = new PlayerProfile
@@ -277,6 +283,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveFreshStarterProfile();
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignOnboarding_TutorialBootstrap");
@@ -299,6 +306,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveFreshStarterProfile();
             // Grant + confirm a deck first so the normal path doesn't redirect to Deck Builder.
             var profile = new PlayerProfile

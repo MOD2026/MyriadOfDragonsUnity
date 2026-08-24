@@ -147,6 +147,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             // Pin draw order so this contract asserts the beginner path, not shuffle luck.
             PlayerBattleState.SetShuffleSeedForTests(11);
@@ -168,6 +169,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             // Pin draw order so this contract asserts the beginner path, not shuffle luck.
             PlayerBattleState.SetShuffleSeedForTests(11);
@@ -189,6 +191,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             PlayerBattleState.SetShuffleSeedForTests(11);
             SaveFreshStarterProfile(unlockedStages: new List<string> { "1-1", "1-2", "1-3" });

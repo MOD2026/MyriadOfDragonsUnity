@@ -46,6 +46,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseObject);
             CardDatabase database = databaseObject.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             List<string> distinctiveDeck = database.AllCards
                 .Select(card => card.Id)
@@ -101,6 +102,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseObject);
             CardDatabase database = databaseObject.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             var bootstrapObject = new GameObject("NormalBattleSavedDeckBootstrap_PostBoot");
             _spawned.Add(bootstrapObject);

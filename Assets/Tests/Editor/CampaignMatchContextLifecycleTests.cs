@@ -148,6 +148,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Lifecycle_RetryBootstrap");
@@ -178,6 +179,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Lifecycle_VictoryClearBootstrap");
@@ -206,6 +208,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Lifecycle_DefeatReturnBootstrap");
@@ -240,6 +243,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Lifecycle_NormalIsolationBootstrap");
@@ -271,6 +275,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Lifecycle_TutorialIsolationBootstrap");
@@ -308,6 +313,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Lifecycle_RewardIdempotencyBootstrap");

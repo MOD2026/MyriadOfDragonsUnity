@@ -125,6 +125,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             CampaignStageData stage1_1 = CampaignMapPresenter.GetStageForTests("1-1");
             CampaignStageData stage1_2 = CampaignMapPresenter.GetStageForTests("1-2");

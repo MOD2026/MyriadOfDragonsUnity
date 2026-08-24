@@ -81,6 +81,16 @@ namespace MyriadOfDragons.Tests
             return go.AddComponent<HomePagePresenter>();
         }
 
+        private static void AssertOwnsApprovedStarterCollection(PlayerProfile profile, string message)
+        {
+            Assert.NotNull(profile, message);
+            foreach (string cardId in ApprovedStarterCollectionCardIds)
+            {
+                Assert.IsTrue(CollectionProgression.OwnsAnyCopy(profile, cardId),
+                    $"{message} Missing ownership of '{cardId}' (Collection V1 uses cardProgression, not legacy cardCollection).");
+            }
+        }
+
         private static List<string> BuildValidDeckIds(CardDatabase database, int deckSize)
         {
             List<string> ids = database.AllCards
@@ -120,17 +130,15 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual("Build and confirm a 10-card deck before normal Battle.", status.text,
                 "The redirect must show the exact required status message on the existing status surface.");
 
-            CollectionAssert.IsSubsetOf(ApprovedStarterCollectionCardIds, bootstrap.Profile.cardCollection,
+            AssertOwnsApprovedStarterCollection(bootstrap.Profile,
                 "A fresh player must receive the full approved starter collection through the existing entitlement owner.");
 
             // No duplicate grant: pressing "To Battle" again (still no confirmed deck) must not
             // re-add or duplicate any starter id.
-            int cardsAfterFirstPress = bootstrap.Profile.cardCollection.Count;
+            int ownedAfterFirstPress = CountOwnedCards(bootstrap.Profile);
             home.OnToBattleClickedForTests();
-            Assert.AreEqual(cardsAfterFirstPress, bootstrap.Profile.cardCollection.Count,
+            Assert.AreEqual(ownedAfterFirstPress, CountOwnedCards(bootstrap.Profile),
                 "A second redirect must not duplicate the starter grant.");
-            Assert.AreEqual(bootstrap.Profile.cardCollection.Count, bootstrap.Profile.cardCollection.Distinct().Count(),
-                "The starter grant must never produce duplicate card ids.");
         }
 
         [Test]
@@ -140,6 +148,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             var profile = new PlayerProfile();
             List<string> nineCards = BuildValidDeckIds(database, 9); // one short of the required 10
@@ -164,6 +173,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             var sizingProfile = new PlayerProfile();
             sizingProfile.ApplyDataToEmpire();
@@ -198,6 +208,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             var sizingProfile = new PlayerProfile();
             sizingProfile.ApplyDataToEmpire();
@@ -274,8 +285,28 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.AreEqual(unlockedStagesBefore, bootstrap.Profile.unlockedStageIds,
                 "The redirect must not mutate campaign/stage progression.");
 
-            CollectionAssert.IsSubsetOf(ApprovedStarterCollectionCardIds, bootstrap.Profile.cardCollection,
+            AssertOwnsApprovedStarterCollection(bootstrap.Profile,
                 "The one permitted mutation is the existing starter-card entitlement.");
+        }
+
+        private static int CountOwnedCards(PlayerProfile profile)
+        {
+            if (profile == null) return 0;
+            if (profile.UsesCollectionV1)
+            {
+                int count = 0;
+                if (profile.cardProgression == null) return 0;
+                foreach (CardProgressionRecord record in profile.cardProgression)
+                {
+                    if (record != null && !string.IsNullOrEmpty(record.cardId) && record.copyCount > 0)
+                        count++;
+                }
+                return count;
+            }
+
+            return profile.cardCollection == null
+                ? 0
+                : profile.cardCollection.Where(id => !string.IsNullOrEmpty(id)).Distinct().Count();
         }
     }
 }

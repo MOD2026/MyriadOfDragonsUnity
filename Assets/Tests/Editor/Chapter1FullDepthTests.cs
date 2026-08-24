@@ -155,6 +155,7 @@ namespace MyriadOfDragons.Tests
             var databaseGo = new GameObject("Chapter1Depth_CardDatabase_Deck");
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             var sizingProfile = new PlayerProfile();
             sizingProfile.ApplyDataToEmpire();
@@ -274,6 +275,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             SaveFreshStarterProfile(unlockedStages: unlockedThroughThisStage);
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap($"Chapter1Depth_Bootstrap_{stageId}");
@@ -342,6 +344,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             var realIds = new HashSet<string>(database.AllCards.Select(c => c.Id));
 
             foreach (string stageId in NewChapter1StageIds)

@@ -54,6 +54,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(go);
             CardDatabase database = go.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             return database;
         }
 

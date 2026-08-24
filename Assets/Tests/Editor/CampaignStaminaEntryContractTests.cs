@@ -146,6 +146,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database, p => p.stamina = 100);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignStamina_SuccessBootstrap");
@@ -166,6 +167,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database, p => p.stamina = 0);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignStamina_InsufficientBootstrap");
@@ -191,6 +193,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             // (a) Invalid/missing stage battle configuration.
             SaveValidDeckForNormalMatch(database, p => p.stamina = 50);
@@ -228,6 +231,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database, p => p.stamina = 100);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignStamina_RetryBootstrap");
@@ -253,6 +257,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database, p => p.stamina = 1); // exactly enough for the launch, none left for a retry
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignStamina_RetryBlockedBootstrap");
@@ -279,6 +284,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database, p => p.stamina = 100);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignStamina_IsolationBootstrap");
@@ -301,6 +307,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database, p => { p.stamina = 10; p.gems = 100; });
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignStamina_EnergyPotionBootstrap");
@@ -331,6 +338,7 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(databaseGo);
             CardDatabase database = databaseGo.AddComponent<CardDatabase>();
             database.Initialize();
+            database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
             SaveValidDeckForNormalMatch(database, p => p.stamina = 100);
 
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CampaignStamina_ReloadBootstrap");
