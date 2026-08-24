@@ -194,3 +194,37 @@ Graph explicitly rejected for Phase-1 (2D UI, no 3D pipeline benefit). One corre
 lock: War Cry corrected to Pnevmas (was mis-listed as Andras in the draft; locked catalog confirms
 Pnevmas). All other 13 spell-school assignments verified against SPELL_CATALOG_v1.md, no other
 errors found.
+
+## Full 36-Spell Catalogue Diagnosis (LOCKED 2026-08-24)
+
+**Target confirmed: 36 spells (14 Phase-1 + 22 Phase-2), not 14, not 50.** Verified against real code:
+Celestial Verdict's 110 Energy cost exceeds the hard-capped MaxEnergy=100 (BattleController.cs) -
+uncastable as written, corrected to 100. Auto-equip's "highest magnitude wins per effect type" rule
+mathematically hides most unlocks (Cinder Lash/Ember Wave/Vital Spark/Rallying Gale/Sun Lance/Tempest
+Brand can never be auto-selected over their stronger same-type starter) - real player-choice loadout
+(ownedSpellIds/equippedSpellIds) required, not just a better auto-equip heuristic.
+
+**Corrections locked:** Celestial Verdict 110->100 Energy. Blood Price Energy 38->55 (the "price" is
+commitment cost, no self-damage). Veil of Zeus shield 6->10/unit. Oracle Sight 42->30 Energy (still
+draw-2/CD4, now cheaper-but-slower vs Leyline Draw's 36E, neither dominates). Titan Seal duration
+1->2 clashes (flagged: needs simulation before shipping, 2-clash silence may be oppressive). Purge
+splits into Cleanse (friendly, remove hostile modifier) and Dispel (enemy, remove positive modifier).
+Reposition splits into Windstep (move to adjacent lane) and Seismic Swap (exchange two units, any
+lanes). Vulnerability = single mark, +1 dmg on next hit, consumed on trigger, expires next clash if
+unused. Spell-granted Attack buff caps at +3/unit total (War Cry/Rallying Gale/Banner of Ashes/
+Thunder Decree don't stack past this). Shields don't stack additively, stronger replaces weaker only,
+expire at match end. Silence suppresses triggered abilities only (not base stats/lane bonuses),
+stays blocked until real suppressible abilities exist. Max 1 successful cast per side per combat
+tick (player path currently has no equivalent guard to AI's - needs adding).
+
+**5-wave build order:** (1) make the 14 real - School field, data-driven definitions, owned/equipped
+save fields, manual loadout, Sun Lance/Tempest Brand acquisition, per-tick cast cap, stage/archetype
+AI loadouts (not mirrored player progression), accepted Phase-1 VFX brief. (2) Expand to 19 using
+already-implemented effects (Magma Rend/Blood Price/Grave Mend/Celestial Verdict/Aegis Return),
+corrections applied first. (3) Shields+Cleanse+Dispel+Vulnerability+Thunder Decree. (4) CrossLane/
+AllLane damage+DrawCards+Reposition. (5) Silence package - blocked until suppressible card abilities
+exist. Visual production: 3 school families + 13 effect-shape templates + 36 icons + 36 signature
+accents + 5 bespoke AvatarStrike sequences, not 36 independent VFX systems.
+
+Real gap flagged, not yet resolved: AI spellbooks currently mirror the PLAYER's progression-derived
+loadout rather than having their own stage/archetype-authored one - needs fixing in Wave 1.
