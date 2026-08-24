@@ -180,3 +180,17 @@ adds its own track only, never multiplies these. Needs additive PlayerProfile fi
 (lastLoginClaimUtcDate, loginStreakIndex, dailyQuestUtcDate, dailyQuestCompletionMask, optional
 dailyQuestGenerationId) - **implementation dispatch queued behind the Empire Expedition save-field
 change already in flight, not sent concurrently, to avoid two frozen-file edits colliding.**
+
+## Spell Visual Identity Phase-1 (LOCKED 2026-08-24, design only)
+
+3-layer model (school palette/shape/motion -> effect-type target shape -> per-spell signature beat).
+School language: Andras=ember/crimson/aggressive diagonals; Ktini=jade/earthen/organic rings-roots;
+Pnevmas=ivory/gold/cyan/precise geometry. AvatarStrike gets its own 4-beat commitment sequence
+(Commit->Lock->Release->Consequence), explicitly not "the normal effect but bigger," always targets
+the Avatar panel not a lane. Production boundary: ships now with existing sprite/fade/scale system
+(school flash, lane outline, Avatar reticle, damage numbers) / needs authored flipbook sheets
+(moving trails, staged effects) / needs Unity ParticleSystem (persistent embers/motes/debris) - VFX
+Graph explicitly rejected for Phase-1 (2D UI, no 3D pipeline benefit). One correction applied before
+lock: War Cry corrected to Pnevmas (was mis-listed as Andras in the draft; locked catalog confirms
+Pnevmas). All other 13 spell-school assignments verified against SPELL_CATALOG_v1.md, no other
+errors found.
