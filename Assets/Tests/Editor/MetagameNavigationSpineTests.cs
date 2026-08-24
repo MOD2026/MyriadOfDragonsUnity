@@ -42,6 +42,7 @@ namespace MyriadOfDragons.Tests
             "FriendsCanvas",
             "VipSubscriptionCanvas",
             "PermitWeekKeyCanvas",
+            "SpellLoadoutPickerCanvas",
         };
 
         [SetUp]

@@ -217,12 +217,15 @@ namespace MyriadOfDragons.Tests
             PrepareCanvas(home.HomeCanvasObjectForTests);
 
             Rect pills = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("ResourceRow"));
+            Rect spells = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("Btn_SpellLoadout"));
             Rect pass = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("Btn_BattlePass"));
             Rect login = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("Btn_DailyLogin"));
             Rect settings = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("Btn_Settings"));
+            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(spells, 2f)), "SPELLS must not sit on Gold/Gems/Stamina pills.");
             Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(pass, 2f)), "PASS must not sit on Gold/Gems/Stamina pills.");
             Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(login, 2f)), "LOGIN must not sit on resource pills.");
             Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(settings, 2f)));
+            Assert.IsFalse(Inset(spells, 2f).Overlaps(Inset(pass, 2f)), "SPELLS must not overlap PASS.");
         }
 
         private static void PrepareCanvas(GameObject canvasGo)
