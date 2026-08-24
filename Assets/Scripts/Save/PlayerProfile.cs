@@ -51,6 +51,13 @@ namespace MyriadOfDragons.Save
         public int limitCores = 0;
         public int skillTomes = 0;
 
+        /// <summary>Empire construction v2's Materials balance (EMPIRE_SCHEMA_LOCK_2026-08-22.md
+        /// §4) - a currency separate from Gold, additive field, owner-authorized 2026-08-24.
+        /// EmpireExpeditionClearTransaction computes a Materials grant per clear already; this is
+        /// the field it had nowhere to persist to (see that class's own "frozen save shape"
+        /// comment).</summary>
+        public int constructionMaterials = 0;
+
         // Onboarding & Story Progress
         public bool hasSeenIntro = false;
         public bool seenIntro
@@ -114,6 +121,25 @@ namespace MyriadOfDragons.Save
         /// SaveMigration.Normalize replaces with idle.
         /// </summary>
         public EmpireConstructionState empireConstruction = new EmpireConstructionState();
+
+        /// <summary>
+        /// Empire Expedition daily scope (EMPIRE_SCHEMA_LOCK_2026-08-22.md §4, owner-authorized
+        /// 2026-08-24) - additive only, matches the existing week-key reset-on-mismatch pattern
+        /// CollectionAscensionPermits.TryGrantWeekly already uses for ascensionPermitWeekKey,
+        /// generalized from week to day. expeditionDayKeyUtc is the stored "yyyy-MM-dd" (UTC) the
+        /// two counters below were last reset for - see EmpireExpeditionDailyReset.EnsureCurrentDay,
+        /// which resets both counters the moment the real UTC day no longer matches this key.
+        /// Deliberately no rotation-key/unlock-flag fields yet - those depend on cadence/unlock
+        /// numbers that are still open (not speculative additions).
+        /// </summary>
+        public string expeditionDayKeyUtc = string.Empty;
+
+        /// <summary>Gold earned via Empire Expedition clears so far on expeditionDayKeyUtc - feeds
+        /// the structure-locked, numbers-open daily Expedition Gold cap.</summary>
+        public int expeditionGoldEarnedTodayUtc = 0;
+
+        /// <summary>Empire Expedition clear attempts so far on expeditionDayKeyUtc.</summary>
+        public int expeditionAttemptsTodayUtc = 0;
 
         // Battle History & Stats
         public int winStreak = 0;

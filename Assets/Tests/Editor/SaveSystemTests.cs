@@ -82,6 +82,10 @@ namespace MyriadOfDragons.Tests
                 winStreak = 3,
                 gold = 2500,
                 gems = 300,
+                constructionMaterials = 4200,
+                expeditionDayKeyUtc = "2026-08-24",
+                expeditionGoldEarnedTodayUtc = 350,
+                expeditionAttemptsTodayUtc = 2,
             };
             written.hasSeenIntro = true;
             written.seenChapters.Add("prologue");
@@ -104,6 +108,10 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(3, read.winStreak);
             Assert.AreEqual(2500, read.gold);
             Assert.AreEqual(300, read.gems);
+            Assert.AreEqual(4200, read.constructionMaterials);
+            Assert.AreEqual("2026-08-24", read.expeditionDayKeyUtc);
+            Assert.AreEqual(350, read.expeditionGoldEarnedTodayUtc);
+            Assert.AreEqual(2, read.expeditionAttemptsTodayUtc);
             Assert.IsTrue(read.hasSeenIntro);
             CollectionAssert.AreEqual(new[] { "prologue", "chapter_two" }, read.seenChapters);
             CollectionAssert.AreEqual(new[] { "dragon_007" }, read.activeDeckCardIds);
@@ -236,6 +244,36 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(0, negative.stamina);
             Assert.AreEqual(0, negative.gold);
             Assert.AreEqual(0, negative.gems);
+        }
+
+        [Test]
+        public void Normalize_ClampsExpeditionMaterialsAndDailyCountersToNeverBelowZero()
+        {
+            var profile = new PlayerProfile
+            {
+                constructionMaterials = -50,
+                expeditionGoldEarnedTodayUtc = -1,
+                expeditionAttemptsTodayUtc = -1,
+            };
+
+            SaveMigration.Normalize(profile);
+
+            Assert.AreEqual(0, profile.constructionMaterials);
+            Assert.AreEqual(0, profile.expeditionGoldEarnedTodayUtc);
+            Assert.AreEqual(0, profile.expeditionAttemptsTodayUtc);
+        }
+
+        [Test]
+        public void Normalize_ReplacesANullExpeditionDayKeyWithEmptyString()
+        {
+            // JsonUtility leaves a string field null (not empty) when its key is absent from the
+            // JSON - a pre-2026-08-24 save on disk predates this field entirely.
+            var profile = new PlayerProfile { expeditionDayKeyUtc = null };
+
+            SaveMigration.Normalize(profile);
+
+            Assert.IsNotNull(profile.expeditionDayKeyUtc);
+            Assert.AreEqual(string.Empty, profile.expeditionDayKeyUtc);
         }
 
         // ---------- SaveSystem.CurrentProfile ----------

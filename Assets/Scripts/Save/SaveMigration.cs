@@ -38,6 +38,17 @@ namespace MyriadOfDragons.Save
             if (profile.empireConstruction == null)
                 profile.empireConstruction = new EmpireConstructionState();
 
+            // Empire Expedition daily scope (2026-08-24, additive) - JsonUtility leaves a missing
+            // string field null, not empty, on an old save that predates this field entirely; a
+            // null key would never equal EmpireExpeditionDailyReset.CurrentUtcDayKey()'s real
+            // "yyyy-MM-dd" result, which is harmless (it just forces one reset), but a null string
+            // is still worth normalizing to empty here for the same reason every other string/list
+            // field in this method is - nothing downstream should have to null-check it.
+            profile.expeditionDayKeyUtc ??= string.Empty;
+            profile.constructionMaterials = AtLeastZero(profile.constructionMaterials);
+            profile.expeditionGoldEarnedTodayUtc = AtLeastZero(profile.expeditionGoldEarnedTodayUtc);
+            profile.expeditionAttemptsTodayUtc = AtLeastZero(profile.expeditionAttemptsTodayUtc);
+
             profile.gold = AtLeastZero(profile.gold);
             profile.gems = AtLeastZero(profile.gems);
             profile.eventMedals = AtLeastZero(profile.eventMedals);
