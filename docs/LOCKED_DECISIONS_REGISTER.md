@@ -407,6 +407,25 @@ genuinely different problems, not the same one:
   Apprentice's original issue.
 Escalated with full per-spell numbers, not auto-retuned.
 
+**GPT's per-tier decisions on both, implemented 2026-08-24**:
+- **Novice**: Firestorm-only restraint (>=2 living units in target lane, OR a single-unit lane
+  that's a genuine reciprocal threat to the AI's own board - reuses the existing heal-lane "real
+  threat" concept, no new numeric threshold invented). `AIDifficultyTier` threaded through
+  `TrySelectCast`/`TryPickTarget`/`DiagnoseCandidates` (optional, defaults null, every other
+  tier/spell unaffected).
+- **VeteranPlus**: same floor/ceiling treatment as Apprentice (0.30 floor, 70% fallback ceiling),
+  gate held at 45% as specified - confirmed the same candidate-scarcity class via the impact
+  diagnostic, not Novice's problem.
+Two now-stale hard assertions in `CampaignAfMirroredAiSpellWinnabilityTests.cs` (EnemyCastCount>0)
+softened to logged observations - real production Campaign launches are tier-authored (Ch1 =
+Novice), so a zero-cast outcome from the restraint is now legitimate, not the softlock regression
+those asserts guarded against (still covered separately by the MirroredEnemySpellsEnabled assert).
+**Real result: VeteranPlus fully passes now. Novice's original -11.9pp win-rate delta is gone.**
+But a new failure appeared: Novice's cast-rate-of-opportunity dropped to 17.7% (floor 25%) and
+spells/match is 0.12 (both assertions exist; NUnit only surfaced the first one hit before the test
+method aborted). The restraint fixed win-rate but over-corrected into near-total Firestorm silence
+at Novice. Escalated, not auto-loosened.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
