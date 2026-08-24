@@ -384,6 +384,15 @@ ordinary candidate), a different metric tripped by the identical scarcity. Novic
 +9.2pp, over 8pp) and VeteranPlus (spells/match 0.30, at/below its own unchanged 0.5 floor) remain
 open too. Escalated, not auto-retuned.
 
+**GPT's follow-up decision, implemented 2026-08-24**: Apprentice-specific no-spell fallback
+ceiling raised 45%->70% (same root-cause scarcity as the spells/match fix, treated together per
+GPT's own call that the two metrics describe one missing-opportunity-pool problem, not two
+separate ones). **Apprentice is now fully fixed - no longer appears in ANY matrix escalation.**
+Only Novice (player win-rate -11.9pp, over the 8pp cap) and VeteranPlus (spells/match 0.32, below
+its own unchanged 0.5 floor) remain open, exactly the two GPT explicitly kept separate from this
+fix. Candidate-scarcity itself stays flagged for a later Apprentice spell-pool/content review, not
+solved here.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
