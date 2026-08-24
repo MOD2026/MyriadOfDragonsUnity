@@ -13,8 +13,9 @@ namespace MyriadOfDragons.Tests
     /// Spine-level EditMode coverage, matching how Tutorial→Home / Campaign 1-1 are already proven
     /// in that doc - not a unit test of any one screen's content (EmpireConstructionHomeTests
     /// already covers EmpirePresenter's construction panel in isolation), but proof the real
-    /// click-through path never dead-ends: Home → Empire → Avatar → Empire → Home, using the same
-    /// production button clicks a player would use, not direct method calls that skip navigation.
+    /// click-through path never dead-ends: Home → Empire → Avatar → Empire → Home, and the direct
+    /// Home → Avatar tile, using the same production button clicks a player would use, not direct
+    /// method calls that skip navigation.
     /// </summary>
     public class EmpireAvatarScreenReachabilityTests
     {
@@ -63,6 +64,36 @@ namespace MyriadOfDragons.Tests
             Button button = target.GetComponent<Button>();
             Assert.NotNull(button, $"Expected a Button component on '{path}'.");
             return button;
+        }
+
+        [Test]
+        public void FromHome_AvatarTile_OpensAvatar_AndBackReturnsHome_WithoutGoingThroughEmpire()
+        {
+            HomePagePresenter home = SpawnAndBuildHome();
+            GameObject homeCanvas = home.HomeCanvasObjectForTests;
+            Assert.IsNotNull(homeCanvas, "Setup: Home canvas must exist.");
+
+            Button avatarTile = FindButton(homeCanvas, "NavigationStage/Btn_Avatar");
+            Assert.IsTrue(avatarTile.interactable, "Home must expose a direct Avatar hero tile.");
+            avatarTile.onClick.Invoke();
+
+            Assert.IsFalse(homeCanvas.activeSelf, "Opening Avatar from Home must hide Home.");
+            var avatar = home.GetComponent<AvatarPresenter>();
+            Assert.IsNotNull(avatar, "Home Avatar tile must attach a real AvatarPresenter.");
+            Assert.IsNotNull(avatar.CanvasObjectForTests, "Avatar screen must have a real canvas.");
+            Assert.IsTrue(avatar.CanvasObjectForTests.activeInHierarchy, "Avatar canvas must be visible.");
+            Assert.IsNotNull(avatar.CanvasObjectForTests.transform.Find("AvatarBody/AvatarName"),
+                "Avatar screen must show real Avatar content.");
+            Assert.IsNull(home.GetComponent<EmpirePresenter>(),
+                "Direct Home → Avatar must not open Empire first.");
+
+            Button backButton = FindButton(avatar.CanvasObjectForTests, "AvatarHeader/Btn_Back");
+            Assert.IsTrue(backButton.interactable, "Avatar Back must be clickable.");
+            backButton.onClick.Invoke();
+
+            Assert.IsTrue(homeCanvas.activeSelf, "Backing from direct Avatar entry must restore Home.");
+            Assert.IsNull(home.GetComponent<AvatarPresenter>(),
+                "Leaving Avatar must tear down the AvatarPresenter, not leave a stale screen.");
         }
 
         [Test]

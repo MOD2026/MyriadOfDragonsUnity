@@ -549,16 +549,34 @@ public class HomePagePresenter : MonoBehaviour
 
     private void BuildNavigationStage()
     {
-        // No dock frame (excluded). Five live actions retained (Campaign + Empire + pack's four).
+        // No dock frame (excluded). Six live actions: pack four + Empire + direct Avatar entry.
         GameObject navStage = new GameObject("NavigationStage", typeof(RectTransform));
         navStage.transform.SetParent(homeCanvasObj.transform, false);
         SetScreenRectFromTopLeftPixels(navStage.GetComponent<RectTransform>(), 24, 724, 1896, 1052);
 
-        CreateHeroTile("Campaign", null, "home_icon_story_v3", 38, 724, 388, 1030, OpenStoryCampaign, navStage.transform);
-        CreateHeroTile("Empire", null, null, 406, 724, 756, 1030, OpenEmpire, navStage.transform);
-        CreateHeroTile("Cards", "home_tile_cards_hero_v3", "home_icon_cards_v3", 774, 724, 1124, 1030, OpenCollection, navStage.transform);
-        CreateHeroTile("Shop", "home_tile_shop_hero_v3", "home_icon_shop_v3", 1142, 724, 1492, 1030, OpenShop, navStage.transform);
-        CreateHeroTile("To Battle", null, "home_icon_battle_v3", 1510, 724, 1860, 1030, () => OnToBattleClicked(), navStage.transform);
+        // Equal-width tiles across the stage (38–1860). Avatar is a first-class Home entry;
+        // Empire → Avatar remains available on the Empire screen.
+        const float stageLeft = 38f;
+        const float stageRight = 1860f;
+        const float tileTop = 724f;
+        const float tileBottom = 1030f;
+        const float gap = 12f;
+        const int tileCount = 6;
+        float tileWidth = ((stageRight - stageLeft) - gap * (tileCount - 1)) / tileCount;
+
+        void Place(int index, string label, string heroTileSprite, string iconFallbackSprite, UnityEngine.Events.UnityAction action)
+        {
+            float left = stageLeft + index * (tileWidth + gap);
+            float right = left + tileWidth;
+            CreateHeroTile(label, heroTileSprite, iconFallbackSprite, left, tileTop, right, tileBottom, action, navStage.transform);
+        }
+
+        Place(0, "Campaign", null, "home_icon_story_v3", OpenStoryCampaign);
+        Place(1, "Empire", null, null, OpenEmpire);
+        Place(2, "Avatar", null, null, () => OpenAvatar(returnToEmpireOnBack: false));
+        Place(3, "Cards", "home_tile_cards_hero_v3", "home_icon_cards_v3", OpenCollection);
+        Place(4, "Shop", "home_tile_shop_hero_v3", "home_icon_shop_v3", OpenShop);
+        Place(5, "To Battle", null, "home_icon_battle_v3", () => OnToBattleClicked());
     }
 
     private void CreateHeroTile(string label, string heroTileSprite, string iconFallbackSprite, float left, float top, float right, float bottom,
@@ -588,6 +606,8 @@ public class HomePagePresenter : MonoBehaviour
             hero = HomeV3UiLibrary.Load(iconFallbackSprite);
         if (hero == null && label == "Empire")
             hero = Resources.Load<Sprite>("UI/Icons/empire tab");
+        if (hero == null && label == "Avatar")
+            hero = Resources.Load<Sprite>("UI/Icons/player profile frame");
 
         heroArt.sprite = hero;
         heroArt.preserveAspect = true;
@@ -668,6 +688,9 @@ public class HomePagePresenter : MonoBehaviour
     public void OpenStoryCampaignForTests() => OpenStoryCampaign();
 
     public void OpenEmpireForTests() => OpenEmpire();
+
+    /// <summary>Exposed for tests: same hook the Home Avatar tile uses (direct entry, Back → Home).</summary>
+    public void OpenAvatarForTests() => OpenAvatar(returnToEmpireOnBack: false);
 
     /// <summary>Destroy is not legal outside Play Mode (this project's own non-negotiable rule -
     /// DestroyImmediate(), not Destroy(), for anything reachable from Initialize(); EditMode
