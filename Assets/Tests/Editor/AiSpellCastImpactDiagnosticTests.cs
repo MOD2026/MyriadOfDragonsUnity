@@ -179,7 +179,8 @@ namespace MyriadOfDragons.Tests
                             new List<AvatarSpell> { spell }, predictedEnergy, predictedTick,
                             controller.EnemyState, controller.PlayerState,
                             out int ordinaryAvailable, out int ordinaryRejEnergy, out int ordinaryRejCooldown, out int ordinaryRejTarget,
-                            out bool avatarStrikeAvailable, out bool avatarStrikeRejEnergy, out bool avatarStrikeRejCooldown, out bool avatarStrikeRejTarget);
+                            out bool avatarStrikeAvailable, out bool avatarStrikeRejEnergy, out bool avatarStrikeRejCooldown, out bool avatarStrikeRejTarget,
+                            tier);
 
                         var stats = result.Stats(spell.Name);
                         if (spell.Effect == SpellEffect.AvatarStrike)

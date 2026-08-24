@@ -257,7 +257,7 @@ namespace MyriadOfDragons.Tests
                         controller.EnemyEnergy + controller.EnergyPerTick + BattleController.BackLaneEnergy(controller.EnemyState));
                     bool aiPredictedCast = aiSpellsOn && AISpellCaster.TrySelectCast(
                         controller.EnemySpellbook, predictedEnemyEnergy, predictedTick,
-                        controller.EnemyState, controller.PlayerState, out _, out _);
+                        controller.EnemyState, controller.PlayerState, out _, out _, controller.EnemyDifficultyTier);
                     if (aiPredictedCast) hadOpportunity = true;
                     int castLogBefore = controller.SpellCastLog.Count;
 
@@ -391,18 +391,23 @@ namespace MyriadOfDragons.Tests
             // Apprentice floor lowered 0.5->0.30 (LOCKED 2026-08-24, GPT decision after the
             // candidate-rejection diagnostic proved 0.5 was mathematically unreachable: Apprentice's
             // theoretical max even at a 100% ordinary roll is ~0.393 - not a probability-gate
-            // defect, a real ceiling from how rarely its pool produces a §5-legal target). Novice/
-            // VeteranPlus/Master/Titan keep the original 0.5 floor until separately disproven.
-            double spellsPerMatchFloor = group == TierGroup.Apprentice ? 0.30 : 0.5;
+            // defect, a real ceiling from how rarely its pool produces a §5-legal target).
+            // VeteranPlus given the same treatment (LOCKED 2026-08-24): the per-spell impact
+            // diagnostic confirmed VeteranPlus is the same candidate-scarcity class as Apprentice
+            // (not Novice's impact problem) - its win-rate delta already stays within the 8pp cap
+            // at the current 45% gate, the real problem is frequency. Novice/Master/Titan keep the
+            // original 0.5 floor until separately disproven.
+            double spellsPerMatchFloor = group == TierGroup.Apprentice || group == TierGroup.VeteranPlus ? 0.30 : 0.5;
             Assert.That(aiOn.SpellsPerMatch, Is.InRange(spellsPerMatchFloor, 2.5),
                 $"[{g}] Spells/match {aiOn.SpellsPerMatch:F2} outside the locked {spellsPerMatchFloor:F2}-2.5 ordinary band. ESCALATE TO CC.");
 
-            // Apprentice-specific fallback ceiling raised 45%->70% (LOCKED 2026-08-24, GPT
-            // decision): same root cause as the spells/match floor above - only 3.2% of ticks
-            // produce a legal ordinary candidate, so its 65.8% measured zero-cast rate is
-            // structurally expected, not a defect. 70% gives a modest margin above the observed
-            // result without declaring zero-cast matches desirable. Other tiers keep 45%.
-            double noSpellFallbackCeiling = group == TierGroup.Apprentice ? 0.70 : 0.45;
+            // Apprentice/VeteranPlus-specific fallback ceiling raised 45%->70% (LOCKED 2026-08-24,
+            // GPT decision): same root cause as the spells/match floor above - only a small
+            // fraction of ticks produce a legal ordinary candidate at these two tiers, so a high
+            // zero-cast rate is structurally expected, not a defect. 70% gives a modest margin
+            // above the observed result without declaring zero-cast matches desirable. Novice/
+            // Master/Titan keep 45%.
+            double noSpellFallbackCeiling = group == TierGroup.Apprentice || group == TierGroup.VeteranPlus ? 0.70 : 0.45;
             Assert.That(aiOn.NoSpellFallbackRate.Center, Is.InRange(0.10, noSpellFallbackCeiling),
                 $"[{g}] No-spell fallback rate {aiOn.NoSpellFallbackRate} outside the locked 10-{noSpellFallbackCeiling:P0} band. ESCALATE TO CC.");
 

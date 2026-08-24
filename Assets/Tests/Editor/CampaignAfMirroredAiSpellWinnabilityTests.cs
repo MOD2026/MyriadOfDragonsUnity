@@ -195,8 +195,16 @@ namespace MyriadOfDragons.Tests
             LogProbe("1-2 AI-off", p12Off);
 
             Assert.Greater(p12On.Ticks, 0);
-            Assert.Greater(p12On.EnemyCastCount, 0,
-                "1-2 AF+AI-on must cast (rules out silent AI-off / softlock residual).");
+            // Was Assert.Greater(p12On.EnemyCastCount, 0) - the real "silently disabled" softlock
+            // class this guarded against is already covered above (MirroredEnemySpellsEnabled
+            // assert). A zero-cast outcome for this one seed is now a legitimate possibility, not a
+            // regression: the Novice-only Firestorm restraint (LOCKED 2026-08-24, GPT decision -
+            // see AISpellCaster.TryPickDamageLane) makes Firestorm decline single-unit lanes that
+            // aren't a genuine reciprocal threat, and 1-2's roster can legitimately offer no other
+            // legal candidate at some ticks. Logged, not asserted, same treatment as the seed-11
+            // victory-flip note below.
+            Debug.Log($"[AfAiRootCause] Seed 11: 1-2 AF+AI-on EnemyCastCount={p12On.EnemyCastCount} " +
+                      "(0 is legitimate post-Firestorm-restraint, not a softlock - see comment above).");
             // AI Spell Cast Probability Gate (LOCKED 2026-08-24): the "0/40 in that band" claim
             // below was measured against an AI that cast on ~100% of legal opportunities. With the
             // gate now at 40%, seed 11 (pinned via SetAiSpellCastRngSeedForTests in RunProbe, so
@@ -218,8 +226,9 @@ namespace MyriadOfDragons.Tests
                 AfAiMatchProbe probe = RunProbe("1-2", new List<string> { "1-1", "1-2" }, seed, aiSpellsOn: true);
                 LogProbe($"1-2 AI-on seed={seed}", probe);
                 // Same reasoning as seed 11 above - logged, not asserted, pending a fresh seed scan.
-                Debug.Log($"[AfAiRootCause] Seed {seed}: 1-2 AF+AI-on is now victory={probe.Result.IsVictory} post-probability-gate.");
-                Assert.Greater(probe.EnemyCastCount, 0);
+                Debug.Log($"[AfAiRootCause] Seed {seed}: 1-2 AF+AI-on is now victory={probe.Result.IsVictory} post-probability-gate. " +
+                          $"EnemyCastCount={probe.EnemyCastCount} (0 is legitimate post-Firestorm-restraint at Novice, not a softlock).");
+                // Was Assert.Greater(probe.EnemyCastCount, 0) - same reasoning as seed 11 above.
                 // KO paths leave MatchResult.OutcomeReason empty by design; do not assert it.
             }
 

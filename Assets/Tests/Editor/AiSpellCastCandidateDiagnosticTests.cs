@@ -160,7 +160,8 @@ namespace MyriadOfDragons.Tests
                         controller.EnemySpellbook, predictedEnergy, predictedTick,
                         controller.EnemyState, controller.PlayerState,
                         out int ordinaryAvailable, out int ordinaryRejEnergy, out int ordinaryRejCooldown, out int ordinaryRejTarget,
-                        out bool avatarStrikeAvailable, out bool avatarStrikeRejEnergy, out bool avatarStrikeRejCooldown, out bool avatarStrikeRejTarget);
+                        out bool avatarStrikeAvailable, out bool avatarStrikeRejEnergy, out bool avatarStrikeRejCooldown, out bool avatarStrikeRejTarget,
+                        tier);
 
                     diag.TicksObserved++;
                     diag.EnergySumAllTicks += predictedEnergy;
