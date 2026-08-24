@@ -122,6 +122,7 @@ namespace MyriadOfDragons.Tests
         private static MatchResult RunDeterministicPolicy(GameBootstrap bootstrap, HomePagePresenter home, CampaignStageData stage)
         {
             home.LaunchCampaignStageForTests(stage);
+            bootstrap.Battle.SetAiSpellCastRngSeedForTests(42); // AI Spell Cast Probability Gate (LOCKED 2026-08-24): pin the AI-cast RNG stream too, not just PlayerBattleState.SetShuffleSeedForTests - otherwise this chapter's winnability check is non-deterministic (confirmed empirically: same code, different failing stage across separate runs).
             Assert.IsTrue(bootstrap.BattleCanvasVisibleForTests, $"Setup: expected Stage {stage.stageId} to launch successfully under this policy.");
             Assert.IsNull(bootstrap.NormalMatchStatusForTests, $"Setup: expected Stage {stage.stageId} to be a valid, unblocked campaign match.");
 
