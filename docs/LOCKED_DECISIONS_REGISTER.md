@@ -358,6 +358,20 @@ VeteranPlus (spells/match 0.31, back below the floor at 45%) both still fail too
 directions from before. Escalated with full numbers, not auto-retuned - awaiting GPT's read on
 whether the Apprentice floor itself needs revisiting.
 
+**GPT's diagnostic-before-tuning call, run 2026-08-24** (`AISpellCaster.DiagnoseCandidates` +
+`AiSpellCastCandidateDiagnosticTests`, 2000 trials/tier, no band assertions - measurement only).
+Decisive real result: **target-legality rejection dominates energy+cooldown combined by 3-3.7x at
+every tier** (Apprentice 44698 vs 13071 combined; Novice 35949 vs 9742; VeteranPlus 44925 vs
+15105) - the real bottleneck is §5's own tactical restraint clauses (heal-changes-survival/
+damage-can-defeat-a-unit target conditions), not Energy or cooldown timing, and NOT the roll
+probability. Apprentice's ordinary candidates appear on only 3.2% of ticks (623/19464 observed) -
+theoretical max spells/match even at a 100% roll is ~0.39 (0.31 ordinary + ~0.08 AvatarStrike),
+still below the locked 0.5 floor - proof the gate percentage was never the real lever for
+Apprentice. Numbers self-consistently match the earlier matrix's measured spells/match at each
+tier's gate (Apprentice 538+163=0.35/2000; Novice 856+138≈0.497/2000; VeteranPlus 551+89≈
+0.32/2000), validating the harness. Reported to GPT with full numbers; no further tuning without
+direction.
+
 ## CloudCode Modules Deployed to nonprod-validation, Live-Verified (LOCKED 2026-08-24)
 
 All 4 CloudCode modules (SocialSafety, PermitWeekKey, GuildExpedition, Bazaar) are deployed to the
