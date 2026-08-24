@@ -131,10 +131,13 @@ owner request.
   tracking exists on `PlayerProfile` for it. `SpellUnlockResolver.HasUnresolvableSpellBookGates`
   flags this in code (test asserts it's still true). Not built speculatively — needs its own design
   pass (how is a spell book earned?) before coding.
-- **Open, real:** real player-choice loadout picker UI (choosing 4 of the unlocked pool, vs. today's
-  auto-equip stopgap) is unbuilt — WH/future work, not guessed at now.
-- **Chapter 1-3 narrative locked, not yet in `StoryDatabase.cs`** — queued for WH.
-- **Chapters 4-10 narrative not yet drafted** — same reusable template as Ch1-3, cheap to commission once WH clears the Ch1-3 backlog.
+- **RESOLVED 2026-08-25:** real player-choice loadout picker UI shipped (`SpellLoadoutSelection` +
+  `SpellLoadoutPickerPresenter`, WH) — one-per-effect-type constraint enforced, pool from
+  `SpellUnlockResolver` + owned SpellBookGrant ids, 41/41 tests. `SpellLoadoutAutoEquip` now the
+  empty-loadout/StartMatch fallback only, not the primary path.
+- **RESOLVED:** Chapter 1-3 narrative confirmed already wired in `StoryDatabase.cs` (+ tutorial
+  line in `GameBootstrap`) — WH checked, no gap existed by the time this was picked up.
+- **Chapters 4-10 narrative not yet drafted** — same reusable template as Ch1-3, cheap to commission whenever prioritized.
 
 ## Empire Expedition — post-campaign farm loop (LOCKED 2026-08-24, structure only)
 
