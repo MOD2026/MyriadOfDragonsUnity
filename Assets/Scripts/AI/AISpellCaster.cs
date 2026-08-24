@@ -70,11 +70,19 @@ namespace MyriadOfDragons.AI
                     out Lane targetLane))
                 return false;
 
-            // AI Spell Cast Probability Gate (LOCKED 2026-08-24): §5's tactical clauses above
+            // AI Spell Cast Probability Gate (LOCKED 2026-08-24), amended by the AvatarStrike
+            // Once-Per-Match Commitment Throttle (LOCKED 2026-08-24): §5's tactical clauses above
             // already gated candidacy (quality) - this gates frequency, a separate problem. Rolled
-            // only now that a legal candidate genuinely exists ("no roll if no valid candidate");
-            // a failed roll is a deliberate pass, no reroll, no state mutated.
-            if (!controller.RollAiSpellCastProbabilityGate()) return false;
+            // only now that a legal candidate genuinely exists ("no roll if no valid candidate").
+            // AvatarStrike gets its own once-per-match 10% commitment roll instead of the general
+            // 40/60 roll - a fresh 40% (or even 10%) roll every eligible tick would asymptote
+            // toward certainty over many ticks, which is exactly what the commitment throttle
+            // exists to prevent. A failed roll is a deliberate pass, no reroll, no state mutated.
+            AvatarSpell selectedSpell = controller.EnemySpellbook[spellIndex];
+            bool gatePassed = selectedSpell.Effect == SpellEffect.AvatarStrike
+                ? controller.RollAvatarStrikeCommitmentGate()
+                : controller.RollAiSpellCastProbabilityGate();
+            if (!gatePassed) return false;
 
             return controller.TryCastEnemySpell(spellIndex, targetLane, out _);
         }

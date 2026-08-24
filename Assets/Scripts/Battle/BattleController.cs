@@ -205,6 +205,25 @@ namespace MyriadOfDragons.Battle
         /// stays the only difficulty lever, cast frequency is not a second hidden tier multiplier.</summary>
         public bool RollAiSpellCastProbabilityGate() => _aiSpellCastRng.NextDouble() < 0.40;
 
+        private bool _avatarStrikeCommitmentDecided;
+        private bool _avatarStrikeCommitmentAllowed;
+
+        /// <summary>AvatarStrike Once-Per-Match Commitment Throttle (LOCKED 2026-08-24, amends the
+        /// gate above): AvatarStrike gets its own roll that REPLACES (does not stack with) the
+        /// general 40/60 gate. Exactly one 10% commitment roll per match, taken the first time an
+        /// AvatarStrike candidate is legal. Success = cast it. Failure = AvatarStrike stays
+        /// disabled for the AI for the rest of the match - this method caches and returns that same
+        /// decision on every later call this match rather than rolling again, so a fresh roll never
+        /// approaches certainty over many ticks (GPT's own reasoning for why a once-per-match
+        /// commitment is the real restraint, not a per-tick 10% chance).</summary>
+        public bool RollAvatarStrikeCommitmentGate()
+        {
+            if (_avatarStrikeCommitmentDecided) return _avatarStrikeCommitmentAllowed;
+            _avatarStrikeCommitmentDecided = true;
+            _avatarStrikeCommitmentAllowed = _aiSpellCastRng.NextDouble() < 0.10;
+            return _avatarStrikeCommitmentAllowed;
+        }
+
         /// <summary>EditMode-only: re-seeds the probability gate's own RNG stream after StartMatch,
         /// for a test that needs a fully reproducible match (deck-shuffle seed alone does not pin
         /// this - it's an independent stream, matching the lock's "match-seeded... reproducible"
@@ -214,6 +233,8 @@ namespace MyriadOfDragons.Battle
         {
             MatchRngSeed = seed;
             _aiSpellCastRng = new System.Random(seed);
+            _avatarStrikeCommitmentDecided = false;
+            _avatarStrikeCommitmentAllowed = false;
         }
 
         private readonly List<CombatTickRecord> _combatLedger = new List<CombatTickRecord>();
@@ -342,6 +363,8 @@ namespace MyriadOfDragons.Battle
 
             MatchRngSeed = rngSeed ?? System.Guid.NewGuid().GetHashCode();
             _aiSpellCastRng = new System.Random(MatchRngSeed);
+            _avatarStrikeCommitmentDecided = false;
+            _avatarStrikeCommitmentAllowed = false;
 
             Phase = BattlePhase.Formation;
             TickCount = 0;
