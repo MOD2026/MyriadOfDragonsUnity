@@ -349,13 +349,22 @@ the actual deployed environment (not guessed, not local-only tests):
    Code function args must be wrapped as `{"request": {...}}` matching the method's parameter name.
    Fixed; this had never been exercised end-to-end against a live deployment before.
 
-Confirmed via `Assets/Tests/PlayMode/SocialSafetyLiveValidationPlayModeTests.cs` (real network
-calls against the live environment, not mocked) - 11/11 passing: Block/Unblock/Mute/Unmute,
-duplicate-call idempotency, self-target rejection, blank-target rejection, rate-limit exhaustion.
-GuildExpedition/PermitWeekKey/Bazaar have no client-side wiring yet, so only SocialSafety has an
-end-to-end live-verified path; the other 3 got the same constructor/DI/key-format fixes applied
-proactively (same bug pattern, confirmed via code inspection) and passed their server test suites,
-but are not yet live-round-trip-tested themselves.
+Confirmed via 4 live PlayMode validation test files (real network calls against
+nonprod-validation, not mocked) - all 4 modules now genuinely live-round-trip-tested, not just unit
+tested:
+- SocialSafety: 11/11 (Block/Unblock/Mute/Unmute, idempotency, self/blank-target rejection,
+  rate-limit exhaustion)
+- PermitWeekKey: 5/5 (status, claim, idempotent re-claim, post-claim status, invalid request)
+- GuildExpedition: 8/8 (attempt consumption, objective scoring + idempotency, unknown-objective
+  rejection, milestone claim + idempotency, invalid threshold)
+- Bazaar: 6/6 (wallet read, invalid-request rejection, not-found paths for list/buy/cancel - the
+  full list->buy happy path isn't testable from here since this module has no endpoint to create an
+  ItemInstance, that's owned by the Collection system, not this scaffold)
+All 4 fixes generalized cleanly across every module on first or second try - no new module-side
+bugs found beyond the original 4, only a couple of missing fields in the test harness's own
+response DTOs (Bazaar's BuyResult), fixed immediately. GuildExpedition/PermitWeekKey/Bazaar still
+have no client-side game code calling them yet (only SocialSafety does) - that remains open, but
+the modules themselves are proven working end-to-end.
 
 ## AI Tier -> Stage-Gated Spell Access - CONFIRMED (2026-08-24, ratifies the LOCKED entry above)
 
