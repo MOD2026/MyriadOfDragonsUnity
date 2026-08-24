@@ -251,6 +251,60 @@ namespace MyriadOfDragons.AI
             return false;
         }
 
+        /// <summary>Diagnostic-only, called by MirroredAiCandidateDiagnosticTests - classifies
+        /// EVERY spellbook entry's candidacy this tick (unlike TrySelectCast, which stops at the
+        /// first legal match per §5's priority order), to distinguish "too few legal opportunities"
+        /// from "opportunities exist but can't be afforded/used" per tier. Never called from
+        /// production or the locked simulation matrix - read-only, no state mutated, same
+        /// TryPickTarget/MinTickForAvatarStrike rules as the real selection path.</summary>
+        public static void DiagnoseCandidates(
+            IReadOnlyList<AvatarSpell> spellbook, int energy, int tickCount,
+            PlayerBattleState aiSide, PlayerBattleState playerSide,
+            out int ordinaryAvailable, out int ordinaryRejectedEnergy, out int ordinaryRejectedCooldown, out int ordinaryRejectedTarget,
+            out bool avatarStrikeAvailable, out bool avatarStrikeRejectedEnergy, out bool avatarStrikeRejectedCooldown, out bool avatarStrikeRejectedTarget)
+        {
+            ordinaryAvailable = 0;
+            ordinaryRejectedEnergy = 0;
+            ordinaryRejectedCooldown = 0;
+            ordinaryRejectedTarget = 0;
+            avatarStrikeAvailable = false;
+            avatarStrikeRejectedEnergy = false;
+            avatarStrikeRejectedCooldown = false;
+            avatarStrikeRejectedTarget = false;
+
+            if (spellbook == null) return;
+
+            foreach (AvatarSpell spell in spellbook)
+            {
+                bool isAvatarStrike = spell.Effect == SpellEffect.AvatarStrike;
+
+                if (isAvatarStrike && tickCount < MinTickForAvatarStrike)
+                {
+                    avatarStrikeRejectedCooldown = true;
+                    continue;
+                }
+
+                bool cooldownOk = spell.IsOffCooldown;
+                bool energyOk = spell.EnergyCost <= energy;
+                bool targetOk = cooldownOk && energyOk && TryPickTarget(spell.Effect, spell, aiSide, playerSide, out _);
+
+                if (isAvatarStrike)
+                {
+                    if (!cooldownOk) avatarStrikeRejectedCooldown = true;
+                    else if (!energyOk) avatarStrikeRejectedEnergy = true;
+                    else if (!targetOk) avatarStrikeRejectedTarget = true;
+                    else avatarStrikeAvailable = true;
+                }
+                else
+                {
+                    if (!cooldownOk) ordinaryRejectedCooldown++;
+                    else if (!energyOk) ordinaryRejectedEnergy++;
+                    else if (!targetOk) ordinaryRejectedTarget++;
+                    else ordinaryAvailable++;
+                }
+            }
+        }
+
         private static int LivingCount(PlayerBattleState side, Lane lane) =>
             side.Lanes[lane].Cards.Count(c => c.IsAlive);
 
