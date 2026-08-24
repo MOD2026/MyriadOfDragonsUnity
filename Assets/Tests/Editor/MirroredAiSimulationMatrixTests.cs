@@ -52,6 +52,20 @@ namespace MyriadOfDragons.Tests
     ///
     /// Failure policy per the lock: any missed band is a real test failure, logged and reported -
     /// this harness never adjusts an assertion to make a bad number pass.
+    ///
+    /// UPDATED 2026-08-24 for the AI Spell Cast Probability Gate (LOCKED, docs/
+    /// LOCKED_DECISIONS_REGISTER.md): the first full run of this matrix found AI cast rate ~99.9%
+    /// (band 25-70%) and traced it, after a real §5-heuristic audit, to §5's own tactical clauses
+    /// having no frequency limit at all - not a coding gap. The register now locks a separate
+    /// 40%-cast/60%-pass roll (match-seeded, reproducible) on top of §5's candidate selection.
+    /// StartMatch's real production MatchRngSeed is recorded per trial here (ScenarioResult.
+    /// RecordedSeeds) rather than duplicated - this harness's own opportunity-prediction logic is
+    /// unaffected by the gate (it still predicts candidacy only, exactly matching what §5 itself
+    /// gates), so AiCastRateOfOpportunity should now land near the locked 40% roll itself. The
+    /// gate is applied only inside the real AI path (AISpellCaster.TryCastDuringCombatTick) - the
+    /// Full Match(on,on) scenario's own player-side modeling (judgment call #2 above) deliberately
+    /// stays ungated, since the lock is titled "AI Spell Cast Probability Gate," not a general
+    /// spellcaster gate, and a human player doesn't have a coin-flip pass either.
     /// </summary>
     public class MirroredAiSimulationMatrixTests
     {
@@ -153,6 +167,10 @@ namespace MyriadOfDragons.Tests
             public int TotalAiCasts;
             public int TrialsWithZeroAiCasts;
             public readonly Dictionary<string, int> AiWinContributionBySpell = new Dictionary<string, int>();
+            /// <summary>AI Spell Cast Probability Gate (LOCKED 2026-08-24): "recorded seeds" - one
+            /// per trial, StartMatch's own MatchRngSeed (real production seed, not a harness-side
+            /// duplicate), so any specific trial can be replayed exactly by passing it back in.</summary>
+            public readonly List<int> RecordedSeeds = new List<int>();
 
             public double AverageTicks => Trials == 0 ? 0 : (double)TotalTicks / Trials;
             public Wilson AiWinRate => new Wilson(AiWins, Trials);
@@ -170,6 +188,8 @@ namespace MyriadOfDragons.Tests
                           $"avgTicks={AverageTicks:F2} earlyKO={EarlyKORate} aiCastRate(opportunity)={AiCastRateOfOpportunity} " +
                           $"(opportunity trials={TrialsWithOpportunity}) spellsPerMatch={SpellsPerMatch:F2} " +
                           $"noSpellFallback={NoSpellFallbackRate} maxSingleSpellWinShare={MaxSingleSpellWinShare:P1}");
+                string seedSample = string.Join(",", RecordedSeeds.Take(10));
+                Debug.Log($"[SimMatrix] {Label}: recordedSeeds count={RecordedSeeds.Count} first10=[{seedSample}]");
             }
         }
 
@@ -193,6 +213,7 @@ namespace MyriadOfDragons.Tests
                 AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Id).ToList();
 
             var result = new ScenarioResult { Label = label };
+            int predictionMissedCandidateCount = 0;
 
             for (int i = 0; i < trials; i++)
             {
@@ -205,6 +226,7 @@ namespace MyriadOfDragons.Tests
                 controller.StartMatch(playerDeck, enemyDeck, economy, economy,
                     avatarLevel, unlockedStageIds: null, equippedSpellIds: sharedEquippedIds,
                     enemyTier: equippedSpellIdsOverride == null ? tier : (AIDifficultyTier?)null);
+                result.RecordedSeeds.Add(controller.MatchRngSeed);
 
                 if (aiSpellsOn) controller.EnableMirroredEnemySpellsForPvE();
 
@@ -241,14 +263,20 @@ namespace MyriadOfDragons.Tests
 
                     controller.AdvanceCombatTick();
 
-                    if (aiPredictedCast)
-                    {
-                        // Invalid-cast hard failure (AI side): the AI's own real heuristic found a
-                        // legal cast, so exactly one new record must exist - anything else means an
-                        // illegal/invalid cast attempt or a missed legal opportunity.
-                        Assert.AreEqual(castLogBefore + 1, controller.SpellCastLog.Count,
-                            $"HARD FAILURE [{label}]: AI predicted a legal cast at tick {controller.TickCount} but the cast log did not grow by exactly 1.");
-                    }
+                    // Invalid-cast hard failure (AI side): the only invariant a read-only,
+                    // pre-tick PREDICTION can honestly assert is the per-tick cap (provable
+                    // regardless of prediction accuracy) - not "candidate exists <=> cast
+                    // happens" in either direction. This prediction is deliberately imprecise at
+                    // the cooldown boundary (it can't shadow-advance TickCooldown() without
+                    // mutating the real spell - see the earlier comment on predictedEnemyEnergy
+                    // for why Energy could be predicted exactly but cooldown can't the same way),
+                    // so both false positives (predicted candidate, gate rolled a pass - expected,
+                    // 60% of the time) and false negatives (missed a spell 1 tick from ready) are
+                    // possible and are not bugs. Mismatches are counted and logged, not asserted.
+                    int aiCastLogDelta = controller.SpellCastLog.Count - castLogBefore;
+                    Assert.LessOrEqual(aiCastLogDelta, 1,
+                        $"HARD FAILURE [{label}]: more than one AI cast logged in a single tick {controller.TickCount} - per-tick cap violated.");
+                    if (!aiPredictedCast && aiCastLogDelta > 0) predictionMissedCandidateCount++;
 
                     if (playerSpellsOn && controller.Phase == BattlePhase.Combat)
                     {
@@ -295,6 +323,11 @@ namespace MyriadOfDragons.Tests
                 UnityEngine.Object.DestroyImmediate(controller.gameObject);
             }
 
+            if (predictionMissedCandidateCount > 0)
+            {
+                Debug.Log($"[SimMatrix] {label}: prediction missed {predictionMissedCandidateCount} real cast(s) it didn't foresee " +
+                          "(known cooldown-boundary prediction gap, not a hard failure - see RunScenario's own comment).");
+            }
             result.Log();
             return result;
         }

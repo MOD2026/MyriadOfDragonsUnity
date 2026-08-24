@@ -70,6 +70,12 @@ namespace MyriadOfDragons.AI
                     out Lane targetLane))
                 return false;
 
+            // AI Spell Cast Probability Gate (LOCKED 2026-08-24): §5's tactical clauses above
+            // already gated candidacy (quality) - this gates frequency, a separate problem. Rolled
+            // only now that a legal candidate genuinely exists ("no roll if no valid candidate");
+            // a failed roll is a deliberate pass, no reroll, no state mutated.
+            if (!controller.RollAiSpellCastProbabilityGate()) return false;
+
             return controller.TryCastEnemySpell(spellIndex, targetLane, out _);
         }
 

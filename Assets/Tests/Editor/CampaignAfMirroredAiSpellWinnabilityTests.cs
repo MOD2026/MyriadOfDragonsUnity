@@ -197,8 +197,17 @@ namespace MyriadOfDragons.Tests
             Assert.Greater(p12On.Ticks, 0);
             Assert.Greater(p12On.EnemyCastCount, 0,
                 "1-2 AF+AI-on must cast (rules out silent AI-off / softlock residual).");
-            Assert.IsFalse(p12On.Result.IsVictory,
-                "Seed 11: 1-2 AF+AI-on defeat documents Block O 0/40 tightness.");
+            // AI Spell Cast Probability Gate (LOCKED 2026-08-24): the "0/40 in that band" claim
+            // below was measured against an AI that cast on ~100% of legal opportunities. With the
+            // gate now at 40%, seed 11 (pinned via SetAiSpellCastRngSeedForTests in RunProbe, so
+            // this is a real reproducible re-measurement, not noise) flips to a WIN (35% vs 4% HP
+            // on the tick cap - still a genuinely tight, tick-capped finish, not a blowout). Kept
+            // as a logged observation rather than a new hardcoded Assert.IsTrue: one seed flipping
+            // doesn't by itself re-baseline the whole 0-39 band the original Block O scan covered -
+            // that needs a fresh seed scan (real follow-up, not done here) before this file's own
+            // "0/40" language can be replaced with a new fixed number.
+            Debug.Log($"[AfAiRootCause] Seed 11: 1-2 AF+AI-on is now victory={p12On.Result.IsVictory} " +
+                      "post-probability-gate (was a documented defeat pre-gate) - flagged for a fresh Block O seed-scan re-baseline, not asserted here.");
             Assert.IsTrue(p12Off.Result.IsVictory,
                 "Seed 11: 1-2 AF spells-off still wins — taught path intact; gap is Option B interaction.");
             Assert.IsTrue(p13On.Result.IsVictory,
@@ -208,14 +217,16 @@ namespace MyriadOfDragons.Tests
             {
                 AfAiMatchProbe probe = RunProbe("1-2", new List<string> { "1-1", "1-2" }, seed, aiSpellsOn: true);
                 LogProbe($"1-2 AI-on seed={seed}", probe);
-                Assert.IsFalse(probe.Result.IsVictory,
-                    $"Seed {seed}: 1-2 AF+AI-on should stay defeat in the Block O 0/40 band.");
+                // Same reasoning as seed 11 above - logged, not asserted, pending a fresh seed scan.
+                Debug.Log($"[AfAiRootCause] Seed {seed}: 1-2 AF+AI-on is now victory={probe.Result.IsVictory} post-probability-gate.");
                 Assert.Greater(probe.EnemyCastCount, 0);
                 // KO paths leave MatchResult.OutcomeReason empty by design; do not assert it.
             }
 
             Assert.Pass(
-                "Block Q verdict: BALANCE Soft (Option B + 1-2 uniform warrior×3 / 3-2×3 roster), not production bug. " +
+                "Block Q verdict: BALANCE Soft (Option B + 1-2 uniform warrior×3 / 3-2×3 roster), not production bug - " +
+                "AI Spell Cast Probability Gate (2026-08-24) has since changed this fixture's own measured seed-11 outcome; " +
+                "see the logged observations above and re-baseline with a fresh seed scan before trusting the old 0/40 figure. " +
                 $"Synergy 1-2={FormationSynergy.Describe(syn12)} 1-3={FormationSynergy.Describe(syn13)}. " +
                 $"Seed11 1-2 AI-on: casts={p12On.EnemyCastCount} [{p12On.EnemyCastSummary}] " +
                 $"HP p={p12On.PlayerHpAfter}/e={p12On.EnemyHpAfter} ticks={p12On.Ticks}. " +
@@ -281,6 +292,13 @@ namespace MyriadOfDragons.Tests
                 "Production launch enables AI spells before Soft toggle.");
             if (!aiSpellsOn)
                 bootstrap.Battle.SetMirroredEnemySpellsEnabledForTests(false);
+
+            // AI Spell Cast Probability Gate (LOCKED 2026-08-24): its own RNG stream is
+            // independent of PlayerBattleState's shuffle-seed stream - without pinning it too,
+            // this probe's outcome for a given shuffleSeed would be non-deterministic (production
+            // StartMatch auto-generates a fresh Guid-based seed every call). Reusing shuffleSeed
+            // here keeps this file's whole seed-scan methodology reproducible.
+            bootstrap.Battle.SetAiSpellCastRngSeedForTests(shuffleSeed);
 
             bootstrap.AutoFormationForTests();
             bootstrap.StartBattleForTests();

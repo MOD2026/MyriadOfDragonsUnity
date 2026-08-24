@@ -188,6 +188,34 @@ namespace MyriadOfDragons.Battle
         /// <summary>EditMode-only: opt in/out for AI spell unit tests. Never call from production.</summary>
         public void SetMirroredEnemySpellsEnabledForTests(bool enabled) => MirroredEnemySpellsEnabled = enabled;
 
+        /// <summary>AI Spell Cast Probability Gate (LOCKED 2026-08-24): "match-seeded RNG,
+        /// reproducible." The seed actually used this match - either the caller's own StartMatch
+        /// rngSeed, or (when omitted) one generated fresh here and exposed so a caller that wants
+        /// reproducibility can still record and replay it.</summary>
+        public int MatchRngSeed { get; private set; }
+
+        private System.Random _aiSpellCastRng;
+
+        /// <summary>AI Spell Cast Probability Gate (LOCKED 2026-08-24): "roll once (match-seeded
+        /// RNG, reproducible) - 40% cast, 60% deliberate pass... no roll if no valid candidate."
+        /// Only AISpellCaster.TryCastDuringCombatTick calls this, and only after it already has a
+        /// legal candidate - §5's own tactical clauses still gate WHETHER a cast is a legal
+        /// candidate at all (quality); this gates whether a legal candidate is actually taken
+        /// (frequency). Applies to all 5 AIDifficultyTier bands equally - HP/Resource scaling
+        /// stays the only difficulty lever, cast frequency is not a second hidden tier multiplier.</summary>
+        public bool RollAiSpellCastProbabilityGate() => _aiSpellCastRng.NextDouble() < 0.40;
+
+        /// <summary>EditMode-only: re-seeds the probability gate's own RNG stream after StartMatch,
+        /// for a test that needs a fully reproducible match (deck-shuffle seed alone does not pin
+        /// this - it's an independent stream, matching the lock's "match-seeded... reproducible"
+        /// intent for a caller that actually wants to replay one specific match). Never call from
+        /// production - a real match's AI cast pattern should stay unpredictable.</summary>
+        public void SetAiSpellCastRngSeedForTests(int seed)
+        {
+            MatchRngSeed = seed;
+            _aiSpellCastRng = new System.Random(seed);
+        }
+
         private readonly List<CombatTickRecord> _combatLedger = new List<CombatTickRecord>();
 
         /// <summary>Read-only, chronological record of every combat tick actually resolved this
@@ -295,16 +323,25 @@ namespace MyriadOfDragons.Battle
         /// authored loadout keyed on that tier - instead of mirroring the player's own
         /// equippedSpellIds/progression. Defaults to null so every existing caller keeps the old
         /// mirrored behaviour exactly.
+        ///
+        /// rngSeed: AI Spell Cast Probability Gate (LOCKED 2026-08-24)'s "match-seeded RNG,
+        /// reproducible." When omitted, a fresh seed is generated and exposed via MatchRngSeed so a
+        /// caller that wants reproducibility (e.g. a balance-simulation harness) can still record
+        /// and replay the exact match it just ran.
         /// </summary>
         public void StartMatch(List<Card> playerDeck, List<Card> enemyDeck,
             MatchEconomy playerEconomy, MatchEconomy enemyEconomy,
             int avatarLevel = 1, IReadOnlyCollection<string> unlockedStageIds = null,
-            IReadOnlyList<string> equippedSpellIds = null, AIDifficultyTier? enemyTier = null)
+            IReadOnlyList<string> equippedSpellIds = null, AIDifficultyTier? enemyTier = null,
+            int? rngSeed = null)
         {
             PlayerState = new PlayerBattleState(playerDeck,
                 playerEconomy.ResourceCap, playerEconomy.Turn1Resource, playerEconomy.StartingAvatarHealth);
             EnemyState = new PlayerBattleState(enemyDeck,
                 enemyEconomy.ResourceCap, enemyEconomy.Turn1Resource, enemyEconomy.StartingAvatarHealth);
+
+            MatchRngSeed = rngSeed ?? System.Guid.NewGuid().GetHashCode();
+            _aiSpellCastRng = new System.Random(MatchRngSeed);
 
             Phase = BattlePhase.Formation;
             TickCount = 0;

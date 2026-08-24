@@ -2835,8 +2835,13 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void AISpell_AdvanceCombatTick_CastsWhenEnergyAndTargetsAllow()
         {
+            // AI Spell Cast Probability Gate (LOCKED 2026-08-24): a legal candidate now only
+            // casts 40% of the time per tick, not unconditionally - a fixed, known-good seed
+            // (SetAiSpellCastRngSeedForTests) keeps this deterministic rather than relying on
+            // enough tick opportunities to make a miss merely improbable.
             BattleController controller = StartFormationMatch();
             controller.SetMirroredEnemySpellsEnabledForTests(true);
+            controller.SetAiSpellCastRngSeedForTests(1);
             Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
             Assert.IsTrue(controller.TryPlayCard(controller.EnemyState, controller.EnemyState.Hand.First(), Lane.Middle));
             Assert.IsTrue(controller.ConfirmFormation());
@@ -2845,7 +2850,7 @@ namespace MyriadOfDragons.Tests
             controller.AdvanceCombatTick();
 
             Assert.IsTrue(controller.SpellCastLog.Any(c => !c.CastByPlayer),
-                "Mirrored AI should cast once energy and clash-2 gate allow a legal target.");
+                "Mirrored AI should cast once energy and clash-2 gate allow a legal target and the probability roll succeeds.");
         }
     }
 }
