@@ -194,6 +194,11 @@ namespace MyriadOfDragons.Battle
         /// reproducibility can still record and replay it.</summary>
         public int MatchRngSeed { get; private set; }
 
+        /// <summary>The AI's own real difficulty tier for this match, as passed to StartMatch's
+        /// enemyTier parameter. Null for legacy callers that don't supply one (mirrored-loadout
+        /// mode) - drives the tier-specific cast gate below.</summary>
+        public AIDifficultyTier? EnemyDifficultyTier { get; private set; }
+
         private System.Random _aiSpellCastRng;
 
         /// <summary>AI Spell Cast Probability Gate (LOCKED 2026-08-24): "roll once (match-seeded
@@ -203,12 +208,26 @@ namespace MyriadOfDragons.Battle
         /// candidate at all (quality); this gates whether a legal candidate is actually taken
         /// (frequency). Applies to all 5 AIDifficultyTier bands equally - HP/Resource scaling
         /// stays the only difficulty lever, cast frequency is not a second hidden tier multiplier.</summary>
-        /// <summary>Raised 40%->60% (LOCKED 2026-08-24, GPT Option 2): the AvatarStrike throttle's
-        /// matrix re-run showed ordinary spells/match crashed to ~0.28 (below the 0.5 floor) and
-        /// Novice player win-rate rose 9.5pp (over the 8pp cap) once AvatarStrike stopped carrying
-        /// most of the AI's cast volume. Non-AvatarStrike spells are the correct lever to recover
-        /// ordinary cast frequency without reopening AvatarStrike's already-fixed win-dominance.</summary>
-        public bool RollAiSpellCastProbabilityGate() => _aiSpellCastRng.NextDouble() < 0.60;
+        /// <summary>Tier-specific gates (LOCKED 2026-08-24, GPT's "structural, not a single bad
+        /// percentage" call): a flat 40% or 60% couldn't satisfy all 3 measured tiers at once -
+        /// Apprentice stayed below the cast floor even at 60% (its stage-authored spell pool has
+        /// fewer legal opportunities, so it needs a higher opportunity-USE rate to reach the same
+        /// ordinary activity), while Novice/VeteranPlus were already too strong at 60%. Master/
+        /// Titan retain the original 40% - never separately measured by the matrix (VeteranPlus
+        /// stands in for Veteran specifically), so left unchanged pending real measurement rather
+        /// than guessed. No tier supplied (legacy/mirrored-loadout callers) keeps the original flat
+        /// 40%, unchanged, matching "every pre-existing caller keeps old behaviour."</summary>
+        public bool RollAiSpellCastProbabilityGate() => _aiSpellCastRng.NextDouble() < NonAvatarStrikeGateProbability(EnemyDifficultyTier);
+
+        private static double NonAvatarStrikeGateProbability(AIDifficultyTier? tier) => tier switch
+        {
+            AIDifficultyTier.Novice => 0.45,
+            AIDifficultyTier.Apprentice => 0.85,
+            AIDifficultyTier.Veteran => 0.45,
+            AIDifficultyTier.Master => 0.40,
+            AIDifficultyTier.Titan => 0.40,
+            _ => 0.40,
+        };
 
         private bool _avatarStrikeCommitmentDecided;
         private bool _avatarStrikeCommitmentAllowed;
@@ -385,6 +404,7 @@ namespace MyriadOfDragons.Battle
             EnemySpellbook = enemyTier.HasValue
                 ? AIEnemySpellbookResolver.ResolveSpellbook(enemyTier.Value)
                 : ResolveMatchSpellbook(equippedSpellIds, avatarLevel, unlockedStageIds);
+            EnemyDifficultyTier = enemyTier;
             MirroredEnemySpellsEnabled = false;
             _combatLedger.Clear();
             _spellCastLog.Clear();
