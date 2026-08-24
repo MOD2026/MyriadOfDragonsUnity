@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Save;
@@ -10,8 +11,8 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// Card tile composition V1 — 400×600 frame + four POC portrait tiles; hierarchy and live text
-    /// wired in Deck Builder and Collection for warrior/archer_dragon/cyclops/dragonqueen only.
+    /// Card tile composition V1 — 400×600 frame + asset-driven portrait catalog; hierarchy and live
+    /// text wired in Deck Builder and Collection, with three approved legacy-art exceptions.
     /// </summary>
     public class CardTileCompositionV1Tests
     {
@@ -34,7 +35,7 @@ namespace MyriadOfDragons.Tests
 
             var profile = new PlayerProfile();
             CollectionSchemaMigration.Apply(profile);
-            foreach (string cardId in CardTileCompositionV1.PocCardIds)
+            foreach (string cardId in CardTileCompositionV1.CompositionCardIds)
             {
                 profile.cardProgression.Add(new CardProgressionRecord
                 {
@@ -71,8 +72,12 @@ namespace MyriadOfDragons.Tests
         public void CardTileV1Pack_IsPresentInResources()
         {
             Assert.IsTrue(CardTileCompositionV1.HasPack,
-                "Resources/UI/CardTiles/V1 must include frame + four POC portrait tiles.");
+                "Resources/UI/CardTiles/V1 must include the frame and authored portrait catalog.");
             Assert.AreEqual("card_tile_frame_v1", CardTileCompositionV1.LoadFrame().name);
+            Assert.AreEqual(82, CardTileCompositionV1.CompositionCardIds.Count,
+                "85 catalog cards minus three approved legacy exceptions must use V1 composition.");
+            foreach (string cardId in CardTileCompositionV1.CompositionCardIds)
+                Assert.NotNull(CardTileCompositionV1.LoadPortraitTile(cardId), cardId);
         }
 
         [Test]
@@ -120,13 +125,13 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void NonPocCard_StillUsesLegacyTileHierarchy()
+        public void BlockedIdentityCards_StillUseLegacyTileHierarchy()
         {
             var profile = SaveManager.SaveData ?? new PlayerProfile();
             CollectionSchemaMigration.Apply(profile);
             profile.cardProgression.Add(new CardProgressionRecord
             {
-                cardId = "pandora",
+                cardId = "dragon_tamer",
                 copyCount = 1,
                 cardLevel = 1,
             });
@@ -137,11 +142,28 @@ namespace MyriadOfDragons.Tests
             var presenter = _collectionGo.AddComponent<CollectionPresenter>();
             presenter.Initialize(null, null);
 
-            Transform pandoraTile = GameObject.Find("CollectionCanvas")
-                ?.transform.Find("GridPanel/CollectionScroll/Viewport/Content/OwnedCard_pandora");
-            Assert.NotNull(pandoraTile);
-            Assert.NotNull(pandoraTile.Find("OpaqueCardBase"), "Non-POC cards keep legacy frame-below-art tile.");
-            Assert.IsNull(pandoraTile.Find("CardFrame"));
+            Transform legacyTile = GameObject.Find("CollectionCanvas")
+                ?.transform.Find("GridPanel/CollectionScroll/Viewport/Content/OwnedCard_dragon_tamer");
+            Assert.NotNull(legacyTile);
+            Assert.NotNull(legacyTile.Find("OpaqueCardBase"), "Blocked identities keep legacy frame-below-art tile.");
+            Assert.IsNull(legacyTile.Find("CardFrame"));
+        }
+
+        [Test]
+        public void FullCatalog_SplitsExactlyEightyTwoCompositionAndThreeLegacyCards()
+        {
+            string[] expectedLegacy = { "dragon_tamer", "ancient_dragon", "forest_fairy" };
+            Assert.AreEqual(85, CardDatabase.Instance.AllCards.Count);
+
+            string[] actualLegacy = CardDatabase.Instance.AllCards
+                .Where(card => !CardTileCompositionV1.ShouldUseComposition(card.Id))
+                .Select(card => card.Id)
+                .OrderBy(id => id)
+                .ToArray();
+
+            CollectionAssert.AreEquivalent(expectedLegacy, actualLegacy);
+            Assert.AreEqual(82, CardDatabase.Instance.AllCards.Count(card =>
+                CardTileCompositionV1.ShouldUseComposition(card.Id)));
         }
 
         private static void AssertV1Hierarchy(Transform tile, string cardId)

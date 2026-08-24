@@ -303,7 +303,6 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNavTileButton(backBtnObj.GetComponent<Button>(), backBtnObj.GetComponent<Image>());
             backBtnObj.GetComponent<Button>().onClick.AddListener(() =>
             {
-                if (_canvasObj != null) Destroy(_canvasObj);
                 _onBackToHomeAction?.Invoke();
             });
 
@@ -311,7 +310,6 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNavTileButton(deckBtnObj.GetComponent<Button>(), deckBtnObj.GetComponent<Image>());
             deckBtnObj.GetComponent<Button>().onClick.AddListener(() =>
             {
-                if (_canvasObj != null) Destroy(_canvasObj);
                 _onOpenDeckBuilderAction?.Invoke();
             });
         }

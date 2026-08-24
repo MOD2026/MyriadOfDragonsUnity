@@ -1,4 +1,4 @@
-# Card Tile Composition V1 — runtime notes (POC)
+# Card Tile Composition V1 — runtime catalog
 
 Native tile: **400×600 RGBA** (2:3 portrait).
 
@@ -11,12 +11,12 @@ ame
 4. **ClassSchool** — runtime Text: {element} · {type} from card_data
 5. **Cost**, **AtkStat**, **HpStat** — separate runtime Text (values only; wells empty in art)
 
-## POC card IDs (verified vs card_data.json)
+## Catalog rollout
 
-- warrior
-- archer_dragon
-- cyclops
-- dragonqueen
+- **82 cards** use the V1 composition through authored `card_tile_art_{cardId}_v1` assets.
+- **14 of those 82** intentionally use approved logo-bearing source art and remain tracked for later replacement.
+- `dragon_tamer`, `ancient_dragon`, and `forest_fairy` intentionally remain on the legacy rarity-frame tile because no reliable source match was approved.
+- Runtime selection is asset-driven; the complete ID list is not duplicated manually in presenter code.
 
 ## Normalised safe boxes (400×600 space)
 
@@ -30,4 +30,4 @@ ame
 | AtkStat | 0.06 | 0.04 | 0.48 | 0.12 |
 | HpStat | 0.52 | 0.04 | 0.94 | 0.12 |
 
-Non-POC cards fall back to legacy HomeV3 rarity-frame composition until full 85-card crop rollout.
+Cards without an approved V1 portrait asset fall back to the legacy rarity-frame composition.

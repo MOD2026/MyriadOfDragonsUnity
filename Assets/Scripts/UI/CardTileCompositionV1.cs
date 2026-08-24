@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MyriadOfDragons.Cards;
 using UnityEngine;
@@ -8,21 +9,29 @@ namespace MyriadOfDragons.UI
     /// <summary>
     /// Deck/Collection card-tile composition V1 — 400×600 RGBA frame + per-card portrait tiles.
     /// Layer order (back → front): portrait → frame → name → class/school → cost/ATK/HP text.
-    /// POC covers four card IDs verified against <c>card_data.json</c>; others use legacy tiles.
+    /// Runtime catalog covers every authored portrait tile; explicitly blocked identities use legacy tiles.
     /// </summary>
     public static class CardTileCompositionV1
     {
         public const string ResourceRoot = "UI/CardTiles/V1/";
         public const string FrameSpriteName = "card_tile_frame_v1";
 
-        /// <summary>First four authored tiles in card_data.json (POC rollout).</summary>
-        public static readonly IReadOnlyList<string> PocCardIds = new[]
+        /// <summary>Cards intentionally held on the legacy rarity-frame tile pending reliable art.</summary>
+        public static readonly IReadOnlyList<string> LegacyCardIds = new[]
         {
-            "warrior",
-            "archer_dragon",
-            "cyclops",
-            "dragonqueen",
+            "dragon_tamer",
+            "ancient_dragon",
+            "forest_fairy",
         };
+
+        private static readonly IReadOnlyList<string> AuthoredCardIds = BuildAuthoredCardIds();
+
+        /// <summary>Asset-driven V1 catalog; avoids duplicating all card IDs in source code.</summary>
+        public static IReadOnlyList<string> CompositionCardIds => AuthoredCardIds;
+
+        /// <summary>Compatibility alias retained for existing tests/callers from the four-card proof.</summary>
+        [Obsolete("Use CompositionCardIds; V1 is no longer a four-card proof of concept.")]
+        public static IReadOnlyList<string> PocCardIds => CompositionCardIds;
 
         public static readonly Vector2 NativeSize = new Vector2(400f, 600f);
 
@@ -37,19 +46,14 @@ namespace MyriadOfDragons.UI
             public Sprite FallbackPortrait;
         }
 
-        public static bool HasPack =>
-            LoadFrame() != null
-            && LoadPortraitTile("warrior") != null
-            && LoadPortraitTile("archer_dragon") != null
-            && LoadPortraitTile("cyclops") != null
-            && LoadPortraitTile("dragonqueen") != null;
+        public static bool HasPack => LoadFrame() != null && CompositionCardIds.Count > 0;
 
         public static bool IsPocCard(string cardId)
         {
             if (string.IsNullOrEmpty(cardId)) return false;
-            for (int i = 0; i < PocCardIds.Count; i++)
+            for (int i = 0; i < CompositionCardIds.Count; i++)
             {
-                if (PocCardIds[i] == cardId) return true;
+                if (CompositionCardIds[i] == cardId) return true;
             }
 
             return false;
@@ -208,6 +212,28 @@ namespace MyriadOfDragons.UI
         {
             if (string.IsNullOrEmpty(fileNameWithoutExtension)) return null;
             return Resources.Load<Sprite>(ResourceRoot + fileNameWithoutExtension);
+        }
+
+        private static IReadOnlyList<string> BuildAuthoredCardIds()
+        {
+            const string prefix = "card_tile_art_";
+            const string suffix = "_v1";
+            Sprite[] sprites = Resources.LoadAll<Sprite>(ResourceRoot.TrimEnd('/'));
+            var ids = new List<string>();
+            for (int i = 0; i < sprites.Length; i++)
+            {
+                string spriteName = sprites[i] != null ? sprites[i].name : string.Empty;
+                if (!spriteName.StartsWith(prefix, StringComparison.Ordinal)
+                    || !spriteName.EndsWith(suffix, StringComparison.Ordinal))
+                    continue;
+
+                string cardId = spriteName.Substring(prefix.Length,
+                    spriteName.Length - prefix.Length - suffix.Length);
+                if (!string.IsNullOrEmpty(cardId)) ids.Add(cardId);
+            }
+
+            ids.Sort(StringComparer.Ordinal);
+            return ids.AsReadOnly();
         }
 
         private static Image CreateImageLayer(Transform parent, string objectName, Sprite sprite, bool preserveAspect)

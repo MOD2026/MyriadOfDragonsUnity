@@ -984,7 +984,8 @@ public class HomePagePresenter : MonoBehaviour
             {
                 if (returnToCollectionOnBack)
                 {
-                    if (deckBuilder != null) Destroy(deckBuilder);
+                    deckBuilder.TeardownUI();
+                    SafeDestroy(deckBuilder);
                     OpenCollection();
                     return;
                 }
@@ -992,12 +993,14 @@ public class HomePagePresenter : MonoBehaviour
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 SaveManager.Save();
                 RefreshTopHUD();
-                if (deckBuilder != null) Destroy(deckBuilder);
+                deckBuilder.TeardownUI();
+                SafeDestroy(deckBuilder);
             },
             entryStatusMessage: entryStatusMessage,
             onOpenCollection: () =>
             {
-                if (deckBuilder != null) Destroy(deckBuilder);
+                deckBuilder.TeardownUI();
+                SafeDestroy(deckBuilder);
                 OpenCollection();
             }
         );
@@ -1017,11 +1020,13 @@ public class HomePagePresenter : MonoBehaviour
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 SaveManager.Save();
                 RefreshTopHUD();
-                if (collection != null) Destroy(collection);
+                collection.TeardownUI();
+                SafeDestroy(collection);
             },
             onOpenDeckBuilder: () =>
             {
-                if (collection != null) Destroy(collection);
+                collection.TeardownUI();
+                SafeDestroy(collection);
                 OpenDeckBuilder(returnToCollectionOnBack: true);
             }
         );
@@ -1042,11 +1047,13 @@ public class HomePagePresenter : MonoBehaviour
                 SaveManager.Save();
                 if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
                 RefreshTopHUD();
-                if (shop != null) Destroy(shop);
+                shop.TeardownUI();
+                SafeDestroy(shop);
             },
             onOpenCollection: () =>
             {
-                if (shop != null) Destroy(shop);
+                shop.TeardownUI();
+                SafeDestroy(shop);
                 OpenCollection();
             }
         );

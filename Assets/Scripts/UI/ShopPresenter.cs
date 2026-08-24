@@ -329,7 +329,6 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNavTileButton(backBtn, backImg);
             backBtn.onClick.AddListener(() =>
             {
-                Destroy(canvasObj);
                 onBackToHomeAction?.Invoke();
             });
 
