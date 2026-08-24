@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
 
@@ -187,12 +188,12 @@ public sealed class SocialSafetyModule
 {
     private readonly SocialSafetyOperations _operations;
 
-    public SocialSafetyModule()
-        : this(new CloudSaveSocialSafetyStore(), new SystemSocialSafetyClock(), new UnimplementedSocialSafetyPolicy(), new RemoteConfigSocialSafetyRateLimitConfiguration())
+    public SocialSafetyModule(Microsoft.Extensions.Logging.ILogger<SocialSafetyModule>? logger = null)
+        : this(new CloudSaveSocialSafetyStore(logger), new SystemSocialSafetyClock(), new UnimplementedSocialSafetyPolicy(), new RemoteConfigSocialSafetyRateLimitConfiguration())
     {
     }
 
-    public SocialSafetyModule(ISocialSafetyStore store, ISocialSafetyClock clock, ISocialSafetyPolicy? policy = null, ISocialSafetyRateLimitConfiguration? rateLimitConfiguration = null)
+    internal SocialSafetyModule(ISocialSafetyStore store, ISocialSafetyClock clock, ISocialSafetyPolicy? policy = null, ISocialSafetyRateLimitConfiguration? rateLimitConfiguration = null)
     {
         _operations = new SocialSafetyOperations(store, clock, policy ?? new UnimplementedSocialSafetyPolicy(), rateLimitConfiguration ?? new RemoteConfigSocialSafetyRateLimitConfiguration());
     }

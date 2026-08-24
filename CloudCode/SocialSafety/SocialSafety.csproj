@@ -11,8 +11,9 @@
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.5" />
-    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.26" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.7" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.27" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="SocialSafety.ServerTests\**" />

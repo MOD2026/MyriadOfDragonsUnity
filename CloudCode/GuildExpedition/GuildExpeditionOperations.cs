@@ -274,7 +274,7 @@ public sealed class GuildExpeditionModule
     {
     }
 
-    public GuildExpeditionModule(
+    internal GuildExpeditionModule(
         IGuildExpeditionStore store,
         IGuildExpeditionClock clock,
         IGuildExpeditionRulesConfiguration? rules = null,

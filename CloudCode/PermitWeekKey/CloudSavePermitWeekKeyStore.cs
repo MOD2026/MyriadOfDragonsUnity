@@ -18,7 +18,6 @@ public interface IPermitWeekKeyStore
 
 public sealed class CloudSavePermitWeekKeyStore : IPermitWeekKeyStore
 {
-    private const string KeyPrefix = "permitWeekKey.";
 
     public async Task<PermitWeekKeyState> LoadAsync(IExecutionContext context, IGameApiClient apiClient, string activityId)
     {
@@ -78,12 +77,13 @@ public sealed class CloudSavePermitWeekKeyStore : IPermitWeekKeyStore
     /// itself is not part of the storage key - it lives inside the stored claim record and is
     /// compared against the server's current week key on each claim, which is what makes a
     /// repeat claim within the same week idempotent instead of creating a new record).</summary>
+    // Cloud Save item keys must be 1-50 chars, [A-Za-z0-9_-] only - no dots.
     internal static string BuildKey(string accountId, string activityId)
     {
         string value = accountId + "|" + activityId;
         using (SHA256 sha256 = SHA256.Create())
         {
-            return KeyPrefix + BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(value))).Replace("-", string.Empty).ToLowerInvariant();
+            return "pwk_" + BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(value))).Replace("-", string.Empty).ToLowerInvariant().Substring(0, 32);
         }
     }
 

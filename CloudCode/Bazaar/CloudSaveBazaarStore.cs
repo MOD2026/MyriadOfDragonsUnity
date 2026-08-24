@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Apis;
@@ -37,22 +39,34 @@ namespace MyriadOfDragons.CloudCode.Bazaar;
 public sealed class CloudSaveBazaarStore : IBazaarStore
 {
     private const string BoardCustomId = "bazaar-board";
-    private const string InstanceKeyPrefix = "instance.";
-    private const string ListingKeyPrefix = "listing.";
-    private const string WalletKey = "bazaar.wallet";
-    private const string IdempotencyKeyPrefix = "bazaar.idempotency.";
+    private const string WalletKey = "bazaar_wallet";
+
+    // Cloud Save item keys must be 1-50 chars, [A-Za-z0-9_-] only - no dots. instanceId/listingId/
+    // idempotencyKey come from outside this module (or the client, for idempotencyKey), so their
+    // format isn't guaranteed - hash them instead of assuming they're already compliant.
+    private static string InstanceKey(string instanceId) => "instance_" + ShortHash(instanceId);
+    private static string ListingKey(string listingId) => "listing_" + ShortHash(listingId);
+    private static string IdempotencyKey(string idempotencyKey) => "bazaar_idem_" + ShortHash(idempotencyKey);
+
+    private static string ShortHash(string value)
+    {
+        using (SHA256 sha256 = SHA256.Create())
+        {
+            return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(value))).Replace("-", string.Empty).ToLowerInvariant().Substring(0, 32);
+        }
+    }
 
     public Task<ItemInstance?> LoadInstanceAsync(IExecutionContext context, IGameApiClient apiClient, string instanceId)
-        => LoadCustomItemAsync<ItemInstance>(context, apiClient, InstanceKeyPrefix + instanceId);
+        => LoadCustomItemAsync<ItemInstance>(context, apiClient, InstanceKey(instanceId));
 
     public Task SaveInstanceAsync(IExecutionContext context, IGameApiClient apiClient, ItemInstance instance)
-        => SaveCustomItemAsync(context, apiClient, InstanceKeyPrefix + instance.InstanceId, instance, instance.WriteLock);
+        => SaveCustomItemAsync(context, apiClient, InstanceKey(instance.InstanceId), instance, instance.WriteLock);
 
     public Task<BazaarListing?> LoadListingAsync(IExecutionContext context, IGameApiClient apiClient, string listingId)
-        => LoadCustomItemAsync<BazaarListing>(context, apiClient, ListingKeyPrefix + listingId);
+        => LoadCustomItemAsync<BazaarListing>(context, apiClient, ListingKey(listingId));
 
     public Task SaveListingAsync(IExecutionContext context, IGameApiClient apiClient, BazaarListing listing)
-        => SaveCustomItemAsync(context, apiClient, ListingKeyPrefix + listing.ListingId, listing, listing.WriteLock);
+        => SaveCustomItemAsync(context, apiClient, ListingKey(listing.ListingId), listing, listing.WriteLock);
 
     public async Task<WalletState> LoadWalletAsync(IExecutionContext context, IGameApiClient apiClient, string accountId)
     {
@@ -115,7 +129,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
                 context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 buyerId,
-                new List<string> { IdempotencyKeyPrefix + idempotencyKey });
+                new List<string> { IdempotencyKey(idempotencyKey) });
             if (response.Data.Results.Count == 0)
             {
                 return null;
@@ -134,7 +148,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
     {
         try
         {
-            var body = new SetItemBody(IdempotencyKeyPrefix + idempotencyKey, JsonConvert.SerializeObject(result));
+            var body = new SetItemBody(IdempotencyKey(idempotencyKey), JsonConvert.SerializeObject(result));
             await apiClient.CloudSaveData.SetItemAsync(
                 context,
                 context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),

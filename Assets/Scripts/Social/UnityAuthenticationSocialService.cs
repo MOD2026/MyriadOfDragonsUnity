@@ -713,7 +713,7 @@ namespace MyriadOfDragons.Social
                 SocialSafetyGatewayResponse response = await CloudCodeService.Instance.CallModuleEndpointAsync<SocialSafetyGatewayResponse>(
                     ModuleName,
                     functionName,
-                    new Dictionary<string, object> { { "targetAccountId", targetAccountId } }).ConfigureAwait(false);
+                    new Dictionary<string, object> { { "request", new Dictionary<string, object> { { "targetAccountId", targetAccountId } } } }).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
 
                 if (response == null || !response.success)

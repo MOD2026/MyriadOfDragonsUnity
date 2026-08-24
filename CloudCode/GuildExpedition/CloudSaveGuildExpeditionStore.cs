@@ -18,8 +18,9 @@ public interface IGuildExpeditionStore
 
 public sealed class CloudSaveGuildExpeditionStore : IGuildExpeditionStore
 {
-    private const string AttemptKey = "guildExpedition.attempts";
-    private const string ContributionKey = "guildExpedition.contribution";
+    // Cloud Save item keys must be 1-50 chars, [A-Za-z0-9_-] only - no dots.
+    private const string AttemptKey = "guildExpedition_attempts";
+    private const string ContributionKey = "guildExpedition_contribution";
 
     public Task<AttemptState> LoadAttemptStateAsync(IExecutionContext context, IGameApiClient apiClient)
         => LoadAsync<AttemptState>(context, apiClient, AttemptKey);

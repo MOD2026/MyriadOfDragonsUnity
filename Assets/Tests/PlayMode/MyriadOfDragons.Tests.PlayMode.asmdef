@@ -4,7 +4,11 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "MyriadOfDragons.Runtime"
+        "MyriadOfDragons.Runtime",
+        "Unity.Services.Core",
+        "Unity.Services.Core.Environments",
+        "Unity.Services.Authentication",
+        "Unity.Services.CloudCode"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

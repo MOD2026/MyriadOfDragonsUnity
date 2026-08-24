@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -21,8 +22,12 @@ public interface ISocialSafetyStore
 
 public sealed class CloudSaveSocialSafetyStore : ISocialSafetyStore
 {
-    private const string KeyPrefix = "socialSafety.relationship.";
-    private const string RateLimitKeyPrefix = "socialSafety.rateLimit.";
+    private readonly ILogger? _logger;
+
+    public CloudSaveSocialSafetyStore(ILogger? logger = null)
+    {
+        _logger = logger;
+    }
 
     public async Task<SocialSafetyState> LoadAsync(IExecutionContext context, IGameApiClient apiClient, string relationshipKind, string targetAccountId)
     {
@@ -137,31 +142,37 @@ public sealed class CloudSaveSocialSafetyStore : ISocialSafetyStore
         }
     }
 
+    // Cloud Save item keys must be 1-50 chars, [A-Za-z0-9_-] only - no dots, no colons, no full
+    // 64-char hashes. "ssr" + kind-char + "_" + 32 hex chars = 37 chars, 128 bits of collision
+    // resistance, fully compliant.
     internal static string BuildKey(string actorAccountId, string relationshipKind, string targetAccountId)
     {
         string value = actorAccountId + "|" + relationshipKind + "|" + targetAccountId;
-        using (SHA256 sha256 = SHA256.Create())
-        {
-            return KeyPrefix + relationshipKind + "." + BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(value))).Replace("-", string.Empty).ToLowerInvariant();
-        }
+        return "ssr" + relationshipKind[0] + "_" + ShortHash(value);
     }
 
     internal static string BuildRecordId(string actorAccountId, string relationshipKind, string targetAccountId)
     {
-        string key = BuildKey(actorAccountId, relationshipKind, targetAccountId);
-        return key.Substring((KeyPrefix + relationshipKind + ".").Length);
+        string value = actorAccountId + "|" + relationshipKind + "|" + targetAccountId;
+        return ShortHash(value);
     }
 
     internal static string BuildRateLimitKey(string actorAccountId)
     {
+        return "ssrl_" + ShortHash(actorAccountId);
+    }
+
+    private static string ShortHash(string value)
+    {
         using (SHA256 sha256 = SHA256.Create())
         {
-            return RateLimitKeyPrefix + BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(actorAccountId))).Replace("-", string.Empty).ToLowerInvariant();
+            return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(value))).Replace("-", string.Empty).ToLowerInvariant().Substring(0, 32);
         }
     }
 
-    private static string ClassifyStorageError(Exception exception)
+    private string ClassifyStorageError(Exception exception)
     {
+        _logger?.LogError(exception, "SocialSafety storage error");
         string text = exception.GetType().Name + " " + exception.Message;
         return text.IndexOf("409", StringComparison.OrdinalIgnoreCase) >= 0 || text.IndexOf("Conflict", StringComparison.OrdinalIgnoreCase) >= 0
             ? "CONFLICT"

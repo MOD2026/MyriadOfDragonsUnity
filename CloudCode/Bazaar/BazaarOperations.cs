@@ -299,7 +299,7 @@ public sealed class BazaarModule
     {
     }
 
-    public BazaarModule(IBazaarStore store, IBazaarClock? clock = null, IBazaarRulesConfiguration? rules = null)
+    internal BazaarModule(IBazaarStore store, IBazaarClock? clock = null, IBazaarRulesConfiguration? rules = null)
     {
         _operations = new BazaarOperations(store, clock ?? new SystemBazaarClock(), rules ?? new RemoteConfigBazaarRulesConfiguration());
     }

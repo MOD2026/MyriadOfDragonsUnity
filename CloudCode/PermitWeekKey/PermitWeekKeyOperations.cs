@@ -166,7 +166,7 @@ public sealed class PermitWeekKeyModule
     {
     }
 
-    public PermitWeekKeyModule(IPermitWeekKeyStore store, IPermitWeekKeyClock clock, IPermitWeekKeyEconomyConfiguration? configuration = null)
+    internal PermitWeekKeyModule(IPermitWeekKeyStore store, IPermitWeekKeyClock clock, IPermitWeekKeyEconomyConfiguration? configuration = null)
     {
         _operations = new PermitWeekKeyOperations(store, clock, configuration ?? new RemoteConfigPermitWeekKeyEconomyConfiguration());
     }
