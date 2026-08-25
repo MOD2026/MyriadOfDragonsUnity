@@ -26,7 +26,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | BS (via owner) | Apprentice any-cast signal (1.355, real finding post-shuffle-fix) - needs next diagnostic step | PENDING - awaiting relay |
+| 2026-08-25 | CR | Apprentice any-cast shadow-control diagnostic (BS answered, locked) | PENDING - dispatched, awaiting real numbers |
 | 2026-08-25 | WH (via owner) | Chapters 17-18 (then stop, don't auto-continue) | PENDING - no confirmation yet |
 | 2026-08-25 | WH (via owner) | Bazaar/Chat letterbox bleed - actually fix, not just diagnose | PENDING - no confirmation yet |
 | 2026-08-25 | WH (via owner) | ShopV1ChromeTests stall repro (hang after ShopPresenter.cs:745) | PENDING - no confirmation yet |
