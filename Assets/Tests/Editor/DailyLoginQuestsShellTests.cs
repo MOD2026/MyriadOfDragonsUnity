@@ -88,7 +88,7 @@ namespace MyriadOfDragons.Tests
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button loginBtn = homeCanvas.transform.Find("Btn_DailyLogin")?.GetComponent<Button>();
+            Button loginBtn = homeCanvas.transform.Find("TopHud/Btn_DailyLogin")?.GetComponent<Button>();
             Assert.NotNull(loginBtn);
             loginBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);

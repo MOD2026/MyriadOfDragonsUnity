@@ -36,10 +36,10 @@ namespace MyriadOfDragons.Tests
             RectTransform canvasRect = canvas.GetComponent<RectTransform>();
             UIReleaseGateTestUtility.RequireInsideCanvas("Home canvas", canvasRect);
 
-            RectTransform identityRoot = canvas.transform.Find("IdentityRoot")?.GetComponent<RectTransform>();
-            RectTransform resourceRow = canvas.transform.Find("ResourceRow")?.GetComponent<RectTransform>();
-            RectTransform featureRoot = canvas.transform.Find("HomeFeatureRoot")?.GetComponent<RectTransform>();
-            RectTransform navStage = canvas.transform.Find("NavigationStage")?.GetComponent<RectTransform>();
+            RectTransform identityRoot = canvas.transform.Find("TopHud/IdentityRoot")?.GetComponent<RectTransform>();
+            RectTransform resourceRow = canvas.transform.Find("TopHud/ResourceRow")?.GetComponent<RectTransform>();
+            RectTransform featureRoot = canvas.transform.Find("TutorialStrip/HomeFeatureRoot")?.GetComponent<RectTransform>();
+            RectTransform navStage = canvas.transform.Find("ContentPanel/NavigationStage")?.GetComponent<RectTransform>();
 
             Assert.NotNull(identityRoot, "Home gate: missing IdentityRoot.");
             Assert.NotNull(resourceRow, "Home gate: missing ResourceRow.");
@@ -47,6 +47,11 @@ namespace MyriadOfDragons.Tests
             Assert.NotNull(navStage, "Home gate: missing NavigationStage.");
             Assert.IsNull(canvas.transform.Find("EmpireConstructionRoot"),
                 "Empire construction belongs on Empire screen, not Home.");
+            Assert.IsNotNull(canvas.transform.Find("TopHud"), "Home must expose TopHud semantic region.");
+            Assert.IsNotNull(canvas.transform.Find("TutorialStrip"), "Home must expose TutorialStrip semantic region.");
+            Assert.IsNotNull(canvas.transform.Find("ActionRail"), "Home must expose ActionRail semantic region.");
+            Assert.IsNotNull(canvas.transform.Find("ContentPanel"), "Home must expose ContentPanel semantic region.");
+            Assert.IsNotNull(canvas.transform.Find("Footer"), "Home must expose Footer semantic region.");
 
             UIReleaseGateTestUtility.RequireInsideCanvas("IdentityRoot", identityRoot);
             UIReleaseGateTestUtility.RequireInsideCanvas("ResourceRow", resourceRow);
@@ -69,11 +74,11 @@ namespace MyriadOfDragons.Tests
             GameObject canvas = presenter.HomeCanvasObjectForTests;
             Assert.NotNull(canvas, "Home gate: expected a Home canvas to be created.");
 
-            UIReleaseGateTestUtility.RequireNestedPlacementSafety(canvas, "NavigationStage");
+            UIReleaseGateTestUtility.RequireNestedPlacementSafety(canvas, "ContentPanel/NavigationStage");
 
             foreach (string requiredName in new[] { "Btn_Campaign", "Btn_Empire", "Btn_Cards", "Btn_Shop", "Btn_To Battle" })
             {
-                GameObject actionRoot = canvas.transform.Find($"NavigationStage/{requiredName}")?.gameObject;
+                GameObject actionRoot = canvas.transform.Find($"ContentPanel/NavigationStage/{requiredName}")?.gameObject;
                 UIReleaseGateTestUtility.AssertActionRoot(actionRoot, requiredName);
                 UIReleaseGateTestUtility.AssertDecorativeChildrenAreNonRaycastable(actionRoot, requiredName);
             }

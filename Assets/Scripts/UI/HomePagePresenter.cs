@@ -396,9 +396,15 @@ public class HomePagePresenter : MonoBehaviour
             backgroundImage.raycastTarget = false;
         }
 
+        // Semantic regions — authoritative parents for NEW Home geometry (LOCKED 2026-08-25).
+        HomeSemanticRegions.EnsureAll(homeCanvasObj.transform);
+        Transform topHud = HomeRegion(HomeSemanticRegions.TopHud);
+        Transform tutorialStrip = HomeRegion(HomeSemanticRegions.TutorialStrip);
+        Transform contentPanel = HomeRegion(HomeSemanticRegions.ContentPanel);
+
         // === IDENTITY SURFACE (text-only — identity frame needs slice metadata; crest RGB excluded) ===
         GameObject identityRoot = new GameObject("IdentityRoot", typeof(RectTransform), typeof(Image));
-        identityRoot.transform.SetParent(homeCanvasObj.transform, false);
+        identityRoot.transform.SetParent(topHud, false);
         SetScreenRectFromTopLeftPixels(identityRoot.GetComponent<RectTransform>(), 24, 18, 704, 100);
         Image identityBg = identityRoot.GetComponent<Image>();
         identityBg.sprite = null;
@@ -445,7 +451,7 @@ public class HomePagePresenter : MonoBehaviour
         SetLocalNormalisedRect(avatarIdentityText.rectTransform, 0.06f, 0.0f, 0.95f, 0.45f);
 
         GameObject resourceRow = new GameObject("ResourceRow", typeof(RectTransform));
-        resourceRow.transform.SetParent(homeCanvasObj.transform, false);
+        resourceRow.transform.SetParent(topHud, false);
         SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1328, 90);
 
         int goldVal = SaveManager.SaveData != null ? SaveManager.SaveData.gold : hudDefaults.gold;
@@ -460,24 +466,27 @@ public class HomePagePresenter : MonoBehaviour
         energyHudText = CreateResourcePill(resourceRow.transform, "home_resource_energy_pill_v3",
             "Stamina", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
 
-        BuildSettingsEntryButton();
-        BuildSeasonEntryButtons();
-        BuildSocialShellEntryButtons();
+        BuildSettingsEntryButton(topHud);
+        BuildSeasonEntryButtons(topHud);
+        BuildSocialShellEntryButtons(topHud);
 
         if (SaveManager.SaveData != null)
             PlayerSettingsService.ApplyFromProfile(SaveManager.SaveData);
 
-        BuildWeeklyPermitClaimStrip();
+        BuildWeeklyPermitClaimStrip(topHud);
         TryAutoClaimWeeklyPermitsOnHomeOpen();
 
-        BuildHomeFeaturePanel();
-        BuildNavigationStage();
+        BuildHomeFeaturePanel(tutorialStrip);
+        BuildNavigationStage(contentPanel);
     }
 
-    private void BuildWeeklyPermitClaimStrip()
+    private Transform HomeRegion(string regionName) =>
+        HomeSemanticRegions.Ensure(homeCanvasObj.transform, regionName);
+
+    private void BuildWeeklyPermitClaimStrip(Transform parent)
     {
         GameObject strip = new GameObject("WeeklyPermitStrip", typeof(RectTransform));
-        strip.transform.SetParent(homeCanvasObj.transform, false);
+        strip.transform.SetParent(parent, false);
         SetScreenRectFromTopLeftPixels(strip.GetComponent<RectTransform>(), 900, 100, 1896, 148);
 
         GameObject claimBtnObj = new GameObject("ClaimWeeklyPermitsButton", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -546,11 +555,11 @@ public class HomePagePresenter : MonoBehaviour
         RefreshTopHUD();
     }
 
-    private void BuildHomeFeaturePanel()
+    private void BuildHomeFeaturePanel(Transform parent)
     {
         // Tutorial strip under the social-chip row (chips occupy Y 100–168). Keep a clear gap.
         GameObject featureRoot = new GameObject("HomeFeatureRoot", typeof(RectTransform), typeof(Image));
-        featureRoot.transform.SetParent(homeCanvasObj.transform, false);
+        featureRoot.transform.SetParent(parent, false);
         SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 176, 1800, 242);
         Image featureBg = featureRoot.GetComponent<Image>();
         featureBg.sprite = null;
@@ -580,11 +589,11 @@ public class HomePagePresenter : MonoBehaviour
         btnLabel.raycastTarget = false;
     }
 
-    private void BuildNavigationStage()
+    private void BuildNavigationStage(Transform parent)
     {
         // No dock frame (excluded). Six live actions: pack four + Empire + direct Avatar entry.
         GameObject navStage = new GameObject("NavigationStage", typeof(RectTransform));
-        navStage.transform.SetParent(homeCanvasObj.transform, false);
+        navStage.transform.SetParent(parent, false);
         SetScreenRectFromTopLeftPixels(navStage.GetComponent<RectTransform>(), 24, 724, 1896, 1052);
 
         // Equal-width tiles across the stage (38–1860). Avatar is a first-class Home entry;
@@ -801,27 +810,24 @@ public class HomePagePresenter : MonoBehaviour
             });
     }
 
-    private void BuildSettingsEntryButton()
+    private void BuildSettingsEntryButton(Transform parent)
     {
         GameObject btnObj = new GameObject("Btn_Settings", typeof(RectTransform), typeof(Image), typeof(Button));
-        btnObj.transform.SetParent(homeCanvasObj.transform, false);
+        btnObj.transform.SetParent(parent, false);
         SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), 1780, 18, 1896, 90);
 
         Image img = btnObj.GetComponent<Image>();
         Button btn = btnObj.GetComponent<Button>();
         Sprite gear = Resources.Load<Sprite>("UI/Icons/icon_settings_gear");
-        // ApplyNeutralActionButton clears targetGraphic.sprite — style first, then assign gear.
-        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(1f, 1f, 1f, gear != null ? 1f : 0.85f));
         if (gear != null)
         {
             img.sprite = gear;
             img.preserveAspect = true;
-            img.color = Color.white;
         }
-        else
-        {
+
+        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(1f, 1f, 1f, gear != null ? 1f : 0.85f));
+        if (gear == null)
             img.color = new Color(0.2f, 0.24f, 0.3f, 0.9f);
-        }
 
         btn.onClick.AddListener(OpenSettings);
 
@@ -834,23 +840,24 @@ public class HomePagePresenter : MonoBehaviour
         }
     }
 
-    private void BuildSeasonEntryButtons()
+    private void BuildSeasonEntryButtons(Transform parent)
     {
-        CreateHeaderTextButton("Btn_SpellLoadout", "SPELLS", 1340, 18, 1476, 90, OpenSpellLoadoutPicker);
-        CreateHeaderTextButton("Btn_BattlePass", "PASS", 1488, 18, 1632, 90, OpenBattlePass);
-        CreateHeaderTextButton("Btn_DailyLogin", "LOGIN", 1644, 18, 1768, 90, OpenDailyLoginQuests);
+        CreateHeaderTextButton(parent, "Btn_SpellLoadout", "SPELLS", 1340, 18, 1476, 90, OpenSpellLoadoutPicker);
+        CreateHeaderTextButton(parent, "Btn_BattlePass", "PASS", 1488, 18, 1632, 90, OpenBattlePass);
+        CreateHeaderTextButton(parent, "Btn_DailyLogin", "LOGIN", 1644, 18, 1768, 90, OpenDailyLoginQuests);
     }
 
     /// <summary>Art-ready social / meta shells (OpenValues refuse until numbers/backend lock).</summary>
-    private void BuildSocialShellEntryButtons()
+    private void BuildSocialShellEntryButtons(Transform parent)
     {
-        // Secondary strip under Identity — stays left of WeeklyPermitStrip (x≥900).
-        CreateHeaderTextButton("Btn_Bazaar", "BAZAAR", 40, 100, 175, 168, OpenBazaar);
-        CreateHeaderTextButton("Btn_Chat", "CHAT", 183, 100, 318, 168, OpenChatSocial);
-        CreateHeaderTextButton("Btn_Mail", "MAIL", 326, 100, 461, 168, OpenMailInbox);
-        CreateHeaderTextButton("Btn_Friends", "FRIENDS", 469, 100, 604, 168, OpenFriends);
-        CreateHeaderTextButton("Btn_MemoryExpedition", "MEMORY", 612, 100, 747, 168, OpenMemoryExpedition);
-        CreateHeaderTextButton("Btn_Vip", "VIP", 755, 100, 890, 168, OpenVipSubscription);
+        // Secondary strip under Identity — stays left of WeeklyPermitStrip (x≥900). Y 100–168;
+        // tutorial banner lives below at Y 176–242 (no overlap).
+        CreateHeaderTextButton(parent, "Btn_Bazaar", "BAZAAR", 40, 100, 175, 168, OpenBazaar);
+        CreateHeaderTextButton(parent, "Btn_Chat", "CHAT", 183, 100, 318, 168, OpenChatSocial);
+        CreateHeaderTextButton(parent, "Btn_Mail", "MAIL", 326, 100, 461, 168, OpenMailInbox);
+        CreateHeaderTextButton(parent, "Btn_Friends", "FRIENDS", 469, 100, 604, 168, OpenFriends);
+        CreateHeaderTextButton(parent, "Btn_MemoryExpedition", "MEMORY", 612, 100, 747, 168, OpenMemoryExpedition);
+        CreateHeaderTextButton(parent, "Btn_Vip", "VIP", 755, 100, 890, 168, OpenVipSubscription);
     }
 
     public void OpenBazaarForTests() => OpenBazaar();
@@ -952,11 +959,11 @@ public class HomePagePresenter : MonoBehaviour
         }));
     }
 
-    private void CreateHeaderTextButton(string name, string label, float left, float top, float right, float bottom,
+    private void CreateHeaderTextButton(Transform parent, string name, string label, float left, float top, float right, float bottom,
         UnityEngine.Events.UnityAction action)
     {
         GameObject btnObj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-        btnObj.transform.SetParent(homeCanvasObj.transform, false);
+        btnObj.transform.SetParent(parent, false);
         SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), left, top, right, bottom);
         Image img = btnObj.GetComponent<Image>();
         HomeV3UiLibrary.ApplyNeutralActionButton(btnObj.GetComponent<Button>(), img, new Color(0.16f, 0.22f, 0.2f, 0.92f));

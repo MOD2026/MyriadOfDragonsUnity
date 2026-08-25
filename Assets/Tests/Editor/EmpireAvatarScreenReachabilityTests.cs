@@ -73,7 +73,7 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
             Assert.IsNotNull(homeCanvas, "Setup: Home canvas must exist.");
 
-            Button avatarTile = FindButton(homeCanvas, "NavigationStage/Btn_Avatar");
+            Button avatarTile = FindButton(homeCanvas, "ContentPanel/NavigationStage/Btn_Avatar");
             Assert.IsTrue(avatarTile.interactable, "Home must expose a direct Avatar hero tile.");
             avatarTile.onClick.Invoke();
 

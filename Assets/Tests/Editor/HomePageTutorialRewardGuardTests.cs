@@ -353,7 +353,7 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = presenter.HomeCanvasObjectForTests;
             Assert.IsNotNull(homeCanvas, "Setup: expected Home's canvas to exist.");
 
-            Transform tutorialRoot = homeCanvas.transform.Find("HomeFeatureRoot");
+            Transform tutorialRoot = homeCanvas.transform.Find("TutorialStrip/HomeFeatureRoot");
             Assert.IsNotNull(tutorialRoot, "Home must contain the current tutorial-entry strip (HomeFeatureRoot).");
 
             Text tutorialCopy = tutorialRoot.Find("FeatureCopy")?.GetComponent<Text>();

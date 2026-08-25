@@ -55,7 +55,7 @@ namespace MyriadOfDragons.Tests
             HomePagePresenter home = SpawnAndBuildHome();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button settingsBtn = FindButton(homeCanvas, "Btn_Settings");
+            Button settingsBtn = FindButton(homeCanvas, "TopHud/Btn_Settings");
             Assert.IsTrue(settingsBtn.interactable, "Home must expose a Settings entry control.");
             settingsBtn.onClick.Invoke();
 

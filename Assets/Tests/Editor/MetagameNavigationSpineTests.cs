@@ -99,7 +99,7 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(homeCanvas.activeSelf);
 
             // --- Home → Collection ---
-            Click(homeCanvas, "NavigationStage/Btn_Cards");
+            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Cards");
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find("CollectionCanvas"));
             Assert.NotNull(home.GetComponent<CollectionPresenter>());
@@ -143,7 +143,7 @@ namespace MyriadOfDragons.Tests
             int goldBeforeShop = SaveSystem.CurrentProfile.gold;
 
             // --- Home → Shop V1 ---
-            Click(homeCanvas, "NavigationStage/Btn_Shop");
+            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Shop");
             Assert.IsFalse(homeCanvas.activeSelf);
             GameObject shopCanvas = GameObject.Find("ShopCanvas");
             Assert.NotNull(shopCanvas);
@@ -160,7 +160,7 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(goldBeforeShop, SaveSystem.CurrentProfile.gold, "Shop back must not mutate wallet.");
 
             // --- Home → Battle Pass ---
-            Click(homeCanvas, "Btn_BattlePass");
+            Click(homeCanvas, "TopHud/Btn_BattlePass");
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(BattlePassPresenter.CanvasName));
             Assert.NotNull(home.GetComponent<BattlePassPresenter>());
@@ -173,7 +173,7 @@ namespace MyriadOfDragons.Tests
             AssertNoMetagameCanvases();
 
             // --- Home → Daily Login / Quests ---
-            Click(homeCanvas, "Btn_DailyLogin");
+            Click(homeCanvas, "TopHud/Btn_DailyLogin");
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(DailyLoginQuestsPresenter.CanvasName));
             Assert.NotNull(home.GetComponent<DailyLoginQuestsPresenter>());
@@ -184,7 +184,7 @@ namespace MyriadOfDragons.Tests
             AssertNoMetagameCanvases();
 
             // --- Home → Settings ---
-            Click(homeCanvas, "Btn_Settings");
+            Click(homeCanvas, "TopHud/Btn_Settings");
             Assert.IsFalse(homeCanvas.activeSelf);
             GameObject settingsCanvas = GameObject.Find("SettingsCanvas");
             Assert.NotNull(settingsCanvas);
@@ -194,7 +194,7 @@ namespace MyriadOfDragons.Tests
             AssertNoMetagameCanvases();
 
             // --- Home → Empire → Expedition → Empire → Home ---
-            Click(homeCanvas, "NavigationStage/Btn_Empire");
+            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Empire");
             Assert.IsFalse(homeCanvas.activeSelf);
             GameObject empireCanvas = GameObject.Find("EmpireCanvas");
             Assert.NotNull(empireCanvas);
@@ -234,7 +234,7 @@ namespace MyriadOfDragons.Tests
             AssertNoMetagameCanvases();
 
             // --- Home → Avatar → Home (direct tile) ---
-            Click(homeCanvas, "NavigationStage/Btn_Avatar");
+            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Avatar");
             Assert.IsFalse(homeCanvas.activeSelf);
             GameObject avatarCanvas = GameObject.Find("AvatarCanvas");
             Assert.NotNull(avatarCanvas);

@@ -88,7 +88,7 @@ namespace MyriadOfDragons.Tests
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button passBtn = homeCanvas.transform.Find("Btn_BattlePass")?.GetComponent<Button>();
+            Button passBtn = homeCanvas.transform.Find("TopHud/Btn_BattlePass")?.GetComponent<Button>();
             Assert.NotNull(passBtn);
             passBtn.onClick.Invoke();
 

@@ -110,7 +110,7 @@ namespace MyriadOfDragons.Tests
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("Btn_Bazaar")?.GetComponent<Button>();
+            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_Bazaar")?.GetComponent<Button>();
             Assert.NotNull(openBtn);
             openBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
