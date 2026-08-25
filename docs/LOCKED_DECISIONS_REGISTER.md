@@ -1071,3 +1071,27 @@ for the actual fix, just implementation.
 Verification plan once applied: CampaignStageBattleConfigurationTests + RarityFrameRenderingTests
 + TutorialTeachingOverlayTests (expect 28/28), Chapter10FullDepthTests + RarityFrameRenderingTests
 (expect 20/20), then one full suite for the real total.
+
+## AI matrix remeasurement COMPLETE at final state (2026-08-25, CR) - 2 of 3 confirmed real, not drift
+
+Measured against the true final state (36/36 catalog + all acquisition channels + 6-slot loadout),
+no code changes, no retuning, per GPT's mandate.
+
+**APPRENTICE: PASSES CLEAN.** Cast rate 43.4% [41.2,45.6] (band 25-70). Win-rate delta -7.9pp
+(cap 8pp - inside by 0.1pp, tight but real). Spells/match 0.44 (floor 0.30). No-spell fallback
+57.6%. maxSingleSpellWinShare 19.5%. The earlier "newly out of band" flag does not reproduce at
+final state - was transient/mid-flight noise, not a real issue.
+
+**NOVICE: STILL FAILING, confirmed real not drift.** Cast rate 21.5% [19.4,23.7] on 1374
+opportunity trials (floor 25%, 3.5pp short) - roughly flat vs the earlier 22.7% mid-flight reading
+(within noise). Spells/match 0.15 (floor 0.5, badly short - same root cause as the cast-rate
+miss). Win-rate itself is fine (+2.1pp vs baseline).
+
+**VETERANPLUS: STILL FAILING, confirmed real not drift.** Player win-rate delta -9.7pp (cap 8pp,
+over by 1.7pp) - roughly flat vs the earlier -9.8pp. Cast rate itself is fine (45.4%, well inside
+band) - this is purely a win-rate-concentration problem, not a frequency problem.
+
+**Conclusion: both misses are stable, genuine underlying AI-heuristic issues (Novice cast-
+frequency, VeteranPlus win-rate-concentration), NOT artifacts of the catalog being mid-flight
+incomplete during earlier measurements.** Escalated to GPT per the standing mandate - not
+retuned, EffectPriority/gate values untouched.
