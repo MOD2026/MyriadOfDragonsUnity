@@ -139,7 +139,17 @@ owner request.
   empty-loadout/StartMatch fallback only, not the primary path.
 - **RESOLVED:** Chapter 1-3 narrative confirmed already wired in `StoryDatabase.cs` (+ tutorial
   line in `GameBootstrap`) — WH checked, no gap existed by the time this was picked up.
-- **Chapters 4-10 narrative not yet drafted** — same reusable template as Ch1-3, cheap to commission whenever prioritized.
+- **RESOLVED, this line was stale (corrected 2026-08-25 by CR):** Chapters 4-10 already have real
+  narrative dialogue for every stage (4-1 through 10-30), already committed (WH, referencing a
+  CAMPAIGN_10_CHAPTER_NAMING_AND_BEAT_DIALOGUE_KIT doc). Real shape: Ch1-3 fully bespoke per stage;
+  Ch4-7 use a lighter shared template (AddStageDialogue helper, generic lines varying only by
+  title/enemy name); Ch8-10 hybrid - bespoke naming-kit dialogue at each chapter's 1st/15th/final
+  stage, generic template for the rest. Test coverage already exists per-chapter
+  (Chapter4FullDepthTests.cs through Chapter10FullDepthTests.cs assert StoryDatabase.GetSequence
+  for every stage) - no gap. **Remaining real, un-decided question:** is Ch4-7's generic template
+  an intentional cost/scope decision (matches "cheap to commission" framing) or should it be
+  upgraded to Ch8-10's bespoke-key-beats treatment? Real scope/priority call for the owner -
+  Story/StoryDatabase.cs is Metagame-seat (WH) owned, not Battle's to execute either way.
 
 ## Empire Expedition — post-campaign farm loop (LOCKED 2026-08-24, structure only)
 
