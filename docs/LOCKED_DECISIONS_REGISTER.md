@@ -1095,3 +1095,17 @@ band) - this is purely a win-rate-concentration problem, not a frequency problem
 frequency, VeteranPlus win-rate-concentration), NOT artifacts of the catalog being mid-flight
 incomplete during earlier measurements.** Escalated to GPT per the standing mandate - not
 retuned, EffectPriority/gate values untouched.
+
+## Systemic Canvas-leak fix SHIPPED, verified 28/28 (2026-08-25, WH, HEAD a43f692)
+
+SpawnAndInitializeBootstrap now collects every matching root Canvas/EventSystem/CardDatabase/
+BattleController via GetRootGameObjects, not just Find's first hit. Verified: minimal repro
+(CampaignStageBattleConfigurationTests + RarityFrameRenderingTests + TutorialTeachingOverlayTests)
+28/28, 0 error CS. This is a real, root-cause fix (not a workaround) for the pollution mystery
+chased across most of tonight.
+
+**Not yet verified:** the 11 other heuristically-flagged fixtures (Chapter1CombatBalanceAudit's
+2nd site, Chapter2-12FullDepthTests) - whether the fix applies where it's the SAME helper (likely
+already covered if it's one shared function) or whether any of those call sites have their own
+separate copy needing the same fix. Also pending: a full-suite run for the real overall number,
+since only the 3-class minimal repro has been confirmed so far.
