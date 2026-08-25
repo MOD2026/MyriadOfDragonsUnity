@@ -1075,6 +1075,111 @@ namespace MyriadOfDragons.Tests
                     "No returned line may exceed the search ceiling.");
         }
 
+        // ------------------------------------------------------------------ 7-step content validation
+        //
+        // The protocol BS specified and CC dispatched. It runs over WHATEVER the library holds, so
+        // the moment real definitions land at Resources/Data/tactical_puzzles.json this is the
+        // whole pass - no new code.
+        //
+        // Steps: 1 structural, 2 replay stated solution, 3 enumerate legal sequences, 4 stated
+        // solution is valid AND minimum-cost, 5 a tempting alternative fails for its stated reason,
+        // 6 envelope checks from a fresh state, 7 reject unsolvable or ambiguous.
+
+        /// <summary>Runs the protocol against one definition and returns a human-readable verdict.
+        /// Steps 2 and 5 need the AUTHOR's claims, which live in the envelope - a definition with no
+        /// envelope is reported as such rather than silently passing those steps.</summary>
+        private string RunSevenStepValidation(TacticalPuzzleDefinition def)
+        {
+            var report = new System.Text.StringBuilder();
+            report.Append(def.PuzzleId).Append(": ");
+
+            List<string> problems = TacticalPuzzleAuthoring.Validate(def);
+            if (problems.Count > 0)
+                return report.Append("STEP 1 FAIL - ").Append(string.Join("; ", problems)).ToString();
+            report.Append("[1 structural OK] ");
+
+            List<TacticalPuzzleSolution> all = TacticalPuzzleSolver.FindAllSolutions(def);
+            if (all.Count == 0)
+                return report.Append("STEP 7 FAIL - UNSOLVABLE within its action budget.").ToString();
+
+            TacticalPuzzleSolution best = all[0];
+            int ties = all.Count(x => x.ActionsUsed == best.ActionsUsed &&
+                                      x.ResourceSpent == best.ResourceSpent);
+            report.Append("[3 enumerated ").Append(all.Count).Append(" line(s)] ");
+            report.Append("[cheapest ").Append(best.ActionsUsed).Append(" order(s)/")
+                  .Append(best.ResourceSpent).Append(" Resource] ");
+
+            if (ties > 1)
+                return report.Append("STEP 7 FAIL - AMBIGUOUS, ").Append(ties)
+                             .Append(" unrelated lines tie for cheapest.").ToString();
+            report.Append("[7 unique cheapest OK] ");
+
+            if (def.Envelope == null || def.Envelope.Count == 0)
+                return report.Append("STEPS 2/5/6 NOT RUN - no envelope: the author's stated " +
+                                     "solution and tempting alternatives were never captured.").ToString();
+
+            List<TacticalPuzzleEnvelopeMismatch> mismatches = TacticalPuzzleAuthoring.CheckEnvelope(def);
+            if (mismatches.Count > 0)
+                return report.Append("STEPS 2/5/6 FAIL - ")
+                             .Append(string.Join("; ", mismatches.Select(m => m.ToString()))).ToString();
+
+            return report.Append("[2/5/6 envelope OK] PASS").ToString();
+        }
+
+        [Test]
+        public void SevenStepValidation_RunsOverWhateverContentTheLibraryHolds()
+        {
+            // THE REAL PASS. Today the library is empty, so this reports that honestly instead of
+            // pretending to have validated content that does not exist.
+            TacticalPuzzleLibrary.ClearPuzzlesForTests();
+            TacticalPuzzleLibrary.ResetCacheForTests();
+
+            IReadOnlyList<TacticalPuzzleDefinition> content = TacticalPuzzleLibrary.AvailablePuzzles();
+            if (content.Count == 0)
+            {
+                Assert.IsTrue(TacticalPuzzleLibrary.IsEmpty,
+                    "No authored puzzle content is loadable yet - the 7-step pass has nothing to " +
+                    "run against. This is not a failure of the harness.");
+                return;
+            }
+
+            var failures = new List<string>();
+            foreach (TacticalPuzzleDefinition def in content)
+            {
+                string verdict = RunSevenStepValidation(def);
+                if (!verdict.EndsWith("PASS")) failures.Add(verdict);
+            }
+
+            CollectionAssert.IsEmpty(failures,
+                "Authored puzzles failed the 7-step validation:\n" + string.Join("\n", failures));
+        }
+
+        [Test]
+        public void SevenStepValidation_ProducesARealVerdict_OnAKnownGoodAndAKnownBadPuzzle()
+        {
+            // Proves the harness DISCRIMINATES, using throwaway fixtures - not content. Without
+            // this, an empty library would make the pass above green forever and prove nothing.
+            var good = Puzzle("harness_good");
+            good.ActionBudget = 1;                        // one deploy, one cheapest line
+            good.Hand = new List<string> { _light.Id };   // single card: no tie by construction
+
+            string goodVerdict = RunSevenStepValidation(good);
+            StringAssert.Contains("[1 structural OK]", goodVerdict);
+            StringAssert.Contains("[7 unique cheapest OK]", goodVerdict);
+
+            var unsolvable = Puzzle("harness_unsolvable");
+            unsolvable.Hand = new List<string>();
+            unsolvable.PlayerBoard = new List<TacticalPuzzleUnitSpec>();
+            StringAssert.Contains("UNSOLVABLE", RunSevenStepValidation(unsolvable));
+
+            var ambiguous = Puzzle("harness_ambiguous");   // two identical cards: two equal lines
+            StringAssert.Contains("AMBIGUOUS", RunSevenStepValidation(ambiguous));
+
+            var broken = Puzzle("harness_broken");
+            broken.PlayerBoard.Add(new TacticalPuzzleUnitSpec { CardId = "no_such_card", Lane = Lane.Back });
+            StringAssert.Contains("STEP 1 FAIL", RunSevenStepValidation(broken));
+        }
+
         // ------------------------------------------------------------------ content loading
         //
         // Authored puzzles arrive as a DATA drop (Resources/Data/tactical_puzzles.json), not a code
