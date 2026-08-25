@@ -1417,3 +1417,20 @@ precedent for card battlers specifically. Guild-vs-guild content should be coope
 boss/event-damage-contribution (extends the already-shipped Guild Expedition), not territory war -
 no map needed for either. Real, substantial new system - needs its own GPT/owner design round
 before any building starts, not started tonight.
+
+## P0 bug 1 FIXED: Bazaar dev-comment leak (2026-08-25, CR)
+
+Root cause: BazaarPresenter.cs:181's details panel default text was stale dev-status text left in
+place when SelectTab's Browse case was switched to async RefreshBrowseAsync() - visible for the
+duration of the first Cloud Code round-trip on every screen open, before the real data overwrote
+it. Fixed: default text now "Loading...". Checked Friends/Chat (also CR's) for the same pattern -
+clean. Not run-verified (Editor open), but low-risk one-line string swap.
+
+Bug 2 (orange block) investigated, NOT fixed, correctly left for whoever owns
+CampaignMapUiLibrary.cs/CampaignMapPresenter.cs. Leading candidate:
+CampaignMapUiLibrary.cs:107-111's Playable-node fallback color (0.85, 0.65, 0.2) fires only if
+Resources.Load<Sprite> for campaign_stage_node_playable_v1 returns null - but the asset exists and
+is correctly imported, contradicting the fallback firing. Also possible the map's node is bleeding
+through the stage-detail modal's semi-transparent dim backdrop rather than being drawn inside the
+modal itself. Needs owner to confirm exact screen location (behind the popup vs inside it) before
+anyone chases the wrong path.
