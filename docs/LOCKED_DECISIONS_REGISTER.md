@@ -3065,3 +3065,33 @@ but the underlying prerequisite (prove the pipeline works) has since been satisf
 rigorously anyway: 40/40 real authoring tests (73c8a86), 16/16 verifier tests (5bde81e), a full-suite
 pass at 1449/1458, and a real gameplay bug found and fixed through actual use (14c9bdf). Prerequisite
 is genuinely met - the prompt was just never sent. Sending now.
+
+## VS: Windstep ablation fixtures stranded (real decision needed) + flake hunt narrowed further (2026-08-25, VS, real findings)
+
+**Stranded fixtures, real decision needed:** VeteranPlusWindstepAblationTests
+(WindstepAblation_FourConditions, WindstepAblation_VeteranPlusCorrectedTwoConditions) assert in
+Setup that Windstep is still in the loadout - now false since CR's removal (97eef16/103ef71).
+Working exactly as designed (self-retiring guards), not a bug. Real choice: RETIRE (the ablation
+answered its question, Windstep is gone, the measurement is historical) or REPOINT at Mend (same
+causal check on the new loadout, catches a future hidden problem the same way). VS correctly
+flagged as not its call - same category as the earlier metric-design decisions, routed to BS for
+consistency.
+
+**Also confirmed, not new action needed:** SimulationMatrix_Apprentice's win-rate delta is now 9.4%
+(a third different number today) - consistent with the already-routed "Windstep fix made both tiers
+correctly stronger" finding, just recording the real number.
+
+**Flake hunt (campaign-winnability polluter): hypothesis 4 FALSIFIED, search narrowed
+significantly.** AI/balance fixtures (MirroredAiSimulationMatrix, BalanceSimulation, both root-cause
+classes, both Windstep ablations, CampaignAfMirroredAiSpell) run together with the known victims -
+Chapter17 and Chapter1FullFormation both PASSED. Real, mechanism-based hypothesis eliminated: the
+polluter is NOT in the AI/balance path. Combined with the earlier-ruled-out Chapter-family
+self-pollution (198/198 green together), the remaining space is UI/economy fixtures - genuinely
+surprising for something that changes campaign winnability, and VS correctly has no mechanism for
+how, so it stopped rather than guess. Three targeted runs bought a much smaller haystack than ten
+blind bisect runs would have.
+
+**DECISION: pause the flake hunt here, do not continue into a mechanism-less bisect right now.**
+Real, valuable narrowing already achieved (2 major hypothesis classes eliminated); an unguided
+bisect from here is open-ended effort for uncertain payoff, and there's more clearly-valuable work
+queued. Revisit if a real mechanism hypothesis emerges.
