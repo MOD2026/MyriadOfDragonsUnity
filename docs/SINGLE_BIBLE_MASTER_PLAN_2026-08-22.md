@@ -1,3 +1,6 @@
+> **SUPERSEDED 2026-08-25 — see `docs/LOCKED_DECISIONS_REGISTER.md` for all current decisions.**
+> This file stopped being updated Aug 23; the register is the live source of truth going forward.
+
 # Single Bible Master Plan — theory first (Aug 22, 2026)
 
 **Owner input:** Zihan spot-check (6 items). **Rule:** drill theory until numbers make sense, **then** code.  
