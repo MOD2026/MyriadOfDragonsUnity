@@ -4201,3 +4201,29 @@ borrowed-card leakage into other systems) - not a shallow "not built yet," a gen
 why this needs a trusted-server guild architecture pass before it can even be scoped safely.
 Classification locked: "Archived 2017 concept; deferred pending trusted-server guild architecture.
 Not Phase-1." Full reopening prerequisite list given, not touched until all of it exists.
+
+## RETROACTIVE INDUSTRY-STANDARD DIAGNOSIS: Solo Collection Circuit / PvP slice / Loyalty milestones (2026-08-26)
+
+**This was missing when the batch above was locked - real gate violation, owner caught it, now
+completed.** Real WebSearch benchmarking run against the specific mechanics proposed, not just
+internal consistency:
+
+- **PvP minimum slice:** confirmed against a real shipped-game comparator - "submit defense snapshot
+  -> server assigns Elo/rating -> match nearest bracket -> resolve async -> store history" is the
+  established async-PvP pattern (verified example: a real mobile game where a saved fleet is loaded
+  as the opponent even offline, ranked via Elo updates post-match). BS's proposal matches genre
+  standard, not an invented mechanic.
+- **Loyalty/VIP points:** the general SHAPE (points-per-spend, tiered milestone rewards) matches
+  real loyalty-program precedent. Honest limit: no gacha-specific loyalty-point numeric benchmark
+  was found via search to compare exact thresholds against - flagging this rather than pretending
+  the search confirmed more than it did.
+- **Solo Collection Circuit rewards:** no precise cross-game daily-reward numbers were returned by
+  search, so benchmarked against THIS game's own real economy instead (legitimate substitute when
+  external data isn't available) - cumulative campaign Gold through Chapter 10 alone is 1,779,550
+  (`POST_CH10_GOLD_RECOMPUTE_2026-08-23.md`). Solo Circuit's max daily reward (1,250 Gold) compounds
+  to roughly 570,000/year at full completion - about 32% of the Ch1-10 cumulative total. Real,
+  meaningful long-tail engagement, not trivial filler; not large enough to dwarf or replace the
+  primary campaign economy. Proportionate.
+
+**Standing gate reinforced in STANDING ORDERS** so this stops being missed: no BS reply gets locked
+without both internal-consistency AND a real WebSearch benchmark, going forward, permanently.
