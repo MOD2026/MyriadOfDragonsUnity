@@ -47,6 +47,24 @@ namespace MyriadOfDragons.Battle
         private int _laneAttackBonusApplied;
         private int _laneHealthBonusApplied;
 
+        /// <summary>Suppressible triggered-ability package (LOCKED 2026-08-25, GPT, register
+        /// commit 2b54084): which of the four named cards' passives this copy carries, resolved
+        /// once from Definition.Id at construction - None for every other card.</summary>
+        public readonly CardTriggerAbility Ability;
+
+        /// <summary>One flag covers all four abilities' "once per unit per match" - a given copy
+        /// only ever has one Ability, so there is never a case where two different triggers need
+        /// independent used-state on the same instance.</summary>
+        public bool HasUsedTrigger { get; private set; }
+
+        /// <summary>Clashes remaining under Silence - triggers are suppressed while &gt; 0.
+        /// Decremented once per clash (LaneBattleResolver.ResolveLaneClash's end-of-clash sweep,
+        /// same point Vulnerability's mark expires). Consumed trigger uses are NOT restored when
+        /// this reaches 0 - only an unused trigger becomes checkable again (per the locked Silence
+        /// contract).</summary>
+        private int _silencedClashesRemaining;
+        public bool IsSilenced => _silencedClashesRemaining > 0;
+
         public BattleCardInstance(Card definition, bool isPlayerOwned, int laneAttackBonus, int laneHealthBonus)
         {
             Definition = definition;
@@ -57,6 +75,7 @@ namespace MyriadOfDragons.Battle
             HasTaunt = definition.Class == CardClass.Knight;
             _laneAttackBonusApplied = laneAttackBonus;
             _laneHealthBonusApplied = laneHealthBonus;
+            Ability = CardTriggerAbilities.For(definition.Id);
         }
 
         public bool IsAlive => CurrentHealth > 0;
@@ -69,13 +88,37 @@ namespace MyriadOfDragons.Battle
                 amount += 1;
                 _vulnerabilityMarked = false;
             }
+
+            // Shield Discipline (Novice Knight, LOCKED 2026-08-25): this unit's first incoming
+            // damage this match is reduced by 1, floored at 0 - never a negative "heal". Applied
+            // to the raw incoming amount, same stage as Vulnerability's own +1, so the two cancel
+            // to a wash when both apply rather than interacting with Shield absorption order.
+            if (Ability == CardTriggerAbility.ShieldDiscipline && !HasUsedTrigger && !IsSilenced)
+            {
+                amount = System.Math.Max(0, amount - 1);
+                HasUsedTrigger = true;
+            }
+
             if (Shield > 0)
             {
                 int absorbed = System.Math.Min(Shield, amount);
                 Shield -= absorbed;
                 amount -= absorbed;
             }
-            CurrentHealth = System.Math.Max(0, CurrentHealth - amount);
+
+            int newHealth = System.Math.Max(0, CurrentHealth - amount);
+
+            // Ash Rebirth (Phoenix, LOCKED 2026-08-25): the first time this unit would be
+            // defeated, it stays at 1 HP instead - once per match. Checked against the health the
+            // damage would otherwise produce, not "IsAlive now", so it only ever fires on the hit
+            // that would actually cause the defeat, not every subsequent hit on an already-1-HP unit.
+            if (newHealth <= 0 && Ability == CardTriggerAbility.AshRebirth && !HasUsedTrigger && !IsSilenced)
+            {
+                newHealth = 1;
+                HasUsedTrigger = true;
+            }
+
+            CurrentHealth = newHealth;
         }
 
         /// <summary>Restores Health up to MaxHealth. A dead unit stays dead - healing is not a
@@ -126,6 +169,31 @@ namespace MyriadOfDragons.Battle
         public void ExpireVulnerabilityMarkAtClashEnd()
         {
             _vulnerabilityMarked = false;
+        }
+
+        /// <summary>Marks this unit's one-time trigger as spent - Hex Spark/Battle Mend call this
+        /// from LaneBattleResolver's trigger-resolution pass; Shield Discipline/Ash Rebirth set it
+        /// themselves inside ApplyDamage.</summary>
+        public void MarkTriggerUsed()
+        {
+            HasUsedTrigger = true;
+        }
+
+        /// <summary>Applies Silence for `clashes` clashes. Extends rather than shortens an
+        /// existing Silence (a second cast landing mid-duration should not reduce it) - this
+        /// implementation's own inference, since the locked contract does not specify stacking
+        /// behaviour.</summary>
+        public void ApplySilence(int clashes)
+        {
+            if (clashes > _silencedClashesRemaining) _silencedClashesRemaining = clashes;
+        }
+
+        /// <summary>Called once per clash for every living unit on both sides, same sweep point
+        /// as ExpireVulnerabilityMarkAtClashEnd - ticks Silence down by one clash. Consumed
+        /// trigger uses are never restored here; only IsSilenced changes.</summary>
+        public void ExpireSilenceAtClashEnd()
+        {
+            if (_silencedClashesRemaining > 0) _silencedClashesRemaining--;
         }
 
         /// <summary>

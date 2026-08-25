@@ -69,17 +69,39 @@ namespace MyriadOfDragons.Battle
             attackFromA = ApplyElementalAdvantage(attackFromA, laneA, laneB);
             attackFromB = ApplyElementalAdvantage(attackFromB, laneB, laneA);
 
+            // Suppressible triggered-ability package (LOCKED 2026-08-25, GPT, register commit
+            // 2b54084): Battle Mend needs "was a friendly unit in this lane damaged THIS clash",
+            // which Health alone can't answer (it can't distinguish damage taken now from damage
+            // already sitting there from an earlier clash) - snapshot before combat damage lands.
+            Dictionary<BattleCardInstance, int> healthBeforeA = laneA.Cards.Where(c => c.IsAlive).ToDictionary(c => c, c => c.CurrentHealth);
+            Dictionary<BattleCardInstance, int> healthBeforeB = laneB.Cards.Where(c => c.IsAlive).ToDictionary(c => c, c => c.CurrentHealth);
+
             int overflowToB = ApplyDamageToLane(laneB, attackFromA);
             int overflowToA = ApplyDamageToLane(laneA, attackFromB);
+
+            // Trigger resolution: "after lane targeting, before defeat cleanup" (the locked
+            // contract's own words) - exactly here, after combat damage has landed but before the
+            // dead-card prune below. Simultaneous triggers resolve Front->Middle->Back (the
+            // caller's own ResolutionOrder loop already gives that) then slot order (Cards' own
+            // list order, preserved by iterating it directly) - no separate ordering needed here.
+            ResolveTriggers(laneA, laneB, healthBeforeA);
+            ResolveTriggers(laneB, laneA, healthBeforeB);
 
             // Wave 3 lock (Vulnerability): "consumed on trigger, expires next clash if unused".
             // A mark that triggered this clash was already cleared inside ApplyDamage, so this
             // sweep is a no-op for it; a mark that never triggered (its unit wasn't hit, or its
             // lane wasn't the one under attack) gets cleared here - it had its one window.
+            // Silence ticks down the same sweep, same "once per clash" cadence.
             foreach (BattleCardInstance unit in laneA.Cards.Where(c => c.IsAlive))
+            {
                 unit.ExpireVulnerabilityMarkAtClashEnd();
+                unit.ExpireSilenceAtClashEnd();
+            }
             foreach (BattleCardInstance unit in laneB.Cards.Where(c => c.IsAlive))
+            {
                 unit.ExpireVulnerabilityMarkAtClashEnd();
+                unit.ExpireSilenceAtClashEnd();
+            }
 
             // Capture cleared-state before pruning dead cards below - once pruned, an all-dead
             // lane becomes genuinely empty (Cards.Count == 0), which would otherwise make
@@ -191,6 +213,59 @@ namespace MyriadOfDragons.Battle
             // which covers both an emptied lane and a never-occupied one.
             bool laneIsUndefended = !lane.Cards.Any(c => c.IsAlive);
             return laneIsUndefended ? remaining : 0;
+        }
+
+        /// <summary>Suppressible triggered-ability package (LOCKED 2026-08-25, GPT, register
+        /// commit 2b54084): resolves `selfLane`'s living units' one-time passives against
+        /// `opposingLane` and each other. A unit already used, or currently Silenced, is skipped
+        /// entirely - Silence's own "unresolved triggers can't enter the queue" contract, since
+        /// this pass IS the queue.</summary>
+        private static void ResolveTriggers(LaneState selfLane, LaneState opposingLane, Dictionary<BattleCardInstance, int> healthBeforeThisClash)
+        {
+            foreach (BattleCardInstance unit in selfLane.Cards)
+            {
+                if (!unit.IsAlive || unit.HasUsedTrigger || unit.IsSilenced) continue;
+
+                switch (unit.Ability)
+                {
+                    case CardTriggerAbility.HexSpark:
+                        // "1 dmg to opposing unit in lane" - the spec names no targeting priority
+                        // beyond "a living opposing unit in the lane", so this picks the first one
+                        // in slot order, the same fallback order everything else in this file uses.
+                        BattleCardInstance hexTarget = opposingLane.Cards.FirstOrDefault(c => c.IsAlive);
+                        hexTarget?.ApplyDamage(1);
+                        unit.MarkTriggerUsed();
+                        break;
+
+                    case CardTriggerAbility.BattleMend:
+                        // Consumed on the first clash regardless of outcome - "first clash" is the
+                        // trigger's window, not "the first clash where a friendly happens to be
+                        // damaged" (this implementation's own reading of the locked wording, same
+                        // "the qualifier is the window, not a retry condition" pattern already
+                        // applied to Hex Spark).
+                        unit.MarkTriggerUsed();
+                        BattleCardInstance mostDamaged = null;
+                        int mostMissing = 0;
+                        foreach (BattleCardInstance friendly in selfLane.Cards.Where(c => c.IsAlive))
+                        {
+                            if (!healthBeforeThisClash.TryGetValue(friendly, out int before)) continue;
+                            if (before <= friendly.CurrentHealth) continue; // not damaged this clash
+                            int missing = friendly.MaxHealth - friendly.CurrentHealth;
+                            if (missing > mostMissing)
+                            {
+                                mostMissing = missing;
+                                mostDamaged = friendly;
+                            }
+                        }
+                        mostDamaged?.Heal(1);
+                        break;
+
+                    // ShieldDiscipline/AshRebirth are reactive (BattleCardInstance.ApplyDamage
+                    // itself), not resolved from this pass - nothing to do for them here.
+                    default:
+                        break;
+                }
+            }
         }
 
         // Card combat (Attack vs Health, computed above) is deliberately still small integers -

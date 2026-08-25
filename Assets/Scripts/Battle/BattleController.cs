@@ -712,7 +712,7 @@ namespace MyriadOfDragons.Battle
         /// with nothing changed if the cast isn't legal.
         /// </summary>
         public bool TryCastSpell(int spellIndex, Lane targetLane, out int avatarDamageDealt,
-            RepositionTarget repositionTarget = null)
+            RepositionTarget repositionTarget = null, BattleCardInstance silenceTarget = null)
         {
             avatarDamageDealt = 0;
 
@@ -732,10 +732,15 @@ namespace MyriadOfDragons.Battle
             // early-return checks above.
             if (spell.Effect == SpellEffect.Reposition && !IsLegalRepositionTarget(PlayerState, repositionTarget))
                 return false;
+            // Silence targeting legality (Suppressible Triggered-Ability Package, LOCKED
+            // 2026-08-25, register commit 2b54084): same "reject before paying the cost" reasoning
+            // as Reposition above - the target must be a real, living, deployed enemy unit.
+            if (spell.Effect == SpellEffect.Silence && !IsLegalSilenceTarget(EnemyState, silenceTarget))
+                return false;
 
             Energy -= spell.EnergyCost;
             spell.PutOnCooldown();
-            avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane, repositionTarget);
+            avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane, repositionTarget, silenceTarget);
             _lastSuccessfulPlayerCastTick = TickCount;
 
             // Combat Tick Feed data (2026-08-22): logged only once the cast is confirmed legal
@@ -756,7 +761,7 @@ namespace MyriadOfDragons.Battle
 
         /// <summary>Mirrored PvE spell cast — same energy/cooldown rules as the player path.</summary>
         public bool TryCastEnemySpell(int spellIndex, Lane targetLane, out int avatarDamageDealt,
-            RepositionTarget repositionTarget = null)
+            RepositionTarget repositionTarget = null, BattleCardInstance silenceTarget = null)
         {
             avatarDamageDealt = 0;
 
@@ -774,10 +779,12 @@ namespace MyriadOfDragons.Battle
             if (TickCount == _lastSuccessfulEnemyCastTick) return false;
             if (spell.Effect == SpellEffect.Reposition && !IsLegalRepositionTarget(EnemyState, repositionTarget))
                 return false;
+            if (spell.Effect == SpellEffect.Silence && !IsLegalSilenceTarget(PlayerState, silenceTarget))
+                return false;
 
             EnemyEnergy -= spell.EnergyCost;
             spell.PutOnCooldown();
-            avatarDamageDealt = spell.Cast(EnemyState, PlayerState, targetLane, repositionTarget);
+            avatarDamageDealt = spell.Cast(EnemyState, PlayerState, targetLane, repositionTarget, silenceTarget);
             _lastSuccessfulEnemyCastTick = TickCount;
 
             _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt, castByPlayer: false));
@@ -802,6 +809,15 @@ namespace MyriadOfDragons.Battle
             return target.UnitB == null
                 ? RepositionRules.IsLegalWindstep(side, target.UnitA, target.DestinationLaneForA)
                 : RepositionRules.IsLegalSeismicSwap(side, target.UnitA, target.UnitB);
+        }
+
+        /// <summary>Suppressible Triggered-Ability Package (LOCKED 2026-08-25, register commit
+        /// 2b54084): Silence "targets one deployed non-Avatar unit" - `side` is always the
+        /// TARGET's own side (the enemy from the caster's perspective), never the caster's.</summary>
+        private static bool IsLegalSilenceTarget(PlayerBattleState side, BattleCardInstance target)
+        {
+            if (target == null || !target.IsAlive) return false;
+            return side.Lanes.Values.Any(lane => lane.Cards.Contains(target));
         }
 
         /// <summary>

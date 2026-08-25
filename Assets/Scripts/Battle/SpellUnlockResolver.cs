@@ -114,6 +114,10 @@ namespace MyriadOfDragons.Battle
             // model (RepositionTarget/RepositionRules) is a separate, now-resolved question from
             // their acquisition data, which is still imprecise.
             new Rule("Oracle Sight", UnlockKind.AvatarLevel, requiredAvatarLevel: 20),
+
+            // Wave 5 (LOCKED 2026-08-25, register commit 2b54084): Volcanic Prison ("Ch8") and
+            // Titan Seal ("Ch10") deliberately have no Rule either - same bare-chapter-number gap
+            // as every other imprecise Phase-2 Unlock entry above.
         };
 
         /// <summary>RESOLVED 2026-08-24 - always false now. Kept (rather than deleted outright) as

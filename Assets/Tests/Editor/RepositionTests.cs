@@ -16,10 +16,12 @@ namespace MyriadOfDragons.Tests
     public class RepositionTests
     {
         [Test]
-        public void CreateCatalog_ContainsExactlyThirtyFourSpells_ThirtyTwoPlusReposition()
+        public void CreateCatalog_ContainsWindstepAndSeismicSwap()
         {
+            // Not an exact-count assertion any more - the Silence package (CardTriggerAbilityTests)
+            // completed the catalog to 36/36 on top of these, and that test file now owns the
+            // real total.
             List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
-            Assert.AreEqual(34, catalog.Count);
             CollectionAssert.IsSubsetOf(new[] { "Windstep", "Seismic Swap" }, catalog.Select(s => s.Name).ToList());
         }
 

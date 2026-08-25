@@ -49,6 +49,9 @@ namespace MyriadOfDragons.Battle
 
         /// <summary>Move one friendly unit (Windstep, to an adjacent lane) or exchange two friendly units' lanes (Seismic Swap) - see RepositionRules for the shared legality evaluator and AvatarSpell.RepositionTarget for how Cast() receives the target. Never targets an enemy unit, an empty slot, or an Avatar.</summary>
         Reposition,
+
+        /// <summary>Suppresses one deployed enemy unit's triggered ability (see CardTriggerAbility) for Magnitude clashes - targets a single unit, passed to Cast() as silenceTarget. Never touches base stats, lane bonuses, or spells.</summary>
+        Silence,
     }
 
     /// <summary>
@@ -184,9 +187,12 @@ namespace MyriadOfDragons.Battle
         /// see RepositionTarget's own doc comment. A Reposition cast with a null or illegal
         /// target is a no-op (0 returned, nothing mutated), the same "reject silently, no partial
         /// effect" contract every other effect already has for an impossible cast.
+        /// `silenceTarget` is required (and only meaningful) for Silence-effect spells - a single
+        /// deployed enemy unit. Null, not-alive, or not-actually-in-opponent's-lanes is a no-op,
+        /// same contract as an illegal repositionTarget.
         /// </summary>
         public int Cast(PlayerBattleState caster, PlayerBattleState opponent, Lane targetLane,
-            RepositionTarget repositionTarget = null)
+            RepositionTarget repositionTarget = null, BattleCardInstance silenceTarget = null)
         {
             switch (Effect)
             {
@@ -289,6 +295,15 @@ namespace MyriadOfDragons.Battle
                             return 0;
                         RepositionRules.ExecuteSeismicSwap(caster, repositionTarget.UnitA, repositionTarget.UnitB);
                     }
+                    return 0;
+
+                case SpellEffect.Silence:
+                    if (silenceTarget == null || !silenceTarget.IsAlive) return 0;
+                    if (!LivingUnits(opponent, Lane.Front).Contains(silenceTarget)
+                        && !LivingUnits(opponent, Lane.Middle).Contains(silenceTarget)
+                        && !LivingUnits(opponent, Lane.Back).Contains(silenceTarget))
+                        return 0;
+                    silenceTarget.ApplySilence(Magnitude);
                     return 0;
 
                 default:
@@ -574,20 +589,47 @@ namespace MyriadOfDragons.Battle
         }
 
         /// <summary>
-        /// The real, full castable catalog (34 as of Wave 4 completing - CreatePhase1Catalog's
-        /// 14, Wave 2's 5, Wave 3's 8, plus this wave's 7) - the source of truth for anything that
-        /// must resolve a spell id into a real AvatarSpell: BattleController.ResolveMatchSpellbook,
+        /// Wave 5 (Full 36-Spell Catalogue Diagnosis, LOCKED 2026-08-24, "Silence package -
+        /// blocked until suppressible card abilities exist"): unblocked 2026-08-25 by the
+        /// Suppressible Triggered-Ability Package (register commit 2b54084) - CardTriggerAbility
+        /// gives Goblin Caster/Cleric/Novice Knight/Phoenix real once-per-match triggers, so
+        /// Silence finally has something real to suppress.
+        ///
+        /// Locked correction applied here, not the catalog doc's raw number: Titan Seal duration
+        /// 1-&gt;2 clashes. Volcanic Prison keeps the catalog's own 1-clash duration - no correction
+        /// noted for it in the register.
+        ///
+        /// Silence's target narrowed from the catalog doc's raw "enemy lane" to "one deployed
+        /// enemy unit" per the locked package's own targeting contract (SilenceTarget param on
+        /// Cast()) - the same kind of catalog-vs-register correction Reposition's targeting model
+        /// already established a precedent for.
+        /// </summary>
+        public static List<AvatarSpell> CreatePhase5ExpansionSpells()
+        {
+            return new List<AvatarSpell>
+            {
+                new AvatarSpell("Volcanic Prison", "Silence one enemy unit's triggered ability for 1 clash.",
+                    energyCost: 58, cooldownTicks: 6, SpellEffect.Silence, magnitude: 1,
+                    id: "volcanic_prison", school: SpellSchool.Andras),
+
+                // Locked correction: duration 1->2 clashes.
+                new AvatarSpell("Titan Seal", "Silence one enemy unit's triggered ability for 2 clashes.",
+                    energyCost: 72, cooldownTicks: 7, SpellEffect.Silence, magnitude: 2,
+                    id: "titan_seal", school: SpellSchool.Pnevmas),
+            };
+        }
+
+        /// <summary>
+        /// The real, full castable catalog - 36/36, complete. CreatePhase1Catalog's 14, Wave 2's
+        /// 5, Wave 3's 8, Wave 4's 7, Wave 5's 2 - the source of truth for anything that must
+        /// resolve a spell id into a real AvatarSpell: BattleController.ResolveMatchSpellbook,
         /// SpellBookGrant's id validation, and SpellUnlockResolver's own iteration - a catalog
         /// member with no Rule entry (Aegis Return; Ember Guard/Earthward/Gale Break/Thunder
-        /// Decree/Ashfall/Stormchain/Windstep/Seismic Swap, whose Phase-2 catalog Unlock column
-        /// only gives a bare chapter number with no stage-level precision to build a real Rule
-        /// from; Scorched Sky/Leyline Draw, "event book" with no real acquisition channel yet)
-        /// simply never unlocks, the same behaviour a stale/unrecognized id already had.
-        ///
-        /// NOT 36 yet: only Wave 5's Silence package (Volcanic Prison, Titan Seal) remains
-        /// blocked, and stays blocked separately - no suppressible-ability system exists at all,
-        /// so there is nothing a targeting-model spec could unblock the way it did for Reposition.
-        /// 34/36 real.
+        /// Decree/Ashfall/Stormchain/Windstep/Seismic Swap/Volcanic Prison/Titan Seal, whose
+        /// Phase-2 catalog Unlock column only gives a bare chapter number with no stage-level
+        /// precision to build a real Rule from; Scorched Sky/Leyline Draw, "event book" with no
+        /// real acquisition channel yet) simply never unlocks, the same behaviour a stale/
+        /// unrecognized id already had.
         /// </summary>
         public static List<AvatarSpell> CreateCatalog()
         {
@@ -595,6 +637,7 @@ namespace MyriadOfDragons.Battle
             catalog.AddRange(CreatePhase2ExpansionSpells());
             catalog.AddRange(CreatePhase3ExpansionSpells());
             catalog.AddRange(CreatePhase4ExpansionSpells());
+            catalog.AddRange(CreatePhase5ExpansionSpells());
             return catalog;
         }
     }
