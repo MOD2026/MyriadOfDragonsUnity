@@ -2947,3 +2947,9 @@ doesn't automatically transfer - VeteranPlus is not a teaching tier. Does the re
 or does a 6.5pp handicap at a veteran tier get treated differently (e.g. acceptable as implicit
 difficulty tuning, or fixed via the projected-value guard path instead)? Not decided, not CR's or
 CC's to guess.
+
+## Stage 2-6/17-13 roster collision - CONFIRMED FIXED (2026-08-25, WH, verified 9dc2641)
+
+Real commit exists (21:26) - "Make Stage 17-13's enemy roster distinct from Stage 2-6." Explicit
+Ch17 patch, sorted-triple collision (giant_worms/goblin_shaman/ogre) can no longer match. Was
+dispatched and never confirmed back - tracker had gone stale until this audit. Closing the row.
