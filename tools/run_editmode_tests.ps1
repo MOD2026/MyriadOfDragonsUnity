@@ -18,6 +18,12 @@
 #   powershell -File tools/run_editmode_tests.ps1 -ResultsPath full_results.xml -LogPath full_run.log -TimeoutMinutes 30
 #   powershell -File tools/run_editmode_tests.ps1 -TestFilter "MyriadOfDragons.Tests.BattleLogicTests"
 #   powershell -File tools/run_editmode_tests.ps1 -ClassListFile tools/batch_classes.txt -BatchOutDir batch_out
+#   powershell -File tools/run_editmode_tests.ps1 -TestFilters BattleLogicTests,RarityFrameRenderingTests
+#
+# -TestFilters runs N named classes together in ONE Unity process (unlike -ClassListFile, which
+# gives each class its own process). That is the only way to reproduce an order-dependent
+# cross-fixture state leak while still narrowing the class set - isolation hides the very bug.
+# Bare class names are auto-prefixed with -NamespacePrefix.
 #
 # Exit code 124 means "timed out and was killed" - treat that as a failed run, not a green one.
 # Unity must already be fully closed before running this (same rule as the bare command).
@@ -55,7 +61,8 @@ function Invoke-SingleRun {
         [string]$LogPath,
         [string]$TestFilter,
         [int]$TimeoutMinutes,
-        [int]$StallCheckSeconds
+        [int]$StallCheckSeconds,
+        [string[]]$MultiFilter = @()
     )
 
     $resultsFull = Join-Path $ProjectPath $ResultsPath
@@ -68,7 +75,20 @@ function Invoke-SingleRun {
         "-runTests", "-testPlatform", "EditMode",
         "-testResults", $ResultsPath, "-logFile", $LogPath
     )
-    if ($TestFilter -ne "") {
+    if ($MultiFilter.Count -gt 0) {
+        # OR-list of exact class names, one -testFilter each. This is what makes a *pollution*
+        # bisect possible at all: -ClassListFile gives every class its own Unity process, which
+        # destroys the very cross-fixture state leak you are hunting, and a single -testFilter
+        # substring cannot express "these N classes and no others". Existing single-filter
+        # behaviour below is untouched.
+        # Unity does NOT OR repeated -testFilter flags - measured 2026-08-25: passing two flags
+        # ran only the LAST class and silently dropped the first (a 14/14 "green" run that had
+        # quietly skipped 9 tests). Unity's own docs describe -testFilter as taking a semicolon-
+        # separated list, so that is the form used here.
+        $unityArgs += @("-testFilter", ($MultiFilter -join ';'))
+        Write-Host "Multi-filter run ($($MultiFilter.Count) filters, one shared Unity process): $($MultiFilter -join ', ')"
+    }
+    elseif ($TestFilter -ne "") {
         $unityArgs += @("-testFilter", $TestFilter)
     }
 
@@ -199,7 +219,35 @@ if ($ClassListFile -ne "") {
     exit 0
 }
 
-$exitCode = Invoke-SingleRun -ResultsPath $ResultsPath -LogPath $LogPath -TestFilter $TestFilter -TimeoutMinutes $TimeoutMinutes -StallCheckSeconds $StallCheckSeconds
+$resolvedMulti = @()
+if ($TestFilters.Count -gt 0) {
+    # Split on comma ourselves. Invoked via `powershell -File`, EVERY argument arrives as a plain
+    # string, so -TestFilters A,B binds as ONE element "A,B" rather than an array - which silently
+    # produced a filter matching nothing (a run that "succeeds" with 0 tests). Splitting here makes
+    # the -File form and the native-array form behave identically.
+    $resolvedMulti = $TestFilters |
+        ForEach-Object { $_ -split ',' } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne '' } |
+        ForEach-Object {
+            if ($_ -like "$NamespacePrefix*") { $_ } else { "$NamespacePrefix$_" }
+        }
+}
+
+$exitCode = Invoke-SingleRun -ResultsPath $ResultsPath -LogPath $LogPath -TestFilter $TestFilter -TimeoutMinutes $TimeoutMinutes -StallCheckSeconds $StallCheckSeconds -MultiFilter $resolvedMulti
+
+# A filter that matches nothing exits 0 with an empty result set - indistinguishable from "all
+# green" unless you look. Never let that read as success.
+$resultsFullPath = Join-Path $ProjectPath $ResultsPath
+if ($exitCode -ne 124 -and (Test-Path $resultsFullPath)) {
+    $ranXml = [xml](Get-Content $resultsFullPath -Raw)
+    $ranCount = [int]$ranXml.'test-run'.testcasecount
+    Write-Host "Tests actually executed: $ranCount"
+    if ($ranCount -eq 0) {
+        Write-Error "FILTER MATCHED NOTHING: 0 tests executed. This is NOT a passing run - check the filter spelling/namespace."
+        exit 3
+    }
+}
 exit $exitCode
 
 }
