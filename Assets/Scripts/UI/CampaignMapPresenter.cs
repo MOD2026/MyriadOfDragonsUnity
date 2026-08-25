@@ -182,6 +182,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter11DepthStages());
             chapterStages.AddRange(BuildChapter12DepthStages());
             chapterStages.AddRange(BuildChapter13DepthStages());
+            chapterStages.AddRange(BuildChapter14DepthStages());
             ApplyLockedCampaignGemRewards();
         }
 
@@ -201,10 +202,10 @@ namespace MyriadOfDragons.UI
                 total += stage.gemReward;
             }
 
-            if (total != CampaignGemRewardRules.LockedTotalCh1Through13)
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through14)
             {
                 Debug.LogError(
-                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through13} " +
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through14} " +
                     $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
             }
         }
@@ -1407,6 +1408,95 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Chapter 14 depth pool — Chapter13DepthPool rotated by 23 (continuing 17→19→21→23).</summary>
+        private static readonly string[] Chapter14DepthPool =
+        {
+            "giant_worms", "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior",
+            "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador",
+            "owl_keeper", "ladyinlake", "iron_dragon", "pandora", "drain", "shaman", "druid", "succubus",
+            "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue",
+        };
+
+        /// <summary>Linear from Stage 13-30's 48640 gold. 14-30 lands at 48640 + 30*200 = 54640 gold.</summary>
+        private static (int gold, int gems) Chapter14DepthReward(int stageNumber)
+        {
+            const int baseGold = 48640, goldPerStage = 200;
+            const int baseGems = 9728, gemsPerStage = 40;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 14 — The Fallen Pantheon (Olympian answer answered; the order of gods breaks).</summary>
+        private static readonly (string title, string enemyName)[] Chapter14DepthFlavor =
+        {
+            ("Pantheon Ruin March", "Ruin March Watch"),
+            ("Fallen Idol Gate", "Idol Gate Guard"),
+            ("Broken Aegis Court", "Broken Aegis Cohort"),
+            ("Godfall Decree Yard", "Godfall Yard Wardens"),
+            ("Ash-of-Olympus Hall", "Ash Hall Legion"),
+            ("Toppled Levy Stair", "Toppled Levy Guard"),
+            ("The Silent Oracle", "Silent Oracle Command"),
+            ("Shattered Bolt Causeway", "Bolt Causeway Cohort"),
+            ("Fallen Antechamber", "Fallen Antechamber Guard"),
+            ("Eagle-Without-Sky Roost", "Skyless Roost Legion"),
+            ("Crownless Gallery", "Crownless Gallery Wardens"),
+            ("The Empty Judgment", "Empty Judgment Guard"),
+            ("Stormgod Tomb Barracks", "Tomb Barracks Command"),
+            ("Broken Oath Chamber", "Broken Oath Cohort"),
+            ("The Pantheon Court", "Pantheon Court Guard"),
+            ("Godfall Scar Road", "Godfall Scar Legion"),
+            ("Vault of Fallen Bolts", "Fallen Bolt Wardens"),
+            ("Aegis-Cracked Parapet", "Cracked Parapet Guard"),
+            ("War Engine of Ruins", "Ruin Engine Cohort"),
+            ("Balcony of Dead Edicts", "Dead Edict Command"),
+            ("Broken Seal Reliquary", "Broken Seal Guard"),
+            ("Rampart of Fallen Crowns", "Fallen Crown Legion"),
+            ("Thunderbrand Crypt", "Thunderbrand Crypt Wardens"),
+            ("The Last God Debt", "Last God Cohort"),
+            ("Skyfire Grave Vestibule", "Grave Vestibule Guard"),
+            ("Sky King's Fallen Bastion", "Fallen Bastion Command"),
+            ("The Broken Pantheon Scepter", "Broken Pantheon Legion"),
+            ("Stormheart Ruin Gate", "Ruin Gate Guard"),
+            ("The Fallen Dais", "Fallen High Command"),
+            ("The Fallen Pantheon", "Fallen Pantheon High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter14DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                // Stride 11 is coprime with pool 29; offsets {0,7,15} distinct from Ch11–13 builders.
+                int baseIndex = (11 * i + 13) % poolSize;
+                string[] ids =
+                {
+                    Chapter14DepthPool[baseIndex],
+                    Chapter14DepthPool[(baseIndex + 7) % poolSize],
+                    Chapter14DepthPool[(baseIndex + 15) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "mountain_harpy", "succubus", "conquistador" };
+
+                // Stage 14-6 measured AF defeat under starter+AF policy (prior stride).
+                // Avoid Ch13 patches (13-5 / 13-16) and Ch12's 12-8 trio.
+                if (stageNumber == 6)
+                    ids = new[] { "butcher", "wood_wizard", "elf_wanderer" };
+
+                // Stages 14-19 / 14-28 measured AF defeats under starter+AF (stride-11 builder).
+                // 14-19 first patch (snake_archer+drain+goblin_shaman) collided with Stage 4-13.
+                if (stageNumber == 19)
+                    ids = new[] { "ogre", "druid", "mountain_harpy" };
+                if (stageNumber == 28)
+                    ids = new[] { "fire_worm", "ladyinlake", "cursed_soldier" };
+
+                (string title, string enemyName) = Chapter14DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The pantheon falls.";
+                (int gold, int gems) = Chapter14DepthReward(stageNumber);
+                yield return new CampaignStageData($"14-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
         /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
         /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
         /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
@@ -1740,6 +1830,7 @@ namespace MyriadOfDragons.UI
                 case 11: return "CHAPTER 11: THE STORM'S PRICE";
                 case 12: return "CHAPTER 12: THE MORTAL HOST";
                 case 13: return "CHAPTER 13: THE OLYMPIAN ANSWER";
+                case 14: return "CHAPTER 14: THE FALLEN PANTHEON";
                 default: return $"CHAPTER {chapter}";
             }
         }

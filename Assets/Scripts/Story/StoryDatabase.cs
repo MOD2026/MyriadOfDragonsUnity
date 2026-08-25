@@ -1402,6 +1402,80 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The Olympian answer still waits.");
             }
+
+            // Chapter 14 — The Fallen Pantheon.
+            (string stageId, string title, string enemyName)[] chapter14Stages =
+            {
+                ("14-1", "Pantheon Ruin March", "Ruin March Watch"),
+                ("14-2", "Fallen Idol Gate", "Idol Gate Guard"),
+                ("14-3", "Broken Aegis Court", "Broken Aegis Cohort"),
+                ("14-4", "Godfall Decree Yard", "Godfall Yard Wardens"),
+                ("14-5", "Ash-of-Olympus Hall", "Ash Hall Legion"),
+                ("14-6", "Toppled Levy Stair", "Toppled Levy Guard"),
+                ("14-7", "The Silent Oracle", "Silent Oracle Command"),
+                ("14-8", "Shattered Bolt Causeway", "Bolt Causeway Cohort"),
+                ("14-9", "Fallen Antechamber", "Fallen Antechamber Guard"),
+                ("14-10", "Eagle-Without-Sky Roost", "Skyless Roost Legion"),
+                ("14-11", "Crownless Gallery", "Crownless Gallery Wardens"),
+                ("14-12", "The Empty Judgment", "Empty Judgment Guard"),
+                ("14-13", "Stormgod Tomb Barracks", "Tomb Barracks Command"),
+                ("14-14", "Broken Oath Chamber", "Broken Oath Cohort"),
+                ("14-15", "The Pantheon Court", "Pantheon Court Guard"),
+                ("14-16", "Godfall Scar Road", "Godfall Scar Legion"),
+                ("14-17", "Vault of Fallen Bolts", "Fallen Bolt Wardens"),
+                ("14-18", "Aegis-Cracked Parapet", "Cracked Parapet Guard"),
+                ("14-19", "War Engine of Ruins", "Ruin Engine Cohort"),
+                ("14-20", "Balcony of Dead Edicts", "Dead Edict Command"),
+                ("14-21", "Broken Seal Reliquary", "Broken Seal Guard"),
+                ("14-22", "Rampart of Fallen Crowns", "Fallen Crown Legion"),
+                ("14-23", "Thunderbrand Crypt", "Thunderbrand Crypt Wardens"),
+                ("14-24", "The Last God Debt", "Last God Cohort"),
+                ("14-25", "Skyfire Grave Vestibule", "Grave Vestibule Guard"),
+                ("14-26", "Sky King's Fallen Bastion", "Fallen Bastion Command"),
+                ("14-27", "The Broken Pantheon Scepter", "Broken Pantheon Legion"),
+                ("14-28", "Stormheart Ruin Gate", "Ruin Gate Guard"),
+                ("14-29", "The Fallen Dais", "Fallen High Command"),
+                ("14-30", "The Fallen Pantheon", "Fallen Pantheon High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter14Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "14-1" => "The pantheon falls. Walk the ruins or join them.",
+                    "14-15" => "Every fallen god leaves a throne of ash.",
+                    "14-30" => "The fallen pantheon has no mercy left.",
+                    _ => $"{enemyName} holds {title}. The gods are already broken.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "14-1" => "I walk. Make a path.",
+                    "14-15" => "Then I take the ash.",
+                    "14-30" => "Then I end what remains.",
+                    _ => "Clear the path. The pantheon still falls.",
+                };
+
+                if (stageId == "14-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The pantheon is fallen — and I still stand."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Stand carefully, Sovereign. Fallen gods leave hungry voids."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The fallen pantheon still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

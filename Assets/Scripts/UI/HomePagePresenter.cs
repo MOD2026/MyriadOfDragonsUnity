@@ -149,7 +149,7 @@ public class HomePagePresenter : MonoBehaviour
     /// <summary>Chapter finale stage ids that grant one Ascension Permit on first clear (milestone, not weekly).</summary>
     public static readonly string[] ChapterFinalePermitStageIds =
     {
-        "1-3", "2-21", "3-30", "4-30", "5-30", "6-30", "7-30", "8-30", "9-30", "10-30", "11-30", "12-30", "13-30",
+        "1-3", "2-21", "3-30", "4-30", "5-30", "6-30", "7-30", "8-30", "9-30", "10-30", "11-30", "12-30", "13-30", "14-30",
     };
 
     /// <summary>Chapter 1 finale — kept for existing call sites / tests.</summary>
