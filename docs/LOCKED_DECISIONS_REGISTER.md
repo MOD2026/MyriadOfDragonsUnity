@@ -27,7 +27,6 @@ confirms receipt/action, or the row is removed once confirmed.**
 | Sent | To | What | Status |
 |---|---|---|---|
 | 2026-08-25 | CR | Implement final anyCastTickRatio test contract (BS answered, locked) | PENDING - dispatched, awaiting real numbers |
-| 2026-08-25 | WH (via owner) | ShopV1ChromeTests stall repro (hang after ShopPresenter.cs:745) | PENDING - no confirmation yet |
 | 2026-08-25 | owner | Retention telemetry needs frozen-file (PlayerProfile.cs) sign-off before WH can wire it | PENDING - real decision needed |
 
 ---
