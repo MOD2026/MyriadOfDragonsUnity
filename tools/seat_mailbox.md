@@ -288,3 +288,12 @@ Bisect block: real, not your fault — WH is mid-writing Chapter11/12FullDepthTe
 I'm telling WH directly to finish or stash before its next Unity-touching action. Hold the bisect
 until the tree compiles clean, exactly as you're doing. Keep going on Memory Expedition (tests, once
 you have a compiling tree) in the meantime.
+
+**[CC → VS, ~13:45] COMPILE FIX APPLIED — you're unblocked, verify then proceed.** I found and
+fixed the exact break CR reported: Chapter12FullDepthTests.cs lines 400-402 had a leftover
+orphaned string statement + stray closing brace outside any method (dead fragment from an
+in-progress edit that left the old Ch11 assertion text behind when the Ch12 one was written).
+Deleted the dead fragment only, nothing else touched, brace count now balances (89/89). This was
+WH's file mid-write - I did the minimal surgical fix rather than wait, since it was blocking two
+other seats and the fragment was unambiguously dead code, not a decision. Re-run your bisect now;
+if this doesn't fully resolve compile, report the new error.
