@@ -1,6 +1,7 @@
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Economy;
 using MyriadOfDragons.Save;
+using MyriadOfDragons.Season;
 
 namespace MyriadOfDragons.UI
 {
@@ -49,5 +50,22 @@ namespace MyriadOfDragons.UI
         }
 
         public static string SelfIdentityLine() => $"You: {PlayerDisplayName()}";
+
+        public static string PassSeasonXpLine()
+        {
+            PlayerProfile profile = ProfileOrNull;
+            int xp = profile?.passSeasonXp ?? 0;
+            return $"Season XP {xp:N0}";
+        }
+
+        /// <summary>Phase-1 display until tier curve locks — shows earned XP, not a template token.</summary>
+        public static string PassTierProgressLine()
+        {
+            PlayerProfile profile = ProfileOrNull;
+            int xp = profile?.passSeasonXp ?? 0;
+            if (BattlePassOpenValues.SeasonXpPerTier is int perTier && perTier > 0)
+                return $"{xp:N0} / {perTier:N0} XP";
+            return $"{xp:N0} XP earned";
+        }
     }
 }
