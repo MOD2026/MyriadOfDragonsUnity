@@ -1895,3 +1895,30 @@ Tactical Puzzle can be built, not just a design/content task.
 Phase-1 candidate contingent on the verifier + puzzle-authoring tooling being built/approved - not
 committed to ship yet. Do NOT build fixed-hand "mini battles" that still run ordinary combat - that
 was explicitly rejected. Do not add a third minigame until both modes prove repeat engagement.
+
+## Novice cast-rate band LOCKED + Windstep ablation DECISIVE (2026-08-25, CR, verified against commit 0c5d276)
+
+**Novice band LOCKED.** Re-measured on dead-slot-filtered loadout per instruction: real result
+21.6% [19.4%, 23.7%] AiCastRateOfOpportunity - comfortably inside GPT's independently-confirmed
+15-35% band. Comment updated PROVISIONAL -> LOCKED.
+
+**Windstep ablation, 4 conditions, 1500 trials each, identical seeds (VeteranPlusWindstepAblationTests):**
+- A) Current w/ Windstep: aiWinRate=28.5%, Windstep 551 casts, winRateWhenCast=73.8%, shareOfAiWins=79.4%.
+- B) Windstep removed, empty slot: aiWinRate=28.9% - statistically indistinguishable from A.
+- C) Reposition excluded at candidate-pool level (via resolver's own selection): converges on
+  identical 4-spell list as B, aiWinRate=29.3% - confirms no other Reposition spell would silently backfill.
+- D) Windstep -> Ember Wave (cost/cadence-matched): aiWinRate=28.1%, but Ember Wave got 0 casts in
+  1500 trials - real structural finding, not a test bug: AISpellCaster tries same-effect spells in
+  list order, stops at first legal match; Fault Line (also LaneDamage, listed first) always wins
+  before Ember Wave is tried. D doesn't cleanly isolate "would any spell in that slot dominate" -
+  flagged honestly, doesn't change the main conclusion.
+
+**DECISIVE: removing Windstep changes AI win rate by <1pp.** Windstep's 79.4% win-share is
+availability bias (fires mostly in matches AI is already winning via Fault Line/Stone
+Judgment/Banner of Ashes), not a causal driver. No throttle/gate change indicated for Windstep. The
+earlier 40% maxSingleSpellWinShare cap failure is a measurement artifact, not evidence of a real
+balance problem.
+
+**Still open, NOT yet investigated:** Apprentice tick-ratio regression (9.84 vs baseline 8.30,
++18.6%, fails its own ±15% band) - real side effect of the dead-slot fix. CR directed to investigate
+this next (2026-08-25).
