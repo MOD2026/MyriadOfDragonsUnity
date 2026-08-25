@@ -2733,3 +2733,38 @@ Apprentice), same conclusion both times.
 This formalizes the exact manual ablation pattern already proven twice tonight (VeteranPlus and
 Apprentice Windstep investigations) into a permanent, repeatable test, so future tiers/spells don't
 need a one-off manual investigation each time.
+
+## Tactical Puzzle: 2 serious self-caught bugs fixed, "complete except content" was wrong (2026-08-25, VS, verified 14c9bdf)
+
+Self-picked, unprompted (nothing pending for VS in the dispatch table at the time). 93/93, 0 error
+CS, run pinned 79a130d -> cec5f37.
+
+**Bug 1: two of the three legal actions were completely unreachable through the UI.** Windstep and
+Seismic Swap (repositioning) were supported by the verifier and session from day one but had no
+route through the presenter - a player could only Deploy. Repositioning is the mode's core verb, so
+the screen was missing most of the actual game. Fixed with an order-first flow mirroring the live
+battle's RepositionSelectionState, rather than overloading lane taps (which would teach an
+interaction the real battle doesn't use).
+
+**Bug 2, the serious one: the board shown to the player was POST-COMBAT.** EvaluateObjective
+resolves lane clashes and mutates the board; the session was exposing the board Play() returned -
+meaning the player saw dead units and altered health WHILE STILL CHOOSING ORDERS, and every legality
+probe reasoned about a position the fight had already been fought on. Surfaced as "two authored units
+have no legal Seismic Swap" - one had already died in a clash the player never saw. VS's first
+instinct was a misread swap rule; it was not - the rule was correct. **VS explicitly avoided
+"fixing" the assertion to match the broken (empty) result, which would have cemented the bug and
+reported it green.** Fixed by splitting ApplyActions out of Verify - Play() still returns the
+verdict, a new BoardAfterActions() returns the actual post-order position for display, two separate
+passes.
+
+**Why it survived 73/73 and 102/102 prior green runs:** a Deploy only needs a lane; a reposition
+needs two LIVE units. Nothing before this exercised an axis that could distinguish a pre-clash board
+from a post-clash one - the coverage was real but structurally blind to this specific failure mode.
+
+**Method note VS flagged, worth keeping as standing wisdom:** adding a feature (reposition UI)
+exercised an axis existing tests couldn't reach, which is what exposed a correctness bug in code
+that had been green all evening. Coverage counts say less than whether anything can actually
+distinguish the failure you're worried about.
+
+Tap accuracy remains unverified by anyone (headless EditMode resolves no raycasts) - still
+recommended: WH eyeballs the screen once real content lands.
