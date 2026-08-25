@@ -654,3 +654,35 @@ or equivalent) immediately BEFORE and AFTER any test run, and quote both alongsi
 numbers. HEAD-pinning alone is not sufficient - also check `git status` for uncommitted peer edits
 in flight before trusting a "clean" full-suite result, since another session's uncommitted work can
 silently change what's actually being measured.
+
+## Engine-side AI-cast determinism fix shipped (2026-08-25, VS)
+
+StartMatch now resolves rngSeed via `override ?? Guid` at the instance level (not static - a static
+would leak across PlayAgainForTests fixtures the same way CardDatabase.Instance did). Production
+never sets the override, so behavior is unchanged when null. Fixes all 6 flaky chapter unlock
+tests + the Ch1 gap (e5f2ea1 had skipped Chapter1 entirely - it was passing on luck, not a real
+pin). CLAUDE.md runner command corrected to the working -ExecutionPolicy Bypass form. 12 files
+committed, 0 error CS.
+
+Semantic change flagged for awareness: SetAiSpellCastRngSeedForTests now pins "this and every later
+match on this controller," not just the one call - confirmed non-regressive across all ~10 existing
+call sites via the suite, not assumed. Documented on the method itself.
+
+## Standing rule: hold edits while another seat holds the Unity batch lock (2026-08-25)
+
+Real incident: VS ran a clean 1091/1095 confirmation, then a same-window re-run came back 1089/1095
+with 2 new failures despite VS's own change being comment-only in between. Root-caused: CR was
+mid-editing AvatarSpell.cs/SpellUnlockResolver.cs (131 changed lines) during VS's run window - not
+a regression from VS's commit, but silent invalidation of a suite number by concurrent uncommitted
+edits. `.unity_batch.lock` already exists for Unity process access but isn't currently honored for
+file edits.
+
+**Standing rule, all seats:** while `.unity_batch.lock` is held by another seat's test run, hold off
+on editing files that suite might touch (or at minimum, commit your own change set before someone
+else's run starts, don't edit mid-run). HEAD-pinning catches committed state; it does NOT catch
+uncommitted peer edits landing inside another seat's run window - check `git status` for peer diffs
+before trusting a suite number as final, not just HEAD.
+
+BalanceSimulationTests (VS's file) failed under CR's in-flight edit - flagged as possibly
+substantive (CR's spell changes could be moving real combat decisiveness) but not yet re-measured;
+holds until CR commits its current Reposition/Seismic Swap work, per CC instruction.
