@@ -736,3 +736,22 @@ Windstep + the now-committed AISpellCaster tuning changed the baseline. This is 
 balance thread reopening on its own from someone else's in-flight tuning commits, not from either
 VS's or CR's tonight's work. Stays parked/flagged, not auto-retuned - real result someone with
 authority over AISpellCaster.cs needs to own.
+
+## RepositionSelectionState shipped, GameBootstrap wiring deliberately held (2026-08-25, CR)
+
+Full tap-to-target flow as testable state (RepositionSelectionState.cs, no MonoBehaviour): Windstep
+unit-then-lane, Seismic Swap unit-then-unit, illegal taps are no-ops, Cancel clears mid-flow.
+Committed 6158168. Caught and fixed a real bug during development: TryBuildWindstepTarget/
+TryBuildSeismicSwapTarget originally trusted the caller's earlier legality check instead of
+re-verifying themselves - fixed to independently re-check RepositionRules before returning
+anything, closing a stale/skipped-check hole. 25/25 RepositionTests, 210/210 broader regression, no
+production behavior changes elsewhere.
+
+**Deliberately NOT wired into GameBootstrap.cs's rendering/click layer, per CC decision.** Confirmed
+by reading the file: no per-unit tap interaction exists anywhere in Combat today - every spell
+targets a whole lane, CreateMiniCardDisplay's rendered cards are pure visual (raycastTarget=false
+everywhere). RepositionSelectionState is the ready-to-wire contract. Landing the actual wiring blind
+into a 5900+ line, actively-contended shared file with zero Play Mode/device verification available
+was judged the wrong tradeoff tonight (same reasoning as the concurrent-edit collisions logged
+elsewhere this session) - held for a session with real Play Mode access, not urgent. Reposition's
+game-logic layer is complete and real; only the player-visible interaction remains.
