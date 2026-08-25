@@ -44,7 +44,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 |---|---|---|---|
 | 2026-08-25 | VS | Build the 6 puzzle definitions from the register + run real 7-step validation (solver now exists) | PENDING - dispatched |
 | 2026-08-25 | BS (via owner) | Windstep fix made both tiers correctly stronger, tripping old bands - invoke HP/Resource scaling, or revisit the bands? | PENDING - awaiting relay |
-| 2026-08-25 | BS (via owner) | Curated per-chapter battle arena theming (mechanism now real, mapping is a content decision) | PENDING - awaiting relay |
+| 2026-08-25 | BS (via owner) | Audio/VFX asset confirmation gap - real files/import settings/Unity wiring unverified behind confirmed cue names | PENDING - awaiting relay |
 
 ---
 
@@ -3421,3 +3421,47 @@ lesson would all point at something the player never needed to find).
 form** - VS is correctly holding because my earlier dispatch described BS's 6 puzzles in prose/table
 form, not as actual loadable definitions. Unblocking now: VS to build the definitions directly from
 the register entry ("Tactical Puzzle Week 1 content batch") and run the real validation.
+
+## UI Artwork Status Register (CC review copy) reconciled - 4 art items approved (2026-08-25)
+
+UI produced `Myriad_of_Dragons_UI_Artwork_Status_Register_CC.docx` - a formal register with the same
+Approved/Rejected/Review taxonomy as `UI_Design_Register.md`, plus an explicit "CC decision queue"
+(§6, 5 items). Cross-checked against the earlier background triage audit above: no contradictions -
+Battle V4/V5/V6 rejected in both, Gate V1 superseded by V2 in both. This register adds one real new
+fact: it independently confirms the Empire_Missing_Buildings_Renders_V1 process-gap flag (these 5
+renders are listed as `Candidate`/needs-review here too, not approved anywhere on record) - not a
+new finding, but a second, independent confirmation the approval tag was genuinely skipped, not a
+false alarm.
+
+**Art viewed directly (actual files under Resources/, not descriptions) and approved by owner:**
+
+| # | Item | Files | Decision |
+|---|---|---|---|
+| 1 | Tactical Puzzle chrome (entry/board/result) | `Resources/UI/TacticalPuzzleV1/*` | **APPROVED** as reusable runtime family - already wired, passes `TacticalPuzzleLayoutTests` |
+| 2 | VIP/Subscription shell + state icon atlas | `Resources/UI/VipSubscriptionV1/*` | **APPROVED** - convenience-only framing per register |
+| 3 | Empire missing-building renders x5 (Storage/Training Grounds/Quarry/Academy/Tree of Knowledge) | `Resources/UI/EmpireBuildingDetailV1/Buildings/*` | **APPROVED** - closes the process gap; already live in-game, style matches the existing V1 building set |
+| 4 | Friends screen shell | `outputs/Friends_UI_Art_V1/friends_screen_shell_v2_1920x1080_rgba.png` | **APPROVED** as final social shell - handoff cleared |
+
+Item 5 of the queue (confirm real audio/VFX files + import settings) is NOT an art decision - routed
+to BS as a process/brainstorm question instead (see PENDING DISPATCH). Item 3's approval also
+retroactively closes the standing process-gap flag from the earlier UI-backlog audit entry above -
+no revert needed, art is correct, the missing paperwork step is now done.
+
+## Curated per-chapter battle arena theming SHIPPED (BS decision, story-benchmarked) - `6a0c13e`
+
+BS reviewed the chapter list against the 10 real arena files and delivered a full curated map for
+chapters 1-18 (see prior PENDING DISPATCH row, now closed) instead of the placeholder modulo-10
+rotation shipped at `fd1f3aa`. Key call: **Enchanted_Forest deliberately excluded** from the curated
+range - BS flagged it as the weakest story fit for any of chapters 1-18 and explicitly said not to
+force it in; it stays reserved for future forest content or a later stage-level override.
+
+Implementation: `GameBootstrap.ArenaBackdropNameForTests` now checks a `CuratedChapterArenaMap`
+(chapters 1-18) first, falling back to the prior deterministic modulo-10 rotation only for chapters
+beyond the curated table - satisfies BS's "fallback only, never primary" instruction and keeps
+Enchanted_Forest reachable (verified: chapters 19-28 is one full rotation cycle, hits all 10 arenas
+including it).
+
+**Verified, not assumed:** `BattleBackdropSelectionTests` rewritten for the new design intent (old
+test asserted all 10 arenas reachable within chapters 1-20, which is now false BY DESIGN since
+Enchanted_Forest is reserved) - 6/6 passing, 0 `error CS`, HEAD pinned `4e6cc24` before run, `6a0c13e`
+after commit.
