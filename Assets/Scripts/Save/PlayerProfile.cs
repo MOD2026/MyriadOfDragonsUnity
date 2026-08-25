@@ -33,6 +33,22 @@ namespace MyriadOfDragons.Save
         /// </summary>
         public int staminaShopPurchasesInWindow = 0;
 
+        /// <summary>
+        /// VIP / Subscription entitlement (LOCKED 2026-08-26, additive). Empty = no active plan.
+        /// Plan ids: weekly | fortnight | monthly. Unused claims expire when vipExpiresUtcTicks elapses
+        /// (see VipSubscriptionOpenValues.ExpireIfLapsed). No combat/deck/progression power.
+        /// </summary>
+        public string vipPlanId = string.Empty;
+
+        /// <summary>UTC ticks when the current VIP plan started (claim period origin).</summary>
+        public long vipStartedUtcTicks = 0;
+
+        /// <summary>UTC ticks when the current VIP plan ends. 0 = none.</summary>
+        public long vipExpiresUtcTicks = 0;
+
+        /// <summary>Stamina claims already consumed under the current VIP plan (0..plan max).</summary>
+        public int vipClaimsConsumed = 0;
+
         // --- PROPERTY WRAPPERS FOR UI PRESENTERS ---
         public string PlayerName { get => playerName; set => playerName = value; }
         public int Level { get => level; set => level = value; }
@@ -226,6 +242,21 @@ namespace MyriadOfDragons.Save
         /// <summary>Pass Season XP sink for login/quest grants (Battle Pass track reads later).
         /// Additive beyond the register's named field list — flagged for owner sign-off.</summary>
         public int passSeasonXp = 0;
+
+        /// <summary>Shop Loyalty track progress. Additive, owner-signed-off 2026-08-26 ("OWNER
+        /// SIGN-OFF: PlayerProfile.shopMilestoneProgress field"), per
+        /// docs/Shop_V1_Release_Contract.md:50.
+        ///
+        /// ACCRUAL ONLY. That spec line requires "a milestone table" alongside this counter and no
+        /// such table exists - no thresholds, no rewards. So points accumulate and nothing redeems
+        /// them yet; see ShopLoyaltyService, which says so in code rather than implying a reward
+        /// path that was never designed.
+        ///
+        /// Defaults to 0, which is already the correct starting value for an old save, so no
+        /// migration step is required. SaveMigration applies AtLeastZero to every other int as a
+        /// corrupted-save guard; that file is frozen and was NOT part of this sign-off, so
+        /// ShopLoyaltyService floors the value on read and write instead.</summary>
+        public int shopMilestoneProgress = 0;
 
         // --- MEMORY EXPEDITION (Tree of Knowledge daily minigame) ---
         // Additive, owner-approved 2026-08-25 (all 12 fields listed and approved verbatim before
