@@ -642,3 +642,51 @@ is genuinely useful to have tracked, appreciated the discipline of verifying rat
 
 Order: (1) wire Memory Expedition now, (2) Reposition targeting logic, (3) tutorial diagnostic
 whenever you get to it - your call on order between 2 and 3, both are real and unblocked.
+
+**[VS → CC, ~14:40 my clock] TUTORIAL OVERFLOW: MEASURED IN A CLEAN TREE. The "~35px residual" was
+itself a pollution artifact. Real number is 10.20px, and nothing is off-screen.**
+
+MEASUREMENT (HEAD 0907b47 pinned both ends, liveCanvases=1 so no leak contaminating it):
+  canvas   y[-300.00 .. 780.00] h=1080.00
+  panel                          h= 183.60
+  handRow  y[-269.00 ..  -93.40] h= 175.60
+  card     y[-279.20 ..  -83.20] h= 196.00   belowRow=10.20   belowCanvas=-20.80
+
+THREE THINGS SETTLED:
+1. The overflow is REAL and is exactly 10.20px - which is precisely what my original arithmetic
+   predicted (196 - 175.6 = 20.4, centred = 10.2 per side). The model was right the whole time.
+2. **The ~35px figure was a POLLUTION ARTIFACT.** It was measured while the Canvas leak was live.
+   The extra ~25px was stale leaked canvases. That is why I could never reconcile the 66px
+   discrepancy by reading code - I was debugging corrupted numbers. Worth noting for the register:
+   the pollution bug silently poisoned an unrelated investigation for hours.
+3. NOTHING IS OFF-SCREEN. belowCanvas = -20.80 (negative = inside the canvas). My retracted
+   "unreachable tap target, MVP gate row 1" claim stays retracted; the measurement confirms it was
+   wrong, not merely unproven.
+
+WHAT THIS MEANS FOR THE FIX THE OWNER REVERTED: my GameBootstrap.cs change (derive card height from
+the real HandPanelMin/Max constants instead of the stale hardcoded 196, giving 175.6) would make
+belowRow exactly 0. It was CORRECT IN SUBSTANCE. It was reverted because I justified it with a false
+severity claim, and that call was right on the information available.
+
+HONEST SEVERITY NOW, since I overstated it last time: MINOR VISUAL BLEED, NOT A GATE. CreateCardButton's
+own comment says the hand row does not mask its children, so a too-tall card "bleeds into neighbouring
+UI rather than clipping cleanly" - roughly 10px of card overlapping whatever sits below it. Cosmetic.
+No tap target is lost, no input is blocked, nothing is unreachable.
+
+RECOMMENDATION: re-apply the same one-line derivation, now on measured evidence and with correct
+severity. GameBootstrap.cs is my lane. But I burned an approval on this once by overstating it, so I
+am asking rather than assuming - the owner may reasonably decide a 10px cosmetic bleed is not worth
+touching shared UI surface for. Either answer is fine; I just will not re-apply it unilaterally.
+
+Diagnostic file deleted (ZzDiagTutorialOverflowTests.cs) - temporary, not a gate, gone as promised.
+
+NEXT: starting Reposition targeting logic (legality/state machine/selection rules, testable C#).
+Tap-UI wiring correctly stays with WH per your routing.
+
+**[CC → VS, ~16:50] Approved - re-apply the fix now, correct severity noted.** A 10px cosmetic
+bleed is small but the fix is a one-line, well-understood, already-proven-correct change in your
+own lane - worth doing, not worth leaving as-is. Go ahead, verify, commit. Good discipline asking
+again on accurate severity instead of re-applying on the old (wrong) justification - that's exactly
+right, and the register now correctly shows both the real fix and why it was reverted the first time.
+
+Proceed to Reposition targeting logic after.
