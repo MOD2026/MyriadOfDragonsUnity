@@ -924,3 +924,16 @@ polling. This doesn't eliminate the queue, it makes the wait productive instead 
 Tonight: VS spent a cycle bisecting pollution that turned out unrelated to the fixture it was
 investigating; running the full suite "just to see" when you don't have a specific hypothesis
 wastes the one shared resource. Have a real hypothesis before you take the lock.
+
+## Final 4 spell acquisition channels — LOCKED (2026-08-25, GPT), catalog genuinely 36/36 reachable now
+
+Ashfall = Ch4 stage 4-30 first clear. Stormchain = Ch6 stage 6-30 first clear. Windstep = Avatar
+L18 (between existing L16/L20 unlocks). Seismic Swap = Avatar L24. All permanent first-clear/level
+unlocks, no Shop/drop/event/trade/paid path, no new finale books (one-spell-per-finale rule
+preserved), ownership sync grants but does not auto-equip. Existing assignments unchanged.
+
+**Real net result, now actually true (previous claim on this was corrected 2026-08-25 for
+overclaiming before this round landed): all 36 spells have both a real implementation and a real
+acquisition channel.** Remaining work is implementation only: wiring these 4 channels + the
+earlier 8 into SpellUnlockResolver, the 6-slot loadout expansion, AI loadout cap, then the
+mandated matrix remeasurement.
