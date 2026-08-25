@@ -3911,3 +3911,8 @@ markers differ) - would need an explicit CC decision to adapt, not an assumed re
 companions leave/continue, what the Unknown Voice wants, whether Ch11-18 depict restoration vs.
 temptation vs. conquest, how claiming the final throne reconciles with the Ch3 refusal). This is
 ST's own natural follow-up, not a coding task.
+
+## Narrative continuity pass dispatched to ST (2026-08-26) - Golden Rule 1, acted without asking
+
+Per ST's own audit conclusion, opening the Chapter 4-18 continuity pass now rather than waiting -
+owner reminded standing Golden Rule 1 (act decisively on the obvious next step).
