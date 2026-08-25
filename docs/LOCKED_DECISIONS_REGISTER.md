@@ -2642,3 +2642,18 @@ elongation is real, legitimate spellcasting effect, now correctly measured and r
 gated (this entry). Started from a confounded blended metric, root-caused via 3 separate real
 diagnostic protocols (forced-no-cast control, shadow-effect-suppression control x2), ended with a
 correct, permanent test contract.
+
+## ShopV1ChromeTests stall - does NOT reproduce in isolation (2026-08-25, WH, verified HEAD 49b47e7)
+
+Real, honest negative result. BuildShop_UsesCatalogShellBackground_AndStaminaStateSprites run alone:
+Passed in 0.11s (Unity process ~16s total). Checked the actual code after the "Purchased Stamina
+Potion (30)." log (SetShopStatus -> Debug.Log at :745): only RefreshResourceDisplay() then
+RefreshStaminaBuyButtons() run there - no save/I-O/wait/network. SaveSystem.Save(player) already ran
+earlier at AttemptPurchase :677, BEFORE that status log - so a sync block "right after :745" doesn't
+line up with where the real save I/O actually happens.
+
+**Likely the same class of issue as ReleaseProfilePersistenceContractTests** (fails in full suite,
+passes in isolation, VS's earlier bisect found zero victim failures across 941 tests) - an
+order/full-suite-dependent condition, not a per-test code defect. Not chasing further blind - low
+priority, environment/order-dependent, distinct from a fixable code bug. Standing down on this one
+rather than open-ended investigation.
