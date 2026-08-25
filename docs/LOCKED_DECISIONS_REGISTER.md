@@ -2393,3 +2393,57 @@ filtering by date range - accumulation is both the safer default (never destroys
 doesn't foreclose per-cycle views without a schema change.
 
 VS clear to add these fields to PlayerProfile.cs now.
+
+## Zero-cast tick-ratio test contract - LOCKED (2026-08-25, BS, vetted)
+
+Re-purpose, don't tune around. New 4-metric contract:
+- anyCastTickRatio: real pass/fail timing metric, shared ±15% band (the causally-clean population).
+- zeroCastRate: tier-specific AI behavior metric (descriptive, same class as Novice's
+  AiCastRateOfOpportunity).
+- zeroCastTickRatio: descriptive telemetry only - no longer a pass/fail gate. Apprentice's 1.357
+  (11.74/8.65) gets logged, never fails the suite.
+- forcedNoCastMatchesBaseline: NEW hard correctness invariant - since forced-no-cast is now PROVEN
+  to always equal baseline, asserting that equivalence going forward catches a real future
+  regression if the AI decision loop ever starts having side effects it shouldn't.
+Widening the band was correctly rejected (would imply the AI causes the longer fight, which is
+false); dropping the pass/fail role reflects the actual, completed control evidence.
+
+## Empire Defense mechanic spec - LOCKED as design document, NOT a build trigger (2026-08-25, BS, vetted)
+
+Still fully behind the Empire Defense evidence gate (290c5c4) - this is the prerequisite spec that
+was missing, not a green light to build. Real content:
+
+**Lanes:** 3 fixed lanes, 4 path positions/2 defense sockets/1 gate/1 base-entry point each. Lane
+Integrity 2/lane (enemy reaching gate removes 1; at 0 lane is Broken and leaks damage straight to
+Core). Core Integrity 6, 0 = loss, all waves cleared = win. "Protect this lane" = finishes with Lane
+Integrity > 0. (Not individually caveated as provisional the way Command Resource numbers are below -
+minor inconsistency, treat as equally provisional, needs simulation like everything else here.)
+
+**Defense nodes (Phase-1, 4 types, expose 2-3/scenario):** Guard Post (block/delay), Archer Nest
+(single-target ranged), Arcane Spire (AoE/slow), Warden Shrine (barrier/repair - MUST have a strict
+per-run activation limit or it becomes the mandatory defensive pick and trivializes Lane Integrity).
+
+**Wave/weekly structure, real correction to the original design:** Weekly Ascent must NOT be 3 waves
+per floor (30 floors x 3 waves = 90 waves, too long). Correct shape: 1 floor = 1 short wave, every
+5th floor elite/boss, checkpoints at the already-locked 5/10/15/20/25/30, run resumes from last
+checkpoint, each threshold pays once per weekly seed.
+
+**Command Resource (mode-local, not saved currency, not battle Resource) - explicitly provisional:**
+initial 6, cap 12, passive +1/8s, kill +1 (below cap only)/elite +2/boss +3. Node costs: Guard Post 3/
+Archer Nest 4/Arcane Spire 6/Warden Shrine 5/upgrades 3-5. Expected available Command ~10-14 (wave 1)
+/14-18 (wave 2)/18-24 (wave 3). Explicitly flagged "starting simulation values, not final balance
+locks."
+
+**Building-focus rotation, consistent with the already-locked boon rule (affects choices, not raw
+power):** Barracks = temp Guard reinforcement/faster redeployment. Castle = damage containment/Core-
+protection charge. Gate = delay lane advance/preview next wave/seal a lane. Open/Card = explicitly
+NOT ready to ship under a placeholder name - no implemented building or rule set behind it yet.
+
+**Engineering honesty (asked for, delivered):** Reusable - lane identifiers/occupancy concepts, some
+slot-validation ideas, deterministic seed patterns, reward-ledger patterns ONCE a trusted service
+exists (doesn't yet). NOT reusable - normal clash resolution, existing opponent AI, spell timing,
+RepositionRules as movement, ordinary deployment. New systems needed: path-position movement, wave
+scheduler, enemy targeting/cadence, node placement/upgrades, Command-resource clock, Lane/Core
+Integrity state machine, boon selection/run state, weekly floor persistence, once-only reward claims.
+Confirmed: "a substantial second combat simulation" - still needs prototyping/simulation before art,
+reward values, or production commitments lock. No build triggered by this entry.
