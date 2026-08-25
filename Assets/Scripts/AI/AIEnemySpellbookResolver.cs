@@ -86,20 +86,23 @@ namespace MyriadOfDragons.AI
             int slotCount = SpellLoadoutAutoEquip.RequiredSlotCount(TierRepresentativeAvatarLevel(tier));
             List<AvatarSpell> loadout = SpellLoadoutAutoEquip.SelectHighestMagnitudePerEffect(pool, slotCount);
 
-            if (tier == AIDifficultyTier.Apprentice)
-                loadout = ApplyApprenticeWindstepRemoval(loadout, avatarLevelPool);
+            if (tier == AIDifficultyTier.Apprentice || tier == AIDifficultyTier.Veteran)
+                loadout = ApplyWindstepRemoval(loadout, avatarLevelPool);
 
             return loadout;
         }
 
-        /// <summary>BS-vetted, LOCKED (register): Apprentice's Windstep (Reposition) removed from
-        /// the AI loadout - the corrected ablation methodology (0fdd193, real EnemyDifficultyTier +
-        /// real spellbook override, no longer confounded) found removing it INCREASES Apprentice's
-        /// AI win rate by 6.6pp (SE 0.9%, z=7.61), a real, highly significant effect. This is a
-        /// hypothesis about mechanism ("the problem is AI selection, not the spell itself"), NOT a
-        /// proven one - the ablation shows the net effect is negative, not why. The spell itself is
-        /// untouched (player cost/cooldown/design unchanged, and it stays available at other AI
-        /// tiers via the normal pool/selection above - this override is Apprentice-only).
+        /// <summary>BS-vetted, LOCKED (register): Windstep (Reposition) removed from the AI
+        /// loadout at Apprentice AND Veteran ("VeteranPlus" in the SimMatrix's own tier-group
+        /// naming - Master/Titan are NOT covered here, out of scope, unverified) - the corrected
+        /// ablation methodology (0fdd193, real EnemyDifficultyTier + real spellbook override, no
+        /// longer confounded) found removing it increases AI win rate at BOTH tiers by a real,
+        /// highly significant, nearly identical amount (Apprentice 6.6pp z=7.61, Veteran 6.5pp
+        /// z=7.68). This is a hypothesis about mechanism ("the problem is AI selection, not the
+        /// spell itself"), NOT a proven one - the ablation shows the net effect is negative, not
+        /// why. The spell itself is untouched (player cost/cooldown/design unchanged, and it stays
+        /// available at Novice/Master/Titan via the normal pool/selection above - this override is
+        /// scoped to exactly the two tiers it was measured at).
         ///
         /// Replaced with Mend (LaneHeal, magnitude 4, a Starter spell already in the pool - no new
         /// unlock rule invented) rather than an empty slot, per the explicit instruction not to
@@ -129,7 +132,7 @@ namespace MyriadOfDragons.AI
         /// task cared about (not a dead slot like Ember Wave was). Validated empirically via
         /// ApprenticeMaxSpellWinShareDiagnosticTests.WindstepAblation_ApprenticeReplacementValidation
         /// - see that test for the real cast counts and win-rate numbers.</summary>
-        private static List<AvatarSpell> ApplyApprenticeWindstepRemoval(List<AvatarSpell> loadout, List<AvatarSpell> avatarLevelPool)
+        private static List<AvatarSpell> ApplyWindstepRemoval(List<AvatarSpell> loadout, List<AvatarSpell> avatarLevelPool)
         {
             List<AvatarSpell> result = loadout.Where(s => s.Effect != SpellEffect.Reposition).ToList();
             // Real bug found on first run: passing Phase1Catalog here (14 spells) instead of the

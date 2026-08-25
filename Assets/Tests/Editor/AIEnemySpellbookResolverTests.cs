@@ -96,22 +96,33 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "War Cry", "Stone Judgment", "Mend" }, names);
         }
 
-        [TestCase(AIDifficultyTier.Veteran)]
+        /// <summary>Windstep REMOVED at Veteran ("VeteranPlus" in the SimMatrix's own naming),
+        /// LOCKED (register, same decision and mechanism as Apprentice's - see
+        /// AIEnemySpellbookResolver.ApplyWindstepRemoval's own doc comment): the corrected
+        /// ablation found removing it increases Veteran's real AI win rate by 6.5pp (SE 0.8%,
+        /// z=7.68) - nearly identical to Apprentice's 6.6pp, not a per-tier fluke. Mend (LaneHeal)
+        /// replaces it, same reasoning as Apprentice (AvatarStrike ruled out by MOS's max-1 lock,
+        /// LaneDamage ruled out by the proven Ember Wave shadowing).</summary>
+        [Test]
+        public void ResolveSpellbook_Veteran_BannerOfAshesTakesOverLaneAttackBuff_WindstepReplacedByMend()
+        {
+            List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Veteran).Select(s => s.Name).ToList();
+            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "Banner of Ashes", "Stone Judgment", "Mend" }, names);
+        }
+
         [TestCase(AIDifficultyTier.Master)]
         [TestCase(AIDifficultyTier.Titan)]
-        public void ResolveSpellbook_VeteranAndAbove_BannerOfAshesTakesOverLaneAttackBuff(AIDifficultyTier tier)
+        public void ResolveSpellbook_MasterAndTitan_BannerOfAshesTakesOverLaneAttackBuff_WindstepUnchanged(AIDifficultyTier tier)
         {
             // Banner of Ashes (magnitude 3) outclasses War Cry (2) and Rallying Gale (1) once
             // unlocked at Veteran - stays the pick through Master/Titan too (Tempest Brand, Master's
             // own addition, never competes for this slot - it's LaneDamage, magnitude 3, and always
-            // loses to Fault Line's 5). Same 5-of-6-slots-fillable shape as Apprentice's own test
-            // above (see that test's doc comment) - all three tiers' representative levels clear
-            // Windstep's L18 gate the same way, and none clear Seismic Swap's L24 gate any
-            // differently, so the Reposition slot converges on Windstep identically across all
-            // three.
+            // loses to Fault Line's 5). Windstep removal (LOCKED, see the Veteran-specific test
+            // above) is explicitly scoped to Apprentice+Veteran only - the corrected ablation never
+            // measured Master/Titan, so they keep the normal pool/selection result unchanged.
             List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Name).ToList();
             CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "Banner of Ashes", "Stone Judgment", "Windstep" }, names,
-                $"{tier}: expected the same converged loadout as Veteran - Master/Titan's own additions (Tempest Brand) never win a slot.");
+                $"{tier}: expected the same converged loadout as before - Windstep removal doesn't apply here, out of the corrected ablation's measured scope.");
         }
 
         [Test]
