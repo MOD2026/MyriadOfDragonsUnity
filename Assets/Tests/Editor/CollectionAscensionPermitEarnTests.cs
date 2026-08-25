@@ -126,14 +126,15 @@ namespace MyriadOfDragons.Tests
             profile.ascensionPermitWeekKey = "locked-week";
             profile.ascensionPermitsEarnedThisWeek = 2;
 
-            Assert.AreEqual(10, HomePagePresenter.ChapterFinalePermitStageIds.Length);
+            Assert.AreEqual(11, HomePagePresenter.ChapterFinalePermitStageIds.Length);
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "1-3");
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "2-21");
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "10-30");
+            CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "11-30");
 
             // Each finale grants 1 via the milestone path, which respects the hoard cap - with a
-            // hoard cap of 8 and 10 finale stages, the first 8 each grant 1 and the rest grant 0
-            // once the hoard is full, rather than every one of the 10 granting 1 unconditionally.
+            // hoard cap of 8 and 11 finale stages, the first 8 each grant 1 and the rest grant 0
+            // once the hoard is full, rather than every one of the 11 granting 1 unconditionally.
             int expectedBalance = 0;
             foreach (string stageId in HomePagePresenter.ChapterFinalePermitStageIds)
             {

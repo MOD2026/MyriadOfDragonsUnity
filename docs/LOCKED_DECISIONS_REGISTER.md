@@ -831,3 +831,38 @@ AI-band drift under the parked tuning thread (flag-only, nobody touches): Novice
 (improving toward the 25% floor), VeteranPlus -9.8pp vs 8pp cap, and Apprentice NOW also out of
 band (+9.0pp vs -5..+8) — first Apprentice miss since it was declared fully solved. Whole thread
 stays parked pending owner/GPT decision; drift is expected while 36/36 spell content lands.
+
+## Loadout expansion to 6 slots (tier-unlocked) + AI remeasurement mandate — LOCKED (2026-08-25, GPT)
+
+Slots by Avatar level: new player 4, L10 = 5, L20 = 6. Max 1/effect type (still ~9 max distinct
+effects to choose from at endgame - real omission choice, not "equip everything"). Max 1
+AvatarStrike stays an EXPLICIT validation rule even though effect-uniqueness already implies it -
+don't remove it as "redundant." No duplicate spell ids. Slots earned via Avatar progression ONLY -
+never Gems/subscription/VIP/Shop (checked against the standing "no purchase = combat/deck power"
+rule). Auto-equip must prioritize effect diversity first, then existing per-effect ranking - NOT
+top-6-by-magnitude. Existing profiles keep their 4 equipped starters; migration does not
+auto-fill newly unlocked slots (real player choice, not silently maxed).
+
+**AI side:** AI may equip up to the same 6-slot cap, same effect/AvatarStrike rules, tier-gated as
+before. Full matrix remeasurement REQUIRED per tier before any retuning (spells/match, zero-cast,
+legal-opportunity cast rate, win-rate delta, avg ticks, early-KO, per-effect/per-spell cast
+frequency, win attribution, AvatarStrike concentration, invalid-action invariants, no-spell
+fallback) - record the new distribution first, do NOT auto-retune EffectPriority. This measurement
+must run against the FINAL slot/acquisition state (post 36/36 + new channels), not mid-flight.
+
+## Acquisition channels for all remaining spells — LOCKED (2026-08-25, GPT), catalog reachability complete
+
+Ember Guard = stage 4-15 first clear. Earthward = 5-15. Gale Break = 7-15. Scorched Sky = Ch7
+finale book. Volcanic Prison = Ch8 finale book (first Silence spell). Leyline Draw = Ch9 finale
+book. Thunder Decree = Ch10 finale book (campaign capstone). Titan Seal = Avatar L30 (second
+Silence, progression capstone, avoids finale-book congestion). One-spell-per-finale rule applies
+going forward (existing Ch2/Ch3/Ch6 books unchanged, Ch6's 2-spell grant stays as already
+approved). Stage grants first-clear-only, finale books atomic/idempotent, replays grant nothing,
+migration only infers from authoritative cleared-stage/claimed-book/Avatar-level evidence. No
+Shop/drop/event/trade/paid path. Eligibility != auto-equip - ownership sync grants it, player
+selects within the 6-slot loadout.
+
+**Net result: all 36 spells now have both a real implementation AND a real acquisition channel -
+the catalog is genuinely complete and reachable, not just coded.** Remaining work is
+implementation: loadout picker slot-count/tier-unlock logic, SpellUnlockResolver channel wiring,
+AI loadout cap, then the mandated matrix remeasurement.

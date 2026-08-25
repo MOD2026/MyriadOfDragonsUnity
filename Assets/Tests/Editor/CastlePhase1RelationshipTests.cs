@@ -150,7 +150,7 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(low.BarracksLevel, high.BarracksLevel, "Castle-only change must not alter Barracks level.");
             Assert.AreEqual(low.GateLevel, high.GateLevel, "Castle-only change must not alter Gate level.");
 
-            for (int chapter = 1; chapter <= 10; chapter++)
+            for (int chapter = 1; chapter <= 11; chapter++)
             {
                 Assert.AreEqual(
                     PlayerEmpireData.IsCampaignChapterAllowedByGate(low.GateLevel, chapter),

@@ -179,6 +179,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter8DepthStages());
             chapterStages.AddRange(BuildChapter9DepthStages());
             chapterStages.AddRange(BuildChapter10DepthStages());
+            chapterStages.AddRange(BuildChapter11DepthStages());
             ApplyLockedCampaignGemRewards();
         }
 
@@ -198,10 +199,10 @@ namespace MyriadOfDragons.UI
                 total += stage.gemReward;
             }
 
-            if (total != CampaignGemRewardRules.LockedTotalCh1Through10)
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through11)
             {
                 Debug.LogError(
-                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through10} " +
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through11} " +
                     $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
             }
         }
@@ -1142,6 +1143,102 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Chapter 11 depth pool — Chapter10DepthPool rotated by 17 (continuing the
+        /// 5/7/9/11/13/15/17 rotation sequence).</summary>
+        private static readonly string[] Chapter11DepthPool =
+        {
+            "iron_dragon", "pandora", "drain", "shaman", "druid", "succubus",
+            "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue", "giant_worms",
+            "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer",
+            "corrupted_warrior", "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess",
+            "conquistador", "owl_keeper", "ladyinlake",
+        };
+
+        /// <summary>Linear from Stage 10-30's 32440/6488, +10 gold / +2 gems per chapter step.
+        /// 11-30 lands at 32440 + 30*170 = 37540 gold / 6488 + 30*34 = 7508 gems (gems overwritten
+        /// by CampaignGemRewardRules at apply time).</summary>
+        private static (int gold, int gems) Chapter11DepthReward(int stageNumber)
+        {
+            const int baseGold = 32440, goldPerStage = 170;
+            const int baseGems = 6488, gemsPerStage = 34;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 11 — The Storm's Price (post–Empty Throne arc; Unknown Voice beat
+        /// "take the storm… and pay its price"). Pool+stride decorrelated from Ch10.</summary>
+        private static readonly (string title, string enemyName)[] Chapter11DepthFlavor =
+        {
+            ("Stormprice Causeway", "Stormprice Watch"),
+            ("Thunder Tithe Gate", "Tithe Gate Guard"),
+            ("Bolt-Debt Court", "Bolt-Debt Cohort"),
+            ("Sky Levy Archive", "Levy Archive Wardens"),
+            ("Tempest Toll Hall", "Toll Hall Legion"),
+            ("Price of Clouds Stair", "Cloud Stair Guard"),
+            ("The Mortal Storm Forum", "Forum Command"),
+            ("Oathprice Bridge", "Oathprice Cohort"),
+            ("Taken Thunder Antechamber", "Thunder Antechamber Guard"),
+            ("Storm Eagle Debt-Roost", "Debt-Roost Legion"),
+            ("Crownlevy Gallery", "Crownlevy Wardens"),
+            ("The Reckoning Steps", "Reckoning Guard"),
+            ("Cloudbreaker Tithe Hall", "Tithe Hall Command"),
+            ("Storm Oath Chamber", "Storm Oath Cohort"),
+            ("The Price Court", "Price Court Guard"),
+            ("Boltscar Tithe Road", "Tithe Road Legion"),
+            ("Skyfire Levy Vault", "Levy Vault Wardens"),
+            ("Eaglewatch Debt Parapet", "Debt Parapet Guard"),
+            ("Tempest Engine Toll", "Engine Toll Cohort"),
+            ("War Balcony of Storms", "Storm Balcony Command"),
+            ("Stormseal Price Reliquary", "Price Reliquary Guard"),
+            ("Cloud Crown Levy Rampart", "Levy Rampart Legion"),
+            ("Thunderbrand Tithe Hall", "Thunderbrand Tithe Wardens"),
+            ("The Last Storm Debt", "Last Debt Cohort"),
+            ("Thronefire Price Vestibule", "Price Vestibule Guard"),
+            ("Sky King's Taken Bastion", "Taken Bastion Command"),
+            ("The Broken Storm Scepter", "Broken Scepter Legion"),
+            ("Stormheart Tithe Gate", "Stormheart Tithe Guard"),
+            ("The Reckoning Dais", "Reckoning High Command"),
+            ("The Storm's Price", "Storm Price High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter11DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                int baseIndex = (25 * i + 7) % poolSize;
+                string[] ids =
+                {
+                    Chapter11DepthPool[baseIndex],
+                    Chapter11DepthPool[(baseIndex + 14) % poolSize],
+                    Chapter11DepthPool[(baseIndex + 20) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "mountain_harpy", "elven_high_lord", "drain" };
+
+                // Stage 11-5's generated roster collided with Stage 6-28's full three-card roster.
+                if (stageNumber == 5)
+                    ids = new[] { "fire_worm", "butcher", "goblin_shaman" };
+
+                // Stages 11-8 / 11-9 / 11-13 measured as real AF defeats under starter+AF policy —
+                // swapped for lighter distinct pool entries (same retune doctrine as Ch7/Ch10).
+                // Avoid Ch10's measured patches (10-7 / 10-10) so the campaign-wide roster
+                // uniqueness contract stays green.
+                if (stageNumber == 8)
+                    ids = new[] { "fire_worm", "zombified_captain", "goblin_shaman" };
+                if (stageNumber == 9)
+                    ids = new[] { "snake_archer", "butcher", "goblin_shaman" };
+                if (stageNumber == 13)
+                    ids = new[] { "mountain_harpy", "butcher", "wood_wizard" };
+
+                (string title, string enemyName) = Chapter11DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The taken storm exacts its price.";
+                (int gold, int gems) = Chapter11DepthReward(stageNumber);
+                yield return new CampaignStageData($"11-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
         /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
         /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
         /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
@@ -1170,7 +1267,7 @@ namespace MyriadOfDragons.UI
         public static CampaignStageData GetStageForTests(string stageId) =>
             chapterStages.Find(stage => stage.stageId == stageId);
 
-        /// <summary>Exposed for tests: full Ch1–10 stage list (sole order authority).</summary>
+        /// <summary>Exposed for tests: full campaign stage list (sole order authority).</summary>
         public static IReadOnlyList<CampaignStageData> GetAllStagesForTests() => chapterStages;
 
         public void Initialize(System.Action onBackToHome, System.Func<CampaignStageData, CampaignLaunchOutcome> onLaunchBattle)
@@ -1472,6 +1569,7 @@ namespace MyriadOfDragons.UI
                 case 8: return "CHAPTER 8: CROWN OF STORMS";
                 case 9: return "CHAPTER 9: THE AEGIS CITADEL";
                 case 10: return "CHAPTER 10: THE EMPTY THRONE";
+                case 11: return "CHAPTER 11: THE STORM'S PRICE";
                 default: return $"CHAPTER {chapter}";
             }
         }

@@ -22,8 +22,8 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(8, PlayerEmpireData.GetHighestCampaignChapterAllowed(21));
             Assert.AreEqual(9, PlayerEmpireData.GetHighestCampaignChapterAllowed(24));
             Assert.AreEqual(10, PlayerEmpireData.GetHighestCampaignChapterAllowed(27));
-            Assert.AreEqual(10, PlayerEmpireData.GetHighestCampaignChapterAllowed(30),
-                "Gate L30 is future side-route; chapter ceiling stays 10.");
+            Assert.AreEqual(11, PlayerEmpireData.GetHighestCampaignChapterAllowed(30),
+                "Gate L30 unlocks Chapter 11 (The Storm's Price).");
         }
 
         [Test]
@@ -33,7 +33,8 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(PlayerEmpireData.IsCampaignChapterAllowedByGate(3, 2));
             Assert.IsFalse(PlayerEmpireData.IsCampaignChapterAllowedByGate(21, 9));
             Assert.IsTrue(PlayerEmpireData.IsCampaignChapterAllowedByGate(24, 9));
-            Assert.IsFalse(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 11));
+            Assert.IsTrue(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 11));
+            Assert.IsFalse(PlayerEmpireData.IsCampaignChapterAllowedByGate(27, 11));
             Assert.IsFalse(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 0));
         }
 

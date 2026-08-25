@@ -281,17 +281,17 @@ namespace MyriadOfDragons.Empire
             21, // Ch8
             24, // Ch9
             27, // Ch10
+            30, // Ch11 — The Storm's Price (owner milestone; L30 was the next paid Gate step)
         };
 
         /// <summary>
-        /// Highest Campaign chapter (1–10) this Gate level may attempt. Gate L30 is reserved for
-        /// a future side/endgame route and still returns 10 here — no Chapter 11 invented.
+        /// Highest Campaign chapter (1–11) this Gate level may attempt.
         /// </summary>
         public static int GetHighestCampaignChapterAllowed(int gateLevel)
         {
             int level = Mathf.Max(1, gateLevel);
             int highest = 1;
-            for (int chapter = 1; chapter <= 10; chapter++)
+            for (int chapter = 1; chapter <= 11; chapter++)
             {
                 if (level >= GateLevelForChapter[chapter])
                     highest = chapter;
@@ -305,7 +305,7 @@ namespace MyriadOfDragons.Empire
         /// <summary>True if Gate alone permits this chapter. Does not check stage unlock.</summary>
         public static bool IsCampaignChapterAllowedByGate(int gateLevel, int chapter)
         {
-            if (chapter < 1 || chapter > 10)
+            if (chapter < 1 || chapter > 11)
                 return false;
             return gateLevel >= GateLevelForChapter[chapter];
         }
@@ -316,7 +316,7 @@ namespace MyriadOfDragons.Empire
         /// GateLevelForChapter itself.</summary>
         public static int MinimumGateLevelForChapter(int chapter)
         {
-            if (chapter < 1 || chapter > 10)
+            if (chapter < 1 || chapter > 11)
                 return 0;
             return GateLevelForChapter[chapter];
         }

@@ -1180,6 +1180,80 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The empty throne still waits.");
             }
+
+            // Chapter 11 — The Storm's Price (post–Empty Throne; Unknown Voice "take the storm… pay its price").
+            (string stageId, string title, string enemyName)[] chapter11Stages =
+            {
+                ("11-1", "Stormprice Causeway", "Stormprice Watch"),
+                ("11-2", "Thunder Tithe Gate", "Tithe Gate Guard"),
+                ("11-3", "Bolt-Debt Court", "Bolt-Debt Cohort"),
+                ("11-4", "Sky Levy Archive", "Levy Archive Wardens"),
+                ("11-5", "Tempest Toll Hall", "Toll Hall Legion"),
+                ("11-6", "Price of Clouds Stair", "Cloud Stair Guard"),
+                ("11-7", "The Mortal Storm Forum", "Forum Command"),
+                ("11-8", "Oathprice Bridge", "Oathprice Cohort"),
+                ("11-9", "Taken Thunder Antechamber", "Thunder Antechamber Guard"),
+                ("11-10", "Storm Eagle Debt-Roost", "Debt-Roost Legion"),
+                ("11-11", "Crownlevy Gallery", "Crownlevy Wardens"),
+                ("11-12", "The Reckoning Steps", "Reckoning Guard"),
+                ("11-13", "Cloudbreaker Tithe Hall", "Tithe Hall Command"),
+                ("11-14", "Storm Oath Chamber", "Storm Oath Cohort"),
+                ("11-15", "The Price Court", "Price Court Guard"),
+                ("11-16", "Boltscar Tithe Road", "Tithe Road Legion"),
+                ("11-17", "Skyfire Levy Vault", "Levy Vault Wardens"),
+                ("11-18", "Eaglewatch Debt Parapet", "Debt Parapet Guard"),
+                ("11-19", "Tempest Engine Toll", "Engine Toll Cohort"),
+                ("11-20", "War Balcony of Storms", "Storm Balcony Command"),
+                ("11-21", "Stormseal Price Reliquary", "Price Reliquary Guard"),
+                ("11-22", "Cloud Crown Levy Rampart", "Levy Rampart Legion"),
+                ("11-23", "Thunderbrand Tithe Hall", "Thunderbrand Tithe Wardens"),
+                ("11-24", "The Last Storm Debt", "Last Debt Cohort"),
+                ("11-25", "Thronefire Price Vestibule", "Price Vestibule Guard"),
+                ("11-26", "Sky King's Taken Bastion", "Taken Bastion Command"),
+                ("11-27", "The Broken Storm Scepter", "Broken Scepter Legion"),
+                ("11-28", "Stormheart Tithe Gate", "Stormheart Tithe Guard"),
+                ("11-29", "The Reckoning Dais", "Reckoning High Command"),
+                ("11-30", "The Storm's Price", "Storm Price High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter11Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "11-1" => "The storm was never free.",
+                    "11-15" => "Every bolt has a price.",
+                    "11-30" => "Pay what you took, Sovereign.",
+                    _ => $"{enemyName} holds {title}. The taken storm will be paid for.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "11-1" => "Then name the price. I am still walking.",
+                    "11-15" => "I will pay in victories, not knees.",
+                    "11-30" => "I took the storm. I will finish the debt.",
+                    _ => "Clear the path. The storm's price still waits.",
+                };
+
+                if (stageId == "11-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The price is paid. The storm is mine to keep."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Keep it carefully, Sovereign — storms remember their debtors."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The storm's price still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)
