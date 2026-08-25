@@ -3270,3 +3270,30 @@ Updated calibration checklist for VS: known bugs (2) + premultiplied-alpha examp
 unmasked pair (2) + 9-slice border example, ideally one of the 2 real NineSlice files (1) +
 semi-transparent gradient/fringe example (1) + mipmap/small-scale example (1) + intended-checkerboard
 negative control (1) + one hard negative (1) = 8-10, matches the already-locked count.
+
+## Image-triage thread CLOSED - P0 list is EMPTY, none of the 140 flagged assets are live (2026-08-25, VS, verified 57127db)
+
+**Real, decisive, well-evidenced negative result.** Of 140 assets with no real alpha cutout, 10
+tripped a check (checkerboard-score or near-white%). Usage resolution (grep of Resources.Load call
+sites, since this project has no prefabs) found: 9 of the 10 are referenced NOWHERE in
+Assets/Scripts. The 10th appears only inside a COMMENT in GameBootstrap.cs documenting that a human
+already found and disabled it on 2026-08-16 because it "rendered as a plain white/blank rectangle at
+that scale" - a third independent confirmation of the method, reproducing a known human finding the
+detector had no knowledge of. **Nothing loads any of the 10, so none can produce a visible bug today.**
+
+**Real self-caught bug in VS's own checkerboard detector, found by deliberately testing the FAILING
+direction:** VS pulled the PRE-FIX versions of both confirmed real bugs from git history specifically
+to validate the detector would fire on them - and it didn't. Root cause: an overly-tight tone-
+bucketing threshold (10-point) collapsed the real checkerboard's actual luma gap (241 vs 254, a
+13-point real difference) into the same bucket, so the detector built to catch subtle fake
+transparency was rejecting things for being too subtle. "Had I validated only against the FIXED
+files and the corpus, it would have reported 'no checkerboards found' and looked like a working
+check." Both checks now correctly fire on their own failure class and stay quiet on fixed versions.
+
+Background colors used for the contrast check are real values read from presenter code (#141A22,
+#1E2630, #1A2A34, the detail popup panel) - not invented.
+
+**Conclusion, and the actual answer to the original scoping question that started this whole
+thread:** the 135-asset alpha flag was never a defect list. There is no remaining signal to justify
+BS's full pipeline (connected components, dE calibration, a labeled training set) - the expensive
+machinery would have been built to sort assets nobody renders. Thread closed.
