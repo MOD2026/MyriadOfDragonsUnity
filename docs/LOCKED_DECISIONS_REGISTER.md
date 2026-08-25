@@ -1539,3 +1539,13 @@ script deleted after (ops tool, not a test, correctly not committed).
 Bazaar seed data: correctly NOT done - separate, pre-existing gap (no endpoint exists to create an
 ItemInstance to list, documented in Bazaar's own README). CR correctly declined to fabricate fake
 data to work around this; real fix needs a Collection-system endpoint, out of CR's scope.
+
+## Chapter 15 SHIPPED, all P0 split commits landed (2026-08-25, WH)
+
+P0 fixes committed individually: 7b419ed (Empire timer), 122bbe7 (Campaign header overlap),
+92c8b54 (Battle Pass real Season XP), e57aa02 (opaque stage-detail panel), d6706a5 (Formation
+header vs caption). All 5 real bugs from the live visual audit now closed and committed.
+
+Chapter 15 "The Godless Dawn" (bc68e5d): 15-1..15-30, Gate L30 clears through Ch15, 14-30 chains
+to 15-1, AF retuned (15-4/15-7/15-30). Chapter15FullDepthTests 11/11, GateRouteTests 4/4, 0
+error CS. Campaign is now 423 stages total. Ch16-30 remain the milestone gap.
