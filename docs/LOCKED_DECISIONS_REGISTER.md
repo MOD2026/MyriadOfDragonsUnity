@@ -686,3 +686,26 @@ before trusting a suite number as final, not just HEAD.
 BalanceSimulationTests (VS's file) failed under CR's in-flight edit - flagged as possibly
 substantive (CR's spell changes could be moving real combat decisiveness) but not yet re-measured;
 holds until CR commits its current Reposition/Seismic Swap work, per CC instruction.
+
+## Windstep + Seismic Swap shipped (2026-08-25, CR) - catalog 34/36
+
+Real targeting model per GPT's spec: RepositionRules.cs (shared legality evaluator - player and AI
+use the same rules, cannot diverge on what's selectable vs executable), AIRepositionSelector.cs
+(GPT's 4-tier priority order + tie-breakers for both spells), AvatarSpell/BattleController/
+BattleCardInstance wiring, catalog entries. Committed 75bec83.
+
+Real pre-existing gap found and fixed along the way: lane-swap bonuses (Front Attack/Middle Health)
+were baked in once at deploy and never recomputed on any later move - added
+BattleCardInstance.ReapplyLaneBonuses so Reposition actually updates them correctly.
+
+291/293 on CR's own regression pass - the 2 failures are MirroredAiSimulationMatrixTests balance-
+band checks (Novice cast rate, VeteranPlus win-rate delta), already-known/parked, pending a clean
+re-measurement by VS once its own run isn't confounded by concurrent edits.
+
+**Honest gap, explicitly not addressed:** the player-facing UI (tap-unit-then-tap-lane for
+Windstep, tap-two-units-with-preview for Seismic Swap) is NOT implemented. Full game-logic layer
+(legality/execution/AI selection) is real, covered by 19 new EditMode tests - but this environment
+has no Play Mode testing, so CR correctly declined to write interactive UI blind with zero way to
+verify it, rather than guess. This is the one remaining piece before Reposition is a complete
+player-facing feature, separate from the 34/36 catalog-completeness number. Needs a session with
+Play Mode / manual testing access, or explicit owner sign-off to ship logic-only for now.
