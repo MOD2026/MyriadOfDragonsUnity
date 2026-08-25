@@ -46,13 +46,13 @@ namespace MyriadOfDragons.Tests
         {
             Assert.AreEqual("PAUSED — STREAK NOT RESET", DailyLoginQuestsOpenValues.StreakPausedCopy);
             Assert.AreEqual(3, DailyLoginQuestsOpenValues.DailyQuestSlots);
-            Assert.IsNull(DailyLoginQuestsOpenValues.LoginRewardAmount);
-            Assert.IsNull(DailyLoginQuestsOpenValues.QuestRewardAmount);
-            Assert.IsFalse(DailyLoginQuestsOpenValues.AreRewardsConfigured);
+            Assert.IsTrue(DailyLoginQuestsOpenValues.AreRewardsConfigured);
+            Assert.AreEqual(DailyLoginQuestsService.LoginGoldBase, DailyLoginQuestsOpenValues.LoginRewardAmount);
+            Assert.AreEqual(DailyLoginQuestsService.QuestGold, DailyLoginQuestsOpenValues.QuestRewardAmount);
         }
 
         [Test]
-        public void Presenter_ShowsPausedStreak_AndClaimsRefuse()
+        public void Presenter_ShowsReadyStatus_AndClaimsApply()
         {
             var go = new GameObject("DailyLoginHarness");
             _spawned.Add(go);
@@ -63,20 +63,20 @@ namespace MyriadOfDragons.Tests
             GameObject canvas = presenter.CanvasObjectForTests;
             Assert.AreEqual(DailyLoginQuestsUiLibrary.LandscapeShellName,
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
-            Assert.AreEqual(DailyLoginQuestsOpenValues.StreakPausedCopy, presenter.StatusTextForTests);
+            StringAssert.Contains("READY", presenter.StatusTextForTests);
             Assert.NotNull(canvas.transform.Find("DailyLoginPanel/StreakNodes/LoginWell_5"));
             Assert.NotNull(canvas.transform.Find("DailyQuestsPanel/QuestRow_2/Btn_Claim"));
-            StringAssert.Contains("Quest 1",
-                canvas.transform.Find("DailyQuestsPanel/QuestRow_0/QuestCopy")?.GetComponent<Text>()?.text);
-            StringAssert.Contains("OPEN",
+            StringAssert.Contains("login",
+                canvas.transform.Find("DailyQuestsPanel/QuestRow_0/QuestCopy")?.GetComponent<Text>()?.text?.ToLowerInvariant());
+            StringAssert.Contains("g",
                 canvas.transform.Find("DailyLoginPanel/StreakNodes/LoginWell_0/RewardAmount")?.GetComponent<Text>()?.text);
             StringAssert.Contains("Gold",
                 canvas.transform.Find("DailyLoginHeader/WalletLine")?.GetComponent<Text>()?.text);
 
             DailyLoginQuestClaimResult login = presenter.ClaimLoginForTests(0);
-            Assert.AreEqual(DailyLoginQuestClaimStatus.OpenValuesNotLocked, login.Status);
-            DailyLoginQuestClaimResult quest = presenter.ClaimQuestForTests(1);
-            Assert.AreEqual(DailyLoginQuestClaimStatus.OpenValuesNotLocked, quest.Status);
+            Assert.AreEqual(DailyLoginQuestClaimStatus.Applied, login.Status);
+            DailyLoginQuestClaimResult quest = presenter.ClaimQuestForTests(0);
+            Assert.AreEqual(DailyLoginQuestClaimStatus.Applied, quest.Status);
         }
 
         [Test]

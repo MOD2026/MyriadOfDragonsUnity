@@ -177,7 +177,7 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(DailyLoginQuestsPresenter.CanvasName));
             Assert.NotNull(home.GetComponent<DailyLoginQuestsPresenter>());
-            StringAssert.Contains("PAUSED", home.GetComponent<DailyLoginQuestsPresenter>().StatusTextForTests);
+            StringAssert.Contains("READY", home.GetComponent<DailyLoginQuestsPresenter>().StatusTextForTests);
             Click(GameObject.Find(DailyLoginQuestsPresenter.CanvasName), "DailyLoginHeader/Btn_Back");
             Assert.IsTrue(homeCanvas.activeSelf);
             Assert.IsNull(home.GetComponent<DailyLoginQuestsPresenter>());

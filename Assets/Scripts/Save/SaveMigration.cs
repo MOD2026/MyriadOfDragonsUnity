@@ -52,6 +52,15 @@ namespace MyriadOfDragons.Save
             profile.expeditionGoldEarnedTodayUtc = AtLeastZero(profile.expeditionGoldEarnedTodayUtc);
             profile.expeditionAttemptsTodayUtc = AtLeastZero(profile.expeditionAttemptsTodayUtc);
 
+            // Daily Login + Daily Quests (2026-08-25, additive) — JsonUtility leaves missing
+            // strings null on old saves; normalize like expeditionDayKeyUtc.
+            profile.lastLoginClaimUtcDate ??= string.Empty;
+            profile.dailyQuestUtcDate ??= string.Empty;
+            profile.loginStreakIndex = AtLeastZero(profile.loginStreakIndex);
+            profile.dailyQuestCompletionMask = AtLeastZero(profile.dailyQuestCompletionMask);
+            profile.dailyQuestGenerationId = AtLeastZero(profile.dailyQuestGenerationId);
+            profile.passSeasonXp = AtLeastZero(profile.passSeasonXp);
+
             profile.preferredLanguageCode = string.IsNullOrWhiteSpace(profile.preferredLanguageCode)
                 ? "en"
                 : profile.preferredLanguageCode.Trim();

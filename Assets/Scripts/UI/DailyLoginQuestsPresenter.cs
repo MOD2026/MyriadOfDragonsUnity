@@ -1,4 +1,6 @@
 using System;
+using MyriadOfDragons.Data;
+using MyriadOfDragons.Save;
 using MyriadOfDragons.Season;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,7 +8,7 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.UI
 {
     /// <summary>
-    /// Daily Login + Daily Quests shell (V1 art). Claims refuse while reward amounts stay OPEN.
+    /// Daily Login + Daily Quests shell. Claims route through <see cref="DailyLoginQuestsService"/>.
     /// Locked copy: streak pauses and is not reset.
     /// </summary>
     public class DailyLoginQuestsPresenter : MonoBehaviour
@@ -16,6 +18,11 @@ namespace MyriadOfDragons.UI
         private GameObject _canvasObj;
         private Action _onBackToHome;
         private Text _statusText;
+        private Text _walletText;
+        private Text _clockText;
+        private Text[] _loginRewardTexts;
+        private Text[] _questCopyTexts;
+        private Text[] _questProgressTexts;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
@@ -24,17 +31,27 @@ namespace MyriadOfDragons.UI
         {
             _onBackToHome = onBackToHome;
             BuildUI();
+            RefreshBound();
         }
 
         public DailyLoginQuestClaimResult ClaimLoginForTests(int wellIndex) =>
-            Apply(DailyLoginQuestsOpenValues.TryClaimLogin(wellIndex));
+            Apply(DailyLoginQuestsService.ClaimLogin(SaveManager.SaveData, DateTime.UtcNow));
 
         public DailyLoginQuestClaimResult ClaimQuestForTests(int questIndex) =>
-            Apply(DailyLoginQuestsOpenValues.TryClaimQuest(questIndex));
+            Apply(DailyLoginQuestsService.ClaimQuest(SaveManager.SaveData, questIndex, DateTime.UtcNow));
+
+        /// <summary>Test seam: claim login at an injected UTC instant (streak / double-claim).</summary>
+        public DailyLoginQuestClaimResult ClaimLoginAtUtcForTests(DateTime utcNow) =>
+            Apply(DailyLoginQuestsService.ClaimLogin(SaveManager.SaveData, utcNow));
+
+        public DailyLoginQuestClaimResult ClaimQuestAtUtcForTests(int questIndex, DateTime utcNow) =>
+            Apply(DailyLoginQuestsService.ClaimQuest(SaveManager.SaveData, questIndex, utcNow));
 
         private DailyLoginQuestClaimResult Apply(DailyLoginQuestClaimResult result)
         {
-            SetStatus(result.Message);
+            RefreshBound();
+            if (_statusText != null && !string.IsNullOrEmpty(result?.Message))
+                _statusText.text = result.Message;
             return result;
         }
 
@@ -84,15 +101,15 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
 
-            Text clock = UISharedFoundation.CreateText(topBar.transform, "ResetClock",
+            _clockText = UISharedFoundation.CreateText(topBar.transform, "ResetClock",
                 MetagameShellProfileBinding.UtcDayKeyLine(), UITextRole.Body, TextAnchor.MiddleRight,
                 new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 32f));
-            SetNorm(clock.rectTransform, 0.72f, 0.2f, 0.97f, 0.8f);
+            SetNorm(_clockText.rectTransform, 0.72f, 0.2f, 0.97f, 0.8f);
 
-            Text wallet = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
+            _walletText = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
                 MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
                 new Color(0.75f, 0.8f, 0.7f), true, new Vector2(520f, 28f));
-            SetNorm(wallet.rectTransform, 0.22f, 0.15f, 0.70f, 0.85f);
+            SetNorm(_walletText.rectTransform, 0.22f, 0.15f, 0.70f, 0.85f);
         }
 
         private void BuildLoginPanel()
@@ -116,6 +133,7 @@ namespace MyriadOfDragons.UI
             nodes.transform.SetParent(panel.transform, false);
             SetNorm(nodes.GetComponent<RectTransform>(), 0.04f, 0.28f, 0.96f, 0.76f);
 
+            _loginRewardTexts = new Text[DailyLoginQuestsOpenValues.ShellLoginWellCount];
             float well = 1f / DailyLoginQuestsOpenValues.ShellLoginWellCount;
             for (int i = 0; i < DailyLoginQuestsOpenValues.ShellLoginWellCount; i++)
             {
@@ -134,10 +152,11 @@ namespace MyriadOfDragons.UI
                     new Vector2(60f, 22f));
                 SetNorm(dayLabel.rectTransform, 0.05f, 0.7f, 0.95f, 0.98f);
 
-                Text reward = UISharedFoundation.CreateText(node.transform, "RewardAmount",
-                    MetagameShellProfileBinding.OpenAmountLabel, UITextRole.Body, TextAnchor.MiddleCenter,
+                int gold = DailyLoginQuestsService.LoginGoldBase + i * DailyLoginQuestsService.LoginGoldPerTier;
+                _loginRewardTexts[i] = UISharedFoundation.CreateText(node.transform, "RewardAmount",
+                    $"{gold}g", UITextRole.Body, TextAnchor.MiddleCenter,
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(80f, 24f));
-                SetNorm(reward.rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
+                SetNorm(_loginRewardTexts[i].rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
             }
 
             GameObject statusBar = new GameObject("StreakStatusBar", typeof(RectTransform), typeof(Image));
@@ -165,6 +184,8 @@ namespace MyriadOfDragons.UI
             header.fontSize = 28;
             SetNorm(header.rectTransform, 0.08f, 0.88f, 0.92f, 0.98f);
 
+            _questCopyTexts = new Text[DailyLoginQuestsOpenValues.DailyQuestSlots];
+            _questProgressTexts = new Text[DailyLoginQuestsOpenValues.DailyQuestSlots];
             float rowH = 0.24f;
             for (int i = 0; i < DailyLoginQuestsOpenValues.DailyQuestSlots; i++)
             {
@@ -176,10 +197,10 @@ namespace MyriadOfDragons.UI
                 row.GetComponent<Image>().raycastTarget = false;
                 SetNorm(row.GetComponent<RectTransform>(), 0.04f, top - rowH, 0.96f, top);
 
-                Text name = UISharedFoundation.CreateText(row.transform, "QuestCopy",
-                    $"Quest {i + 1} — rewards OPEN", UITextRole.Body, TextAnchor.MiddleLeft,
+                _questCopyTexts[i] = UISharedFoundation.CreateText(row.transform, "QuestCopy",
+                    $"Quest {i + 1}", UITextRole.Body, TextAnchor.MiddleLeft,
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(360f, 28f));
-                SetNorm(name.rectTransform, 0.16f, 0.55f, 0.58f, 0.92f);
+                SetNorm(_questCopyTexts[i].rectTransform, 0.16f, 0.55f, 0.58f, 0.92f);
 
                 GameObject progress = new GameObject("ProgressBar", typeof(RectTransform), typeof(Image));
                 progress.transform.SetParent(row.transform, false);
@@ -187,10 +208,10 @@ namespace MyriadOfDragons.UI
                 progress.GetComponent<Image>().raycastTarget = false;
                 SetNorm(progress.GetComponent<RectTransform>(), 0.16f, 0.18f, 0.52f, 0.48f);
 
-                Text progressCopy = UISharedFoundation.CreateText(row.transform, "ProgressCopy",
-                    $"0 / {MetagameShellProfileBinding.EmptyBackendLabel}", UITextRole.Caption, TextAnchor.MiddleLeft,
+                _questProgressTexts[i] = UISharedFoundation.CreateText(row.transform, "ProgressCopy",
+                    "0 / 1", UITextRole.Caption, TextAnchor.MiddleLeft,
                     new Color(0.8f, 0.85f, 0.7f), true, new Vector2(120f, 22f));
-                SetNorm(progressCopy.rectTransform, 0.54f, 0.18f, 0.68f, 0.48f);
+                SetNorm(_questProgressTexts[i].rectTransform, 0.54f, 0.18f, 0.68f, 0.48f);
 
                 GameObject claim = new GameObject("Btn_Claim", typeof(RectTransform), typeof(Image), typeof(Button));
                 claim.transform.SetParent(row.transform, false);
@@ -205,10 +226,45 @@ namespace MyriadOfDragons.UI
             }
         }
 
-        private void SetStatus(string message)
+        private void RefreshBound()
         {
+            PlayerProfile profile = SaveManager.SaveData;
+            DateTime utc = DateTime.UtcNow;
+            DailyLoginQuestsService.EnsureQuestDay(profile, utc);
+
             if (_statusText != null)
-                _statusText.text = message ?? string.Empty;
+                _statusText.text = DailyLoginQuestsService.StatusCopy(profile, utc);
+            if (_walletText != null)
+                _walletText.text = MetagameShellProfileBinding.WalletLine();
+            if (_clockText != null)
+                _clockText.text = $"UTC reset {DailyLoginQuestsService.UtcDayKey(utc)}";
+
+            if (_loginRewardTexts != null)
+            {
+                int currentTier = DailyLoginQuestsService.CurrentLoginTier(profile);
+                for (int i = 0; i < _loginRewardTexts.Length; i++)
+                {
+                    if (_loginRewardTexts[i] == null) continue;
+                    int gold = DailyLoginQuestsService.LoginGoldBase + i * DailyLoginQuestsService.LoginGoldPerTier;
+                    string marker = i == currentTier ? "*" : "";
+                    _loginRewardTexts[i].text = $"{gold}g{marker}";
+                }
+            }
+
+            if (_questCopyTexts != null)
+            {
+                for (int i = 0; i < _questCopyTexts.Length; i++)
+                {
+                    DailyLoginQuestDefinition quest = DailyLoginQuestsService.GetQuest(profile, i, utc);
+                    if (_questCopyTexts[i] != null)
+                    {
+                        string state = quest.IsClaimed ? "CLAIMED" : (quest.IsComplete ? "READY" : "IN PROGRESS");
+                        _questCopyTexts[i].text = $"{quest.Title} — {state}";
+                    }
+                    if (_questProgressTexts[i] != null)
+                        _questProgressTexts[i].text = $"{quest.Progress} / {quest.Target}";
+                }
+            }
         }
 
         private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)

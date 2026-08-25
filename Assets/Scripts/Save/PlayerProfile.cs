@@ -171,6 +171,30 @@ namespace MyriadOfDragons.Save
         /// <summary>BCP-47 language code consumed by realtime translation (Settings screen).</summary>
         public string preferredLanguageCode = "en";
 
+        // --- Daily Login + Daily Quests (LOCKED 2026-08-24; additive Save, owner sign-off) ---
+
+        /// <summary>UTC calendar day (yyyy-MM-dd) of the last successful Daily Login claim.
+        /// Empty = never claimed. Additive — old saves deserialize as empty.</summary>
+        public string lastLoginClaimUtcDate = string.Empty;
+
+        /// <summary>Login streak index (increments on each successful claim; never resets on a
+        /// missed day — streak pauses). Display tier = index % 6. Additive default 0.</summary>
+        public int loginStreakIndex = 0;
+
+        /// <summary>UTC day key the current daily quest set / completion mask applies to.</summary>
+        public string dailyQuestUtcDate = string.Empty;
+
+        /// <summary>Bitmask of claimed daily quest slots for dailyQuestUtcDate (bits 0..2).</summary>
+        public int dailyQuestCompletionMask = 0;
+
+        /// <summary>Optional generation snapshot: packs totalMatches/totalWins at day roll so
+        /// play/win quests measure same-day progress without extra Save fields.</summary>
+        public int dailyQuestGenerationId = 0;
+
+        /// <summary>Pass Season XP sink for login/quest grants (Battle Pass track reads later).
+        /// Additive beyond the register's named field list — flagged for owner sign-off.</summary>
+        public int passSeasonXp = 0;
+
         // Battle History & Stats
         public int winStreak = 0;
         public int totalMatches = 0;
