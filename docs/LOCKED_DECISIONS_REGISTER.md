@@ -2614,3 +2614,31 @@ stage-detail modal fix (e57aa02).
 (unlock date, run completions w/ UTC date, daily-cap hits) - that requires new save/profile fields,
 so WH stopped before touching PlayerProfile.cs/SaveSystem.cs/SaveMigration.cs pending owner sign-off,
 same discipline as every other frozen-file case tonight.
+
+## anyCastTickRatio converted to descriptive-only, thread FULLY CLOSED (2026-08-25, BS, vetted)
+
+**Decision: remove anyCastTickRatio from pass/fail. Retain a shadow-control invariant as the real
+timing-correctness gate. Do NOT widen the band to accommodate Fault Line/Windstep - effect mix will
+keep changing as the catalogue/AI loadouts evolve, and a wider shared band becomes an arbitrary
+tolerance, not a meaningful test.** Same principle as CLAUDE.md's own non-negotiable #5 ("assert
+relationships, not magnitudes") - directly reinforced here, not contradicted.
+
+**Final test contract for this whole thread:**
+- shadowCastTickRatio: NEW hard correctness gate, expected ~1.000x (AI decision path with the
+  spell's battlefield effect suppressed - proven exact match to baseline, this is what actually
+  answers "did AI decision processing distort timing").
+- anyCastTickRatio: descriptive report only (this answers "did the spell's real effect change
+  duration" - legitimate gameplay, not a defect, never fails the suite).
+- Per-effect tick impact: descriptive, with minimum sample-count requirements (Fault Line 1.618x,
+  Windstep 1.215x, Stone Judgment 0.897x logged individually; Renewal/War Cry too few samples to
+  report yet).
+- zeroCastRate, zeroCastTickRatio: already descriptive (c7f6467).
+- forcedNoCastMatchesBaseline: already a hard invariant for the zero-cast population (c7f6467).
+- Spell legality, illegal-cost/target casts, win-rate delta, cast frequency, fallback metrics: UNCHANGED, remain real balance gates - only the timing/duration metric was ever in question.
+
+**Whole zero-cast/any-cast investigation is now fully resolved end to end:** no AI defect exists
+anywhere in either population. Zero-cast was a population artifact (c136c7d). Any-cast tick
+elongation is real, legitimate spellcasting effect, now correctly measured and reported rather than
+gated (this entry). Started from a confounded blended metric, root-caused via 3 separate real
+diagnostic protocols (forced-no-cast control, shadow-effect-suppression control x2), ended with a
+correct, permanent test contract.
