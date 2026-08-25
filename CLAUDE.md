@@ -152,10 +152,13 @@ exchange survives even if this conversation compresses. Append to it in the same
 exchange, not as a later cleanup pass.
 
 **Prompt delivery:** when a prompt is ready for the owner to paste to GPT, give it as **plain,
-labeled text directly in the chat message** — never a link, never a file attachment, never an
-artifact. GPT can't open either. Partition multi-part asks into **separate labeled blocks**, one per
-distinct question — never bundle several questions into one block with internal numbering; the owner
-needs to copy exactly the part they want to send.
+labeled text directly in the chat message, inside a fenced code block** (triple backticks) — never
+a link, never a file attachment, never an artifact. GPT can't open any of those. The code fence is
+not decoration: this terminal renders a copy-icon on fenced blocks, which is the actual "visual
+marker to click" the owner asked for (2026-08-25) — plain paragraph text has no such affordance.
+Partition multi-part asks into **separate labeled blocks**, one fenced block per distinct question —
+never bundle several questions into one block with internal numbering; the owner needs to copy
+exactly the part they want to send.
 
 **Decisiveness:** don't ask permission for something checkable or decidable directly — check it or
 decide it, then say what was done. Only escalate genuine judgment calls (design/balance decisions

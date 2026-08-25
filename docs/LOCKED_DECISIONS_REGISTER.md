@@ -43,7 +43,6 @@ confirms receipt/action, or the row is removed once confirmed.**
 | Sent | To | What | Status |
 |---|---|---|---|
 | 2026-08-25 | CR | Apprentice Windstep→Mend replacement (in progress, no commit yet), then extend to VeteranPlus | PENDING - in progress |
-| 2026-08-25 | BS (via owner) | Retention telemetry: custom Cloud Code pipeline vs Unity Analytics service | PENDING - awaiting relay, not urgent (10+ weeks out) |
 
 ---
 
