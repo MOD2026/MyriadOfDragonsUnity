@@ -3684,3 +3684,31 @@ confidence this is real.
 
 **This closes the "next working prototype" gap #4** (AvatarStrike flipbook actually animates) from
 the locked to-do list above.
+
+## Real bug found in CC's OWN audio binding map, fixed (2026-08-25/26, verified b6ef527)
+
+**Correction to my own earlier work (5aaf91e):** the audio binding map I wrote had
+`avatarstrike_stinger` where every actually-delivered file (and the sibling binding right above it)
+uses `avatarstrike_release_stinger` - I dropped "release" from one of two sibling entries. Verified
+directly: `Assets/Resources/Audio/Combat/avatarstrike_release_stinger.wav` is the real file; my
+binding pointed at a name that never existed. Confirmed via `git show` + `ls` before writing this
+entry, not taken on the commit message's word alone.
+
+**Why this matters beyond the one-line fix, worth keeping as a standing lesson:** the audio sink is
+null-tolerant by design (a missing clip is silence, never an exception mid-combat - correct,
+unchanged). But that means a WRONG binding is indistinguishable from "no audio shipped yet" - the
+AvatarStrike stinger would have stayed permanently silent with nothing ever failing, in a build, in
+QA, anywhere. Only a test that actually calls `Resources.Load` and checks non-null (not just "is the
+path string well-formed") can catch this class of bug. Same distinction that already caught the
+.opus codec issue, the Empire structure tiles, and the puzzle art-role gap earlier tonight - four
+real instances of "the path is right but nothing loads" in one session. Worth treating as a general
+principle for any future asset-binding work: a load-succeeds test, not just a path-shape test.
+
+**Also confirms:** the .opus->.wav re-export fully resolved the earlier format blocker (56/56 tests,
+all 6 cues load as real AudioClips) - that thread is now completely closed, no remaining gap.
+
+Same commit also verified (not changed) that the AvatarStrike sheet living at `Assets/Art/VFX/`
+rather than under `Resources/` is fine - the prefab references it by GUID, which resolves anywhere in
+the project regardless of folder. Confirmed the sheet is genuinely 1024x1024 so the flipbook's 4x4
+assumption produces exact 256px cells, closing the one open assumption `FlipbookFramesTests` couldn't
+verify on its own (pure math can't confirm the real asset matches the grid it's told about).
