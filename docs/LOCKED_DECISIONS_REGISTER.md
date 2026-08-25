@@ -2306,3 +2306,20 @@ CR correctly did not touch ShopPresenter.cs/ShopV1ChromeTests.cs (Metagame-owned
 rule) - flagged the exact stall location instead of guessing at a fix. Routed to WH to investigate.
 Unity lock re-held again immediately after (different PID, presumably VS resuming) - CR holding, not
 retrying blind over an active lock.
+
+## Tactical Puzzle: real art wired + entry point confirmed (2026-08-25, VS shipped presenter, CC wired art)
+
+**VS already closed the "nothing playable" gap** (2e84132, "War-Room Reconstructions: the puzzle
+mode is actually playable now") - TacticalPuzzlePresenter has Entry/Board/Result views, a real
+Empire-screen entry point (OpenWarRoomReconstructions chip), MonoBehaviour-supplies-timing split
+(all rules go through TacticalPuzzleSession -> the real verifier), locked ST framing embedded
+directly (not invented), and an art-optional pattern identical to EmpireBuildingDetailPresenter.
+
+**Art now wired (383d02d):** 6 renders imported (entry shell, board frame, result modal, 3 separate
+tile-state images), verified genuine RGBA transparency. Retargeted ArtResourcePaths to the actual
+delivered filenames and split the single "tile" role into tile_locked/tile_available/tile_completed
+since 3 distinct per-state images were delivered, not one atlas - BuildSlotTile now picks art by the
+slot's real state. Updated MissingArt_DoesNotBlockTheScreen's role list to match (assertion
+unchanged - still only checks a resource path is reserved, not that art is absent).
+
+Test run pending - queued to VS/CR's next pass.
