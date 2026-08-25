@@ -99,6 +99,18 @@ namespace MyriadOfDragons.Battle
             new Rule("Veil of Zeus", UnlockKind.SpellBookGrant), // catalog: "Ch8 spell book"
             new Rule("Cleansing Root", UnlockKind.AvatarLevel, requiredAvatarLevel: 16),
             new Rule("Infernal Mark", UnlockKind.SpellBookGrant), // catalog: "Ch6 spell book"
+            // Thunder Decree ("Ch9") deliberately has no Rule either - same bare-chapter-number
+            // gap as Ember Guard/Earthward/Gale Break above.
+
+            // Wave 4 (LOCKED 2026-08-24): Ashfall ("Ch5") and Stormchain ("Ch6") deliberately have
+            // no Rule - same bare-chapter-number gap as Wave 3's Ember Guard/Earthward/Gale Break.
+            // Scorched Sky ("Ch7 event book") and Leyline Draw ("Ch5 event book") deliberately have
+            // no Rule either - "event book" is not the chapter-finale grant SpellBookGrant actually
+            // implements (that's tied to HomePagePresenter.ChapterFinalePermitStageIds), so this is
+            // the same "no real acquisition channel yet" gap as Aegis Return's "Event book later" -
+            // not folded into SpellBookGrant as a guessed stand-in. Oracle Sight's "Avatar L20" is
+            // precise and gets a real AvatarLevel Rule.
+            new Rule("Oracle Sight", UnlockKind.AvatarLevel, requiredAvatarLevel: 20),
         };
 
         /// <summary>RESOLVED 2026-08-24 - always false now. Kept (rather than deleted outright) as

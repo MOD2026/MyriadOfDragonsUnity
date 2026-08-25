@@ -1,0 +1,7 @@
+SpellCatalogPhase1Tests
+SpellCatalogPhase2Tests
+SpellCatalogPhase3Tests
+SpellCatalogPhase4Tests
+SpellBookGrantTests
+BattleLogicTests
+SpellLoadoutTests

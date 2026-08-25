@@ -37,6 +37,15 @@ namespace MyriadOfDragons.Battle
 
         /// <summary>Permanently raise the Attack of every living friendly unit across all three lanes (subject to the same +3/unit spell-buff cap as LaneAttackBuff).</summary>
         AllLaneAttackBuff,
+
+        /// <summary>Damage every living enemy unit in the target lane at Magnitude, and every living enemy unit in each lane adjacent to it (Front-Middle-Back, no wrap-around) at SecondaryMagnitude.</summary>
+        CrossLaneDamage,
+
+        /// <summary>Damage every living enemy unit independently in all three enemy lanes at Magnitude.</summary>
+        AllLaneDamage,
+
+        /// <summary>Draw Magnitude cards for the caster from their own draw pile - never creates cards, safely no-ops once the pile is empty.</summary>
+        DrawCards,
     }
 
     /// <summary>
@@ -82,6 +91,10 @@ namespace MyriadOfDragons.Battle
         public readonly int Magnitude;
         public readonly SpellSchool School;
 
+        /// <summary>Wave 4: CrossLaneDamage's adjacent-lane damage (its primary-lane damage is
+        /// still Magnitude). Unused (0) by every other effect type.</summary>
+        public readonly int SecondaryMagnitude;
+
         /// <summary>Ticks remaining before this can be cast again. 0 means ready.</summary>
         public int CooldownRemaining { get; private set; }
 
@@ -92,7 +105,8 @@ namespace MyriadOfDragons.Battle
         /// real ownedSpellIds/equippedSpellIds entry - correct for a synthetic test spell that
         /// isn't part of the real catalog anyway).</summary>
         public AvatarSpell(string name, string description, int energyCost, int cooldownTicks,
-            SpellEffect effect, int magnitude, string id = "", SpellSchool school = SpellSchool.Andras)
+            SpellEffect effect, int magnitude, string id = "", SpellSchool school = SpellSchool.Andras,
+            int secondaryMagnitude = 0)
         {
             Id = id;
             Name = name;
@@ -102,6 +116,7 @@ namespace MyriadOfDragons.Battle
             Effect = effect;
             Magnitude = magnitude;
             School = school;
+            SecondaryMagnitude = secondaryMagnitude;
         }
 
         /// <summary>
@@ -135,28 +150,7 @@ namespace MyriadOfDragons.Battle
             switch (Effect)
             {
                 case SpellEffect.LaneDamage:
-                    List<BattleCardInstance> defenders = LivingUnits(opponent, targetLane);
-                    if (defenders.Count == 0)
-                    {
-                        // An undefended lane lets damage through to the Avatar - the same rule
-                        // lane combat already follows (see LaneBattleResolver.ApplyDamageToLane).
-                        // Without this, casting into an empty lane silently did nothing at all,
-                        // which by the late game - when both boards have wiped out - meant every
-                        // damage spell was a dead button ("the health of the enemy does not move
-                        // after casting spell", 2026-08-06).
-                        int through = Math.Min(Magnitude * AvatarDamageScale, opponent.AvatarHealth);
-                        opponent.AvatarHealth -= through;
-                        return through;
-                    }
-
-                    foreach (BattleCardInstance unit in defenders)
-                    {
-                        unit.ApplyDamage(Magnitude);
-                    }
-                    // Dead units are pruned during lane resolution (LaneBattleResolver), not here -
-                    // keeping removal in one place avoids two different rules about when a corpse
-                    // stops occupying its slot.
-                    return 0;
+                    return DealLaneDamage(opponent, targetLane, Magnitude);
 
                 case SpellEffect.LaneHeal:
                     foreach (BattleCardInstance unit in LivingUnits(caster, targetLane))
@@ -215,8 +209,76 @@ namespace MyriadOfDragons.Battle
                     }
                     return 0;
 
+                case SpellEffect.CrossLaneDamage:
+                    int crossLaneTotal = DealLaneDamage(opponent, targetLane, Magnitude);
+                    foreach (Lane adjacent in AdjacentLanes(targetLane))
+                    {
+                        crossLaneTotal += DealLaneDamage(opponent, adjacent, SecondaryMagnitude);
+                    }
+                    return crossLaneTotal;
+
+                case SpellEffect.AllLaneDamage:
+                    int allLaneTotal = 0;
+                    foreach (Lane lane in opponent.Lanes.Keys.ToList())
+                    {
+                        allLaneTotal += DealLaneDamage(opponent, lane, Magnitude);
+                    }
+                    return allLaneTotal;
+
+                case SpellEffect.DrawCards:
+                    for (int i = 0; i < Magnitude; i++)
+                    {
+                        caster.DrawCard();
+                    }
+                    return 0;
+
                 default:
                     return 0;
+            }
+        }
+
+        /// <summary>Shared by LaneDamage/CrossLaneDamage/AllLaneDamage: damage every living
+        /// defender in the lane, or - if it has none - let the damage through to the Avatar at
+        /// the same fixed scale lane-combat overflow already uses (LaneBattleResolver.
+        /// ApplyDamageToLane). Without this an undefended lane silently absorbed the spell instead
+        /// of the damage reaching the Avatar (see LaneDamage's original 2026-08-06 bug note).
+        /// Returns the Avatar damage dealt (0 unless the lane was undefended).</summary>
+        private static int DealLaneDamage(PlayerBattleState opponent, Lane lane, int magnitude)
+        {
+            List<BattleCardInstance> defenders = LivingUnits(opponent, lane);
+            if (defenders.Count == 0)
+            {
+                int through = Math.Min(magnitude * AvatarDamageScale, opponent.AvatarHealth);
+                opponent.AvatarHealth -= through;
+                return through;
+            }
+
+            foreach (BattleCardInstance unit in defenders)
+            {
+                unit.ApplyDamage(magnitude);
+            }
+            // Dead units are pruned during lane resolution (LaneBattleResolver), not here - keeping
+            // removal in one place avoids two different rules about when a corpse stops occupying
+            // its slot.
+            return 0;
+        }
+
+        /// <summary>Front-Middle-Back, no wrap-around (catalog lock): Front/Back each have exactly
+        /// one neighbor, Middle has both.</summary>
+        private static IEnumerable<Lane> AdjacentLanes(Lane lane)
+        {
+            switch (lane)
+            {
+                case Lane.Front:
+                    yield return Lane.Middle;
+                    break;
+                case Lane.Middle:
+                    yield return Lane.Front;
+                    yield return Lane.Back;
+                    break;
+                case Lane.Back:
+                    yield return Lane.Middle;
+                    break;
             }
         }
 
@@ -419,19 +481,77 @@ namespace MyriadOfDragons.Battle
         }
 
         /// <summary>
-        /// The real, full castable catalog (27 as of Wave 3 - CreatePhase1Catalog's 14, Wave 2's
-        /// 5, plus this wave's 8) - the source of truth for anything that must resolve a spell id
-        /// into a real AvatarSpell: BattleController.ResolveMatchSpellbook, SpellBookGrant's id
-        /// validation, and SpellUnlockResolver's own iteration - a catalog member with no Rule
-        /// entry (Aegis Return; Ember Guard/Earthward/Gale Break, whose Phase-2 catalog Unlock
-        /// column only gives a bare chapter number with no stage-level precision to build a real
-        /// Rule from) simply never unlocks, the same behaviour a stale/unrecognized id already had.
+        /// Wave 4 (Full 36-Spell Catalogue Diagnosis, LOCKED 2026-08-24, "CrossLane/AllLane
+        /// damage+DrawCards+Reposition"): five of the wave's seven catalog spells - Ashfall/
+        /// Stormchain (CrossLaneDamage), Scorched Sky (AllLaneDamage), Leyline Draw/Oracle Sight
+        /// (DrawCards). Reposition's two spells (Windstep, Seismic Swap) are deliberately NOT
+        /// here - see the class doc's own flag on CreateCatalog for why.
+        ///
+        /// Locked correction applied here, not the catalog doc's raw number: Oracle Sight Energy
+        /// 42-&gt;30 (register: "still draw-2/CD4, now cheaper-but-slower vs Leyline Draw's 36E,
+        /// neither dominates").
+        ///
+        /// CrossLaneDamage's adjacent-lane damage uses AvatarSpell.SecondaryMagnitude, a field
+        /// unused (0) by every other effect type - Ashfall is 4 main/1 adjacent, Stormchain is 3
+        /// main/2 adjacent, matching the catalog doc's own two numbers per row exactly.
+        /// </summary>
+        public static List<AvatarSpell> CreatePhase4ExpansionSpells()
+        {
+            return new List<AvatarSpell>
+            {
+                new AvatarSpell("Ashfall", "Deal 4 damage to every enemy unit in a lane, and 1 to each adjacent lane.",
+                    energyCost: 70, cooldownTicks: 7, SpellEffect.CrossLaneDamage, magnitude: 4,
+                    id: "ashfall", school: SpellSchool.Andras, secondaryMagnitude: 1),
+
+                new AvatarSpell("Stormchain", "Deal 3 damage to every enemy unit in a lane, and 2 to each adjacent lane.",
+                    energyCost: 58, cooldownTicks: 6, SpellEffect.CrossLaneDamage, magnitude: 3,
+                    id: "stormchain", school: SpellSchool.Pnevmas, secondaryMagnitude: 2),
+
+                new AvatarSpell("Scorched Sky", "Deal 3 damage to every enemy unit, independently, in all three enemy lanes.",
+                    energyCost: 95, cooldownTicks: 8, SpellEffect.AllLaneDamage, magnitude: 3,
+                    id: "scorched_sky", school: SpellSchool.Andras),
+
+                new AvatarSpell("Leyline Draw", "Draw 2 cards.",
+                    energyCost: 36, cooldownTicks: 4, SpellEffect.DrawCards, magnitude: 2,
+                    id: "leyline_draw", school: SpellSchool.Ktini),
+
+                // Locked correction: Energy 42->30.
+                new AvatarSpell("Oracle Sight", "Draw 2 cards.",
+                    energyCost: 30, cooldownTicks: 4, SpellEffect.DrawCards, magnitude: 2,
+                    id: "oracle_sight", school: SpellSchool.Pnevmas),
+            };
+        }
+
+        /// <summary>
+        /// The real, full castable catalog (32 as of Wave 4 - CreatePhase1Catalog's 14, Wave 2's
+        /// 5, Wave 3's 8, plus this wave's 5) - the source of truth for anything that must resolve
+        /// a spell id into a real AvatarSpell: BattleController.ResolveMatchSpellbook,
+        /// SpellBookGrant's id validation, and SpellUnlockResolver's own iteration - a catalog
+        /// member with no Rule entry (Aegis Return; Ember Guard/Earthward/Gale Break/Thunder
+        /// Decree, whose Phase-2 catalog Unlock column only gives a bare chapter number with no
+        /// stage-level precision to build a real Rule from) simply never unlocks, the same
+        /// behaviour a stale/unrecognized id already had.
+        ///
+        /// NOT 36 yet, and deliberately so: Reposition's two spells (Windstep "move one friendly
+        /// unit to an adjacent lane", Seismic Swap "exchange two units, any lanes") are the one
+        /// piece of Wave 4 left out. Every other effect implemented so far - Wave 1 through the
+        /// rest of Wave 4 - acts uniformly on "every living unit in a lane"; Cast()'s own signature
+        /// (caster, opponent, targetLane) has no way to name a SPECIFIC unit or a second
+        /// destination lane, which Reposition genuinely needs (which unit moves, and - for Seismic
+        /// Swap - which two units, possibly in two different lanes, swap). Extending Cast()'s
+        /// targeting arity and building real single-unit-selection UI is a materially bigger
+        /// change than every effect shipped in Waves 1-4 so far, not a mechanical add-a-case -
+        /// flagged rather than guessed at (an automatic "always move the lowest-Health unit"
+        /// heuristic would be exactly that kind of guess). 32/36 real; 4 blocked total (these 2
+        /// Reposition spells, plus Volcanic Prison/Titan Seal - Wave 5's Silence package, blocked
+        /// since no suppressible-ability system exists at all).
         /// </summary>
         public static List<AvatarSpell> CreateCatalog()
         {
             List<AvatarSpell> catalog = CreatePhase1Catalog();
             catalog.AddRange(CreatePhase2ExpansionSpells());
             catalog.AddRange(CreatePhase3ExpansionSpells());
+            catalog.AddRange(CreatePhase4ExpansionSpells());
             return catalog;
         }
     }

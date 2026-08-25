@@ -17,11 +17,12 @@ namespace MyriadOfDragons.Tests
     public class SpellCatalogPhase3Tests
     {
         [Test]
-        public void CreateCatalog_ContainsExactlyTwentySevenSpells_NineteenPlusEightWave3()
+        public void CreateCatalog_ContainsAllTwentySevenWave1Through3Spells()
         {
+            // Not an exact-count assertion any more - Wave 4 (SpellCatalogPhase4Tests) added more
+            // spells on top of these 27, and that test file now owns the catalog's real total.
             List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
-            Assert.AreEqual(27, catalog.Count);
-            CollectionAssert.AreEquivalent(
+            CollectionAssert.IsSubsetOf(
                 new[]
                 {
                     "Firestorm", "Mend", "War Cry", "Divine Bolt",
