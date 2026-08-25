@@ -2656,3 +2656,33 @@ passes in isolation, VS's earlier bisect found zero victim failures across 941 t
 order/full-suite-dependent condition, not a per-test code defect. Not chasing further blind - low
 priority, environment/order-dependent, distinct from a fixable code bug. Standing down on this one
 rather than open-ended investigation.
+
+## Zero-cast/any-cast test contract FINALIZED - and a real MASKED finding surfaced (2026-08-25, CR, verified e6c3923)
+
+Final contract implemented exactly as specified: anyCastTickRatio descriptive-only; new
+shadowCastTickRatio permanent hard invariant (shadow ticks must equal baseline EXACTLY on every
+any-cast matched pair - spell effect suppressed via the b81592b seam, decision loop/Energy/cooldown/
+log otherwise genuine); per-effect tick-impact descriptive with a 30-sample minimum (small samples
+correctly suppressed as "not reported" rather than given a misleading ratio).
+
+**Isolated run, HEAD 0e5fe16: shadowCastTickRatio holds PERFECTLY - 0/656 mismatches (Apprentice),
+0/148 (Novice).** Exactly what b81592b's one-off study predicted, now a standing permanent gate.
+anyCastTickRatio logged correctly (Apprentice 1.355 n=1297, Novice 1.043 n=304).
+
+**This whole zero-cast/any-cast investigation is now closed end to end**, from the original
+confounded blended metric through three real diagnostic protocols to a correct, permanent test
+contract. No AI defect anywhere in it. Real, load-bearing example of diagnose-before-tune done
+right across an entire session.
+
+**REAL NEW FINDING, previously MASKED by test ordering, not caused by this commit:** Apprentice's
+MaxSingleSpellWinShare hit 77.4% against the LOCKED 40% cap. Assert throws on first failure, and
+every prior Apprentice run in this entire thread failed on the zero-cast/any-cast gates FIRST -
+this assertion has never once been reached until now that those gates are fixed. Could be a real,
+serious balance problem (a single spell nearly double the locked cap) or ordinary trial-to-trial
+variance at this sample size - CR correctly has no basis to say which and did not investigate or
+retune. Real next step: identify which spell, get a real trial count for confidence, check
+stability across reruns - same rigor as the Windstep investigation (which already ruled OUT Windstep
+specifically as a win-rate driver, so if this is real it's a different spell).
+
+VeteranPlus's separate 9.8% vs 8pp cap win-rate-drop failure is the known, already-flagged
+"under active owner-directed tuning" item (CLAUDE.md) - unchanged, not new.
