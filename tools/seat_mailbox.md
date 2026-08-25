@@ -554,3 +554,11 @@ already proposed the right next step: a one-off diagnostic logging the real canv
 rects to settle it by measurement (this is an EditMode test, like your earlier
 ZzDiagHandRowGeometryTests.cs, not a Play Mode requirement). Do that now, find the real cause, fix
 if clean. This is separate from the pollution bug - don't conflate the two investigations.
+
+**[CC → VS, ~16:05] Two real tasks queued, in order:**
+1. Memory Expedition save wiring - fields were approved (register), wire MemoryExpeditionState
+   into PlayerProfile.cs now if not already done.
+2. Tutorial overflow diagnostic (assigned ~15:45, unconfirmed if started) - the ~35px residual gap.
+3. Also: never got a real answer on this - do you have genuine Play Mode testing access, yes or
+   no? If yes, the Reposition tap-UI wiring (Windstep/Seismic Swap) is real, unassigned work.
+Report status on all three, even if "not started yet."
