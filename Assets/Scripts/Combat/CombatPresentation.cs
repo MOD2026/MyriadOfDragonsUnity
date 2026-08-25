@@ -4,7 +4,7 @@ using System.Linq;
 namespace MyriadOfDragons.Combat
 {
     /// <summary>The four presentation targets of the vertical slice (register:
-    /// "Vertical-slice parameter spec", 2026-08-25).</summary>
+    /// "Vertical-slice spec REFINED and LOCKED", 2026-08-25).</summary>
     public enum CombatPresentationSubject
     {
         BasicCardAttack,
@@ -13,7 +13,7 @@ namespace MyriadOfDragons.Combat
         AvatarStrike,
     }
 
-    /// <summary>Named beats. Basic attacks and spells share Impact/Resolve; AvatarStrike has its
+    /// <summary>Named beats. Basic attacks and spells share Impact/Resolve; AvatarStrike keeps its
     /// own locked 4-beat sequence and deliberately does not reuse the spell beats.</summary>
     public enum CombatPresentationBeat
     {
@@ -27,7 +27,7 @@ namespace MyriadOfDragons.Combat
         Consequence,
     }
 
-    /// <summary>Which school palette drives the particle burst. Locked 3-layer model.</summary>
+    /// <summary>School palette driving the particle burst. Locked 3-layer model.</summary>
     public enum CombatPresentationPalette
     {
         None,
@@ -37,140 +37,156 @@ namespace MyriadOfDragons.Combat
         Bespoke,    // AvatarStrike only - never reused from an effect-type template
     }
 
-    /// <summary>Particle scale tier. Mirrors the existing small/medium/large effect-magnitude
-    /// tiers rather than inventing a new scale.</summary>
-    public enum CombatPresentationParticleTier
+    /// <summary>
+    /// Visual weight tier. LOCKED: sized by visual tier, NOT derived from raw damage magnitude -
+    /// "balance tuning must never force visual reauthoring". A magnitude retune must never change
+    /// which art plays.
+    /// </summary>
+    public enum CombatPresentationVisualTier
     {
         None,
-        Small,
+        Light,
         Medium,
-        Large,
+        Heavy,
     }
 
     /// <summary>
-    /// One beat's presentation contract: how long it runs, and which cues fire at its start.
-    /// Deliberately data, not behaviour - the sinks below decide how to realise it.
+    /// One beat's presentation contract: how long it runs and which cues fire at its start.
+    /// Deliberately data, not behaviour - the sinks decide how to realise it.
     /// </summary>
     public sealed class CombatPresentationCue
     {
         public CombatPresentationBeat Beat;
         public int DurationMs;
 
-        /// <summary>Peak camera shake in pixels (0 = no shake).</summary>
-        public float CameraShakePixels;
+        /// <summary>Peak shake in NORMALIZED units, not pixels - the spec specifies normalized
+        /// units so the feel survives varied device sizes.</summary>
+        public float CameraShakeUnits;
 
         /// <summary>How long the shake runs; never longer than the beat itself.</summary>
         public int CameraShakeMs;
 
-        /// <summary>Camera scale at this beat. 1.0 = no zoom.</summary>
-        public float CameraZoom = 1f;
+        /// <summary>Scale applied to the PRESENTATION ROOT, never the full Canvas (LOCKED: HUD and
+        /// resource text must stay stable across device sizes). 1.0 = no zoom.</summary>
+        public float PresentationRootZoom = 1f;
 
-        /// <summary>Logical audio cue id. NOT an asset path - no SFX assets exist yet and the
-        /// spec lists sourcing as an open question, so this stays a symbolic name.</summary>
-        public string AudioCueId;
+        /// <summary>Logical audio cue ids firing at this beat. NOT asset paths - the base
+        /// vocabulary is still to be licensed/commissioned, so these stay symbolic.</summary>
+        public string[] AudioCueIds = new string[0];
 
-        public CombatPresentationParticleTier ParticleTier = CombatPresentationParticleTier.None;
+        public CombatPresentationVisualTier VisualTier = CombatPresentationVisualTier.None;
 
-        public bool HasCameraMove => CameraZoom != 1f || CameraShakePixels > 0f;
+        public bool HasCameraMove => PresentationRootZoom != 1f || CameraShakeUnits > 0f;
     }
 
-    /// <summary>Where a particle burst would be spawned. Stub - no particle system is bound yet
-    /// (Unity ParticleSystem vs pre-rendered flipbook is explicitly still undecided).</summary>
+    /// <summary>Where a particle burst would spawn. Hybrid model locked (ParticleSystem for
+    /// embers/dust/sparks, flipbooks for authored silhouettes, simple sprites for basic attacks) -
+    /// which of those a tier maps to is the sink's concern, not this scaffolding's.</summary>
     public interface ICombatParticleSink
     {
-        void Emit(CombatPresentationPalette palette, CombatPresentationParticleTier tier, int laneIndex);
+        void Emit(CombatPresentationPalette palette, CombatPresentationVisualTier tier, int laneIndex);
     }
 
-    /// <summary>Where camera moves would be applied. Stub - whether this needs a virtual camera
-    /// rig or a canvas-scale tween is explicitly still undecided.</summary>
-    public interface ICombatCameraSink
+    /// <summary>Applies a SCOPED PRESENTATION-ROOT tween. LOCKED: no virtual-camera system for
+    /// this slice, and never a full-Canvas scale.</summary>
+    public interface ICombatPresentationRootSink
     {
-        void Apply(float zoom, float shakePixels, int shakeMs, int laneIndex);
+        void Apply(float zoom, float shakeUnits, int shakeMs, int laneIndex);
     }
 
-    /// <summary>Where audio cues would fire. Stub - no SFX assets exist yet.</summary>
+    /// <summary>Where audio cues fire. No final SFX source exists yet.</summary>
     public interface ICombatAudioSink
     {
         void Play(string audioCueId);
     }
 
+    /// <summary>Applies the actual gameplay outcome. Kept behind an interface so the playback
+    /// below can guarantee it runs EXACTLY ONCE per presentation, skip or no skip.</summary>
+    public interface ICombatResolveSink
+    {
+        void ApplyResolve();
+    }
+
     /// <summary>
-    /// Beat/timing/cue scaffolding for the vertical slice's four presentation targets.
+    /// Beat/timing/cue scaffolding for the vertical slice's four presentation targets, built to
+    /// the LOCKED spec (register: "Vertical-slice spec REFINED and LOCKED", 2026-08-25).
     ///
-    /// Plain, testable, no MonoBehaviour: EditMode cannot run Update() or coroutines, so the beat
-    /// SEQUENCE and its cue contract live here where they can be asserted, and a MonoBehaviour
-    /// supplies only wall-clock timing later (CLAUDE.md's "real logic in plain testable methods"
-    /// rule). Nothing here loads an asset or touches a renderer.
-    ///
-    /// The numbers come from the register's "Vertical-slice parameter spec", which is explicitly a
-    /// DRAFT for GPT to refine - so they are centralised here as named data rather than scattered
-    /// through call sites, and a later retune is a one-file change. Three things the spec leaves
-    /// OPEN are deliberately NOT decided here: particle technology, whether the camera needs a rig
-    /// or a tween, and SFX sourcing. Those are why the sinks are interfaces and the audio cue is a
-    /// symbolic id rather than an asset path.
+    /// Plain static C#, no MonoBehaviour: EditMode cannot run Update() or coroutines, so the beat
+    /// SEQUENCE, its cue contract and the resolve-once guarantee live here where they can be
+    /// asserted, and a MonoBehaviour supplies only wall-clock timing. Nothing here loads an asset
+    /// or touches a renderer.
     /// </summary>
     public static class CombatPresentation
     {
-        public const string CueCommitWhoosh = "combat.commit.whoosh";
-        public const string CueCastWhoosh = "combat.cast.whoosh";
-        public const string CueImpactHit = "combat.impact.hit";
-        public const string CueImpactThud = "combat.impact.thud";
-        public const string CueResolveChime = "combat.resolve.chime";
-        public const string CueResolveLowTone = "combat.resolve.lowtone";
+        public const string CueCommit = "combat.commit";
+        public const string CueCast = "combat.cast";
+        public const string CueImpact = "combat.impact";
+        public const string CueSoftResolve = "combat.resolve.soft";
+        public const string CueAvatarStrikeReleaseImpact = "avatarstrike.release.impact";
         public const string CueAvatarStrikeStinger = "avatarstrike.release.stinger";
 
-        /// <summary>The beat sequence for one subject, in play order.</summary>
-        public static IReadOnlyList<CombatPresentationCue> SequenceFor(
-            CombatPresentationSubject subject, bool outcomeIsPositive = false)
+        /// <summary>Hard ceiling from the spec: no presentation may exceed one second.</summary>
+        public const int HardCeilingMs = 1000;
+
+        public static IReadOnlyList<CombatPresentationCue> SequenceFor(CombatPresentationSubject subject)
         {
             switch (subject)
             {
                 case CombatPresentationSubject.BasicCardAttack:
-                    // "no camera move, impact micro-shake only (2-4px, 80ms)"; no particles, just
-                    // the sprite clash.
+                    // 350-400ms. No zoom, 2-4 normalized shake units. AUDIO: impact ONLY.
                     return new[]
                     {
-                        new CombatPresentationCue { Beat = CombatPresentationBeat.Commit, DurationMs = 150,
-                            AudioCueId = CueCommitWhoosh },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Commit, DurationMs = 130 },
                         new CombatPresentationCue { Beat = CombatPresentationBeat.Impact, DurationMs = 100,
-                            CameraShakePixels = 3f, CameraShakeMs = 80, AudioCueId = CueImpactThud },
-                        new CombatPresentationCue { Beat = CombatPresentationBeat.Resolve, DurationMs = 150,
-                            AudioCueId = outcomeIsPositive ? CueResolveChime : CueResolveLowTone },
+                            CameraShakeUnits = 3f, CameraShakeMs = 80,
+                            AudioCueIds = new[] { CueImpact } },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Resolve, DurationMs = 140 },
                     };
 
                 case CombatPresentationSubject.DamageSpell:
-                case CombatPresentationSubject.HealSpell:
-                    // "slight zoom toward target lane, hold through Impact." The spec's zoom range
-                    // reads "015-1.08x" - a typo. 1.05x is used as the low end and flagged for the
-                    // owner rather than silently inventing a value.
+                    // Reduced to 600-700ms (was 800 - repeat-cast fatigue). Zoom 1.04-1.06x.
+                    // AUDIO: cast + impact. No resolve cue - that is heal/buff only.
                     return new[]
                     {
-                        new CombatPresentationCue { Beat = CombatPresentationBeat.Cast, DurationMs = 200,
-                            CameraZoom = 1.05f, AudioCueId = CueCastWhoosh },
-                        new CombatPresentationCue { Beat = CombatPresentationBeat.TravelOrChannel, DurationMs = 250,
-                            CameraZoom = 1.05f },
-                        new CombatPresentationCue { Beat = CombatPresentationBeat.Impact, DurationMs = 150,
-                            CameraZoom = 1.08f, AudioCueId = CueImpactHit,
-                            ParticleTier = CombatPresentationParticleTier.Medium },
-                        new CombatPresentationCue { Beat = CombatPresentationBeat.Resolve, DurationMs = 200,
-                            AudioCueId = outcomeIsPositive ? CueResolveChime : CueResolveLowTone },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Cast, DurationMs = 150,
+                            PresentationRootZoom = 1.05f, AudioCueIds = new[] { CueCast } },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.TravelOrChannel, DurationMs = 200,
+                            PresentationRootZoom = 1.05f },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Impact, DurationMs = 120,
+                            PresentationRootZoom = 1.06f, AudioCueIds = new[] { CueImpact },
+                            VisualTier = CombatPresentationVisualTier.Medium },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Resolve, DurationMs = 180 },
+                    };
+
+                case CombatPresentationSubject.HealSpell:
+                    // Same envelope; the OPTIONAL soft resolve cue is heal/buff only.
+                    return new[]
+                    {
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Cast, DurationMs = 150,
+                            PresentationRootZoom = 1.05f, AudioCueIds = new[] { CueCast } },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.TravelOrChannel, DurationMs = 200,
+                            PresentationRootZoom = 1.05f },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Impact, DurationMs = 120,
+                            PresentationRootZoom = 1.06f, AudioCueIds = new[] { CueImpact },
+                            VisualTier = CombatPresentationVisualTier.Medium },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Resolve, DurationMs = 180,
+                            AudioCueIds = new[] { CueSoftResolve } },
                     };
 
                 case CombatPresentationSubject.AvatarStrike:
-                    // Its own locked 4-beat sequence, deliberately the longest - it is the
-                    // commitment spell. Camera reticles on the Avatar panel, never a lane.
+                    // 800-1000ms, hard ceiling 1s. Zoom 1.08-1.12x (NOT 1.15x - real clipping risk
+                    // on varied 16:9 devices). AUDIO: commit + release-impact + bespoke stinger.
                     return new[]
                     {
                         new CombatPresentationCue { Beat = CombatPresentationBeat.Commit, DurationMs = 300,
-                            CameraZoom = 1.15f, AudioCueId = CueCommitWhoosh },
+                            PresentationRootZoom = 1.10f, AudioCueIds = new[] { CueCommit } },
                         new CombatPresentationCue { Beat = CombatPresentationBeat.Lock, DurationMs = 200,
-                            CameraZoom = 1.15f },
+                            PresentationRootZoom = 1.10f },
                         new CombatPresentationCue { Beat = CombatPresentationBeat.Release, DurationMs = 150,
-                            CameraZoom = 1.15f, CameraShakePixels = 7f, CameraShakeMs = 120,
-                            AudioCueId = CueAvatarStrikeStinger,
-                            ParticleTier = CombatPresentationParticleTier.Large },
-                        new CombatPresentationCue { Beat = CombatPresentationBeat.Consequence, DurationMs = 350,
-                            AudioCueId = outcomeIsPositive ? CueResolveChime : CueResolveLowTone },
+                            PresentationRootZoom = 1.12f, CameraShakeUnits = 6f, CameraShakeMs = 120,
+                            AudioCueIds = new[] { CueAvatarStrikeReleaseImpact, CueAvatarStrikeStinger },
+                            VisualTier = CombatPresentationVisualTier.Heavy },
+                        new CombatPresentationCue { Beat = CombatPresentationBeat.Consequence, DurationMs = 350 },
                     };
             }
             return new CombatPresentationCue[0];
@@ -179,8 +195,8 @@ namespace MyriadOfDragons.Combat
         public static int TotalDurationMs(CombatPresentationSubject subject) =>
             SequenceFor(subject).Sum(c => c.DurationMs);
 
-        /// <summary>AvatarStrike's palette is bespoke by lock; every other subject takes the
-        /// caster's school palette. A basic attack has no particles at all.</summary>
+        /// <summary>AvatarStrike is bespoke by lock; a basic attack has no particles at all;
+        /// everything else takes the caster's school palette.</summary>
         public static CombatPresentationPalette PaletteFor(
             CombatPresentationSubject subject, CombatPresentationPalette casterSchool)
         {
@@ -189,39 +205,117 @@ namespace MyriadOfDragons.Combat
             return casterSchool;
         }
 
-        /// <summary>
-        /// Drives the cues for one beat into whichever sinks are bound. Null sinks are skipped, so
-        /// this is callable today with nothing wired - which is the point of the scaffolding: the
-        /// trigger points exist and are testable before any asset does.
-        /// </summary>
         public static void FireBeat(
             CombatPresentationCue cue,
             CombatPresentationPalette palette,
             int laneIndex,
             ICombatParticleSink particles = null,
-            ICombatCameraSink camera = null,
+            ICombatPresentationRootSink presentationRoot = null,
             ICombatAudioSink audio = null)
         {
             if (cue == null) return;
 
-            if (audio != null && !string.IsNullOrEmpty(cue.AudioCueId)) audio.Play(cue.AudioCueId);
-            if (camera != null && cue.HasCameraMove)
-                camera.Apply(cue.CameraZoom, cue.CameraShakePixels, cue.CameraShakeMs, laneIndex);
-            if (particles != null && cue.ParticleTier != CombatPresentationParticleTier.None
+            if (audio != null)
+                foreach (string id in cue.AudioCueIds)
+                    if (!string.IsNullOrEmpty(id)) audio.Play(id);
+
+            if (presentationRoot != null && cue.HasCameraMove)
+                presentationRoot.Apply(cue.PresentationRootZoom, cue.CameraShakeUnits, cue.CameraShakeMs, laneIndex);
+
+            if (particles != null && cue.VisualTier != CombatPresentationVisualTier.None
                 && palette != CombatPresentationPalette.None)
-                particles.Emit(palette, cue.ParticleTier, laneIndex);
+                particles.Emit(palette, cue.VisualTier, laneIndex);
+        }
+    }
+
+    /// <summary>How a playback was ended.</summary>
+    public enum CombatPresentationEnd
+    {
+        StillPlaying,
+        PlayedThrough,
+        Skipped,
+    }
+
+    /// <summary>
+    /// Drives one presentation and guarantees the gameplay outcome applies EXACTLY ONCE.
+    ///
+    /// This is the safety-critical half of the locked spec: "Resolve state must be IDEMPOTENT -
+    /// skipping can never duplicate damage, healing, SFX, or rewards." Skipping mid-sequence and
+    /// then letting the sequence finish, or two skip inputs racing, must still resolve once. That
+    /// is enforced here rather than trusted to every call site.
+    ///
+    /// Skip is deliberately NOT "any second tap" - the spec tightened this because a stray tap on
+    /// a card/lane/rail/button would otherwise skip the presentation as a side effect. Only
+    /// <see cref="SkipFromDedicatedControl"/> ends a playback early, and a caller must have
+    /// already decided the input came from the skip control or a non-interactive battle area.
+    /// </summary>
+    public sealed class CombatPresentationPlayback
+    {
+        private readonly IReadOnlyList<CombatPresentationCue> _sequence;
+        private readonly ICombatResolveSink _resolve;
+        private int _nextBeatIndex;
+        private bool _resolveApplied;
+
+        public CombatPresentationSubject Subject { get; }
+        public CombatPresentationEnd State { get; private set; } = CombatPresentationEnd.StillPlaying;
+
+        /// <summary>True once the outcome has been applied. Never becomes false again.</summary>
+        public bool ResolveApplied => _resolveApplied;
+
+        public int BeatsPlayed => _nextBeatIndex;
+        public int BeatCount => _sequence.Count;
+
+        public CombatPresentationPlayback(CombatPresentationSubject subject, ICombatResolveSink resolve = null)
+        {
+            Subject = subject;
+            _sequence = CombatPresentation.SequenceFor(subject);
+            _resolve = resolve;
+        }
+
+        /// <summary>Advances one beat. Returns null once the sequence is finished or skipped.</summary>
+        public CombatPresentationCue AdvanceBeat()
+        {
+            if (State != CombatPresentationEnd.StillPlaying) return null;
+            if (_nextBeatIndex >= _sequence.Count)
+            {
+                ApplyResolveOnce();
+                State = CombatPresentationEnd.PlayedThrough;
+                return null;
+            }
+            return _sequence[_nextBeatIndex++];
         }
 
         /// <summary>
-        /// Fast-forward: "a second tap/input during any beat immediately jumps to Resolve's end
-        /// state - no animation ever blocks the next decision." Returns the final beat so a caller
-        /// can settle straight to its end state, skipping everything in between.
+        /// Ends the presentation early and settles straight to the resolved end state. Only ever
+        /// call this for input from the dedicated skip control or a non-interactive battle area -
+        /// never from a card/lane/rail/button tap.
+        /// Safe to call repeatedly: the outcome still applies exactly once.
         /// </summary>
-        public static CombatPresentationCue FinalBeatFor(
-            CombatPresentationSubject subject, bool outcomeIsPositive = false)
+        public void SkipFromDedicatedControl()
         {
-            IReadOnlyList<CombatPresentationCue> seq = SequenceFor(subject, outcomeIsPositive);
-            return seq.Count == 0 ? null : seq[seq.Count - 1];
+            if (State == CombatPresentationEnd.StillPlaying) State = CombatPresentationEnd.Skipped;
+            _nextBeatIndex = _sequence.Count;
+            ApplyResolveOnce();
+        }
+
+        /// <summary>Plays every remaining beat in order, then resolves once.</summary>
+        public void PlayToEnd(
+            CombatPresentationPalette palette = CombatPresentationPalette.None,
+            int laneIndex = 0,
+            ICombatParticleSink particles = null,
+            ICombatPresentationRootSink presentationRoot = null,
+            ICombatAudioSink audio = null)
+        {
+            CombatPresentationCue cue;
+            while ((cue = AdvanceBeat()) != null)
+                CombatPresentation.FireBeat(cue, palette, laneIndex, particles, presentationRoot, audio);
+        }
+
+        private void ApplyResolveOnce()
+        {
+            if (_resolveApplied) return;
+            _resolveApplied = true;
+            _resolve?.ApplyResolve();
         }
     }
 }

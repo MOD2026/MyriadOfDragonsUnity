@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using MyriadOfDragons.Combat;
@@ -7,12 +6,15 @@ using NUnit.Framework;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// Vertical-slice presentation scaffolding. Asserts the RELATIONSHIPS the spec actually locks
-    /// (AvatarStrike is the longest, basic attacks have no particles, fast-forward lands on
-    /// Resolve) rather than pinning the draft millisecond values - the register calls those "a
-    /// starting point for GPT to refine, not final numbers", so hardcoding them would turn a
-    /// legitimate retune into a fake regression. That is the same non-negotiable that governs the
-    /// balance suites.
+    /// Vertical-slice presentation scaffolding, against the LOCKED spec (register:
+    /// "Vertical-slice spec REFINED and LOCKED", 2026-08-25).
+    ///
+    /// Timing is asserted as the locked RANGES (350-400 / 600-700 / 800-1000ms) rather than exact
+    /// values - the ranges are the contract, the specific numbers inside them are tuning. Pinning a
+    /// tunable is what turns a legitimate retune into a fake regression.
+    ///
+    /// The idempotent-resolve tests are the safety-critical ones: a non-idempotent resolve would
+    /// double-apply damage, healing or rewards the moment a player skips.
     /// </summary>
     public class CombatPresentationTests
     {
@@ -24,186 +26,322 @@ namespace MyriadOfDragons.Tests
             CombatPresentationSubject.AvatarStrike,
         };
 
+        private sealed class CountingResolve : ICombatResolveSink
+        {
+            public int Applied;
+            public void ApplyResolve() => Applied++;
+        }
+
+        private sealed class RecordingSink : ICombatParticleSink, ICombatPresentationRootSink, ICombatAudioSink
+        {
+            public readonly List<string> Audio = new List<string>();
+            public int ParticleEmits;
+            public int RootApplies;
+            public float MaxZoom = 1f;
+
+            public void Emit(CombatPresentationPalette palette, CombatPresentationVisualTier tier, int laneIndex) => ParticleEmits++;
+
+            public void Apply(float zoom, float shakeUnits, int shakeMs, int laneIndex)
+            {
+                RootApplies++;
+                if (zoom > MaxZoom) MaxZoom = zoom;
+            }
+
+            public void Play(string audioCueId) => Audio.Add(audioCueId);
+        }
+
+        // ---------- locked timing ranges ----------
+
         [Test]
-        public void EverySubject_HasANonEmptySequence_WithPositiveBeatDurations()
+        public void BasicAttack_FallsInTheLocked350To400msRange()
+        {
+            int total = CombatPresentation.TotalDurationMs(CombatPresentationSubject.BasicCardAttack);
+            Assert.GreaterOrEqual(total, 350);
+            Assert.LessOrEqual(total, 400);
+        }
+
+        [Test]
+        public void Spells_FallInTheLocked600To700msRange_ReducedFromTheDrafts800()
+        {
+            foreach (CombatPresentationSubject spell in new[] { CombatPresentationSubject.DamageSpell, CombatPresentationSubject.HealSpell })
+            {
+                int total = CombatPresentation.TotalDurationMs(spell);
+                Assert.GreaterOrEqual(total, 600, spell + " must not drop below the locked floor.");
+                Assert.LessOrEqual(total, 700, spell + " was reduced from 800ms for repeat-cast fatigue.");
+            }
+        }
+
+        [Test]
+        public void AvatarStrike_FallsInTheLocked800To1000msRange()
+        {
+            int total = CombatPresentation.TotalDurationMs(CombatPresentationSubject.AvatarStrike);
+            Assert.GreaterOrEqual(total, 800);
+            Assert.LessOrEqual(total, 1000);
+        }
+
+        [Test]
+        public void NoPresentation_ExceedsTheOneSecondHardCeiling()
         {
             foreach (CombatPresentationSubject subject in AllSubjects)
-            {
-                IReadOnlyList<CombatPresentationCue> seq = CombatPresentation.SequenceFor(subject);
-                Assert.IsNotEmpty((ICollection)seq.ToList(), subject + " must have a beat sequence.");
-                foreach (CombatPresentationCue cue in seq)
-                    Assert.Greater(cue.DurationMs, 0, subject + "/" + cue.Beat + " must have a real duration.");
-            }
+                Assert.LessOrEqual(CombatPresentation.TotalDurationMs(subject), CombatPresentation.HardCeilingMs,
+                    subject + " breaches the spec's hard ceiling of one second.");
         }
 
         [Test]
-        public void AvatarStrike_IsTheLongestSequence_BecauseItIsTheCommitmentSpell()
+        public void AvatarStrike_IsTheLongest_AndABasicAttackTheShortest()
         {
-            int avatarStrike = CombatPresentation.TotalDurationMs(CombatPresentationSubject.AvatarStrike);
-
-            foreach (CombatPresentationSubject other in AllSubjects.Where(s => s != CombatPresentationSubject.AvatarStrike))
-            {
-                Assert.Greater(avatarStrike, CombatPresentation.TotalDurationMs(other),
-                    "AvatarStrike is deliberately the longest beat sequence - it is the commitment spell.");
-            }
-        }
-
-        [Test]
-        public void ABasicAttack_IsTheShortestSequence_AndNeverBlocksLong()
-        {
+            int strike = CombatPresentation.TotalDurationMs(CombatPresentationSubject.AvatarStrike);
             int basic = CombatPresentation.TotalDurationMs(CombatPresentationSubject.BasicCardAttack);
 
+            foreach (CombatPresentationSubject other in AllSubjects.Where(s => s != CombatPresentationSubject.AvatarStrike))
+                Assert.Greater(strike, CombatPresentation.TotalDurationMs(other), "AvatarStrike is the commitment spell.");
             foreach (CombatPresentationSubject other in AllSubjects.Where(s => s != CombatPresentationSubject.BasicCardAttack))
-            {
-                Assert.Less(basic, CombatPresentation.TotalDurationMs(other),
-                    "The most frequent action must be the fastest, or ordinary play feels sluggish.");
-            }
+                Assert.Less(basic, CombatPresentation.TotalDurationMs(other), "The most frequent action must be the fastest.");
         }
 
         [Test]
-        public void ABasicAttack_HasNoParticles_AndNoCameraZoom()
-        {
-            foreach (CombatPresentationCue cue in CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack))
-            {
-                Assert.AreEqual(CombatPresentationParticleTier.None, cue.ParticleTier,
-                    "Spec: basic attack is 'just the sprite clash', no particles.");
-                Assert.AreEqual(1f, cue.CameraZoom,
-                    "Spec: basic attack takes no camera move - impact micro-shake only.");
-            }
-        }
-
-        [Test]
-        public void ABasicAttack_ShakesOnlyOnImpact()
-        {
-            List<CombatPresentationCue> shaking = CombatPresentation
-                .SequenceFor(CombatPresentationSubject.BasicCardAttack)
-                .Where(c => c.CameraShakePixels > 0f).ToList();
-
-            Assert.AreEqual(1, shaking.Count, "Exactly one beat may shake.");
-            Assert.AreEqual(CombatPresentationBeat.Impact, shaking[0].Beat, "...and it must be Impact.");
-        }
-
-        [Test]
-        public void EveryShake_FitsInsideItsOwnBeat()
+        public void EveryBeat_HasAPositiveDuration_AndEveryShakeFitsInsideItsBeat()
         {
             foreach (CombatPresentationSubject subject in AllSubjects)
                 foreach (CombatPresentationCue cue in CombatPresentation.SequenceFor(subject))
+                {
+                    Assert.Greater(cue.DurationMs, 0, subject + "/" + cue.Beat);
                     Assert.LessOrEqual(cue.CameraShakeMs, cue.DurationMs,
-                        subject + "/" + cue.Beat + ": a shake outrunning its beat would bleed into the next one.");
+                        subject + "/" + cue.Beat + ": a shake outrunning its beat bleeds into the next one.");
+                }
+        }
+
+        // ---------- locked camera ----------
+
+        [Test]
+        public void ABasicAttack_NeverZooms_AndShakesOnlyOnImpact_WithinLockedUnits()
+        {
+            List<CombatPresentationCue> seq = CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack).ToList();
+
+            foreach (CombatPresentationCue cue in seq)
+                Assert.AreEqual(1f, cue.PresentationRootZoom, "Locked: basic attack takes no zoom.");
+
+            List<CombatPresentationCue> shaking = seq.Where(c => c.CameraShakeUnits > 0f).ToList();
+            Assert.AreEqual(1, shaking.Count);
+            Assert.AreEqual(CombatPresentationBeat.Impact, shaking[0].Beat);
+            Assert.GreaterOrEqual(shaking[0].CameraShakeUnits, 2f, "Locked range is 2-4 normalized units.");
+            Assert.LessOrEqual(shaking[0].CameraShakeUnits, 4f, "Locked range is 2-4 normalized units.");
+        }
+
+        [Test]
+        public void OrdinarySpells_StayInTheLocked1_04To1_06ZoomBand()
+        {
+            foreach (CombatPresentationSubject spell in new[] { CombatPresentationSubject.DamageSpell, CombatPresentationSubject.HealSpell })
+                foreach (CombatPresentationCue cue in CombatPresentation.SequenceFor(spell).Where(c => c.PresentationRootZoom != 1f))
+                {
+                    Assert.GreaterOrEqual(cue.PresentationRootZoom, 1.04f, spell + "/" + cue.Beat);
+                    Assert.LessOrEqual(cue.PresentationRootZoom, 1.06f, spell + "/" + cue.Beat);
+                }
+        }
+
+        [Test]
+        public void AvatarStrike_StaysInTheLocked1_08To1_12ZoomBand_NotTheDrafts1_15()
+        {
+            foreach (CombatPresentationCue cue in CombatPresentation.SequenceFor(CombatPresentationSubject.AvatarStrike)
+                         .Where(c => c.PresentationRootZoom != 1f))
+            {
+                Assert.GreaterOrEqual(cue.PresentationRootZoom, 1.08f, cue.Beat.ToString());
+                Assert.LessOrEqual(cue.PresentationRootZoom, 1.12f,
+                    "1.15x was rejected for real clipping risk on varied 16:9 devices.");
+            }
         }
 
         [Test]
         public void AvatarStrike_ShakesHarderThanABasicAttack()
         {
-            float strike = CombatPresentation.SequenceFor(CombatPresentationSubject.AvatarStrike).Max(c => c.CameraShakePixels);
-            float basic = CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack).Max(c => c.CameraShakePixels);
+            float strike = CombatPresentation.SequenceFor(CombatPresentationSubject.AvatarStrike).Max(c => c.CameraShakeUnits);
+            float basic = CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack).Max(c => c.CameraShakeUnits);
+            Assert.Greater(strike, basic);
+        }
 
-            Assert.Greater(strike, basic, "AvatarStrike's Release is the strongest impact in the game.");
+        // ---------- locked audio reduction ----------
+
+        [Test]
+        public void ABasicAttack_HasExactlyOneAudioCue_AndItIsImpact()
+        {
+            List<CombatPresentationCue> withAudio = CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack)
+                .Where(c => c.AudioCueIds.Length > 0).ToList();
+
+            Assert.AreEqual(1, withAudio.Count, "Locked: basic attack is impact-only audio.");
+            Assert.AreEqual(CombatPresentationBeat.Impact, withAudio[0].Beat);
         }
 
         [Test]
-        public void AvatarStrike_UsesItsOwnStinger_NotAReusedGenericHit()
+        public void ADamageSpell_HasCastAndImpact_ButNoResolveCue()
+        {
+            IReadOnlyList<CombatPresentationCue> seq = CombatPresentation.SequenceFor(CombatPresentationSubject.DamageSpell);
+            List<string> cues = seq.SelectMany(c => c.AudioCueIds).ToList();
+
+            CollectionAssert.Contains(cues, CombatPresentation.CueCast);
+            CollectionAssert.Contains(cues, CombatPresentation.CueImpact);
+            Assert.IsEmpty(seq.First(c => c.Beat == CombatPresentationBeat.Resolve).AudioCueIds,
+                "Locked: the soft resolve cue is heal/buff ONLY.");
+        }
+
+        [Test]
+        public void AHealSpell_MayCarryTheOptionalSoftResolveCue()
+        {
+            CombatPresentationCue resolve = CombatPresentation.SequenceFor(CombatPresentationSubject.HealSpell)
+                .First(c => c.Beat == CombatPresentationBeat.Resolve);
+
+            CollectionAssert.Contains(resolve.AudioCueIds, CombatPresentation.CueSoftResolve);
+        }
+
+        [Test]
+        public void AvatarStrike_CarriesItsBespokeStinger_NotAGenericImpactSound()
         {
             List<string> cues = CombatPresentation.SequenceFor(CombatPresentationSubject.AvatarStrike)
-                .Select(c => c.AudioCueId).Where(id => !string.IsNullOrEmpty(id)).ToList();
+                .SelectMany(c => c.AudioCueIds).ToList();
 
-            Assert.Contains(CombatPresentation.CueAvatarStrikeStinger, cues,
-                "Spec: a distinct signature stinger on Release, explicitly not a reused generic hit sound.");
-            CollectionAssert.DoesNotContain(cues, CombatPresentation.CueImpactHit);
-            CollectionAssert.DoesNotContain(cues, CombatPresentation.CueImpactThud);
+            CollectionAssert.Contains(cues, CombatPresentation.CueCommit);
+            CollectionAssert.Contains(cues, CombatPresentation.CueAvatarStrikeStinger);
+            CollectionAssert.DoesNotContain(cues, CombatPresentation.CueImpact,
+                "AvatarStrike must not reuse the generic impact sound.");
         }
+
+        // ---------- palette / visual tier ----------
 
         [Test]
         public void AvatarStrike_PaletteIsBespoke_RegardlessOfCasterSchool()
         {
             foreach (CombatPresentationPalette school in new[]
                      { CombatPresentationPalette.Andras, CombatPresentationPalette.Ktini, CombatPresentationPalette.Pnevmas })
-            {
                 Assert.AreEqual(CombatPresentationPalette.Bespoke,
-                    CombatPresentation.PaletteFor(CombatPresentationSubject.AvatarStrike, school),
-                    "Locked: AvatarStrike is bespoke, never reused from an effect-type template.");
-            }
+                    CombatPresentation.PaletteFor(CombatPresentationSubject.AvatarStrike, school));
         }
 
         [Test]
-        public void ASpell_TakesTheCastersSchoolPalette()
+        public void ABasicAttack_HasNoParticlesAtAll()
         {
-            Assert.AreEqual(CombatPresentationPalette.Ktini,
-                CombatPresentation.PaletteFor(CombatPresentationSubject.DamageSpell, CombatPresentationPalette.Ktini));
+            foreach (CombatPresentationCue cue in CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack))
+                Assert.AreEqual(CombatPresentationVisualTier.None, cue.VisualTier,
+                    "Locked: simple sprites/tweens only - no particle burst.");
             Assert.AreEqual(CombatPresentationPalette.None,
-                CombatPresentation.PaletteFor(CombatPresentationSubject.BasicCardAttack, CombatPresentationPalette.Ktini),
-                "A basic attack has no particles, so no palette applies.");
+                CombatPresentation.PaletteFor(CombatPresentationSubject.BasicCardAttack, CombatPresentationPalette.Ktini));
+        }
+
+        // ---------- SAFETY CRITICAL: idempotent resolve ----------
+
+        [Test]
+        public void PlayingThrough_AppliesTheOutcomeExactlyOnce()
+        {
+            var resolve = new CountingResolve();
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.DamageSpell, resolve);
+
+            playback.PlayToEnd();
+
+            Assert.AreEqual(1, resolve.Applied);
+            Assert.AreEqual(CombatPresentationEnd.PlayedThrough, playback.State);
         }
 
         [Test]
-        public void ResolveOutcome_SelectsChimeOrLowTone()
+        public void SkippingMidSequence_AppliesTheOutcomeExactlyOnce()
         {
-            string positive = CombatPresentation.FinalBeatFor(CombatPresentationSubject.DamageSpell, outcomeIsPositive: true).AudioCueId;
-            string negative = CombatPresentation.FinalBeatFor(CombatPresentationSubject.DamageSpell, outcomeIsPositive: false).AudioCueId;
+            var resolve = new CountingResolve();
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.AvatarStrike, resolve);
+            playback.AdvanceBeat();
 
-            Assert.AreEqual(CombatPresentation.CueResolveChime, positive);
-            Assert.AreEqual(CombatPresentation.CueResolveLowTone, negative);
-            Assert.AreNotEqual(positive, negative, "A win and a loss must not sound identical.");
+            playback.SkipFromDedicatedControl();
+
+            Assert.AreEqual(1, resolve.Applied, "A skip must apply the outcome, once.");
+            Assert.AreEqual(CombatPresentationEnd.Skipped, playback.State);
         }
 
         [Test]
-        public void FastForward_LandsOnTheFinalBeatOfTheSequence()
+        public void TwoSkipInputsRacing_StillApplyTheOutcomeOnlyOnce()
         {
-            foreach (CombatPresentationSubject subject in AllSubjects)
-            {
-                CombatPresentationCue last = CombatPresentation.FinalBeatFor(subject);
-                IReadOnlyList<CombatPresentationCue> seq = CombatPresentation.SequenceFor(subject);
+            var resolve = new CountingResolve();
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.DamageSpell, resolve);
 
-                Assert.AreEqual(seq[seq.Count - 1].Beat, last.Beat,
-                    "Spec: a second input jumps straight to Resolve's end state - no animation blocks the next decision.");
-            }
+            playback.SkipFromDedicatedControl();
+            playback.SkipFromDedicatedControl();
+            playback.SkipFromDedicatedControl();
+
+            Assert.AreEqual(1, resolve.Applied,
+                "Locked: skipping can never duplicate damage, healing, SFX or rewards.");
+        }
+
+        [Test]
+        public void SkippingThenPlayingOn_NeverDoubleApplies()
+        {
+            var resolve = new CountingResolve();
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.HealSpell, resolve);
+            playback.AdvanceBeat();
+
+            playback.SkipFromDedicatedControl();
+            playback.PlayToEnd();
+            playback.AdvanceBeat();
+
+            Assert.AreEqual(1, resolve.Applied, "Healing must never be applied twice.");
+        }
+
+        [Test]
+        public void AfterASkip_NoFurtherBeatsPlay()
+        {
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.AvatarStrike);
+            playback.SkipFromDedicatedControl();
+
+            Assert.IsNull(playback.AdvanceBeat(), "A skipped presentation must not keep animating.");
+        }
+
+        [Test]
+        public void ResolveApplied_NeverRevertsToFalse()
+        {
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.DamageSpell, new CountingResolve());
+            playback.SkipFromDedicatedControl();
+            Assert.IsTrue(playback.ResolveApplied);
+
+            playback.PlayToEnd();
+            Assert.IsTrue(playback.ResolveApplied);
+        }
+
+        [Test]
+        public void APlaybackWithNoResolveSink_DoesNotThrow()
+        {
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.BasicCardAttack);
+            Assert.DoesNotThrow(() => playback.PlayToEnd());
+            Assert.DoesNotThrow(() => playback.SkipFromDedicatedControl());
         }
 
         // ---------- sink dispatch ----------
-
-        private sealed class RecordingSink : ICombatParticleSink, ICombatCameraSink, ICombatAudioSink
-        {
-            public readonly List<string> Audio = new List<string>();
-            public int ParticleEmits;
-            public int CameraApplies;
-
-            public void Emit(CombatPresentationPalette palette, CombatPresentationParticleTier tier, int laneIndex) => ParticleEmits++;
-            public void Apply(float zoom, float shakePixels, int shakeMs, int laneIndex) => CameraApplies++;
-            public void Play(string audioCueId) => Audio.Add(audioCueId);
-        }
 
         [Test]
         public void FiringABeat_WithNoSinksBound_DoesNotThrow()
         {
             foreach (CombatPresentationSubject subject in AllSubjects)
                 foreach (CombatPresentationCue cue in CombatPresentation.SequenceFor(subject))
-                    Assert.DoesNotThrow(() => CombatPresentation.FireBeat(cue, CombatPresentationPalette.Andras, 0),
-                        "The scaffolding must be callable before any asset or sink exists - that is its whole point.");
+                    Assert.DoesNotThrow(() => CombatPresentation.FireBeat(cue, CombatPresentationPalette.Andras, 0));
         }
 
         [Test]
-        public void FiringABeat_DispatchesOnlyTheCuesThatBeatActuallyHas()
+        public void PlayingASpell_DispatchesAudioParticlesAndTheRootTween()
         {
             var sink = new RecordingSink();
-            CombatPresentationCue impact = CombatPresentation.SequenceFor(CombatPresentationSubject.DamageSpell)
-                .First(c => c.Beat == CombatPresentationBeat.Impact);
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.DamageSpell);
 
-            CombatPresentation.FireBeat(impact, CombatPresentationPalette.Andras, laneIndex: 1, sink, sink, sink);
+            playback.PlayToEnd(CombatPresentationPalette.Andras, 1, sink, sink, sink);
 
-            Assert.AreEqual(1, sink.Audio.Count, "Impact has an audio cue.");
-            Assert.AreEqual(1, sink.ParticleEmits, "Impact has a particle tier.");
-            Assert.AreEqual(1, sink.CameraApplies, "Impact zooms.");
+            Assert.AreEqual(2, sink.Audio.Count, "Cast + impact, no resolve cue for a damage spell.");
+            Assert.AreEqual(1, sink.ParticleEmits, "One burst, at Impact.");
+            Assert.Greater(sink.RootApplies, 0);
+            Assert.LessOrEqual(sink.MaxZoom, 1.06f, "The root tween must stay inside the locked band.");
         }
 
         [Test]
-        public void ABeatWithNoParticleTier_NeverEmitsParticles()
+        public void ABasicAttack_NeverEmitsParticles_ButStillPlaysItsImpactCue()
         {
             var sink = new RecordingSink();
-            foreach (CombatPresentationCue cue in CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack))
-                CombatPresentation.FireBeat(cue, CombatPresentationPalette.None, 0, sink, sink, sink);
+            var playback = new CombatPresentationPlayback(CombatPresentationSubject.BasicCardAttack);
 
-            Assert.AreEqual(0, sink.ParticleEmits, "A basic attack must never spawn particles.");
-            Assert.Greater(sink.Audio.Count, 0, "...but it still has audio cues.");
+            playback.PlayToEnd(CombatPresentationPalette.None, 0, sink, sink, sink);
+
+            Assert.AreEqual(0, sink.ParticleEmits);
+            Assert.AreEqual(1, sink.Audio.Count);
         }
     }
 }
