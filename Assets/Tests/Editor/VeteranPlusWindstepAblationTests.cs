@@ -248,7 +248,14 @@ namespace MyriadOfDragons.Tests
             return result;
         }
 
+        // Superseded, LOCKED (real regression found in the first full-suite baseline run after
+        // Windstep's actual removal, 97eef16/103ef71) - same reasoning as
+        // ApprenticeMaxSpellWinShareDiagnosticTests.WindstepAblation_ApprenticeTwoConditions'
+        // own doc comment: this test's setup precondition is now false by design, ignored not
+        // deleted or hacked to pass. See WindstepAblation_VeteranPlusReplacementValidation for
+        // the current post-removal check.
         [Test]
+        [Ignore("Superseded by the real Windstep removal (103ef71) - its own setup precondition is now false by design. See WindstepAblation_VeteranPlusReplacementValidation for the current check.")]
         public void WindstepAblation_FourConditions()
         {
             List<Card> pool = LoadDatabase().AllCards.ToList();
@@ -284,8 +291,17 @@ namespace MyriadOfDragons.Tests
         /// conclusion (facfe8a: 4.2pp real delta, z=4.75) - don't assume VeteranPlus's original
         /// &lt;1pp answer transfers either way; measure it properly. Same rigor as Apprentice's
         /// corrected version: 3 independent repeats x 2000 matched-seed trials/condition, distinct
-        /// base seeds, pooled two-proportion z-score.</summary>
+        /// base seeds, pooled two-proportion z-score.
+        ///
+        /// Superseded, LOCKED (real regression found in the first full-suite baseline run after
+        /// Windstep's actual removal, 103ef71): this decisive 6.5pp/z=7.68 result IS what led to
+        /// the removal landing, so its own setup precondition (loadout still includes Windstep)
+        /// is now false by design - the exact same shape as the two ablations above. Ignored, not
+        /// deleted (this is the real historical record the removal is built on) or hacked to pass.
+        /// See WindstepAblation_VeteranPlusReplacementValidation for the current post-removal
+        /// check.</summary>
         [Test]
+        [Ignore("Superseded by the real Windstep removal (103ef71) - its own setup precondition is now false by design. See WindstepAblation_VeteranPlusReplacementValidation for the current check.")]
         public void WindstepAblation_VeteranPlusCorrectedTwoConditions()
         {
             List<Card> pool = LoadDatabase().AllCards.ToList();

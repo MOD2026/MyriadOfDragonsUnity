@@ -322,7 +322,17 @@ namespace MyriadOfDragons.Tests
         /// re-runs that same causal test for Apprentice specifically rather than assuming the
         /// VeteranPlus result transfers: matched-seed, current loadout (Windstep included) vs
         /// Windstep removed (slot left empty, not backfilled), same AI win-rate comparison.</summary>
+        // Superseded, LOCKED (real regression found in the first full-suite baseline run after
+        // Windstep's actual removal, 97eef16/103ef71): this test's own setup precondition -
+        // Apprentice's real resolved loadout still includes Windstep - is now false BY DESIGN,
+        // since removing it is exactly what this investigation's own findings led to. Ignored
+        // rather than deleted (the methodology and its real, decisive numbers - 6.6pp/z=7.61 -
+        // are the historical record this whole removal is built on) or hacked to "pass" against
+        // the new loadout (that would corrupt what an ablation actually measures - there is no
+        // more Windstep in the real loadout to ablate against). See
+        // WindstepAblation_ApprenticeReplacementValidation for the real, current post-removal check.
         [Test]
+        [Ignore("Superseded by the real Windstep removal (97eef16) - its own setup precondition is now false by design. See WindstepAblation_ApprenticeReplacementValidation for the current check.")]
         public void WindstepAblation_ApprenticeTwoConditions()
         {
             List<Card> pool = LoadDatabase().AllCards.ToList();
