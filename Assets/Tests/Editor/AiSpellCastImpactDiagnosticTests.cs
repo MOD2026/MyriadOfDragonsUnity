@@ -72,11 +72,12 @@ namespace MyriadOfDragons.Tests
             }
         }
 
-        private enum TierGroup { Novice, VeteranPlus }
+        private enum TierGroup { Novice, Apprentice, VeteranPlus }
 
         private static (int avatarLevel, int castleLevel, AIDifficultyTier tier) GroupConfig(TierGroup g) => g switch
         {
             TierGroup.Novice => (10, 10, AIDifficultyTier.Novice),
+            TierGroup.Apprentice => (25, 15, AIDifficultyTier.Apprentice),
             TierGroup.VeteranPlus => (50, 30, AIDifficultyTier.Veteran),
             _ => throw new ArgumentOutOfRangeException(nameof(g)),
         };
@@ -119,6 +120,14 @@ namespace MyriadOfDragons.Tests
             public readonly Dictionary<string, PerSpellStats> BySpell = new Dictionary<string, PerSpellStats>();
             public int ZeroCastTrials;
             public int TotalCasts;
+            /// <summary>Sum of final TickCount over trials with zero AI casts / at least one AI
+            /// cast, split out to answer "do casting trials specifically run long, or does the
+            /// whole run shift regardless of whether a cast happened" - the per-spell
+            /// avgFinishTickWhenCast deltas below are all near-zero or negative, which doesn't by
+            /// itself explain an aggregate avgTicks increase, so this direct split is the real
+            /// test.</summary>
+            public long TicksSumZeroCastTrials;
+            public long TicksSumAnyCastTrials;
 
             public PerSpellStats Stats(string name)
             {
@@ -129,9 +138,14 @@ namespace MyriadOfDragons.Tests
             public void Log()
             {
                 double overallAvgTicks = Trials == 0 ? 0 : (double)TotalTicks / Trials;
+                int anyCastTrials = Trials - ZeroCastTrials;
+                double avgTicksZeroCast = ZeroCastTrials == 0 ? 0 : (double)TicksSumZeroCastTrials / ZeroCastTrials;
+                double avgTicksAnyCast = anyCastTrials == 0 ? 0 : (double)TicksSumAnyCastTrials / anyCastTrials;
                 Debug.Log($"[ImpactDiag] {Label}: trials={Trials} aiWinRate={(Trials == 0 ? 0 : (double)AiWins / Trials):P1} " +
                           $"playerWinRate={(Trials == 0 ? 0 : (double)PlayerWins / Trials):P1} avgTicks={overallAvgTicks:F2} " +
                           $"spellsPerMatch={(Trials == 0 ? 0 : (double)TotalCasts / Trials):F2} zeroCastRate={(Trials == 0 ? 0 : (double)ZeroCastTrials / Trials):P1}");
+                Debug.Log($"[ImpactDiag] {Label}: avgTicksInZeroCastTrials={avgTicksZeroCast:F2} ({ZeroCastTrials} trials) " +
+                          $"avgTicksInAnyCastTrials={avgTicksAnyCast:F2} ({anyCastTrials} trials)");
                 foreach (var kv in BySpell.OrderByDescending(k => k.Value.SuccessfulCasts))
                 {
                     var s = kv.Value;
@@ -241,7 +255,15 @@ namespace MyriadOfDragons.Tests
                 if (aiWon) result.AiWins++;
                 if (playerWon) result.PlayerWins++;
 
-                if (castsThisTrial.Count == 0) result.ZeroCastTrials++;
+                if (castsThisTrial.Count == 0)
+                {
+                    result.ZeroCastTrials++;
+                    result.TicksSumZeroCastTrials += controller.TickCount;
+                }
+                else
+                {
+                    result.TicksSumAnyCastTrials += controller.TickCount;
+                }
                 result.TotalCasts += castsThisTrial.Count;
 
                 foreach (var (name, avatarDamage, killed) in castsThisTrial)
@@ -276,6 +298,9 @@ namespace MyriadOfDragons.Tests
 
         [Test]
         public void ImpactDiagnostic_Novice() => RunTier(TierGroup.Novice);
+
+        [Test]
+        public void ImpactDiagnostic_Apprentice() => RunTier(TierGroup.Apprentice);
 
         [Test]
         public void ImpactDiagnostic_VeteranPlus() => RunTier(TierGroup.VeteranPlus);
