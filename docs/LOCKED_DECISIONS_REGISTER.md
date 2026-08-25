@@ -4012,3 +4012,17 @@ capped.
 **Status: correctly not ready for a real economy lock** - price/duration/entitlement list/grant
 schedule all still need locking before a real $10k/month simulation is possible. Real gap closed:
 this is a legitimate "nothing built yet" finding, not a whale-exploit risk needing a fix.
+
+## UI design-token foundation shipped (2026-08-26, CR, verified f80a804)
+
+6 real color tokens added to `UIFrozenTokens`, each derived from the actual most-common existing
+literal across screens (not invented) - ColorBackground, ColorPanel, ColorHeader, ColorAccentBronze
+(reused GameBootstrap's real `AccentBorderColor` verbatim), ColorAccentEmerald, ColorTextPrimary.
+Real border/frame primitive (`ApplyFramedPanel`/`CreateFramedPanel`/`CreateRoundedPanelSprite`)
+generalizes both cited real techniques exactly - GameBootstrap's per-pixel alpha-shaping math for
+procedural fallback, CampaignMapUiLibrary.ApplyModalChrome's real-art-first/fallback resolution
+pattern - auto-upgrades to real art with zero code change once a file exists, same binding-layer
+convention as `CombatPresentationAssetMap`. 9/9 new tests pass (value regression lock, contrast
+invariant, real transparent-corner/opaque-center sprite verification, no-art fallback never bare),
+HEAD pinned 608a477, 0 error CS. Foundation only, no screen migrated yet - per instruction, that's a
+separate follow-up pass once this is proven solid.
