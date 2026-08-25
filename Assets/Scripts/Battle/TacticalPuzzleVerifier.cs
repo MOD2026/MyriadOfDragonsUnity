@@ -134,31 +134,61 @@ namespace MyriadOfDragons.Battle
             actions = actions ?? new List<TacticalPuzzleAction>();
             int startingResource = playerSide.Resource;
 
-            for (int i = 0; i < actions.Count; i++)
+            TacticalPuzzleStatus applyStatus = ApplyActions(
+                playerSide, actions, out int failedIndex, out string failureReason);
+            if (applyStatus != TacticalPuzzleStatus.ObjectiveMet)
             {
-                TacticalPuzzleAction action = actions[i];
-                if (action == null)
-                {
-                    result.Status = TacticalPuzzleStatus.IllegalAction;
-                    result.FailedActionIndex = i;
-                    result.Message = "Null action.";
-                    return FinishWithMetrics(result, playerSide, i);
-                }
-
-                TacticalPuzzleStatus applied = Apply(playerSide, action, out string why);
-                if (applied != TacticalPuzzleStatus.ObjectiveMet)
-                {
-                    result.Status = applied;
-                    result.FailedActionIndex = i;
-                    result.Message = why;
-                    return FinishWithMetrics(result, playerSide, i);
-                }
+                result.Status = applyStatus;
+                result.FailedActionIndex = failedIndex;
+                result.Message = failureReason;
+                return FinishWithMetrics(result, playerSide, failedIndex);
             }
 
             result.ActionsUsed = actions.Count;
             bool met = EvaluateObjective(playerSide, enemySide, objective, startingResource);
             result.Status = met ? TacticalPuzzleStatus.ObjectiveMet : TacticalPuzzleStatus.ObjectiveNotMet;
             return FinishWithMetrics(result, playerSide, actions.Count);
+        }
+
+        /// <summary>
+        /// Applies actions to a side and stops at the first refusal, WITHOUT evaluating the
+        /// objective. Returns ObjectiveMet to mean "all actions applied cleanly".
+        ///
+        /// Split out from <see cref="Verify"/> because evaluating an objective RESOLVES LANE
+        /// CLASHES, which mutates the board. Anything that wants the position as the player's
+        /// orders left it - a UI rendering the board, or a legality probe for the next action -
+        /// must apply actions only. Using the post-objective state for that shows a board where
+        /// the fight has already happened.
+        /// </summary>
+        public static TacticalPuzzleStatus ApplyActions(
+            PlayerBattleState playerSide, IReadOnlyList<TacticalPuzzleAction> actions,
+            out int failedActionIndex, out string failureReason)
+        {
+            failedActionIndex = -1;
+            failureReason = null;
+            if (playerSide == null) return TacticalPuzzleStatus.MalformedPuzzle;
+
+            actions = actions ?? new List<TacticalPuzzleAction>();
+            for (int i = 0; i < actions.Count; i++)
+            {
+                TacticalPuzzleAction action = actions[i];
+                if (action == null)
+                {
+                    failedActionIndex = i;
+                    failureReason = "Null action.";
+                    return TacticalPuzzleStatus.IllegalAction;
+                }
+
+                TacticalPuzzleStatus applied = Apply(playerSide, action, out string why);
+                if (applied != TacticalPuzzleStatus.ObjectiveMet)
+                {
+                    failedActionIndex = i;
+                    failureReason = why;
+                    return applied;
+                }
+            }
+
+            return TacticalPuzzleStatus.ObjectiveMet;
         }
 
         private static TacticalPuzzleResult FinishWithMetrics(

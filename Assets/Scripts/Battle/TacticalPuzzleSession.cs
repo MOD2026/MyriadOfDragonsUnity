@@ -141,7 +141,7 @@ namespace MyriadOfDragons.Battle
 
             var candidate = new List<TacticalPuzzleActionSpec>(_accepted) { action };
             TacticalPuzzleResult result = TacticalPuzzleAuthoring.Play(
-                _definition, candidate, out MaterializedPuzzle board, _cardSource);
+                _definition, candidate, out _, _cardSource);
 
             // Only a rejection OF THE NEW ACTION refuses the tap. A rejection blamed on an earlier
             // action would mean the already-accepted list had become illegal, which cannot happen -
@@ -169,8 +169,10 @@ namespace MyriadOfDragons.Battle
             }
 
             _accepted.Add(action);
-            Board = board;
             Current = result;
+            // Same reason as Recompute: `board` here came back from Play() with the objective
+            // already evaluated against it, so it is post-clash. Rebuild the display position.
+            Board = TacticalPuzzleAuthoring.BoardAfterActions(_definition, _accepted, _cardSource);
 
             return new TacticalPuzzleIssueReport
             {
@@ -182,9 +184,12 @@ namespace MyriadOfDragons.Battle
 
         private void Recompute()
         {
-            Current = TacticalPuzzleAuthoring.Play(
-                _definition, _accepted, out MaterializedPuzzle board, _cardSource);
-            Board = board;
+            // TWO passes, deliberately. Play() evaluates the objective, which RESOLVES LANE
+            // CLASHES and mutates the board it returns - correct for a verdict, wrong for display.
+            // Board must be the position the player's orders actually left, or the screen shows a
+            // board where the fight already happened while they are still choosing orders.
+            Current = TacticalPuzzleAuthoring.Play(_definition, _accepted, out _, _cardSource);
+            Board = TacticalPuzzleAuthoring.BoardAfterActions(_definition, _accepted, _cardSource);
         }
 
         /// <summary>
@@ -204,10 +209,25 @@ namespace MyriadOfDragons.Battle
             return list;
         }
 
-        /// <summary>Every legal Deploy the player could make right now, for a UI that highlights
-        /// options rather than making the player guess. Derived by ASKING the verifier, not by
-        /// re-deriving the rules - a highlight that disagreed with legality would be worse than no
-        /// highlight.</summary>
+        /// <summary>
+        /// True when the verifier would refuse this action as the NEXT one. One shared probe, so
+        /// every "is this legal" question the UI asks resolves exactly the way the real attempt
+        /// will - a highlight that disagreed with legality would be worse than no highlight.
+        /// </summary>
+        public bool WouldRefuse(TacticalPuzzleActionSpec candidate)
+        {
+            if (candidate == null) return true;
+            var trial = new List<TacticalPuzzleActionSpec>(_accepted) { candidate };
+            TacticalPuzzleResult result = TacticalPuzzleAuthoring.Play(
+                _definition, trial, out _, _cardSource);
+
+            return (result.Status == TacticalPuzzleStatus.IllegalAction ||
+                    result.Status == TacticalPuzzleStatus.InsufficientResource) &&
+                   result.FailedActionIndex == trial.Count - 1;
+        }
+
+        /// <summary>Every legal Deploy right now, for a UI that shows options instead of making the
+        /// player guess.</summary>
         public List<TacticalPuzzleActionSpec> LegalDeploysNow()
         {
             var legal = new List<TacticalPuzzleActionSpec>();
@@ -222,20 +242,77 @@ namespace MyriadOfDragons.Battle
                     {
                         Kind = TacticalPuzzleActionKind.Deploy, HandIndex = i, Lane = lane,
                     };
-                    var trial = new List<TacticalPuzzleActionSpec>(_accepted) { candidate };
-                    TacticalPuzzleResult result = TacticalPuzzleAuthoring.Play(
-                        _definition, trial, out _, _cardSource);
-
-                    bool refusedTheNewAction =
-                        (result.Status == TacticalPuzzleStatus.IllegalAction ||
-                         result.Status == TacticalPuzzleStatus.InsufficientResource) &&
-                        result.FailedActionIndex == trial.Count - 1;
-
-                    if (!refusedTheNewAction) legal.Add(candidate);
+                    if (!WouldRefuse(candidate)) legal.Add(candidate);
                 }
             }
 
             return legal;
+        }
+
+        /// <summary>Every legal Windstep right now. Units are named by their STARTING coordinate,
+        /// which is what an action spec has to carry - after an earlier Windstep the unit is no
+        /// longer in the lane its coordinate names.</summary>
+        public List<TacticalPuzzleActionSpec> LegalWindstepsNow()
+        {
+            var legal = new List<TacticalPuzzleActionSpec>();
+            if (IsFinished || Board == null) return legal;
+
+            foreach (BattleCardInstance unit in FriendlyUnits())
+            {
+                TacticalPuzzleUnitRef unitRef = Board.CoordinateOf(unit);
+                if (unitRef == null) continue;
+
+                foreach (Lane destination in new[] { Lane.Front, Lane.Middle, Lane.Back })
+                {
+                    var candidate = new TacticalPuzzleActionSpec
+                    {
+                        Kind = TacticalPuzzleActionKind.Windstep, UnitA = unitRef, Lane = destination,
+                    };
+                    if (!WouldRefuse(candidate)) legal.Add(candidate);
+                }
+            }
+
+            return legal;
+        }
+
+        /// <summary>Every legal Seismic Swap right now. Each unordered pair appears ONCE - offering
+        /// both orderings would show the player two buttons that do the same thing.</summary>
+        public List<TacticalPuzzleActionSpec> LegalSeismicSwapsNow()
+        {
+            var legal = new List<TacticalPuzzleActionSpec>();
+            if (IsFinished || Board == null) return legal;
+
+            List<BattleCardInstance> units = FriendlyUnits();
+            for (int i = 0; i < units.Count; i++)
+            {
+                for (int j = i + 1; j < units.Count; j++)
+                {
+                    TacticalPuzzleUnitRef a = Board.CoordinateOf(units[i]);
+                    TacticalPuzzleUnitRef b = Board.CoordinateOf(units[j]);
+                    if (a == null || b == null) continue;
+
+                    var candidate = new TacticalPuzzleActionSpec
+                    {
+                        Kind = TacticalPuzzleActionKind.SeismicSwap, UnitA = a, UnitB = b,
+                    };
+                    if (!WouldRefuse(candidate)) legal.Add(candidate);
+                }
+            }
+
+            return legal;
+        }
+
+        /// <summary>Living friendly units, in lane order.</summary>
+        public List<BattleCardInstance> FriendlyUnits()
+        {
+            var units = new List<BattleCardInstance>();
+            if (Board == null) return units;
+            foreach (Lane lane in new[] { Lane.Front, Lane.Middle, Lane.Back })
+            {
+                foreach (BattleCardInstance unit in Board.PlayerSide.Lanes[lane].Cards)
+                    if (unit.IsAlive) units.Add(unit);
+            }
+            return units;
         }
 
         public override string ToString() =>

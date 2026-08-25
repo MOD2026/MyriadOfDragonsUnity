@@ -58,6 +58,12 @@ namespace MyriadOfDragons.UI
         private int _selectedHandIndex;
         private string _status;
 
+        /// <summary>Which reposition order the player is currently composing, if any.</summary>
+        private TacticalPuzzleActionKind? _pendingOrder;
+
+        /// <summary>First unit picked for the pending order, named by its STARTING coordinate.</summary>
+        private TacticalPuzzleUnitRef _pendingUnit;
+
         public TacticalPuzzleView CurrentView { get; private set; } = TacticalPuzzleView.Entry;
 
         // ---- test seams. EditMode cannot tap a Button, so the state a tap would produce is
@@ -68,6 +74,8 @@ namespace MyriadOfDragons.UI
         public int ActiveSlotIndexForTests => _activeSlotIndex;
         public int SelectedHandIndexForTests => _selectedHandIndex;
         public string StatusForTests => _status;
+        public TacticalPuzzleActionKind? PendingOrderForTests => _pendingOrder;
+        public TacticalPuzzleUnitRef PendingUnitForTests => _pendingUnit;
 
         public void Initialize(IEnumerable<TacticalPuzzleDefinition> puzzles, Action onExit = null)
         {
@@ -101,6 +109,8 @@ namespace MyriadOfDragons.UI
             _activeSlotIndex = index;
             _session = new TacticalPuzzleSession(slot.Definition);
             _selectedHandIndex = 0;
+            _pendingOrder = null;
+            _pendingUnit = null;
             _status = null;
             CurrentView = TacticalPuzzleView.Board;
             Build();
@@ -109,7 +119,11 @@ namespace MyriadOfDragons.UI
 
         public void SelectHandCard(int handIndex)
         {
+            // Picking a card is a DEPLOY intent, so it abandons any half-composed reposition -
+            // otherwise the next lane tap would complete an order the player had moved on from.
             _selectedHandIndex = handIndex;
+            _pendingOrder = null;
+            _pendingUnit = null;
             Build();
         }
 
@@ -146,6 +160,126 @@ namespace MyriadOfDragons.UI
             return report.Outcome;
         }
 
+        // ---- Reposition orders.
+        //
+        // Windstep and Seismic Swap were reachable by the verifier and the session from the start,
+        // and had NO route through the UI - a player could only Deploy. That made two of the three
+        // legal actions, and the mode's core verb, unplayable.
+        //
+        // The flow deliberately mirrors the live battle's RepositionSelectionState: choose the
+        // order FIRST, then its unit(s). Overloading a lane tap to sometimes mean "move this unit"
+        // would be shorter but would teach an interaction the real battle does not use.
+
+        /// <summary>Begins composing a Windstep. Cancels any half-built order rather than merging
+        /// two intents.</summary>
+        public void BeginWindstepOrder() => BeginOrder(TacticalPuzzleActionKind.Windstep);
+
+        public void BeginSeismicSwapOrder() => BeginOrder(TacticalPuzzleActionKind.SeismicSwap);
+
+        private void BeginOrder(TacticalPuzzleActionKind kind)
+        {
+            if (_session == null || _session.IsFinished) return;
+            _pendingOrder = kind;
+            _pendingUnit = null;
+            _status = kind == TacticalPuzzleActionKind.Windstep
+                ? "Select the unit to reposition, then its destination lane."
+                : "Select the first unit, then the unit to swap it with.";
+            Build();
+        }
+
+        public void CancelOrder()
+        {
+            _pendingOrder = null;
+            _pendingUnit = null;
+            _status = null;
+            Build();
+        }
+
+        /// <summary>
+        /// Taps a friendly unit. Meaning depends on the pending order: it is the mover for a
+        /// Windstep, or one half of a Seismic Swap. With no pending order it does nothing but say
+        /// so - a silent no-op reads as a broken tile.
+        /// </summary>
+        public TacticalPuzzleIssueOutcome? SelectBoardUnit(TacticalPuzzleUnitRef unitRef)
+        {
+            if (_session == null || unitRef == null) return null;
+
+            if (_pendingOrder == null)
+            {
+                _status = "Choose an order first.";
+                Build();
+                return null;
+            }
+
+            if (_pendingOrder == TacticalPuzzleActionKind.Windstep)
+            {
+                _pendingUnit = unitRef;
+                _status = "Now select a destination lane.";
+                Build();
+                return null;
+            }
+
+            // Seismic Swap needs two distinct units.
+            if (_pendingUnit == null)
+            {
+                _pendingUnit = unitRef;
+                _status = "Now select the unit to swap with.";
+                Build();
+                return null;
+            }
+
+            if (SameUnit(_pendingUnit, unitRef))
+            {
+                _status = "A unit cannot swap with itself.";
+                Build();
+                return null;
+            }
+
+            return IssueOrder(new TacticalPuzzleActionSpec
+            {
+                Kind = TacticalPuzzleActionKind.SeismicSwap,
+                UnitA = _pendingUnit,
+                UnitB = unitRef,
+            });
+        }
+
+        private static bool SameUnit(TacticalPuzzleUnitRef a, TacticalPuzzleUnitRef b) =>
+            a != null && b != null && a.Side == b.Side && a.Lane == b.Lane &&
+            a.IndexInLane == b.IndexInLane;
+
+        /// <summary>Routes a lane tap: it completes a pending Windstep, or otherwise deploys the
+        /// selected hand card.</summary>
+        public TacticalPuzzleIssueOutcome TapLane(Lane lane)
+        {
+            if (_pendingOrder == TacticalPuzzleActionKind.Windstep && _pendingUnit != null)
+            {
+                return IssueOrder(new TacticalPuzzleActionSpec
+                {
+                    Kind = TacticalPuzzleActionKind.Windstep,
+                    UnitA = _pendingUnit,
+                    Lane = lane,
+                });
+            }
+
+            return DeploySelectedInto(lane);
+        }
+
+        private TacticalPuzzleIssueOutcome IssueOrder(TacticalPuzzleActionSpec spec)
+        {
+            TacticalPuzzleIssueReport report = _session.TryIssue(spec);
+            _status = report.Message;
+
+            // Clear the composed order either way: a refused reposition should not leave a
+            // half-armed state the next tap silently completes.
+            _pendingOrder = null;
+            _pendingUnit = null;
+
+            if (report.Accepted && _session.IsFinished) ShowResult();
+            else Build();
+
+            return report.Outcome;
+        }
+
         public void UndoLastOrder()
         {
             if (_session == null || !_session.Undo()) return;
@@ -158,6 +292,8 @@ namespace MyriadOfDragons.UI
             if (_session == null) return;
             _session.Reset();
             _selectedHandIndex = 0;
+            _pendingOrder = null;
+            _pendingUnit = null;
             _status = null;
             CurrentView = TacticalPuzzleView.Board;
             Build();
@@ -192,6 +328,8 @@ namespace MyriadOfDragons.UI
             CurrentView = TacticalPuzzleView.Entry;
             _session = null;
             _activeSlotIndex = -1;
+            _pendingOrder = null;
+            _pendingUnit = null;
             _status = null;
             Build();
         }
@@ -379,6 +517,16 @@ namespace MyriadOfDragons.UI
 
             BuildHandRow();
 
+            UISharedFoundation.CreateButton(_viewRoot, "Btn_Windstep", "ORDER: WINDSTEP",
+                new Vector2(220f, 52f), new Color(0.20f, 0.32f, 0.40f), BeginWindstepOrder);
+            UISharedFoundation.CreateButton(_viewRoot, "Btn_SeismicSwap", "ORDER: SWAP",
+                new Vector2(200f, 52f), new Color(0.32f, 0.26f, 0.40f), BeginSeismicSwapOrder);
+            if (_pendingOrder != null)
+            {
+                UISharedFoundation.CreateButton(_viewRoot, "Btn_CancelOrder", "CANCEL ORDER",
+                    new Vector2(200f, 52f), new Color(0.34f, 0.22f, 0.20f), CancelOrder);
+            }
+
             UISharedFoundation.CreateButton(_viewRoot, "Btn_Undo", "TAKE BACK",
                 new Vector2(200f, 52f), new Color(0.26f, 0.24f, 0.20f), UndoLastOrder);
             UISharedFoundation.CreateButton(_viewRoot, "Btn_Reset", "RESET POSITION",
@@ -412,7 +560,7 @@ namespace MyriadOfDragons.UI
                 if (interactive)
                 {
                     Lane captured = lane;
-                    button.onClick.AddListener(() => DeploySelectedInto(captured));
+                    button.onClick.AddListener(() => TapLane(captured));
                 }
                 else
                 {
@@ -429,7 +577,47 @@ namespace MyriadOfDragons.UI
                     new Color(0.92f, 0.9f, 0.82f), true, new Vector2(380f, 150f));
                 contents.horizontalOverflow = HorizontalWrapMode.Wrap;
                 contents.verticalOverflow = VerticalWrapMode.Truncate;
+                contents.raycastTarget = false;
                 SetNorm(contents.rectTransform, 0.04f, 0.04f, 0.96f, 0.96f);
+
+                if (interactive && laneState != null) BuildUnitTargets(laneObj.transform, laneState);
+            }
+        }
+
+        /// <summary>
+        /// One invisible tap target per living friendly unit, so a unit can be picked for a
+        /// reposition. Each is named by the unit's STARTING coordinate, resolved through the
+        /// board's reverse lookup - the unit may have moved since, and an action must still name
+        /// where it began.
+        /// </summary>
+        private void BuildUnitTargets(Transform laneRoot, LaneState laneState)
+        {
+            var units = new List<BattleCardInstance>(laneState.Cards);
+            int slot = 0;
+            foreach (BattleCardInstance unit in units)
+            {
+                if (!unit.IsAlive) continue;
+                TacticalPuzzleUnitRef unitRef = _session?.Board?.CoordinateOf(unit);
+                if (unitRef == null) continue;   // deployed this attempt: no starting coordinate
+
+                GameObject target = new GameObject("Unit_" + unitRef.Lane + "_" + unitRef.IndexInLane,
+                    typeof(RectTransform), typeof(Image), typeof(Button));
+                target.transform.SetParent(laneRoot, false);
+
+                bool picked = SameUnit(_pendingUnit, unitRef);
+                Image img = target.GetComponent<Image>();
+                img.color = picked
+                    ? new Color(0.85f, 0.75f, 0.35f, 0.45f)
+                    : new Color(1f, 1f, 1f, 0.06f);
+
+                TacticalPuzzleUnitRef captured = unitRef;
+                target.GetComponent<Button>().onClick.AddListener(() => SelectBoardUnit(captured));
+
+                // Stacked rows inside the lane, matching the order DescribeLane prints them.
+                float rowHeight = 0.24f;
+                float top = 0.74f - (rowHeight * slot);
+                SetNorm(target.GetComponent<RectTransform>(), 0.06f, top - rowHeight, 0.94f, top);
+                slot++;
             }
         }
 

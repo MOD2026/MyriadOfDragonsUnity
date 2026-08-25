@@ -549,6 +549,286 @@ namespace MyriadOfDragons.Tests
                 "The entry point must pass the library's puzzles through.");
         }
 
+        // ------------------------------------------------------------------ reposition orders
+        //
+        // Windstep and Seismic Swap were supported by the verifier and the session from the start
+        // and had NO route through the UI - a player could only Deploy. Two of the three legal
+        // actions, and the mode's core verb, were unplayable.
+
+        /// <summary>A puzzle with room to move: two units in Front, nothing full, generous
+        /// Resource so affordability never decides a reposition test.</summary>
+        private TacticalPuzzleDefinition RepositionPuzzle()
+        {
+            string cardId = _light.Id;
+            return new TacticalPuzzleDefinition
+            {
+                PuzzleId = "reposition",
+                DisplayName = "reposition",
+                StartingResource = 99,
+                ResourceCap = 99,
+                AvatarHealth = 20,
+                Hand = new List<string> { cardId },
+                PlayerBoard = new List<TacticalPuzzleUnitSpec>
+                {
+                    new TacticalPuzzleUnitSpec { CardId = cardId, Lane = Lane.Front },
+                    new TacticalPuzzleUnitSpec { CardId = cardId, Lane = Lane.Middle },
+                },
+                EnemyBoard = new List<TacticalPuzzleUnitSpec>
+                {
+                    new TacticalPuzzleUnitSpec { CardId = cardId, Lane = Lane.Front },
+                },
+                Objective = new TacticalPuzzleObjectiveSpec
+                {
+                    Kind = TacticalPuzzleObjectiveKind.ProtectLane,
+                    ProtectedLane = Lane.Back,
+                },
+            };
+        }
+
+        private static TacticalPuzzleUnitRef PlayerUnit(Lane lane, int index) =>
+            new TacticalPuzzleUnitRef
+            {
+                Side = TacticalPuzzleSide.Player, Lane = lane, IndexInLane = index,
+            };
+
+        [Test]
+        public void TheDisplayedBoard_IsThePositionBeforeTheClash_NotAfterIt()
+        {
+            // REAL BUG THIS PINS: evaluating an objective RESOLVES LANE CLASHES and mutates the
+            // board. The session used to expose the board Play() returned - i.e. POST-COMBAT - so
+            // the screen showed dead units and spent health while the player was still choosing
+            // orders, and every legality probe reasoned about a board the fight had already been
+            // fought on.
+            //
+            // Caught because a Seismic Swap between two authored units came back illegal: one of
+            // them had already died in a clash the player never saw.
+            var def = RepositionPuzzle();
+            var session = new TacticalPuzzleSession(def);
+
+            int authoredUnits = def.PlayerBoard.Count;
+            Assert.AreEqual(authoredUnits, session.FriendlyUnits().Count,
+                "Before any order, every authored unit must still be standing - a clash has not " +
+                "happened yet.");
+
+            foreach (TacticalPuzzleUnitSpec spec in def.PlayerBoard)
+            {
+                BattleCardInstance unit = session.Board.PlayerSide.Lanes[spec.Lane].Cards
+                    .FirstOrDefault(c => c.Definition.Id == spec.CardId);
+                Assert.IsNotNull(unit, "Authored unit missing from " + spec.Lane + ".");
+                Assert.AreEqual(unit.MaxHealth, unit.CurrentHealth,
+                    "An undamaged authored unit must display at full health, not post-clash health.");
+            }
+
+            // The verdict still evaluates the objective - only the DISPLAY board is pre-clash.
+            Assert.IsNotNull(session.Current, "A verdict must still be computed.");
+        }
+
+        [Test]
+        public void TheSession_OffersRepositionOrders_NotJustDeploys()
+        {
+            var session = new TacticalPuzzleSession(RepositionPuzzle());
+
+            CollectionAssert.IsNotEmpty(session.LegalWindstepsNow(),
+                "Units with adjacent free lanes must have legal Windsteps.");
+            CollectionAssert.IsNotEmpty(session.LegalSeismicSwapsNow(),
+                "Two friendly units must have a legal Seismic Swap.");
+        }
+
+        [Test]
+        public void EverySuggestedReposition_IsActuallyAccepted()
+        {
+            // Same rule as the deploy suggestions: a highlight that disagreed with legality would
+            // be worse than no highlight. Checked against the real attempt, not trusted.
+            var probe = new TacticalPuzzleSession(RepositionPuzzle());
+            foreach (TacticalPuzzleActionSpec candidate in probe.LegalWindstepsNow())
+            {
+                var fresh = new TacticalPuzzleSession(RepositionPuzzle());
+                Assert.IsTrue(fresh.TryIssue(candidate).Accepted,
+                    "Offered a Windstep to " + candidate.Lane + " that the session then refused.");
+            }
+
+            foreach (TacticalPuzzleActionSpec candidate in probe.LegalSeismicSwapsNow())
+            {
+                var fresh = new TacticalPuzzleSession(RepositionPuzzle());
+                Assert.IsTrue(fresh.TryIssue(candidate).Accepted,
+                    "Offered a Seismic Swap that the session then refused.");
+            }
+        }
+
+        [Test]
+        public void SeismicSwapPairs_AreOfferedOnce_NotBothWaysRound()
+        {
+            // Offering both orderings would put two buttons in front of the player that do exactly
+            // the same thing.
+            var session = new TacticalPuzzleSession(RepositionPuzzle());
+            var seen = new HashSet<string>();
+
+            foreach (TacticalPuzzleActionSpec swap in session.LegalSeismicSwapsNow())
+            {
+                string a = swap.UnitA.ToString(), b = swap.UnitB.ToString();
+                string key = string.CompareOrdinal(a, b) <= 0 ? a + "|" + b : b + "|" + a;
+                Assert.IsTrue(seen.Add(key), "The same unordered pair was offered twice: " + key);
+            }
+        }
+
+        [Test]
+        public void AUnitKeepsItsStartingCoordinate_AfterItHasMoved()
+        {
+            // THE REASON THE REVERSE LOOKUP EXISTS. The UI renders a unit where it CURRENTLY
+            // stands, but an action names it by where it STARTED - after a Windstep those differ,
+            // and a UI that named the current lane would address the wrong unit (or nothing).
+            var session = new TacticalPuzzleSession(RepositionPuzzle());
+            TacticalPuzzleUnitRef start = PlayerUnit(Lane.Front, 0);
+
+            BattleCardInstance moved = session.Board.Resolve(start);
+            Assert.IsNotNull(moved, "Setup: expected a unit at Front[0].");
+
+            Assert.IsTrue(session.TryIssue(new TacticalPuzzleActionSpec
+            {
+                Kind = TacticalPuzzleActionKind.Windstep, UnitA = start, Lane = Lane.Middle,
+            }).Accepted, "Setup: expected a legal Windstep to Middle.");
+
+            BattleCardInstance afterMove = session.Board.Resolve(start);
+            Assert.IsNotNull(afterMove, "The starting coordinate must still resolve after the move.");
+            Assert.AreEqual(start.ToString(), session.Board.CoordinateOf(afterMove).ToString(),
+                "The reverse lookup must return the STARTING coordinate, not the current lane.");
+        }
+
+        // ---- presenter routing
+
+        [Test]
+        public void TappingAUnit_WithNoOrderChosen_SaysSoRatherThanDoingNothing()
+        {
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+
+            Assert.IsNull(presenter.PendingUnitForTests, "No order chosen - nothing should be armed.");
+            Assert.IsFalse(string.IsNullOrEmpty(presenter.StatusForTests),
+                "A tap that does nothing at all reads as a broken tile.");
+        }
+
+        [Test]
+        public void AWindstep_CanBeIssuedThroughTheScreen()
+        {
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            presenter.BeginWindstepOrder();
+            Assert.AreEqual(TacticalPuzzleActionKind.Windstep, presenter.PendingOrderForTests);
+
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+            Assert.IsNotNull(presenter.PendingUnitForTests, "The mover must be armed.");
+
+            TacticalPuzzleIssueOutcome outcome = presenter.TapLane(Lane.Middle);
+
+            Assert.AreEqual(TacticalPuzzleIssueOutcome.Accepted, outcome);
+            Assert.AreEqual(1, presenter.SessionForTests.AcceptedActions.Count);
+            Assert.AreEqual(TacticalPuzzleActionKind.Windstep,
+                presenter.SessionForTests.AcceptedActions[0].Kind,
+                "The screen must issue a Windstep, not fall through to a Deploy.");
+            Assert.IsNull(presenter.PendingOrderForTests, "A completed order must disarm.");
+        }
+
+        [Test]
+        public void ASeismicSwap_CanBeIssuedThroughTheScreen()
+        {
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            presenter.BeginSeismicSwapOrder();
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+            TacticalPuzzleIssueOutcome? outcome = presenter.SelectBoardUnit(PlayerUnit(Lane.Middle, 0));
+
+            Assert.AreEqual(TacticalPuzzleIssueOutcome.Accepted, outcome);
+            Assert.AreEqual(TacticalPuzzleActionKind.SeismicSwap,
+                presenter.SessionForTests.AcceptedActions[0].Kind);
+            Assert.IsNull(presenter.PendingOrderForTests, "A completed order must disarm.");
+        }
+
+        [Test]
+        public void AUnitCannotSwapWithItself()
+        {
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            presenter.BeginSeismicSwapOrder();
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+
+            Assert.AreEqual(0, presenter.SessionForTests.AcceptedActions.Count,
+                "Tapping the same unit twice must not issue a swap.");
+            StringAssert.Contains("itself", presenter.StatusForTests);
+        }
+
+        [Test]
+        public void ARefusedReposition_DisarmsInsteadOfLeavingAHalfBuiltOrder()
+        {
+            // A half-armed order surviving a refusal is how the NEXT innocent tap silently issues
+            // an order the player never composed.
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            presenter.BeginWindstepOrder();
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+            presenter.TapLane(Lane.Front);   // moving to its own lane is not a legal Windstep
+
+            Assert.IsNull(presenter.PendingOrderForTests, "A refused order must disarm.");
+            Assert.IsNull(presenter.PendingUnitForTests, "A refused order must not leave a unit armed.");
+        }
+
+        [Test]
+        public void ChoosingAHandCard_AbandonsAHalfBuiltReposition()
+        {
+            // Picking a card is a DEPLOY intent; if the pending Windstep survived, the next lane
+            // tap would move a unit instead of deploying.
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            presenter.BeginWindstepOrder();
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+            presenter.SelectHandCard(0);
+
+            Assert.IsNull(presenter.PendingOrderForTests);
+
+            presenter.TapLane(Lane.Back);
+            Assert.AreEqual(TacticalPuzzleActionKind.Deploy,
+                presenter.SessionForTests.AcceptedActions[0].Kind,
+                "After choosing a card, a lane tap must deploy - not complete the abandoned order.");
+        }
+
+        [Test]
+        public void CancellingAnOrder_LeavesTheAttemptUntouched()
+        {
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            presenter.BeginWindstepOrder();
+            presenter.SelectBoardUnit(PlayerUnit(Lane.Front, 0));
+            presenter.CancelOrder();
+
+            Assert.IsNull(presenter.PendingOrderForTests);
+            Assert.AreEqual(0, presenter.SessionForTests.AcceptedActions.Count,
+                "Cancelling must not consume an order.");
+        }
+
+        [Test]
+        public void TheBoardOffersOrderButtonsAndUnitTargets()
+        {
+            // Guards the routing tests from passing while the player has no way to reach any of it.
+            TacticalPuzzlePresenter presenter = Open(RepositionPuzzle());
+            presenter.OpenSlot(0);
+
+            string[] names = presenter.CanvasObjectForTests
+                .GetComponentsInChildren<Button>(true).Select(b => b.name).ToArray();
+
+            CollectionAssert.Contains(names, "Btn_Windstep");
+            CollectionAssert.Contains(names, "Btn_SeismicSwap");
+            Assert.IsTrue(names.Any(n => n.StartsWith("Unit_")),
+                "Friendly units must be tappable targets, or a reposition cannot be composed.");
+        }
+
         // ------------------------------------------------------------------ persistence
         //
         // PlayerProfile.tacticalPuzzleRecords, added 2026-08-25 after the field list was proposed,

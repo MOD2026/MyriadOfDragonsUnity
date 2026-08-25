@@ -19,8 +19,22 @@ namespace MyriadOfDragons.Battle
         private readonly Dictionary<string, BattleCardInstance> _byCoordinate =
             new Dictionary<string, BattleCardInstance>();
 
-        internal void Register(TacticalPuzzleSide side, Lane lane, int index, BattleCardInstance unit) =>
+        /// <summary>Reverse lookup: a live unit back to the coordinate that names it. Needed
+        /// because the UI renders a unit where it CURRENTLY stands, while an action must name it by
+        /// where it STARTED - after a Windstep those differ.</summary>
+        private readonly Dictionary<BattleCardInstance, TacticalPuzzleUnitRef> _byUnit =
+            new Dictionary<BattleCardInstance, TacticalPuzzleUnitRef>();
+
+        internal void Register(TacticalPuzzleSide side, Lane lane, int index, BattleCardInstance unit)
+        {
             _byCoordinate[Key(side, lane, index)] = unit;
+            _byUnit[unit] = new TacticalPuzzleUnitRef { Side = side, Lane = lane, IndexInLane = index };
+        }
+
+        /// <summary>The coordinate naming this unit, or null when it was not authored onto the
+        /// starting board (a unit deployed during the attempt has no starting coordinate).</summary>
+        public TacticalPuzzleUnitRef CoordinateOf(BattleCardInstance unit) =>
+            unit != null && _byUnit.TryGetValue(unit, out TacticalPuzzleUnitRef r) ? r : null;
 
         private static string Key(TacticalPuzzleSide side, Lane lane, int index) =>
             (int)side + ":" + (int)lane + ":" + index;
@@ -343,6 +357,30 @@ namespace MyriadOfDragons.Battle
                 target.Register(side, spec.Lane, idx, unit);
                 indexInLane[spec.Lane] = idx + 1;
             }
+        }
+
+        /// <summary>
+        /// The position as the player's orders left it: actions applied, objective NOT evaluated.
+        ///
+        /// This is what a UI must render and what a legality probe must reason about. Evaluating
+        /// an objective resolves lane clashes and mutates the board, so a screen built from
+        /// <see cref="Play"/>'s state would show the player a board where combat had already
+        /// happened - dead units, spent health - while they were still choosing orders.
+        /// </summary>
+        public static MaterializedPuzzle BoardAfterActions(
+            TacticalPuzzleDefinition def, IEnumerable<TacticalPuzzleActionSpec> actions,
+            Func<string, Card> cardSource = null)
+        {
+            MaterializedPuzzle puzzle = Materialize(def, cardSource);
+            var resolved = new List<TacticalPuzzleAction>();
+            if (actions != null)
+            {
+                foreach (TacticalPuzzleActionSpec spec in actions)
+                    resolved.Add(Resolve(spec, puzzle));
+            }
+
+            TacticalPuzzleVerifier.ApplyActions(puzzle.PlayerSide, resolved, out _, out _);
+            return puzzle;
         }
 
         /// <summary>Converts an authored action spec into the runtime action the verifier takes,
