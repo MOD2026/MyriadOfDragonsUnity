@@ -4026,3 +4026,19 @@ convention as `CombatPresentationAssetMap`. 9/9 new tests pass (value regression
 invariant, real transparent-corner/opaque-center sprite verification, no-art fallback never bare),
 HEAD pinned 608a477, 0 error CS. Foundation only, no screen migrated yet - per instruction, that's a
 separate follow-up pass once this is proven solid.
+
+## Retention telemetry pipeline shipped, NOT YET WIRED - flagged so it doesn't go quiet (2026-08-26, CR, verified 6e9081c)
+
+Real, verified build matching the corrected architecture exactly: `RetentionTelemetryEvents.cs`
+(pure event builder, `serverReceivedAtUtc` deliberately excluded client-side with a reflection test
+locking that out - real anti-tampering discipline), `RetentionTelemetryGateway.cs` (mirrors the real
+IFriendsGateway/IBazaarGateway/IChatSocialGateway trust-boundary shape), `RetentionTelemetryOutbox.cs`
+(bounded 500, own JSON-persisted file so queued events survive a restart, never throws on enqueue,
+stops cleanly at first flush failure). 15/15 pass, HEAD pinned d093997, 0 error CS.
+
+**EXPLICITLY NOT wired into any real gameplay call site yet** - no emit calls exist at Empire
+Expedition completion, Battle Pass claim, screen entries, or daily-cap hits. Flagging this loudly and
+in the register itself (not just chat) precisely because of tonight's real lesson: a real, built
+system with no live call sites is exactly the shape of thing that goes quiet and gets assumed "done"
+when it is not. **This row stays open until real emit calls exist at real trigger points** - do not
+mark this closed on "pipeline exists" alone.
