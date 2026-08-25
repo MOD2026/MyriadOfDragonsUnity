@@ -2021,3 +2021,36 @@ baseline and on-condition for every pair).
 false failure" prediction did not hold. Real options on the table now: leave zero-cast timing as a
 real unresolved finding, widen a zero-cast-specific band (informed by real isolated numbers, not the
 old blended guess), or something else GPT proposes. CR correctly did not guess or self-adjust.
+
+## Zero-cast timing anomaly - real diagnostic protocol LOCKED, no band change yet (2026-08-25, GPT, vetted)
+
+**Decision: do NOT widen the zero-cast band yet.** 1.351 (Apprentice) / 1.197 (VeteranPlus) is too
+large to dismiss as sampling noise, and matched seeds only rule out different starting decks/hands -
+they do NOT rule out post-treatment selection, since "zero-cast" is itself defined by what the AI
+did during the run, not a pre-treatment condition. Real methodological caveat, correctly applied.
+
+**Diagnostic protocol, in order:**
+1. Split zero-cast trials into: no legal opportunity ever / legal opportunity existed but every gate
+   roll failed / match ended before an opportunity appeared.
+2. Forced-no-cast control, 3 conditions: baseline (spell AI disabled) / AI decision loop active but
+   casting forcibly disabled / normal AI path with current gate.
+3. Log first divergent tick + state hash: card positions/HP, Resource/cooldowns, combat RNG state,
+   spell RNG state, candidate-scan count, AI decision-call count, any resource/cooldown/lane
+   mutation on a failed cast attempt.
+4. Check whether combat and spell decisions share one RNG stream - a no-cast AI may still consume
+   random values and desync later combat outcomes even without ever casting. Separate the streams
+   if so.
+
+**Interpretation guide (all 4 branches covered, not just the expected one):**
+- Forced-no-cast matches baseline -> the normal zero-cast path changes combat indirectly = a real
+  defect.
+- Forced-no-cast ALSO produces longer matches, and matches the "no-opportunity" subset vs baseline
+  -> genuine state-selection/tier-composition effect, not a bug.
+- Only legal-but-roll-failed trials diverge -> investigate gate/RNG consumption specifically.
+- All controls match baseline but the selected zero-cast subset remains longer -> population
+  property, revise the METRIC, not the AI.
+
+**Flag for CR before starting:** step 4 (shared RNG stream) could surface a real architecture
+question, not just a local test fix - if combat and spell RNG do share a stream, separating them is
+a nontrivial refactor with project-wide balance-verification risk, not something to silently do.
+Escalate back if that's what's found, don't just fix it inline.
