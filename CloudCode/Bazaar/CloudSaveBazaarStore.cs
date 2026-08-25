@@ -35,6 +35,13 @@ namespace MyriadOfDragons.CloudCode.Bazaar;
 /// account that actually owns that data - which is why <see cref="IBazaarStore"/>'s wallet methods
 /// take an explicit accountId rather than always trusting context.PlayerId: a purchase must credit
 /// the SELLER's wallet too, not just the buyer's.
+///
+/// Custom Items writes (SetCustomItemAsync, in SaveCustomItemAsync below) use
+/// context.ServiceToken, not context.AccessToken - live-verified (2026-08-25): AccessToken gets
+/// ApiException: Unauthorized on Custom Items writes specifically, even though it works fine for
+/// player-scoped Cloud Save and for Custom Items READS (GetCustomItemsAsync, both call sites
+/// above). Matches this class's own "readable by any player client-side but writeable only from
+/// a server" design note - server authority is asserted via ServiceToken.
 /// </summary>
 public sealed class CloudSaveBazaarStore : IBazaarStore
 {
@@ -268,7 +275,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
 
             await apiClient.CloudSaveData.SetCustomItemAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 BoardCustomId,
                 body);

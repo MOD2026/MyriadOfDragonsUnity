@@ -18,7 +18,16 @@ namespace MyriadOfDragons.CloudCode.Friends;
 /// (Custom Items has no query/filter, same limitation Bazaar's own board has) stays on ordinary
 /// player-scoped Cloud Save, keyed by the account it belongs to - which is why this store's index
 /// methods take an explicit accountId rather than always trusting context.PlayerId: accepting or
-/// declining a request must update BOTH accounts' indices, not just the caller's own.</summary>
+/// declining a request must update BOTH accounts' indices, not just the caller's own.
+///
+/// Custom Items writes (SetCustomItemAsync/DeleteCustomItemAsync) use context.ServiceToken, not
+/// context.AccessToken - a real, live-verified requirement (2026-08-25): AccessToken (player-
+/// scoped) gets ApiException: Unauthorized on Custom Items writes specifically, even though it
+/// works fine for player-scoped Cloud Save (GetItemsAsync/SetItemsAsync) and for Custom Items
+/// READS (GetCustomItemsAsync). Matches the documented Access Class model - "readable by any
+/// player client-side, writeable only from a server" - server authority is asserted via
+/// ServiceToken, not the caller's own AccessToken. GetCustomItemsAsync (reads) correctly keeps
+/// AccessToken.</summary>
 public sealed class CloudSaveFriendsStore : IFriendsStore
 {
     private const string GraphCustomId = "friends-graph";
@@ -92,7 +101,7 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
 
             await apiClient.CloudSaveData.SetCustomItemAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 GraphCustomId,
                 body);
@@ -109,7 +118,7 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
         {
             await apiClient.CloudSaveData.DeleteCustomItemAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 GraphCustomId,
                 FriendshipKey(accountA, accountB));

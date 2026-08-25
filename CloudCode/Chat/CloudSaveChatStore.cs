@@ -17,7 +17,12 @@ namespace MyriadOfDragons.CloudCode.Chat;
 /// key format CloudSaveSocialSafetyStore.BuildKey computes ("ssr" + kind[0] + "_" +
 /// first-32-hex-of-SHA256(actorId + "|" + kind + "|" + targetId)) - duplicated here rather than
 /// shared via a project reference because each CloudCode module deploys as its own independent
-/// assembly. If SocialSafety's key scheme changes, this must be updated to match by hand.</summary>
+/// assembly. If SocialSafety's key scheme changes, this must be updated to match by hand.
+///
+/// Custom Items writes (SetCustomItemAsync) use context.ServiceToken, not context.AccessToken -
+/// see CloudSaveFriendsStore's own doc comment for the full, live-verified reasoning
+/// (2026-08-25): AccessToken gets ApiException: Unauthorized on Custom Items writes specifically,
+/// player-scoped writes and Custom Items reads are unaffected and correctly keep AccessToken.</summary>
 public sealed class CloudSaveChatStore : IChatStore
 {
     private const string ChannelsCustomId = "chat-channels";
@@ -80,7 +85,7 @@ public sealed class CloudSaveChatStore : IChatStore
 
             await apiClient.CloudSaveData.SetCustomItemAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 ChannelsCustomId,
                 body);
