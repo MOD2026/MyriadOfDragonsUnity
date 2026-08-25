@@ -301,20 +301,32 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void UnbackedBuildings_StillReportNoStoredLevel()
+        public void AllElevenBuildings_NowHaveAStoredLevel_AtDayOneDefault()
         {
-            // Guards the helper from quietly claiming a level for buildings that genuinely have
-            // none - Guild Hall is flat by design, Embassy and Prison are pending-server. 0 means
-            // "no level field", never "level zero".
-            foreach (EmpireBuildingKind kind in new[]
-                     {
-                         EmpireBuildingKind.Embassy, EmpireBuildingKind.Prison,
-                         EmpireBuildingKind.GuildHall,
-                     })
+            // REWRITTEN 2026-08-26. This used to assert Embassy/Prison/GuildHall had NO stored
+            // level - correct until the owner signed off on their fields to unblock the
+            // 11-building interlock. The premise changed BY DECISION, not by drift, so the
+            // assertion was re-read rather than deleted. Same call as the Prison cooldown, the art
+            // roles, and the [runtime] level marker.
+            var fresh = new PlayerProfile();
+            foreach (EmpireBuildingKind kind in System.Enum.GetValues(typeof(EmpireBuildingKind)))
             {
-                Assert.IsFalse(EmpireBuildingLevels.HasStoredLevel(kind),
-                    kind + " has no save field and must not claim one.");
+                Assert.IsTrue(EmpireBuildingLevels.HasStoredLevel(kind),
+                    kind + " has no stored level - every one of the 11 buildings should now have one.");
+                Assert.AreEqual(1, EmpireBuildingLevels.LevelOf(fresh, kind),
+                    kind + " must default to Level 1 per the interlock's Day-1 rule (all visible " +
+                    "at Level 1, upgrade-gated not access-gated).");
             }
+        }
+
+        [Test]
+        public void ANullProfile_StillReportsZero_WhichMeansNoFieldNotLevelZero()
+        {
+            // The 0-return path outlived the "unbacked buildings" idea it was written for. Kept
+            // deliberately: nothing should start printing LEVEL 0 because a profile was missing.
+            foreach (EmpireBuildingKind kind in System.Enum.GetValues(typeof(EmpireBuildingKind)))
+                Assert.AreEqual(0, EmpireBuildingLevels.LevelOf(null, kind),
+                    "A null profile must read as 'no field', not as level zero.");
         }
 
         private void TearDownCanvases()

@@ -40,18 +40,24 @@ namespace MyriadOfDragons.Empire
     /// the Empire rows and anything added later cannot drift apart on which field backs which
     /// building.
     ///
-    /// Returns 0 for kinds with NO stored level - Embassy, Prison and Guild Hall are deliberately
-    /// unbacked (Guild Hall is flat by design, the other two are pending-server). 0 means "no
-    /// level field", never "level zero", and callers must render it as such rather than printing a
-    /// misleading LEVEL 0.
+    /// EVERY kind now has a stored level. Embassy, Prison and Guild Hall were deliberately
+    /// unbacked until 2026-08-26, when the owner signed off on their fields to unblock the
+    /// 11-building interlock (Day-1 rule: all visible at Level 1, upgrade-gated not access-gated).
+    /// The 0-return path is kept: LevelOf(null, ...) returns 0, and 0 has always meant "no level
+    /// field" here - never "level zero".
     /// </summary>
     public static class EmpireBuildingLevels
     {
+        /// <summary>True for every one of the 11 buildings as of 2026-08-26. Kept as a method
+        /// rather than inlined "always true" so a future kind added to the enum without a field is
+        /// still answered honestly.</summary>
         public static bool HasStoredLevel(EmpireBuildingKind kind) =>
             kind == EmpireBuildingKind.Castle || kind == EmpireBuildingKind.Barracks ||
             kind == EmpireBuildingKind.Gate || kind == EmpireBuildingKind.Storage ||
             kind == EmpireBuildingKind.TrainingGrounds || kind == EmpireBuildingKind.Quarry ||
-            kind == EmpireBuildingKind.Academy || kind == EmpireBuildingKind.TreeOfKnowledge;
+            kind == EmpireBuildingKind.Academy || kind == EmpireBuildingKind.TreeOfKnowledge ||
+            kind == EmpireBuildingKind.Embassy || kind == EmpireBuildingKind.Prison ||
+            kind == EmpireBuildingKind.GuildHall;
 
         public static int LevelOf(MyriadOfDragons.Save.PlayerProfile profile, EmpireBuildingKind kind)
         {
@@ -66,6 +72,9 @@ namespace MyriadOfDragons.Empire
                 case EmpireBuildingKind.Quarry: return profile.quarryLevel;
                 case EmpireBuildingKind.Academy: return profile.academyLevel;
                 case EmpireBuildingKind.TreeOfKnowledge: return profile.treeOfKnowledgeLevel;
+                case EmpireBuildingKind.Embassy: return profile.embassyLevel;
+                case EmpireBuildingKind.Prison: return profile.prisonLevel;
+                case EmpireBuildingKind.GuildHall: return profile.guildHallLevel;
                 default: return 0;
             }
         }

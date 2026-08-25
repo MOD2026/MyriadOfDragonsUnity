@@ -152,6 +152,23 @@ namespace MyriadOfDragons.Save
         public int academyLevel = 1;
         public int treeOfKnowledgeLevel = 1;
 
+        // --- The last 3 buildings, completing the 11-building set. Additive, OWNER-SIGNED-OFF
+        // 2026-08-26 ("OWNER SIGN-OFF: 3 new PlayerProfile fields for Empire interlock") to unblock
+        // BS's Day-1/paired-milestone interlock. Proposed, signed off, THEN written - same order as
+        // Memory Expedition, Tactical Puzzle and the five above.
+        //
+        // DEFAULT 1, following the interlock's own Day-1 rule: "all visible at Level 1, upgrade-
+        // gated not access-gated". Same reasoning as the other five - a minimum-valid structure
+        // rather than an absent one, so a migrated player is never blocked by a field that did not
+        // exist when they last played.
+        //
+        // These three were DELIBERATELY unbacked until now (EmpireBuildingLevels documented
+        // "0 means no level field, never level zero"). That contract changes here by owner
+        // decision, not by drift - see the test that used to assert it.
+        public int embassyLevel = 1;
+        public int prisonLevel = 1;
+        public int guildHallLevel = 1;
+
         /// <summary>
         /// Additive Empire construction project (EMPIRE_SCHEMA_LOCK). Null on old saves —
         /// SaveMigration.Normalize replaces with idle.
