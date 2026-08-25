@@ -96,6 +96,17 @@ namespace MyriadOfDragons.Tests
             public long TotalAvatarDamage;
             public int UnitsKilledOnCastTick;
             public int WinsWhenCast;
+            /// <summary>Trials where this spell was cast at least once - denominator for
+            /// TicksAtMatchEndSumWhenCast, and for WinsWhenCast/TrialsCastIn as a per-spell win
+            /// rate (distinct from WinsWhenCast/AiWins, "share of AI wins containing this spell").</summary>
+            public int TrialsCastIn;
+            /// <summary>Sum of each trial's final TickCount, over trials where this spell was cast
+            /// at least once - early-KO correlation proxy: TicksAtMatchEndSumWhenCast/TrialsCastIn
+            /// vs the run's own overall avgTicks tells you whether this spell's presence
+            /// correlates with a shorter match, not a causal claim (a spell that's more available
+            /// in matches that were already trending short is not distinguished from one that
+            /// SHORTENS matches - flagged as a correlation, not causation, in the log output).</summary>
+            public long TicksAtMatchEndSumWhenCast;
         }
 
         private sealed class ImpactResult
@@ -117,14 +128,20 @@ namespace MyriadOfDragons.Tests
 
             public void Log()
             {
+                double overallAvgTicks = Trials == 0 ? 0 : (double)TotalTicks / Trials;
                 Debug.Log($"[ImpactDiag] {Label}: trials={Trials} aiWinRate={(Trials == 0 ? 0 : (double)AiWins / Trials):P1} " +
-                          $"playerWinRate={(Trials == 0 ? 0 : (double)PlayerWins / Trials):P1} avgTicks={(Trials == 0 ? 0 : (double)TotalTicks / Trials):F2} " +
+                          $"playerWinRate={(Trials == 0 ? 0 : (double)PlayerWins / Trials):P1} avgTicks={overallAvgTicks:F2} " +
                           $"spellsPerMatch={(Trials == 0 ? 0 : (double)TotalCasts / Trials):F2} zeroCastRate={(Trials == 0 ? 0 : (double)ZeroCastTrials / Trials):P1}");
                 foreach (var kv in BySpell.OrderByDescending(k => k.Value.SuccessfulCasts))
                 {
                     var s = kv.Value;
+                    double avgFinishTickWhenCast = s.TrialsCastIn == 0 ? 0 : (double)s.TicksAtMatchEndSumWhenCast / s.TrialsCastIn;
+                    double winRateWhenCast = s.TrialsCastIn == 0 ? 0 : (double)s.WinsWhenCast / s.TrialsCastIn;
+                    double shareOfAiWins = AiWins == 0 ? 0 : (double)s.WinsWhenCast / AiWins;
                     Debug.Log($"[ImpactDiag] {Label} SPELL={kv.Key}: available={s.Available} rejEnergy={s.RejectedEnergy} rejCooldown={s.RejectedCooldown} rejTarget={s.RejectedTarget} " +
-                              $"casts={s.SuccessfulCasts} totalAvatarDamage={s.TotalAvatarDamage} unitsKilledOnCastTick={s.UnitsKilledOnCastTick} winsWhenCast={s.WinsWhenCast}");
+                              $"casts={s.SuccessfulCasts} totalAvatarDamage={s.TotalAvatarDamage} unitsKilledOnCastTick={s.UnitsKilledOnCastTick} " +
+                              $"winsWhenCast={s.WinsWhenCast} trialsCastIn={s.TrialsCastIn} winRateWhenCast={winRateWhenCast:P1} shareOfAiWins={shareOfAiWins:P1} " +
+                              $"avgFinishTickWhenCast={avgFinishTickWhenCast:F2} (runAvg={overallAvgTicks:F2}, delta={avgFinishTickWhenCast - overallAvgTicks:+0.00;-0.00;0.00})");
                 }
             }
         }
@@ -236,7 +253,10 @@ namespace MyriadOfDragons.Tests
                 }
                 foreach (string name in castsThisTrial.Select(c => c.name).Distinct())
                 {
-                    if (aiWon) result.Stats(name).WinsWhenCast++;
+                    var stats = result.Stats(name);
+                    stats.TrialsCastIn++;
+                    stats.TicksAtMatchEndSumWhenCast += controller.TickCount;
+                    if (aiWon) stats.WinsWhenCast++;
                 }
 
                 UnityEngine.Object.DestroyImmediate(controller.gameObject);

@@ -226,7 +226,20 @@ namespace MyriadOfDragons.Battle
         /// stands in for Veteran specifically), so left unchanged pending real measurement rather
         /// than guessed. No tier supplied (legacy/mirrored-loadout callers) keeps the original flat
         /// 40%, unchanged, matching "every pre-existing caller keeps old behaviour."</summary>
-        public bool RollAiSpellCastProbabilityGate() => _aiSpellCastRng.NextDouble() < NonAvatarStrikeGateProbability(EnemyDifficultyTier);
+        public bool RollAiSpellCastProbabilityGate() =>
+            _forceAiSpellCastGateAlwaysPassForTests || _aiSpellCastRng.NextDouble() < NonAvatarStrikeGateProbability(EnemyDifficultyTier);
+
+        private bool _forceAiSpellCastGateAlwaysPassForTests;
+
+        /// <summary>EditMode-only test seam (diagnose-before-tune, LOCKED 2026-08-25): forces the
+        /// ordinary-spell probability gate above to always pass, for measuring the theoretical
+        /// ceiling at 100% ordinary-spell roll - candidate availability/cooldown/energy/target
+        /// constraints still apply exactly as in a real match (this only removes the frequency
+        /// roll, not the §5 tactical candidacy checks). Does not affect
+        /// RollAvatarStrikeCommitmentGate - AvatarStrike opportunity counting is unaffected.
+        /// Defaults to false; a real match never sets this.</summary>
+        public void SetForceAiSpellCastGateAlwaysPassForTests(bool forceAlwaysPass) =>
+            _forceAiSpellCastGateAlwaysPassForTests = forceAlwaysPass;
 
         private static double NonAvatarStrikeGateProbability(AIDifficultyTier? tier) => tier switch
         {
