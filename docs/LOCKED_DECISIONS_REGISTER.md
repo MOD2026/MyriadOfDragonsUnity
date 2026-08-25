@@ -2283,3 +2283,26 @@ not a code path difference. Correlation, not causation - now proven, not hypothe
 assertion entirely, or make it descriptive-only telemetry (same treatment already given to the
 spell-contribution/win-share metric). This is a metric-design call, not an AI-behavior question -
 the AI itself needs no fix.
+
+## New EditMode stall signature - Shop purchase flow, real and unconfirmed (2026-08-25, CR)
+
+Full-suite run stalled and was killed by the wrapper's guard (120s zero log growth, exit 124, no
+results.xml) at MyriadOfDragons.Tests.ShopV1ChromeTests.
+BuildShop_UsesCatalogShellBackground_AndStaminaStateSprites (Assets/Tests/Editor/
+ShopV1ChromeTests.cs:79). Log shows the test's own purchase-flow logging (CurrencyManager spend,
+SetShopStatus) completing normally through "Purchased Stamina Potion (30)." at
+ShopPresenter.cs:745, then goes completely silent - no exception, no `error CS`, no further
+test-runner output. Not a compile error, not an assertion failure - looks like a real hang/deadlock
+either in that test or the Editor right after it, cause unconfirmed. HEAD unchanged across the
+attempt (894f7eb before and after).
+
+**Checked and ruled out as the likely cause:** Packages/manifest.json's uncommitted 2D Animation/PSD
+Importer diff (flagged earlier tonight) is actually 2 DAYS OLD (Aug 23), not added tonight, and
+packages-lock.json shows those packages resolved successfully at some point. Dozens of clean runs
+happened tonight with that same diff present (including the 1352/1358 pin), so it's very unlikely to
+be today's cause - this looks like a separate, real bug specific to the Shop purchase-flow test path.
+
+CR correctly did not touch ShopPresenter.cs/ShopV1ChromeTests.cs (Metagame-owned, per ownership
+rule) - flagged the exact stall location instead of guessing at a fix. Routed to WH to investigate.
+Unity lock re-held again immediately after (different PID, presumably VS resuming) - CR holding, not
+retrying blind over an active lock.
