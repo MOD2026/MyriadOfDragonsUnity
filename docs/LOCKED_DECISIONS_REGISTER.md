@@ -3329,3 +3329,23 @@ live economy bug.
 Fix: search path corrected to TopHud/WeeklyPermitStrip in both test files. Verified 7/7 EditMode
 passing. Closes the "Home fully fixed" correction from earlier - the underlying game was never
 actually broken, only the tests' search depth was stale relative to the refactor.
+
+## Tactical Puzzle Week 1 content batch - PROVISIONAL, locked pending real verifier confirmation (2026-08-25, BS, foundational rule verified)
+
+**6 candidates authored, real fixed states specified per puzzle (hand/board/Resource/objective).**
+CC verified the foundational rule everything depends on against real code before locking anything:
+BattleCardInstance.cs:42 confirms "the lane bonus (Front Attack / Middle Health, Part II §2.3)" -
+matches BS's stated rule exactly (Front=+1 Attack, Middle=+1 Health, Back=none). Not invented.
+
+**Recommended first shipment:** tac_w1_e01 (accessible - single deploy, marked-target), tac_w1_m01
+(optimization - zero-Resource Windstep solve), tac_w1_h01 (hard - lane-selection under pressure).
+Hold tac_w1_e02/m02/h02 as rotation/replacement.
+
+**NOT final content - BS's own framing, honored as-is:** every candidate needs the real 7-step
+validation BS specified before shipping: structural validation (card IDs resolve), replay the
+stated solution through the real verifier, enumerate all legal sequences up to the action budget,
+confirm the stated solution is valid AND minimum-cost, confirm at least one tempting alternative
+fails for the stated reason, envelope checks from a fresh materialized state per expectation, reject
+any puzzle where zero actions solve it or multiple unrelated lines solve it equally cheaply. This is
+exactly what TacticalPuzzleAuthoringTests/VerifierTests exist to do - dispatched for real execution,
+not taken on BS's word.
