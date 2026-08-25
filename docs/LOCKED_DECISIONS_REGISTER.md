@@ -1802,3 +1802,36 @@ Memory Expedition's OWN design is already fully specified (rounds, difficulty cu
 table, seed/resume logic - not a gap). Real open question: is ONE minigame enough for the stated
 milestone target, or does variety matter at this scope? No clean genre-standard number found via
 research - genuinely non-obvious, sent to GPT rather than guessed.
+
+## MAJOR FINDING: Windstep, not Stone Judgment, is VeteranPlus's real dominant spell (2026-08-25, CR)
+
+**Step 1 (Novice bands):** 3/4 clean (spells/match, fallback ceiling, win-rate delta all fit).
+**Real metric mismatch caught before shipping:** GPT's "0-5% cast rate" was decided against CR's
+per-TICK ceiling diagnostic (2.55%), but the actual test asserts AiCastRateOfOpportunity =
+TrialsWithAiCast/TrialsWithOpportunity - a structurally different PER-TRIAL metric, real measured
+~22.7% [20.5%,24.9%]. 0-5% doesn't transfer to this metric. CR widened it to a PROVISIONAL 15-35%
+(same margin-above-observed method already used elsewhere in the file) so the test isn't left
+broken, explicitly flagged in-code as NOT GPT-confirmed. Real question back to GPT: give a real
+band for the per-trial metric, or confirm the per-tick number was never meant to gate this
+assertion.
+
+**Step 2 (dead-slot fix):** done, general fix (not VeteranPlus-specific) - AIEnemySpellbookResolver
+now filters to only AI-castable SpellEffects before slot selection. Real finding: only 5 distinct
+AI-castable effect types exist in the pool today, so 5-of-6 slots resolving is the honest ceiling,
+not a bug.
+
+**MAJOR: reran per-spell diagnostic on the corrected loadout - VeteranPlus's real dominant spell is
+WINDSTEP (Reposition), not Stone Judgment or Fault Line.** Windstep only won a loadout slot because
+the dead-slot fix freed one up - it was invisible in every prior measurement. Real numbers: Windstep
+535 casts, 75.2% win-rate-when-cast, 78.1% win-share. MirroredAiSimulationMatrixTests independently
+confirms via maxSingleSpellWinShare=78.3% (was passing at a diluted number before the fix, now
+correctly fails the 40% cap). Apprentice shows the identical pattern (74.6%, also Windstep-driven,
+also previously masked). **GPT's existing 4-condition ablation plan (Stone Judgment/AvatarStrike
+focused) doesn't test Windstep at all - running it as specified would measure the wrong spell.**
+Needs a revised plan before step 4 runs.
+
+**New open regression, flagged not fixed:** Apprentice's tick-ratio now fails its own ±15% band
+(9.84 vs baseline 8.30, +18.6%) - real side effect of the corrected loadout.
+
+19/21 tests pass in affected classes, both failures are the flagged items above, not silent
+workarounds. CR correctly held rather than running the wrong ablation test.
