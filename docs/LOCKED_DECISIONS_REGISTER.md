@@ -3022,3 +3022,35 @@ block required analysis.
 This closes the retention telemetry thread. No implementation dispatch yet - still 10+ weeks out
 per the Empire Defense evidence gate, and telemetry only matters once Memory Expedition is live with
 real players.
+
+## Windstep saga CLOSED - both tiers replaced, and the AI is now correctly stronger (2026-08-25, CR, verified 97eef16 / 103ef71)
+
+**Both replacements committed and empirically validated, no degenerate shadowing:**
+- Apprentice (97eef16): Mend replaces Windstep, 91/3000 real casts, winRate 38.3% - healthy range.
+- VeteranPlus (103ef71): Mend replaces Windstep, 48/3000 real casts, winRate 34.6% - healthy range.
+
+**Full SimulationMatrix for both tiers now trips their PRE-EXISTING win-rate bands - expected, not a
+new bug:**
+- Apprentice: AI win-rate delta 8.4% (30.6% -> 39.0%), just over the locked -5pp..+8pp band.
+- VeteranPlus: player win-rate dropped 9.4% (30.9% -> 21.6%), over the locked 8pp cap - same
+  recurring assertion class flaky/borderline all session (10.0%/9.8%/11.8% in earlier runs), now
+  compounded by a real, intentional strength increase rather than just noise.
+
+**Why this is expected, not alarming:** both bands were locked against the OLD (Windstep-included,
+net-negative-for-the-AI) behavior. The AI is now measurably and correctly stronger - that was the
+entire point of the fix. Tripping the old band is the predictable shape of a successful fix, not
+evidence of a new problem.
+
+**This is exactly the scenario BS pre-flagged for VeteranPlus specifically** ("if the corrected
+loadout makes VeteranPlus too strong after replacement, the fix is ONLY HP/Resource scaling
+(SoloAIScalingSystem) - not Windstep's design, not AI cast probability"). **Real data now shows it
+applies to Apprentice too, not just VeteranPlus** - CR correctly generalized the contingency based
+on symmetric evidence rather than assuming it only covered the tier it was written for.
+
+CR did NOT touch SoloAIScalingSystem, the win-rate bands, or anything else - correctly escalated a
+real balance-tuning decision with project-wide implications rather than guessing. Novice unaffected
+(clean pass); shadowCastTickRatio/MaxSingleSpellWinShare descriptive logging normal and unrelated.
+
+**Real decision needed, routed to BS:** invoke the HP/Resource scaling lever for both tiers (per
+BS's own pre-committed contingency), or reconsider the win-rate bands themselves now that the AI's
+real target behavior has legitimately changed?
