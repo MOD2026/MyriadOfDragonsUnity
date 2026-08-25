@@ -806,3 +806,13 @@ unit; unresolved triggers can't enter the queue and queued-unresolved ones are c
 effects never rolled back; base stats/lane bonuses/spells untouched; if Silence expires, an UNUSED
 once-per-match trigger becomes available again, consumed ones stay consumed. Acceptance: rerun
 balance/early-KO/avg-tick/AI-win-rate/no-spell-fallback suites; misses escalate, never auto-retune.
+
+## Beta social screens: OPTION B LOCKED (2026-08-25, owner decision)
+
+Owner explicitly chose server-backed social screens for beta over honest empty-states. Work: new
+CloudCode endpoints on the already-live nonprod-validation environment — Bazaar QueryListings
+(browse catalog), Friends graph (add/accept/list/gift), Chat storage (channel history, post,
+SocialSafety-filtered). Same module patterns as the 4 live-verified modules (constructor rules,
+ICloudCodeSetup/AddGameApiClient, RFC-compliant Cloud Save keys, {"request":{...}} call shape).
+Client gateways follow the existing IBazaarGateway pattern. Assigned to CR after the Silence
+package lands. Empty-states remain the automatic fallback for any endpoint that misses beta cut.
