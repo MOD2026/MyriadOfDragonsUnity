@@ -124,29 +124,43 @@ namespace MyriadOfDragons.Tests
             return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
         }
 
-        /// <summary>Every Button on the canvas must never sit under non-button art - the same
-        /// failure mode the settings-gear/banner bugs both were, just checked geometrically instead
-        /// of by screenshot.</summary>
+        /// <summary>Every Button on the canvas must never have non-button art drawn ON TOP of it -
+        /// the same failure mode the settings-gear/banner bugs both were, just checked geometrically
+        /// instead of by screenshot. A full-screen backdrop that geometrically overlaps everything
+        /// (by design - it IS the background) is not a bug; what matters is Unity's real render/
+        /// raycast order, so this only flags art that comes AFTER the button in a depth-first
+        /// traversal of the hierarchy - meaning it draws on top and could actually intercept a tap.
+        /// A naive rect-overlap check (no order awareness) flags every screen's own backdrop
+        /// against every button on it, which is exactly what the first version of this test did.</summary>
         private static List<string> FindArtOverlappingButtons(GameObject canvasGo, string viewName)
         {
             var collisions = new List<string>();
             Transform canvas = canvasGo.transform;
 
+            // GetComponentsInChildren returns depth-first hierarchy order, which is also the order
+            // Unity draws in (and the order GraphicRaycaster resolves, topmost/last-drawn wins) -
+            // so an element's position in this list stands in for its real paint order.
+            Transform[] drawOrder = canvas.GetComponentsInChildren<Transform>(true);
+            var indexOf = new Dictionary<Transform, int>();
+            for (int i = 0; i < drawOrder.Length; i++) indexOf[drawOrder[i]] = i;
+
             foreach (Button button in canvas.GetComponentsInChildren<Button>(true))
             {
                 if (!button.gameObject.activeInHierarchy) continue;
                 Rect btn = WorldRect(button.GetComponent<RectTransform>());
+                int buttonIndex = indexOf[button.transform];
 
                 foreach (Image img in canvas.GetComponentsInChildren<Image>(true))
                 {
                     if (img.sprite == null || !img.gameObject.activeInHierarchy) continue;
                     if (img.GetComponent<Button>() != null) continue;
                     if (img.transform.IsChildOf(button.transform)) continue;
+                    if (indexOf[img.transform] <= buttonIndex) continue; // drawn before the button = safely behind it
 
                     Rect art = WorldRect(img.rectTransform);
                     if (art.width <= 0f || art.height <= 0f) continue;
                     if (art.Overlaps(btn))
-                        collisions.Add($"{viewName}: '{img.name}' {art} overlaps '{button.name}' {btn}");
+                        collisions.Add($"{viewName}: '{img.name}' {art} overlaps '{button.name}' {btn} and draws AFTER it");
                 }
             }
 
