@@ -3535,3 +3535,44 @@ standing rule against CC guessing which uncommitted files belong to which seat.
 
 **Home V3 dock is now fully unblocked:** Avatar (approved earlier), Campaign, and Empire hero tiles
 all wired. Cards/Shop were already live. No art blockers remain on the Home V3 dock.
+
+## Tactical Puzzle Week 1: real 7-step validation run - 3/6 pass, 2 real design questions (2026-08-25, VS, verified 3571f9e)
+
+**Verified directly against source before logging** (`TacticalPuzzleVerifier.cs:308-316`): confirms
+VS's claim exactly - `MinimalResourceSolve` checks `spent<=budget` and `AliveCards.Any()` but never
+calls `LaneBattleResolver.ResolveLaneClash`, unlike `ProtectLane` right above it which explicitly
+resolves every lane first. Doing nothing is therefore a genuine zero-action "solve" under the real
+rules - not a VS error, not a BS error, a real mismatch between what MinimalResourceSolve checks and
+what BS's puzzle design assumed (that combat would resolve).
+
+**Real verdicts (commit 3571f9e, 107 tests, 1 intentionally failing = the content gate itself):**
+
+| Puzzle | Result | Detail |
+|---|---|---|
+| tac_w1_e01 | PASS | 1 line, 1 order / 3 Resource |
+| tac_w1_e02 | PASS | 1 line, 1 order / 0 Resource |
+| tac_w1_h02 | PASS | 2 orders / 6 Resource - see false-rejection note below |
+| tac_w1_m01 | FAIL | solved in ZERO actions - MinimalResourceSolve never resolves combat |
+| tac_w1_m02 | FAIL | 2 genuinely distinct cheapest answers (SeismicSwap vs. Windstep, same result) |
+| tac_w1_h01 | FAIL | 3 distinct cheapest answers - Back/Front/Middle all solve, no real lesson enforced |
+
+**Original ship recommendation (e01/m01/h01) mostly does not survive - only e01 does.** Real passing
+set right now is **e01, e02, h02** (two Easy, one Hard - no Medium survives).
+
+**VS caught its own false rejection before reporting** (h02 first flagged as ambiguous on two
+"lines" that were the same two cards deployed in swapped order - one answer, not two). Fixed by
+redefining "answer" as the resulting board position rather than the action sequence; three of VS's
+own test fixtures broke because they'd been exploiting exactly that flaw, replaced not loosened.
+Also caught and fixed: `JsonUtility` serializes enums as integers, not names - `tactical_puzzles.json`
+now stores real ordinals, cited inline.
+
+**Two real decisions routed to BS, not CC's/VS's to guess:**
+1. Should `MinimalResourceSolve` resolve lane clashes before judging (engine change, would also
+   affect any future puzzle using this objective), or does tac_w1_m01 need a different objective
+   kind entirely (content change, no engine touch)?
+2. tac_w1_m02 and tac_w1_h01 both have genuine multiple solutions - accept the puzzles as
+   multi-solution (loosen what "solved" requires), or redesign the board/objective so only the
+   intended line works?
+
+Content file committed and loading through the real pipeline. e01/e02/h02 are shippable now on this
+evidence.
