@@ -184,6 +184,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter13DepthStages());
             chapterStages.AddRange(BuildChapter14DepthStages());
             chapterStages.AddRange(BuildChapter15DepthStages());
+            chapterStages.AddRange(BuildChapter16DepthStages());
             ApplyLockedCampaignGemRewards();
         }
 
@@ -203,10 +204,10 @@ namespace MyriadOfDragons.UI
                 total += stage.gemReward;
             }
 
-            if (total != CampaignGemRewardRules.LockedTotalCh1Through15)
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through16)
             {
                 Debug.LogError(
-                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through15} " +
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through16} " +
                     $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
             }
         }
@@ -1582,6 +1583,90 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Chapter 16 depth pool — Chapter15DepthPool rotated by 27 (continuing 17→19→21→23→25→27).</summary>
+        private static readonly string[] Chapter16DepthPool =
+        {
+            "drain", "shaman", "druid", "succubus", "elven_high_lord",
+            "archer_dragon", "castle_lady", "hooded_rogue", "giant_worms", "mountain_harpy",
+            "snake_archer", "fire_worm", "butcher", "cursed_soldier", "ogre",
+            "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior",
+            "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador",
+            "owl_keeper", "ladyinlake", "iron_dragon", "pandora",
+        };
+
+        /// <summary>Linear from Stage 15-30's 60940 gold. 16-30 lands at 60940 + 30*220 = 67540 gold.</summary>
+        private static (int gold, int gems) Chapter16DepthReward(int stageNumber)
+        {
+            const int baseGold = 60940, goldPerStage = 220;
+            const int baseGems = 12188, gemsPerStage = 44;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 16 — The Hollow Crown (godless dawn claimed; mortals fight over empty thrones).</summary>
+        private static readonly (string title, string enemyName)[] Chapter16DepthFlavor =
+        {
+            ("Hollow Crown March", "Hollow Crown Watch"),
+            ("Empty Throne Gate", "Empty Throne Guard"),
+            ("Pretender Court", "Pretender Cohort"),
+            ("Claimant's Yard", "Claimant Yard Wardens"),
+            ("Ash-of-Rule Hall", "Ash-of-Rule Legion"),
+            ("Usurper Levy Stair", "Usurper Levy Guard"),
+            ("The First Coronation", "Coronation Command"),
+            ("Crownless Bolt Road", "Crownless Bolt Cohort"),
+            ("Throne Antechamber", "Throne Antechamber Guard"),
+            ("Eagle-of-Ash Roost", "Ash Roost Legion"),
+            ("Hollow Gallery", "Hollow Gallery Wardens"),
+            ("The Mortal Claim", "Mortal Claim Guard"),
+            ("Stormgod-Empty Throne Barracks", "Throne Barracks Command"),
+            ("Broken Crown Chamber", "Broken Crown Cohort"),
+            ("The Hollow Court", "Hollow Court Guard"),
+            ("Crownscar Road", "Crownscar Legion"),
+            ("Vault of Hollow Crowns", "Hollow Crown Wardens"),
+            ("Throne-Cracked Parapet", "Throne-Cracked Guard"),
+            ("War Engine of Claims", "Claim Engine Cohort"),
+            ("Balcony of Pretenders", "Pretender Balcony Command"),
+            ("Unsealed Crown Reliquary", "Crown Reliquary Guard"),
+            ("Rampart of Hollow Crowns", "Hollow Crown Legion"),
+            ("Thunderbrand Crown Crypt", "Crown Crypt Wardens"),
+            ("The Last Crown Debt", "Last Crown Cohort"),
+            ("Skyfire Crown Vestibule", "Crown Vestibule Guard"),
+            ("Sky King's Hollow Throne", "Hollow Throne Command"),
+            ("The Broken Crown Scepter", "Broken Crown Legion"),
+            ("Stormheart Crown Gate", "Crown Gate Guard"),
+            ("The Hollow Dais", "Hollow High Command"),
+            ("The Hollow Crown", "Hollow Crown High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter16DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                // Stride 17 is coprime with pool 29; offsets {0,5,12} distinct from Ch11–15 builders.
+                int baseIndex = (17 * i + 4) % poolSize;
+                string[] ids =
+                {
+                    Chapter16DepthPool[baseIndex],
+                    Chapter16DepthPool[(baseIndex + 5) % poolSize],
+                    Chapter16DepthPool[(baseIndex + 12) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "snake_archer", "pandora", "elf_wanderer" };
+
+                // Stages 16-24 / 16-29 measured AF defeats under starter+AF (stride-17 builder).
+                if (stageNumber == 24)
+                    ids = new[] { "werewolf", "drain", "goblin_shaman" };
+                if (stageNumber == 29)
+                    ids = new[] { "butcher", "shaman", "mountain_harpy" };
+
+                (string title, string enemyName) = Chapter16DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The hollow crown still draws blood.";
+                (int gold, int gems) = Chapter16DepthReward(stageNumber);
+                yield return new CampaignStageData($"16-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
         /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
         /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
         /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
@@ -1917,6 +2002,7 @@ namespace MyriadOfDragons.UI
                 case 13: return "CHAPTER 13: THE OLYMPIAN ANSWER";
                 case 14: return "CHAPTER 14: THE FALLEN PANTHEON";
                 case 15: return "CHAPTER 15: THE GODLESS DAWN";
+                case 16: return "CHAPTER 16: THE HOLLOW CROWN";
                 default: return $"CHAPTER {chapter}";
             }
         }

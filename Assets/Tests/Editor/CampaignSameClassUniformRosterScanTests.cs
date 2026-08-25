@@ -29,12 +29,12 @@ namespace MyriadOfDragons.Tests
             }
         }
 
-        /// <summary>Full ordered campaign chain (423 stages): 1-1..1-12, 2-1..2-21, 3-1..15-30.</summary>
+        /// <summary>Full ordered campaign chain (453 stages): 1-1..1-12, 2-1..2-21, 3-1..16-30.</summary>
         public static IEnumerable<string> AllCampaignStageIds()
         {
             for (int i = 1; i <= 12; i++) yield return $"1-{i}";
             for (int i = 1; i <= 21; i++) yield return $"2-{i}";
-            for (int chapter = 3; chapter <= 15; chapter++)
+            for (int chapter = 3; chapter <= 16; chapter++)
             {
                 for (int i = 1; i <= 30; i++)
                     yield return $"{chapter}-{i}";
@@ -166,7 +166,7 @@ namespace MyriadOfDragons.Tests
             database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             string[] allIds = AllCampaignStageIds().ToArray();
-            Assert.AreEqual(423, allIds.Length, "Setup: Ch1–15 full chain must stay 423 stages.");
+            Assert.AreEqual(453, allIds.Length, "Setup: Ch1–16 full chain must stay 453 stages.");
 
             List<RosterMatch> matches = ScanMatches(database);
             Assert.GreaterOrEqual(matches.Count, 1,

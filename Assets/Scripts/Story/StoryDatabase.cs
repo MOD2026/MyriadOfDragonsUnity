@@ -1658,6 +1658,80 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The godless dawn still waits.");
             }
+
+            // Chapter 16 — The Hollow Crown.
+            (string stageId, string title, string enemyName)[] chapter16Stages =
+            {
+                ("16-1", "Hollow Crown March", "Hollow Crown Watch"),
+                ("16-2", "Empty Throne Gate", "Empty Throne Guard"),
+                ("16-3", "Pretender Court", "Pretender Cohort"),
+                ("16-4", "Claimant's Yard", "Claimant Yard Wardens"),
+                ("16-5", "Ash-of-Rule Hall", "Ash-of-Rule Legion"),
+                ("16-6", "Usurper Levy Stair", "Usurper Levy Guard"),
+                ("16-7", "The First Coronation", "Coronation Command"),
+                ("16-8", "Crownless Bolt Road", "Crownless Bolt Cohort"),
+                ("16-9", "Throne Antechamber", "Throne Antechamber Guard"),
+                ("16-10", "Eagle-of-Ash Roost", "Ash Roost Legion"),
+                ("16-11", "Hollow Gallery", "Hollow Gallery Wardens"),
+                ("16-12", "The Mortal Claim", "Mortal Claim Guard"),
+                ("16-13", "Stormgod-Empty Throne Barracks", "Throne Barracks Command"),
+                ("16-14", "Broken Crown Chamber", "Broken Crown Cohort"),
+                ("16-15", "The Hollow Court", "Hollow Court Guard"),
+                ("16-16", "Crownscar Road", "Crownscar Legion"),
+                ("16-17", "Vault of Hollow Crowns", "Hollow Crown Wardens"),
+                ("16-18", "Throne-Cracked Parapet", "Throne-Cracked Guard"),
+                ("16-19", "War Engine of Claims", "Claim Engine Cohort"),
+                ("16-20", "Balcony of Pretenders", "Pretender Balcony Command"),
+                ("16-21", "Unsealed Crown Reliquary", "Crown Reliquary Guard"),
+                ("16-22", "Rampart of Hollow Crowns", "Hollow Crown Legion"),
+                ("16-23", "Thunderbrand Crown Crypt", "Crown Crypt Wardens"),
+                ("16-24", "The Last Crown Debt", "Last Crown Cohort"),
+                ("16-25", "Skyfire Crown Vestibule", "Crown Vestibule Guard"),
+                ("16-26", "Sky King's Hollow Throne", "Hollow Throne Command"),
+                ("16-27", "The Broken Crown Scepter", "Broken Crown Legion"),
+                ("16-28", "Stormheart Crown Gate", "Crown Gate Guard"),
+                ("16-29", "The Hollow Dais", "Hollow High Command"),
+                ("16-30", "The Hollow Crown", "Hollow Crown High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter16Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "16-1" => "The crown is hollow. Claim it or be claimed by it.",
+                    "16-15" => "A hollow court still crowns its killers.",
+                    "16-30" => "There is no god left to bless this crown.",
+                    _ => $"{enemyName} holds {title}. Empty thrones still draw armies.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "16-1" => "Then I claim it standing.",
+                    "16-15" => "Then I take the court.",
+                    "16-30" => "I do not need a blessing. I need the crown.",
+                    _ => "Clear the path. The hollow crown still waits.",
+                };
+
+                if (stageId == "16-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The hollow crown is mine. The sky is still empty."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Crowns remember their wearers, Sovereign. Hollow ones remember longer."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The hollow crown still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)
