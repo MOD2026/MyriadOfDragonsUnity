@@ -972,3 +972,19 @@ Chapter 12 in tree, not yet committed: stages 12-1 to 12-30 ("The Mortal Host"),
 finale 12-30, story + tests. Last batch 10/11 (only 12-8 AF failure, retuned roster, re-verify
 pending - blocked by lock contention with other seats, same shared-resource issue as tonight's
 other work). CR's Silence/loadout files correctly left unstaged by WH.
+
+## 6-slot loadout expansion SHIPPED (2026-08-25, CR, commit e8ef4c4) - 270/270
+
+Slots by Avatar level (4/5/10/20 -> 4/5/6 slots). Max 1/effect type, explicit max-1-AvatarStrike
+tracked as its own status (not just implied by effect-uniqueness), no-duplicate-id as a distinct
+check from duplicate-effect, diversity-first auto-equip proven with a real test where naive
+top-N-by-magnitude would have picked wrong. No-auto-fill-on-migration was already structurally
+true (SpellOwnershipSync only backfills an EMPTY loadout) - added a real test proving it rather
+than just asserting. AI resolver reuses the existing avatar-level tier table.
+
+**Real gap, correctly not shipped blind (same pattern as the Reposition UI split):**
+SpellLoadoutPickerPresenter still only renders 4 effect-type columns. A real 5/6-slot picker UI is
+a separate task, not attempted without Play Mode verification. Stopgap: a player whose level
+unlocks 5/6 slots gets an honest, clear refusal on this screen (loadout untouched), not a silent
+failure or truncated save. Real next UI follow-up, needs scheduling (Play-Mode-capable session or
+explicit owner sign-off to ship logic-only).
