@@ -1141,3 +1141,12 @@ thing (zero-match filter reading as success, last-filter-wins silently dropping 
 header-bounded watcher, a textual call-site count standing in for actual loop executions). The fix
 each time was isolating first and confirming by minimal reproduction rather than trusting a
 plausible-looking result.
+
+## Owner sign-off: Memory Expedition PlayerProfile fields APPROVED (2026-08-25)
+
+Owner approved the 12 additive fields for Memory Expedition's save state: memoryExpeditionDayKey
+(string), Seed (int), RulesVersion (int), CurrentRound (int), RevealedPairMask (long),
+FirstSelectedTile (int), MistakesRemaining (int), HighestRoundCleared (int), RewardClaimed (bool),
+RunFailed (bool), temporaryResearchPoints (int), temporaryResearchExpiryDayKey (string). VS is
+clear to wire MemoryExpeditionState into PlayerProfile.cs (frozen-file addition, additive only,
+same pattern as the already-approved Daily Login fields).
