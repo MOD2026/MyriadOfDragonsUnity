@@ -26,7 +26,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | CR | CRITICAL: re-measure Windstep's real causal effect (Apprentice) - prior 2 "locked" conclusions suspect | PENDING - re-measurement in progress |
+| 2026-08-25 | CR | Re-measure Windstep's real causal effect for VeteranPlus (same enemyTier bug as Apprentice) | PENDING - dispatched |
+| 2026-08-25 | BS (via owner) | Windstep measurably hurts Apprentice AI win rate (4.2pp) - acceptable design or needs rework? | PENDING - awaiting relay |
 | 2026-08-25 | WH (via owner) | Fix Stage 2-6/17-13 identical roster collision | PENDING - no confirmation yet |
 | 2026-08-25 | BS (via owner) | Retention telemetry: custom Cloud Code pipeline vs Unity Analytics service | PENDING - awaiting relay, not urgent (10+ weeks out) |
 
