@@ -862,10 +862,18 @@ migration only infers from authoritative cleared-stage/claimed-book/Avatar-level
 Shop/drop/event/trade/paid path. Eligibility != auto-equip - ownership sync grants it, player
 selects within the 6-slot loadout.
 
-**Net result: all 36 spells now have both a real implementation AND a real acquisition channel -
-the catalog is genuinely complete and reachable, not just coded.** Remaining work is
-implementation: loadout picker slot-count/tier-unlock logic, SpellUnlockResolver channel wiring,
-AI loadout cap, then the mandated matrix remeasurement.
+**CORRECTED 2026-08-25 (CR caught this overclaim before it stood unverified):** the line below is
+WRONG as originally written. Only the 8 spells explicitly named in GPT's acquisition-channel spec
+(Ember Guard/Earthward/Gale Break/Scorched Sky/Volcanic Prison/Leyline Draw/Thunder Decree/Titan
+Seal) have a real channel. **4 spells still have NO acquisition channel: Ashfall, Stormchain,
+Windstep, Seismic Swap** - not covered by GPT's spec, not invented, real open gap. Acquisition
+channels for the 8 named spells implemented + verified 274/274 (commit 493896d).
+
+~~Net result: all 36 spells now have both a real implementation AND a real acquisition channel -
+the catalog is genuinely complete and reachable, not just coded.~~ **36/36 implemented, 32/36
+reachable.** Remaining: acquisition channels for Ashfall/Stormchain/Windstep/Seismic Swap (needs a
+GPT round, not invented), loadout picker slot-count/tier-unlock logic, SpellUnlockResolver channel
+wiring for the 8 done ones, AI loadout cap, then the mandated matrix remeasurement.
 
 ## SPELL CATALOG: 36/36 COMPLETE AND VERIFIED (2026-08-25, CR, commit ea54c36)
 
