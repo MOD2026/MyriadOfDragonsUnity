@@ -2686,3 +2686,26 @@ specifically as a win-rate driver, so if this is real it's a different spell).
 
 VeteranPlus's separate 9.8% vs 8pp cap win-rate-drop failure is the known, already-flagged
 "under active owner-directed tuning" item (CLAUDE.md) - unchanged, not new.
+
+## Apprentice MaxSingleSpellWinShare (77.4%) root-caused - availability bias, no AI defect (2026-08-25, CR, verified cec5f37)
+
+**Part 1, stability:** 5 independent repeats x 3000 trials (15,000 total, unseeded, matches the real
+RunScenario that produced 77.4%). Windstep dominates EVERY repeat. Pooled: Windstep 76.0%
+(3551/4673 AI wins), Stone Judgment 19.0%, Fault Line 13.8%, War Cry 12.9%, Renewal 0.2%. Per-repeat
+[76.3%, 77.3%, 76.2%, 74.8%, 75.3%], stdDev 0.9% - stable, not noise.
+
+**Part 2, causal check - explicitly re-verified for Apprentice, not assumed from the VeteranPlus
+Windstep ablation (different tier/loadout/gate-probability, correctly not just inherited):**
+matched-seed A/B, 1500 trials each side. Removing Windstep from Apprentice's loadout changed AI win
+rate by only 0.9pp (30.7% -> 31.6%) - same <1pp conclusion as VeteranPlus's original ablation, now
+confirmed independently for this tier.
+
+**CONCLUSION: availability bias, not a behavioral defect.** Windstep is a cheap Reposition spell
+with high candidacy under Apprentice's own gate - it shows up in most matches regardless of outcome,
+so it shows up in most wins too, without being what wins them. No AI code issue found. Second tier
+in the session now confirmed on this exact pattern (Windstep dominant win-share, non-causal).
+
+**Real remaining question, same category as the zero-cast/any-cast metric redesign, NOT decided
+here, routed to BS:** should MaxSingleSpellWinShare itself be redesigned to distinguish "cast during
+a win" from "caused the win" (e.g. something closer to the earlier ablation's own
+slotWinRateWhenCast/shareOfAiWins split)? CR correctly did not touch the cap or the metric.
