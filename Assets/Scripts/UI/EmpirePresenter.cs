@@ -708,6 +708,17 @@ namespace MyriadOfDragons.UI
                 "LEVEL " + EmpireBuildingLevels.LevelOf(SaveManager.SaveData, kind),
                 UITextRole.Caption, TextAnchor.MiddleCenter, HexColor("#9FD3A0"), true,
                 new Vector2(200f, 22f));
+            // DOCUMENTED DEVIATION, not an oversight. The shared type scale is
+            // 28/20/16/12 (UIFrozenTokens) and has NO step below TypeCaptionSize = 12; the colour-
+            // token foundation (f80a804) added colours and a frame primitive but did not extend it.
+            // This band is roughly 12px, so a 12pt line overflows it - the label above uses the
+            // token because its band is ~15px and it fits, which was measured, not assumed.
+            //
+            // Left as a raw value deliberately: relabelling it as token-compliant would be false,
+            // and shrinking the thumbnail to fit a 12pt secondary line would undo the point of
+            // showing building art in a compact strip. If the type scale ever gains a smaller step,
+            // this is the line to move onto it - and UiGeometryRegressionTests will catch it
+            // immediately if that step is still too large.
             level.fontSize = 10;
             level.raycastTarget = false;
             SetNormalizedRect(level.rectTransform, 0.02f, 0.02f, 0.98f, 0.19f);
