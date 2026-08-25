@@ -3216,3 +3216,30 @@ that comes AFTER a button in that order can actually intercept its tap.
 has the identical gap (no draw-order check) but has never tripped it, purely because its own Dimmer
 image happens to carry no sprite (sprite==null already filters it out for a different reason). If
 that ever changes, it would silently false-positive the same way this one just did.
+
+## Image-triage pipeline: final synthesized scope - LOCKED (2026-08-25, second-opinion AI, vetted + verified)
+
+**CC's own scoped-down proposal (checkerboard + contrast only, 2-example basis) had a real flaw,
+caught by a fresh AI with zero project context and confirmed against real code, not just accepted
+on reasoning alone.** CC's claim that procedural uGUI implies lower masking risk was WRONG - checked
+directly: 6 presenter files (CollectionPresenter, DeckBuilderPresenter, CampaignMapPresenter,
+EmpireExpeditionPresenter, PackOpenOverlayPresenter, GameBootstrap) genuinely use RectMask2D/
+ScrollRect/Mask. Procedural UI commonly means dynamic scroll views/grids, which commonly means
+masking - the opposite of CC's assumption.
+
+**Final scope, synthesizing CC's proposal + BS's original + this correction:**
+- Calibration set: 8-10 hand-picked assets (not 2, not 15-25) - 2 each for 4 real distinct failure
+  profiles: high-frequency noise/checkerboard (caught by CC's original check), uniform contrast
+  dropout (caught by CC's original check), edge-bleed/anti-aliasing halos (MISSED by CC's version -
+  a mostly-transparent image can still have a visible white/light fringe baked into edge pixels from
+  a badly-keyed source), scale-dependent thin-stroke vanishing (also missed) - plus 2 negative
+  controls (valid complex transparency like glow/soft-shadow effects) so the tool doesn't over-flag.
+- Edge testing: Sobel filter / high-pass edge delta - NOT full connected-component analysis (too
+  expensive for a triage tool, per BS's own "over-engineered" framing, now more precisely targeted).
+- Contrast: composite-over-known-background (CC's original idea, confirmed sound, kept as-is).
+- Masking: a targeted static check - does an asset ID get routed into a container that also uses
+  RectMask2D/ScrollRect/Mask (grep-checkable across the 6 confirmed files above) - not BS's full
+  scene/prefab reference-resolution (doesn't apply, this project has neither).
+
+This replaces both CC's earlier scoped proposal and the mailbox dispatch sent before this
+correction - VS should build to THIS scope, not the earlier message.
