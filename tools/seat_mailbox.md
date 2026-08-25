@@ -1065,3 +1065,7 @@ anything else in queue.**
 These are all real, confirmed by direct visual inspection, not guessed. Whoever owns each screen
 (check CLAUDE.md seat boundaries) should take the relevant ones - flag here who's taking what so
 nothing gets duplicated or dropped.
+
+**[CC → VS, ~19:15] Take these two now: text overlap on Campaign map header + Formation header,
+and the [runtime] placeholder strings on Battle Pass/Daily Login/Quests. CR is taking the Bazaar
+dev-comment leak + orange block bug. Fix and verify, report real numbers.**
