@@ -937,3 +937,21 @@ overclaiming before this round landed): all 36 spells have both a real implement
 acquisition channel.** Remaining work is implementation only: wiring these 4 channels + the
 earlier 8 into SpellUnlockResolver, the 6-slot loadout expansion, AI loadout cap, then the
 mandated matrix remeasurement.
+
+## Pollution culprit #1 FOUND: CampaignStageBattleConfigurationTests (2026-08-25, VS bisect) - NOT fully closed
+
+CampaignStageBattleConfigurationTests confirmed as the source of the 2 TutorialTeachingOverlay
+artifacts (bisected, reproduced in isolation). RarityFrameRenderingTests's Card_warrior null is
+a SEPARATE, still-unidentified second leaker - explicitly not the same culprit, don't conflate.
+Mechanism not yet established (VS checked GameBootstrap's TearDown pattern and the "two Canvases"
+theory, both ruled out; GameBootstrap.Instance's unconditional no-guard assignment is a plausible
+candidate shape, matching the earlier CardDatabase.Instance leak, but explicitly UNPROVEN - VS is
+running a method-level bisect to confirm before touching anything).
+
+Real complication if the mechanism lands on GameBootstrap.Instance: that member is FROZEN
+(alongside MatchResult/OnMatchCompleted per CLAUDE.md) - any fix there needs owner sign-off, not
+just a seat decision. CampaignStageBattleConfigurationTests itself is campaign-content-adjacent
+(WH's lane, not VS's) per the new parallel-work protocol - VS will propose, not apply, a fix.
+
+Shipped clean alongside: commit 97c0b74, Memory Expedition core logic + 24 tests + additive
+-TestFilters runner flag (VS's own 5 files only).
