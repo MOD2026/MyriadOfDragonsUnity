@@ -2153,3 +2153,58 @@ than the original framing suggested.
 
 **Authoring tooling is the other half of the gate and is still untouched** - assigned to VS as the
 next real task (2026-08-25).
+
+## Prison SameOpponentCooldownDays = 7 - LOCKED (2026-08-25, BS, vetted with one caveat)
+
+7 days, keyed by attacker/defender pair. Reasoning: MaxCapturesPerUtcDay=1 already controls volume;
+7-day opponent cooldown controls collusion (two cooperating accounts farming each other) without
+making the feature unusable in a small player population. Cooldown applies only AFTER a successful
+capture - failed capture attempts do not consume it (safer default, avoids rewarding failed
+collusion attempts with a "protective" cooldown).
+
+**Real caveat, not GPT's fault - flagged by CC:** GPT specified this "must be server-authoritative,"
+but Prison has NO server backend today (explicitly a solo stand-in per the locked design - "Server-
+dependent stand-in", "GUILD FEATURES PENDING SERVER"). VS to implement as a real, testable
+CLIENT-TRACKED value using the same idempotent-ledger pattern as MaxCapturesPerUtcDay, explicitly
+documented as not abuse-proof until real server work lands - do not claim server-grade enforcement
+that doesn't exist. SameOpponentCooldownIsRedundant test (VS's self-retiring reminder) should now be
+replaced with a real assertion using the 7-day value.
+
+## Empire building save-schema defaults - LOCKED (2026-08-25, BS, vetted)
+
+Migrated accounts: Level 1 (not 0) for Storage/Training Grounds/Quarry/Academy/Tree of Knowledge.
+Reason: these are minimum-valid structures, not absent inventory - Level 1 gives no meaningful
+shortcut, preserves existing progression, and prevents migrated players (especially existing
+Evolution users) from being blocked by newly-introduced building fields. New accounts use the same
+Level 1 default unless final onboarding explicitly starts construction from zero.
+
+**Tree of Knowledge UI - CORRECTED (GPT self-retracted its own earlier claim):** the "evolution/XP
+selection chrome" from the earlier UI plan was NOT grounded in an existing UI contract - retracted.
+The existing Evolution system already implies card/step selection through Collection/Evolution flows;
+it does NOT imply a Tree-specific selection screen. Tree of Knowledge should initially just
+expose/gate the EXISTING Evolution/XP functionality. Any dedicated Tree research/selection interface
+needs its own separate UI brief - not assumed, not built on spec.
+
+## Tactical Puzzle content framework - LOCKED (2026-08-25, BS, vetted)
+
+**Authoring process (backward-construction, real puzzle-design methodology):** choose one of the 4
+locked objective shapes -> define the fully fixed state (exact hand/board/Resource/lane bonuses/
+enemy state, no random draw/AI choice/uncontrolled timing) -> define legal action budget (usually
+2-6 meaningful actions: placement/lane choice/spell use/repositioning/pass; reject cosmetic-only
+permutations) -> construct backward from the desired solution (identify required final state, find
+minimum actions to reach it, add plausible-but-losing alternatives) -> enumerate ALL legal action
+sequences up to the limit.
+
+**Acceptance tests, a puzzle is valid only if:** >=1 legal solution exists; the verifier finds it from
+a clean initial state; no single action solves it accidentally; the minimum solution requires
+meaningful ordering/tradeoffs; every alternative sequence is classified success/failure/incomplete;
+solution count is exactly 1 or a small equivalence class (<=3 strategically-equivalent solutions,
+same state+score counts as one); no solution depends on hidden RNG/frame timing/undocumented
+behavior (consistent with CR's confirmed finding that combat has zero RNG).
+
+**First weekly batch: design 6 candidates (2 easy/2 medium/2 hard), verify all 6, ship 3** (1
+accessible, 1 clear-optimization, 1 high-difficulty) - keeps 3 as buffer/rotation so a mid-week
+trivial/unsolvable/frustrating puzzle doesn't force an emergency fix. First batch measures
+completion rate, retries, average solution length, abandonment to guide future difficulty - explicitly
+does NOT create new currencies or deck-building rewards, consistent with the locked reward-boundary
+rules (shared solo reward budget, no new currency per mode).
