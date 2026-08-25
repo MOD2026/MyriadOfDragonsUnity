@@ -159,6 +159,22 @@ namespace MyriadOfDragons.Empire
             if (totalGold > 0)
                 CurrencyManager.AddCurrency(profile, CurrencyType.Gold, totalGold, persist: false);
 
+            // Materials now PERSIST (2026-08-26). This grant was computed and then thrown away
+            // because the message below said the field was frozen - but PlayerProfile.
+            // constructionMaterials has existed since 2026-08-24 and its own doc comment names THIS
+            // class: "EmpireExpeditionClearTransaction computes a Materials grant per clear
+            // already; this is the field it had nowhere to persist to". The field arrived and the
+            // wiring was never finished, so the stale message outlived the blocker by two days.
+            //
+            // Written directly with a floor, matching DailyLoginQuestsService.cs:207 - the
+            // established grant path for this currency. NOT CurrencyManager.AddCurrency: there is
+            // no CurrencyType.Materials (CurrencyDefinitions.cs:5-12 is Gold/Gems/EventMedal/
+            // GuildContribution/DragonRelic), so routing it through there would need a new currency
+            // type for a balance that already has a home.
+            if (baseMaterials > 0)
+                profile.constructionMaterials =
+                    System.Math.Max(0, profile.constructionMaterials) + baseMaterials;
+
             if (persist)
                 SaveSystem.Save(profile);
 
@@ -168,9 +184,9 @@ namespace MyriadOfDragons.Empire
             result.GuildBonusGold = bonusGold;
             result.GuildBonusApplied = applyBonus && bonusGold > 0;
             result.MaterialsGranted = baseMaterials;
-            result.MaterialsPersisted = false;
+            result.MaterialsPersisted = baseMaterials > 0;
             result.Message = baseMaterials > 0
-                ? "Clear applied (Stamina+Gold). Materials grant pending PlayerProfile Materials field (frozen)."
+                ? "Clear applied (Stamina+Gold+Materials)."
                 : "Clear applied (Stamina+Gold).";
             return result;
         }
