@@ -17,18 +17,17 @@ namespace MyriadOfDragons.Save
     /// Spec: docs/Shop_V1_Release_Contract.md:50 - "Loyalty/reward track - needs a
     /// `int shopMilestoneProgress` (or similar) field and a milestone table."
     ///
-    /// REDEMPTION IS NOT BUILT, AND CANNOT BE. That line names a milestone table as a requirement
-    /// and no such table exists anywhere in the contract or the repo - no thresholds, no rewards,
-    /// no claim rules. Building a redemption path would mean inventing the reward economy, which is
-    /// a design pass, not an implementation detail. The counter is real and persists now; what a
-    /// player gets for reaching 50 points is still unwritten.
+    /// UPDATED 2026-08-26: both questions this file originally left open are now answered by the
+    /// register entry "Loyalty Points, redemption side now specified", and this header was rewritten
+    /// rather than left describing a state that no longer holds.
+    ///   - The earn model is PER SPEND: 1 point per 10 Gems, rounded down per transaction.
+    ///   - The milestone table is locked and lives here as data (see Milestones).
     ///
-    /// POINTS-PER-PURCHASE vs POINTS-PER-SPEND IS DELIBERATELY NOT DECIDED HERE. The contract lists
-    /// "no streak counter, no cumulative-spend counter, no milestone list" as all absent, so it does
-    /// not say which shape loyalty takes - and the difference is an economy decision, not a
-    /// rounding one: fifty small purchases and one large one are worlds apart under the two models.
-    /// So the CALLER supplies the points, and this service only accrues them. Whichever model the
-    /// design picks, nothing here changes.
+    /// REDEMPTION IS STILL NOT BUILT, but for a narrower reason than before. The blocker is no
+    /// longer a missing table - it is that these milestones are ONE-TIME and nothing on the profile
+    /// records which have been claimed, plus two reward types the save cannot represent at all (no
+    /// cosmetic ownership model exists, and "3-day VIP" is not expressible in the weekly|fortnight|
+    /// monthly plan vocabulary). See RedemptionAvailable.
     ///
     /// Real logic in a plain testable class per CLAUDE.md non-negotiable #6 - no MonoBehaviour, and
     /// it never saves. The caller decides when to persist, exactly like
@@ -78,9 +77,77 @@ namespace MyriadOfDragons.Save
             profile == null ? 0 : Math.Max(0, profile.shopMilestoneProgress);
 
         /// <summary>
-        /// True once a milestone table exists to redeem against. Hardcoded false, deliberately:
-        /// the contract requires a milestone table and does not contain one, so any redemption UI
-        /// asking this question gets an honest "not yet" instead of a fabricated reward.
+        /// Points earned for a Gem spend: 1 per 10 Gems, ROUNDED DOWN PER TRANSACTION.
+        ///
+        /// Locked 2026-08-26 (register: "Loyalty Points, redemption side now specified"). This also
+        /// settled the points-per-purchase vs points-per-spend question I had left open - it is
+        /// per SPEND, and per transaction, which matters: ten 9-Gem purchases earn 0 points, while
+        /// one 90-Gem purchase earns 9. Rounding per transaction rather than on a running total is
+        /// the locked rule, not an implementation shortcut.
+        ///
+        /// Gems only. The spec says "per 10 Gems spent" - Gold spending earns nothing, and free or
+        /// refunded Gems must not be passed here at all (the caller owns that filter, since only it
+        /// knows whether a transaction was a real spend).
+        /// </summary>
+        public const int GemsPerLoyaltyPoint = 10;
+
+        public static int PointsForGemsSpent(int gemsSpent) =>
+            gemsSpent <= 0 ? 0 : gemsSpent / GemsPerLoyaltyPoint;
+
+        /// <summary>One locked milestone. Rewards are deliberately a pure recognition/convenience
+        /// sink - no cards, packs, Forge Dust, Permits, Evolution materials, Market Credits, spell
+        /// ownership, combat stats or timer skips anywhere in the list, so loyalty can never become
+        /// a second acquisition path (the exact mistake VIP's original wording made).</summary>
+        public readonly struct LoyaltyMilestone
+        {
+            public readonly int Points;
+            public readonly string Reward;
+
+            public LoyaltyMilestone(int points, string reward)
+            {
+                Points = points;
+                Reward = reward;
+            }
+        }
+
+        /// <summary>The locked one-time milestone ladder, ascending. Data only - see
+        /// RedemptionAvailable for why nothing claims against it yet.</summary>
+        public static readonly LoyaltyMilestone[] Milestones =
+        {
+            new LoyaltyMilestone(100, "1 Stamina claim (counts against the existing 4/24h cap)"),
+            new LoyaltyMilestone(250, "3-day VIP voucher"),
+            new LoyaltyMilestone(500, "Cosmetic badge/frame (existing catalog only)"),
+            new LoyaltyMilestone(1000, "7-day VIP voucher"),
+            new LoyaltyMilestone(2000, "Cosmetic badge/frame (existing catalog only)"),
+            new LoyaltyMilestone(4000, "30-day VIP voucher"),
+            new LoyaltyMilestone(8000, "Premium cosmetic frame"),
+        };
+
+        /// <summary>Highest milestone the player's progress has REACHED, or -1. Reaching is not
+        /// claiming - see RedemptionAvailable.</summary>
+        public static int HighestMilestoneReachedIndex(PlayerProfile profile)
+        {
+            int progress = ProgressOf(profile);
+            int index = -1;
+            for (int i = 0; i < Milestones.Length; i++)
+            {
+                if (progress >= Milestones[i].Points) index = i;
+            }
+
+            return index;
+        }
+
+        /// <summary>
+        /// Still false, and now for a DIFFERENT and more specific reason than before.
+        ///
+        /// The milestone table exists as of 2026-08-26, so the earlier blocker is gone. What is
+        /// missing is the ability to CLAIM: these are ONE-TIME milestones and PlayerProfile has no
+        /// field recording which have been taken, so a claim could be repeated indefinitely.
+        ///
+        /// Two of the seven reward types also have nowhere to land. There is no cosmetic ownership
+        /// model on the profile at all (3 of 7 milestones award cosmetics), and the VIP plan
+        /// vocabulary is weekly|fortnight|monthly - a "3-day voucher" is not expressible in it.
+        /// Granting a reward the save cannot represent is worse than not granting it.
         /// </summary>
         public static bool RedemptionAvailable => false;
     }
