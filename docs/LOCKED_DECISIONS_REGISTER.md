@@ -1288,3 +1288,46 @@ permanently closed off one verification; the register's "CLOSED" framing on 0ca5
 strong. Downgrading language: fix confirmed real and effective as of that HEAD, but fragility
 demonstrated - a full-suite check is needed after ANY commit that touches these files, not a
 one-time closure.
+
+## Vertical-slice spec REFINED and LOCKED (2026-08-25, GPT) - vetted, one error corrected
+
+**Vetting note (CC caught before locking):** GPT's reply claimed the draft's "400ms AvatarStrike
+estimate" was wrong and corrected it to 1000ms. This is a false correction - the draft never had
+AvatarStrike at 400ms; 400ms was the basic-attack figure, and AvatarStrike was already correctly
+1000ms (300+200+150+350). GPT cross-attributed two different targets' numbers. The 1000ms ceiling
+itself is right, just mislabeled as a fix. Everything else in GPT's reply checked out and is
+locked below.
+
+**Refined timing:** basic attack 350-400ms (unchanged). Firestorm/Renewal reduced to 600-700ms
+(was 800ms - repeat-cast fatigue). AvatarStrike stays 800-1000ms, hard ceiling 1 second.
+
+**Camera:** no virtual-camera system for this slice - use a SCOPED PRESENTATION-ROOT TWEEN, never
+scale the full Canvas (HUD/resource text must stay stable across device sizes). Basic attack: no
+zoom, 2-4 normalized shake units. Ordinary spell: 1.04-1.06x zoom. AvatarStrike: 1.08-1.12x zoom
+(not 1.15x - real clipping risk on varied 16:9 devices).
+
+**Particles:** hybrid confirmed - ParticleSystem for embers/dust/sparks/smoke/aura/trails,
+flipbook sheets for authored spell silhouettes/impact moments, simple sprites/tweens for basic
+attacks/small heals. No Spine, no new runtime dependency. Size by visual tier (light/medium/heavy),
+NOT directly from raw damage magnitude - balance tuning must never force visual reauthoring.
+
+**Audio:** reduced cue count. Basic attack: impact only. Ordinary spell: cast+impact, optional
+soft resolve cue for heal/buff only. AvatarStrike: commit + release-impact + bespoke signature
+stinger. Base vocabulary from a licensed/commissioned library; AI-generated audio OK for temporary
+exploration only, not final source until licensing/consistency/looping/mix quality verified.
+
+**Skip behavior, TIGHTENED (real gap CC's draft missed):** skip triggers only via a dedicated
+skip control or tapping a non-interactive battle area - NOT any second tap, which would risk
+accidentally skipping via a card/lane/rail/button interaction. Resolve state must be IDEMPOTENT -
+skipping can never duplicate damage, healing, SFX, or rewards. Next decision available immediately
+after resolve applies.
+
+**Readability, additions locked:** no particle may permanently cover lane occupancy; damage/heal
+numbers render above effects always; AvatarStrike may briefly dim the board but must preserve
+Avatar HP result + target identity; every effect must be readable with sound disabled; test at
+both normal and fast-forward speed.
+
+**Acceptance test:** run 20+ consecutive Firestorm/Renewal casts plus several basic attacks - if
+the animation becomes more noticeable than the tactical result, timing is still too heavy.
+
+Open questions from the draft (particle tech, camera rig, SFX sourcing) are now answered above.
