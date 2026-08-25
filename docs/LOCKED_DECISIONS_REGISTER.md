@@ -2566,3 +2566,38 @@ starting right after (the wrapper clears both at startup). The dangerous directi
 deletion (that stops you) - it's a REFUSED run leaving the PREVIOUS run's results.xml in place,
 which parses perfectly and answers confidently wrong. Fix: pass seat-unique -ResultsPath/-LogPath
 (VS now uses vs_*.xml/vs_*.log). Every seat running tools/run_editmode_tests.ps1 should do the same.
+
+## Apprentice any-cast root-caused - real spell effect, NOT an AI defect (2026-08-25, CR, verified b81592b)
+
+Full 5-step shadow-control protocol executed exactly as specified. New harness
+ApprenticeAnyCastRootCauseTests.cs, 1500 trials matched-seed (same shuffle-fix as c136c7d), 956
+landed in the any-cast population.
+
+**Shadow control:** BattleController.SetShadowModeSuppressEnemySpellEffectForTests - the AI's real
+live decision loop runs unchanged (candidate selection, gate roll, Energy spend, cooldown,
+SpellCastLog entry all real), only spell.Cast's battlefield effect is suppressed. Not a forced-cast
+(would confound schedule with effect), not a pre-recorded trace replay (decisions evolve live
+against real state, correct per spec).
+
+**Steps 1-3:** pre-cast state-hash divergence 0/956 - no residual defect before the cast. First-cast
+classification: Reposition/Windstep (n=453), LaneDamage/Fault Line (n=432), AvatarStrike/Stone
+Judgment (n=58), LaneAttackBuff/War Cry (n=12), LaneHeal/Renewal (n=1).
+
+**Steps 4-5, decisive: shadow ticks == baseline ticks EXACTLY (6.61 vs 6.61, ratio 1.000)** in the
+overall aggregate AND independently in every one of the 5 effect-type buckets, no exceptions. AI
+cast-selection/bookkeeping mechanics contribute zero measurable elongation on their own.
+
+**CONCLUSION, per BS's own interpretation guide ("state matches until cast + shadow matches baseline
+= the ratio is the spell's real effect, not AI timing"): confirmed.** The 1.343 normal-vs-baseline
+ratio (matches c7f6467's 1.355 within trial-count noise) is real, legitimate spellcasting impact on
+match length, not a bug. Not one dominant spell - Reposition/Windstep (1.215) and LaneDamage/Fault
+Line (1.618) both contribute materially; AvatarStrike/Stone Judgment is actually SHORTER than
+baseline (0.897, n=58, small sample). Consistent with the earlier Windstep ablation finding
+(Windstep doesn't drive extra WINS - availability bias) - this shows it separately, legitimately
+extends match LENGTH via repositioning, a different axis, no contradiction.
+
+**No AI defect anywhere in this entire thread now.** Zero-cast was a population artifact (c136c7d).
+Any-cast is genuine gameplay effect (this commit). Real remaining question, NOT decided here, CR
+correctly did not touch the band: should anyCastTickRatio keep gating "is combat length reasonable"
+when part of what it measures is intentional spell behavior (a heal/reposition legitimately
+prolonging a fight is arguably working as designed, not a balance failure)?
