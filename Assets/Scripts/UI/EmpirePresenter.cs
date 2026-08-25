@@ -353,7 +353,7 @@ namespace MyriadOfDragons.UI
         {
             string queueMark = isQueued ? "▶ QUEUE · " : string.Empty;
             string current =
-                $"{queueMark}Castle L{castleLevel} · Cap {liveCap} · Start HP {liveStartHp} (+{castleResourceBonus} Cap / +{castleHealthBonus} HP from Castle)";
+                $"Progression spine, capacity milestones\n{queueMark}Castle L{castleLevel} · Cap {liveCap} · Start HP {liveStartHp} (+{castleResourceBonus} Cap / +{castleHealthBonus} HP from Castle)";
 
             if (castleLevel >= PlayerEmpireData.MaxCastleLevel)
                 return $"{current} · MAX";
@@ -374,7 +374,7 @@ namespace MyriadOfDragons.UI
             int barracksLevel, int targetMilestone, int currentDeckSlots, int goldCost, bool isQueued)
         {
             string queueMark = isQueued ? "▶ QUEUE · " : string.Empty;
-            string current = $"{queueMark}Barracks L{barracksLevel} · {currentDeckSlots} Deck Slots";
+            string current = $"Recruits soldiers; deck-slot/Resource-regen/replenishment\n{queueMark}Barracks L{barracksLevel} · {currentDeckSlots} Deck Slots";
 
             if (targetMilestone == 0)
                 return $"{current} · MAX";
@@ -456,10 +456,11 @@ namespace MyriadOfDragons.UI
                     nextChapterCopy = $" · Upgrade Gate to open Ch{nextChapter}";
             }
 
+            const string purpose = "World-map defence, protected-loot floor\n";
             if (nextGateMilestone == 0)
-                return $"Gate L{gateLevel} · {openCopy}{nextChapterCopy} · MAX";
+                return $"{purpose}Gate L{gateLevel} · {openCopy}{nextChapterCopy} · MAX";
 
-            return $"Gate L{gateLevel} → L{nextGateMilestone} · {openCopy}{nextChapterCopy} · {gateUpgradeGold:N0} Gold";
+            return $"{purpose}Gate L{gateLevel} → L{nextGateMilestone} · {openCopy}{nextChapterCopy} · {gateUpgradeGold:N0} Gold";
         }
 
         private void TryStartUpgrade(EmpireBuildingId building)

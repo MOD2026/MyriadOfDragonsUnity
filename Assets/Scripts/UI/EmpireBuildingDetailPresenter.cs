@@ -98,27 +98,35 @@ namespace MyriadOfDragons.UI
             Text level = UISharedFoundation.CreateText(panel, "BuildingLevel",
                 EmpireBuildingDetailCopy.FormatLevelLine(_kind, profile), UITextRole.Body,
                 TextAnchor.MiddleLeft, new Color(0.75f, 0.88f, 0.7f), true, new Vector2(400f, 32f));
-            SetNorm(level.rectTransform, 0.04f, 0.72f, 0.62f, 0.78f);
+            SetNorm(level.rectTransform, 0.04f, 0.75f, 0.62f, 0.80f);
+
+            Text purpose = UISharedFoundation.CreateText(panel, "BuildingPurpose",
+                def.Phase1Function, UITextRole.Body, TextAnchor.UpperLeft,
+                new Color(0.85f, 0.82f, 0.72f), true, new Vector2(900f, 90f));
+            purpose.fontSize = 18;
+            purpose.horizontalOverflow = HorizontalWrapMode.Wrap;
+            purpose.verticalOverflow = VerticalWrapMode.Overflow;
+            SetNorm(purpose.rectTransform, 0.04f, 0.66f, 0.62f, 0.75f);
 
             Text current = UISharedFoundation.CreateText(panel, "CurrentBenefit",
                 EmpireBuildingDetailCopy.FormatCurrentBenefit(_kind, profile), UITextRole.Body,
                 TextAnchor.UpperLeft, new Color(0.92f, 0.88f, 0.78f), true, new Vector2(900f, 70f));
-            SetNorm(current.rectTransform, 0.04f, 0.60f, 0.62f, 0.72f);
+            SetNorm(current.rectTransform, 0.04f, 0.57f, 0.62f, 0.66f);
 
             Text next = UISharedFoundation.CreateText(panel, "NextBenefit",
                 EmpireBuildingDetailCopy.FormatNextBenefit(_kind), UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.7f, 0.85f, 0.68f), true, new Vector2(900f, 50f));
-            SetNorm(next.rectTransform, 0.04f, 0.50f, 0.62f, 0.60f);
+            SetNorm(next.rectTransform, 0.04f, 0.49f, 0.62f, 0.57f);
 
             Text cost = UISharedFoundation.CreateText(panel, "UpgradeCost",
                 EmpireBuildingDetailCopy.FormatUpgradeCostLine(_kind, profile), UITextRole.Body,
                 TextAnchor.UpperLeft, new Color(0.95f, 0.86f, 0.55f), true, new Vector2(900f, 50f));
-            SetNorm(cost.rectTransform, 0.04f, 0.40f, 0.62f, 0.50f);
+            SetNorm(cost.rectTransform, 0.04f, 0.40f, 0.62f, 0.49f);
 
             Text duration = UISharedFoundation.CreateText(panel, "Duration",
                 EmpireBuildingDetailCopy.FormatDurationLine(profile, _kind), UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.8f, 0.78f, 0.65f), true, new Vector2(900f, 48f));
-            SetNorm(duration.rectTransform, 0.04f, 0.30f, 0.62f, 0.40f);
+            SetNorm(duration.rectTransform, 0.04f, 0.31f, 0.62f, 0.40f);
 
             GameObject req = new GameObject("Btn_ViewRequirements", typeof(RectTransform), typeof(Image), typeof(Button));
             req.transform.SetParent(panel, false);
@@ -127,7 +135,7 @@ namespace MyriadOfDragons.UI
                 new Color(0.18f, 0.22f, 0.26f));
             req.GetComponent<Button>().onClick.AddListener(() =>
                 SetStatus(EmpireCastleInterlock.StatusNote));
-            SetNorm(req.GetComponent<RectTransform>(), 0.04f, 0.22f, 0.36f, 0.29f);
+            SetNorm(req.GetComponent<RectTransform>(), 0.04f, 0.23f, 0.36f, 0.30f);
             UISharedFoundation.CreateText(req.transform, "Text", "VIEW REQUIREMENTS >", UITextRole.Caption,
                 TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(280f, 28f));
 
@@ -147,7 +155,7 @@ namespace MyriadOfDragons.UI
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
             _upgradeButtonRoot.SetActive(def.HasUpgradeLadder);
 
-            _statusText = UISharedFoundation.CreateText(panel, "DetailStatus", def.Phase1Function,
+            _statusText = UISharedFoundation.CreateText(panel, "DetailStatus", def.ServerStatus,
                 UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.85f, 0.8f, 0.65f), true,
                 new Vector2(1400f, 32f));
             SetNorm(_statusText.rectTransform, 0.04f, 0.01f, 0.96f, 0.06f);
