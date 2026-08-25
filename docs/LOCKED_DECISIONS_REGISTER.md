@@ -3828,3 +3828,23 @@ work: 0ee7385 (Windstep bands), 3649c96 (Windstep ablation tests correctly [Igno
 independently verified earlier this session before this identity ping arrived, not accepted on the
 self-report alone. Replied confirming. Use this exact address for CR going forward until it churns
 again (per the standing reminder that session names/addresses are not stable across the session).
+
+## Empire building interlock: BS's Day-1/paired-milestone design LOCKED, real frozen-file blocker found (2026-08-26)
+
+**Verified real, not assumed:** `MinimumCastleForGateLevel`/`MinimumCastleForBarracksLevel` (both
+preserved unchanged per BS's design) confirmed exactly as BS described against
+`PlayerEmpireData.cs:335-373`.
+
+**Real blocker found before any dispatch:** BS's design requires ALL 11 buildings to have a real,
+persisted level (Day-1 rule: all visible at Level 1, upgrade-gated not access-gated). Checked
+`EmpireBuildingRoster.cs:50-54` directly - `Embassy`, `Prison`, and `GuildHall` are explicitly
+"deliberately unbacked" (`HasStoredLevel` returns false for all three; `LevelOf` returns 0 meaning
+"no level field", by design comment). Confirmed no `embassyLevel`/`prisonLevel`/`guildHallLevel`
+field exists anywhere in `PlayerProfile.cs`.
+
+**This needs 3 new PlayerProfile fields before BS's design can be implemented at all - PlayerProfile.cs
+is frozen, needs owner sign-off on the exact field list per standing rule, same class of blocker as
+retention telemetry.** Not dispatching implementation to CR/VS until that sign-off lands - the
+8-building version (everything except Embassy/Prison/GuildHall) COULD ship without touching
+PlayerProfile, but BS's design explicitly includes all 11, and shipping 8-of-11 silently instead
+would be a real, undisclosed scope cut from what was just locked.
