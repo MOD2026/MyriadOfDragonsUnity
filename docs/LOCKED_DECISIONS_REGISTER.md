@@ -2917,3 +2917,32 @@ tutorial demonstration may still show Windstep intentionally regardless of this 
 legal replacement candidates from the 36-spell catalog for Apprentice's real tier gate, propose one,
 implement the removal+replacement, and verify via the same 3-repeat ablation methodology that the
 replacement doesn't introduce its own negative surprise.
+
+## SECOND ablation confound fixed - Windstep hurts BOTH tiers, ~6.5pp each (2026-08-25, CR, verified 0fdd193)
+
+**CR caught a second bug in its own just-reported fix before anyone else did:** `enemyTier: null`
+also nulls EnemyDifficultyTier, silently switching the AI's cast-probability gate to the
+tier-agnostic 0.40 default instead of the real tier's (Apprentice 0.85, Veteran 0.45). The 4.2pp/
+z=4.75 number reported hours earlier was measured under artificially suppressed cast frequency, not
+real Apprentice behavior. Proper fix: new BattleController.SetEnemySpellbookForTests - keep
+enemyTier real (genuine gate probability), overwrite EnemySpellbook directly with the ablation's
+custom loadout afterward.
+
+**Fully-corrected, properly-powered results (3 repeats x 2000 trials/condition = 6000 pooled per
+tier, same methodology both tiers):**
+- Apprentice: removing Windstep increases AI win rate by 6.6pp (31.4% -> 38.0%), SE=0.9%, z=7.61.
+- VeteranPlus: removing Windstep increases AI win rate by 6.5pp (28.7% -> 35.2%), SE=0.8%, z=7.68.
+
+**Neither tier's original "availability bias, <1pp" conclusion survives.** Nearly identical
+magnitude at both tiers - a strong, consistent, two-tier signal, not a per-tier fluke. The
+already-locked Apprentice removal decision is REINFORCED with more confidence than it had when
+made (6.6pp vs the 4.2pp it was based on). CR proceeding with the Apprentice removal/replacement
+task using the doubly-corrected methodology for validation.
+
+**NEW OPEN QUESTION, routed to BS: VeteranPlus now shows the same ~6.5pp self-inflicted loss, but
+BS's removal decision explicitly covered Apprentice only** (rationale was teaching-tier-specific:
+"an AI that repeatedly makes losing reposition decisions teaches the wrong lesson"). That rationale
+doesn't automatically transfer - VeteranPlus is not a teaching tier. Does the removal extend there,
+or does a 6.5pp handicap at a veteran tier get treated differently (e.g. acceptable as implicit
+difficulty tuning, or fixed via the projected-value guard path instead)? Not decided, not CR's or
+CC's to guess.
