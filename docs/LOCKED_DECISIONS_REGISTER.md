@@ -44,8 +44,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | BS (via owner) | m01/m02 both MOVED not fixed by 860ff80 - m01 is now ambiguous (Windstep Front OR Back both solve), m02 now solves in ZERO actions (goblin_shaman blocks Windstep but also lets Middle survive unaided) - real content redecision needed, not VS's/CC's to guess | PENDING - not yet sent |
-| 2026-08-25 | CR (owner relay) | AvatarStrike flipbook player (real per-frame UV animation, pure-method + thin MonoBehaviour) | PENDING - a peer is actively editing bespoke_heavy.prefab right now, may already be in progress |
+| 2026-08-26 | VS (mailbox) | tac_w1_m02 third attempt - BS's cyclops fix, verified real (card data + lane-bonus math) | PENDING - dispatched |
+| 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
 
 ---
 
