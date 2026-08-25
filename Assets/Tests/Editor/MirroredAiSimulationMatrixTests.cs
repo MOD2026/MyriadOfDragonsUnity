@@ -387,19 +387,15 @@ namespace MyriadOfDragons.Tests
             Assert.LessOrEqual(aiOn.EarlyKORate.Center - baseline.EarlyKORate.Center, 0.05,
                 $"[{g}] Early-KO rate rose {(aiOn.EarlyKORate.Center - baseline.EarlyKORate.Center):P1} above baseline, exceeding the locked 5pp cap. ESCALATE TO CC.");
 
-            // Novice PROVISIONAL band, NOT GPT-confirmed for this exact metric (flagged to CC
-            // 2026-08-25, awaiting real decision - do not treat as locked): GPT's "cast rate
-            // 0-5%" decision was made against CR's forced-100%-roll ceiling diagnostic, which
-            // measures casts-per-TICK across the whole match (2.55% ceiling). This test's own
-            // AiCastRateOfOpportunity is a DIFFERENT metric - trials-that-got-a-cast divided by
-            // trials-that-ever-had-an-opportunity, i.e. per-MATCH conditioned on opportunity, not
-            // per-tick - so 0-5% does not transfer directly (real measured value here is ~22.7%,
-            // CI [20.5%, 24.9%], which also fails the OLD 25-70% band by a hair). Widened to a
-            // provisional 15-35% (modest margin around the observed point estimate, same
-            // methodology as the other tier-specific bands in this file) ONLY so this test isn't
-            // left in a broken/blocking state while the real metric-to-decision mapping gets
-            // confirmed - this specific number has NOT been separately validated by GPT the way
-            // the other three Novice bands below have.
+            // Novice LOCKED 15-35% (2026-08-25, GPT confirmed independently after CR flagged the
+            // metric mismatch): GPT's original "cast rate 0-5%" was decided against CR's forced-
+            // 100%-roll ceiling diagnostic, which measures casts-per-TICK across the whole match
+            // (2.55% ceiling) - this test's own AiCastRateOfOpportunity is a DIFFERENT metric,
+            // trials-that-got-a-cast divided by trials-that-ever-had-an-opportunity (per-MATCH
+            // conditioned on opportunity, not per-tick), so 0-5% never applied to it. GPT's real
+            // reply locked 15-35% for THIS metric, centered on the ~22.7% observed - re-measured
+            // here on the dead-slot-filtered loadout (not the old contaminated numbers) before
+            // finalizing: real result 21.6% [19.4%, 23.7%], comfortably inside the band.
             double castRateFloor = group == TierGroup.Novice ? 0.15 : 0.25;
             double castRateCeiling = group == TierGroup.Novice ? 0.35 : 0.70;
             Assert.That(aiOn.AiCastRateOfOpportunity.Center, Is.InRange(castRateFloor, castRateCeiling),
