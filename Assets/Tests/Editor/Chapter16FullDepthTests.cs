@@ -213,12 +213,12 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void GetNextStageId_16_30IsTerminal()
+        public void GetNextStageId_16_30ChainsIntoChapter17()
         {
             Assert.AreEqual("16-1", CampaignMapPresenter.GetNextStageId("15-30"));
             Assert.AreEqual("16-30", CampaignMapPresenter.GetNextStageId("16-29"));
-            Assert.IsNull(CampaignMapPresenter.GetNextStageId("16-30"),
-                "Stage 16-30 is the campaign terminal.");
+            Assert.AreEqual("17-1", CampaignMapPresenter.GetNextStageId("16-30"),
+                "Stage 16-30 unlocks Chapter 17.");
         }
 
         [Test]
@@ -259,7 +259,7 @@ namespace MyriadOfDragons.Tests
                 }
                 else
                 {
-                    Assert.AreEqual(stageId, "16-30", "Only Stage 16-30 should have no next stage.");
+                    Assert.Fail($"Stage {stageId} should unlock the next chapter stage; only 18-30 is terminal.");
                 }
 
                 if (i + 1 < NewChapter16StageIds.Length)

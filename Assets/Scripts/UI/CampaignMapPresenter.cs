@@ -185,6 +185,8 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter14DepthStages());
             chapterStages.AddRange(BuildChapter15DepthStages());
             chapterStages.AddRange(BuildChapter16DepthStages());
+            chapterStages.AddRange(BuildChapter17DepthStages());
+            chapterStages.AddRange(BuildChapter18DepthStages());
             ApplyLockedCampaignGemRewards();
         }
 
@@ -204,10 +206,10 @@ namespace MyriadOfDragons.UI
                 total += stage.gemReward;
             }
 
-            if (total != CampaignGemRewardRules.LockedTotalCh1Through16)
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through18)
             {
                 Debug.LogError(
-                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through16} " +
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through18} " +
                     $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
             }
         }
@@ -1667,6 +1669,179 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Chapter 17 depth pool — Chapter16DepthPool rotated left by 1 (after rotate-by-27 series).</summary>
+        private static readonly string[] Chapter17DepthPool =
+        {
+            "shaman", "druid", "succubus", "elven_high_lord", "archer_dragon",
+            "castle_lady", "hooded_rogue", "giant_worms", "mountain_harpy", "snake_archer",
+            "fire_worm", "butcher", "cursed_soldier", "ogre", "werewolf",
+            "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior", "undead_pirate",
+            "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador", "owl_keeper",
+            "ladyinlake", "iron_dragon", "pandora", "drain",
+        };
+
+        /// <summary>Linear from Stage 16-30's 67540 gold. 17-30 lands at 67540 + 30*230 = 74440 gold.</summary>
+        private static (int gold, int gems) Chapter17DepthReward(int stageNumber)
+        {
+            const int baseGold = 67540, goldPerStage = 230;
+            const int baseGems = 13508, gemsPerStage = 46;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 17 — The Ashen Banner (hollow crown claimed; ash standards rise).</summary>
+        private static readonly (string title, string enemyName)[] Chapter17DepthFlavor =
+        {
+            ("Ashen Banner March", "Ashen Banner Watch"),
+            ("Charred Standard Gate", "Charred Standard Guard"),
+            ("Soot Herald Court", "Soot Herald Cohort"),
+            ("Burned Colors Yard", "Burned Colors Wardens"),
+            ("Ember Flag Hall", "Ember Flag Legion"),
+            ("Cinder Levy Stair", "Cinder Levy Guard"),
+            ("The First Ash Muster", "Ash Muster Command"),
+            ("Bannerless Bolt Road", "Bannerless Bolt Cohort"),
+            ("Ash Antechamber", "Ash Antechamber Guard"),
+            ("Eagle-of-Soot Roost", "Soot Roost Legion"),
+            ("Ashen Gallery", "Ashen Gallery Wardens"),
+            ("The Mortal Standard", "Mortal Standard Guard"),
+            ("Stormgod-Empty Banner Barracks", "Banner Barracks Command"),
+            ("Scorched Pennon Chamber", "Scorched Pennon Cohort"),
+            ("The Ashen Court", "Ashen Court Guard"),
+            ("Bannerscar Road", "Bannerscar Legion"),
+            ("Vault of Ashen Standards", "Ashen Standard Wardens"),
+            ("Flag-Cracked Parapet", "Flag-Cracked Guard"),
+            ("War Engine of Banners", "Banner Engine Cohort"),
+            ("Balcony of Ash Standards", "Ash Standard Balcony Command"),
+            ("Unsealed Banner Reliquary", "Banner Reliquary Guard"),
+            ("Rampart of Ashen Banners", "Ashen Banner Legion"),
+            ("Thunderbrand Banner Crypt", "Banner Crypt Wardens"),
+            ("The Last Banner Debt", "Last Banner Cohort"),
+            ("Skyfire Banner Vestibule", "Banner Vestibule Guard"),
+            ("Sky King's Ashen Bastion", "Ashen Bastion Command"),
+            ("The Broken Ash Scepter", "Broken Ash Legion"),
+            ("Stormheart Banner Gate", "Banner Gate Guard"),
+            ("The Ashen Dais", "Ashen High Command"),
+            ("The Ashen Banner", "Ashen Banner High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter17DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                // Stride 19 is coprime with pool 29. Offsets {0,8,17} + seed 11 — first {0,6,13}+5
+                // and +11 both collided repeatedly with Ch2 three-card keys; this combo is the retune.
+                int baseIndex = (19 * i + 11) % poolSize;
+                string[] ids =
+                {
+                    Chapter17DepthPool[baseIndex],
+                    Chapter17DepthPool[(baseIndex + 8) % poolSize],
+                    Chapter17DepthPool[(baseIndex + 17) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "snake_archer", "persian_princess", "drain" };
+
+                // Offsets {0,8,17}: 17-12 / 17-17 AF defeats; 17-30 finale was colliding with 11-14.
+                if (stageNumber == 12)
+                    ids = new[] { "ogre", "drain", "elf_wanderer" };
+                if (stageNumber == 17)
+                    ids = new[] { "butcher", "drain", "mountain_harpy" };
+
+                (string title, string enemyName) = Chapter17DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The ashen banner still draws blood.";
+                (int gold, int gems) = Chapter17DepthReward(stageNumber);
+                yield return new CampaignStageData($"17-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
+        /// <summary>Chapter 18 depth pool — Chapter17DepthPool rotated left by 2 (Ch16 rotated by 3).</summary>
+        private static readonly string[] Chapter18DepthPool =
+        {
+            "succubus", "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue",
+            "giant_worms", "mountain_harpy", "snake_archer", "fire_worm", "butcher",
+            "cursed_soldier", "ogre", "werewolf", "wood_wizard", "zombified_captain",
+            "eastern_sorcerer", "corrupted_warrior", "undead_pirate", "goblin_shaman", "elf_wanderer",
+            "persian_princess", "conquistador", "owl_keeper", "ladyinlake", "iron_dragon",
+            "pandora", "drain", "shaman", "druid",
+        };
+
+        /// <summary>Linear from Stage 17-30's 74440 gold. 18-30 lands at 74440 + 30*240 = 81640 gold.</summary>
+        private static (int gold, int gems) Chapter18DepthReward(int stageNumber)
+        {
+            const int baseGold = 74440, goldPerStage = 240;
+            const int baseGems = 14888, gemsPerStage = 48;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 18 — The Silent Throne (ashen banner raised; the court speaks no more).</summary>
+        private static readonly (string title, string enemyName)[] Chapter18DepthFlavor =
+        {
+            ("Silent Throne March", "Silent Throne Watch"),
+            ("Mute Crown Gate", "Mute Crown Guard"),
+            ("Wordless Court", "Wordless Cohort"),
+            ("Hushed Claimant's Yard", "Hushed Yard Wardens"),
+            ("Quiet Rule Hall", "Quiet Rule Legion"),
+            ("Still Levy Stair", "Still Levy Guard"),
+            ("The First Silence", "Silence Command"),
+            ("Voiceless Bolt Road", "Voiceless Bolt Cohort"),
+            ("Throne Antechamber of Quiet", "Quiet Antechamber Guard"),
+            ("Eagle-of-Silence Roost", "Silence Roost Legion"),
+            ("Mute Gallery", "Mute Gallery Wardens"),
+            ("The Mortal Hush", "Mortal Hush Guard"),
+            ("Stormgod-Empty Silent Barracks", "Silent Barracks Command"),
+            ("Sealed Tongue Chamber", "Sealed Tongue Cohort"),
+            ("The Silent Court", "Silent Court Guard"),
+            ("Thronescar Road", "Thronescar Legion"),
+            ("Vault of Silent Crowns", "Silent Crown Wardens"),
+            ("Throne-Cracked Quiet Parapet", "Quiet Parapet Guard"),
+            ("War Engine of Silence", "Silence Engine Cohort"),
+            ("Balcony of Mute Pretenders", "Mute Balcony Command"),
+            ("Unsealed Silent Reliquary", "Silent Reliquary Guard"),
+            ("Rampart of Silent Thrones", "Silent Throne Legion"),
+            ("Thunderbrand Silent Crypt", "Silent Crypt Wardens"),
+            ("The Last Silent Debt", "Last Silent Cohort"),
+            ("Skyfire Silent Vestibule", "Silent Vestibule Guard"),
+            ("Sky King's Mute Bastion", "Mute Bastion Command"),
+            ("The Broken Silent Scepter", "Broken Silent Legion"),
+            ("Stormheart Silent Gate", "Silent Gate Guard"),
+            ("The Silent Dais", "Silent High Command"),
+            ("The Silent Throne", "Silent Throne High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter18DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                // Stride 23 is coprime with pool 29; offsets {0,7,14} distinct from Ch11–17 builders.
+                int baseIndex = (23 * i + 6) % poolSize;
+                string[] ids =
+                {
+                    Chapter18DepthPool[baseIndex],
+                    Chapter18DepthPool[(baseIndex + 7) % poolSize],
+                    Chapter18DepthPool[(baseIndex + 14) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "cursed_soldier", "conquistador", "wood_wizard" };
+
+                // Stages 18-14 / 18-17 / 18-24 / 18-28 measured AF defeats under starter+AF (stride-23).
+                if (stageNumber == 14)
+                    ids = new[] { "ogre", "shaman", "fire_worm" };
+                if (stageNumber == 17)
+                    ids = new[] { "ogre", "drain", "owl_keeper" };
+                if (stageNumber == 24)
+                    ids = new[] { "werewolf", "fire_worm", "persian_princess" };
+                if (stageNumber == 28)
+                    ids = new[] { "fire_worm", "shaman", "owl_keeper" };
+
+                (string title, string enemyName) = Chapter18DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The silent throne still draws blood.";
+                (int gold, int gems) = Chapter18DepthReward(stageNumber);
+                yield return new CampaignStageData($"18-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
         /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
         /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
         /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
@@ -2003,6 +2178,8 @@ namespace MyriadOfDragons.UI
                 case 14: return "CHAPTER 14: THE FALLEN PANTHEON";
                 case 15: return "CHAPTER 15: THE GODLESS DAWN";
                 case 16: return "CHAPTER 16: THE HOLLOW CROWN";
+                case 17: return "CHAPTER 17: THE ASHEN BANNER";
+                case 18: return "CHAPTER 18: THE SILENT THRONE";
                 default: return $"CHAPTER {chapter}";
             }
         }

@@ -1732,6 +1732,154 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The hollow crown still waits.");
             }
+
+            // Chapter 17 — The Ashen Banner.
+            (string stageId, string title, string enemyName)[] chapter17Stages =
+            {
+                ("17-1", "Ashen Banner March", "Ashen Banner Watch"),
+                ("17-2", "Charred Standard Gate", "Charred Standard Guard"),
+                ("17-3", "Soot Herald Court", "Soot Herald Cohort"),
+                ("17-4", "Burned Colors Yard", "Burned Colors Wardens"),
+                ("17-5", "Ember Flag Hall", "Ember Flag Legion"),
+                ("17-6", "Cinder Levy Stair", "Cinder Levy Guard"),
+                ("17-7", "The First Ash Muster", "Ash Muster Command"),
+                ("17-8", "Bannerless Bolt Road", "Bannerless Bolt Cohort"),
+                ("17-9", "Ash Antechamber", "Ash Antechamber Guard"),
+                ("17-10", "Eagle-of-Soot Roost", "Soot Roost Legion"),
+                ("17-11", "Ashen Gallery", "Ashen Gallery Wardens"),
+                ("17-12", "The Mortal Standard", "Mortal Standard Guard"),
+                ("17-13", "Stormgod-Empty Banner Barracks", "Banner Barracks Command"),
+                ("17-14", "Scorched Pennon Chamber", "Scorched Pennon Cohort"),
+                ("17-15", "The Ashen Court", "Ashen Court Guard"),
+                ("17-16", "Bannerscar Road", "Bannerscar Legion"),
+                ("17-17", "Vault of Ashen Standards", "Ashen Standard Wardens"),
+                ("17-18", "Flag-Cracked Parapet", "Flag-Cracked Guard"),
+                ("17-19", "War Engine of Banners", "Banner Engine Cohort"),
+                ("17-20", "Balcony of Ash Standards", "Ash Standard Balcony Command"),
+                ("17-21", "Unsealed Banner Reliquary", "Banner Reliquary Guard"),
+                ("17-22", "Rampart of Ashen Banners", "Ashen Banner Legion"),
+                ("17-23", "Thunderbrand Banner Crypt", "Banner Crypt Wardens"),
+                ("17-24", "The Last Banner Debt", "Last Banner Cohort"),
+                ("17-25", "Skyfire Banner Vestibule", "Banner Vestibule Guard"),
+                ("17-26", "Sky King's Ashen Bastion", "Ashen Bastion Command"),
+                ("17-27", "The Broken Ash Scepter", "Broken Ash Legion"),
+                ("17-28", "Stormheart Banner Gate", "Banner Gate Guard"),
+                ("17-29", "The Ashen Dais", "Ashen High Command"),
+                ("17-30", "The Ashen Banner", "Ashen Banner High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter17Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "17-1" => "The banner is ash. Raise it or burn beneath it.",
+                    "17-15" => "An ashen court still marches under ruined colors.",
+                    "17-30" => "There is no god left to bless this banner.",
+                    _ => $"{enemyName} holds {title}. Ashen standards still draw armies.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "17-1" => "Then I raise it standing.",
+                    "17-15" => "Then I take the court.",
+                    "17-30" => "I do not need a blessing. I need the banner.",
+                    _ => "Clear the path. The ashen banner still waits.",
+                };
+
+                if (stageId == "17-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The ashen banner is mine. The sky is still empty."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Banners remember their bearers, Sovereign. Ashen ones remember longer."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The ashen banner still waits.");
+            }
+
+            // Chapter 18 — The Silent Throne.
+            (string stageId, string title, string enemyName)[] chapter18Stages =
+            {
+                ("18-1", "Silent Throne March", "Silent Throne Watch"),
+                ("18-2", "Mute Crown Gate", "Mute Crown Guard"),
+                ("18-3", "Wordless Court", "Wordless Cohort"),
+                ("18-4", "Hushed Claimant's Yard", "Hushed Yard Wardens"),
+                ("18-5", "Quiet Rule Hall", "Quiet Rule Legion"),
+                ("18-6", "Still Levy Stair", "Still Levy Guard"),
+                ("18-7", "The First Silence", "Silence Command"),
+                ("18-8", "Voiceless Bolt Road", "Voiceless Bolt Cohort"),
+                ("18-9", "Throne Antechamber of Quiet", "Quiet Antechamber Guard"),
+                ("18-10", "Eagle-of-Silence Roost", "Silence Roost Legion"),
+                ("18-11", "Mute Gallery", "Mute Gallery Wardens"),
+                ("18-12", "The Mortal Hush", "Mortal Hush Guard"),
+                ("18-13", "Stormgod-Empty Silent Barracks", "Silent Barracks Command"),
+                ("18-14", "Sealed Tongue Chamber", "Sealed Tongue Cohort"),
+                ("18-15", "The Silent Court", "Silent Court Guard"),
+                ("18-16", "Thronescar Road", "Thronescar Legion"),
+                ("18-17", "Vault of Silent Crowns", "Silent Crown Wardens"),
+                ("18-18", "Throne-Cracked Quiet Parapet", "Quiet Parapet Guard"),
+                ("18-19", "War Engine of Silence", "Silence Engine Cohort"),
+                ("18-20", "Balcony of Mute Pretenders", "Mute Balcony Command"),
+                ("18-21", "Unsealed Silent Reliquary", "Silent Reliquary Guard"),
+                ("18-22", "Rampart of Silent Thrones", "Silent Throne Legion"),
+                ("18-23", "Thunderbrand Silent Crypt", "Silent Crypt Wardens"),
+                ("18-24", "The Last Silent Debt", "Last Silent Cohort"),
+                ("18-25", "Skyfire Silent Vestibule", "Silent Vestibule Guard"),
+                ("18-26", "Sky King's Mute Bastion", "Mute Bastion Command"),
+                ("18-27", "The Broken Silent Scepter", "Broken Silent Legion"),
+                ("18-28", "Stormheart Silent Gate", "Silent Gate Guard"),
+                ("18-29", "The Silent Dais", "Silent High Command"),
+                ("18-30", "The Silent Throne", "Silent Throne High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter18Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "18-1" => "The throne is silent. Sit it or be silenced by it.",
+                    "18-15" => "A silent court still crowns its killers.",
+                    "18-30" => "There is no god left to speak from this throne.",
+                    _ => $"{enemyName} holds {title}. Silent thrones still draw armies.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "18-1" => "Then I take it standing.",
+                    "18-15" => "Then I take the court.",
+                    "18-30" => "I do not need a voice. I need the throne.",
+                    _ => "Clear the path. The silent throne still waits.",
+                };
+
+                if (stageId == "18-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The silent throne is mine. The sky is still empty."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Thrones remember their sitters, Sovereign. Silent ones remember longer."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The silent throne still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)
