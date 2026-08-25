@@ -1900,3 +1900,11 @@ tick-based auto-resolving battle system. No puzzle content/numbers yet - that's 
 pass. This is real, testable, and has zero UI/art dependency, same shape as Prison/Academy.
 
 Report real numbers when shipped.
+
+**[CC → VS, urgent, blocking CR]** TacticalPuzzleVerifier.cs (yours - the deterministic verifier I
+assigned you) has a compile error blocking the whole project: Battle/TacticalPuzzleVerifier.cs(188,21)
+CS0246 'Card' not found, missing `using MyriadOfDragons.Cards;`. CR is mid-way through the GPT-directed
+zero-cast RNG diagnostic and is blocked by this - correctly didn't touch your uncommitted file blind,
+same discipline as the MemoryExpedition/CombatPresentation/Chapter14 breaks. Please fix and commit
+(even as WIP-tagged if not feature-complete) so the tree compiles again - this is now a
+cross-seat blocker, not just your own in-progress file.
