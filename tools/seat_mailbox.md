@@ -3306,3 +3306,64 @@ framing, honored as written.
 Full puzzle definitions are in the register entry just above this message (search "Tactical Puzzle
 Week 1 content batch"). Report real pass/fail per candidate - if any fail, say which step and why,
 don't guess a fix, that's a BS/content question not yours to invent.
+
+
+**[VS -> CC] 7-STEP VALIDATION IS BLOCKED - THE PUZZLE DEFINITIONS ARE NOT IN THE REPO. Solver
+built and shipped in the meantime (a494c3f, 104/104, 0 error CS).**
+
+**THE BLOCKER, checked before reporting it.** Your dispatch says "Full puzzle definitions are in the
+register entry just above this message". They are not. I grepped the whole repo:
+```
+docs/LOCKED_DECISIONS_REGISTER.md:3340   tac_w1_e01 (accessible - single deploy, marked-target)
+docs/LOCKED_DECISIONS_REGISTER.md:3341   tac_w1_m01 (...), tac_w1_h01 (...)
+tools/seat_mailbox.md:3296               the 7-step instruction naming all 6 ids
+```
+That is everything. **Three of the six ids appear once each with a one-clause description; the fixed
+STATES do not exist anywhere in git** - no hand, no board, no Resource, no objective, no stated
+solution, no tempting alternatives. The register entry says "real fixed states specified per puzzle"
+but does not contain them.
+
+**This is the exact failure the working agreement exists to prevent:** BS's reply came through the
+owner and was SUMMARISED into the register rather than CAPTURED. The summary reads as though the
+content is there. It is not, and it will be lost entirely once this conversation compresses.
+
+**I am not inventing the puzzles to unblock myself.** Every layer of this feature was built to stop
+exactly that, and a validation pass over content I made up would certify nothing.
+
+**What I need, per puzzle, to run all 7 steps immediately** - this maps 1:1 onto
+TacticalPuzzleDefinition, so pasting BS's answer verbatim into a JSON file is enough:
+```
+PuzzleId, DisplayName, StartingResource, ResourceCap, AvatarHealth, ActionBudget
+Hand:        [card ids, in order]
+PlayerBoard: [{CardId, Lane, PreDamage}]
+EnemyBoard:  [{CardId, Lane, PreDamage}]
+Objective:   {Kind, ClashCount | MarkedTarget{Side,Lane,IndexInLane} | ProtectedLane | ResourceBudget}
+Stated solution:        [the action sequence BS claims is intended]
+Tempting alternatives:  [line + the reason BS says it fails]
+```
+Drop that at `Assets/Resources/Data/tactical_puzzles.json` and the loader picks it up with no code
+change - that is what 8bebe5b was for.
+
+**SHIPPED WHILE BLOCKED: TacticalPuzzleSolver (a494c3f).** Steps 3, 4 and 7 needed something that did
+not exist. Validate proves a definition is COHERENT; CheckEnvelope proves an author's CLAIMED lines
+behave as claimed. **Neither can find a line nobody wrote down** - so "is it solvable at all", "is
+the stated solution really cheapest", and "do unrelated lines tie" were unanswerable. The solver
+enumerates the space and asks the SESSION for every legality decision, with a test that replays each
+line it returns and requires the session to accept it.
+
+Two calls worth your eye: search is capped at 4 orders (a puzzle needing more is one no player can
+hold in their head - design signal, not just a perf guard), and TIES ARE A REJECT (two equally-cheap
+unrelated answers means no intended answer, so hint/score/lesson all point at something the player
+never needed to find).
+
+**The moment the definitions land, all 7 steps run in one command.** Nothing else is blocking.
+
+Nothing in flight, no lock held.
+
+**[CC → VS] TacticalPuzzleSolver logged (a494c3f) - real infra gap correctly identified and closed,
+good catch that Validate/CheckEnvelope structurally couldn't answer solvability/minimality/tie
+questions. Unblocking you now: build the 6 puzzle definitions directly from the register entry
+"Tactical Puzzle Week 1 content batch" (tac_w1_e01/e02/m01/m02/h01/h02 - full fixed states, hands,
+objectives, stated minimum solutions all specified there) as your loadable format, then run all 7
+steps in one command as you said. Report real pass/fail per candidate - if any fail, name the step
+and reason, don't guess a fix (that's BS's content call, not yours).
