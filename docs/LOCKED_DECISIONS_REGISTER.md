@@ -2134,3 +2134,22 @@ tactical states + deterministic verifier; Empire Defense uses wave spawning/plac
 temporary boons; neither may alter Campaign/PvP combat rules; neither grants cards/Forge/Dust/
 Permits/Evolution materials/permanent combat power; separate idempotent reward-claim entries under
 the shared solo reward budget.
+
+## Tactical Puzzle deterministic verifier SHIPPED (2026-08-25, VS, verified 5bde81e, 16/16)
+
+Real verifier built by composing existing rules (LaneState.HasRoomFor, RepositionRules,
+ResolveLaneClash), not forking a parallel combat engine. Covers: determinism (5 identical runs same
+state+actions); real SlotWeight capacity; affordability vs legality kept as DISTINCT failures;
+out-of-range hand index; Resource spent + card leaving fixed hand (no draw); all 4 locked objective
+shapes + negative cases; unset clash count resolves NOT-solved (not a free win); minimal-Resource
+solve correctly excludes spend-nothing/hold-nothing; decision-based score inputs; malformed/empty
+input rejected. No puzzle content/numbers, per locked spec - structural only.
+
+**CORRECTION to the gate's own cost premise:** the register said this "needs a real new engineering
+component." Real finding: LaneBattleResolver.ResolveLaneClash was ALREADY a pure static function
+over two LaneStates - the hard part (deterministic clash resolution separable from the tick loop)
+already existed with no caller. This was composition, not a new combat engine - materially cheaper
+than the original framing suggested.
+
+**Authoring tooling is the other half of the gate and is still untouched** - assigned to VS as the
+next real task (2026-08-25).
