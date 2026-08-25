@@ -91,6 +91,10 @@ namespace MyriadOfDragons.UI
         private const float CanvasWidth = 1920f;
         private const float CanvasHeight = 1080f;
 
+        /// <summary>HandRow's top/bottom inset inside HandAndPlacementPanel. Named because the
+        /// hand card's own height is derived from it - see CreateCardButton.</summary>
+        private const float HandRowVerticalInset = 4f;
+
         // Battle Screen Production V4 anchor table, verbatim from
         // Battle_Screen_Production_V4_Implementation_Handoff.md's own region table (normalized
         // (left, bottom, right, top)):
@@ -3392,8 +3396,8 @@ namespace MyriadOfDragons.UI
             var rowRect = (RectTransform)rowGo.transform;
             rowRect.anchorMin = new Vector2(0.16f, 0f);
             rowRect.anchorMax = new Vector2(1f, 1f);
-            rowRect.offsetMin = new Vector2(8, 4);
-            rowRect.offsetMax = new Vector2(-8, -4);
+            rowRect.offsetMin = new Vector2(8, HandRowVerticalInset);
+            rowRect.offsetMax = new Vector2(-8, -HandRowVerticalInset);
             var rowLayout = rowGo.AddComponent<HorizontalLayoutGroup>();
             rowLayout.spacing = 14f;
             rowLayout.childAlignment = TextAnchor.MiddleCenter;
@@ -6568,7 +6572,19 @@ namespace MyriadOfDragons.UI
             // to be - "the frame's native aspect doesn't match the card button's rect" was a
             // known, accepted defect, not a non-issue. Computed from this card's own frame aspect
             // instead, so the Sliced border no longer has to stretch at all.
-            float cardHeight = 196f;
+            // 2026-08-25: 196 was a hardcoded cap justified against a panel that no longer
+            // exists. The comment above still cites HandAndPlacementPanel at (.02,.02)-(.70,.23)
+            // (~227px tall at 1080, ~212px row, "196 leaves ~16px of slack"), but HandPanelMin/Max
+            // are now (.015,.025)-(.730,.195) = 0.17 of CanvasHeight = 183.6px, giving a 175.6px
+            // row after HandRow's inset. MEASURED in a clean tree (no Canvas leak in play): the
+            // card renders 196 tall at worldY[-279.20..-83.20] against a row at [-269.00..-93.40],
+            // i.e. it hangs 10.20px BELOW its row at each end. The row does not mask its children
+            // (see the width note below), so that is a real ~10px cosmetic bleed over neighbouring
+            // UI - nothing is off-screen and no tap target is lost. Derive from the same anchor
+            // constants instead of restating a number, so shrinking the panel again cannot
+            // silently reintroduce it. 196 stays the cap when the row is tall enough.
+            float handRowHeight = (HandPanelMax.y - HandPanelMin.y) * CanvasHeight - (HandRowVerticalInset * 2f);
+            float cardHeight = Mathf.Min(196f, handRowHeight);
             SetPreferredWidth(go, cardHeight * GetRarityFrameAspect(card.Rarity));
             SetPreferredHeight(go, cardHeight);
 
