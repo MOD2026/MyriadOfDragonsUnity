@@ -548,10 +548,10 @@ public class HomePagePresenter : MonoBehaviour
 
     private void BuildHomeFeaturePanel()
     {
-        // Tutorial strip — neutral surface until banner slice metadata exists (foundation fallback).
+        // Tutorial strip under the social-chip row (chips occupy Y 100–168). Keep a clear gap.
         GameObject featureRoot = new GameObject("HomeFeatureRoot", typeof(RectTransform), typeof(Image));
         featureRoot.transform.SetParent(homeCanvasObj.transform, false);
-        SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 116, 1800, 182);
+        SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 176, 1800, 242);
         Image featureBg = featureRoot.GetComponent<Image>();
         featureBg.sprite = null;
         featureBg.color = HexColor("#2C2C2C");

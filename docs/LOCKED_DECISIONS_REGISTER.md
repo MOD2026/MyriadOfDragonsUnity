@@ -3095,3 +3095,27 @@ blind bisect runs would have.
 Real, valuable narrowing already achieved (2 major hypothesis classes eliminated); an unguided
 bisect from here is open-ended effort for uncertain payoff, and there's more clearly-valuable work
 queued. Revisit if a real mechanism hypothesis emerges.
+
+## Home screen layout: targeted fixes + semantic regions, defer full refactor - LOCKED (2026-08-25, BS, vetted)
+
+**Decision: fix the 3 real defects now, add a structural regression suite, introduce semantic
+placement regions (TopHud/TutorialStrip/ActionRail/ContentPanel/Footer) for NEW geometry, defer a
+full layout-group migration to the planned UI rebuild.**
+
+**Real, correct pushback on my own framing:** I called layout groups "structurally impossible to
+overlap" - BS correctly called this too strong. Layout groups reduce accidental overlap WITHIN one
+hierarchy; they don't protect separate roots or manually-positioned children, and a full migration
+risks its own regression surface (hand-tuned positions, hit-area/aspect-ratio/raycast-order changes)
+larger than the current 3 bugs. Good catch - I overstated the fix's guarantee.
+
+**Immediate fix scope:** correct the 2 overlapping Y-ranges; fix ApplyNeutralActionButton so it
+doesn't null a previously-assigned sprite/targetGraphic; add a Home layout regression suite (builds
+at canonical 16:9, checks all actionable root bounds for overlap, verifies button targetGraphic/
+raycast behavior, checks decorative graphics don't block input, checks known dead-space regions).
+
+**Structural middle ground:** semantic regions as an organizing surface for future code, keeping
+existing pixel coordinates INSIDE each region builder for now - gives one authoritative placement
+concept without destabilizing the whole screen today.
+
+**Revisit full refactor when:** the same class of overlap bug recurs after the contract tests exist;
+multiple aspect ratios are required; or more than one screen needs shared responsive layout.
