@@ -1228,3 +1228,41 @@ state stays visible during effects, no animation delays the next meaningful deci
 **Real gap: this needs an actual asset-production/VFX resource, not just coding seats.** CR/VS
 handle spell LOGIC; none of tonight's seats have confirmed art/animation production capability.
 This is a new workstream, not something to fold into the current CR/VS/WH coding queues blind.
+
+## Vertical-slice parameter spec, DRAFT for GPT collaboration (2026-08-25)
+
+4 targets: AvatarStrike, Firestorm (LaneDamage), Renewal (Heal), one basic card attack (generic
+melee clash, no spell). Draft parameters below - meant as a starting point for GPT to refine, not
+final numbers.
+
+**Timing budget (per beat, all fast-forwardable on tap):**
+- Basic card attack: Commit 150ms, Impact 100ms, Resolve 150ms = ~400ms total.
+- Damage/Heal spell (Firestorm/Renewal): Cast 200ms, Travel/Channel 250ms, Impact 150ms,
+  Resolve 200ms = ~800ms total.
+- AvatarStrike (its own locked 4-beat sequence): Commit 300ms, Lock 200ms, Release 150ms,
+  Consequence 350ms = ~1000ms total - deliberately longest, it's the commitment spell.
+
+**Camera language:**
+- Basic attack: no camera move, impact micro-shake only (2-4px, 80ms).
+- Damage/Heal spell: slight zoom toward target lane (015-1.08x scale), hold through Impact.
+- AvatarStrike: full camera reticle on the Avatar panel per its existing "never targets a lane"
+  rule - punch-in zoom (1.15x), stronger shake on Release (6-8px, 120ms).
+
+**Audio hit points:** one SFX cue per beat minimum - Cast/Commit whoosh, Impact hit/thud, Resolve
+chime (positive) or low tone (negative). AvatarStrike gets a distinct signature stinger on Release,
+not a reused generic hit sound - it's the one spell explicitly designed to feel different.
+
+**Particle style:** school-palette-driven per the already-locked 3-layer model (Andras=ember/
+crimson, Ktini=jade/earthen, Pnevmas=ivory/gold/cyan). Basic attack: no particles, just the sprite
+clash. Spells: school-colored burst at Impact, sized to magnitude (small/medium/large tiers already
+exist in the effect-magnitude data). AvatarStrike: bespoke, not reused from any effect-type
+template, per the existing lock.
+
+**Skip/fast-forward behavior:** a second tap/input during any beat immediately jumps to Resolve's
+end state - no animation ever blocks the next decision. Lane state (HP/Attack numbers) stays
+rendered and readable throughout, never obscured by an effect.
+
+**Not yet decided, needs GPT/owner input:** exact particle system technology (Unity ParticleSystem
+vs pre-rendered flipbook per effect), whether camera zoom needs a dedicated virtual camera rig or
+can be a simple canvas-scale tween, and real SFX asset sourcing (none exists yet - separate
+question from timing/direction).
