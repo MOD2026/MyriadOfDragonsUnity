@@ -36,6 +36,56 @@ Push-Location $ProjectPath
 try {
     $anyErrors = $false
 
+    # --- Unindexed-file check, added 2026-08-25 after this script twice reported a confusing
+    # --- CS0103/CS0246 for a brand-new file that was perfectly correct.
+    #
+    # Unity OWNS these .csproj files and lists every source file explicitly. A .cs file created
+    # since Unity last refreshed is therefore not in the project at all, and the compiler reports
+    # it as an undefined NAME at each use site - never as "file missing". The error points at the
+    # caller, so the natural reading is "my new type is broken" when the real answer is "Unity has
+    # not seen it yet".
+    #
+    # This fails SAFE either way (a missing file can only cause a false FAIL, never a false pass),
+    # but a phantom error costs whoever chases it. Naming the real cause up front is the whole fix.
+    # NOTE the EXACT paths. Assets/Tests also holds Assets/Tests/PlayMode, which is a SEPARATE
+    # assembly with its own .csproj - scanning all of Assets/Tests reported 7 correctly-placed
+    # PlayMode files as "unindexed" and would have sent someone to "fix" files that were fine.
+    $indexMap = @{
+        "MyriadOfDragons.Runtime"      = "Assets/Scripts"
+        "MyriadOfDragons.Tests.Editor" = "Assets/Tests/Editor"
+    }
+
+    $unindexed = @()
+    foreach ($proj in $Projects) {
+        if (-not $indexMap.ContainsKey($proj)) { continue }
+        $csprojPath = Join-Path $ProjectPath "$proj.csproj"
+        if (-not (Test-Path $csprojPath)) { continue }
+
+        $sourceRoot = Join-Path $ProjectPath $indexMap[$proj]
+        if (-not (Test-Path $sourceRoot)) { continue }
+
+        $csprojText = Get-Content $csprojPath -Raw
+        foreach ($file in Get-ChildItem $sourceRoot -Recurse -Filter *.cs -File) {
+            # Compare on filename: the csproj uses backslash-separated relative paths, and a
+            # basename match is enough to tell "Unity knows about this file" from "it has never
+            # been indexed". Duplicate basenames across folders would only make this quieter, not
+            # wrong - it never reports a file that IS indexed.
+            if ($csprojText -notmatch [regex]::Escape($file.Name)) {
+                $unindexed += "$($file.Name)  ->  $proj"
+            }
+        }
+    }
+
+    if ($unindexed.Count -gt 0) {
+        Write-Host ""
+        Write-Host "NOTE  $($unindexed.Count) source file(s) exist on disk but are NOT in the .csproj:"
+        $unindexed | Select-Object -Unique -First 10 | ForEach-Object { Write-Host "        $_" }
+        Write-Host "      Unity regenerates the .csproj; until it does, every USE of a type in these"
+        Write-Host "      files reports CS0103/CS0246 at the CALL SITE. If that is the only error"
+        Write-Host "      below, the code is fine - refresh Unity, or add a <Compile Include>."
+        Write-Host ""
+    }
+
     foreach ($proj in $Projects) {
         $csproj = Join-Path $ProjectPath "$proj.csproj"
         if (-not (Test-Path $csproj)) {
