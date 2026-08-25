@@ -99,6 +99,12 @@ namespace MyriadOfDragons.UI
 
         public bool HasArtForTests(EmpireBuildingKind kind) => ArtResourcePaths.ContainsKey(kind);
 
+        /// <summary>Shared with EmpirePresenter's structure-strip tiles so the same 5 real isometric
+        /// renders show up as thumbnails at the entry point, not just inside this detail popup -
+        /// single source of truth for the path map, no duplicated dictionary.</summary>
+        public static string ArtResourcePathFor(EmpireBuildingKind kind) =>
+            ArtResourcePaths.TryGetValue(kind, out string path) ? path : null;
+
         private void BuildBody(Transform panel)
         {
             EmpireBuildingDefinition def = EmpireBuildingRoster.Get(_kind);

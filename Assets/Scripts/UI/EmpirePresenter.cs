@@ -667,13 +667,31 @@ namespace MyriadOfDragons.UI
             tile.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(tile.GetComponent<RectTransform>(), left + 0.004f, 0.06f, right - 0.004f, 0.94f);
 
+            // Real building thumbnail, was missing entirely - this strip rendered as plain colored
+            // boxes with text only, even though the same 5 renders already exist and are wired into
+            // the detail popup one tap away (EmpireBuildingDetailPresenter.ArtResourcePathFor).
+            // preserveAspect (never crop-to-fill, same locked rule as battle hand-card art) so the
+            // isometric renders don't stretch or get cropped into this compact strip shape.
+            string artPath = EmpireBuildingDetailPresenter.ArtResourcePathFor(kind);
+            Sprite artSprite = !string.IsNullOrEmpty(artPath) ? Resources.Load<Sprite>(artPath) : null;
+            if (artSprite != null)
+            {
+                GameObject artGo = new GameObject("StructureArt", typeof(RectTransform), typeof(Image));
+                artGo.transform.SetParent(tile.transform, false);
+                Image art = artGo.GetComponent<Image>();
+                art.sprite = artSprite;
+                art.preserveAspect = true;
+                art.raycastTarget = false;
+                SetNormalizedRect(art.rectTransform, 0.10f, 0.34f, 0.90f, 0.92f);
+            }
+
             Text label = UISharedFoundation.CreateText(tile.transform, "StructureName",
                 def.DisplayName.ToUpperInvariant(), UITextRole.Caption, TextAnchor.MiddleCenter,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 24f));
             label.fontSize = 15;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.raycastTarget = false;
-            SetNormalizedRect(label.rectTransform, 0.04f, 0.46f, 0.96f, 0.96f);
+            SetNormalizedRect(label.rectTransform, 0.04f, 0.18f, 0.96f, 0.32f);
 
             // Reads the real stored level now that the fields exist. Before today these five had
             // no level field and this line could only have shown a placeholder.
@@ -683,7 +701,7 @@ namespace MyriadOfDragons.UI
                 new Vector2(200f, 22f));
             level.fontSize = 14;
             level.raycastTarget = false;
-            SetNormalizedRect(level.rectTransform, 0.04f, 0.06f, 0.96f, 0.44f);
+            SetNormalizedRect(level.rectTransform, 0.04f, 0.04f, 0.96f, 0.16f);
         }
 
         public int StructureTileCountForTests =>
