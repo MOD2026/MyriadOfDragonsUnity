@@ -3297,3 +3297,22 @@ Background colors used for the contrast check are real values read from presente
 thread:** the 135-asset alpha flag was never a defect list. There is no remaining signal to justify
 BS's full pipeline (connected components, dE calibration, a labeled training set) - the expensive
 machinery would have been built to sort assets nobody renders. Thread closed.
+
+## CORRECTION: "Home screen bugs fully fixed" was incomplete - 6 live weekly-permit failures slipped through (2026-08-25, CC, self-correction after VS flagged twice)
+
+**VS flagged this in its last two reports and got no response until now - real gap in my own
+verification, not VS's fault for reporting.** HomeWeeklyPermitClaimTests x5 + PermitWeekKeyShellTests
+x1 fail: "must create WeeklyPermitStrip. Expected: not null." This is a LIVE ECONOMY SURFACE
+(claiming weekly Ascension Permits), not a layout/overlap concern - bd1d0ae's HomeLayoutRegressionTests
+checks geometry, not whether economy code can still find this object by name, so it correctly did not
+and could not catch this.
+
+**Real suspicion, not yet confirmed:** BuildWeeklyPermitClaimStrip (HomePagePresenter.cs:486) sits
+directly in the semantic-region flow introduced by ef3c048 ("Route Home chrome through semantic
+regions") - parented to `topHud` via the new HomeRegion/HomeSemanticRegions.Ensure system. The code
+itself looks correct on inspection; the regression is more likely in how the region resolves in the
+test harness, or an ordering change from the refactor, than in this method itself.
+
+**Correcting the earlier "Home screen bugs fully fixed" log entry - it was accurate for the layout
+suite it verified, but incomplete as a claim that ALL of Home was fixed.** Routed to WH: diagnose
+and fix, same rigor as everything else tonight.
