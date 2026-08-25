@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Empire;
@@ -217,6 +218,8 @@ namespace MyriadOfDragons.UI
                 EmpireBuildingKind.Barracks, 0.43f, 0.62f, OnUpgradeBarracks);
             CreateBuildingRow(empireRoot.transform, "GateRow", "UpgradeGateButton",
                 EmpireBuildingKind.Gate, 0.22f, 0.41f, OnUpgradeGate);
+
+            BuildRemainingStructuresStrip(empireRoot.transform);
 
             _empireStatusText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireStatus", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(1200f, 48f));
@@ -609,6 +612,83 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.CreateText(chip.transform, "Label", label, UITextRole.Caption, TextAnchor.MiddleCenter,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 28f));
         }
+
+        /// <summary>The five buildings that had no UI presence at all until now.</summary>
+        private static readonly EmpireBuildingKind[] RemainingStructures =
+        {
+            EmpireBuildingKind.Storage,
+            EmpireBuildingKind.TrainingGrounds,
+            EmpireBuildingKind.Quarry,
+            EmpireBuildingKind.Academy,
+            EmpireBuildingKind.TreeOfKnowledge,
+        };
+
+        /// <summary>
+        /// Entry points for Storage / Training Grounds / Quarry / Academy / Tree of Knowledge.
+        ///
+        /// Their detail popups, art and copy have all existed for a while - 5 of 11 Empire
+        /// buildings simply had nowhere to be tapped, so none of that was reachable by a player.
+        /// This is the whole gap.
+        ///
+        /// A compact strip rather than five more full rows: the three existing rows carry a v1
+        /// Gold UPGRADE button, and these five have no v1 upgrade path (they are v2 Materials), so
+        /// giving them an identical row would advertise an action that does not exist yet. Tapping
+        /// opens the same detail popup the other buildings use.
+        /// </summary>
+        private void BuildRemainingStructuresStrip(Transform parent)
+        {
+            GameObject strip = new GameObject("RemainingStructuresStrip", typeof(RectTransform));
+            strip.transform.SetParent(parent, false);
+            // Sits below the status line (0.12-0.20) and above the panel floor - deliberately clear
+            // of both, since the geometry audit runs at zero overlap tolerance.
+            SetNormalizedRect(strip.GetComponent<RectTransform>(), 0.03f, 0.02f, 0.97f, 0.11f);
+
+            float span = 1f / RemainingStructures.Length;
+            for (int i = 0; i < RemainingStructures.Length; i++)
+            {
+                EmpireBuildingKind kind = RemainingStructures[i];
+                CreateStructureTile(strip.transform, kind, span * i, span * (i + 1));
+            }
+        }
+
+        private void CreateStructureTile(Transform parent, EmpireBuildingKind kind, float left, float right)
+        {
+            EmpireBuildingDefinition def = EmpireBuildingRoster.Get(kind);
+
+            GameObject tile = new GameObject("Structure_" + kind,
+                typeof(RectTransform), typeof(Image), typeof(Button));
+            tile.transform.SetParent(parent, false);
+
+            Image bg = tile.GetComponent<Image>();
+            HomeV3UiLibrary.ApplyNavTileButton(tile.GetComponent<Button>(), bg);
+            bg.color = HexColor("#1A2A34");
+
+            EmpireBuildingKind captured = kind;
+            tile.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
+            SetNormalizedRect(tile.GetComponent<RectTransform>(), left + 0.004f, 0.06f, right - 0.004f, 0.94f);
+
+            Text label = UISharedFoundation.CreateText(tile.transform, "StructureName",
+                def.DisplayName.ToUpperInvariant(), UITextRole.Caption, TextAnchor.MiddleCenter,
+                HexColor("#F2E5C9"), true, new Vector2(200f, 24f));
+            label.fontSize = 15;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.raycastTarget = false;
+            SetNormalizedRect(label.rectTransform, 0.04f, 0.46f, 0.96f, 0.96f);
+
+            // Reads the real stored level now that the fields exist. Before today these five had
+            // no level field and this line could only have shown a placeholder.
+            Text level = UISharedFoundation.CreateText(tile.transform, "StructureLevel",
+                "LEVEL " + EmpireBuildingLevels.LevelOf(SaveManager.SaveData, kind),
+                UITextRole.Caption, TextAnchor.MiddleCenter, HexColor("#9FD3A0"), true,
+                new Vector2(200f, 22f));
+            level.fontSize = 14;
+            level.raycastTarget = false;
+            SetNormalizedRect(level.rectTransform, 0.04f, 0.06f, 0.96f, 0.44f);
+        }
+
+        public int StructureTileCountForTests =>
+            _canvasObj == null ? 0 : _canvasObj.GetComponentsInChildren<Button>(true)
+                .Count(b => b.name.StartsWith("Structure_"));
 
         private void CreateBuildingRow(Transform parent, string rowName, string buttonName,
             EmpireBuildingKind kind, float bottom, float top, UnityEngine.Events.UnityAction onUpgrade)

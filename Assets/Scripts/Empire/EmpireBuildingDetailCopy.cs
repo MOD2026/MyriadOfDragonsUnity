@@ -168,12 +168,12 @@ namespace MyriadOfDragons.Empire
             if (profile == null)
                 return "LEVEL " + RuntimePlaceholder;
 
-            if (kind == EmpireBuildingKind.Castle)
-                return $"LEVEL {profile.castleLevel}";
-            if (kind == EmpireBuildingKind.Barracks)
-                return $"LEVEL {profile.barracksLevel}";
-            if (kind == EmpireBuildingKind.Gate)
-                return $"LEVEL {profile.gateLevel}";
+            // Storage / Training Grounds / Quarry / Academy / Tree of Knowledge used to fall
+            // through to the "[runtime]" marker below because no level field existed for them.
+            // Those fields are on the save now (owner-locked 2026-08-25), so the marker would be a
+            // lie - it is reserved for values that genuinely are not persisted yet.
+            if (EmpireBuildingLevels.HasStoredLevel(kind))
+                return $"LEVEL {EmpireBuildingLevels.LevelOf(profile, kind)}";
 
             return "LEVEL " + RuntimePlaceholder + " (v2 level field not on save)";
         }

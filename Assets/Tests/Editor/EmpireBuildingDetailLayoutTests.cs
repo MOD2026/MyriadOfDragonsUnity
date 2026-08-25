@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MyriadOfDragons.Data;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
@@ -140,6 +141,112 @@ namespace MyriadOfDragons.Tests
                 Assert.Greater(detail.CanvasObjectForTests.GetComponentsInChildren<RectTransform>(true).Length, 5,
                     kind + " built a suspiciously empty popup.");
                 TearDownCanvases();
+            }
+        }
+
+        // ------------------------------------------------------------------ entry points + levels
+        //
+        // Added 2026-08-25. Five of eleven Empire buildings had detail popups, art and copy and NO
+        // WAY TO BE TAPPED - all of that work was unreachable by a player. These pin the entry
+        // points and the newly-persisted levels behind them.
+
+        [Test]
+        public void EveryRemainingStructure_HasARealEntryPointOnEmpire()
+        {
+            var go = new GameObject("EmpireEntryHost");
+            _spawned.Add(go);
+            var empire = go.AddComponent<EmpirePresenter>();
+            empire.Initialize(onBackToHome: null);
+
+            Assert.AreEqual(RenderedKinds.Length, empire.StructureTileCountForTests,
+                "Each of the five buildings must have its own tappable tile.");
+
+            string[] names = Object.FindObjectsOfType<Button>(true).Select(b => b.name).ToArray();
+            foreach (EmpireBuildingKind kind in RenderedKinds)
+                CollectionAssert.Contains(names, "Structure_" + kind,
+                    kind + " has no entry point, so its detail popup is unreachable.");
+        }
+
+        [Test]
+        public void TappingAStructureTile_OpensThatBuildingsDetail()
+        {
+            // Guards against five tiles that all open the same popup - a mistake that looks
+            // completely correct until you tap the second one.
+            foreach (EmpireBuildingKind kind in RenderedKinds)
+            {
+                var go = new GameObject("EmpireTapHost_" + kind);
+                _spawned.Add(go);
+                var empire = go.AddComponent<EmpirePresenter>();
+                empire.Initialize(onBackToHome: null);
+
+                Button tile = Object.FindObjectsOfType<Button>(true)
+                    .FirstOrDefault(b => b.name == "Structure_" + kind);
+                Assert.IsNotNull(tile, "No tile for " + kind + ".");
+
+                tile.onClick.Invoke();
+
+                var detail = go.GetComponent<EmpireBuildingDetailPresenter>();
+                Assert.IsNotNull(detail, "Tapping " + kind + " opened no detail popup.");
+                Assert.AreEqual(kind, detail.KindForTests,
+                    "Tapping " + kind + " opened the wrong building's detail.");
+
+                TearDownCanvases();
+                Object.DestroyImmediate(go);
+                _spawned.Remove(go);
+            }
+        }
+
+        [Test]
+        public void EachStructure_ShowsItsRealStoredLevel_NotTheRuntimePlaceholder()
+        {
+            // Before the save fields existed these five could only render "[runtime]". That marker
+            // is reserved for values genuinely not persisted - now that they ARE persisted, showing
+            // it would be a lie.
+            PlayerProfile profile = SaveManager.SaveData;
+            Assert.IsNotNull(profile, "Setup: expected a live profile.");
+
+            foreach (EmpireBuildingKind kind in RenderedKinds)
+            {
+                Assert.IsTrue(EmpireBuildingLevels.HasStoredLevel(kind),
+                    kind + " must have a stored level field.");
+
+                string line = EmpireBuildingDetailCopy.FormatLevelLine(kind, profile);
+                StringAssert.DoesNotContain(EmpireBuildingDetailCopy.RuntimePlaceholder, line,
+                    kind + " still renders the runtime placeholder despite having a save field.");
+                StringAssert.Contains(
+                    EmpireBuildingLevels.LevelOf(profile, kind).ToString(), line,
+                    kind + " must display its actual stored level.");
+            }
+        }
+
+        [Test]
+        public void AFreshProfile_StartsTheseBuildingsAtLevelOne_NotZero()
+        {
+            // THE LOCKED DEFAULT, and the reason it is 1: these are minimum-valid structures, not
+            // absent inventory. A 0 default would read as "not built" and could block a migrated
+            // player - especially an existing Evolution user - behind a field that did not exist
+            // when they last played.
+            var fresh = new PlayerProfile();
+
+            foreach (EmpireBuildingKind kind in RenderedKinds)
+                Assert.AreEqual(1, EmpireBuildingLevels.LevelOf(fresh, kind),
+                    kind + " must default to Level 1 for new AND migrated accounts.");
+        }
+
+        [Test]
+        public void UnbackedBuildings_StillReportNoStoredLevel()
+        {
+            // Guards the helper from quietly claiming a level for buildings that genuinely have
+            // none - Guild Hall is flat by design, Embassy and Prison are pending-server. 0 means
+            // "no level field", never "level zero".
+            foreach (EmpireBuildingKind kind in new[]
+                     {
+                         EmpireBuildingKind.Embassy, EmpireBuildingKind.Prison,
+                         EmpireBuildingKind.GuildHall,
+                     })
+            {
+                Assert.IsFalse(EmpireBuildingLevels.HasStoredLevel(kind),
+                    kind + " has no save field and must not claim one.");
             }
         }
 

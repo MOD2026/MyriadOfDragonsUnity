@@ -137,6 +137,21 @@ namespace MyriadOfDragons.Save
         public int barracksLevel = 1;
         public int gateLevel = 1;
 
+        // --- The remaining 5 upgradeable buildings. Additive, owner-locked 2026-08-25
+        // ("Empire building save-schema defaults - LOCKED", BS, vetted) BEFORE this frozen file was
+        // touched - same discipline as Memory Expedition and Tactical Puzzle.
+        //
+        // DEFAULT IS 1, NOT 0, AND THAT IS THE LOCKED DECISION, not a stylistic choice. These are
+        // minimum-valid structures rather than absent inventory: Level 1 grants no shortcut,
+        // preserves existing progression, and stops a MIGRATED player - especially an existing
+        // Evolution user - from being blocked by a field that did not exist when they last played.
+        // Old saves deserialize straight to 1, so there is no migration step and no backfill.
+        public int storageLevel = 1;
+        public int trainingGroundsLevel = 1;
+        public int quarryLevel = 1;
+        public int academyLevel = 1;
+        public int treeOfKnowledgeLevel = 1;
+
         /// <summary>
         /// Additive Empire construction project (EMPIRE_SCHEMA_LOCK). Null on old saves —
         /// SaveMigration.Normalize replaces with idle.

@@ -35,6 +35,42 @@ namespace MyriadOfDragons.Empire
         GuildHall,
     }
 
+    /// <summary>
+    /// Maps a building kind to the level stored on the profile. One place, so the detail popup,
+    /// the Empire rows and anything added later cannot drift apart on which field backs which
+    /// building.
+    ///
+    /// Returns 0 for kinds with NO stored level - Embassy, Prison and Guild Hall are deliberately
+    /// unbacked (Guild Hall is flat by design, the other two are pending-server). 0 means "no
+    /// level field", never "level zero", and callers must render it as such rather than printing a
+    /// misleading LEVEL 0.
+    /// </summary>
+    public static class EmpireBuildingLevels
+    {
+        public static bool HasStoredLevel(EmpireBuildingKind kind) =>
+            kind == EmpireBuildingKind.Castle || kind == EmpireBuildingKind.Barracks ||
+            kind == EmpireBuildingKind.Gate || kind == EmpireBuildingKind.Storage ||
+            kind == EmpireBuildingKind.TrainingGrounds || kind == EmpireBuildingKind.Quarry ||
+            kind == EmpireBuildingKind.Academy || kind == EmpireBuildingKind.TreeOfKnowledge;
+
+        public static int LevelOf(MyriadOfDragons.Save.PlayerProfile profile, EmpireBuildingKind kind)
+        {
+            if (profile == null) return 0;
+            switch (kind)
+            {
+                case EmpireBuildingKind.Castle: return profile.castleLevel;
+                case EmpireBuildingKind.Barracks: return profile.barracksLevel;
+                case EmpireBuildingKind.Gate: return profile.gateLevel;
+                case EmpireBuildingKind.Storage: return profile.storageLevel;
+                case EmpireBuildingKind.TrainingGrounds: return profile.trainingGroundsLevel;
+                case EmpireBuildingKind.Quarry: return profile.quarryLevel;
+                case EmpireBuildingKind.Academy: return profile.academyLevel;
+                case EmpireBuildingKind.TreeOfKnowledge: return profile.treeOfKnowledgeLevel;
+                default: return 0;
+            }
+        }
+    }
+
     /// <summary>One row of the locked 11-building roster table.</summary>
     public class EmpireBuildingDefinition
     {
