@@ -1651,3 +1651,28 @@ YET for 7 of 11. An interlock number would have nothing real to gate. This is a 
 scope question than originally framed: build the missing 7 buildings' actual mechanics (a real,
 substantial feature each), or leave them as structure-locked placeholders and drop the
 "11-building interlock" ambition down to the 3-4 buildings that actually function.
+
+## AI-balance: diagnose before tuning - LOCKED (2026-08-25, GPT)
+
+Two different failure shapes, two separate diagnostic plans, NO gate/spell changes until measured:
+
+**NOVICE (cast rate 21.5% vs 25% floor, spells/match 0.15 vs 0.5 floor, win-rate fine at +2.1pp):**
+this pattern (low frequency, healthy win-rate) suggests candidate scarcity, same shape as the
+earlier Apprentice issue - not excessive restraint strength. Run the candidate diagnostic at
+theoretical 100% ordinary-spell roll: ordinary legal-candidate ticks, AvatarStrike opportunities,
+rejected-by-target/energy/cooldown counts, max theoretical spells/match and cast rate. Decision
+rule: if the theoretical ceiling stays below 25%/0.5, lower Novice's floor/ceiling to the reachable
+band (Apprentice precedent). If it clears both, keep bands and raise the gate modestly, rerun. Do
+NOT loosen target legality or change spell power before this measurement.
+
+**VETERANPLUS (cast rate 45.4% fine, win-rate delta -9.7pp over 8pp cap):** frequency is healthy,
+this is impact concentration. Run per-spell paired attribution across the FULL completed catalogue
+(casts/match, same-tick kills, Avatar damage, % of AI wins containing each spell, contribution
+delta vs baseline, early-KO correlation) - the old 4-effect measurements are no longer authoritative
+now that the AI has the full 36-spell catalogue and 6-slot loadouts. If AvatarStrike dominates: a
+VeteranPlus-specific commitment throttle, ordinary spells untouched. If an ordinary spell dominates:
+tier-specific restraint on ITS target eligibility, not a global cap change. Earlier pattern
+implicated Stone Judgment but that must be re-measured, not assumed, against the completed catalog.
+
+Real remeasurement note: current acceptance bands were locked against the old 4-effect AI priority
+pool - not authoritative anymore post-36/36-catalog. Diagnose first in both cases.
