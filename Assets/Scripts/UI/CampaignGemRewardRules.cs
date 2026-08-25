@@ -16,6 +16,9 @@ namespace MyriadOfDragons.UI
         /// <summary>292 regular × 8 + 11 finales × 440 (Ch1–11 after Chapter 11 depth fill).</summary>
         public const int LockedTotalCh1Through11 = 7176;
 
+        /// <summary>321 regular × 8 + 12 finales × 440 (Ch1–12 after Chapter 12 depth fill).</summary>
+        public const int LockedTotalCh1Through12 = 7848;
+
         public static int ForStage(string stageId) =>
             HomePagePresenter.IsChapterFinalePermitStage(stageId)
                 ? ChapterFinaleGems

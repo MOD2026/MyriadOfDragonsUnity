@@ -1254,6 +1254,80 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The storm's price still waits.");
             }
+
+            // Chapter 12 — The Mortal Host.
+            (string stageId, string title, string enemyName)[] chapter12Stages =
+            {
+                ("12-1", "Hostward March", "Hostward Watch"),
+                ("12-2", "Banner of Embers Gate", "Ember Gate Guard"),
+                ("12-3", "Ash Cohort Court", "Ash Cohort"),
+                ("12-4", "Mortal Levy Yard", "Levy Yard Wardens"),
+                ("12-5", "Spear-Tithe Hall", "Spear-Tithe Legion"),
+                ("12-6", "War-Debt Stair", "War-Debt Guard"),
+                ("12-7", "The Sovereign Muster", "Muster Command"),
+                ("12-8", "Oathbound Causeway", "Oathbound Cohort"),
+                ("12-9", "Host Antechamber", "Host Antechamber Guard"),
+                ("12-10", "Eagle-and-Ash Roost", "Ash Roost Legion"),
+                ("12-11", "Crown Host Gallery", "Crown Host Wardens"),
+                ("12-12", "The Gathering Steps", "Gathering Guard"),
+                ("12-13", "Stormborn Barracks", "Stormborn Command"),
+                ("12-14", "Mortal Oath Chamber", "Mortal Oath Cohort"),
+                ("12-15", "The Host Court", "Host Court Guard"),
+                ("12-16", "Ashscar Road", "Ashscar Legion"),
+                ("12-17", "Levy Vault of Spears", "Spear Vault Wardens"),
+                ("12-18", "Bannerwatch Parapet", "Bannerwatch Guard"),
+                ("12-19", "War Engine Yard", "War Engine Cohort"),
+                ("12-20", "Balcony of Banners", "Banner Balcony Command"),
+                ("12-21", "Hostseal Reliquary", "Host Reliquary Guard"),
+                ("12-22", "Crown Rampart Muster", "Muster Rampart Legion"),
+                ("12-23", "Thunderbrand Barracks", "Thunderbrand Barracks Wardens"),
+                ("12-24", "The Last Host Debt", "Last Host Cohort"),
+                ("12-25", "Emberfire Vestibule", "Emberfire Vestibule Guard"),
+                ("12-26", "Sky King's Mortal Bastion", "Mortal Bastion Command"),
+                ("12-27", "The Broken Host Scepter", "Broken Host Legion"),
+                ("12-28", "Stormheart Muster Gate", "Muster Gate Guard"),
+                ("12-29", "The Host Dais", "Host High Command"),
+                ("12-30", "The Mortal Host", "Mortal Host High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter12Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "12-1" => "The host gathers. Kneel or march.",
+                    "12-15" => "Every banner costs blood.",
+                    "12-30" => "The mortal host will not break.",
+                    _ => $"{enemyName} holds {title}. The host answers only strength.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "12-1" => "I march. Make room.",
+                    "12-15" => "Then I pay in victories.",
+                    "12-30" => "Then I become its tip.",
+                    _ => "Clear the path. The host still waits.",
+                };
+
+                if (stageId == "12-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The host is mine to lead — or to end."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Lead carefully, Sovereign. Hosts outgrow their kings."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The mortal host still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

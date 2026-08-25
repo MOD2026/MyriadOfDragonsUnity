@@ -150,7 +150,7 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(low.BarracksLevel, high.BarracksLevel, "Castle-only change must not alter Barracks level.");
             Assert.AreEqual(low.GateLevel, high.GateLevel, "Castle-only change must not alter Gate level.");
 
-            for (int chapter = 1; chapter <= 11; chapter++)
+            for (int chapter = 1; chapter <= 12; chapter++)
             {
                 Assert.AreEqual(
                     PlayerEmpireData.IsCampaignChapterAllowedByGate(low.GateLevel, chapter),
@@ -193,8 +193,11 @@ namespace MyriadOfDragons.Tests
             bootstrap.Initialize();
             foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject spawned = GameObject.Find(spawnedName);
-                if (spawned != null) _spawned.Add(spawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == spawnedName && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
             bootstrap.SetBattleCanvasVisible(false);
             return bootstrap;

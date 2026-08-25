@@ -180,6 +180,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter9DepthStages());
             chapterStages.AddRange(BuildChapter10DepthStages());
             chapterStages.AddRange(BuildChapter11DepthStages());
+            chapterStages.AddRange(BuildChapter12DepthStages());
             ApplyLockedCampaignGemRewards();
         }
 
@@ -199,10 +200,10 @@ namespace MyriadOfDragons.UI
                 total += stage.gemReward;
             }
 
-            if (total != CampaignGemRewardRules.LockedTotalCh1Through11)
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through12)
             {
                 Debug.LogError(
-                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through11} " +
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through12} " +
                     $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
             }
         }
@@ -1239,6 +1240,88 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Chapter 12 depth pool — Chapter11DepthPool rotated by 19 (continuing 17→19).</summary>
+        private static readonly string[] Chapter12DepthPool =
+        {
+            "zombified_captain", "eastern_sorcerer", "corrupted_warrior", "undead_pirate", "goblin_shaman",
+            "elf_wanderer", "persian_princess", "conquistador", "owl_keeper", "ladyinlake",
+            "iron_dragon", "pandora", "drain", "shaman", "druid", "succubus",
+            "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue", "giant_worms",
+            "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard",
+        };
+
+        /// <summary>Linear from Stage 11-30's 37540 gold. 12-30 lands at 37540 + 30*180 = 42940 gold.</summary>
+        private static (int gold, int gems) Chapter12DepthReward(int stageNumber)
+        {
+            const int baseGold = 37540, goldPerStage = 180;
+            const int baseGems = 7508, gemsPerStage = 36;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 12 — The Mortal Host (post–Storm's Price: mortal armies gather under the taken storm).</summary>
+        private static readonly (string title, string enemyName)[] Chapter12DepthFlavor =
+        {
+            ("Hostward March", "Hostward Watch"),
+            ("Banner of Embers Gate", "Ember Gate Guard"),
+            ("Ash Cohort Court", "Ash Cohort"),
+            ("Mortal Levy Yard", "Levy Yard Wardens"),
+            ("Spear-Tithe Hall", "Spear-Tithe Legion"),
+            ("War-Debt Stair", "War-Debt Guard"),
+            ("The Sovereign Muster", "Muster Command"),
+            ("Oathbound Causeway", "Oathbound Cohort"),
+            ("Host Antechamber", "Host Antechamber Guard"),
+            ("Eagle-and-Ash Roost", "Ash Roost Legion"),
+            ("Crown Host Gallery", "Crown Host Wardens"),
+            ("The Gathering Steps", "Gathering Guard"),
+            ("Stormborn Barracks", "Stormborn Command"),
+            ("Mortal Oath Chamber", "Mortal Oath Cohort"),
+            ("The Host Court", "Host Court Guard"),
+            ("Ashscar Road", "Ashscar Legion"),
+            ("Levy Vault of Spears", "Spear Vault Wardens"),
+            ("Bannerwatch Parapet", "Bannerwatch Guard"),
+            ("War Engine Yard", "War Engine Cohort"),
+            ("Balcony of Banners", "Banner Balcony Command"),
+            ("Hostseal Reliquary", "Host Reliquary Guard"),
+            ("Crown Rampart Muster", "Muster Rampart Legion"),
+            ("Thunderbrand Barracks", "Thunderbrand Barracks Wardens"),
+            ("The Last Host Debt", "Last Host Cohort"),
+            ("Emberfire Vestibule", "Emberfire Vestibule Guard"),
+            ("Sky King's Mortal Bastion", "Mortal Bastion Command"),
+            ("The Broken Host Scepter", "Broken Host Legion"),
+            ("Stormheart Muster Gate", "Muster Gate Guard"),
+            ("The Host Dais", "Host High Command"),
+            ("The Mortal Host", "Mortal Host High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter12DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                int baseIndex = (27 * i + 3) % poolSize;
+                string[] ids =
+                {
+                    Chapter12DepthPool[baseIndex],
+                    Chapter12DepthPool[(baseIndex + 11) % poolSize],
+                    Chapter12DepthPool[(baseIndex + 18) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "owl_keeper", "wood_wizard", "cursed_soldier" };
+
+                // Stage 12-8 (castle_lady+zombified_captain+conquistador) measured AF defeat.
+                // Avoid Ch11's 11-9 patch trio (snake_archer+butcher+goblin_shaman).
+                if (stageNumber == 8)
+                    ids = new[] { "fire_worm", "butcher", "wood_wizard" };
+
+                (string title, string enemyName) = Chapter12DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The mortal host answers the storm.";
+                (int gold, int gems) = Chapter12DepthReward(stageNumber);
+                yield return new CampaignStageData($"12-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
         /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
         /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
         /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
@@ -1570,6 +1653,7 @@ namespace MyriadOfDragons.UI
                 case 9: return "CHAPTER 9: THE AEGIS CITADEL";
                 case 10: return "CHAPTER 10: THE EMPTY THRONE";
                 case 11: return "CHAPTER 11: THE STORM'S PRICE";
+                case 12: return "CHAPTER 12: THE MORTAL HOST";
                 default: return $"CHAPTER {chapter}";
             }
         }

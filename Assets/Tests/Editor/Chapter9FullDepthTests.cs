@@ -104,8 +104,11 @@ namespace MyriadOfDragons.Tests
             bootstrap.Initialize();
             foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject spawned = GameObject.Find(spawnedName);
-                if (spawned != null) _spawned.Add(spawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == spawnedName && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
             bootstrap.SetBattleCanvasVisible(false);
             return bootstrap;
@@ -254,7 +257,7 @@ namespace MyriadOfDragons.Tests
                 }
                 else
                 {
-                    Assert.Fail($"Stage {stageId} should unlock the next chapter stage; only 11-30 is terminal.");
+                    Assert.Fail($"Stage {stageId} should unlock the next chapter stage; only 12-30 is terminal.");
                 }
 
                 if (i + 1 < NewChapter9StageIds.Length)
