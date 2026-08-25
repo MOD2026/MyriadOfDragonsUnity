@@ -1693,3 +1693,27 @@ Not user-sourced this round - real research + synthesis against two problems alr
    unimplemented placeholders indefinitely.
 
 Sent to GPT for real critique/refinement, not accepted at face value.
+
+## Novice: candidate-ceiling confirmed unreachable, VeteranPlus: nuanced split found (2026-08-25, CR)
+
+**NOVICE, decisive:** even at a forced 100% ordinary-spell roll (2000 trials), theoretical ceiling
+is castRate=2.55%, spellsPerMatch=0.166 - both WELL below the 25%/0.5 floor. 16.4% of trials never
+had even one legal ordinary cast opportunity in the whole match. Confirmed candidate scarcity, same
+class as Apprentice. Per GPT's own decision rule: lower Novice's floor/ceiling to the reachable
+band - raising the gate cannot close this gap since the ceiling itself is the bottleneck.
+
+**VETERANPLUS, real but not clean:** per-spell attribution (1500 paired trials) shows a
+volume-vs-precision split, not one dominant spell: Fault Line (479 casts, 16.6% win-rate-when-cast,
+14.9% win-share - high volume, low predictive power) vs Stone Judgment (81 casts, 97.5%
+win-rate-when-cast, 15.1% win-share - rare but near-perfectly correlated with winning, same total
+win-share as Fault Line from 6x fewer casts). **NEW FINDING: 3 of 6 loadout slots (Renewal,
+Cleansing Root, Oracle Sight) fired ZERO times across all 1500 trials** - Cleansing Root/Oracle
+Sight show available=0 the entire run, never once legal - structurally dead loadout slots, not just
+rarely used. Stone Judgment is re-implicated but CR correctly flagged the caveat: win-rate-when-cast
+is correlational, not causal - a spell only available in already-favorable matches would show the
+same pattern as one that causes the favorable outcome. A Stone-Judgment-removed ablation run would
+disentangle this, not yet run.
+
+Both results escalated to GPT - VeteranPlus doesn't cleanly match either of GPT's two proposed fix
+branches (not clean AvatarStrike-dominance, not clean single-spell-dominance), needs a real decision
+on how to read a volume/precision split plus dead loadout slots.
