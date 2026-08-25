@@ -2461,3 +2461,33 @@ across a large sustained stream of enemies (a big buffer); if Empire Defense sen
 enemies down one lane before the player can react, that lane breaks almost immediately, every
 time. Not blocking (still fully behind the evidence gate, no build triggered) but flagged back to
 BS before this number gets treated as more settled than it is.
+
+## Zero-cast test contract SHIPPED - and a NEW real Apprentice any-cast signal surfaced (2026-08-25, CR, verified c7f6467)
+
+4-metric contract implemented exactly as locked (8fc8d56): anyCastTickRatio stays the hard ±15%
+gate; zeroCastRate + zeroCastTickRatio both descriptive-only now; forcedNoCastMatchesBaseline is a
+new hard invariant (baseline vs forced-no-cast must match EXACTLY, no tolerance). Also proactively
+backfilled the shuffle-seed fix (c136c7d) into RunPairedZeroCastSplit itself, which predated that
+fix and needed the same correction for its ratios to mean what they claim.
+
+**Novice: clean.** anyCastTickRatio 1.043 (well inside band), zeroCastTickRatio 1.000,
+forcedNoCastMatchesBaseline 0/300 exact mismatches - further confirms c136c7d holds under a
+permanent guard, not just the one-off study.
+
+**REAL NEW FINDING, Apprentice: anyCastTickRatio - the metric explicitly kept as the causally-clean
+gate - now FAILS at 1.355 on 1297 trials, where it previously PASSED before today's shuffle-seed
+backfill.** CR's read: the old measurement was noise-diluted by imperfectly-matched pairs (unseeded
+shuffle meant baseline/on decks weren't actually identical per pair) - this is the first time
+anyCastTickRatio has been measured with genuinely matched seeds, so a real signal may be emerging
+for the first time rather than a regression from this commit. NOT root-caused, band NOT touched, CR
+correctly declined to guess. Apprentice's run aborted at this assertion, so forcedNoCastMatchesBaseline
+is untested for Apprentice this pass.
+
+**VeteranPlus failed separately on the pre-existing player-win-rate-drop assertion** (10.0% vs 8pp
+cap, baseline 32.7%->22.7%) - unrelated to this commit, possibly the already-parked "2 assertions
+under active owner-directed tuning" from CLAUDE.md, possibly not - CR correctly uncertain, not
+asserting either way. Untested this pass (aborted before reaching it).
+
+**Real open question, routed to BS:** does Apprentice's any-cast population genuinely run longer when
+the AI casts (a real behavior finding), or is this a residual measurement artifact even after the
+shuffle fix? Not decided here.
