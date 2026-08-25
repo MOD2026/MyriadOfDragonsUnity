@@ -4271,3 +4271,24 @@ externally):** a real combined-source economy simulation test - Solo Collection 
 Expedition + Battle Pass + current VIP Stamina-claim value, run across simulated F2P/regular/whale
 profiles over a 6-month window, checked against the real Empire L30 sink total. This is what
 actually answers BS's open question, not more arithmetic in chat.
+
+## Combined economy sim BLOCKED - real reason, verified (2026-08-26, CR)
+
+**Verified before logging:** `EmpireExpeditionCatalog.cs:45,48` confirms `StaminaCostPerClear` and
+`BaseGoldPerClear` are both genuinely `null` (`AreClearRewardsConfigured` false); `BattlePassOpenValues.cs
+:36,39` confirms `SeasonXpPerTier`/`PremiumUnlockPrice` are both genuinely `null`
+(`AreTierRewardsConfigured` false). Both match CR's claims exactly - these are real, unset design
+values, not something CR could derive or should have guessed.
+
+**Real reason the combined simulation can't be built yet:** 3 of the 4 requested Gold sources
+(Empire Expedition, Battle Pass, VIP) have no real numbers anywhere - Empire Expedition and Battle
+Pass are genuinely still `null` in code (matching the register's own "Numbers still open" notes at
+lines 202/207), and VIP grants Stamina priced in Gems only, no Gold conversion exists without
+inventing an undefined rate. CR correctly refused to fabricate any of these and only ran the one
+real computation possible (Solo Collection Circuit alone), which reproduces the already-locked
+586,250/yr, ~33% of the 1,779,550 sink figure - not new information, just confirms the existing
+number rather than adding the requested combined view.
+
+**Real next step, now correctly identified as a design gap, not a coding gap:** BS needs to actually
+lock Empire Expedition's Stamina-cost/Gold-per-clear/daily-cap numbers and Battle Pass's tier Gold
+amounts before any combined simulation is possible. Routing back to BS.
