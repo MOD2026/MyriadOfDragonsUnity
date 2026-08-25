@@ -15,6 +15,15 @@ namespace MyriadOfDragons.Tests
     /// Lance/Tempest Brand become eligible but stay unselected (weaker same-effect-type options
     /// always win), while Fault Line/Renewal/Banner of Ashes do change tier loadouts, is exactly
     /// what these tests prove against the real catalog Magnitudes - not assumed.
+    ///
+    /// Apprentice+ now also resolve Cleansing Root and Oracle Sight into the loadout (real,
+    /// investigated interaction between two separately-locked changes - see
+    /// ResolveSpellbook_Apprentice_FaultLineAndRenewalTakeOver_WarCryStillHolds's own doc comment
+    /// for the full mechanism: Cleansing Root/Oracle Sight's real AvatarLevel unlock Rules plus the
+    /// loadout expansion's AI 6-slot cap combine to make both reachable and selectable for the
+    /// first time). Not part of the original AI Tier -> Stage-Gated Spell Access table above -
+    /// this pool is the resolver's own separate AvatarLevel-gated pool, documented on
+    /// AIEnemySpellbookResolver itself.
     /// </summary>
     public class AIEnemySpellbookResolverTests
     {
@@ -60,6 +69,18 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.AreEquivalent(new[] { "Firestorm", "Mend", "War Cry", "Divine Bolt" }, names);
         }
 
+        /// <summary>Real, intended interaction between two SEPARATELY locked changes, not a
+        /// bug: Cleansing Root (Avatar L16) and Oracle Sight (Avatar L20) got real AvatarLevel
+        /// unlock Rules during the Full 36-Spell Catalogue Diagnosis work; the loadout expansion
+        /// (LOCKED 2026-08-25) raised the AI's own slot cap to match the player's tier-unlocked
+        /// count ("AI may equip up to the same 6-slot cap... tier-gated as before"). Apprentice's
+        /// representative level (25) clears both L16/L20 gates, and its 6-slot cap (via
+        /// SpellLoadoutAutoEquip.RequiredSlotCount) now has room to actually select them - Cleanse
+        /// and DrawCards are effect types nothing else in this tier's pool competes for, so both
+        /// win their slot automatically. Neither the acquisition-channel spec nor the loadout-
+        /// expansion spec name this specific cross-effect explicitly; this is this investigation's
+        /// own read of their combined, correct consequence - flagged as such, not presented as a
+        /// separately re-confirmed locked fact.</summary>
         [Test]
         public void ResolveSpellbook_Apprentice_FaultLineAndRenewalTakeOver_WarCryStillHolds()
         {
@@ -67,8 +88,10 @@ namespace MyriadOfDragons.Tests
             // counterparts once unlocked at Apprentice - the register's "materially change tier
             // loadouts" case. Banner of Ashes isn't unlocked until Veteran, so War Cry still holds
             // LaneAttackBuff. Stone Judgment (L12, cleared at rep level 25) replaces Divine Bolt.
+            // Cleansing Root/Oracle Sight now also win their own (previously unavailable) slots -
+            // see this method's own doc comment.
             List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Apprentice).Select(s => s.Name).ToList();
-            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "War Cry", "Stone Judgment" }, names);
+            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "War Cry", "Stone Judgment", "Cleansing Root", "Oracle Sight" }, names);
         }
 
         [TestCase(AIDifficultyTier.Veteran)]
@@ -79,9 +102,12 @@ namespace MyriadOfDragons.Tests
             // Banner of Ashes (magnitude 3) outclasses War Cry (2) and Rallying Gale (1) once
             // unlocked at Veteran - stays the pick through Master/Titan too (Tempest Brand, Master's
             // own addition, never competes for this slot - it's LaneDamage, magnitude 3, and always
-            // loses to Fault Line's 5).
+            // loses to Fault Line's 5). Cleansing Root/Oracle Sight also win their own slots at
+            // every one of these tiers, same real cross-effect as Apprentice's own test above -
+            // their 6-slot cap fills exactly the same way regardless of which tier past Apprentice
+            // is asked (all three tiers' representative levels clear both L16/L20 easily).
             List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Name).ToList();
-            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "Banner of Ashes", "Stone Judgment" }, names,
+            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "Banner of Ashes", "Stone Judgment", "Cleansing Root", "Oracle Sight" }, names,
                 $"{tier}: expected the same converged loadout as Veteran - Master/Titan's own additions (Tempest Brand) never win a slot.");
         }
 

@@ -122,12 +122,26 @@ namespace MyriadOfDragons.Tests
             }
         }
 
+        /// <summary>Loadout expansion (LOCKED 2026-08-25) changed this from a hard "always 4" -
+        /// slot count is now tier-unlocked by Avatar level (SpellLoadoutAutoEquip.
+        /// RequiredSlotCount), capped at 6, not a fixed 4. At avatarLevel 999 with a well-
+        /// progressed stage list, enough distinct effect types are genuinely reachable (the
+        /// original 4 plus Cleanse/DrawCards/Reposition/Silence, each via a real AvatarLevel
+        /// Rule) to fill every one of the 6 slots the level unlocks - never more than 6, and
+        /// never more than one spell per effect type, still.</summary>
         [Test]
-        public void AutoEquip_NeverExceedsFourSpells()
+        public void AutoEquip_NeverExceedsTheAvatarLevelsRealSlotCap()
         {
             var everyStage = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3" };
-            List<AvatarSpell> loadout = SpellLoadoutAutoEquip.AutoEquip(avatarLevel: 999, unlockedStageIds: everyStage);
-            Assert.AreEqual(4, loadout.Count, "Exactly one spell per the four live effect types.");
+
+            List<AvatarSpell> lowLevelLoadout = SpellLoadoutAutoEquip.AutoEquip(avatarLevel: 1, unlockedStageIds: everyStage);
+            Assert.AreEqual(4, lowLevelLoadout.Count, "A level-1 profile still only has 4 slots and only the original 4 effect types are reachable.");
+
+            List<AvatarSpell> maxLevelLoadout = SpellLoadoutAutoEquip.AutoEquip(avatarLevel: 999, unlockedStageIds: everyStage);
+            Assert.AreEqual(SpellLoadoutAutoEquip.MaxSlotCount, maxLevelLoadout.Count,
+                "A fully-progressed profile has 6 slots, and enough distinct effect types are genuinely reachable to fill all 6.");
+            Assert.AreEqual(maxLevelLoadout.Count, maxLevelLoadout.Select(s => s.Effect).Distinct().Count(),
+                "Still at most one spell per effect type, even with 6 slots.");
         }
 
         [Test]
