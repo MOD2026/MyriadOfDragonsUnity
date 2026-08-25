@@ -118,6 +118,8 @@ namespace MyriadOfDragons.Battle
                 problems.Add("StartingResource cannot be negative.");
             if (def.AvatarHealth <= 0)
                 problems.Add("AvatarHealth must be set to a positive value by the author.");
+            if (def.ActionBudget < 0)
+                problems.Add("ActionBudget cannot be negative (0 means unbounded).");
 
             ValidateBoard(def.PlayerBoard, "PlayerBoard", cardSource, problems);
             ValidateBoard(def.EnemyBoard, "EnemyBoard", cardSource, problems);
@@ -380,6 +382,30 @@ namespace MyriadOfDragons.Battle
         /// failure" means for this mode), so replaying a second line against a used state would
         /// measure the wrong board.
         /// </summary>
+        /// <summary>
+        /// Run, but also hands back the state the actions left behind. Interactive play needs the
+        /// board to RENDER, not just the verdict - Run deliberately discards it because a batch
+        /// envelope check has no use for it.
+        /// </summary>
+        public static TacticalPuzzleResult Play(
+            TacticalPuzzleDefinition def, IEnumerable<TacticalPuzzleActionSpec> actions,
+            out MaterializedPuzzle puzzle, Func<string, Card> cardSource = null)
+        {
+            // Built with an explicit loop, not Select: an `out` parameter cannot be captured by a
+            // lambda (CS1628).
+            MaterializedPuzzle built = Materialize(def, cardSource);
+            var resolved = new List<TacticalPuzzleAction>();
+            if (actions != null)
+            {
+                foreach (TacticalPuzzleActionSpec spec in actions)
+                    resolved.Add(Resolve(spec, built));
+            }
+
+            puzzle = built;
+            return TacticalPuzzleVerifier.Verify(
+                built.PlayerSide, built.EnemySide, ResolveObjective(def.Objective, built), resolved);
+        }
+
         public static TacticalPuzzleResult Run(
             TacticalPuzzleDefinition def, IEnumerable<TacticalPuzzleActionSpec> actions,
             Func<string, Card> cardSource = null)

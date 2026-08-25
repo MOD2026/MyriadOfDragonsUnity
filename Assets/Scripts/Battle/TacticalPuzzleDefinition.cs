@@ -163,6 +163,11 @@ namespace MyriadOfDragons.Battle
         /// parameter.</summary>
         public int AvatarHealth;
 
+        /// <summary>Maximum actions a player may issue, 0 = unbounded. The locked design calls
+        /// for a "small legal-action set" and an action budget is how a puzzle expresses that, but
+        /// the NUMBER is content - no default is invented here.</summary>
+        public int ActionBudget;
+
         /// <summary>The fixed hand, in order. Deploy actions index into this.</summary>
         public List<string> Hand = new List<string>();
 

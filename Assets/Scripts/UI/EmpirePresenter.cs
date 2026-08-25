@@ -1,4 +1,5 @@
 using System;
+using MyriadOfDragons.Battle;
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
@@ -556,10 +557,40 @@ namespace MyriadOfDragons.UI
             strip.transform.SetParent(parent, false);
             SetNormalizedRect(strip.GetComponent<RectTransform>(), 0.03f, 0.855f, 0.97f, 0.925f);
 
-            CreateVariantChip(strip.transform, "Chip_GuildHall", "GUILD HALL", EmpireBuildingKind.GuildHall, 0.00f, 0.32f,
+            // Four chips now, evenly spread rather than nudged - adding a fourth to hardcoded
+            // thirds would have overlapped the Embassy chip.
+            CreateVariantChip(strip.transform, "Chip_GuildHall", "GUILD HALL", EmpireBuildingKind.GuildHall, 0.00f, 0.235f,
                 onClickOverride: OpenGuildHallEntry);
-            CreateVariantChip(strip.transform, "Chip_Prison", "PRISON", EmpireBuildingKind.Prison, 0.34f, 0.66f);
-            CreateVariantChip(strip.transform, "Chip_Embassy", "EMBASSY", EmpireBuildingKind.Embassy, 0.68f, 1f);
+            CreateVariantChip(strip.transform, "Chip_Prison", "PRISON", EmpireBuildingKind.Prison, 0.255f, 0.49f);
+            CreateVariantChip(strip.transform, "Chip_Embassy", "EMBASSY", EmpireBuildingKind.Embassy, 0.51f, 0.745f);
+
+            // Entry point for War-Room Reconstructions. Placed on Empire rather than Home because
+            // HomePagePresenter belongs to the metagame seat and is not mine to edit - flagged for
+            // review if the design wants it on Home instead.
+            CreateVariantChip(strip.transform, "Chip_WarRoom", "WAR ROOM", EmpireBuildingKind.GuildHall, 0.765f, 1f,
+                onClickOverride: OpenWarRoomReconstructions);
+        }
+
+        /// <summary>
+        /// Opens the Tactical Puzzle screen as an overlay, leaving the Empire canvas underneath -
+        /// same pattern as the building-detail popup.
+        ///
+        /// It opens with whatever puzzle definitions the library provides, which is currently NONE:
+        /// content is a separate design pass that has not landed. The screen handles that honestly
+        /// with an empty state rather than pretending, and the moment real definitions exist this
+        /// button starts working with no UI change.
+        /// </summary>
+        private void OpenWarRoomReconstructions()
+        {
+            var host = GetComponent<TacticalPuzzlePresenter>();
+            if (host == null) host = gameObject.AddComponent<TacticalPuzzlePresenter>();
+            host.Initialize(TacticalPuzzleLibrary.AvailablePuzzles(), onExit: null);
+        }
+
+        public TacticalPuzzlePresenter OpenWarRoomForTests()
+        {
+            OpenWarRoomReconstructions();
+            return GetComponent<TacticalPuzzlePresenter>();
         }
 
         private void CreateVariantChip(Transform parent, string name, string label, EmpireBuildingKind kind,
