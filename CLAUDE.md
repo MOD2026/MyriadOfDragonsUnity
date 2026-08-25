@@ -33,10 +33,15 @@ The rest of those two files is yours; those members are not.
 2. **Grep all of `Assets/` (including `Assets/Tests/`) for usages before changing any public member.**
 3. **Run the EditMode suite before AND after any battle-logic change.** Unity must be fully closed
    first; never add `-quit`; check the log for `error CS` before trusting the results file.
-   Real baseline as of 2026-08-23: **718/762** (Block AB closed; remaining 44 = ~35 parked
-   AF/AI-on Balance Soft combat-balance tests — known category, not to be retuned without an owner
-   decision — plus a handful routed to WH) — the old 81/81 figure predates Ch8–10 and the metagame
-   systems and is no longer the number to cite. Report real numbers, never "should pass".
+   Real baseline as of 2026-08-25, measured in one continuous run pinned to HEAD `a44a118`:
+   **1069/1081**. Remaining 12 = 6 flaky `Chapter*FullDepth` unlock tests (the failing stage moves
+   every run) + 2 `MirroredAiSimulationMatrixTests` assertions under active owner-directed tuning
+   (not to be retuned without an owner decision) + 4 UI/rendering. The earlier **718/762** and
+   **81/81** figures are superseded: they predate the metagame systems, Ch8–10, and the
+   2026-08-25 `CardDatabase` test-pollution fix, which alone turned ~49 false failures green.
+   Always pin HEAD immediately before AND after a run and quote it with the numbers — several
+   sessions share this one working tree and it moves every ~20 minutes, so an unpinned figure
+   goes stale fast. Report real numbers, never "should pass".
 
 ```
 powershell -File tools/run_editmode_tests.ps1

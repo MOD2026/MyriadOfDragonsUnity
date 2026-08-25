@@ -23,6 +23,13 @@ namespace MyriadOfDragons.Cards
         private void Awake() => Initialize();
 
         /// <summary>
+        /// Test-only hook: drops the static singleton reference so the next Initialize() claims
+        /// it cleanly. EditMode fixtures all share a single Unity process and nothing else ever
+        /// resets this, which is how one fixture's leftover instance can affect later ones.
+        /// </summary>
+        public static void ResetForTests() => Instance = null;
+
+        /// <summary>
         /// Explicitly (re-)runs singleton setup and card loading. Awake() calls this
         /// automatically at runtime, but Unity never invokes Awake for a plain MonoBehaviour
         /// added via AddComponent while the Editor isn't in Play Mode - which is exactly the
@@ -35,15 +42,24 @@ namespace MyriadOfDragons.Cards
 
             if (Instance != null && Instance != this)
             {
-                // Destroy() is illegal (and silently a no-op) outside Play Mode - EditMode tests
-                // that create a second CardDatabase while Instance already points to one would
-                // previously return here with this object never loaded (_initialized stays
-                // false, AllCards stays empty) while the caller's own local reference to *this*
-                // object is what they actually query - a real leak across test fixtures, not
-                // just a duplicate-singleton no-op. DestroyImmediate is safe and immediate in
-                // both modes for a component reachable from Initialize() (project non-negotiable).
-                if (Application.isPlaying) Destroy(gameObject);
-                else DestroyImmediate(gameObject);
+                // Play Mode: a second CardDatabase is a genuine duplicate-singleton mistake, so
+                // destroy it exactly as before.
+                if (Application.isPlaying)
+                {
+                    Destroy(gameObject);
+                    return;
+                }
+
+                // EditMode: the whole suite shares one process and nothing resets the static, so
+                // a fixture that leaves a live CardDatabase behind used to make a later fixture's
+                // own database get DestroyImmediate'd out from under it - the caller kept a dead
+                // reference with an empty AllCards and failed with "expected N real cards ... But
+                // was: 0". 2179bae fixed the 130 known call sites that were exposed to this; this
+                // branch is the engine-side backstop so a new call site can't reintroduce it.
+                // Load this instance's cards and let it serve its owner; it never claims the
+                // static. Call ResetForTests() in a fixture that wants the singleton itself.
+                LoadCards();
+                _initialized = true;
                 return;
             }
 
