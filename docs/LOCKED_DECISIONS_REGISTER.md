@@ -44,7 +44,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 |---|---|---|---|
 | 2026-08-25 | VS | Build the 6 puzzle definitions from the register + run real 7-step validation (solver now exists) | PENDING - dispatched |
 | 2026-08-25 | BS (via owner) | Windstep fix made both tiers correctly stronger, tripping old bands - invoke HP/Resource scaling, or revisit the bands? | PENDING - awaiting relay |
-| 2026-08-25 | BS (via owner) | Audio/VFX asset confirmation gap - real files/import settings/Unity wiring unverified behind confirmed cue names | PENDING - awaiting relay |
+| 2026-08-25 | owner | 6 combat audio files delivered as `.opus` - not a Unity-importable format, must be re-exported as `.ogg`/`.wav`/`.mp3` before anyone can wire them | PENDING - awaiting re-export |
 
 ---
 
@@ -3465,3 +3465,31 @@ including it).
 test asserted all 10 arenas reachable within chapters 1-20, which is now false BY DESIGN since
 Enchanted_Forest is reserved) - 6/6 passing, 0 `error CS`, HEAD pinned `4e6cc24` before run, `6a0c13e`
 after commit.
+
+## Audio/VFX confirmation gap - BS checklist accepted, real blocker found underneath it (2026-08-25)
+
+BS's process reply (7-point per-cue checklist + hybrid inventory/vertical-slice/gate-as-needed
+sequencing + a `CueId|AssetPath|Type|ImportVerified|LoopVerified|TriggerVerified|DeviceVerified|Owner`
+register template) is sound and matches real production practice - **accepted as the standing
+process** for closing out combat audio going forward.
+
+**But checked against real code/files first, per standing verify-before-locking rule, and found a
+bigger, more concrete blocker than anything on BS's checklist:** 6 combat audio files already sit
+untracked at `Assets/Art/Audio/` (`combat.cast.opus`, `combat.commit.opus`, `combat.impact.opus`,
+`combat.resolve.soft.opus`, `avatarstrike.release.impact.opus`, `avatarstrike.release.stinger.opus`).
+Verified via WebSearch against Unity's own docs (`docs.unity3d.com/6000.2` and `6000.3` Audio file
+compatibility manual): **Unity's AudioClip importer does not support `.opus`** - only `.aif`/`.wav`/
+`.mp3`/`.ogg`. These 6 files cannot become AudioClips at all, regardless of import settings.
+
+**One real positive finding underneath the blocker:** the naming maps cleanly 1:1 onto what
+`CombatPresentationAssetMap.AudioPaths` (`CombatPresentationBindings.cs:22-30`) already expects -
+`combat.cast`→`combat_cast`, `combat.commit`→`combat_commit`, `combat.impact`→`combat_impact`,
+`combat.resolve.soft`→`combat_resolve_soft`, `avatarstrike.release.impact`→`avatarstrike_release_impact`,
+`avatarstrike.release.stinger`→`avatarstrike_stinger` - no missing cue, no naming collision, just
+dots vs. underscores and the wrong folder (`Assets/Art/Audio/` vs. the `Resources/Audio/Combat/`
+path the code actually loads from - see `CombatPresentationAssetMap.AudioRoot`).
+
+No local `ffmpeg`/`opusdec` available to convert in-session. Routed back to the owner: re-export
+these 6 as `.ogg` (or `.wav`), no other changes needed to the names beyond dot→underscore, and they
+drop straight into `Assets/Resources/Audio/Combat/` with zero code changes (the binding layer was
+built exactly for this - `CombatPresentationBindings.cs:7-10`).
