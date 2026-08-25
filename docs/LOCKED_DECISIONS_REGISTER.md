@@ -1866,3 +1866,32 @@ are required to separate causation from correlation, not optional. Windstep domi
 mechanically plausible (repositioning can convert lane bonuses/rescue units/create favorable
 formations without raising card stats) - a real high-leverage tactic, not automatically a defect.
 But 78.1% win-share is too concentrated to accept without the ablation proving cause.
+
+## Minigame count/second-mode design - LOCKED FINAL (2026-08-25, GPT, corrected under real scrutiny)
+
+GPT accepted the critique fully - Formation Tactics Trial as originally proposed was correctly
+identified as "curated Campaign battle with different rewards," not a real second mode, and was
+withdrawn. Real, structurally-differentiated replacement design:
+
+**Tactical Puzzle mode** (Phase 1 candidate, NOT locked to build yet - see prerequisite below):
+fully known board/hand/resource/enemy state, no card draw, no AI opponent acting, no tick-by-tick
+combat. Finite objective (survive 3 clashes / defeat a marked target / protect a lane / minimal-
+Resource solve), small legal-action set, immediate reset on failure, decision-based scoring
+(Resource remaining/cards preserved/lanes protected/actions used), deterministic or narrow-
+solution-set answer (chess-puzzle-like), daily/weekly SEEDED puzzles not endless generation.
+
+Real structural differentiation from Campaign, stated explicitly: Puzzle loop = inspect fixed state
+-> plan -> deploy/reposition -> verify objective -> score/reset. Campaign loop = draw/build
+formation -> opponent acts -> combat resolves over time -> win/loss. Reuses existing formation/
+deployment rules for legality/evaluation, but stops before becoming a normal battle.
+
+**REAL PREREQUISITE, explicitly gating this: "If implementation does not support this deterministic
+verifier, the mode should not be built yet."** No deterministic single-state outcome verifier
+exists in the current codebase (battle system is tick-based auto-resolving, not built for
+puzzle-style deterministic verification) - this is a real new engineering component needed before
+Tactical Puzzle can be built, not just a design/content task.
+
+**FINAL: MVP ships with Memory Expedition ONLY (one minigame, not two).** Tactical Puzzle is a
+Phase-1 candidate contingent on the verifier + puzzle-authoring tooling being built/approved - not
+committed to ship yet. Do NOT build fixed-hand "mini battles" that still run ordinary combat - that
+was explicitly rejected. Do not add a third minigame until both modes prove repeat engagement.
