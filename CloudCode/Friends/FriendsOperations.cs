@@ -139,6 +139,12 @@ public sealed class FriendsOperations
     /// request must use Decline, not Remove, to reject it - RemoveFriendAsync intentionally does
     /// not let a recipient silently delete an incoming request without the DECLINE audit trail
     /// this module's own tests assert on.</summary>
+    /// <summary>No optimistic-lock retry here, unlike Add/Accept/Decline: DeleteFriendshipAsync
+    /// carries no WriteLock, so there is no CONFLICT to retry against - meaning the load-then-
+    /// delete below is not atomic. A concurrent Accept landing between the load and the delete
+    /// could have its acceptance silently discarded by a stale Remove. Same accepted scope as
+    /// Bazaar's own documented "no true cross-entity atomicity" limitation, not a workaround this
+    /// module invents fixes for - flagging explicitly rather than leaving it implicit.</summary>
     public async Task<FriendResult> RemoveFriendAsync(IExecutionContext context, IGameApiClient apiClient, FriendRequest request)
     {
         var validation = Validate(context, request);
