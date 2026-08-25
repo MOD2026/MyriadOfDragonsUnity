@@ -65,6 +65,7 @@ namespace MyriadOfDragons.Tests
             foreach (Canvas c in Object.FindObjectsOfType<Canvas>())
                 if (c != null) Object.DestroyImmediate(c.gameObject);
             TacticalPuzzleLibrary.ClearPuzzlesForTests();
+            TacticalPuzzleLibrary.ResetCacheForTests();
             CardDatabase.ResetForTests();
 
             MyriadOfDragons.Save.SaveSystem.ClearRootDirectoryOverride();
@@ -994,6 +995,116 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(TacticalPuzzleSlotState.Available, presenter.SlateForTests.SlotAt(1).State,
                 "The next slot must be open again after a reload.");
             Assert.AreEqual(3, presenter.SlateForTests.SlotAt(0).SavedBestActions);
+        }
+
+        // ------------------------------------------------------------------ content loading
+        //
+        // Authored puzzles arrive as a DATA drop (Resources/Data/tactical_puzzles.json), not a code
+        // change. No content exists yet - these tests drive the loader through JSON they build
+        // themselves, so they prove the pipeline without inventing puzzle content.
+
+        [Test]
+        public void AWellFormedPuzzleSet_RoundTripsThroughTheLoadersJsonShape()
+        {
+            // The shape the content pass has to produce. If this breaks, authored content silently
+            // stops loading.
+            var set = new TacticalPuzzleDefinitionList();
+            set.puzzles.Add(Puzzle("loaded_a"));
+            set.puzzles.Add(Puzzle("loaded_b"));
+
+            string json = UnityEngine.JsonUtility.ToJson(set);
+            var restored = UnityEngine.JsonUtility.FromJson<TacticalPuzzleDefinitionList>(json);
+
+            Assert.AreEqual(2, restored.puzzles.Count, "Both puzzles must survive the wrapper.");
+            Assert.AreEqual("loaded_a", restored.puzzles[0].PuzzleId, "Authored ORDER must survive.");
+            Assert.AreEqual("loaded_b", restored.puzzles[1].PuzzleId);
+            CollectionAssert.IsEmpty(TacticalPuzzleAuthoring.Validate(restored.puzzles[0]),
+                "A round-tripped puzzle must still validate.");
+        }
+
+        [Test]
+        public void AnIncoherentPuzzle_WouldBeRejectedByTheGateTheLoaderUses()
+        {
+            // The loader skips any definition that fails Validate, because an incoherent puzzle can
+            // be UNSOLVABLE - and handing a player a position they cannot win, with no way to know
+            // why, is worse than showing them nothing. This pins the gate itself.
+            var broken = Puzzle("broken");
+            broken.PlayerBoard.Add(new TacticalPuzzleUnitSpec { CardId = "no_such_card", Lane = Lane.Back });
+
+            CollectionAssert.IsNotEmpty(TacticalPuzzleAuthoring.Validate(broken),
+                "A puzzle referencing an unknown card must not pass the loader's gate.");
+        }
+
+        [Test]
+        public void DuplicatePuzzleIds_AreADefectBecauseIdsKeySaveRecords()
+        {
+            // Two puzzles sharing an id would share one save record: solving the first would make
+            // the second read as already solved. The loader rejects the duplicate; this pins WHY.
+            var profile = new MyriadOfDragons.Save.PlayerProfile();
+            var slate = new TacticalPuzzleSlate(new[] { Puzzle("same_id"), Puzzle("same_id") });
+
+            slate.WriteProgress(0, profile, new TacticalPuzzleResult
+            {
+                Status = TacticalPuzzleStatus.ObjectiveMet, ActionsUsed = 1, ResourceRemaining = 1,
+            }, "2026-08-25");
+
+            var reloaded = new TacticalPuzzleSlate(new[] { Puzzle("same_id"), Puzzle("same_id") });
+            reloaded.ApplySavedProgress(profile);
+
+            Assert.AreEqual(TacticalPuzzleSlotState.Completed, reloaded.SlotAt(1).State,
+                "This is the FAILURE MODE the loader's duplicate-id rejection prevents: solving " +
+                "one puzzle marks the other solved, because a record is keyed by id alone.");
+        }
+
+        [Test]
+        public void AMissingContentFile_IsNotAnError_AndLeavesTheLibraryEmpty()
+        {
+            // The expected state until the content pass lands. A missing file must read as "no
+            // puzzles", not as a failure - the entry screen already says so honestly.
+            TacticalPuzzleLibrary.ClearPuzzlesForTests();
+            TacticalPuzzleLibrary.ResetCacheForTests();
+
+            Assert.IsNull(Resources.Load<TextAsset>(TacticalPuzzleLibrary.ResourcePath),
+                "Setup: this test describes the no-content-yet state; content now exists, so it " +
+                "needs rewriting to load the real file instead.");
+            Assert.IsTrue(TacticalPuzzleLibrary.IsEmpty,
+                "A missing content file must leave the library empty rather than throwing.");
+        }
+
+        [Test]
+        public void TheEnvelopeCheck_RunsOverWhateverContentIsLoaded()
+        {
+            // The call that belongs in CI once real puzzles ship: every authored claim replayed
+            // through the real verifier. With a deliberately false claim installed it must report
+            // that puzzle by id.
+            var lying = Puzzle("lying_puzzle");
+            lying.Envelope = new List<TacticalPuzzleExpectation>
+            {
+                new TacticalPuzzleExpectation
+                {
+                    Description = "claims doing nothing solves it",
+                    Actions = new List<TacticalPuzzleActionSpec>(),
+                    ExpectedStatus = TacticalPuzzleStatus.ObjectiveMet,
+                },
+            };
+
+            TacticalPuzzleLibrary.SetPuzzlesForTests(new[] { lying });
+
+            var mismatches = TacticalPuzzleLibrary.ValidateAllEnvelopes();
+
+            Assert.IsTrue(mismatches.ContainsKey("lying_puzzle"),
+                "A puzzle whose authored claim is false must be reported by id.");
+            CollectionAssert.IsNotEmpty(mismatches["lying_puzzle"]);
+        }
+
+        [Test]
+        public void TheEnvelopeCheck_IsSilentWhenEveryClaimHolds()
+        {
+            // Guards the check above from reporting mismatches unconditionally.
+            TacticalPuzzleLibrary.SetPuzzlesForTests(new[] { Puzzle("honest_puzzle") });
+
+            CollectionAssert.IsEmpty(TacticalPuzzleLibrary.ValidateAllEnvelopes(),
+                "A puzzle with no envelope claims nothing, so it cannot mismatch.");
         }
 
         [Test]
