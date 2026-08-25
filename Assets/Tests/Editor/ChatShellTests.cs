@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
@@ -50,10 +53,19 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Presenter_BuildsArtShell_AndActionsRefuse()
         {
+            // Real regression found in tonight's full-suite baseline: with no gateway injected,
+            // Initialize defaults to UnityCloudCodeChatSocialGateway (bb74809, "Beta social
+            // screens Option B... live-deployed") - a REAL Unity Gaming Services client
+            // (auth + CloudCode module calls) that cannot reach a real backend inside an EditMode
+            // sandbox. It throws, and the presenter's own correct error path sets the stream to
+            // "Load failed." instead of the success-path text this test checks for. A fake
+            // gateway (same pattern as Bazaar/GuildExpedition/PermitWeekKey's own shell tests)
+            // exercises the real success path deterministically instead of always losing to a
+            // real network call it can never win in this environment.
             var go = new GameObject("ChatHarness");
             _spawned.Add(go);
             var presenter = go.AddComponent<ChatSocialPresenter>();
-            presenter.Initialize(onBack: null);
+            presenter.Initialize(onBack: null, gateway: new FakeChatSocialGateway());
 
             GameObject canvas = presenter.CanvasObjectForTests;
             Assert.NotNull(canvas);
@@ -93,5 +105,17 @@ namespace MyriadOfDragons.Tests
             Assert.IsNull(go.GetComponent<ChatSocialPresenter>());
         }
 
+        /// <summary>Same pattern as BazaarShellTests' own FakeBazaarGateway - a benign, real
+        /// success result returned synchronously (Task.FromResult), so tests exercise the
+        /// presenter's success-path logic deterministically instead of the real network-backed
+        /// UnityCloudCodeChatSocialGateway, which cannot succeed inside an EditMode sandbox.</summary>
+        private sealed class FakeChatSocialGateway : IChatSocialGateway
+        {
+            public Task<PostChatMessageGatewayResult> PostMessageAsync(string channelId, string text, CancellationToken cancellationToken) =>
+                Task.FromResult(new PostChatMessageGatewayResult { success = true, messageId = "M1" });
+
+            public Task<FetchChatHistoryGatewayResult> FetchChannelHistoryAsync(string channelId, int limit, CancellationToken cancellationToken) =>
+                Task.FromResult(new FetchChatHistoryGatewayResult { success = true, messages = new List<ChatMessageDto>() });
+        }
     }
 }

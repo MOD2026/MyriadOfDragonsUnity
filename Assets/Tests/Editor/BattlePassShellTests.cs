@@ -68,9 +68,14 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("BattlePassHeader/SeasonLength")?.GetComponent<Text>()?.text);
             Assert.NotNull(canvas.transform.Find("TrackTable/FreeTrackRow/TierWell_0/RewardAmount"));
             Assert.NotNull(canvas.transform.Find("TrackTable/PremiumTrackRow/TierWell_7"));
-            Assert.AreEqual(MetagameShellProfileBinding.OpenAmountLabel,
+            // Real regression found in tonight's full-suite baseline: these asserted the OLD
+            // "OPEN" placeholder text. Commit 92c8b54 ("Bind Battle Pass chrome to real Season XP
+            // instead of OPEN placeholders" - owner-directed, "Owner saw unresolved template
+            // tokens") deliberately replaced it with real bound data. Updated to assert the real,
+            // current behavior instead of reverting the product change.
+            Assert.AreEqual(MetagameShellProfileBinding.PassSeasonXpLine(),
                 canvas.transform.Find("TrackTable/FreeTrackRow/TierWell_0/RewardAmount")?.GetComponent<Text>()?.text);
-            StringAssert.Contains("OPEN",
+            Assert.AreEqual(MetagameShellProfileBinding.PassTierProgressLine(),
                 canvas.transform.Find("SeasonXpRow/XpValues")?.GetComponent<Text>()?.text);
 
             BattlePassClaimResult claim = presenter.ClaimTierForTests(0, premiumTrack: false);
