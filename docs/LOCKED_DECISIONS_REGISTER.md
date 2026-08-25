@@ -709,3 +709,30 @@ has no Play Mode testing, so CR correctly declined to write interactive UI blind
 verify it, rather than guess. This is the one remaining piece before Reposition is a complete
 player-facing feature, separate from the 34/36 catalog-completeness number. Needs a session with
 Play Mode / manual testing access, or explicit owner sign-off to ship logic-only for now.
+
+## Tutorial hand-card overflow: partial fix confirmed, new 35px gap needs measurement (2026-08-25, VS)
+
+Production fix (c52cd0d entry above) confirmed working exactly as predicted: card height
+196.00->175.60 (now precisely the derived row height), width follows frame aspect correctly
+(175.6*0.739=129.77), overflow dropped by exactly the predicted 10.2px (45.20->35.00). Arithmetic
+model was correct.
+
+Remaining 35px overflow is a DIFFERENT defect - the card now exactly fills its row, so this is a
+row-positioning bug, not a sizing bug. HandAndPlacementPanel's anchors should put the card bottom
+at roughly +31 on a 1080-tall canvas; actual is -35, a 66px discrepancy not explained by reading the
+code. Correctly not reasoned further past this point (already reasoned wrong twice on this issue) -
+next step is a one-off diagnostic logging real canvas/panel/row/card rects to settle it by
+measurement, not more inference. [Finish] button's own overflow (12.2px, unchanged) is the same
+class of defect on a different control - not yet addressed.
+
+Full suite after CR's Reposition landed: 1109/1114 (HEAD 714fcc4, pinned both ends). Zero knock-on
+effects from the hand-row height change - every UI-adjacent class (TutorialHandDockGeometry,
+TutorialGuidance, CardTileCompositionV1, BattleReleaseLayout, CombatHudLabelClarity,
+DeckBuilderReleaseGate) passed clean.
+
+**Real regression flagged, not caused by VS or CR's work, ownership unclear:** SimulationMatrix_
+VeteranPlus now fails again (-10.0pp win-rate vs the 8pp cap, was passing at 1091/1095) - post-
+Windstep + the now-committed AISpellCaster tuning changed the baseline. This is the parked AI-
+balance thread reopening on its own from someone else's in-flight tuning commits, not from either
+VS's or CR's tonight's work. Stays parked/flagged, not auto-retuned - real result someone with
+authority over AISpellCaster.cs needs to own.
