@@ -1333,3 +1333,15 @@ both normal and fast-forward speed.
 the animation becomes more noticeable than the tactical result, timing is still too heavy.
 
 Open questions from the draft (particle tech, camera rig, SFX sourcing) are now answered above.
+
+## Friends/Chat text-input widgets SHIPPED (2026-08-25, CR, 78758e7)
+
+Closes the gap CR itself flagged in bb74809. UISharedFoundation.CreateInputField - new shared
+helper generalizing CollectionPresenter's existing InputField pattern (the only prior real usage).
+FriendsPresenter: real "Account id..." field + ADD FRIEND button wired to
+IFriendsGateway.AddFriendAsync, clears+refreshes roster on success. ChatSocialPresenter: real
+composer InputField replacing the old fixed "gg" placeholder text, SEND posts whatever's typed,
+clears after success. Verified CR staged only its own 5 files - CombatPresentation.cs/
+CombatPresentationTests.cs correctly left untouched (VS's active work).
+
+CR's queue now empty except the live server validation, blocked on VS's compile fix.
