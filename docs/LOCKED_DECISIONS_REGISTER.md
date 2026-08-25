@@ -2601,3 +2601,18 @@ Any-cast is genuine gameplay effect (this commit). Real remaining question, NOT 
 correctly did not touch the band: should anyCastTickRatio keep gating "is combat length reasonable"
 when part of what it measures is intentional spell behavior (a heal/reposition legitimately
 prolonging a fight is arguably working as designed, not a balance failure)?
+
+## Chapters 17-18 + Bazaar/Chat letterbox actually fixed (2026-08-25, WH, verified 8b0cdd9 / 2e57fb1)
+
+Ch17 (The Ashen Banner) + Ch18 (The Silent Throne), 17-1..18-30, campaign now 513 stages, Gate L30
+through Ch18. 11/11 + 11/11 EditMode. Chapter production correctly held at 18 per instruction,
+waiting for next direction before Ch19+.
+
+Bazaar/Chat sky-blue letterbox - previous entry only diagnosed this, never fixed. Now actually
+fixed: opaque fullscreen backing under the preserveAspect shells, same pattern as the Campaign map
+stage-detail modal fix (e57aa02).
+
+**Retention/engagement telemetry - correctly stopped, not started.** Needs new raw event storage
+(unlock date, run completions w/ UTC date, daily-cap hits) - that requires new save/profile fields,
+so WH stopped before touching PlayerProfile.cs/SaveSystem.cs/SaveMigration.cs pending owner sign-off,
+same discipline as every other frozen-file case tonight.
