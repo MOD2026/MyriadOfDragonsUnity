@@ -755,3 +755,13 @@ into a 5900+ line, actively-contended shared file with zero Play Mode/device ver
 was judged the wrong tradeoff tonight (same reasoning as the concurrent-edit collisions logged
 elsewhere this session) - held for a session with real Play Mode access, not urgent. Reposition's
 game-logic layer is complete and real; only the player-visible interaction remains.
+
+## RarityFrameRenderingTests: not a real bug, concurrent-edit flakiness (2026-08-25, CR)
+
+Ran isolated 3 separate times (TestFilter only, no batch) - 9/9 clean every time, including with
+VS's GameBootstrap.cs edit still uncommitted/in-flight throughout. "warrior" is a real card id;
+StartApprovedTutorialBattle's 3-card deck always fully drains into Hand deterministically
+(min(StartingHandSize=4, DrawPile.Count=3)=all 3), so Hand.First(c => c.Id == "warrior") should
+never legitimately fail. Conclusion: same concurrent-edit-during-test-run pattern already logged
+tonight (c52cd0d), not a real defect. No code changed. Drop from the real-regressions list; only
+worth re-checking if it resurfaces once the tree is quiet.
