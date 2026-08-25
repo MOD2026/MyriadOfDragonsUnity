@@ -3985,3 +3985,10 @@ finale/ending trigger that must coexist with the new dialogue, not be silently r
 **Routing correction applied:** `StoryDatabase.cs` is WH's file (Metagame-owned, per the earlier
 register note this session already established), not VS/CR's - dispatched as a paste-ready block
 per the standing WH-channel rule, not the mailbox.
+
+## OWNER SIGN-OFF: Materials field for PlayerProfile (2026-08-26)
+
+Owner approved adding a `materials` field (int, additive-only, same migration pattern as every other
+resource field) to `PlayerProfile.cs`, unblocking Empire Expedition's Materials grant
+(`EmpireExpeditionClearTransaction.cs:170-174` currently hardcodes `MaterialsPersisted = false`
+pending exactly this field). Implementation may now proceed.
