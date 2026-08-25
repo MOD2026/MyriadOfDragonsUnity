@@ -140,14 +140,22 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void TheAudioSink_RecordsWhichCuesHadNoAsset_SoSilenceIsNoticeable()
         {
-            var sink = new ResourcesCombatAudioSink(null);
-            sink.Play(CombatPresentation.CueImpact);
-            sink.Play(CombatPresentation.CueImpact);
+            // Real .wav assets landed under Resources/Audio/Combat/ on 2026-08-25 for every cue
+            // CombatPresentation emits, so this deliberately uses a cue id with NO binding at all
+            // (rather than a real cue like CueImpact, which now resolves) to keep testing the
+            // missing-asset path without depending on any real cue staying unwired forever.
+            const string cueWithNoBinding = "combat.no_such_cue_for_test";
+            Assert.IsFalse(CombatPresentationAssetMap.HasAudioBinding(cueWithNoBinding),
+                "Setup: this id must not collide with a real binding.");
 
-            // No assets exist yet, so this is the expected state - the value is that it is REPORTED
-            // rather than silently swallowed, and not duplicated per call.
-            CollectionAssert.Contains(sink.UnresolvedCueIds, CombatPresentation.CueImpact);
-            Assert.AreEqual(1, sink.UnresolvedCueIds.Count(id => id == CombatPresentation.CueImpact),
+            var sink = new ResourcesCombatAudioSink(null);
+            sink.Play(cueWithNoBinding);
+            sink.Play(cueWithNoBinding);
+
+            // The value is that it is REPORTED rather than silently swallowed, and not duplicated
+            // per call.
+            CollectionAssert.Contains(sink.UnresolvedCueIds, cueWithNoBinding);
+            Assert.AreEqual(1, sink.UnresolvedCueIds.Count(id => id == cueWithNoBinding),
                 "An unresolved cue should be reported once, not once per play.");
         }
 
