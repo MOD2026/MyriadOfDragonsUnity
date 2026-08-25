@@ -44,8 +44,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 |---|---|---|---|
 | 2026-08-25 | CR | Implement Apprentice Windstep removal/replacement, validate via doubly-corrected ablation | PENDING - in progress (VeteranPlus re-measure DONE, 0fdd193) |
 | 2026-08-25 | BS (via owner) | VeteranPlus also loses 6.5pp to Windstep - extend the removal, or treat differently at a non-teaching tier? | PENDING - awaiting relay |
-| 2026-08-25 | WH (via owner) | Fix Stage 2-6/17-13 identical roster collision | PENDING - no confirmation yet |
 | 2026-08-25 | BS (via owner) | Retention telemetry: custom Cloud Code pipeline vs Unity Analytics service | PENDING - awaiting relay, not urgent (10+ weeks out) |
+| 2026-08-25 | WH (via owner) | Isolate ReleaseProfilePersistenceContractTests order-dependent pollution (Economy/gem-pack purchase flow) | PENDING - no confirmation yet |
 
 ---
 
