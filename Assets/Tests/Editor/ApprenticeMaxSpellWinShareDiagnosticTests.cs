@@ -57,6 +57,16 @@ namespace MyriadOfDragons.Tests
             return go.AddComponent<BattleController>();
         }
 
+        /// <summary>Same id-resolution rule as BattleController.ResolveMatchSpellbook (resolve
+        /// each id against the full catalog, skip one that doesn't resolve) - duplicated here since
+        /// that method is private, needed so SetEnemySpellbookForTests gets real AvatarSpell
+        /// instances instead of just an id list.</summary>
+        private static List<AvatarSpell> ResolveSpellIds(List<string> ids)
+        {
+            List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
+            return ids.Select(id => catalog.FirstOrDefault(s => s.Id == id)).Where(s => s != null).ToList();
+        }
+
         private static void DeployWholeSquad(BattleController controller, PlayerBattleState side, AIArchetype archetype)
         {
             bool placed = true;
@@ -283,14 +293,23 @@ namespace MyriadOfDragons.Tests
                 BattleController controller = CreateController();
                 List<Card> playerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
                 List<Card> enemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
-                // BUG FIX (real, found while implementing SpellRemovalWinRateDelta): enemyTier:
+                // BUG FIX #1 (real, found while implementing SpellRemovalWinRateDelta): enemyTier:
                 // tier here made BattleController.StartMatch re-resolve EnemySpellbook from
                 // AIEnemySpellbookResolver, IGNORING equippedIds entirely for the enemy side (see
                 // StartMatch's own `enemyTier.HasValue ? ResolveSpellbook(...) : ...` branch) - so
-                // "Windstep removed" never actually removed it from the AI. enemyTier: null makes
-                // ResolveMatchSpellbook resolve equippedIds directly instead, the fix.
+                // "Windstep removed" never actually removed it from the AI.
+                //
+                // BUG FIX #2 (also real, found immediately after #1 while fixing VeteranPlus's copy
+                // of the same pattern): the naive fix of enemyTier: null so equippedIds resolves for
+                // the enemy ALSO nulls EnemyDifficultyTier, which silently changes the AI's cast-
+                // probability gate to the tier-agnostic default (0.40) instead of Apprentice's real
+                // 0.85 - a second, separate confound stacked on top of the first, present in every
+                // number this method produced between the #1 fix and this one. Fixed by keeping
+                // enemyTier real (genuine EnemyDifficultyTier/gate probability) and overwriting
+                // EnemySpellbook afterward via BattleController.SetEnemySpellbookForTests instead.
                 controller.StartMatch(playerDeck, enemyDeck, economy, economy,
-                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: null, rngSeed: seed);
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: null, enemyTier: tier, rngSeed: seed);
+                controller.SetEnemySpellbookForTests(ResolveSpellIds(equippedIds));
                 controller.EnableMirroredEnemySpellsForPvE();
                 controller.DealFormationHand(controller.PlayerState);
                 controller.DealFormationHand(controller.EnemyState);

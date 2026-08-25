@@ -91,6 +91,16 @@ namespace MyriadOfDragons.Tests
             side.Lanes[Lane.Middle].Cards.Count(c => c.IsAlive) +
             side.Lanes[Lane.Back].Cards.Count(c => c.IsAlive);
 
+        /// <summary>Same id-resolution rule as BattleController.ResolveMatchSpellbook (resolve
+        /// each id against the full catalog, skip one that doesn't resolve) - duplicated here since
+        /// that method is private, needed so SetEnemySpellbookForTests gets real AvatarSpell
+        /// instances instead of just an id list.</summary>
+        private static List<AvatarSpell> ResolveSpellIds(List<string> ids)
+        {
+            List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
+            return ids.Select(id => catalog.FirstOrDefault(s => s.Id == id)).Where(s => s != null).ToList();
+        }
+
         private sealed class ConditionResult
         {
             public string Label;
@@ -148,8 +158,25 @@ namespace MyriadOfDragons.Tests
                 List<Card> playerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
                 List<Card> enemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
 
+                // BUG FIX (real, found while implementing SpellRemovalWinRateDelta, facfe8a):
+                // enemyTier: tier here made BattleController.StartMatch re-resolve EnemySpellbook
+                // from AIEnemySpellbookResolver, IGNORING equippedIds entirely for the enemy side
+                // (see StartMatch's own `enemyTier.HasValue ? ResolveSpellbook(...) : ...` branch) -
+                // so every condition (A/B/C/D) secretly ran the AI's real, unmodified loadout the
+                // whole time. "Windstep removed" never removed it. This invalidates every number
+                // this method previously produced.
+                //
+                // SECOND BUG FIX (also real, found immediately after the first): the naive fix of
+                // passing enemyTier: null so equippedIds resolves for the enemy ALSO nulls
+                // EnemyDifficultyTier, which silently changes the AI's own cast-probability gate to
+                // the tier-agnostic default (0.40) instead of Veteran's real 0.45
+                // (NonAvatarStrikeGateProbability switches on EnemyDifficultyTier) - a second,
+                // separate confound stacked on top of the first. Fixed by keeping enemyTier real
+                // (so EnemyDifficultyTier/gate probability stay genuine) and overwriting
+                // EnemySpellbook afterward via the new SetEnemySpellbookForTests seam instead.
                 controller.StartMatch(playerDeck, enemyDeck, economy, economy,
-                    avatarLevel: 50, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                    avatarLevel: 50, unlockedStageIds: null, equippedSpellIds: null, enemyTier: tier, rngSeed: seed);
+                controller.SetEnemySpellbookForTests(ResolveSpellIds(equippedIds));
                 controller.EnableMirroredEnemySpellsForPvE();
 
                 controller.DealFormationHand(controller.PlayerState);
@@ -248,6 +275,65 @@ namespace MyriadOfDragons.Tests
             // D) Windstep replaced with Ember Wave (cost/cadence-matched: both 26 energy / 3-tick cooldown).
             List<string> idsWithEmberWave = idsNoWindstep.Concat(new[] { "ember_wave" }).ToList();
             RunCondition(pool, "D_WindstepReplacedWithEmberWave", idsWithEmberWave, "Ember Wave", trials, baseSeed);
+        }
+
+        /// <summary>Re-measurement (BS-vetted, LOCKED) after facfe8a found the enemyTier bug that
+        /// invalidated WindstepAblation_FourConditions' original A/B numbers (and the same bug's
+        /// second half - EnemyDifficultyTier/gate-probability confound - fixed in RunCondition
+        /// above). Apprentice's corrected re-measurement reversed its own "availability bias"
+        /// conclusion (facfe8a: 4.2pp real delta, z=4.75) - don't assume VeteranPlus's original
+        /// &lt;1pp answer transfers either way; measure it properly. Same rigor as Apprentice's
+        /// corrected version: 3 independent repeats x 2000 matched-seed trials/condition, distinct
+        /// base seeds, pooled two-proportion z-score.</summary>
+        [Test]
+        public void WindstepAblation_VeteranPlusCorrectedTwoConditions()
+        {
+            List<Card> pool = LoadDatabase().AllCards.ToList();
+            const int trialsPerRepeat = 2000;
+            const int repeats = 3;
+            int[] baseSeeds = { 710001, 740001, 770001 };
+
+            List<string> baseIds = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Veteran).Select(s => s.Id).ToList();
+            Assert.Contains("windstep", baseIds, "Setup: this ablation assumes VeteranPlus's loadout still includes Windstep.");
+            List<string> idsNoWindstep = baseIds.Where(id => id != "windstep").ToList();
+
+            int aiWinsAPooled = 0, trialsAPooled = 0, aiWinsBPooled = 0, trialsBPooled = 0;
+            var perRepeatDeltas = new List<double>();
+
+            for (int r = 0; r < repeats; r++)
+            {
+                ConditionResult a = RunCondition(pool, $"A_VeteranPlusWithWindstep_r{r}", baseIds, "Windstep", trialsPerRepeat, baseSeeds[r]);
+                ConditionResult b = RunCondition(pool, $"B_VeteranPlusWindstepRemoved_r{r}", idsNoWindstep, null, trialsPerRepeat, baseSeeds[r]);
+
+                double winRateA = a.Trials == 0 ? 0 : (double)a.AiWins / a.Trials;
+                double winRateB = b.Trials == 0 ? 0 : (double)b.AiWins / b.Trials;
+                double deltaPp = winRateB - winRateA;
+                perRepeatDeltas.Add(deltaPp);
+                Debug.Log($"[Ablation] VeteranPlus: repeat {r + 1}/{repeats} A(withWindstep) winRate={winRateA:P1} ({a.AiWins}/{a.Trials}) vs " +
+                          $"B(windstepRemoved) winRate={winRateB:P1} ({b.AiWins}/{b.Trials}) - delta={deltaPp:P1}.");
+
+                aiWinsAPooled += a.AiWins; trialsAPooled += a.Trials;
+                aiWinsBPooled += b.AiWins; trialsBPooled += b.Trials;
+            }
+
+            double pooledWinRateA = trialsAPooled == 0 ? 0 : (double)aiWinsAPooled / trialsAPooled;
+            double pooledWinRateB = trialsBPooled == 0 ? 0 : (double)aiWinsBPooled / trialsBPooled;
+            double pooledDeltaPp = pooledWinRateB - pooledWinRateA;
+            double seA = trialsAPooled == 0 ? 0 : Math.Sqrt(pooledWinRateA * (1 - pooledWinRateA) / trialsAPooled);
+            double seB = trialsBPooled == 0 ? 0 : Math.Sqrt(pooledWinRateB * (1 - pooledWinRateB) / trialsBPooled);
+            double seDelta = Math.Sqrt(seA * seA + seB * seB);
+            double zScore = seDelta == 0 ? 0 : pooledDeltaPp / seDelta;
+
+            Debug.Log($"[Ablation] VeteranPlus: POOLED across {repeats} repeats ({trialsAPooled} trials/condition) " +
+                      $"A(withWindstep)={pooledWinRateA:P1} B(windstepRemoved)={pooledWinRateB:P1} delta={pooledDeltaPp:P1} " +
+                      $"SE(delta)={seDelta:P1} z={zScore:F2}.");
+            Debug.Log($"[Ablation] VeteranPlus: per-repeat deltas=[{string.Join(", ", perRepeatDeltas.Select(d => d.ToString("P1")))}].");
+            Debug.Log($"[Ablation] VeteranPlus: INTERPRETATION - " +
+                      (Math.Abs(zScore) < 1.96
+                          ? $"pooled delta {pooledDeltaPp:P1} is within ~2 SE of zero (z={zScore:F2}) - not distinguishable from noise " +
+                            "at this trial count, now on a methodologically valid (real EnemyDifficultyTier + real spellbook override) measurement."
+                          : $"pooled delta {pooledDeltaPp:P1} is {zScore:F2} SE from zero - distinguishable from noise, a real signal " +
+                            "that needs escalation."));
         }
 
         /// <summary>Re-derives the AvatarLevel/stage-gated pool AIEnemySpellbookResolver itself

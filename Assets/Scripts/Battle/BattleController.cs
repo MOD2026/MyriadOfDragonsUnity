@@ -278,6 +278,17 @@ namespace MyriadOfDragons.Battle
         public void SetShadowModeSuppressEnemySpellEffectForTests(bool suppressEffect) =>
             _shadowModeSuppressEnemySpellEffectForTests = suppressEffect;
 
+        /// <summary>EditMode-only test seam (spell-removal ablation, LOCKED, grew out of facfe8a's
+        /// real bug: passing StartMatch a null enemyTier to make equippedSpellIds resolve for the
+        /// enemy also nulls EnemyDifficultyTier, which silently changes the AI's own cast-
+        /// probability gate to the tier-agnostic default instead of the real tier's - a second,
+        /// separate confound on top of the one being fixed). Call StartMatch with the REAL
+        /// enemyTier (so EnemyDifficultyTier/gate probability stay genuine), then call this to
+        /// overwrite EnemySpellbook with a custom loadout (e.g. "real tier loadout minus one
+        /// spell") - the tier's own frequency/behavior stays authentic, only the spell list
+        /// changes. A real match never calls this.</summary>
+        public void SetEnemySpellbookForTests(List<AvatarSpell> spellbook) => EnemySpellbook = spellbook;
+
         private static double NonAvatarStrikeGateProbability(AIDifficultyTier? tier) => tier switch
         {
             AIDifficultyTier.Novice => 0.45,

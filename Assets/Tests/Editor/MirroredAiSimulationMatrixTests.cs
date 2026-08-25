@@ -101,6 +101,16 @@ namespace MyriadOfDragons.Tests
             return go.AddComponent<BattleController>();
         }
 
+        /// <summary>Same id-resolution rule as BattleController.ResolveMatchSpellbook (resolve
+        /// each id against the full catalog, skip one that doesn't resolve) - duplicated here since
+        /// that method is private, needed so SetEnemySpellbookForTests gets real AvatarSpell
+        /// instances instead of just an id list.</summary>
+        private static List<AvatarSpell> ResolveSpellIds(List<string> ids)
+        {
+            List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
+            return ids.Select(id => catalog.FirstOrDefault(s => s.Id == id)).Where(s => s != null).ToList();
+        }
+
         private static void DeployWholeSquad(BattleController controller, PlayerBattleState side, AIArchetype archetype)
         {
             bool placed = true;
@@ -769,8 +779,13 @@ namespace MyriadOfDragons.Tests
                     BattleController controller = CreateController();
                     List<Card> playerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
                     List<Card> enemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                    // enemyTier stays real (genuine EnemyDifficultyTier/gate probability - see
+                    // SetEnemySpellbookForTests' own doc for why enemyTier: null would silently
+                    // wrong the AI's cast-probability gate to the tier-agnostic default) - the
+                    // removed-spell loadout is applied via the override seam instead.
                     controller.StartMatch(playerDeck, enemyDeck, economy, economy,
-                        avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: null, rngSeed: seed);
+                        avatarLevel, unlockedStageIds: null, equippedSpellIds: null, enemyTier: tier, rngSeed: seed);
+                    controller.SetEnemySpellbookForTests(ResolveSpellIds(equippedIds));
                     controller.EnableMirroredEnemySpellsForPvE();
                     controller.DealFormationHand(controller.PlayerState);
                     controller.DealFormationHand(controller.EnemyState);
