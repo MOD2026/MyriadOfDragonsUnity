@@ -3925,3 +3925,38 @@ new FakeChatSocialGateway matching the Bazaar/GuildExpedition/PermitWeekKey patt
 product feature touched. 6/6 pass, 0 compile errors, HEAD drift correctly identified as an unrelated
 docs-only commit. Full-suite baseline is now clean: all real failures from tonight's volume of work
 are resolved (Windstep ablations [Ignore]d, Tactical Puzzle 6/6, these 2 stale tests fixed).
+
+## LOCKED: Chapters 1-18 narrative continuity plan (2026-08-26, ST, verified)
+
+**Verified before locking:** the plan's anchor claim - a real Chapter 3→4 geographic discontinuity -
+confirmed exact against `StoryDatabase.cs:775-794`. Line 784 (3-30_post): "Chapter Four begins
+there [beyond the dead-star gate]. Olympus has survived—but something beyond it has learned how to
+return." Chapter 4 instead actually opens at "4-1, Ashroad Gatehouse" (line 794), a mundane Boiotia
+location, not beyond the gate. Real, not a misreading. Combined with the two contradictions verified
+last round (the "no new throne" vs. "I need the throne" lines, the repeated Ch11-18 ending
+template), this plan is accepted as the real fix, not just a diagnosis.
+
+**The locked shape, for reference (full plan in ST's reply, this is the index):**
+- Ch1-3 "The Broken Compact": establishes the "no new absolute throne" principle. Ending repaired -
+  the dead-star road closes/deflects rather than opening into Ch4, resolving the discontinuity.
+- Ch4-10 "Victory and the vacant seat": companions return at specific structural beats, not every
+  stage - Rusk active Ch4-6 (exits 6-30 to hold liberated ground), Thaleia returns Ch7-10 (completes
+  her arc at 10-30, the Empty Throne refusal), Ione absent-but-reporting throughout (investigating
+  the Unknown Voice/dead-star thread). Unknown Voice escalates in what it reveals at each finale
+  (4-30/5-30/6-30/7-30/10-30) rather than repeating the same warning 13 times.
+- Ch11-18 "The Crown reconstructed": reframed as a temptation arc, not a repeated template - each
+  chapter is a different test of legitimate vs. accumulated personal authority (custody of the
+  storm, army loyalty, unilateral law, replacing fallen gods, emergency powers, the crown, the
+  banner, the throne). Eryx (the Unknown Voice's real identity) is revealed at 14-15, full motive at
+  18-15. The 16-30 "Hollow Crown" moment is the closest real breach of the Ch3 compact, explicitly
+  marked as such rather than treated as an unremarked drift.
+- 18-30 resolution: the current "I need the throne" line becomes Eryx's temptation, not the
+  player's real conviction - the player refuses the throne and relinquishes the crown/banner/
+  command, fulfilling the Ch3 principle at real cost rather than resetting to it for free.
+
+**Real scope note, ST's own:** this needs targeted dialogue at specific major beats (~20 stage IDs
+across Ch3-18), not a rewrite of all 513 stages - ordinary encounter dialogue stays templated.
+
+**Next step, not yet dispatched:** the plan describes WHAT each beat needs dramatically but doesn't
+give verbatim dialogue text for most of them (only a few direct quotes provided). Real verbatim
+lines needed before any coding room can implement this - requesting those from ST next.
