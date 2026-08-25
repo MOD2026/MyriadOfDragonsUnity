@@ -1549,3 +1549,20 @@ header vs caption). All 5 real bugs from the live visual audit now closed and co
 Chapter 15 "The Godless Dawn" (bc68e5d): 15-1..15-30, Gate L30 clears through Ch15, 14-30 chains
 to 15-1, AF retuned (15-4/15-7/15-30). Chapter15FullDepthTests 11/11, GateRouteTests 4/4, 0
 error CS. Campaign is now 423 stages total. Ch16-30 remain the milestone gap.
+
+## CORRECTION: [runtime] is deliberate, not a bug - real decision made (2026-08-25, VS)
+
+CC's earlier bug report misattributed the [runtime] sighting to Battle Pass/Daily Login (both have
+zero consumers of RuntimePlaceholder, editing them changes nothing). The only screen that actually
+renders it is EmpireBuildingDetailCopy.cs (4 spots: duration line, v2 payoff line, 2 "LEVEL
+[runtime]" cases). Confirmed deliberate: EmpireBuildingDetailShellTests explicitly asserts the
+placeholder displays, with a doc comment explaining it marks genuinely-undecided design values
+(build duration, v2 persist, Castle interlock table) rather than inventing numbers.
+
+**Decision: option (a), partial.** Build duration is now real (EmpireConstructionTimer.cs shipped
+this session, real 30min-14d curve) - wire it to replace that placeholder. The other two
+(v2-level-persistence field, Castle interlock table) remain genuinely open - the interlock table
+specifically is the exact thing pending GPT's answer on the remaining 9 buildings, sent earlier
+tonight. Those two stay [runtime] legitimately until those decisions land; update
+EmpireBuildingDetailShellTests to assert duration resolves to a real value while the other two
+still assert the placeholder.
