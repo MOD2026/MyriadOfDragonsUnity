@@ -121,13 +121,19 @@ log — check its "PENDING DISPATCH" table at the start of every turn before any
   an actual UI/presenter a player can reach — a locked design doc or a backend verifier with no UI
   is not player-visible, regardless of how much work landed.
 
-**Task sizing depends on whether the owner is watching.** If the owner says they're stepping away
-(dinner, sleep, "test run for tonight") — batch freely, a large multi-part task is fine since nobody
-is waiting on checkpoints. If the owner is actively working alongside — split dispatches into
-single-deliverable pieces (one chapter, not two; one bug fix, not a bug fix plus a new system) so
-something real lands roughly every 15-20 minutes, not once an hour. Established 2026-08-25 after a
-1-hour WH batch (2 chapters + a bug fix + a stopped-pending-signoff task) that was fine overnight but
-too slow to check in on live. Ask which mode applies if it's not clear from context.
+**Task sizing depends on whether the owner is watching, and must be recalibrated against real
+observed cadence, not fixed once and left alone.** If the owner is stepping away (dinner, sleep,
+"test run for tonight") — batch freely, size doesn't matter since nobody's waiting on checkpoints.
+If the owner is actively working alongside — target a real deliverable roughly every 15-30 minutes.
+Two corrections already happened the same night this rule was created (2026-08-25): first, a 1-hour
+WH batch (2 chapters + a bug fix + a stopped task) was too slow to check in on live, so dispatches
+got split down to single-deliverable pieces; then a single small fix returned fast enough that the
+owner said the split had gone too far the other way ("increase the workload of WH for at least 50%
+more, the return is too fast") — meaning single-atom tasks were now under-using real capacity. Don't
+treat either correction as the permanent setting — watch actual turnaround time each session and
+size the NEXT dispatch up or down from it, aiming for the 15-30 minute band. When unsure whether
+recent throughput calls for bigger or smaller, look at how fast the last 1-2 tasks actually came
+back rather than defaulting to the smallest safe unit.
 
 **Prompt delivery:** when a prompt is ready for the owner to paste to GPT, give it as **plain,
 labeled text directly in the chat message** — never a link, never a file attachment, never an
