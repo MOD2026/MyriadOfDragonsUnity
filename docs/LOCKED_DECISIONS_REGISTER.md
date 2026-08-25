@@ -3173,3 +3173,24 @@ earlier mechanical audit confirming only one site currently triggered it, but an
 is now also protected by construction.
 
 CampaignMapPresenter.cs left unstaged intentionally (prior stage-detail WIP, not part of this batch).
+
+## VS: Empire building entry points shipped + Tactical Puzzle content data-drop pipeline (2026-08-25, VS, verified 0ddde2a / 8bebe5b)
+
+**0ddde2a: 5 of 11 Empire buildings now have real entry points and the save fields behind them.**
+51/51, 0 error CS, UiGeometryRegressionTests (zero-tolerance overlap) run alongside since a strip
+was added to an already-populated panel, both save suites run since this touches a frozen file.
+**VS verified the lock was real before touching PlayerProfile.cs rather than trusting "locked hours
+ago" at face value** - checked register line 2193 directly, confirmed the 5 fields genuinely didn't
+exist while constructionMaterials already did. Exactly the working-agreement standard, applied
+without being asked to re-check.
+
+**8bebe5b: Tactical Puzzle content is now a data drop, not a code change - built proactively ahead
+of BS's content pass to remove a real blocker.** TacticalPuzzleLibrary previously returned a
+hardcoded empty array - authored puzzles would have had nowhere to load into. Puzzles now land as
+Resources/Data/tactical_puzzles.json, picked up with zero code edits. 99/99, 0 error CS. Still
+invents NO content - the resource file doesn't exist yet, and a missing file is the EXPECTED state
+(reads as "no puzzles," not an error, matching what the entry screen already renders honestly). The
+loader is proven via tests building their own JSON, not by shipping real content to prove it.
+
+Both real Empire building work threads (save fields + entry points, dispatched hours ago) are now
+fully closed.
