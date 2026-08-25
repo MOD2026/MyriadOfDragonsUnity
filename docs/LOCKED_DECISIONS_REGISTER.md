@@ -3147,3 +3147,29 @@ profile frame.png" - regenerate with real alpha transparency.
    profile frame.png. The rest need a second triage pass (checking USAGE CONTEXT - is each asset
    composited over varying backgrounds in a shape implying a cutout, like a ring or icon, vs. used
    as a full-bleed rectangle) before being treated as real findings, not just flagged as suspects.
+
+## Home screen bugs FULLY FIXED - all 3 original + the checkerboard correction (2026-08-25, WH, verified 5 commits)
+
+- 2cb1d16: player profile frame regenerated with real transparent background + avatar hole.
+- 040d7bc: icon_settings_gear regenerated with REAL alpha transparency (232k transparent/126k
+  opaque pixels, center hole genuinely clear) - confirms CC's correction was right (original had
+  alpha=255 everywhere, fake baked-in checkerboard). Note from WH: first regeneration attempt also
+  produced an opaque bake - had to use keyed extraction from the original bronze art to get real
+  alpha this time, worth remembering as a recurring generation-tool failure mode.
+- c2065d5: ApplyNeutralActionButton now preserves a pre-assigned sprite instead of nulling it -
+  fixes the clobber bug at its source (the shared helper), not just the one call site.
+- ef3c048: Home chrome routed through semantic regions (TopHud/TutorialStrip/ActionRail/
+  ContentPanel/Footer per the locked BS decision), social-chip/tutorial-banner Y overlap cleared.
+- bd1d0ae: HomeLayoutRegressionTests suite added - real regression coverage for 16:9 overlap and
+  input contracts, exactly as specified in the locked decision.
+
+**Verified: 24/24** on the Home layout EditMode slice (HomeLayoutRegressionTests,
+HomeReleaseGateTests, tutorial guard, Bazaar, Settings, MetagameWorkingArea). 3 unrelated shell-
+content asserts still fail (You:/BattlePass string) - not from this work, pre-existing.
+
+**Real fix worth remembering:** c2065d5 fixed the clobber bug in the SHARED HELPER itself, not just
+the one call site CC found - meaning this closes the bug class project-wide, consistent with the
+earlier mechanical audit confirming only one site currently triggered it, but any FUTURE call site
+is now also protected by construction.
+
+CampaignMapPresenter.cs left unstaged intentionally (prior stage-detail WIP, not part of this batch).
