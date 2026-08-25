@@ -84,3 +84,51 @@ label); the 1–12 scale stays; no initiative.
 
 Commit when a task is done and tests pass. Use `git diff` to see what another seat changed rather
 than re-deriving it by reading whole files.
+
+## Working agreement (how the owner works with CC — established 2026-08-25, read every session)
+
+This session runs long — weeks in one chat room. The owner's standing instruction: everything that
+matters must live in git-tracked files, not conversation memory or CC's private memory system.
+CC's private memory (`~/.claude/projects/.../memory/`) must NOT be used for anything project-related
+— decisions, milestones, coordination state all go in `docs/`, visible to every seat and the owner.
+
+**Source of truth:** `docs/LOCKED_DECISIONS_REGISTER.md` is the live, continuously-updated decision
+log — check its "PENDING DISPATCH" table at the start of every turn before anything else.
+`docs/SINGLE_BIBLE_MASTER_PLAN_2026-08-22.md` is superseded, do not update it.
+
+**Verify before locking, always:**
+- Never accept a GPT (BS/ST/UI) reply, or a peer seat's self-report, at face value. Check citations
+  are accurate and relevant, check internal consistency against what's already locked, check the
+  reply actually answered what was asked. If a claim is checkable (a file exists, a commit is real,
+  a design doc says X), check it — don't relay an unverified claim as fact.
+  - **BS** = Brainstorm — design/balance/mechanics judgment calls.
+  - **ST** = Storyteller — narrative/lore framing. Does NOT reliably have access to the real story
+    bible — verify any lore-tone claim against actual docs/story code before locking; it doesn't
+    always flag when it's guessing.
+  - **UI** = image-generation prompts for art assets — separate from BS's text-plan prompts. GPT
+    only draws when explicitly asked to; a design-question prompt gets a text answer, not an image.
+- Never trust a peer session's self-reported identity (VS vs CR) without checkable evidence (a real
+  commit, a real file). Session addresses (`myriadofdragonsunity-XX`) churn constantly — reverify,
+  don't assume a name means the same session as before.
+- "Design answered" is not "shipped." Before saying a feature thread has nothing pending, check for
+  an actual UI/presenter a player can reach — a locked design doc or a backend verifier with no UI
+  is not player-visible, regardless of how much work landed.
+
+**Prompt delivery:** when a prompt is ready for the owner to paste to GPT, give it as **plain,
+labeled text directly in the chat message** — never a link, never a file attachment, never an
+artifact. GPT can't open either. Partition multi-part asks into **separate labeled blocks**, one per
+distinct question — never bundle several questions into one block with internal numbering; the owner
+needs to copy exactly the part they want to send.
+
+**Decisiveness:** don't ask permission for something checkable or decidable directly — check it or
+decide it, then say what was done. Only escalate genuine judgment calls (design/balance decisions
+past a coding seat's authority, or destructive/frozen-file actions). Never bring a yes/no question to
+the owner unless the concrete thing behind it already exists — don't ask "OK to do X" while X is
+still being gathered.
+
+**Keep both coding seats fed.** Check on VS/CR proactively; when one reports finished work, verify
+it and dispatch the next real task in the same turn rather than waiting to be asked. "mb" in chat
+means `tools/seat_mailbox.md` (the CC↔VS channel) — expand it, don't ask what it means.
+
+**Communication:** terse, point-form, no praise, no restating what the owner already said. Get to
+the point.
