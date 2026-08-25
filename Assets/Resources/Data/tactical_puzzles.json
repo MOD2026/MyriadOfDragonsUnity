@@ -280,9 +280,9 @@
           "PreDamage": 0
         },
         {
-          "CardId": "cyclops",
+          "CardId": "fire_golem",
           "Lane": 1,
-          "PreDamage": 0
+          "PreDamage": 1
         }
       ],
       "Objective": {
@@ -298,7 +298,7 @@
       },
       "Envelope": [
         {
-          "Description": "BS redesign intended solution: SeismicSwap archer_dragon <-> Middle mountain_harpy",
+          "Description": "BS intended solution: SeismicSwap archer_dragon <-> Middle mountain_harpy",
           "Actions": [
             {
               "Kind": 2,
@@ -320,7 +320,29 @@
           "ExpectedFailedActionIndex": -1
         },
         {
-          "Description": "BS stated failure: no action, the two Middle units do not survive the Ogre",
+          "Description": "BS stated failure: swapping with goblin_shaman instead leaves 8 atk - golem survives at 1 and wipes the lane",
+          "Actions": [
+            {
+              "Kind": 2,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 1,
+                "IndexInLane": 1
+              }
+            }
+          ],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: no action, 5 atk cannot kill the golem and 9 dmg wipes the 6hp pool",
           "Actions": [],
           "ExpectedStatus": 1,
           "ExpectedFailedActionIndex": -1
