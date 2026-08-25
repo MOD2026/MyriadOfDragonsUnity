@@ -3400,3 +3400,23 @@ Verified: 4/4 passing, 0 error CS, HEAD 39cd484 before -> fd1f3aa after.
 
 **Done specifically to demonstrate real parallel progress** - built and shipped while BS's pending
 decision and the UI art compilation request were both still outstanding, not waiting on either.
+
+## VS: TacticalPuzzleSolver shipped while blocked - real missing infra found and built (2026-08-25, verified a494c3f)
+
+**Real gap found: Validate proves a definition is COHERENT, CheckEnvelope proves an author's CLAIMED
+lines behave as claimed - neither can find a line nobody wrote down.** So 3 of the 7 required
+validation steps ("is it solvable at all", "is the stated minimum really cheapest", "do unrelated
+lines tie for the objective") were structurally unanswerable with existing tooling. VS built
+TacticalPuzzleSolver to close this: enumerates the legal-action space and asks the session for every
+legality decision, with a test that replays each returned line and requires the session to accept
+it.
+
+**Two real design decisions worth recording:** search capped at 4 orders (a puzzle needing more
+isn't one a player can hold in their head - a design signal, not just a perf guard); ties are a
+REJECT (two equally-cheap unrelated answers means there's no single intended answer, so hint/score/
+lesson would all point at something the player never needed to find).
+
+**All 7 validation steps now run in one command once real puzzle definitions exist in a consumable
+form** - VS is correctly holding because my earlier dispatch described BS's 6 puzzles in prose/table
+form, not as actual loadable definitions. Unblocking now: VS to build the definitions directly from
+the register entry ("Tactical Puzzle Week 1 content batch") and run the real validation.
