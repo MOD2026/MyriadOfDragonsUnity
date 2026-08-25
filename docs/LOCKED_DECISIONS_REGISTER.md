@@ -1266,3 +1266,25 @@ rendered and readable throughout, never obscured by an effect.
 vs pre-rendered flipbook per effect), whether camera zoom needs a dedicated virtual camera rig or
 can be a simple canvas-scale tween, and real SFX asset sourcing (none exists yet - separate
 question from timing/direction).
+
+## CORRECTION: pollution fix was NOT fully in 91a3813 for at least Chapter10FullDepthTests.cs
+
+Direct check: `git show 91a3813:Assets/Tests/Editor/Chapter10FullDepthTests.cs` still contains the
+OLD broken GameObject.Find(spawnedName) pattern - the fix was never actually in that commit for
+this file, despite the commit message claiming "59-file systemic fix verified... zero remaining
+Find(spawnedName|name) teardown sites." Either the earlier report overstated coverage, or a later
+commit (adea127, CR's spell-catalog work, last real touch on this file per git log) silently
+reverted it back via a bad merge/rebase carrying an old version along.
+
+**Currently: WH's uncommitted working tree has the correct fix re-applied to this file (and likely
+others in the same batch) right now** - visible as unstaged diff, not yet committed. Not
+committing this blind given the mixed, large, multi-seat dirty tree (CR's CloudCode/Bazaar files
+are also unstaged in the same tree right now) - waiting for WH to commit its own real change set
+cleanly rather than CC guessing which of ~65 modified files belong to which seat.
+
+**Real lesson: "verified 39/39" by one seat at one HEAD does not mean the fix is permanent** - a
+later commit can silently regress files nobody's actively watching. Don't declare a fix
+permanently closed off one verification; the register's "CLOSED" framing on 0ca542b was too
+strong. Downgrading language: fix confirmed real and effective as of that HEAD, but fragility
+demonstrated - a full-suite check is needed after ANY commit that touches these files, not a
+one-time closure.
