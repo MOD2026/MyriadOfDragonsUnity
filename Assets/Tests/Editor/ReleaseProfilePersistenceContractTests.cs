@@ -37,6 +37,7 @@ namespace MyriadOfDragons.Tests
         public void SetUp()
         {
             CollectionPackReceiptService.ClearCommittedReceiptsForTests();
+            ShopPresenter.SetPackRngSeedForTests(42);
             _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MyriadOfDragonsReleaseProfile_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
@@ -47,6 +48,7 @@ namespace MyriadOfDragons.Tests
         public void TearDown()
         {
             CollectionPackReceiptService.ClearCommittedReceiptsForTests();
+            ShopPresenter.ClearPackRngSeedForTests();
             foreach (GameObject go in _spawned)
             {
                 if (go != null) Object.DestroyImmediate(go);
@@ -284,12 +286,11 @@ namespace MyriadOfDragons.Tests
             var progressionBeforeRepeat = SnapshotProgression(profile2);
             shop2.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId);
 
-            Assert.AreEqual(progressionBeforeRepeat.Count + (FindNewlyGrantedCardId(progressionBeforeRepeat, profile2) != null ? 1 : 0),
-                profile2.cardProgression.Count,
-                "Requirement 6: a repeated gem pack purchase after reload must still grant a new owned card when affordable.");
+            // Pack draws can duplicate an already-owned id (copyCount++) without growing
+            // cardProgression.Count. Assert the grant itself, not distinct-id arithmetic.
             string expectedSecondGrantedCardId = FindNewlyGrantedCardId(progressionBeforeRepeat, profile2);
             Assert.IsFalse(string.IsNullOrEmpty(expectedSecondGrantedCardId),
-                "Requirement 6: repeated Single Sigil must grant the next pack card.");
+                "Requirement 6: a repeated gem pack purchase after reload must still grant a new owned card when affordable.");
             Assert.IsTrue(CollectionProgression.OwnsAnyCopy(profile2, expectedSecondGrantedCardId),
                 "Requirement 6: repeated purchase must land in cardProgression.");
             CollectionAssert.AreEqual(expectedActiveDeck, profile2.activeDeckCardIds, "Requirement 6: a repeated Shop purchase after reload must not corrupt the confirmed deck.");

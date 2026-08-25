@@ -145,6 +145,14 @@ namespace MyriadOfDragons.UI
         public PackOpenRevealRunner PackRevealRunnerForTests =>
             canvasObj != null ? PackOpenOverlayPresenter.RevealRunnerForTests(canvasObj.transform) : null;
 
+        /// <summary>Test-only: pin gem-pack <see cref="System.Random"/> so pack draws are
+        /// reproducible across EditMode runs (production stays unseeded).</summary>
+        private static int? _packRngSeedForTests;
+
+        public static void SetPackRngSeedForTests(int seed) => _packRngSeedForTests = seed;
+
+        public static void ClearPackRngSeedForTests() => _packRngSeedForTests = null;
+
         /// <summary>Exposed for tests: Shop status line after ladder blocks or successful purchase.</summary>
         public string ShopStatusTextForTests => statusText != null ? statusText.text : null;
 
@@ -166,7 +174,9 @@ namespace MyriadOfDragons.UI
             result = null;
             if (profile == null) return false;
 
-            var rng = new System.Random();
+            var rng = _packRngSeedForTests.HasValue
+                ? new System.Random(_packRngSeedForTests.Value)
+                : new System.Random();
             string receiptId = System.Guid.NewGuid().ToString("N");
             result = new PackReceiptResult();
             if (!CollectionPackReceiptService.TryOpenPack(profile, skuId, rng, receiptId, out result))
