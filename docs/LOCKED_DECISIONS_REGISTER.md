@@ -3635,11 +3635,11 @@ don't append a new copy each time.
 - [ ] **Friends screen** - identical gap, same entry: `FriendsPresenter.cs` never calls
       `FriendsUiLibrary.Load()` despite the helper and the approved art (`Resources/UI/FriendsV1/*.png`)
       both already existing. Reachable via Home's FRIENDS button. Dispatched to WH, not yet fixed.
-- [ ] Collection screen/acquisition (MOS §20, P1 row) - flagged incomplete in the design doc; the
-      earlier UI-backlog audit suggested it's already wired as one of "8 already-wired chrome
-      systems" - this is a real discrepancy that needs a direct code check, not yet done. Do not
-      assume either claim without checking `Resources.Load` calls actually fire, same as the VIP/
-      Friends/Empire pattern above.
+- [x] Collection screen/acquisition - CONTRADICTION RESOLVED (2026-08-26, read-only check, no fix
+      needed): `CollectionPresenter.cs:363` calls `db.GetArt(resolved)` (real `CardDatabase` art
+      lookup, same mechanism Battle uses) - real art genuinely loads here. The MOS §20 "incomplete"
+      row is stale; the earlier UI-backlog audit's "already wired" claim holds up under direct code
+      check. Not the same bug class as VIP/Friends/Empire - no dispatch needed.
 
 ### Systems/backend
 - [ ] Retention/engagement telemetry - correctly stopped; needs new `PlayerProfile` fields, requires
