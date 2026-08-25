@@ -1566,3 +1566,18 @@ specifically is the exact thing pending GPT's answer on the remaining 9 building
 tonight. Those two stay [runtime] legitimately until those decisions land; update
 EmpireBuildingDetailShellTests to assert duration resolves to a real value while the other two
 still assert the placeholder.
+
+## PvP/opponent-finding system - LOCKED FINAL (2026-08-25, GPT, corrected)
+
+GPT accepted CC's critique and corrected its own earlier recommendation: the Pokemon TCG Pocket
+citation supported "no map needed," not "add a map layer" - that reasoning was weak and is
+withdrawn. FINAL Phase 1 decision: async ladder matchmaking ONLY. Battle Rating, seasonal rank,
+defense snapshots, fair collection/skill brackets - no PvP map layer. Campaign/Empire maps carry
+world identity; no second PvP-specific map. Anti-fatigue via existing/planned short loops (Memory
+Expedition, Guild Expedition, campaign farming, daily objectives, seasonal activities), not map
+decoration. Synchronous PvP reserved for scheduled guild/special events only. A PvP map is
+explicitly deferred to Phase 2, contingent on real player retention data showing the ladder alone
+feels repetitive - not built speculatively.
+
+This is now closed - no further design round needed on this topic unless real post-launch data
+reopens it.
