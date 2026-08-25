@@ -46,10 +46,19 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 12;
 
+            // Opaque theme backing under preserveAspect shell — same letterbox fix as Bazaar/Chat.
+            Color shellFallback = new Color(0.08f, 0.09f, 0.12f);
+            GameObject backing = new GameObject("BackgroundBacking", typeof(RectTransform), typeof(Image));
+            backing.transform.SetParent(_canvasObj.transform, false);
+            UISharedFoundation.StretchFull(backing.GetComponent<RectTransform>());
+            Image backingImg = backing.GetComponent<Image>();
+            backingImg.color = new Color(shellFallback.r, shellFallback.g, shellFallback.b, 1f);
+            backingImg.raycastTarget = false;
+
             GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bg.transform.SetParent(_canvasObj.transform, false);
             UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
-            VipSubscriptionUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), new Color(0.08f, 0.09f, 0.12f));
+            VipSubscriptionUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback);
 
             BuildHeader();
             BuildIdentityColumn();
@@ -119,9 +128,12 @@ namespace MyriadOfDragons.UI
                 GameObject socket = new GameObject($"StateSocket_{i}", typeof(RectTransform), typeof(Image));
                 socket.transform.SetParent(col.transform, false);
                 Image img = socket.GetComponent<Image>();
-                img.color = new Color(0.12f, 0.14f, 0.18f, 0.45f);
+                img.color = new Color(0.12f, 0.14f, 0.18f, 0.35f);
                 img.raycastTarget = false;
                 SetNorm(socket.GetComponent<RectTransform>(), left + 0.04f, 0.08f, left + 0.28f, 0.36f);
+                // Atlas is Single-mode; equal-width runtime cells (first 3 = crown tiers).
+                VipSubscriptionUiLibrary.ApplyAtlasIcon(socket.transform, "StateIcon",
+                    VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.08f, 0.08f, 0.92f, 0.92f);
             }
         }
 
@@ -140,15 +152,19 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"BenefitWell_{i}", typeof(RectTransform), typeof(Image));
                 well.transform.SetParent(grid.transform, false);
                 Image img = well.GetComponent<Image>();
-                img.color = new Color(0.1f, 0.12f, 0.16f, 0.35f);
+                img.color = new Color(0.1f, 0.12f, 0.16f, 0.28f);
                 img.raycastTarget = false;
                 SetNorm(well.GetComponent<RectTransform>(),
                     col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f,
                     (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
-                UISharedFoundation.CreateText(well.transform, "Label",
+                // Decorative atlas cell in the well (cells 0–5); label stays readable below.
+                VipSubscriptionUiLibrary.ApplyAtlasIcon(well.transform, "BenefitIcon",
+                    VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.18f, 0.38f, 0.82f, 0.92f);
+                Text label = UISharedFoundation.CreateText(well.transform, "Label",
                     $"Benefit {i + 1} — convenience {MetagameShellProfileBinding.OpenAmountLabel}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true,
                     new Vector2(220f, 36f));
+                SetNorm(label.rectTransform, 0.06f, 0.06f, 0.94f, 0.34f);
             }
         }
 

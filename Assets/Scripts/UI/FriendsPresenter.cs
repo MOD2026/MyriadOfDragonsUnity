@@ -67,10 +67,19 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 12;
 
+            // Opaque theme backing under preserveAspect shell — same letterbox fix as Bazaar/Chat.
+            Color shellFallback = new Color(0.08f, 0.09f, 0.12f);
+            GameObject backing = new GameObject("BackgroundBacking", typeof(RectTransform), typeof(Image));
+            backing.transform.SetParent(_canvasObj.transform, false);
+            UISharedFoundation.StretchFull(backing.GetComponent<RectTransform>());
+            Image backingImg = backing.GetComponent<Image>();
+            backingImg.color = new Color(shellFallback.r, shellFallback.g, shellFallback.b, 1f);
+            backingImg.raycastTarget = false;
+
             GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bg.transform.SetParent(_canvasObj.transform, false);
             UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
-            FriendsUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), new Color(0.08f, 0.09f, 0.12f));
+            FriendsUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback);
 
             BuildHeader();
             BuildNav(); BuildList(); BuildProfile();
@@ -157,13 +166,18 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"FriendRow_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(list.transform, false);
                 Image img = well.GetComponent<Image>();
-                img.color = new Color(0.1f, 0.12f, 0.16f, 0.35f);
+                img.color = new Color(0.1f, 0.12f, 0.16f, 0.28f);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SelectFriendRow(row));
                 SetNorm(well.GetComponent<RectTransform>(), 0.02f, 1f - (i + 1) * h + 0.02f, 0.98f, 1f - i * h - 0.02f);
+                // Default empty-row glyph; RefreshFriendsAsync swaps to relationship state cells.
+                FriendsUiLibrary.ApplyAtlasIcon(well.transform, "RelIcon",
+                    FriendsUiLibrary.LoadRelationshipCell(FriendsUiLibrary.RelOffline),
+                    0.02f, 0.12f, 0.14f, 0.88f);
                 Text t = UISharedFoundation.CreateText(well.transform, "DisplayName", "Empty",
                     UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(400f, 28f));
+                SetNorm(t.rectTransform, 0.16f, 0.1f, 0.96f, 0.9f);
                 _rowTexts[i] = t;
             }
         }
@@ -196,9 +210,16 @@ namespace MyriadOfDragons.UI
 
                 for (int i = 0; i < _rowTexts.Length; i++)
                 {
+                    Transform row = _canvasObj != null
+                        ? _canvasObj.transform.Find($"FriendsList/FriendRow_{i}")
+                        : null;
+                    Image relIcon = row != null ? row.Find("RelIcon")?.GetComponent<Image>() : null;
+
                     if (i >= _friends.Count)
                     {
                         _rowTexts[i].text = "Empty";
+                        if (relIcon != null)
+                            relIcon.sprite = FriendsUiLibrary.LoadRelationshipCell(FriendsUiLibrary.RelOffline);
                         continue;
                     }
 
@@ -206,6 +227,13 @@ namespace MyriadOfDragons.UI
                     _rowTexts[i].text = friend.status == "Accepted"
                         ? friend.counterpartAccountId
                         : $"{friend.counterpartAccountId} ({(friend.isOutgoingRequest ? "pending sent" : "pending received")})";
+                    if (relIcon != null)
+                    {
+                        int cell = friend.status == "Accepted"
+                            ? FriendsUiLibrary.RelFriend
+                            : (friend.isOutgoingRequest ? FriendsUiLibrary.RelOutgoing : FriendsUiLibrary.RelIncoming);
+                        relIcon.sprite = FriendsUiLibrary.LoadRelationshipCell(cell);
+                    }
                 }
 
                 if (result == null)
@@ -276,6 +304,9 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(addBtn.GetComponent<Button>(), addImg, new Color(0.24f, 0.36f, 0.24f));
             addBtn.GetComponent<Button>().onClick.AddListener(() => _ = SendAddFriendAsync());
             SetNorm(addBtn.GetComponent<RectTransform>(), 0.1f, 0.32f, 0.9f, 0.44f);
+            FriendsUiLibrary.ApplyAtlasIcon(addBtn.transform, "ActionIcon",
+                FriendsUiLibrary.LoadProfileActionCell(FriendsUiLibrary.ActionAdd),
+                0.04f, 0.12f, 0.22f, 0.88f);
             UISharedFoundation.CreateText(addBtn.transform, "Text", "ADD FRIEND", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
 
@@ -285,6 +316,9 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(msg.GetComponent<Button>(), mImg, new Color(0.2f, 0.32f, 0.4f));
             msg.GetComponent<Button>().onClick.AddListener(() => _ = SendGiftAsync());
             SetNorm(msg.GetComponent<RectTransform>(), 0.1f, 0.16f, 0.9f, 0.28f);
+            FriendsUiLibrary.ApplyAtlasIcon(msg.transform, "ActionIcon",
+                FriendsUiLibrary.LoadProfileActionCell(FriendsUiLibrary.ActionChat),
+                0.04f, 0.12f, 0.22f, 0.88f);
             UISharedFoundation.CreateText(msg.transform, "Text", "GIFT", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
         }

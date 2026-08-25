@@ -67,6 +67,10 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(canvas.transform.Find("Background").GetComponent<Image>().raycastTarget);
             Assert.NotNull(canvas.transform.Find("BenefitGrid/BenefitWell_5"));
             Assert.NotNull(canvas.transform.Find("IdentityColumn/StateSocket_2"));
+            Assert.IsNotNull(canvas.transform.Find("IdentityColumn/StateSocket_0/StateIcon")?.GetComponent<Image>()?.sprite,
+                "State sockets must show atlas-sliced icons, not empty colored wells.");
+            Assert.IsNotNull(canvas.transform.Find("BenefitGrid/BenefitWell_0/BenefitIcon")?.GetComponent<Image>()?.sprite,
+                "Benefit wells must show atlas icons.");
             StringAssert.Contains("OPEN",
                 canvas.transform.Find("BenefitGrid/BenefitWell_0/Label")?.GetComponent<Text>()?.text);
             StringAssert.Contains("Not subscribed",

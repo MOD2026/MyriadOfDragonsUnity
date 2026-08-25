@@ -63,8 +63,12 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.NotNull(canvas.transform.Find("FriendsList/FriendRow_5"));
             Assert.NotNull(canvas.transform.Find("NavRail/Nav_Friends"));
-            StringAssert.Contains("You:",
-                canvas.transform.Find("FriendsList/FriendRow_0/DisplayName")?.GetComponent<Text>()?.text);
+            Assert.IsNotNull(canvas.transform.Find("FriendsList/FriendRow_0/RelIcon")?.GetComponent<Image>()?.sprite,
+                "Friend rows must show relationship atlas icons.");
+            Assert.IsNotNull(canvas.transform.Find("ProfileDrawer/Btn_AddFriend/ActionIcon")?.GetComponent<Image>()?.sprite,
+                "Add Friend must show profile-action atlas icon.");
+            Assert.IsNotNull(canvas.transform.Find("ProfileDrawer/Btn_Gift/ActionIcon")?.GetComponent<Image>()?.sprite,
+                "Gift must show profile-action atlas icon.");
             StringAssert.Contains("You:",
                 canvas.transform.Find("ProfileDrawer/PublicSummary")?.GetComponent<Text>()?.text);
             var refuse = presenter.MessageForTests();
