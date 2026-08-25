@@ -26,7 +26,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | CR | Identify spell driving Apprentice's 77.4% MaxSingleSpellWinShare (newly unmasked finding) | PENDING - dispatched, awaiting real numbers |
+| 2026-08-25 | BS (via owner) | Should MaxSingleSpellWinShare distinguish "cast during a win" from "caused the win"? | PENDING - awaiting relay |
 | 2026-08-25 | owner | Retention telemetry needs frozen-file (PlayerProfile.cs) sign-off before WH can wire it | PENDING - real decision needed |
 
 ---
