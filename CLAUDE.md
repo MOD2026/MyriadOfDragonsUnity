@@ -114,6 +114,14 @@ log — check its "PENDING DISPATCH" table at the start of every turn before any
   an actual UI/presenter a player can reach — a locked design doc or a backend verifier with no UI
   is not player-visible, regardless of how much work landed.
 
+**Task sizing depends on whether the owner is watching.** If the owner says they're stepping away
+(dinner, sleep, "test run for tonight") — batch freely, a large multi-part task is fine since nobody
+is waiting on checkpoints. If the owner is actively working alongside — split dispatches into
+single-deliverable pieces (one chapter, not two; one bug fix, not a bug fix plus a new system) so
+something real lands roughly every 15-20 minutes, not once an hour. Established 2026-08-25 after a
+1-hour WH batch (2 chapters + a bug fix + a stopped-pending-signoff task) that was fine overnight but
+too slow to check in on live. Ask which mode applies if it's not clear from context.
+
 **Prompt delivery:** when a prompt is ready for the owner to paste to GPT, give it as **plain,
 labeled text directly in the chat message** — never a link, never a file attachment, never an
 artifact. GPT can't open either. Partition multi-part asks into **separate labeled blocks**, one per
