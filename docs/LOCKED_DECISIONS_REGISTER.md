@@ -1126,3 +1126,18 @@ AIEnemySpellbookResolverTests x4, MirroredAiSimulationMatrixTests x3 (known/park
 already escalated to GPT), SpellLoadoutTests x1, BalanceSimulationTests x1. The 6 non-
 MirroredAiSimulationMatrix failures are NEW and need investigation - likely fallout from CR's
 loadout-expansion/acquisition-channel work, not yet triaged.
+
+## Pollution fix INDEPENDENTLY VERIFIED (2026-08-25, VS, HEAD 0ca542b) - thread closed
+
+VS ran its own verification rather than trusting the fix commit message - the exact 4-class
+configuration (CampaignStageBattleConfigurationTests + Chapter10FullDepthTests +
+RarityFrameRenderingTests + TutorialTeachingOverlayTests) that reliably reproduced 3 failures all
+session. Result: 39/39, 0 failed, 0 error CS, HEAD stable both ends. Confirmed the 59-file
+systemic fix holds under the exact conditions that broke it.
+
+**Institutional finding worth carrying forward beyond tonight:** every wrong turn in this
+investigation had the same shape - a check that looked authoritative while measuring the wrong
+thing (zero-match filter reading as success, last-filter-wins silently dropping filters, a
+header-bounded watcher, a textual call-site count standing in for actual loop executions). The fix
+each time was isolating first and confirming by minimal reproduction rather than trusting a
+plausible-looking result.
