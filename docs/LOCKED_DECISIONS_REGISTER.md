@@ -775,3 +775,34 @@ StartApprovedTutorialBattle's 3-card deck always fully drains into Hand determin
 never legitimately fail. Conclusion: same concurrent-edit-during-test-run pattern already logged
 tonight (c52cd0d), not a real defect. No code changed. Drop from the real-regressions list; only
 worth re-checking if it resurfaces once the tree is quiet.
+
+## Memory Expedition minigame — implementation brief LOCKED (2026-08-25, GPT)
+
+Deterministic card-matching memory game, face-down grid, tap-two-to-match. Up to 3 rounds per
+daily run: 3x4/6 pairs/8 mistakes -> 4x4/8/7 -> 4x5/10/6. One reward-bearing run per account per
+UTC day; layout generated from accountId + UTC date + rulesVersion; leave/return resumes the same
+round and arrangement; closing the game cannot reshuffle or restore mistakes; no timer. Failed
+round ends the run, cleared rounds stay credited; optional practice replay after claiming grants
+nothing. Reward bands (single atomic claim on highest completed round): 0 rounds = 1 XP/50 Gold;
+R1 = 2/100/1 research pt; R1-2 = 3/200/1 Stamina/1 Medal/2 pts; all 3 = 5/350/1/2/3. Event Medals
+only while an eligible event ledger is active; Stamina respects cap, no overflow conversion;
+research points expire next UTC reset; no guild/Pass/title multipliers, no Auto-Fight. Persistent
+state: memoryExpeditionDayKey/Seed/RulesVersion/CurrentRound/RevealedPairMask/FirstSelectedTile/
+MistakesRemaining/HighestRoundCleared/RewardClaimed + temporaryResearchPoints/-ExpiryDayKey —
+ADDITIVE PlayerProfile fields, frozen-file coordination required, flag for owner sign-off.
+Build split: core game logic = plain testable C# class (Battle/Empire lane, VS), UI wiring into
+MemoryExpeditionPresenter = WH, queued behind WH's Ch11 + Daily Login work.
+
+## Suppressible triggered-ability package — LOCKED (2026-08-25, GPT), unblocks Silence -> 36/36
+
+Four existing cards get once-per-unit-per-match triggers, all magnitude 1 (1-12 scale preserved):
+Goblin Caster "Hex Spark" (first clash: 1 dmg to opposing unit in lane); Cleric "Battle Mend"
+(after first clash, if friendly in lane damaged: restore 1 HP to most-damaged); Novice Knight
+"Shield Discipline" (first incoming combat damage reduced by 1); Phoenix "Ash Rebirth" (first
+defeat: stay at 1 HP instead, once). Shared rules: triggers resolve after lane targeting, before
+defeat cleanup; no recursive activation; simultaneous triggers resolve Front->Middle->Back then
+slot order; per-copy independent trigger state. Silence contract: targets one deployed non-Avatar
+unit; unresolved triggers can't enter the queue and queued-unresolved ones are cancelled; resolved
+effects never rolled back; base stats/lane bonuses/spells untouched; if Silence expires, an UNUSED
+once-per-match trigger becomes available again, consumed ones stay consumed. Acceptance: rerun
+balance/early-KO/avg-tick/AI-win-rate/no-spell-fallback suites; misses escalate, never auto-retune.
