@@ -3,6 +3,7 @@ using System.Linq;
 using MyriadOfDragons.Combat;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MyriadOfDragons.Tests
 {
@@ -12,8 +13,13 @@ namespace MyriadOfDragons.Tests
     /// error. So the load-bearing assertion is that every cue CombatPresentation can actually emit
     /// has a binding, checked against the sequences themselves rather than a hand-copied list.
     ///
-    /// No audio or VFX assets exist yet, so every resolve legitimately returns null here. That is
-    /// the expected state, and the sinks must degrade to silence rather than throw.
+    /// Real audio assets landed 2026-08-25 (Resources/Audio/Combat/) and real VFX prefabs landed
+    /// the same day (Resources/VFX/Combat/ - andras_medium/ktini_medium/pnevmas_medium share one
+    /// static RawImage texture, bespoke_heavy shows a single cropped frame of the AvatarStrike
+    /// sheet). Genuine per-frame flipbook animation for AvatarStrike is NOT built yet - that is a
+    /// real follow-up, not silently claimed done here. Tests below that used to rely on "nothing
+    /// resolves" now use ids/combos that were never given a binding, so they keep testing the
+    /// missing-asset path without depending on any real cue/combo staying unwired forever.
     /// </summary>
     public class CombatPresentationBindingsTests
     {
@@ -170,15 +176,43 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void TheParticleSink_IsSafeAndSpawnsNothing_WhileNoAssetsExist()
+        public void TheParticleSink_IsSafeAndSpawnsNothing_ForACombinationWithNoAsset()
         {
+            // Andras/Medium now has a real prefab (2026-08-25) - Light tier was never part of the
+            // vertical slice and has no binding for any palette, so it still exercises the
+            // missing-asset path without depending on Andras/Medium staying unwired forever.
             var host = new GameObject("ParticleSinkHost");
             _spawned.Add(host);
             var sink = new ResourcesCombatParticleSink(host.transform);
 
             Assert.DoesNotThrow(() => sink.Emit(CombatPresentationPalette.Andras,
-                CombatPresentationVisualTier.Medium, laneIndex: 1));
+                CombatPresentationVisualTier.Light, laneIndex: 1));
             CollectionAssert.IsEmpty(sink.Spawned, "Nothing to instantiate yet, so nothing should appear.");
+        }
+
+        [Test]
+        public void TheParticleSink_ResolvesRealPrefabs_ForEverySchoolAtMediumTierAndAvatarStrikeBespoke()
+        {
+            var host = new GameObject("ParticleSinkRealAssetHost");
+            _spawned.Add(host);
+            var sink = new ResourcesCombatParticleSink(host.transform);
+
+            foreach (CombatPresentationPalette school in new[]
+                     {
+                         CombatPresentationPalette.Andras, CombatPresentationPalette.Ktini,
+                         CombatPresentationPalette.Pnevmas,
+                     })
+            {
+                GameObject prefab = sink.Resolve(school, CombatPresentationVisualTier.Medium);
+                Assert.IsNotNull(prefab, $"{school}/Medium should resolve to the real shared particle prefab.");
+                Assert.IsNotNull(prefab.GetComponent<RawImage>(), $"{school}/Medium prefab must carry a RawImage.");
+            }
+
+            GameObject bespoke = sink.Resolve(CombatPresentationPalette.Bespoke, CombatPresentationVisualTier.Heavy);
+            Assert.IsNotNull(bespoke, "AvatarStrike's bespoke_heavy prefab should resolve.");
+            RawImage bespokeImage = bespoke.GetComponent<RawImage>();
+            Assert.IsNotNull(bespokeImage, "bespoke_heavy prefab must carry a RawImage.");
+            Assert.IsNotNull(bespokeImage.texture, "bespoke_heavy must reference the real flipbook sheet texture.");
         }
 
         [Test]
