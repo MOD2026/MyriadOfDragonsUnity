@@ -1738,3 +1738,31 @@ Two real design intents not previously specified anywhere in the codebase or doc
    under what conditions, and how does it convert to real ownership without breaking the "no
    Shop/drop/paid channel" spell-acquisition rules already locked elsewhere, or the equivalent
    card-acquisition integrity for the base card system.
+
+## AI-balance: real decisions locked (2026-08-25, GPT) - Novice bands corrected, VeteranPlus needs ablation
+
+**NOVICE: mathematically impossible original bands, CONFIRMED.** Revised acceptance bands (this is
+correcting the TEST's own expectations to match Novice's intentionally-handicapped tier design, not
+a gameplay change): cast rate 0-5%, spells/match 0.10-0.20, fallback ceiling 95%, win-rate delta cap
+stays ±8pp unchanged. Candidate scarcity is structural, documented as intentional tier design, not
+a bug to fix via gate changes.
+
+**DEAD LOADOUT SLOTS: real, separate defect, fix BEFORE any VeteranPlus ablation study.** Renewal/
+Cleansing Root/Oracle Sight fired zero times in 1500 trials, 2 never once legally targetable - a
+6-slot AI loadout with half inert is not a meaningful test. New rule: every equipped AI spell must
+have >=1 legal candidate in the tier's baseline simulation; if not, replace with an eligible spell.
+Do NOT solve via gate changes or magnitude changes. Fix this, THEN rerun the full VeteranPlus
+matrix on the corrected loadout - ablations run against a partially-dead loadout would be
+misleading.
+
+**VETERANPLUS: NOT YET PROVEN to be a Stone Judgment problem.** Fault Line (high volume, low
+precision) and Stone Judgment (low volume, high precision) have near-identical win-share - two
+different spell roles, not one confirmed dominant spell; Stone Judgment may just be legal only in
+already-winning states (confounded correlation, not yet causal). Real ablation plan, AFTER loadout
+fix: (1) current loadout baseline, (2) remove Stone Judgment only, (3) remove all AvatarStrike
+spells, (4) replace Stone Judgment with a legal non-AvatarStrike spell. Compare player-win delta,
+AI-win delta, early-KO rate, spells/match across all 4. Keep the 45% gate unchanged throughout.
+Only after this evidence does anyone decide whether AvatarStrike or Stone Judgment needs a throttle.
+
+**Real order: (1) Novice band correction, (2) dead-slot fix, (3) VeteranPlus matrix rerun on fixed
+loadout, (4) 4-condition ablation study.**
