@@ -177,6 +177,11 @@
           "CardId": "fire_golem",
           "Lane": 1,
           "PreDamage": 0
+        },
+        {
+          "CardId": "fire_golem",
+          "Lane": 2,
+          "PreDamage": 0
         }
       ],
       "Objective": {
@@ -192,7 +197,7 @@
       },
       "Envelope": [
         {
-          "Description": "BS intended solution: Windstep archer_dragon Middle -> Front, spends 0 Resource",
+          "Description": "BS redesign intended solution: Windstep archer_dragon Middle -> Front",
           "Actions": [
             {
               "Kind": 1,
@@ -214,8 +219,30 @@
           "ExpectedFailedActionIndex": -1
         },
         {
-          "Description": "BS stated failure: no action leaves no living player unit",
+          "Description": "BS stated failure: no action loses both units",
           "Actions": [],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: Windstep to Back dies to the Back Fire Golem",
+          "Actions": [
+            {
+              "Kind": 1,
+              "HandIndex": 0,
+              "Lane": 2,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 1,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
           "ExpectedStatus": 1,
           "ExpectedFailedActionIndex": -1
         }
@@ -253,7 +280,7 @@
           "PreDamage": 0
         },
         {
-          "CardId": "mountain_harpy",
+          "CardId": "ogre",
           "Lane": 1,
           "PreDamage": 0
         }
@@ -293,7 +320,7 @@
           "ExpectedFailedActionIndex": -1
         },
         {
-          "Description": "BS stated failure: no action, the harpies trade and Middle is lost",
+          "Description": "BS stated failure: no action, the two Middle units do not survive the Ogre",
           "Actions": [],
           "ExpectedStatus": 1,
           "ExpectedFailedActionIndex": -1
