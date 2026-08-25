@@ -49,6 +49,18 @@ namespace MyriadOfDragons.AI
             [AIDifficultyTier.Titan] = new[] { "cinder_lash", "vital_spark", "fault_line", "renewal", "sun_lance", "banner_of_ashes", "tempest_brand" },
         };
 
+        /// <summary>Every SpellEffect AISpellCaster.TrySelectCast's EffectPriority loop actually
+        /// visits - see AISpellCaster.cs. Any other effect (LaneShield/Cleanse/Dispel/
+        /// Vulnerability/AllLaneAttackBuff/CrossLaneDamage/AllLaneDamage/DrawCards) has no
+        /// TryPickTarget case and no EffectPriority entry, so the AI never even attempts it -
+        /// winning a loadout slot via raw Magnitude ranking (SelectHighestMagnitudePerEffect,
+        /// below) does not make it castable.</summary>
+        private static readonly HashSet<SpellEffect> AiCastableEffects = new HashSet<SpellEffect>
+        {
+            SpellEffect.LaneHeal, SpellEffect.LaneDamage, SpellEffect.LaneAttackBuff,
+            SpellEffect.AvatarStrike, SpellEffect.Reposition,
+        };
+
         public static List<AvatarSpell> ResolveSpellbook(AIDifficultyTier tier)
         {
             List<AvatarSpell> catalog = AvatarSpell.CreatePhase1Catalog();
@@ -58,7 +70,15 @@ namespace MyriadOfDragons.AI
             IEnumerable<string> stageGatedIds = StageGatedPoolByTier.TryGetValue(tier, out string[] ids) ? ids : System.Array.Empty<string>();
             List<AvatarSpell> stageGatedPool = catalog.Where(s => stageGatedIds.Contains(s.Id)).ToList();
 
-            List<AvatarSpell> pool = avatarLevelPool.Concat(stageGatedPool).Distinct().ToList();
+            // Dead-loadout-slot fix (LOCKED 2026-08-25): the per-spell impact diagnostic found
+            // Cleansing Root (Cleanse) and Oracle Sight (DrawCards) winning VeteranPlus loadout
+            // slots via Magnitude ranking alone, then firing zero times across 1500 trials -
+            // AISpellCaster structurally never attempts either effect (see AiCastableEffects
+            // above). Filtering the pool to AI-castable effects BEFORE the highest-Magnitude
+            // selection below means that slot now goes to a real, eligible spell instead - a
+            // loadout-selection fix, not a gate/magnitude change to any spell.
+            List<AvatarSpell> pool = avatarLevelPool.Concat(stageGatedPool).Distinct()
+                .Where(s => AiCastableEffects.Contains(s.Effect)).ToList();
             // Loadout expansion (LOCKED 2026-08-25): "AI may equip up to the same 6-slot cap,
             // same effect/AvatarStrike rules, tier-gated as before" - reuses the same
             // avatar-level-representative mapping this class already had, rather than a second
