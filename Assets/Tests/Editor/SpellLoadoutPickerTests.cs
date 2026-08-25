@@ -142,21 +142,99 @@ namespace MyriadOfDragons.Tests
             presenter.Initialize(onBack: null);
 
             Assert.NotNull(presenter.CanvasObjectForTests);
+            Assert.AreEqual(4, presenter.RequiredSlotsForTests);
             Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("EffectColumns/Column_LaneDamage"));
             Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("ConfirmBar/Btn_ConfirmLoadout"));
+            Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("SlotSummary/Slot_3"));
+            Assert.IsNull(presenter.CanvasObjectForTests.transform.Find("SlotSummary/Slot_4"),
+                "L9 must still render exactly four slot cells.");
 
             presenter.SelectSpellForTests("cinder_lash");
             presenter.SelectSpellForTests("vital_spark");
             presenter.SelectSpellForTests("rallying_gale");
-            presenter.SelectSpellForTests("divine_bolt"); // not stone_judgment (L12) - see the other test's own note
+            // divine_bolt is already prefilled for AvatarStrike — re-selecting would toggle it off.
 
             SpellLoadoutApplyResult applied = presenter.ConfirmForTests();
-            Assert.AreEqual(SpellLoadoutApplyStatus.Applied, applied.Status);
+            Assert.AreEqual(SpellLoadoutApplyStatus.Applied, applied.Status, applied.Message);
 
             PlayerProfile saved = SaveManager.SaveData;
             CollectionAssert.AreEqual(
                 new[] { "cinder_lash", "vital_spark", "rallying_gale", "divine_bolt" },
                 saved.equippedSpellIds);
+        }
+
+        [Test]
+        public void Presenter_AtAvatarL10_RendersFiveSlots_AndConfirmWritesFive()
+        {
+            var profile = new PlayerProfile
+            {
+                avatarLevel = 10,
+                unlockedStageIds = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3", "4-15" },
+                equippedSpellIds = new List<string> { "firestorm", "mend", "war_cry", "divine_bolt" },
+            };
+            SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
+            Assert.IsTrue(SaveSystem.Save(profile));
+            SaveSystem.ResetCurrentProfileForTests();
+
+            var go = new GameObject("LoadoutHarness_L10");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<SpellLoadoutPickerPresenter>();
+            presenter.Initialize(onBack: null);
+
+            Assert.AreEqual(5, presenter.RequiredSlotsForTests);
+            Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("SlotSummary/Slot_4"));
+            Assert.IsNull(presenter.CanvasObjectForTests.transform.Find("SlotSummary/Slot_5"));
+
+            // Prefill kept the original four; pick a fifth distinct effect from the unlocked pool.
+            Assert.AreEqual(4, presenter.SlotSelectionForTests.Count);
+            List<AvatarSpell> pool = SpellLoadoutSelection.ResolveSelectablePool(SaveManager.SaveData);
+            AvatarSpell fifth = pool.First(s =>
+                !presenter.SlotSelectionForTests.ContainsKey(s.Effect));
+            presenter.SelectSpellForTests(fifth.Id);
+
+            SpellLoadoutApplyResult applied = presenter.ConfirmForTests();
+            Assert.AreEqual(SpellLoadoutApplyStatus.Applied, applied.Status, applied.Message);
+            Assert.AreEqual(5, SaveManager.SaveData.equippedSpellIds.Count);
+            Assert.AreEqual(5, SaveManager.SaveData.equippedSpellIds.Distinct().Count());
+        }
+
+        [Test]
+        public void Presenter_AtAvatarL20_RendersSixSlots_AndRefusesConfirmUntilFull()
+        {
+            var profile = new PlayerProfile
+            {
+                avatarLevel = 20,
+                unlockedStageIds = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3", "4-15", "5-15", "7-15" },
+                equippedSpellIds = new List<string> { "firestorm", "mend", "war_cry", "divine_bolt" },
+            };
+            SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
+            Assert.IsTrue(SaveSystem.Save(profile));
+            SaveSystem.ResetCurrentProfileForTests();
+
+            var go = new GameObject("LoadoutHarness_L20");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<SpellLoadoutPickerPresenter>();
+            presenter.Initialize(onBack: null);
+
+            Assert.AreEqual(6, presenter.RequiredSlotsForTests);
+            Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("SlotSummary/Slot_5"));
+
+            SpellLoadoutApplyResult incomplete = presenter.ConfirmForTests();
+            Assert.AreEqual(SpellLoadoutApplyStatus.WrongCount, incomplete.Status,
+                "Migration never auto-fills newly unlocked slots — confirm must refuse until the player picks 6.");
+
+            List<AvatarSpell> pool = SpellLoadoutSelection.ResolveSelectablePool(SaveManager.SaveData);
+            foreach (AvatarSpell spell in pool)
+            {
+                if (presenter.SlotSelectionForTests.Count >= 6) break;
+                if (presenter.SlotSelectionForTests.ContainsKey(spell.Effect)) continue;
+                presenter.SelectSpellForTests(spell.Id);
+            }
+
+            Assert.AreEqual(6, presenter.SlotSelectionForTests.Count);
+            SpellLoadoutApplyResult applied = presenter.ConfirmForTests();
+            Assert.AreEqual(SpellLoadoutApplyStatus.Applied, applied.Status, applied.Message);
+            Assert.AreEqual(6, SaveManager.SaveData.equippedSpellIds.Count);
         }
 
         [Test]

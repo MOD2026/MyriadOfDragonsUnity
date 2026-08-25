@@ -10,8 +10,10 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.UI
 {
     /// <summary>
-    /// Manual 4-spell loadout picker. One slot per <see cref="SpellEffect"/>; pool from
-    /// <see cref="SpellLoadoutSelection.ResolveSelectablePool"/>. Writes equippedSpellIds.
+    /// Manual spell loadout picker. Slot count is tier-unlocked by Avatar level (4/5/6 —
+    /// <see cref="SpellLoadoutAutoEquip.RequiredSlotCount"/>). At most one spell per
+    /// <see cref="SpellEffect"/>; pool from <see cref="SpellLoadoutSelection.ResolveSelectablePool"/>.
+    /// Writes <c>equippedSpellIds</c>.
     /// </summary>
     public class SpellLoadoutPickerPresenter : MonoBehaviour
     {
@@ -22,13 +24,14 @@ namespace MyriadOfDragons.UI
         private Text _statusText;
         private readonly Dictionary<SpellEffect, string> _slotSelection =
             new Dictionary<SpellEffect, string>();
-        private readonly Dictionary<SpellEffect, Text> _slotLabels =
-            new Dictionary<SpellEffect, Text>();
+        private readonly List<Text> _slotLabels = new List<Text>();
         private List<AvatarSpell> _pool = new List<AvatarSpell>();
+        private int _requiredSlots = SpellLoadoutAutoEquip.StartingSlotCount;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
         public IReadOnlyDictionary<SpellEffect, string> SlotSelectionForTests => _slotSelection;
+        public int RequiredSlotsForTests => _requiredSlots;
 
         public void Initialize(Action onBack)
         {
@@ -49,6 +52,8 @@ namespace MyriadOfDragons.UI
             if (profile != null)
                 SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
 
+            int avatarLevel = profile != null && profile.avatarLevel > 0 ? profile.avatarLevel : 1;
+            _requiredSlots = SpellLoadoutSelection.RequiredSlotCount(avatarLevel);
             _pool = SpellLoadoutSelection.ResolveSelectablePool(profile);
             PrefillFromEquipped(profile);
 
@@ -63,7 +68,7 @@ namespace MyriadOfDragons.UI
             bgImg.color = new Color(0.07f, 0.08f, 0.11f, 1f);
             bgImg.raycastTarget = false;
 
-            BuildHeader();
+            BuildHeader(avatarLevel);
             BuildSlotSummary();
             BuildEffectColumns();
             BuildConfirmBar();
@@ -83,11 +88,13 @@ namespace MyriadOfDragons.UI
             {
                 if (string.IsNullOrEmpty(id) || !poolById.TryGetValue(id, out AvatarSpell spell))
                     continue;
+                if (_slotSelection.Count >= _requiredSlots && !_slotSelection.ContainsKey(spell.Effect))
+                    break;
                 _slotSelection[spell.Effect] = spell.Id;
             }
         }
 
-        private void BuildHeader()
+        private void BuildHeader(int avatarLevel)
         {
             GameObject topBar = new GameObject("LoadoutHeader", typeof(RectTransform));
             topBar.transform.SetParent(_canvasObj.transform, false);
@@ -112,11 +119,12 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
 
-            Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "SPELL LOADOUT",
+            Text title = UISharedFoundation.CreateText(topBar.transform, "Title",
+                $"SPELL LOADOUT ({_requiredSlots} SLOTS · L{avatarLevel})",
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
-                new Vector2(720f, 48f));
-            title.fontSize = 28;
-            SetNorm(title.rectTransform, 0.22f, 0.15f, 0.78f, 0.9f);
+                new Vector2(820f, 48f));
+            title.fontSize = 26;
+            SetNorm(title.rectTransform, 0.18f, 0.15f, 0.72f, 0.9f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", string.Empty,
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
@@ -126,38 +134,41 @@ namespace MyriadOfDragons.UI
 
         private void BuildSlotSummary()
         {
+            _slotLabels.Clear();
             GameObject strip = new GameObject("SlotSummary", typeof(RectTransform));
             strip.transform.SetParent(_canvasObj.transform, false);
             SetNorm(strip.GetComponent<RectTransform>(), 0.04f, 0.78f, 0.96f, 0.88f);
 
-            SpellEffect[] order = SpellLoadoutAutoEquip.EquipSlotOrder;
-            float w = 1f / order.Length;
-            for (int i = 0; i < order.Length; i++)
+            float w = 1f / _requiredSlots;
+            for (int i = 0; i < _requiredSlots; i++)
             {
-                SpellEffect effect = order[i];
-                GameObject cell = new GameObject($"Slot_{effect}", typeof(RectTransform), typeof(Image));
+                GameObject cell = new GameObject($"Slot_{i}", typeof(RectTransform), typeof(Image));
                 cell.transform.SetParent(strip.transform, false);
                 cell.GetComponent<Image>().color = new Color(0.12f, 0.16f, 0.2f, 0.9f);
                 cell.GetComponent<Image>().raycastTarget = false;
                 SetNorm(cell.GetComponent<RectTransform>(), i * w + 0.01f, 0.1f, (i + 1) * w - 0.01f, 0.9f);
 
-                Text header = UISharedFoundation.CreateText(cell.transform, "EffectLabel",
-                    SpellLoadoutSelection.EffectSlotLabel(effect).ToUpperInvariant(),
+                Text header = UISharedFoundation.CreateText(cell.transform, "EffectLabel", $"SLOT {i + 1}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.75f, 0.7f, 0.55f), true,
                     new Vector2(200f, 24f));
-                header.fontSize = 14;
+                header.fontSize = 13;
                 SetNorm(header.rectTransform, 0.05f, 0.55f, 0.95f, 0.95f);
 
                 Text pick = UISharedFoundation.CreateText(cell.transform, "PickLabel", "(empty)",
                     UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true,
                     new Vector2(220f, 28f));
-                pick.fontSize = 18;
+                pick.fontSize = 16;
                 SetNorm(pick.rectTransform, 0.05f, 0.05f, 0.95f, 0.55f);
-                _slotLabels[effect] = pick;
+                _slotLabels.Add(pick);
             }
 
             RefreshSlotLabels();
         }
+
+        private SpellEffect[] VisibleEffects() =>
+            SpellLoadoutAutoEquip.FullEffectPriorityOrder
+                .Where(e => SpellLoadoutSelection.SpellsForEffect(_pool, e).Count > 0)
+                .ToArray();
 
         private void BuildEffectColumns()
         {
@@ -165,44 +176,65 @@ namespace MyriadOfDragons.UI
             columns.transform.SetParent(_canvasObj.transform, false);
             SetNorm(columns.GetComponent<RectTransform>(), 0.03f, 0.16f, 0.97f, 0.76f);
 
-            SpellEffect[] order = SpellLoadoutAutoEquip.EquipSlotOrder;
-            float w = 1f / order.Length;
+            SpellEffect[] order = VisibleEffects();
+            if (order.Length == 0)
+            {
+                Text empty = UISharedFoundation.CreateText(columns.transform, "EmptyPool",
+                    "No spells unlocked", UITextRole.Caption, TextAnchor.MiddleCenter,
+                    new Color(0.7f, 0.55f, 0.45f), true, new Vector2(400f, 40f));
+                SetNorm(empty.rectTransform, 0.2f, 0.4f, 0.8f, 0.6f);
+                return;
+            }
+
+            // One row when ≤7 effect types; two rows when the unlocked pool spans more.
+            int colsPerRow = order.Length <= 7 ? order.Length : (order.Length + 1) / 2;
+            int rows = order.Length <= 7 ? 1 : 2;
+
             for (int i = 0; i < order.Length; i++)
             {
                 SpellEffect effect = order[i];
-                GameObject col = new GameObject($"Column_{effect}", typeof(RectTransform));
-                col.transform.SetParent(columns.transform, false);
-                SetNorm(col.GetComponent<RectTransform>(), i * w + 0.008f, 0f, (i + 1) * w - 0.008f, 1f);
+                int row = i / colsPerRow;
+                int col = i % colsPerRow;
+                int colsThisRow = row == 0
+                    ? Math.Min(colsPerRow, order.Length)
+                    : order.Length - colsPerRow;
+                float cellW = 1f / colsThisRow;
+                float rowBottom = rows == 1 ? 0f : (row == 0 ? 0.52f : 0f);
+                float rowTop = rows == 1 ? 1f : (row == 0 ? 1f : 0.48f);
+
+                GameObject colGo = new GameObject($"Column_{effect}", typeof(RectTransform));
+                colGo.transform.SetParent(columns.transform, false);
+                SetNorm(colGo.GetComponent<RectTransform>(),
+                    col * cellW + 0.006f, rowBottom,
+                    (col + 1) * cellW - 0.006f, rowTop);
+
+                Text effectHeader = UISharedFoundation.CreateText(colGo.transform, "EffectHeader",
+                    SpellLoadoutSelection.EffectSlotLabel(effect).ToUpperInvariant(),
+                    UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.8f, 0.75f, 0.55f), true,
+                    new Vector2(180f, 22f));
+                effectHeader.fontSize = 12;
+                SetNorm(effectHeader.rectTransform, 0.02f, 0.88f, 0.98f, 0.98f);
 
                 List<AvatarSpell> spells = SpellLoadoutSelection.SpellsForEffect(_pool, effect);
-                if (spells.Count == 0)
-                {
-                    Text empty = UISharedFoundation.CreateText(col.transform, "EmptyPool",
-                        "None unlocked", UITextRole.Caption, TextAnchor.MiddleCenter,
-                        new Color(0.7f, 0.55f, 0.45f), true, new Vector2(200f, 40f));
-                    SetNorm(empty.rectTransform, 0.05f, 0.4f, 0.95f, 0.6f);
-                    continue;
-                }
-
-                float rowH = 1f / Mathf.Max(spells.Count, 1);
+                float rowH = 0.86f / Mathf.Max(spells.Count, 1);
                 for (int s = 0; s < spells.Count; s++)
                 {
                     AvatarSpell spell = spells[s];
                     string spellId = spell.Id;
                     GameObject btn = new GameObject($"Spell_{spell.Id}", typeof(RectTransform), typeof(Image), typeof(Button));
-                    btn.transform.SetParent(col.transform, false);
+                    btn.transform.SetParent(colGo.transform, false);
                     Image img = btn.GetComponent<Image>();
                     bool selected = _slotSelection.TryGetValue(effect, out string cur) && cur == spellId;
                     HomeV3UiLibrary.ApplyNeutralActionButton(btn.GetComponent<Button>(), img,
                         selected ? new Color(0.28f, 0.42f, 0.28f) : new Color(0.16f, 0.2f, 0.26f, 0.92f));
                     btn.GetComponent<Button>().onClick.AddListener(() => SelectSpell(spellId));
-                    SetNorm(btn.GetComponent<RectTransform>(), 0.02f, 1f - (s + 1) * rowH + 0.02f,
-                        0.98f, 1f - s * rowH - 0.02f);
+                    SetNorm(btn.GetComponent<RectTransform>(), 0.02f, 0.88f - (s + 1) * rowH + 0.01f,
+                        0.98f, 0.88f - s * rowH - 0.01f);
 
                     string label = $"{spell.Name}\nE{spell.EnergyCost} · Mag {spell.Magnitude}";
                     Text t = UISharedFoundation.CreateText(btn.transform, "Label", label,
                         UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 56f));
-                    t.fontSize = 15;
+                    t.fontSize = 13;
                     SetNorm(t.rectTransform, 0.04f, 0.08f, 0.96f, 0.92f);
                 }
             }
@@ -233,7 +265,24 @@ namespace MyriadOfDragons.UI
                 return;
             }
 
-            _slotSelection[spell.Effect] = spell.Id;
+            if (_slotSelection.TryGetValue(spell.Effect, out string current) && current == spellId)
+            {
+                _slotSelection.Remove(spell.Effect);
+            }
+            else if (_slotSelection.ContainsKey(spell.Effect))
+            {
+                _slotSelection[spell.Effect] = spell.Id;
+            }
+            else if (_slotSelection.Count >= _requiredSlots)
+            {
+                SetStatus($"Loadout full ({_requiredSlots}/{_requiredSlots}). Deselect a spell or replace the same effect type.");
+                return;
+            }
+            else
+            {
+                _slotSelection[spell.Effect] = spell.Id;
+            }
+
             RebuildColumnsKeepingSelection();
             RefreshSlotLabels();
             RefreshStatus();
@@ -253,41 +302,24 @@ namespace MyriadOfDragons.UI
         private SpellLoadoutApplyResult ConfirmSelection()
         {
             PlayerProfile profile = SaveManager.SaveData;
-
-            // Loadout expansion (LOCKED 2026-08-25): this screen still only renders the original
-            // four effect-type columns (see BuildSlotSummary/BuildEffectColumns) - a real 5th/6th
-            // slot picker UI is a separate, larger follow-up, not done here. A player whose Avatar
-            // level has unlocked more than 4 slots gets a clear, honest refusal instead of this
-            // screen silently saving a WrongCount-rejected 4-spell selection or truncating their
-            // real slot count - their existing loadout is left completely untouched either way.
-            int avatarLevel = profile?.avatarLevel > 0 ? profile.avatarLevel : 1;
+            int avatarLevel = profile != null && profile.avatarLevel > 0 ? profile.avatarLevel : 1;
             int required = SpellLoadoutSelection.RequiredSlotCount(avatarLevel);
-            if (required > SpellLoadoutAutoEquip.EquipSlotOrder.Length)
+
+            if (_slotSelection.Count != required)
             {
-                var notYetSupported = new SpellLoadoutApplyResult
+                var incomplete = new SpellLoadoutApplyResult
                 {
                     Status = SpellLoadoutApplyStatus.WrongCount,
-                    Message = $"Your unlocked loadout now has {required} slots - this screen doesn't support picking beyond the original {SpellLoadoutAutoEquip.EquipSlotOrder.Length} yet. Your current loadout is unchanged.",
+                    Message = $"Pick exactly {required} spells (one per effect type). Currently {_slotSelection.Count}/{required}.",
                 };
-                SetStatus(notYetSupported.Message);
-                return notYetSupported;
+                SetStatus(incomplete.Message);
+                return incomplete;
             }
 
-            var orderedIds = new List<string>(required);
-            foreach (SpellEffect effect in SpellLoadoutAutoEquip.EquipSlotOrder)
-            {
-                if (!_slotSelection.TryGetValue(effect, out string id) || string.IsNullOrEmpty(id))
-                {
-                    var incomplete = new SpellLoadoutApplyResult
-                    {
-                        Status = SpellLoadoutApplyStatus.MissingEffect,
-                        Message = $"Pick a {SpellLoadoutSelection.EffectSlotLabel(effect)} spell.",
-                    };
-                    SetStatus(incomplete.Message);
-                    return incomplete;
-                }
-                orderedIds.Add(id);
-            }
+            List<string> orderedIds = SpellLoadoutAutoEquip.FullEffectPriorityOrder
+                .Where(effect => _slotSelection.ContainsKey(effect))
+                .Select(effect => _slotSelection[effect])
+                .ToList();
 
             SpellLoadoutApplyResult result = SpellLoadoutSelection.TryApply(profile, orderedIds);
             SetStatus(result.Message);
@@ -302,11 +334,17 @@ namespace MyriadOfDragons.UI
                 .Where(s => !string.IsNullOrEmpty(s.Id))
                 .ToDictionary(s => s.Id);
 
-            foreach (SpellEffect effect in SpellLoadoutAutoEquip.EquipSlotOrder)
+            List<(SpellEffect effect, string id)> ordered = SpellLoadoutAutoEquip.FullEffectPriorityOrder
+                .Where(e => _slotSelection.ContainsKey(e))
+                .Select(e => (e, _slotSelection[e]))
+                .ToList();
+
+            for (int i = 0; i < _slotLabels.Count; i++)
             {
-                if (!_slotLabels.TryGetValue(effect, out Text label) || label == null) continue;
-                if (_slotSelection.TryGetValue(effect, out string id) && byId.TryGetValue(id, out AvatarSpell spell))
-                    label.text = spell.Name;
+                Text label = _slotLabels[i];
+                if (label == null) continue;
+                if (i < ordered.Count && byId.TryGetValue(ordered[i].id, out AvatarSpell spell))
+                    label.text = $"{SpellLoadoutSelection.EffectSlotLabel(ordered[i].effect)}\n{spell.Name}";
                 else
                     label.text = "(empty)";
             }
@@ -315,15 +353,14 @@ namespace MyriadOfDragons.UI
         private void RefreshStatus()
         {
             int filled = _slotSelection.Count;
-            if (!SpellLoadoutSelection.PoolCoversAllSlots(_pool))
+            if (!SpellLoadoutSelection.PoolHasEnoughDistinctEffects(_pool, _requiredSlots))
             {
-                SetStatus("Unlocked pool is missing an effect type — progress further to fill all four slots.");
+                SetStatus($"Unlocked pool cannot yet fill {_requiredSlots} distinct effect types — progress further.");
                 return;
             }
 
-            int required = SpellLoadoutAutoEquip.EquipSlotOrder.Length; // this screen's own rendered slot count - see ConfirmSelection's own note on the 5th/6th slot gap.
-            if (filled < required)
-                SetStatus($"Select one spell per type ({filled}/{required}).");
+            if (filled < _requiredSlots)
+                SetStatus($"Select {_requiredSlots} spells, one per effect type ({filled}/{_requiredSlots}).");
             else
                 SetStatus("Ready — confirm to save loadout.");
         }

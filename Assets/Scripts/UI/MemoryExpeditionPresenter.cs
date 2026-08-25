@@ -1,11 +1,18 @@
 using System;
+using System.Collections.Generic;
+using MyriadOfDragons.Data;
+using MyriadOfDragons.Empire;
 using MyriadOfDragons.Metagame;
+using MyriadOfDragons.Save;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace MyriadOfDragons.UI
 {
-    /// <summary>MEMORY EXPEDITION V1 art shell. Actions refuse while OpenValues stay OPEN.</summary>
+    /// <summary>
+    /// Memory Expedition play screen — 3-round match grid wired to
+    /// <see cref="MemoryExpeditionService"/> / <see cref="MemoryExpedition"/>.
+    /// </summary>
     public class MemoryExpeditionPresenter : MonoBehaviour
     {
         public const string CanvasName = "MemoryExpeditionCanvas";
@@ -13,9 +20,15 @@ namespace MyriadOfDragons.UI
         private GameObject _canvasObj;
         private Action _onBack;
         private Text _statusText;
+        private Text _roundText;
+        private MemoryExpeditionState _state;
+        private readonly List<Text> _tileLabels = new List<Text>();
+        private DateTime _utcNowForTests = DateTime.MinValue;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+        public MemoryExpeditionState StateForTests => _state;
+        public int TileCountForTests => _tileLabels.Count;
 
         public void Initialize(Action onBack)
         {
@@ -23,19 +36,25 @@ namespace MyriadOfDragons.UI
             BuildUI();
         }
 
+        /// <summary>Inject UTC for EditMode (mirrors Daily Login test seams).</summary>
+        public void SetUtcNowForTests(DateTime utcNow) => _utcNowForTests = utcNow;
 
-        public MemoryExpeditionActionResult SelectRouteForTests(int routeIndex)
-        {
-            var r = MemoryExpeditionOpenValues.TrySelectRoute(routeIndex);
-            SetStatus(r.Message);
-            return r;
-        }
+        public MemoryExpeditionTapResult TapTileForTests(int tileIndex) => TapTile(tileIndex);
 
+        public MemoryExpeditionClaimResult ClaimForTests() => ClaimRewards();
+
+        private DateTime NowUtc() =>
+            _utcNowForTests == DateTime.MinValue ? DateTime.UtcNow : _utcNowForTests;
 
         private void BuildUI()
         {
             TeardownUI();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+            PlayerProfile profile = SaveManager.SaveData;
+            _state = MemoryExpeditionService.EnsureRun(profile, NowUtc());
+            if (profile != null)
+                SaveManager.Save();
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;
@@ -47,7 +66,10 @@ namespace MyriadOfDragons.UI
             MemoryExpeditionUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), new Color(0.08f, 0.09f, 0.12f));
 
             BuildHeader();
-            BuildRoutes();
+            BuildHud();
+            BuildGrid();
+            BuildClaimBar();
+            RefreshHud();
         }
 
         private void BuildHeader()
@@ -86,39 +108,164 @@ namespace MyriadOfDragons.UI
                 new Color(0.8f, 0.85f, 0.7f), true, new Vector2(420f, 28f));
             SetNorm(wallet.rectTransform, 0.16f, 0.12f, 0.48f, 0.88f);
 
-            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", MemoryExpeditionOpenValues.StatusNote,
+            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", string.Empty,
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
                 new Vector2(520f, 40f));
             SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
         }
 
-        private void BuildRoutes()
+        private void BuildHud()
         {
-            GameObject row = new GameObject("RouteRow", typeof(RectTransform));
-            row.transform.SetParent(_canvasObj.transform, false);
-            SetNorm(row.GetComponent<RectTransform>(), 0.14f, 0.18f, 0.96f, 0.82f);
-            for (int i = 0; i < MemoryExpeditionOpenValues.RouteCount; i++)
+            GameObject hud = new GameObject("RunHud", typeof(RectTransform));
+            hud.transform.SetParent(_canvasObj.transform, false);
+            SetNorm(hud.GetComponent<RectTransform>(), 0.2f, 0.84f, 0.8f, 0.90f);
+
+            _roundText = UISharedFoundation.CreateText(hud.transform, "RoundLine", string.Empty,
+                UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true,
+                new Vector2(700f, 36f));
+            SetNorm(_roundText.rectTransform, 0f, 0f, 1f, 1f);
+        }
+
+        private void BuildGrid()
+        {
+            _tileLabels.Clear();
+            Transform old = _canvasObj.transform.Find("TileGrid");
+            if (old != null)
             {
-                int route = i;
-                float left = i / 3f;
-                GameObject well = new GameObject($"RouteWell_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
-                well.transform.SetParent(row.transform, false);
-                Image img = well.GetComponent<Image>();
-                img.color = new Color(0.1f, 0.12f, 0.16f, 0.35f);
-                Button btn = well.GetComponent<Button>();
-                btn.targetGraphic = img;
-                btn.onClick.AddListener(() => SetStatus(MemoryExpeditionOpenValues.TrySelectRoute(route).Message));
-                SetNorm(well.GetComponent<RectTransform>(), left + 0.02f, 0.05f, left + 0.31f, 0.95f);
-                Text label = UISharedFoundation.CreateText(well.transform, "Label",
-                    $"ROUTE {((char)('A' + i))}", UITextRole.Title, TextAnchor.MiddleCenter,
-                    new Color(0.95f, 0.9f, 0.79f), true, new Vector2(200f, 40f));
-                SetNorm(label.rectTransform, 0.1f, 0.7f, 0.9f, 0.9f);
-                Text ph = UISharedFoundation.CreateText(well.transform, "Placeholder",
-                    $"Rewards {MetagameShellProfileBinding.OpenAmountLabel}", UITextRole.Caption, TextAnchor.MiddleCenter,
-                    new Color(0.85f, 0.82f, 0.7f), true, new Vector2(200f, 36f));
-                SetNorm(ph.rectTransform, 0.1f, 0.35f, 0.9f, 0.55f);
+                if (Application.isPlaying) Destroy(old.gameObject);
+                else DestroyImmediate(old.gameObject);
+            }
+
+            if (_state == null) return;
+            MemoryExpeditionRoundRules rules = MemoryExpedition.RulesForRound(_state.CurrentRound);
+            if (rules == null) return;
+
+            GameObject grid = new GameObject("TileGrid", typeof(RectTransform));
+            grid.transform.SetParent(_canvasObj.transform, false);
+            SetNorm(grid.GetComponent<RectTransform>(), 0.18f, 0.18f, 0.82f, 0.82f);
+
+            int rows = rules.Rows;
+            int cols = rules.Columns;
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    int tileIndex = r * cols + c;
+                    float left = (float)c / cols;
+                    float right = (float)(c + 1) / cols;
+                    float top = 1f - (float)r / rows;
+                    float bottom = 1f - (float)(r + 1) / rows;
+
+                    GameObject tile = new GameObject($"Tile_{tileIndex}", typeof(RectTransform), typeof(Image), typeof(Button));
+                    tile.transform.SetParent(grid.transform, false);
+                    Image img = tile.GetComponent<Image>();
+                    img.color = new Color(0.12f, 0.15f, 0.2f, 0.95f);
+                    Button btn = tile.GetComponent<Button>();
+                    btn.targetGraphic = img;
+                    int captured = tileIndex;
+                    btn.onClick.AddListener(() => TapTile(captured));
+                    SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, bottom + 0.01f, right - 0.01f, top - 0.01f);
+
+                    Text label = UISharedFoundation.CreateText(tile.transform, "Face", "?",
+                        UITextRole.Title, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                        new Vector2(80f, 80f));
+                    label.fontSize = 28;
+                    SetNorm(label.rectTransform, 0.1f, 0.1f, 0.9f, 0.9f);
+                    _tileLabels.Add(label);
+                }
+            }
+
+            RefreshTiles();
+        }
+
+        private void BuildClaimBar()
+        {
+            GameObject bar = new GameObject("ClaimBar", typeof(RectTransform));
+            bar.transform.SetParent(_canvasObj.transform, false);
+            SetNorm(bar.GetComponent<RectTransform>(), 0.3f, 0.04f, 0.7f, 0.14f);
+
+            GameObject claim = new GameObject("Btn_Claim", typeof(RectTransform), typeof(Image), typeof(Button));
+            claim.transform.SetParent(bar.transform, false);
+            Image img = claim.GetComponent<Image>();
+            HomeV3UiLibrary.ApplyNeutralActionButton(claim.GetComponent<Button>(), img, new Color(0.22f, 0.38f, 0.3f));
+            claim.GetComponent<Button>().onClick.AddListener(() => ClaimRewards());
+            SetNorm(claim.GetComponent<RectTransform>(), 0.1f, 0.15f, 0.9f, 0.85f);
+            UISharedFoundation.CreateText(claim.transform, "Text", "CLAIM REWARDS", UITextRole.Body,
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(320f, 40f));
+        }
+
+        private MemoryExpeditionTapResult TapTile(int tileIndex)
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            MemoryExpeditionTapResult result = MemoryExpeditionService.TapTile(profile, tileIndex, NowUtc());
+            _state = profile?.ToMemoryExpeditionState();
+            if (profile != null)
+                SaveManager.Save();
+
+            // Round advance rebuilds the grid (size may change).
+            if (result.Status == MemoryExpeditionTapStatus.RoundCleared && !result.RunOver)
+                BuildGrid();
+            else
+                RefreshTiles();
+
+            RefreshHud();
+            if (!string.IsNullOrEmpty(result.Message))
+                SetStatus(result.Message);
+            else
+                SetStatus(StatusFor(result.Status));
+            return result;
+        }
+
+        private MemoryExpeditionClaimResult ClaimRewards()
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            MemoryExpeditionClaimResult result = MemoryExpeditionService.ClaimRewards(profile, NowUtc());
+            _state = profile?.ToMemoryExpeditionState();
+            if (profile != null)
+                SaveManager.Save();
+            RefreshHud();
+            SetStatus(result.Message ?? result.Status.ToString());
+            return result;
+        }
+
+        private void RefreshHud()
+        {
+            if (_roundText == null || _state == null) return;
+            string fail = _state.RunFailed ? " · FAILED" : string.Empty;
+            string claimed = _state.RewardClaimed ? " · CLAIMED" : string.Empty;
+            _roundText.text =
+                $"Round {_state.CurrentRound}/{MemoryExpedition.Rounds.Length} · Mistakes {_state.MistakesRemaining} · Cleared {_state.HighestRoundCleared}{fail}{claimed}";
+        }
+
+        private void RefreshTiles()
+        {
+            if (_state == null || _tileLabels.Count == 0) return;
+            MemoryExpeditionRoundRules rules = MemoryExpedition.RulesForRound(_state.CurrentRound);
+            if (rules == null) return;
+            int[] layout = MemoryExpedition.LayoutFor(_state.Seed, _state.CurrentRound);
+
+            for (int i = 0; i < _tileLabels.Count && i < rules.TileCount; i++)
+            {
+                Text label = _tileLabels[i];
+                if (label == null) continue;
+                bool revealed = MemoryExpedition.IsTileResolved(_state, i);
+                bool selected = _state.FirstSelectedTile == i;
+                if (revealed || selected)
+                    label.text = layout[i].ToString();
+                else
+                    label.text = "?";
             }
         }
+
+        private static string StatusFor(MemoryExpeditionTapStatus status) => status switch
+        {
+            MemoryExpeditionTapStatus.FirstTileSelected => "Pick a second tile.",
+            MemoryExpeditionTapStatus.Matched => "Match!",
+            MemoryExpeditionTapStatus.Mismatched => "Mismatch.",
+            MemoryExpeditionTapStatus.RoundCleared => "Round cleared.",
+            MemoryExpeditionTapStatus.RunFailed => "Run failed.",
+            _ => status.ToString(),
+        };
 
         private void SetStatus(string message)
         {
@@ -136,6 +283,7 @@ namespace MyriadOfDragons.UI
 
         public void TeardownUI()
         {
+            _tileLabels.Clear();
             if (_canvasObj == null) return;
             if (Application.isPlaying) Destroy(_canvasObj);
             else DestroyImmediate(_canvasObj);
