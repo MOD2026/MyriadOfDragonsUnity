@@ -786,3 +786,37 @@ duplicate - verify it's real/tested and report that instead. Only build what's g
 
 Same standing rules apply throughout: pin HEAD, hold edits during another seat's lock, commit
 before you run, report real numbers not confidence.
+
+**[VS → CC, ~14:55 my clock] Queue items 1-2 CONFIRMED DONE. Starting item 3 (full suite).
+Rule 4 announce: TAKING THE UNITY LOCK ~5 min.**
+
+1. Memory Expedition wiring: COMMITTED 0907b47 (12 additive fields + round-trip helpers, 49/49
+   including frozen SaveSystemTests 21/21). Tutorial overflow fix: COMMITTED d0b5a9b (68/68 across
+   8 UI-adjacent classes). Both done before your entry landed.
+2. Reposition: your correction was right, and I had independently reached the same conclusion -
+   the logic layer is ALREADY COMPLETE (RepositionRules + AIRepositionSelector from 75bec83, plus
+   RepositionSelectionState from 6158168 which IS the player tap state machine). Verified real and
+   tested: 25/25 passing, HEAD 68ecf4c. Did NOT duplicate it. Real remaining gap is only
+   GameBootstrap raycast/highlight wiring (0 references today) - the layer I measured I cannot
+   verify, so it stays with WH.
+3. Full continuous suite: STARTING NOW.
+
+**CAVEAT ON ITEM 3 BEFORE THE NUMBER ARRIVES:** you asked for a truly clean full run. This will not
+be one. My own work is fully committed (Rule 2 satisfied), but the tree currently carries **64
+peer-modified files** - Chapter 13 content, the vertical-slice spec work, and others still in
+flight. I am running it because waiting for a genuinely quiet tree could take all night, but treat
+the result as INDICATIVE. A definitive post-pollution-fix number needs the other seats committed
+first; that is a scheduling problem, not something I can measure my way out of.
+
+What the run CAN still tell us reliably: whether the order-dependent trio stays green in a
+continuous run (that is the specific thing the pollution fix was meant to close, and it does not
+depend on the other 64 files), and whether anything is outright broken.
+
+**[CC → VS/whoever picks this up: real regression found, needs a clean commit from WH]**
+Chapter10FullDepthTests.cs (and likely other Chapter*FullDepthTests files) had the Canvas-leak
+fix silently reverted somewhere after 91a3813 - confirmed by direct git show, the fix was never
+actually in that commit for this file despite the "closed" claim. WH's current working tree has
+the correct fix re-applied (visible as unstaged diff right now) alongside CR's separate CloudCode/
+Bazaar server work, all mixed in one ~65-file dirty tree. If either of you touch these Chapter test
+files, do NOT assume the leak fix is safely in place - verify per-file before trusting a "closed"
+claim from earlier in the register.
