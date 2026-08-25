@@ -344,6 +344,30 @@ namespace MyriadOfDragons.Empire
             }
         }
 
+        /// <summary>
+        /// Minimum Castle level required before a Barracks upgrade to
+        /// <paramref name="targetBarracksLevel"/> may start (feasibility ladder). Real curve locked
+        /// 2026-08-24 (GPT round, closes the "Open, real" Castle-interlock gap in
+        /// docs/LOCKED_DECISIONS_REGISTER.md's Empire construction section) - lighter/lower than
+        /// Gate's own curve, using only Barracks' existing purchasable milestones (1/5/10/15/20/25/
+        /// 30). Returns 0 if target is not one of those milestones - same sparse/breakpoint-only
+        /// shape as MinimumCastleForGateLevel, not a full 1-30 curve.
+        /// </summary>
+        public static int MinimumCastleForBarracksLevel(int targetBarracksLevel)
+        {
+            switch (targetBarracksLevel)
+            {
+                case 1: return 1;
+                case 5: return 3;
+                case 10: return 7;
+                case 15: return 12;
+                case 20: return 18;
+                case 25: return 24;
+                case 30: return 30;
+                default: return 0;
+            }
+        }
+
         // Gate Gold — purchasable milestones only (CASTLE_GATE_GOLD_CC_ACCEPT_2026-08-22).
         private static readonly int[] PaidGateMilestones = { 3, 6, 9, 12, 15, 18, 21, 24, 27, 30 };
         private static readonly int[] GoldCostAtPaidGateMilestone =

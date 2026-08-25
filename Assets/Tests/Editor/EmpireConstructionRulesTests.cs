@@ -33,7 +33,11 @@ namespace MyriadOfDragons.Tests
                 {
                     BuildingId = EmpireBuildingId.Barracks,
                     CurrentBuildingLevel = 1,
-                    CastleLevel = 1,
+                    // Barracks L5's own real Castle prereq (MinimumCastleForBarracksLevel) is 3 -
+                    // this test's own purpose is the milestone-skip behaviour, not the prereq, so
+                    // it satisfies the prereq rather than asserting it (see
+                    // BarracksStart_RequiresCastlePrereq_AndBlocksSkip for that).
+                    CastleLevel = 3,
                     AvailableGold = 50_000,
                     ProjectId = "b1",
                 });
@@ -41,6 +45,36 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(result.Ok);
             Assert.AreEqual(5, result.State.targetLevel);
             Assert.AreEqual(1_200, result.GoldCharged);
+        }
+
+        [Test]
+        public void BarracksStart_RequiresCastlePrereq_AndBlocksSkip()
+        {
+            // Real curve locked 2026-08-24 (GPT round, closes the "Open, real" Castle-interlock
+            // gap) - Barracks L5 requires Castle>=3, lighter than Gate's own equivalent-tier gate.
+            var blocked = EmpireConstructionRules.TryStart(new EmpireConstructionState(),
+                new EmpireConstructionStartRequest
+                {
+                    BuildingId = EmpireBuildingId.Barracks,
+                    CurrentBuildingLevel = 1,
+                    CastleLevel = 2,
+                    AvailableGold = 50_000,
+                    ProjectId = "b2",
+                });
+            Assert.IsFalse(blocked.Ok);
+
+            var ok = EmpireConstructionRules.TryStart(new EmpireConstructionState(),
+                new EmpireConstructionStartRequest
+                {
+                    BuildingId = EmpireBuildingId.Barracks,
+                    CurrentBuildingLevel = 1,
+                    CastleLevel = 3,
+                    AvailableGold = 50_000,
+                    ProjectId = "b3",
+                });
+            Assert.IsTrue(ok.Ok);
+            Assert.AreEqual(5, ok.State.targetLevel);
+            Assert.AreEqual(1_200, ok.GoldCharged);
         }
 
         [Test]

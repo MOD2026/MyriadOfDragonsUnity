@@ -82,6 +82,8 @@ namespace MyriadOfDragons.Empire
                     target = PlayerEmpireData.NextPaidBarracksMilestone(request.CurrentBuildingLevel);
                     if (target == 0)
                         return Fail("Barracks is at cap.");
+                    if (request.CastleLevel < PlayerEmpireData.MinimumCastleForBarracksLevel(target))
+                        return Fail("Castle prerequisite not met.");
                     cost = PlayerEmpireData.GoldCostForBarracksUpgrade(request.CurrentBuildingLevel, target);
                     break;
                 case EmpireBuildingId.Gate:

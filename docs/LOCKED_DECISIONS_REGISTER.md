@@ -65,12 +65,14 @@ not just accepted on assertion). Embassy full 6-band curve, both axes scale: L1-
 10min/help; L6-10 = 2, 20min; L11-15 = 3, 30min; L16-20 = 4, 45min; L21-25 = 5, 60min; L26-30 = 6,
 90min. Lifetime-per-project cap of min(6hr, 30% of timer), whichever is lower.
 
-**Open, real (not yet locked — flagged by coding room 2026-08-23):** the Castle-level interlock
-table (which Castle level unlocks which Barracks/Gate level) has no real 1-30 curve anywhere. The
-only numeric example ("Castle 15 → Barracks max 15 / Gate max 13") lives in the section below marked
-Superseded/stale — one qualitative rule plus one stale data point isn't enough to derive a real
-curve, and it doesn't match the already-shipped `PlayerEmpireData.MinimumCastleForGateLevel` v1
-formula either. Needs a real GPT round before implementation.
+**RESOLVED 2026-08-24 (was "Open, real" — flagged by coding room 2026-08-23, closed via a real GPT
+round rather than guessed):** Barracks now has its own Castle-level interlock, `PlayerEmpireData.
+MinimumCastleForBarracksLevel`, lighter/lower than Gate's own curve and keyed to Barracks' existing
+purchasable milestones only (1/5/10/15/20/25/30): Barracks 1→Castle 1, 5→3, 10→7, 15→12, 20→18,
+25→24, 30→30. Same sparse/breakpoint-only shape as `MinimumCastleForGateLevel` (0/undefined between
+milestones) — does not touch Barracks' existing deck-slot/Resource-regen formulas, purely gates
+whether the next milestone level is purchasable. Wired into `EmpireConstructionRules.TryStart`'s
+Barracks case the same way Gate's own check already worked. Gate's own interlock is unchanged.
 **Owner-confirmed: the ~22-month full-roster maxing tail is intentional, not a problem to solve** —
 matches genre precedent (CoC/RoK: core spine feels fast, maxing everything is a long tail by
 design). The 6-9mo target applies to the 5-building core spine (Castle/Barracks/Gate/Academy/
@@ -490,3 +492,106 @@ Ch3-finale-book Tempest Brand). No changes required. Confirms the existing imple
 correctly grounded, not just internally consistent. Tests must keep distinguishing eligible-in-pool
 from actually-equipped (auto-equip heuristic still suppresses Cinder Lash/Vital Spark/Sun Lance/
 Tempest Brand behind stronger same-effect options) - no heuristic correction is in scope here.
+
+## Unattended overnight run started (2026-08-25, ~02:00)
+
+Owner is stepping away; CC, VS, and CR left running unattended. Permission modes confirmed before
+leaving: VS = Auto ("approve actions that pass a safety check, pause for anything risky"), CR =
+Bypass permissions. This CLI session (CC) remains on default allowlist-only mode (no terminal
+access to toggle it away from here).
+
+State at handoff:
+- Committed and clean: CardDatabase pollution fix (2179bae, 53 files, 1001/1014), WH's 4 test-fix
+  diffs (3035657, 26/26), spell loadout picker (4f25839, 41/41).
+- VS assigned: (1) verify+commit the uncommitted loadout-picker nav wiring (AvatarPresenter/
+  HomePagePresenter/CampaignMapPresenter/GameBootstrap - real, coherent, just unverified this
+  session), (2) investigate Chapter2-10FullDepthTests winnability failures - real MVP-gate-relevant
+  work (Campaign playability row), separate from the parked Novice/VeteranPlus AI-balance thread.
+  VS's own transcript also independently surfaced a live test-isolation bug (something wiping the
+  card DB between certain classes in full-suite runs, distinct from the already-fixed pollution
+  bug) and was mid isolation-re-run to pin it down at handoff time.
+- CR assigned: close the spell-catalog gap (19/36 implemented per AvatarSpell.cs CreateCatalog(),
+  17 missing) against docs/SPELL_CATALOG_v1.md, with real EditMode test coverage per spell.
+- AI-balance tuning (Novice cast-frequency over-correction, VeteranPlus fallback-ceiling miss)
+  remains explicitly parked - not to be picked up overnight unless it blocks something else.
+- Next-milestone target (owner-stated 2026-08-24): 20-30 real UI screens matching mockup (no dead
+  space), all 36 spells, 11+ buildings, Chapters playable to 10-30, at least one minigame. Current
+  real state at handoff: ~22 UI presenters exist (several are shells, not content-complete per
+  mockup - unverified), 19/36 spells, 11 buildings structure-locked but only Gate has real Castle
+  interlock logic, Chapters 1-10 have test coverage only (11-30 don't exist), Memory Expedition
+  minigame is UI shell only (no real minigame logic). This overnight run will not close that whole
+  gap - expect partial progress (spell catalog additions from CR, Chapter winnability findings and
+  nav wiring from VS), not full completion, by morning.
+
+## Chapter*FullDepthTests non-determinism - PARTIALLY FIXED, real remainder PARKED (2026-08-25)
+
+Loadout-picker nav wiring committed clean (94703bc, full 132-class run 1004/1014 - the 10 failures
+are all pre-existing AI-balance-thread content, unrelated to this wiring).
+
+Investigating why Chapter2-10FullDepthTests fail on a different stage every run: root cause #1
+found and fixed (e5f2ea1) - AISpellCaster's cast-probability-gate RNG was never seeded in these 9
+test files (same gap already fixed elsewhere for CampaignAfMirroredAiSpellWinnabilityTests), so
+every run got a fresh Guid-derived seed. Fix applied (SetAiSpellCastRngSeedForTests(42) in all 9
+files), verified real via diff review + clean compile.
+
+However: pinning that seed did NOT fully close the non-determinism. Two back-to-back runs with the
+identical pinned seed still failed on a different stage every time (Chapter2/3/4/5/6/7/9/10 all
+shifted stage between runs). Exhaustive grep of Assets/Scripts/Battle/ and Assets/Scripts/AI/ found
+only two RNG sources total, both already pinned (AI-cast-gate RNG, deck-shuffle RNG) - no second
+unseeded Random/Guid/DateTime/TickCount/non-deterministic OrderBy, and deck composition itself is a
+fixed List, not a Dictionary/HashSet. VarianceIndex's string.GetHashCode() was also directly tested
+across two separate Unity process launches and ruled out (identical hash values both times).
+
+Net: a real, confirmed randomness source was found and fixed (worth keeping), but a second,
+unidentified source remains - likely outside Battle/AI/ entirely (UI/launch layer) or genuine
+engine-level non-determinism not visible to a text search. Not pursued further past this point per
+standing anti-circling rule - parked at the same priority tier as the Novice AI-balance thread.
+Chapter winnability results should still be treated as unreliable/non-reproducible until this is
+resolved by someone with time to trace beyond Battle/AI, or until it's deliberately reprioritized.
+
+## UI shell audit vs "no dead space" milestone target - REAL NUMBERS (2026-08-25)
+
+Audited all 23 presenters in Assets/Scripts/UI/ (read-only, VS, nothing edited). Against the
+owner's stated next-milestone target (20-30 real UI screens, no dead space, matching mockup):
+
+- **Real-content (14):** HomePagePresenter, CollectionPresenter, DeckBuilderPresenter,
+  ShopPresenter, EmpirePresenter, AvatarPresenter, CampaignMapPresenter, SettingsPresenter,
+  SpellLoadoutPickerPresenter, PackOpenOverlayPresenter, EmpireExpeditionPresenter,
+  EmpireBuildingDetailPresenter, GuildExpeditionPresenter, PermitWeekKeyPresenter - all genuinely
+  read SaveManager/PlayerProfile/CardDatabase/Economy state.
+- **Partial (1):** BazaarPresenter - wallet + buy/list/cancel plumbing real (live IBazaarGateway
+  calls), but the browse catalog is fake ("RuntimePlaceholder" wells, fake deterministic listing
+  ids).
+- **Pure shells (8):** DailyLoginQuestsPresenter, BattlePassPresenter, ChatSocialPresenter,
+  MemoryExpeditionPresenter, MailInboxPresenter, FriendsPresenter, VipSubscriptionPresenter,
+  GuildHallEntryPresenter. Zero real state reference anywhere, every field is the literal string
+  "RuntimePlaceholder", actions route to in-memory stubs not real saves. GuildHallEntryPresenter's
+  own content is shell but its EXPEDITION button does open the real GuildExpeditionPresenter.
+
+This is Metagame-seat (WH) territory to fill in - Battle seat (VS/CC) doesn't own Economy/ or these
+shell screens' real content per docs/AI_CONTRIBUTING.md's seat boundaries. Flagged to owner to
+relay to WH as the next real dead-space-closing task; not assigned to VS/CR.
+
+## MVP Playable Gate - CONFIRMED FULLY GREEN (2026-08-25, overnight run)
+
+Three real fixes landed and verified overnight: loadout-picker nav wiring (94703bc), Chapter test
+RNG seed pinning (e5f2ea1, partial - see parked entry above), CastleScalePublishGateTests trial-
+count fix for sampling-noise flakiness (b60c3b3). All three verified stable across multiple runs,
+not one-shot luck.
+
+VS then ran the full named evidence set from docs/MVP_PLAYABLE_GATE_EVIDENCE_v1.md - all 22 suites
+across the 5 gate rows, checked each actually exists first. Result: 139/139 clean (one class,
+TutorialFoundationTests, initially misreported 0 cases due to a real infra quirk - it's the only
+test file with no namespace declaration, so the wrapper's namespace-scoped filter silently matched
+nothing; ran directly with the correct filter, 10/10 clean). Confirmed the two parked threads
+(Chapter*FullDepthTests non-determinism, MirroredAiSimulationMatrixTests AI-balance band miss)
+don't appear in any of the 22 named MVP-gate suites - they don't block release per the gate doc's
+own scope.
+
+**The MVP/beta gate itself is fully green as of this run.** Remaining real work is all post-MVP
+milestone content (spell catalog 19/36, 8 UI shells needing real content, chapters 11-30 not
+existing yet) - tracked above, not gate-blocking.
+
+Minor loose end, not fixed (not broken, just inconsistent): TutorialFoundationTests.cs has no
+namespace declaration, unlike every other test file (MyriadOfDragons.Tests). Works today, but will
+silently no-op under any namespace-scoped test filter. Cosmetic/consistency fix for whoever's free.

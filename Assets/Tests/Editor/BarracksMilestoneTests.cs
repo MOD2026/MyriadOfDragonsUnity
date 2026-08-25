@@ -96,6 +96,23 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void CastlePrereqLadder_MatchesTheLockedCurve()
+        {
+            // Real curve locked 2026-08-24 (GPT round, closes the "Open, real" Castle-interlock
+            // gap in docs/LOCKED_DECISIONS_REGISTER.md) - lighter/lower than Gate's own curve,
+            // using only Barracks' existing purchasable milestones.
+            Assert.AreEqual(1, PlayerEmpireData.MinimumCastleForBarracksLevel(1));
+            Assert.AreEqual(3, PlayerEmpireData.MinimumCastleForBarracksLevel(5));
+            Assert.AreEqual(7, PlayerEmpireData.MinimumCastleForBarracksLevel(10));
+            Assert.AreEqual(12, PlayerEmpireData.MinimumCastleForBarracksLevel(15));
+            Assert.AreEqual(18, PlayerEmpireData.MinimumCastleForBarracksLevel(20));
+            Assert.AreEqual(24, PlayerEmpireData.MinimumCastleForBarracksLevel(25));
+            Assert.AreEqual(30, PlayerEmpireData.MinimumCastleForBarracksLevel(30));
+            Assert.AreEqual(0, PlayerEmpireData.MinimumCastleForBarracksLevel(4),
+                "Empty Barracks levels are not purchasable targets - same sparse shape as Gate's own ladder.");
+        }
+
+        [Test]
         public void GoldCosts_EarlyTierAreAffordable_LateCapstoneIsNotTrivial()
         {
             // Relationships vs Campaign first-clear Gold bands (EMPIRE_FEASIBILITY_AUDIT),
