@@ -3970,3 +3970,18 @@ like candidates but were verified still genuinely correct - neither screen has h
 binding pass like BattlePass's `92c8b54`, so their tests correctly still check the open/placeholder
 state. Also re-flagged (not new) a pre-existing ShopV1ChromeTests/ShopPresenter full-suite hang,
 already routed to WH earlier this session.
+
+## LOCKED: verbatim Chapter 3-18 continuity dialogue received, spot-verified, dispatched to WH (2026-08-26)
+
+ST delivered the full verbatim packet (~40 stage IDs, Ch3 ending repair through Ch18 resolution).
+Spot-checked the two highest-stakes entries before dispatching (can't verify all 40 individually at
+this scope): `14-15` (the Eryx reveal) confirmed real - existing pre-sequence at
+`StoryDatabase.cs:1555/1562` ("Every fallen god leaves a throne of ash." / "Then I take the ash.")
+is a genuine replace target. `18-30` confirmed real too, AND found something worth flagging: a
+special-case `if (stageId == "18-30")` block already exists at `StoryDatabase.cs:1863` - whoever
+implements needs to check what that does before overwriting `18-30_post`, since it likely handles a
+finale/ending trigger that must coexist with the new dialogue, not be silently replaced.
+
+**Routing correction applied:** `StoryDatabase.cs` is WH's file (Metagame-owned, per the earlier
+register note this session already established), not VS/CR's - dispatched as a paste-ready block
+per the standing WH-channel rule, not the mailbox.
