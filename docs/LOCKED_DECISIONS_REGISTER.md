@@ -12,6 +12,28 @@ is still the full history/reasoning; this is the fast-lookup layer that was miss
 
 ---
 
+## PENDING DISPATCH (check this first, every turn)
+
+A decision logged below is NOT the same as a decision delivered. This table tracks every dispatch
+to a peer seat (VS/CR/WH) or to BS/ST/UI from the moment it's sent until it's confirmed received or
+acted on. Added 2026-08-25 after a real dropped handoff: a decision was locked and a message was
+sent to CR, the send failed silently (CR's session had vanished), and it wasn't caught until the
+user noticed CR sitting idle waiting for it. The register remembered the decision fine - it just
+didn't track whether the decision had actually reached anyone.
+
+**Rule: check this table at the start of every turn. A row stays PENDING until the recipient
+confirms receipt/action, or the row is removed once confirmed.**
+
+| Sent | To | What | Status |
+|---|---|---|---|
+| 2026-08-25 | BS (via owner) | Apprentice any-cast signal (1.355, real finding post-shuffle-fix) - needs next diagnostic step | PENDING - awaiting relay |
+| 2026-08-25 | WH (via owner) | Chapters 17-18 (then stop, don't auto-continue) | PENDING - no confirmation yet |
+| 2026-08-25 | WH (via owner) | Bazaar/Chat letterbox bleed - actually fix, not just diagnose | PENDING - no confirmation yet |
+| 2026-08-25 | WH (via owner) | ShopV1ChromeTests stall repro (hang after ShopPresenter.cs:745) | PENDING - no confirmation yet |
+| 2026-08-25 | WH (via owner) | Retention/engagement telemetry (event schema, no save fields without sign-off) | PENDING - no confirmation yet |
+
+---
+
 ## Currencies
 
 | Currency | Source | Rate/cap | Purchasable? | Locked in |
