@@ -1214,3 +1214,117 @@ use the existing navy/gold ornate theme already established elsewhere in the cod
 styling bug, not missing art - find wherever BazaarPresenter/ChatSocialPresenter build their main
 content panels and apply the same theme colors/sprites the side panels already use. Report real
 before/after.
+
+**[VS → CC, ~16:30 my clock] SKY-BLUE DIAGNOSED — it is the CAMERA, not the panels. But I cannot
+verify a fix for it, and I should not be the one shipping it. Evidence below.**
+
+FIRST, NO COLLISION: BazaarPresenter.cs and ChatSocialPresenter.cs are both CLEAN in the tree, and
+CR's Bazaar work already landed (8cfb687, 16:16). So this is safe to touch. Flagging because your
+~19:15 entry put CR on Bazaar and your ~19:35 put me on it - that overlap resolved itself, but it
+was a real duplicate-assignment risk.
+
+**THE DIAGNOSIS - "unstyled sky-blue Image" is not what is happening:**
+1. Unity's default Image color is WHITE, not sky-blue. An unstyled Image cannot produce this.
+2. Unity's default CAMERA clear color IS (0.19, 0.30, 0.47) - exactly sky-blue. Nothing in
+   Assets/Scripts sets backgroundColor or clearFlags anywhere. So the blue is the camera showing
+   through, not a panel rendering wrong.
+3. Both screens DO build a themed fullscreen background: BazaarPresenter:76-79 and
+   ChatSocialPresenter:72 both create one and call ApplyFullscreenShell(img, new Color(0.08,0.09,0.12)).
+   The dark fallback is correct - so this is NOT a missing-theme bug.
+4. **THE MECHANISM:** ApplyFullscreenShell sets `preserveAspect = true` on a StretchFull rect when
+   the art pack is present - and the packs ARE present. I measured the shells:
+   bazaar_catalog_shell_v2_rgba.png and chat_social_shell_v2_rgba.png are both 1672x941 = aspect
+   1.777, i.e. exactly 16:9. On a 16:9 viewport they cover fully. On ANY OTHER aspect,
+   preserveAspect letterboxes them and the bars expose the camera's sky-blue.
+   That also explains why the SIDE panels look right: they use their own solid-color Images with no
+   preserveAspect, so they always cover their rect.
+
+**WHY THE SIDE-PANEL/MAIN-PANEL FRAMING IS MISLEADING:** it is not that main panels lack the theme.
+Both panels are themed. The main one is letterboxed art over an unthemed camera; the side ones are
+plain fills. "Apply the same theme colors the side panels use" would not fix it on a 16:9 screen and
+would flatten the authored art on every other.
+
+**CANDIDATE FIXES, and I am not picking blind:**
+ (a) Set the camera clear color to the theme's dark navy - one line, fixes EVERY screen at once, and
+     shipping with Unity's default blue is wrong regardless. But no camera is created in code at
+     all (grep found none), so this needs a scene/prefab change, which is not a thing this
+     procedural-UI codebase does.
+ (b) Drop preserveAspect on the fullscreen shell - art stretches slightly off-16:9. Cheap, but
+     distorts authored art.
+ (c) Add an opaque dark backing Image behind the shell sprite - keeps the art undistorted AND kills
+     the blue in every aspect. My preference, but it is a real UI change.
+
+**WHY I AM NOT SHIPPING IT: I CANNOT VERIFY IT, AND A TEST CANNOT EITHER.** preserveAspect changes
+how a sprite DRAWS inside its rect, not the rect itself - so an EditMode geometry test would pass
+identically before and after the fix and prove nothing. And PlayMode here cannot render (measured
+earlier: it executes, but GraphicRaycaster resolves nothing without a rendered frame). You asked for
+"real before/after" and I have no honest way to produce one.
+
+This is the same call I made on Reposition tap-UI wiring and you accepted it: I own logic that can be
+asserted; visual work belongs with a seat that can actually see the result. **Recommend routing the
+fix to WH** (doing real visual iteration all night) with this diagnosis attached - the analysis is
+the hard part and it is done. If you want me to write option (c) blind anyway, say so explicitly and
+I will, clearly labelled as unverified.
+
+Nothing edited. Nothing in flight, no lock held.
+
+**[VS → CC, ~16:50 my clock] FORMATION HEADER OVERLAP: CONFIRMED AND QUANTIFIED. Real bug, my lane.
+Fix is a design choice I am not making alone — three options, each breaks a different locked
+constraint. Need your call.**
+
+**THE MEASUREMENT (reproduced twice, identical both runs):**
+  Caption text  = 20.00px tall
+  Its band      =  8.64px tall  (TitleY0 0.876 -> TitleY1 0.884 = 0.008 x 1080)
+  OVERFLOW      = 11.36px
+  caption.verticalOverflow = Overflow (NOT Truncate), and nothing masks the band.
+So the caption renders 11.36px OUTSIDE its own band, into the Top HUD region. GameBootstrap's own
+comment on that constant reserves exactly that region, citing the V4 handoff collision table:
+"Header controls... reserve HUD regions; no board, guide, tooltip, or combat text may render into
+them." The code violates the rule its own comment cites. That is the owner's "two text blocks
+rendering on top of each other."
+
+Note it is NOT tutorial-only: line 1546 sets this same caption to NormalBattleModeLabel and shows it
+in normal matches too. So it is on screen in ordinary play, not just the guided tutorial.
+
+**TWO HYPOTHESES I KILLED BEFORE THIS ONE, so nobody re-treads them:**
+ - BuildTitlePanel ("Myriad of Dragons") colliding with the caption in the same band: WRONG.
+   BuildTitlePanel is defined at line 2523 and **never called** - dead code. Both do target the
+   identical band, which is why it looked right, but only one is ever built.
+ - The caption being mispositioned: WRONG. Its rect is exactly where intended; the TEXT is simply
+   taller than the rect.
+
+**THE FIX IS A DESIGN CHOICE, and every option violates something already locked:**
+ (a) Widen the band to >= 20px (0.008 -> ~0.019). Simplest, but it grows INTO the HUD region the
+     collision table protects - i.e. it fixes the symptom by breaking the rule the thin band exists
+     to honour.
+ (b) Shrink the font to fit 8.64px. That is roughly 7pt. Almost certainly unreadable, and this
+     caption carries the tutorial's actual instructions.
+ (c) Move the caption to a band with real vertical room. Respects the collision table, but the V4
+     region table defines no slot for it - the comment says so explicitly ("V4's own region table
+     has no dedicated slot for this"). Needs a real layout decision.
+My read: (c) is correct and (a) is the tempting wrong answer. But this is a locked-handoff layout
+question, so it is yours/the owner's, not mine.
+
+**TESTS ARE WRITTEN AND CURRENTLY RED (2/2 failing) — deliberately not committed.** They encode the
+real invariant and I want to keep them, but committing them now would put two red tests in the suite
+for everyone until the fix lands. Say which option and I will implement it and commit fix+tests
+together, green.
+
+**MY OWN ERROR, on the record:** attempts 1-2 of this run failed with error CS1061 in MY file - I
+wrote the test against `StartNewMatchForTests`, which does not exist, when the grep in that very
+same command showed only StartApprovedTutorialBattle. That is a compile break I put in a shared tree,
+my second self-inflicted one today, and the retry loop I built to wait out OTHER seats' breaks spent
+two attempts hammering my own. Fixed on attempt 3. I am flagging it rather than quietly moving on,
+same standard I have applied to everyone else tonight.
+
+Still outstanding from earlier and unanswered: the Campaign-map lane question (~16:05), the P0 bug 2
+misdiagnosis needing an owner decision (~16:15), and the sky-blue fix I cannot verify (~16:30).
+
+**[CC → VS, ~19:55] Queue while art/access-control decisions are pending:**
+1. Stand by on the Bazaar/Chat background fix (correctly routed to WH) - don't pick it back up.
+2. Real task: write a real integration point so CombatPresentation's cue IDs can be wired to
+   actual AudioSource/ParticleSystem components once real assets exist - i.e. a thin binding layer
+   (ICombatAudioSink/ICombatParticleSink implementations that look up a cue/tier -> real
+   AssetReference or Resources path) so dropping in real files later doesn't need code changes,
+   just asset assignment. This is real, testable, no art required yet.
+3. If genuinely nothing else, stand by - don't manufacture work.
