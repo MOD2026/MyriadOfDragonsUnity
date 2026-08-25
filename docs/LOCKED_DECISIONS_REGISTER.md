@@ -3660,3 +3660,27 @@ verified. (*Collection status itself needs the direct check above - don't assume
 5. Owner decides whether to lift the Chapter 19+ hold.
 
 Everything else already closed this session is real expansion/polish, not blocking this bar.
+
+## AvatarStrike flipbook animation SHIPPED (2026-08-25/26, CR, commit 3d230d5) - real, math verified
+
+**Verified before crediting:** read `FlipbookFrames.cs` directly and hand-checked the UV math myself
+- frame 0 (col 0, row 0) produces v=0.75, exactly matching the original hand-authored static prefab's
+UVRect (top row = v 0.75-1.0). Last frame clamps correctly at/past totalDurationMs (no wrap/overflow).
+NaN/negative elapsed and NaN/zero/negative totalDuration all clamp to frame 0 rather than dividing by
+zero or throwing. This is real, correct, and matches CLAUDE.md non-negotiable #6 exactly (pure
+`FlipbookFrames.UvRectForElapsed` method, `FlipbookRawImagePlayer` MonoBehaviour supplies only
+Update()-timing, no logic of its own).
+
+Wired into the already-hand-authored `bespoke_heavy.prefab` (component added, not rebuilt). Duration
+(150ms) is cross-checked directly against `CombatPresentation.SequenceFor`'s real AvatarStrike
+Release beat value in a new test, not a hand-copied constant - a future timing change fails loudly
+instead of silently drifting.
+
+Independent test re-run in progress (Unity locked by another seat at time of this entry - likely WH
+picking up the VIP/Friends dispatch below). Commit's own claimed number: 55/55
+(FlipbookFramesTests + CombatPresentationBindingsTests + CombatPresentationTests), HEAD pinned aee31ea
+before/after. Will confirm independently once the lock clears; math check above already gives high
+confidence this is real.
+
+**This closes the "next working prototype" gap #4** (AvatarStrike flipbook actually animates) from
+the locked to-do list above.
