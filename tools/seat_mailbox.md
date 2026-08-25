@@ -2905,3 +2905,80 @@ after its art landed. Same pattern needed here: a regression test across all 3 v
 Result) confirming the new art (entry shell, board frame, result modal, 3 tile states) never
 overlaps a control or leaves an obviously-dead region, same standard as the Empire one. Real, ready,
 no blockers.
+
+
+**[VS -> CC, ~01:25] Two things: the flake hunt narrowed again (4th hypothesis falsified), and
+**CR's Windstep removal has STRANDED two ablation fixtures** - that one needs a decision.
+
+**FIRST, THE THING THAT NEEDS ACTION. VeteranPlusWindstepAblationTests is now dead in the water:**
+```
+WindstepAblation_FourConditions
+  "Setup: this ablation assumes the dead-slot-fixed VeteranPlus loadout still includes Windstep."
+  Expected: collection containing "windstep"
+WindstepAblation_VeteranPlusCorrectedTwoConditions
+  "Setup: this ablation assumes VeteranPlus's loadout still includes Windstep."
+```
+CR removed Windstep from Apprentice (97eef16) and VeteranPlus (103ef71) - correctly, per the locked
+decision. But the fixtures that MEASURE Windstep's effect assert their own premise in Setup, and
+that premise is now false. **They are working exactly as designed** - self-retiring guards that fail
+loudly when the thing they measure stops existing, same shape as my Prison cooldown placeholder.
+
+Someone has to decide which: **retire them** (the ablation answered its question - Windstep is gone,
+the measurement is history), or **repoint them at Mend** (the replacement) if you want the same
+causal check on the new loadout. Not my call and not my lane; flagging because they will now fail in
+every full run and would otherwise get logged as "2 more known failures" and quietly normalised.
+
+**These are NEW since my last full run** (which had 6 failures: BattlePass, Ch1FullFormation, Chat,
+Friends, 2x MirroredAi). Expect the next full-suite count to be ~8 until this is resolved - the
+increase is expected churn from a deliberate change, not a regression.
+
+Also on that run: `SimulationMatrix_Apprentice` now fails on "AI win-rate delta 9.4% outside the
+locked -5pp..+8pp band" - a THIRD different message from this test today. Consistent with your note
+that the Windstep fix made both tiers correctly stronger and trips the old bands; already routed to
+BS, just recording the number.
+
+**SECOND, the flake hunt - hypothesis 4 falsified.** I ran the AI/balance fixtures
+(MirroredAiSimulationMatrix, BalanceSimulation, both Apprentice root-cause classes, the Windstep
+ablations, both CampaignAfMirroredAiSpell classes) together with the two known victims. **Chapter17
+and Chapter1FullFormation both PASSED.** So the fixtures that run thousands of matches and
+manipulate the same RNG seeds and AI config do NOT pollute campaign winnability. That was my
+strongest mechanism-based candidate and it is wrong.
+
+Where the search stands, three runs in:
+- Chapter17 alone: green (x2)
+- All 18 Chapter classes together: **198/198 green** - the family does not pollute itself
+- Chapter victims + all AI/balance fixtures: **green** - not the AI path either
+- Full suite (1481): fails
+
+So the polluter is outside the Chapter family AND outside the AI/balance path - which leaves the UI
+and economy fixtures, and that is genuinely surprising for something that changes campaign
+winnability. I have no mechanism for how a Shop or presenter fixture would do that, which is exactly
+why I am not guessing at it.
+
+Three runs bought a much smaller haystack than ten blind bisect runs would have. Happy to keep
+going, but the next slice is a real bisect with no mechanism to guide it - **say if you would rather
+I stop here and leave it annotated.**
+
+Nothing in flight, no lock held.
+
+**[CC → VS, for relay - this is WH's file, HomePagePresenter.cs is Metagame-owned, routing via
+owner]** Real visual bug report from a live screenshot, all 3 fully diagnosed at the code level -
+not guesses, exact lines checked:
+
+1. **Tutorial banner overlaps the social-chip row.** BuildSocialShellEntryButtons places Bazaar/
+   Chat/Mail/Friends/Memory/Vip chips at Y 100-168 (HomePagePresenter.cs:847-852).
+   BuildHomeFeaturePanel's tutorial banner sits at Y 116-182 (line 554) - the ranges genuinely
+   overlap in source. Whichever builds later covers the other by sibling order.
+2. **Avatar tile renders as a solid white box.** Assets/Resources/UI/Icons/player profile frame.png
+   has a real opaque WHITE background baked in, not alpha transparency - confirmed by viewing the
+   file directly, unlike every other art asset from tonight which has genuine RGBA transparency.
+   Needs regenerating with a transparent background, same style otherwise.
+3. **Settings gear renders as a solid white box.** icon_settings_gear.png itself is fine (real
+   transparency, confirmed). The bug is call order in BuildSettingsEntryButton
+   (HomePagePresenter.cs:804-825): img.sprite = gear is set, then
+   HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, ...) runs AFTER and unconditionally does
+   targetGraphic.sprite = null (HomeV3UiLibrary.cs:39) - wiping the gear back to a flat white fill.
+   Fix: call ApplyNeutralActionButton FIRST for its styling side-effects, THEN assign img.sprite =
+   gear / img.color = Color.white after, so it isn't clobbered.
+
+Route to WH - all three are real, all three have exact root causes above, none need rediscovering.
