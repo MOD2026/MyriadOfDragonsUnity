@@ -1742,8 +1742,12 @@ namespace MyriadOfDragons.UI
                     ids = new[] { "snake_archer", "persian_princess", "drain" };
 
                 // Offsets {0,8,17}: 17-12 / 17-17 AF defeats; 17-30 finale was colliding with 11-14.
+                // 17-13 sorted roster matched Stage 2-6 (giant_worms/goblin_shaman/ogre) under the
+                // prior {0,6,13} seed — keep an explicit distinct triple so that pair cannot recur.
                 if (stageNumber == 12)
                     ids = new[] { "ogre", "drain", "elf_wanderer" };
+                if (stageNumber == 13)
+                    ids = new[] { "werewolf", "drain", "persian_princess" };
                 if (stageNumber == 17)
                     ids = new[] { "butcher", "drain", "mountain_harpy" };
 
