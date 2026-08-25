@@ -20,16 +20,14 @@ namespace MyriadOfDragons.Empire
 
     /// <summary>
     /// Copy + upgrade-cost wells for Empire Building Detail Popup V1.
-    /// Materials ladder amounts are locked in the register and may be shown.
-    /// Build duration / v2 persist / Castle interlock table stay OPEN — never invented.
+    /// Materials ladder amounts and build-duration bands are locked in the register.
     /// </summary>
     public static class EmpireBuildingDetailCopy
     {
         public const string RuntimePlaceholder = "[runtime]";
 
         public const string DurationOpenNote =
-            "Build duration is still OPEN (v2 pacing timers not locked) — " +
-            "docs/LOCKED_DECISIONS_REGISTER.md Empire construction.";
+            "Build duration uses the locked Empire pacing curve (30min–14d by target band).";
 
         public static string FormatVariantFraming(EmpireBuildingKind kind)
         {
@@ -52,41 +50,77 @@ namespace MyriadOfDragons.Empire
             if (!def.HasUpgradeLadder)
                 return "NON-UPGRADE BUILDING";
 
-            int materialsLevel = 1;
+            int fromLevel = 1;
+            int toLevelExclusive = 2;
             string goldPart = null;
             if (profile != null)
             {
                 if (kind == EmpireBuildingKind.Castle)
                 {
-                    materialsLevel = System.Math.Max(1, profile.castleLevel);
+                    fromLevel = System.Math.Max(1, profile.castleLevel);
+                    toLevelExclusive = fromLevel + 1;
                     int gold = PlayerEmpireData.GoldCostForCastleUpgrade(profile.castleLevel);
-                    if (gold > 0) goldPart = $"{gold:N0} Gold (Castle v1)";
+                    if (gold > 0) goldPart = $"{gold:N0} Gold";
                 }
                 else if (kind == EmpireBuildingKind.Barracks)
                 {
-                    materialsLevel = System.Math.Max(1, profile.barracksLevel);
+                    fromLevel = System.Math.Max(1, profile.barracksLevel);
                     int target = PlayerEmpireData.NextPaidBarracksMilestone(profile.barracksLevel);
+                    toLevelExclusive = target > 0 ? target : fromLevel;
                     int gold = target == 0 ? 0 : PlayerEmpireData.GoldCostForBarracksUpgrade(profile.barracksLevel, target);
-                    if (gold > 0) goldPart = $"{gold:N0} Gold (Barracks v1)";
+                    if (gold > 0) goldPart = $"{gold:N0} Gold";
                 }
                 else if (kind == EmpireBuildingKind.Gate)
                 {
-                    materialsLevel = System.Math.Max(1, profile.gateLevel);
+                    fromLevel = System.Math.Max(1, profile.gateLevel);
                     int target = PlayerEmpireData.NextPaidGateMilestone(profile.gateLevel);
+                    toLevelExclusive = target > 0 ? target : fromLevel;
                     int gold = target == 0 ? 0 : PlayerEmpireData.GoldCostForGateUpgrade(profile.gateLevel, target);
-                    if (gold > 0) goldPart = $"{gold:N0} Gold (Gate v1)";
+                    if (gold > 0) goldPart = $"{gold:N0} Gold";
                 }
             }
 
-            int materials = EmpireMaterialsLadder.CostToUpgrade(materialsLevel);
+            int materials = EmpireMaterialsLadder.CostBetween(fromLevel, toLevelExclusive);
             string materialsPart = materials > 0
-                ? $"{materials:N0} Materials (locked v2 ladder from L{materialsLevel})"
+                ? $"{materials:N0} Materials"
                 : "MAX (Materials ladder)";
 
             return goldPart != null ? $"{goldPart} · {materialsPart}" : materialsPart;
         }
 
-        public static string FormatDurationLine() => RuntimePlaceholder + " — " + DurationOpenNote;
+        public static string FormatDurationLine(PlayerProfile profile, EmpireBuildingKind kind)
+        {
+            int targetLevel = ResolveNextTargetLevel(kind, profile);
+            if (targetLevel <= 0)
+                return "MAX — no further build timer";
+
+            int seconds = EmpireConstructionTimer.DurationSecondsForTargetLevel(targetLevel);
+            return $"{EmpireConstructionTimer.FormatDuration(seconds)} — {DurationOpenNote}";
+        }
+
+        /// <summary>Back-compat overload for callers that only need the locked-curve note.</summary>
+        public static string FormatDurationLine() =>
+            FormatDurationLine(null, EmpireBuildingKind.Castle);
+
+        private static int ResolveNextTargetLevel(EmpireBuildingKind kind, PlayerProfile profile)
+        {
+            if (profile == null)
+                return 2;
+
+            switch (kind)
+            {
+                case EmpireBuildingKind.Castle:
+                    return profile.castleLevel >= PlayerEmpireData.MaxCastleLevel
+                        ? 0
+                        : profile.castleLevel + 1;
+                case EmpireBuildingKind.Barracks:
+                    return PlayerEmpireData.NextPaidBarracksMilestone(profile.barracksLevel);
+                case EmpireBuildingKind.Gate:
+                    return PlayerEmpireData.NextPaidGateMilestone(profile.gateLevel);
+                default:
+                    return 0;
+            }
+        }
 
         public static string FormatCurrentBenefit(EmpireBuildingKind kind, PlayerProfile profile)
         {

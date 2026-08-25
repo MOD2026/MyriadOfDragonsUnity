@@ -116,7 +116,7 @@ namespace MyriadOfDragons.UI
             SetNorm(cost.rectTransform, 0.04f, 0.40f, 0.62f, 0.50f);
 
             Text duration = UISharedFoundation.CreateText(panel, "Duration",
-                EmpireBuildingDetailCopy.FormatDurationLine(), UITextRole.Body, TextAnchor.UpperLeft,
+                EmpireBuildingDetailCopy.FormatDurationLine(profile, _kind), UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.8f, 0.78f, 0.65f), true, new Vector2(900f, 48f));
             SetNorm(duration.rectTransform, 0.04f, 0.30f, 0.62f, 0.40f);
 

@@ -156,6 +156,17 @@ namespace MyriadOfDragons.Empire
             return 0;
         }
 
+        /// <summary>Sum of per-step Materials costs from <paramref name="fromLevel"/> inclusive to
+        /// <paramref name="toLevelExclusive"/> exclusive (Barracks/Gate milestone jumps).</summary>
+        public static int CostBetween(int fromLevel, int toLevelExclusive)
+        {
+            if (toLevelExclusive <= fromLevel) return 0;
+            int total = 0;
+            for (int level = fromLevel; level < toLevelExclusive; level++)
+                total += CostToUpgrade(level);
+            return total;
+        }
+
         /// <summary>Total Materials to take one building from <paramref name="fromLevel"/> (default
         /// L1) all the way to <see cref="MaxLevel"/>. 181,500 from L1, matching the locked total.</summary>
         public static int TotalMaterialsToMax(int fromLevel = 1)

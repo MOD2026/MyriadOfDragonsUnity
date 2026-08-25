@@ -262,8 +262,13 @@ namespace MyriadOfDragons.UI
             int liveStartHp = profile.Empire.StartingAvatarHealth;
 
             EmpireConstructionState construction = profile.empireConstruction;
+            EmpireConstructionService.AdvanceIfDue(profile);
+            construction = profile.empireConstruction;
+
+            bool building = construction != null && construction.status == EmpireConstructionStatus.Building;
             bool ready = construction != null && construction.status == EmpireConstructionStatus.ReadyToCollect;
-            EmpireBuildingId? queuedBuilding = ready ? construction.buildingId : (EmpireBuildingId?)null;
+            bool projectActive = building || ready;
+            EmpireBuildingId? queuedBuilding = projectActive ? construction.buildingId : (EmpireBuildingId?)null;
 
             Text castleRow = _canvasObj.transform.Find("EmpireConstructionRoot/CastleRow/RowSummary")?.GetComponent<Text>();
             Text barracksRow = _canvasObj.transform.Find("EmpireConstructionRoot/BarracksRow/RowSummary")?.GetComponent<Text>();
@@ -294,16 +299,22 @@ namespace MyriadOfDragons.UI
                     queuedBuilding == EmpireBuildingId.Gate);
             }
 
-            // Queue clarity (Offline A): start charges Gold and lands ReadyToCollect instantly — Collect finishes it.
             if (ready)
             {
                 _empireStatusText.text =
-                    $"QUEUE · {construction.buildingId} → L{construction.targetLevel} · DONE — Collect to apply ({construction.costGold:N0} Gold already spent).";
+                    $"QUEUE · {construction.buildingId} → L{construction.targetLevel} · DONE — Collect to apply ({construction.costGold:N0} Gold / {construction.costMaterials:N0} Materials already spent).";
+            }
+            else if (building)
+            {
+                string remaining = EmpireConstructionTimer.FormatRemaining(
+                    construction.endsAtUtcMs, EmpireConstructionTimer.UtcNowMs);
+                _empireStatusText.text =
+                    $"QUEUE · {construction.buildingId} → L{construction.targetLevel} · Building · {remaining} left ({construction.costGold:N0} Gold / {construction.costMaterials:N0} Materials spent).";
             }
             else
             {
                 _empireStatusText.text =
-                    "QUEUE · empty · One project at a time. Upgrade charges Gold and finishes instantly — then Collect.";
+                    "QUEUE · empty · One project at a time. Upgrade charges Gold + Materials and builds on the locked 30min-14d timer - then Collect.";
             }
 
             if (_projectDetailText != null)
@@ -311,20 +322,28 @@ namespace MyriadOfDragons.UI
                 if (ready)
                 {
                     _projectDetailText.text =
-                        $"Building now: {construction.buildingId} · Target L{construction.targetLevel} · Status: Ready to Collect (no wait timer)";
+                        $"Building now: {construction.buildingId} · Target L{construction.targetLevel} · Status: Ready to Collect";
+                }
+                else if (building)
+                {
+                    string remaining = EmpireConstructionTimer.FormatRemaining(
+                        construction.endsAtUtcMs, EmpireConstructionTimer.UtcNowMs);
+                    int durationSec = EmpireConstructionTimer.DurationSecondsForTargetLevel(construction.targetLevel);
+                    _projectDetailText.text =
+                        $"Building now: {construction.buildingId} · Target L{construction.targetLevel} · Timer {EmpireConstructionTimer.FormatDuration(durationSec)} · Remaining {remaining}";
                 }
                 else
                 {
                     _projectDetailText.text =
-                        "No active project. Next-tier payoffs are shown on each row before you spend Gold.";
+                        "No active project. Next-tier payoffs are shown on each row before you spend Gold + Materials.";
                 }
             }
 
             if (_empireCollectButtonRoot != null)
                 _empireCollectButtonRoot.SetActive(ready);
 
-            // Offline A: ReadyToCollect is the active project — block starting another upgrade.
-            SetUpgradeButtonsInteractable(!ready);
+            // Active project (Building or Ready) blocks starting another upgrade.
+            SetUpgradeButtonsInteractable(!projectActive);
         }
 
         /// <summary>Castle row: current live Cap/Start HP + next-level delta before Gold commit.</summary>
@@ -457,7 +476,9 @@ namespace MyriadOfDragons.UI
             }
 
             SaveManager.Save();
-            SetMessage($"{building} queued — Ready to Collect now (instant Offline build).");
+            int durationSec = EmpireConstructionTimer.DurationSecondsForTargetLevel(
+                profile.empireConstruction.targetLevel);
+            SetMessage($"{building} queued - building for {EmpireConstructionTimer.FormatDuration(durationSec)}.");
             RefreshPanel();
         }
 

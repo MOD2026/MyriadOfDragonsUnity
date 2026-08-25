@@ -22,7 +22,7 @@ namespace MyriadOfDragons.Tests
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
-            var profile = new PlayerProfile { gold = 500_000 };
+            var profile = new PlayerProfile { gold = 500_000, constructionMaterials = 500_000 };
             Assert.IsTrue(SaveSystem.Save(profile));
             SaveSystem.ResetCurrentProfileForTests();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
@@ -101,7 +101,26 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void DurationWell_DoesNotInventATimer_AndV2UpgradeRefusesPersist()
+        public void DurationWell_ShowsLockedTimerCurve_NotRuntimePlaceholder()
+        {
+            var go = new GameObject("CastleDetail");
+            _spawned.Add(go);
+            var empire = go.AddComponent<EmpirePresenter>();
+            empire.Initialize(onBackToHome: null);
+            empire.OpenBuildingDetailForTests(EmpireBuildingKind.Castle);
+
+            var detail = go.GetComponent<EmpireBuildingDetailPresenter>();
+            StringAssert.Contains("30m",
+                detail.CanvasObjectForTests.transform.Find("DetailPanel/Duration")?.GetComponent<Text>()?.text);
+            StringAssert.Contains("Materials",
+                detail.CanvasObjectForTests.transform.Find("DetailPanel/UpgradeCost")?.GetComponent<Text>()?.text);
+
+            EmpireBuildingDetailUpgradeResult result = detail.PressUpgradeForTests();
+            Assert.AreEqual(EmpireBuildingDetailUpgradeStatus.StartedV1, result.Status);
+        }
+
+        [Test]
+        public void StorageDetail_V2UpgradeStillRefusesPersist()
         {
             var go = new GameObject("StorageDetail");
             _spawned.Add(go);
@@ -109,13 +128,7 @@ namespace MyriadOfDragons.Tests
             empire.Initialize(onBackToHome: null);
             empire.OpenBuildingDetailForTests(EmpireBuildingKind.Storage);
 
-            var detail = go.GetComponent<EmpireBuildingDetailPresenter>();
-            StringAssert.Contains("[runtime]",
-                detail.CanvasObjectForTests.transform.Find("DetailPanel/Duration")?.GetComponent<Text>()?.text);
-            StringAssert.Contains("Materials",
-                detail.CanvasObjectForTests.transform.Find("DetailPanel/UpgradeCost")?.GetComponent<Text>()?.text);
-
-            EmpireBuildingDetailUpgradeResult result = detail.PressUpgradeForTests();
+            EmpireBuildingDetailUpgradeResult result = go.GetComponent<EmpireBuildingDetailPresenter>().PressUpgradeForTests();
             Assert.AreEqual(EmpireBuildingDetailUpgradeStatus.V2PersistNotWired, result.Status);
         }
 

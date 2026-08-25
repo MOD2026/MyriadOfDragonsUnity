@@ -21,7 +21,7 @@ namespace MyriadOfDragons.Tests
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
 
-            var profile = new PlayerProfile { gold = 500_000 };
+            var profile = new PlayerProfile { gold = 500_000, constructionMaterials = 500_000 };
             Assert.IsTrue(SaveSystem.Save(profile));
             SaveSystem.ResetCurrentProfileForTests();
 
@@ -31,6 +31,8 @@ namespace MyriadOfDragons.Tests
         [TearDown]
         public void TearDown()
         {
+            EmpireConstructionTimer.ClearTestClock();
+
             if (_spawned != null)
                 Object.DestroyImmediate(_spawned);
 
@@ -125,7 +127,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void UpgradeButtons_AreNonInteractable_WhileProjectReadyToCollect()
+        public void UpgradeButtons_AreNonInteractable_WhileProjectBuildingOrReady()
         {
             var presenter = _spawned.AddComponent<EmpirePresenter>();
             presenter.BuildUIForTests();
@@ -133,7 +135,7 @@ namespace MyriadOfDragons.Tests
             ClickEmpireButton(presenter, "CastleRow/UpgradeCastleButton");
             presenter.RefreshPanelForTests();
 
-            Assert.AreEqual(EmpireConstructionStatus.ReadyToCollect, SaveSystem.CurrentProfile.empireConstruction.status);
+            Assert.AreEqual(EmpireConstructionStatus.Building, SaveSystem.CurrentProfile.empireConstruction.status);
 
             Button castle = FindEmpireButton(presenter, "CastleRow/UpgradeCastleButton");
             Button barracks = FindEmpireButton(presenter, "BarracksRow/UpgradeBarracksButton");
@@ -144,19 +146,25 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void UpgradeCastle_FromEmpireScreen_RaisesLevelAfterCollect()
+        public void UpgradeCastle_FromEmpireScreen_RaisesLevelAfterTimerAndCollect()
         {
             var presenter = _spawned.AddComponent<EmpirePresenter>();
             presenter.BuildUIForTests();
 
             PlayerProfile profile = SaveSystem.CurrentProfile;
             int goldBefore = profile.gold;
+            int materialsBefore = profile.constructionMaterials;
 
             ClickEmpireButton(presenter, "CastleRow/UpgradeCastleButton");
             presenter.RefreshPanelForTests();
 
-            Assert.AreEqual(EmpireConstructionStatus.ReadyToCollect, profile.empireConstruction.status);
+            Assert.AreEqual(EmpireConstructionStatus.Building, profile.empireConstruction.status);
             Assert.Less(profile.gold, goldBefore);
+            Assert.Less(profile.constructionMaterials, materialsBefore);
+
+            EmpireConstructionTimer.UtcNowMsOverrideForTests = profile.empireConstruction.endsAtUtcMs;
+            presenter.RefreshPanelForTests();
+            Assert.AreEqual(EmpireConstructionStatus.ReadyToCollect, profile.empireConstruction.status);
 
             ClickEmpireButton(presenter, "CollectConstructionButton");
             presenter.RefreshPanelForTests();

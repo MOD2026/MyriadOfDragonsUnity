@@ -1,8 +1,10 @@
 namespace MyriadOfDragons.Empire
 {
     /// <summary>
-    /// Offline construction A: Gold + instant ReadyToCollect. No PlayerProfile field yet —
-    /// Save additive wiring is a separate CC step. Callers own wallet mutation.
+    /// Empire construction v2: Gold + Materials + client-clock pacing timer
+    /// (Idle → Building → ReadyToCollect → CompleteClaimed). Timers are pacing-only —
+    /// no speed-up purchase. Additive timer fields on <see cref="EmpireConstructionState"/>
+    /// are JsonUtility-default-safe for old saves (0 → treated as already Ready when status says so).
     /// </summary>
     public enum EmpireBuildingId
     {
@@ -29,6 +31,12 @@ namespace MyriadOfDragons.Empire
         public EmpireConstructionStatus status = EmpireConstructionStatus.Idle;
         public bool costCharged;
         public int costGold;
+        /// <summary>Additive — Materials charged at start (v2). Old saves deserialize as 0.</summary>
+        public int costMaterials;
+        /// <summary>Additive — Unix ms when Building started. Old saves: 0.</summary>
+        public long startedUtcMs;
+        /// <summary>Additive — Unix ms when Building becomes ReadyToCollect. Old saves: 0.</summary>
+        public long endsAtUtcMs;
     }
 
     public struct EmpireConstructionStartRequest
@@ -37,7 +45,10 @@ namespace MyriadOfDragons.Empire
         public int CurrentBuildingLevel;
         public int CastleLevel;
         public int AvailableGold;
+        public int AvailableMaterials;
         public string ProjectId;
+        /// <summary>Wall clock for timer start; 0 → <see cref="EmpireConstructionTimer.UtcNowMs"/>.</summary>
+        public long NowUtcMs;
     }
 
     public struct EmpireConstructionStartResult
@@ -45,15 +56,16 @@ namespace MyriadOfDragons.Empire
         public bool Ok;
         public string Error;
         public int GoldCharged;
+        public int MaterialsCharged;
         public EmpireConstructionState State;
     }
 
     public static class EmpireConstructionRules
     {
         /// <summary>
-        /// Offline A: charge Gold and land on ReadyToCollect in one transition (no local timer).
+        /// Charge Gold + Materials and enter Building with a pacing timer (locked 30min–14d curve).
+        /// ReadyToCollect is reached only via <see cref="TryAdvanceToReady"/>.
         /// </summary>
-        /// After claim the slot must accept a new start — treat CompleteClaimed like cleared.
         public static EmpireConstructionStartResult TryStart(
             EmpireConstructionState current,
             EmpireConstructionStartRequest request)
@@ -69,14 +81,17 @@ namespace MyriadOfDragons.Empire
                 return Fail("projectId required.");
 
             int target;
-            int cost;
+            int costGold;
+            int costMaterials;
             switch (request.BuildingId)
             {
                 case EmpireBuildingId.Castle:
                     target = request.CurrentBuildingLevel + 1;
                     if (target < 2 || target > PlayerEmpireData.MaxCastleLevel)
                         return Fail("Castle is at cap.");
-                    cost = PlayerEmpireData.GoldCostForCastleUpgrade(request.CurrentBuildingLevel);
+                    costGold = PlayerEmpireData.GoldCostForCastleUpgrade(request.CurrentBuildingLevel);
+                    costMaterials = EmpireMaterialsLadder.CostBetween(
+                        request.CurrentBuildingLevel, target);
                     break;
                 case EmpireBuildingId.Barracks:
                     target = PlayerEmpireData.NextPaidBarracksMilestone(request.CurrentBuildingLevel);
@@ -84,7 +99,9 @@ namespace MyriadOfDragons.Empire
                         return Fail("Barracks is at cap.");
                     if (request.CastleLevel < PlayerEmpireData.MinimumCastleForBarracksLevel(target))
                         return Fail("Castle prerequisite not met.");
-                    cost = PlayerEmpireData.GoldCostForBarracksUpgrade(request.CurrentBuildingLevel, target);
+                    costGold = PlayerEmpireData.GoldCostForBarracksUpgrade(request.CurrentBuildingLevel, target);
+                    costMaterials = EmpireMaterialsLadder.CostBetween(
+                        request.CurrentBuildingLevel, target);
                     break;
                 case EmpireBuildingId.Gate:
                     target = PlayerEmpireData.NextPaidGateMilestone(request.CurrentBuildingLevel);
@@ -92,33 +109,67 @@ namespace MyriadOfDragons.Empire
                         return Fail("Gate is at cap.");
                     if (request.CastleLevel < PlayerEmpireData.MinimumCastleForGateLevel(target))
                         return Fail("Castle prerequisite not met.");
-                    cost = PlayerEmpireData.GoldCostForGateUpgrade(request.CurrentBuildingLevel, target);
+                    costGold = PlayerEmpireData.GoldCostForGateUpgrade(request.CurrentBuildingLevel, target);
+                    costMaterials = EmpireMaterialsLadder.CostBetween(
+                        request.CurrentBuildingLevel, target);
                     break;
                 default:
                     return Fail("Unknown building.");
             }
 
-            if (cost <= 0)
+            if (costGold <= 0)
                 return Fail("Invalid upgrade cost.");
-            if (request.AvailableGold < cost)
+            if (request.AvailableGold < costGold)
                 return Fail("Insufficient Gold.");
+            if (request.AvailableMaterials < costMaterials)
+                return Fail("Insufficient Materials.");
+
+            int durationSec = EmpireConstructionTimer.DurationSecondsForTargetLevel(target);
+            if (durationSec <= 0)
+                return Fail("Invalid build duration.");
+
+            long now = request.NowUtcMs > 0 ? request.NowUtcMs : EmpireConstructionTimer.UtcNowMs;
 
             var state = new EmpireConstructionState
             {
                 projectId = request.ProjectId,
                 buildingId = request.BuildingId,
                 targetLevel = target,
-                status = EmpireConstructionStatus.ReadyToCollect,
+                status = EmpireConstructionStatus.Building,
                 costCharged = true,
-                costGold = cost,
+                costGold = costGold,
+                costMaterials = costMaterials,
+                startedUtcMs = now,
+                endsAtUtcMs = now + durationSec * 1000L,
             };
 
             return new EmpireConstructionStartResult
             {
                 Ok = true,
-                GoldCharged = cost,
+                GoldCharged = costGold,
+                MaterialsCharged = costMaterials,
                 State = state,
             };
+        }
+
+        /// <summary>
+        /// Client-clock advance: Building → ReadyToCollect when now ≥ endsAt.
+        /// Rollback rule: if now &lt; startedUtcMs (clock went backwards), do not complete —
+        /// leave Building until a forward clock catches endsAt again.
+        /// </summary>
+        public static bool TryAdvanceToReady(EmpireConstructionState state, long nowUtcMs)
+        {
+            if (state == null || state.status != EmpireConstructionStatus.Building)
+                return false;
+            if (state.endsAtUtcMs <= 0)
+                return false;
+            if (nowUtcMs < state.startedUtcMs)
+                return false;
+            if (nowUtcMs < state.endsAtUtcMs)
+                return false;
+
+            state.status = EmpireConstructionStatus.ReadyToCollect;
+            return true;
         }
 
         /// <summary>
@@ -166,6 +217,9 @@ namespace MyriadOfDragons.Empire
                 status = EmpireConstructionStatus.Idle,
                 costCharged = false,
                 costGold = 0,
+                costMaterials = 0,
+                startedUtcMs = 0,
+                endsAtUtcMs = 0,
             };
     }
 }
