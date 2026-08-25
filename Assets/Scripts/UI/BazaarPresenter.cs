@@ -178,7 +178,7 @@ namespace MyriadOfDragons.UI
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.60f, 0.18f, 0.97f, 0.86f);
             _detailsText = UISharedFoundation.CreateText(panel.transform, "Details",
-                "Browse catalog OPEN — IBazaarGateway has wallet/list/buy/cancel only (no QueryListings).",
+                "Loading…",
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(480f, 220f));
             SetNorm(_detailsText.rectTransform, 0.05f, 0.35f, 0.95f, 0.95f);
             GameObject action = new GameObject("Btn_PrimaryAction", typeof(RectTransform), typeof(Image), typeof(Button));

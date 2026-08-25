@@ -80,6 +80,7 @@ namespace MyriadOfDragons.Tests.PlayMode
             {
                 var r = await CallAsync<PostResponse>("PostChatMessage", new Dictionary<string, object> { { "channelId", channelId }, { "text", "live validation message 1" } });
                 firstMessageId = r?.messageId;
+                UnityEngine.Debug.Log($"DIAG PostChatMessage: r==null={r == null} success={r?.success} messageId={r?.messageId} errorCode={r?.errorCode}");
                 return r != null && r.success && !string.IsNullOrEmpty(r.messageId);
             });
 

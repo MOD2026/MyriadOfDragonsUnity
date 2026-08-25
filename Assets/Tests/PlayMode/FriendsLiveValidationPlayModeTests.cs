@@ -103,6 +103,7 @@ namespace MyriadOfDragons.Tests.PlayMode
             {
                 string target = "livevalidation-target-" + Guid.NewGuid().ToString("N");
                 var add = await CallAsync<FriendResponse>("AddFriend", new Dictionary<string, object> { { "targetAccountId", target } });
+                UnityEngine.Debug.Log($"DIAG AddFriend: add==null={add == null} success={add?.success} status={add?.status} errorCode={add?.errorCode}");
                 if (add == null || !add.success || add.status != "Pending") return false;
 
                 var list = await CallAsync<ListFriendsResponse>("ListFriends", new Dictionary<string, object>());
