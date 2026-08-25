@@ -43,6 +43,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 | Sent | To | What | Status |
 |---|---|---|---|
 | 2026-08-25 | BS (via owner) | Windstep fix made both tiers correctly stronger, tripping old bands - invoke HP/Resource scaling, or revisit the bands? | PENDING - awaiting relay |
+| 2026-08-25 | BS (via owner) | Tactical Puzzle content design (6 candidates, ship 3) - pipeline prerequisite confirmed met | PENDING - awaiting relay (previously missed, caught by owner audit) |
 
 ---
 
