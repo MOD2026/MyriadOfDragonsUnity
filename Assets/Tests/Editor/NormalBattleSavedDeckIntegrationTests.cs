@@ -80,8 +80,11 @@ namespace MyriadOfDragons.Tests
             // GameBootstrap fixture in this suite already uses.
             foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject autoSpawned = GameObject.Find(spawnedName);
-                if (autoSpawned != null && !_spawned.Contains(autoSpawned)) _spawned.Add(autoSpawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == spawnedName && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
 
             HashSet<string> normalDealtIds = new HashSet<string>(bootstrap.Battle.PlayerState.Hand
@@ -136,8 +139,11 @@ namespace MyriadOfDragons.Tests
             // GameBootstrap fixture in this suite already uses.
             foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject autoSpawned = GameObject.Find(spawnedName);
-                if (autoSpawned != null && !_spawned.Contains(autoSpawned)) _spawned.Add(autoSpawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == spawnedName && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
 
             List<string> confirmedAfterBoot = database.AllCards

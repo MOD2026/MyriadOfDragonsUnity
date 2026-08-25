@@ -641,8 +641,11 @@ namespace MyriadOfDragons.Tests
             bootstrap.Initialize();
             foreach (string name in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject spawned = GameObject.Find(name);
-                if (spawned != null) _spawned.Add(spawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == name && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
 
             Assert.NotNull(bootstrap.Battle, "Expected Initialize() to create and wire up a BattleController.");
@@ -928,8 +931,11 @@ namespace MyriadOfDragons.Tests
 
             foreach (string name in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject spawned = GameObject.Find(name);
-                if (spawned != null) _spawned.Add(spawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == name && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
 
             double defaultPower = bootstrap.Battle.PlayerState.DrawPile
@@ -958,8 +964,11 @@ namespace MyriadOfDragons.Tests
 
             foreach (string name in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject spawned = GameObject.Find(name);
-                if (spawned != null) _spawned.Add(spawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == name && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
 
             int deployedBefore = bootstrap.Battle.PlayerState.Lanes.Values.Sum(l => l.Cards.Count);
@@ -985,8 +994,11 @@ namespace MyriadOfDragons.Tests
 
             foreach (string name in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject spawned = GameObject.Find(name);
-                if (spawned != null) _spawned.Add(spawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == name && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
 
             bootstrap.UseRecommendedLineupForTests();
@@ -2621,8 +2633,11 @@ namespace MyriadOfDragons.Tests
             bootstrap.Initialize();
             foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
             {
-                GameObject spawned = GameObject.Find(spawnedName);
-                if (spawned != null) _spawned.Add(spawned);
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == spawnedName && !_spawned.Contains(candidate))
+                        _spawned.Add(candidate);
+                }
             }
             return bootstrap;
         }
