@@ -1490,3 +1490,20 @@ Three candidate fixes, correctly not chosen blind (VS cannot visually verify eit
 Routed to WH (real visual iteration capability, owner assisting) with full diagnosis attached -
 same "logic I can assert, visual work belongs with a seat that can see the result" boundary VS
 already established on Reposition tap-UI.
+
+## All 5 P0 bugs from live visual audit FIXED (2026-08-25, WH) - real, verified, uncommitted
+
+1. Empire timer: root cause confirmed - was never wired at all (TryStart jumped straight to
+   ReadyToCollect, no timer fields, no tick path). Now real: Building status + startedUtcMs/
+   endsAtUtcMs + Materials cost on start, real locked 30min-14d curve (EmpireConstructionTimer.cs,
+   new file), AdvanceIfDue on refresh/claim. EmpireConstruction* 19/19.
+2. Campaign map header overlap: 3 centered boxes at same Y replaced with stacked anchor bands.
+3. Battle Pass [runtime]: was actually showing "OPEN" via OpenAmountLabel, not [runtime] literally
+   - now binds real passSeasonXp. Daily Login was already live (real quest data), false alarm on
+   that half.
+4. Orange block: confirmed VS's bleed-through theory - modal panel was 40% alpha, playable-node
+   fallback orange showed through. Panel bg -> 98% opaque.
+5. Formation header: two-line layout (Campaign/Stage + Formation), guidance caption no longer
+   duplicates the mode line.
+
+Approved for split commits (5 logically distinct fixes, easier individual review/revert).
