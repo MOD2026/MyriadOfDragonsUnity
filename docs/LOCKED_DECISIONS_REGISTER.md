@@ -2240,3 +2240,46 @@ ResourceCost) - an inherited constructor doing more than its name suggests.
 unlock; gem lock LockedTotalCh1Through16 = 10536. 15-30 -> 16-1 chained correctly, 16-30 terminal.
 AF (auto-fail?) retune at 16-24 and 16-29. Chapter16FullDepthTests 11/11, plus Gate/roster/permit/
 Castle/Ch15 smoke green. Next in WH's pipeline: Ch17.
+
+## Zero-cast timing anomaly - ROOT-CAUSE PROTOCOL COMPLETE, no AI defect (2026-08-25, CR, verified c136c7d)
+
+**Step 4 (shared RNG stream, the escalation trigger) - checked via source read, confirmed clean:**
+combat (LaneBattleResolver/AISpellCaster/SimpleAIOpponent) has zero RNG usage anywhere - fully
+deterministic. _aiSpellCastRng is its own dedicated System.Random, separate from deck-shuffle RNG.
+No shared-stream desync risk - nothing to escalate.
+
+**CORRECTION to this session's own methodology, found mid-investigation, applies retroactively to
+Windstep ablation / RunPairedZeroCastSplit / AiSpellCastImpactDiagnosticTests:** PlayerBattleState's
+draw-pile Shuffle() uses a THIRD, separate RNG source (unseeded `new System.Random()` unless
+PlayerBattleState.SetShuffleSeedForTests(seed) is explicitly called) - distinct from
+UnityEngine.Random (deck composition) and StartMatch's rngSeed (AI-cast rolls). None of this
+session's earlier "seed-paired" work called it, so those runs were NOT truly tick-for-tick identical
+matched pairs the way "matched seeds" implied, despite the other two RNG streams being pinned. Their
+AGGREGATE conclusions over 1500+ trials remain sound (unbiased noise cancels in aggregate, and CR
+independently re-derived the Windstep/per-spell numbers with consistent results) - but the specific
+claim of exact pair-matching in those earlier reports is corrected, not the conclusions themselves.
+Fixed here (SetShuffleSeedForTests now called) - worth remembering for any future test needing
+genuine match replay, not just statistical pairing.
+
+**Steps 1-3, re-run with the shuffle fix applied, TRUE matched seeds this time (verified via
+tick-0 byte-identical deployed units):** Added BattleController.
+SetForceAiSpellCastGateAlwaysFailForTests - the real forced-no-cast control: decision loop runs
+every tick, RNG rolls consumed exactly as a real roll would, casting is just forced to fail. Distinct
+from spells being disabled entirely (which was the earlier, weaker "baseline" condition).
+
+**DECISIVE: baseline vs forced-no-cast vs normal are tick-for-tick IDENTICAL in 1500/1500 trials**
+whenever the AI ends up not casting - zero divergence, ever. Both zero-cast sub-populations
+(NoOpportunityEver n=5, OpportunityButEveryRollFailed n=537) show ratio=1.000 across all three
+conditions, every time. Hits GPT's own interpretation guide exactly: "All controls match baseline
+but the subset stays long -> population property, revise the metric, not the AI."
+
+**CONCLUSION: no AI defect exists.** Merely running the AI decision loop - evaluating candidates
+every tick, consuming RNG draws that always fail - has ZERO causal effect on match length. The seeds
+that end up zero-cast are the SAME seeds that were already going to run long through ordinary card
+combat alone; close/grindy matchups offer fewer legal spell-cast windows as a side effect of state,
+not a code path difference. Correlation, not causation - now proven, not hypothesized.
+
+**Real remaining decision, NOT decided here, routed to BS:** whether to drop the zero-cast tick-ratio
+assertion entirely, or make it descriptive-only telemetry (same treatment already given to the
+spell-contribution/win-share metric). This is a metric-design call, not an AI-behavior question -
+the AI itself needs no fix.
