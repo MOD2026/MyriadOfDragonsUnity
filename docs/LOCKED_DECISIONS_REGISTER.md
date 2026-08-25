@@ -4115,3 +4115,31 @@ content, not originally in scope) - real candidate location for more of the same
 Owner approved adding an `int shopMilestoneProgress` field (additive-only, same migration pattern as
 every other resource field) to `PlayerProfile.cs`, unblocking the Shop Loyalty Points track per the
 real spec already documented in `Shop_V1_Release_Contract.md:28,50`. Implementation may now proceed.
+
+## Extended design-vs-implementation sweep: no third VIP-pattern gap found (2026-08-26)
+
+Extended the audit to `Economy_Blueprint.md` and `tools/mechanics_v2_extract.txt` (the two remaining
+"still directionally valid" source docs). Real, verified negative: **no third silent-disappearance
+gap found.** Everything with real specificity in these two files either (a) recurs as the two
+already-known gaps (VIP - now resolved; Loyalty - still open, dispatched), (b) was explicitly
+triaged/reconciled with different concrete numbers by `SINGLE_BIBLE_MASTER_PLAN_2026-08-22.md` and
+the register, or (c) was never selected for Phase 1 to begin with (its own source doc says so
+explicitly - e.g. `Economy_Blueprint.md` opens with "Nothing here is built yet... reviewed
+adversarially before any code is written").
+
+**Spot-verified the most load-bearing "false alarm" ruling myself:** `BazaarGateway.cs:66-70`
+confirms the ItemInstance-creation gap is a real, explicitly documented deferral ("the module has no
+endpoint to create an ItemInstance... see CloudCode/Bazaar's own README 'Deferred' section"), not a
+silent drop.
+
+**One real, low-priority near-miss, not urgent:** a Guild Vault/shared-armory card-lending +
+taxation mechanic (`mechanics_v2_extract.txt:258-261`) has real specificity and zero code, with no
+per-name descope record - but it sits inside Guild systems, which the register already documents as
+deliberately minimized for Phase 1 as a whole. Worth a light mention if Guild systems get real
+investment later, not urgent now.
+
+**This closes the design-vs-implementation audit thread.** Two real gaps found total across the
+whole sweep (VIP, Shop Loyalty), both now have real, verified fixes in flight. No evidence of a
+broader systemic problem beyond those two - the failure mode was real but appears to have been
+limited to this one directive (VIP+Loyalty bundled together in the same 2026-08-22 "Option C" note),
+not a pattern across the whole design history.
