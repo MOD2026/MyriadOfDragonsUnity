@@ -1466,3 +1466,27 @@ Cloud Save > Access Control (or the Access Control service's project policy) nee
 granted write access to Custom Items. Blocks: Chat message seeding/posting, Bazaar
 list/buy/cancel, Friends graph writes - i.e. most of tonight's Option B server work is functionally
 inert until this is fixed, despite deploying and compiling cleanly.
+
+## CORRECTION: Bazaar/Chat sky-blue isn't a missing-theme bug - real mechanism found (2026-08-25, VS)
+
+CC's earlier diagnosis ("unstyled default Image color") was wrong - Unity's default Image color is
+white, not sky-blue, and both screens already build a correctly-themed dark fullscreen background
+(BazaarPresenter:76-79, ChatSocialPresenter:72, ApplyFullscreenShell with the right dark color).
+
+REAL MECHANISM: the sky-blue is Unity's default CAMERA clear color (0.19, 0.30, 0.47) showing
+through - nothing in the codebase sets clearFlags/backgroundColor anywhere, and no camera exists in
+code at all (procedural-UI codebase, no scenes/prefabs). ApplyFullscreenShell sets preserveAspect
+on the art shells, which are authored at exactly 16:9 (1672x941) - on a 16:9 viewport they cover
+fully, on ANY other aspect ratio preserveAspect letterboxes them and exposes the camera behind. Side
+panels look correct only because they use plain solid-color fills with no preserveAspect, not
+because main panels lack theming.
+
+Three candidate fixes, correctly not chosen blind (VS cannot visually verify either):
+(a) set camera clear color to theme navy - fixes every screen at once, but no camera exists in code,
+    needs a scene/prefab change this procedural codebase doesn't use;
+(b) drop preserveAspect - cheap, but distorts authored art on non-16:9;
+(c) add an opaque dark backing Image behind the shell sprite - undistorted art AND kills the blue on
+    every aspect (VS's preference).
+Routed to WH (real visual iteration capability, owner assisting) with full diagnosis attached -
+same "logic I can assert, visual work belongs with a seat that can see the result" boundary VS
+already established on Reposition tap-UI.
