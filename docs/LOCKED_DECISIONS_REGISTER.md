@@ -1441,3 +1441,28 @@ anyone chases the wrong path.
 shape, ordinary stages stay templated. Verified: Chapter4To7NarrativeUpgradeTests 1/1,
 StoryDatabase_DefinesPreAndPostVictorySequencesForAllThirtyNewStages 12/12, 0 error CS. This closes
 the last remaining narrative content debt.
+
+## CRITICAL: project-level Access Control gap blocks ALL Custom Items writes from Cloud Code (2026-08-25, CR)
+
+Real root cause found, bigger than Friends/Chat: EVERY Custom Items write from Cloud Code
+(SetCustomItemAsync) in this project returns 401 Unauthorized. Reads (GetCustomItemsAsync) work.
+Player-scoped writes (SetItemAsync - wallets, SocialSafety block/mute) work. Only Custom Items
+writes are blocked - project-level Access Control / Access Class configuration gap, not a bug in
+any specific module.
+
+**CORRECTION: the earlier "Bazaar confirmed live-working" claim (register, CloudCode Modules
+Deployed entry) never actually exercised a Custom Items write.** ListBazaarItem/BuyBazaarItem/
+CancelBazaarListing would fail identically the instant they reached a real save - previous testing
+always short-circuited on INSTANCE_NOT_FOUND first, masking this. Bazaar's live-verified status
+needs re-qualifying once this is fixed.
+
+CR could not fix or even inspect the access policy - `ugs access get-project-policy` returns 403
+Forbidden for the service account, same wall as observability logs earlier. Diagnostic code was
+added temporarily, then fully cleaned up (42/42 ServerTests clean, zero net diff, confirmed removed
+from the live endpoint).
+
+**REQUIRES OWNER ACTION - only the Unity Dashboard project owner can fix this:** Unity Dashboard >
+Cloud Save > Access Control (or the Access Control service's project policy) needs Cloud Code
+granted write access to Custom Items. Blocks: Chat message seeding/posting, Bazaar
+list/buy/cancel, Friends graph writes - i.e. most of tonight's Option B server work is functionally
+inert until this is fixed, despite deploying and compiling cleanly.
