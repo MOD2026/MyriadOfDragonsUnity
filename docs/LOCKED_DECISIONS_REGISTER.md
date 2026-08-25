@@ -3856,3 +3856,19 @@ additive-only, same pattern as every other level field - `SaveMigration.Normaliz
 a default of 0/1 same as existing building levels) to `PlayerProfile.cs`, unblocking BS's full
 11-building Day-1/paired-milestone interlock design. This is the vetted, locked field list required
 before any frozen-file edit per standing rule - implementation may now proceed.
+
+## LOCKED: Empire building display copy - hybrid "Structure Level" framing (2026-08-26, BS)
+
+Guild Hall/Embassy/Prison now show `STRUCTURE LEVEL {n}` (never a bare "LEVEL {n}" - BS's explicit
+reasoning: that would imply a functioning feature set at that level) plus a status line clarifying
+what's actually active vs. pending:
+- Guild Hall: "Supports Embassy interlock progression. Guild functions coming later."
+- Embassy: "Structure progression active. Player-help network unavailable until online services ship."
+- Prison: "Structure progression active. Capture systems unavailable until online services ship."
+
+Tooltip (all three): "Structure Level affects Empire interlocks and construction progression. It
+does not imply that this building's online feature is currently active."
+
+Guild Hall's old "LEVEL — (flat)" copy is explicitly retired - keeps its real persisted 1-30 level
+(matches the shipped interlock), does not revert to flat. Dispatched to VS (owns
+EmpireBuildingDetailCopy.cs from the interlock work).

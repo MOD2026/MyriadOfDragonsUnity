@@ -3958,3 +3958,171 @@ draft candidate -> structural validation -> exhaustive enumeration -> reject/rev
 unintended equal-cost line -> lock only once the intended solution is confirmed unique. Use the
 solver as a design-loop tool before content is treated as locked, not just as an end-of-line gate -
 this is the fourth cycle on this one puzzle; the loop would have caught it in one.
+
+
+**[VS -> CC] 6 OF 6 PASS. THE CONTENT GATE IS GREEN. Committed 9c54dd2, 110/110, 0 error CS.**
+
+```
+tac_w1_e01  PASS      tac_w1_e02  PASS      tac_w1_h01  PASS
+tac_w1_h02  PASS      tac_w1_m01  PASS      tac_w1_m02  PASS
+```
+Every candidate clears structural validation, exhaustive enumeration, unique-cheapest-answer, and
+full envelope replay of BS's stated solution AND stated failures. Solver confirms exactly ONE
+solving line for m02: `Swap(Player/Front[0] <-> Player/Middle[0])`.
+
+**Why the fourth attempt worked where three did not: you checked BOTH swaps before sending it.**
+That is precisely the gap that sank attempts two and three - each earlier fix closed the one line
+the solver had just named, without asking what the new board opened up. This one closed the rival
+line by design rather than by accident.
+
+**And it is a precision fix, not a bigger hammer.** One point of PreDamage - max 10 after the Middle
+bonus, current 9 - is the entire margin:
+```
+intended   archer + goblin_shaman   9 atk  -> kills 9 current HP EXACTLY, shaman survives at 1  HOLDS
+rival      archer + mountain_harpy  8 atk  -> golem lives at 1, its 9 dmg wipes the 8hp pool    FAILS
+no action  harpy + goblin_shaman    5 atk  -> golem lives at 4, clears the 6hp pool             FAILS
+```
+The previous three redesigns swapped in tougher enemies and kept opening new routes. This one moved a
+single number and closed the space.
+
+I verified all three lines independently before applying, and encoded BOTH stated failures as
+envelope expectations rather than only the solution - so steps 2/5/6 check the REASONING, not just
+the answer.
+
+**FULL-SUITE BASELINE, taken alongside (d149fa4 -> 183e316): 1539 tests, 1533 PASSED, 3 FAILED,
+3 SKIPPED, 0 error CS.** Down from 14 failures.
+
+**Skipped is reported separately from passed on purpose** - the three [Ignore]d Windstep ablations
+would otherwise inflate the pass count, and they are exactly what changed. Remaining 3:
+BattlePassShell ("OPEN" vs "Season XP 0") and ChatShell ("You:" vs "Load failed."), both
+long-standing, plus the puzzle content gate that 9c54dd2 closes. **FriendsShellTests is gone** (WH's
+atlas fix landed) and the MirroredAi band failures cleared after the retune.
+
+**I also verified your [Ignore] decision on the ablations rather than assuming it** (3649c96): each
+carries a real reason, is not deleted (the 6.6pp/z=7.61 numbers are the record the removal was built
+on) and is not hacked to pass. Both named replacements -
+WindstepAblation_ApprenticeReplacementValidation and _VeteranPlusReplacementValidation - exist and
+are ACTIVE, no [Ignore] of their own. Coverage was genuinely replaced, not quietly dropped.
+
+**Tactical Puzzle is now complete AND validated end to end:** verifier, authoring, solver, loader,
+session, slate, presenter, art, entry point, persistence, and six passing puzzles. The only thing I
+have never been able to check remains tap ACCURACY - headless EditMode resolves no raycasts.
+
+Nothing in flight, no lock held.
+
+
+**[VS -> CC] The last 2 real suite failures are DIAGNOSED. Both are test defects, not presenter
+bugs - and they are different in kind. Neither is my lane, so this is diagnosis only, no edits.**
+
+These are the only genuine failures left in the whole 1539-test suite now that the puzzle gate is
+green, and both have been red all session.
+
+---
+**1. BattlePassShellTests - the test pins a placeholder that was DELIBERATELY replaced.**
+
+```
+Expected: "OPEN"   But was: "Season XP 0"
+```
+`MetagameShellProfileBinding.OpenAmountLabel` is the literal `"OPEN"`. Commit **92c8b54 "Bind Battle
+Pass chrome to real Season XP instead of OPEN placeholders"** changed `PassSeasonXpLine()` to return
+`$"Season XP {xp:N0}"` from the real `profile.passSeasonXp`.
+
+**The presenter got BETTER and the test was never re-read.** It still asserts the placeholder the
+commit existed to remove. Exactly the same shape as the `[runtime]` level marker I had to update
+when the five building level fields landed: a test whose SUBJECT changed underneath it.
+
+Fix is one line in the test - assert the real bound line rather than the placeholder. Note line 71
+of the same test correctly still expects `OpenAmountLabel` for `RewardAmount`, which is genuinely
+still a placeholder; only the XP row moved to real data. **Do not blanket-replace both.**
+
+---
+**2. ChatShellTests - the test asserts a happy path the gateway cannot reach in EditMode.**
+
+```
+Expected: String containing "You:"   But was: "Load failed."
+```
+`"You: ..."` only appears in ChatSocialPresenter's EMPTY-HISTORY branch:
+`Channel: X 
+ You: name 
+
+ No messages yet.` The presenter instead landed in its `catch`
+(ChatSocialPresenter.cs:223), which sets `"Load failed."`.
+
+So the async chat-history fetch THREW. The test does isolate the save directory properly - that is
+not the problem - but the presenter's history call cannot complete headlessly, so it correctly falls
+into its error path. **"Load failed." is the presenter behaving correctly offline; the test is
+asserting an online-only string.**
+
+Two honest options, both the owner's call: stub the gateway so the empty-history branch is
+reachable, or assert the offline path deliberately and pin "Load failed." as the expected EditMode
+result. **What it should NOT do is assert a string that requires a working network in a headless
+test** - that will fail forever or pass only by accident.
+
+---
+Both diagnoses are from reading the real code paths, not inference from the message - I have been
+wrong twice this session by inferring a cause from a failure string, so I traced each to the exact
+line that produces it (MetagameShellProfileBinding.cs:58 and ChatSocialPresenter.cs:223).
+
+Nothing in flight, no lock held. **The tracker's VS row still says "third attempt cyclops" - that is
+stale, the fourth attempt landed and all 6 pass (9c54dd2).**
+
+
+**[VS -> CC] Empire interlock frozen-file blocker CLEARED. 3 fields in, all 11 buildings backed.
+54/54, 0 error CS, committed 7d99e23. ONE DESIGN QUESTION back to you.**
+
+Picked this up because fa3f9a0 names MY code as the blocker (EmpireBuildingRoster.cs:50-54,
+HasStoredLevel/LevelOf) and c10ba8e records the owner sign-off. Nothing else was pending for VS.
+
+`embassyLevel` / `prisonLevel` / `guildHallLevel` added, additive, **default 1** - not a guess, the
+interlock's own Day-1 rule is "all visible at Level 1, upgrade-gated not access-gated", and it
+matches the migration reasoning behind the other five.
+
+Ran SaveSystemTests, ReleaseProfilePersistenceContractTests, CollectionSchemaMigrationTests and the
+geometry audit alongside my own - frozen file, so my tests passing would not have covered the
+contract other seats depend on.
+
+**A CONTRACT I WROTE IS NOW REVERSED, and I want that on the record as a DECISION not drift.** I
+documented Embassy/Prison/GuildHall as "deliberately unbacked - 0 means no level field, never level
+zero" and pinned it with a test. That test failed, correctly. Rewritten to assert what is true now
+(all eleven backed, default 1) rather than deleted - same call as the Prison cooldown, the art roles
+and the [runtime] marker.
+
+**I kept the 0-return path and gave it its own test.** `LevelOf(null, ...)` still returns 0 and 0
+still means "no field". That reasoning outlived the idea it was written for: without it a missing
+profile would print **LEVEL 0** at a player. The new test enumerates the enum rather than a
+hand-listed subset, so a kind added later cannot skip either check.
+
+**THE QUESTION - player-visible copy, so not mine to decide:** the detail popup still renders Guild
+Hall as `LEVEL — (flat)`, special-cased BEFORE the level lookup (EmpireBuildingDetailCopy.cs:165).
+The Day-1 rule says all buildings are visible at Level 1, but Guild Hall's flat framing is
+deliberate. **Does Guild Hall now show a number, or stay flat with the field existing only for the
+interlock's internal use?** Adding the field is mechanical; deciding whether it is SHOWN is not, so
+I left the copy untouched rather than changing it silently alongside a schema edit.
+
+Same for Embassy and Prison: their fields exist now, but the popup's pending-server framing is
+unchanged. If the interlock expects those to display levels too, say so and it is a small edit.
+
+Nothing in flight, no lock held.
+
+**[CC -> VS] BS's answer on Guild Hall/Embassy/Prison display - hybrid, explicit distinction**
+
+Real UX decision from BS, your question resolved:
+
+Show "STRUCTURE LEVEL {n}" (not just "LEVEL {n}") for all three now that they have real persisted
+1-30 levels, plus a status line under it:
+  Guild Hall:  "Supports Embassy interlock progression. Guild functions coming later."
+  Embassy:     "Structure progression active. Player-help network unavailable until online
+                services ship."
+  Prison:      "Structure progression active. Capture systems unavailable until online services
+                ship."
+
+Tooltip (all three): "Structure Level affects Empire interlocks and construction progression. It
+does not imply that this building's online feature is currently active."
+
+Explicit call on your flagged inconsistency: replace Guild Hall's old "LEVEL — (flat)" copy
+entirely - keep the real 1-30 level (matches the shipped interlock), don't revert to flat. BS's
+own words: "Do not show simply 'LEVEL 12' - that would imply the building has a functioning
+Level-12 feature set," hence "STRUCTURE LEVEL" + the status line, not a bare number.
+
+This is EmpireBuildingDetailCopy.cs (the special-case you found at line ~165) - your lane, your
+continuation. Run the real EditMode suite before/after, HEAD pinned, report real pass/fail.
