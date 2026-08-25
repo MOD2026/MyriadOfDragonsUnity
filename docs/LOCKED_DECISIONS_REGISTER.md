@@ -1922,3 +1922,31 @@ balance problem.
 **Still open, NOT yet investigated:** Apprentice tick-ratio regression (9.84 vs baseline 8.30,
 +18.6%, fails its own ±15% band) - real side effect of the dead-slot fix. CR directed to investigate
 this next (2026-08-25).
+
+## Apprentice tick-ratio regression ROOT-CAUSED (2026-08-25, CR, verified against commit 6733dc6)
+
+**CORRECTION to prior entry:** this was NOT a side effect of the dead-slot fix. First post-fix run
+already showed ratio 1.171 (already failing) before the fix; the fix only nudged 1.171->1.189.
+Predates the fix.
+
+**Real mechanism (same at every tier, confirmed by splitting trials into zero-cast vs any-cast):**
+trials where the AI casts NOTHING run substantially LONGER than trials where it casts at least once.
+- Apprentice: baseline=8.35, zeroCast=11.76 (35.6% of trials), anyCast=8.92 (64.4%) -> aggregate
+  9.93, ratio 1.189 (fails ±15%).
+- VeteranPlus: baseline=8.94, zeroCast=11.23 (44.3%), anyCast=9.42 (55.7%) -> aggregate ~10.2, ratio
+  ~1.14 (just inside ±15%).
+
+Same underlying split shape at both tiers - VeteranPlus's zero-cast trials deviate less from its own
+baseline (+25.6%) than Apprentice's do (+40.8%), which is why VeteranPlus lands just inside the
+shared band and Apprentice lands just outside it by degree, not a different bug.
+
+**Root cause:** match closeness (grindy fights) independently correlates with (a) running long
+through ordinary card combat and (b) offering the AI fewer legal spell-cast windows. "AI didn't
+cast" and "match ran long" are both downstream symptoms of the same underlying factor, not causal.
+Consistent with the earlier per-spell finding that every spell's avgFinishTickWhenCast is at or
+below the run average (casting correlates with faster finishes, never slower).
+
+**No fix proposed - this is a structural fact, not a target-legality bug or magnitude issue.**
+Real open question, NOT decided here: whether the shared ±15% tick-ratio band needs tier-specific
+treatment (same treatment the other three Novice bands already got). Flagged to GPT for a real
+decision, not guessed.
