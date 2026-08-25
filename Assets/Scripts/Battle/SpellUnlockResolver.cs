@@ -88,6 +88,17 @@ namespace MyriadOfDragons.Battle
             new Rule("Blood Price", UnlockKind.AvatarLevel, requiredAvatarLevel: 18),
             new Rule("Grave Mend", UnlockKind.SpellBookGrant), // catalog: "Ch9 spell book"
             new Rule("Celestial Verdict", UnlockKind.SpellBookGrant), // catalog: "Ch10 finale book"
+
+            // Wave 3 (LOCKED 2026-08-24): Ember Guard/Earthward/Gale Break deliberately have no
+            // Rule here - their Phase-2 catalog Unlock column only gives a bare chapter number
+            // ("ChN"), not the stage-level precision (e.g. "Ch1-2") every Stage-kind Rule above
+            // this comment actually has, so there is no real stage id to build one from. Stonewall
+            // and Veil of Zeus are SpellBookGrant-kind, same shape as Sun Lance/Tempest Brand.
+            // Cleansing Root's "Avatar L16" is precise and gets a real AvatarLevel Rule.
+            new Rule("Stonewall", UnlockKind.SpellBookGrant), // catalog: "Ch6 spell book"
+            new Rule("Veil of Zeus", UnlockKind.SpellBookGrant), // catalog: "Ch8 spell book"
+            new Rule("Cleansing Root", UnlockKind.AvatarLevel, requiredAvatarLevel: 16),
+            new Rule("Infernal Mark", UnlockKind.SpellBookGrant), // catalog: "Ch6 spell book"
         };
 
         /// <summary>RESOLVED 2026-08-24 - always false now. Kept (rather than deleted outright) as

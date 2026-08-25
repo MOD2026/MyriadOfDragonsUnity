@@ -22,6 +22,21 @@ namespace MyriadOfDragons.Battle
 
         /// <summary>Damage the enemy Avatar directly, bypassing lanes entirely.</summary>
         AvatarStrike,
+
+        /// <summary>Grant a Shield to every living friendly unit in the target lane (replaces, doesn't stack).</summary>
+        LaneShield,
+
+        /// <summary>Remove the Vulnerability mark from every living friendly unit in the target lane.</summary>
+        Cleanse,
+
+        /// <summary>Remove Shield from every living enemy unit in the target lane.</summary>
+        Dispel,
+
+        /// <summary>Mark every living enemy unit in the target lane: their next hit taken deals +1 damage, then the mark is consumed (or expires unused at the end of the clash it was cast into).</summary>
+        Vulnerability,
+
+        /// <summary>Permanently raise the Attack of every living friendly unit across all three lanes (subject to the same +3/unit spell-buff cap as LaneAttackBuff).</summary>
+        AllLaneAttackBuff,
     }
 
     /// <summary>
@@ -161,6 +176,44 @@ namespace MyriadOfDragons.Battle
                     int dealt = Math.Min(Magnitude, opponent.AvatarHealth);
                     opponent.AvatarHealth -= dealt;
                     return dealt;
+
+                case SpellEffect.LaneShield:
+                    foreach (BattleCardInstance unit in LivingUnits(caster, targetLane))
+                    {
+                        unit.ApplyShield(Magnitude);
+                    }
+                    return 0;
+
+                case SpellEffect.Cleanse:
+                    foreach (BattleCardInstance unit in LivingUnits(caster, targetLane))
+                    {
+                        unit.ClearVulnerabilityMark();
+                    }
+                    return 0;
+
+                case SpellEffect.Dispel:
+                    foreach (BattleCardInstance unit in LivingUnits(opponent, targetLane))
+                    {
+                        unit.ClearShield();
+                    }
+                    return 0;
+
+                case SpellEffect.Vulnerability:
+                    foreach (BattleCardInstance unit in LivingUnits(opponent, targetLane))
+                    {
+                        unit.MarkVulnerable();
+                    }
+                    return 0;
+
+                case SpellEffect.AllLaneAttackBuff:
+                    foreach (Lane lane in caster.Lanes.Keys.ToList())
+                    {
+                        foreach (BattleCardInstance unit in LivingUnits(caster, lane))
+                        {
+                            unit.BuffAttack(Magnitude);
+                        }
+                    }
+                    return 0;
 
                 default:
                     return 0;
@@ -310,17 +363,75 @@ namespace MyriadOfDragons.Battle
         }
 
         /// <summary>
-        /// The real, full castable catalog (19 as of Wave 2 - CreatePhase1Catalog's 14 plus this
-        /// wave's 5) - the source of truth for anything that must resolve a spell id into a real
-        /// AvatarSpell: BattleController.ResolveMatchSpellbook, SpellBookGrant's id validation,
-        /// and (as of Wave 2) SpellUnlockResolver's own iteration - a catalog member with no Rule
-        /// entry (Aegis Return, "Event book later" - no acquisition channel exists yet) simply
-        /// never unlocks, the same behaviour a stale/unrecognized id already had.
+        /// Wave 3 (Full 36-Spell Catalogue Diagnosis, LOCKED 2026-08-24): Shields, Cleanse,
+        /// Dispel, Vulnerability, and Thunder Decree's all-lane buff - eight spells, five new
+        /// SpellEffect values, real BattleCardInstance state (Shield, Vulnerability mark, capped
+        /// spell-Attack-buff tracking).
+        ///
+        /// Locked corrections applied here, not the catalog doc's raw numbers: Veil of Zeus
+        /// shield 6-&gt;10/unit (register: "6 is trivial against Fault Line's own 5 lane damage;
+        /// 10 makes it actually absorb something"). Shields don't stack additively - a second
+        /// Shield replaces a weaker one rather than adding (BattleCardInstance.ApplyShield).
+        /// Cleanse targets the caster's own lane (removes a hostile Vulnerability mark placed on
+        /// it); Dispel targets the enemy's lane (strips their Shield) - the catalog doc's own
+        /// "hostile"/"positive" modifier language, applied against the only two modifier types
+        /// that exist as of this wave. This mapping is this implementation's own inference from
+        /// that language, not a separately re-confirmed locked line - flagged here rather than
+        /// presented as pre-locked fact.
+        /// </summary>
+        public static List<AvatarSpell> CreatePhase3ExpansionSpells()
+        {
+            return new List<AvatarSpell>
+            {
+                new AvatarSpell("Ember Guard", "Grant a Shield absorbing 5 damage to every friendly unit in a lane.",
+                    energyCost: 30, cooldownTicks: 4, SpellEffect.LaneShield, magnitude: 5,
+                    id: "ember_guard", school: SpellSchool.Andras),
+
+                new AvatarSpell("Earthward", "Grant a Shield absorbing 7 damage to every friendly unit in a lane.",
+                    energyCost: 42, cooldownTicks: 5, SpellEffect.LaneShield, magnitude: 7,
+                    id: "earthward", school: SpellSchool.Ktini),
+
+                new AvatarSpell("Stonewall", "Grant a Shield absorbing 8 damage to every friendly unit in a lane.",
+                    energyCost: 50, cooldownTicks: 6, SpellEffect.LaneShield, magnitude: 8,
+                    id: "stonewall", school: SpellSchool.Ktini),
+
+                // Locked correction: Shield magnitude 6->10/unit.
+                new AvatarSpell("Veil of Zeus", "Grant a Shield absorbing 10 damage to every friendly unit in a lane.",
+                    energyCost: 58, cooldownTicks: 6, SpellEffect.LaneShield, magnitude: 10,
+                    id: "veil_of_zeus", school: SpellSchool.Pnevmas),
+
+                new AvatarSpell("Cleansing Root", "Remove the Vulnerability mark from every friendly unit in a lane.",
+                    energyCost: 20, cooldownTicks: 3, SpellEffect.Cleanse, magnitude: 0,
+                    id: "cleansing_root", school: SpellSchool.Ktini),
+
+                new AvatarSpell("Gale Break", "Remove Shield from every enemy unit in a lane.",
+                    energyCost: 26, cooldownTicks: 3, SpellEffect.Dispel, magnitude: 0,
+                    id: "gale_break", school: SpellSchool.Pnevmas),
+
+                new AvatarSpell("Infernal Mark", "Mark every enemy unit in a lane: their next hit taken deals +1 damage.",
+                    energyCost: 24, cooldownTicks: 3, SpellEffect.Vulnerability, magnitude: 0,
+                    id: "infernal_mark", school: SpellSchool.Andras),
+
+                new AvatarSpell("Thunder Decree", "Permanently grant +1 Attack to every friendly lane.",
+                    energyCost: 65, cooldownTicks: 7, SpellEffect.AllLaneAttackBuff, magnitude: 1,
+                    id: "thunder_decree", school: SpellSchool.Pnevmas),
+            };
+        }
+
+        /// <summary>
+        /// The real, full castable catalog (27 as of Wave 3 - CreatePhase1Catalog's 14, Wave 2's
+        /// 5, plus this wave's 8) - the source of truth for anything that must resolve a spell id
+        /// into a real AvatarSpell: BattleController.ResolveMatchSpellbook, SpellBookGrant's id
+        /// validation, and SpellUnlockResolver's own iteration - a catalog member with no Rule
+        /// entry (Aegis Return; Ember Guard/Earthward/Gale Break, whose Phase-2 catalog Unlock
+        /// column only gives a bare chapter number with no stage-level precision to build a real
+        /// Rule from) simply never unlocks, the same behaviour a stale/unrecognized id already had.
         /// </summary>
         public static List<AvatarSpell> CreateCatalog()
         {
             List<AvatarSpell> catalog = CreatePhase1Catalog();
             catalog.AddRange(CreatePhase2ExpansionSpells());
+            catalog.AddRange(CreatePhase3ExpansionSpells());
             return catalog;
         }
     }

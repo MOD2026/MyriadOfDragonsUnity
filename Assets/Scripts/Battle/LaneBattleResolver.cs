@@ -72,6 +72,15 @@ namespace MyriadOfDragons.Battle
             int overflowToB = ApplyDamageToLane(laneB, attackFromA);
             int overflowToA = ApplyDamageToLane(laneA, attackFromB);
 
+            // Wave 3 lock (Vulnerability): "consumed on trigger, expires next clash if unused".
+            // A mark that triggered this clash was already cleared inside ApplyDamage, so this
+            // sweep is a no-op for it; a mark that never triggered (its unit wasn't hit, or its
+            // lane wasn't the one under attack) gets cleared here - it had its one window.
+            foreach (BattleCardInstance unit in laneA.Cards.Where(c => c.IsAlive))
+                unit.ExpireVulnerabilityMarkAtClashEnd();
+            foreach (BattleCardInstance unit in laneB.Cards.Where(c => c.IsAlive))
+                unit.ExpireVulnerabilityMarkAtClashEnd();
+
             // Capture cleared-state before pruning dead cards below - once pruned, an all-dead
             // lane becomes genuinely empty (Cards.Count == 0), which would otherwise make
             // IsFullyCleared read false and misreport what actually just happened this turn.

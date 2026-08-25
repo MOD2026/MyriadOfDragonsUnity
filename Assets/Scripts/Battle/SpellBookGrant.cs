@@ -48,6 +48,11 @@ namespace MyriadOfDragons.Battle
             ["4-30"] = new[] { "magma_rend" },
             ["9-30"] = new[] { "grave_mend" },
             ["10-30"] = new[] { "celestial_verdict" },
+            // Wave 3 (LOCKED 2026-08-24): Stonewall AND Infernal Mark are both "Ch6 spell book" per
+            // SPELL_CATALOG_v1.md - same finale stage id, two spells in the grant array (the
+            // dictionary's own value type already supports this). Veil of Zeus "Ch8 spell book".
+            ["6-30"] = new[] { "stonewall", "infernal_mark" },
+            ["8-30"] = new[] { "veil_of_zeus" },
         };
 
         /// <summary>
