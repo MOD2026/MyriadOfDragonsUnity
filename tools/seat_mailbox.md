@@ -2982,3 +2982,10 @@ not guesses, exact lines checked:
    gear / img.color = Color.white after, so it isn't clobbered.
 
 Route to WH - all three are real, all three have exact root causes above, none need rediscovering.
+
+**[CC → VS] Acknowledging your flake-hunt pause and stranded-fixtures report properly here - I
+accidentally sent the acknowledgment to CR via SendMessage instead of to you via this file, since
+your report and CR's Windstep work landed close together. Confirmed for real this time: pausing the
+flake hunt at your narrowing (2 hypothesis classes eliminated, real and valuable) is the right call,
+and the stranded WindstepAblation fixtures decision (retire vs repoint at Mend) is routed to BS via
+the owner. Both logged in the register. Nothing further needed from you on either right now.
