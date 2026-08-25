@@ -3612,42 +3612,41 @@ don't append a new copy each time.
 - [ ] Empire building interlock table (9 of 11 buildings) - parked per owner request, not urgent.
 
 ### Combat/Battle systems
-- [ ] Tactical Puzzle Week 1: 4/6 pass (e01/e02/h01/h02 shippable now, commit 860ff80). m01/m02 both
-      MOVED to new failure modes (m01 now ambiguous between two equal-cost lines; m02 now solves in
-      zero actions) - real BS redecision needed, not yet sent as of this entry.
+- [ ] **ASSIGNED: VS.** Tactical Puzzle Week 1: 5/6 pass (e01/e02/h01/h02/m01, commit c3e937b).
+      tac_w1_m02's third fix (BS's cyclops replacement, verified real against card_data.json +
+      lane-bonus math) dispatched to VS, awaiting re-validation.
 - [x] Windstep-era AI win-rate bands - CLOSED, verified commit 0ee7385.
-- [x] Combat audio (6 cues) - CLOSED, wired, commit 5aaf91e.
-- [x] Combat VFX particles (andras/ktini/pnevmas_medium + bespoke_heavy static frame) - CLOSED,
-      wired + load-verified, commits ee95210/aee31ea.
-- [ ] AvatarStrike flipbook animation (real per-frame cycling, not the current static single frame)
-      - dispatched to CR, a peer was actively editing bespoke_heavy.prefab as of this entry, likely
-      in progress. Verify the actual landed diff before counting this closed.
+- [x] Combat audio (6 cues) - CLOSED, wired + self-caught binding typo fixed, commits 5aaf91e/b6ef527.
+- [x] Combat VFX particles (andras/ktini/pnevmas_medium + bespoke_heavy) - CLOSED, wired + load-
+      verified, commits ee95210/aee31ea.
+- [x] AvatarStrike flipbook animation - CLOSED, commit 3d230d5, math independently hand-verified
+      (frame 0 -> v=0.75 matches the static reference; clamps correctly; NaN-safe) + independently
+      re-ran the tests myself (0 error CS) before this was marked closed.
 
 ### Metagame/UI
 - [x] Home V3 dock (Campaign/Empire/Avatar/Cards/Shop) - CLOSED, all wired, commit d2e29ac + WH's
       hero-tile commit.
 - [x] Empire structure-strip art (Storage/Training Grounds/Quarry/Academy/Tree of Knowledge) -
       CLOSED, fixed commit e208114.
-- [x] **VIP Subscription screen - FALSE ALARM, RETRACTED (2026-08-26).** Earlier entry claimed
-      `VipSubscriptionPresenter.cs` "never calls Load anywhere" - that check only grepped for the
-      literal substring `.Load(` and missed the real pattern: `VipSubscriptionPresenter.cs:61` calls
-      `VipSubscriptionUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback)`, which
-      itself calls `Load(ScreenShellName)` internally and correctly sets the sprite. **Real art IS
-      wired.** A false bug was dispatched to WH - retract it, no fix needed. Root cause: checked one
-      naming convention (`Xxx.Load(`) and generalized from 2 real hits (Empire/before) to "this bug
-      class" without re-verifying the actual call site for THIS presenter first.
-- [x] **Friends screen - same false alarm, RETRACTED.** `FriendsPresenter.cs` correctly calls
-      `FriendsUiLibrary.ApplyFullscreenShell` (shell background) and `ApplyAtlasIcon`/
-      `LoadRelationshipCell`/`LoadProfileActionCell` (relationship + action icon atlases) at multiple
-      real call sites (lines 82, 175, 222, 235, 308, 320). Real art IS wired. Retracted, no fix
-      needed.
+- [x] **VIP Subscription + Friends screens - CLOSED (commit bee2c1f, WH+Cursor).** Shells were
+      always correctly wired (my first "never calls Load" claim was wrong); the real gap WH found
+      was state/benefit/relationship/action wells rendering as flat colors because the approved
+      atlas art was never sliced/applied. Real fix verified by reading the diff (runtime equal-width
+      atlas-cell slicing via `Sprite.Create`, correct Read/Write-enabled atlas metas, opaque
+      letterbox backing) - 6/6 reported (`VipSubscriptionShellTests`/`FriendsShellTests`).
 - [x] Collection screen/acquisition - CONTRADICTION RESOLVED (2026-08-26, read-only check, no fix
       needed): `CollectionPresenter.cs:363` calls `db.GetArt(resolved)` (real `CardDatabase` art
       lookup, same mechanism Battle uses) - real art genuinely loads here. The MOS §20 "incomplete"
       row is stale; the earlier UI-backlog audit's "already wired" claim holds up under direct code
       check. Not the same bug class as VIP/Friends/Empire - no dispatch needed.
 
+- [ ] **ASSIGNED: UI (art), not a coding task.** GuildExpedition/PermitWeekKey/SpellLoadoutPicker
+      screens have zero approved art (confirmed via the full 23-presenter sweep) - prompt already
+      sent to UI. Do not dispatch a coding fix until art exists.
+
 ### Systems/backend
+- [ ] **ASSIGNED: CR.** Full-suite EditMode regression baseline (not scoped-filter) after tonight's
+      volume of changes - dispatched, no report yet as of this entry.
 - [ ] Retention/engagement telemetry - correctly stopped; needs new `PlayerProfile` fields, requires
       **owner sign-off** (frozen-file rule) before any seat touches `PlayerProfile.cs`/
       `SaveSystem.cs`/`SaveMigration.cs`.
