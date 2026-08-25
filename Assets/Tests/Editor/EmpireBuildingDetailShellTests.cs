@@ -75,29 +75,91 @@ namespace MyriadOfDragons.Tests
             empire.OpenBuildingDetailForTests(EmpireBuildingKind.GuildHall);
 
             var detail = go.GetComponent<EmpireBuildingDetailPresenter>();
+            // These two are UNCHANGED and deliberately kept: Guild Hall still has no upgrade
+            // LADDER. What changed on 2026-08-26 is that it now carries a real persisted structure
+            // LEVEL. Those are different things, and the old copy conflated them.
             Assert.IsFalse(detail.UpgradeButtonActiveForTests);
-            StringAssert.Contains("NON-UPGRADE BUILDING",
-                detail.CanvasObjectForTests.transform.Find("DetailPanel/VariantFraming")?.GetComponent<Text>()?.text);
             EmpireBuildingDetailUpgradeResult pressed = detail.PressUpgradeForTests();
             Assert.AreEqual(EmpireBuildingDetailUpgradeStatus.NonUpgradeBuilding, pressed.Status);
+
+            // COPY UPDATED BY DECISION (BS, locked): "NON-UPGRADE BUILDING" was already untrue here
+            // once Guild Hall gained a real level, so it was replaced rather than reverted.
+            StringAssert.Contains("Supports Embassy interlock progression",
+                detail.CanvasObjectForTests.transform.Find("DetailPanel/VariantFraming")?.GetComponent<Text>()?.text);
         }
 
         [Test]
         public void PrisonAndEmbassy_UsePendingServerFraming()
         {
+            // Wording relocked 2026-08-26. The MEANING is unchanged - structure progression is
+            // real, the online feature is not live - but each line now says both halves explicitly
+            // instead of only the pending half, because these buildings now have real levels.
             Assert.IsTrue(EmpireBuildingDetailCopy.FormatVariantFraming(EmpireBuildingKind.Prison)
-                .Contains("GUILD FEATURES PENDING SERVER"));
+                .Contains("Capture systems unavailable"));
             Assert.IsTrue(EmpireBuildingDetailCopy.FormatVariantFraming(EmpireBuildingKind.Embassy)
-                .Contains("GUILD MODE PENDING SERVER"));
+                .Contains("Player-help network unavailable"));
+            // Each line is asserted against ITS OWN locked wording. An earlier draft of this
+            // looped all three against "Structure progression active" and concatenated that string
+            // for Guild Hall so the loop would pass - a test that cannot fail for one of its cases
+            // is worse than no test, and Guild Hall's locked line genuinely does not say that.
+            StringAssert.Contains("Guild functions coming later",
+                EmpireBuildingDetailCopy.FormatVariantFraming(EmpireBuildingKind.GuildHall));
+            foreach (EmpireBuildingKind kind in new[]
+                     { EmpireBuildingKind.Prison, EmpireBuildingKind.Embassy })
+            {
+                StringAssert.Contains("Structure progression active",
+                    EmpireBuildingDetailCopy.FormatVariantFraming(kind),
+                    kind + " must state that structure progression is real.");
+            }
 
             var go = new GameObject("PrisonDetail");
             _spawned.Add(go);
             var empire = go.AddComponent<EmpirePresenter>();
             empire.Initialize(onBackToHome: null);
             empire.OpenBuildingDetailForTests(EmpireBuildingKind.Prison);
-            StringAssert.Contains("PENDING SERVER",
+            StringAssert.Contains("online services ship",
                 go.GetComponent<EmpireBuildingDetailPresenter>().CanvasObjectForTests
                     .transform.Find("DetailPanel/VariantFraming")?.GetComponent<Text>()?.text);
+        }
+
+        [Test]
+        public void TheThreeInterlockBuildings_ShowStructureLevel_NotABareLevelNumber()
+        {
+            // BS's reasoning, which is the whole point of the wording: "Do not show simply
+            // 'LEVEL 12' - that would imply the building has a functioning Level-12 feature set."
+            // The level is REAL and drives Empire interlocks; the online FEATURE is not live.
+            var profile = new PlayerProfile();
+
+            foreach (EmpireBuildingKind kind in new[]
+                     {
+                         EmpireBuildingKind.GuildHall, EmpireBuildingKind.Embassy,
+                         EmpireBuildingKind.Prison,
+                     })
+            {
+                Assert.IsTrue(EmpireBuildingDetailCopy.UsesStructureLevelWording(kind),
+                    kind + " should use the structure-level wording.");
+
+                string line = EmpireBuildingDetailCopy.FormatLevelLine(kind, profile);
+                StringAssert.Contains("STRUCTURE LEVEL", line, kind + " must be labelled a STRUCTURE level.");
+                StringAssert.Contains("1", line, kind + " must show its real Day-1 level.");
+                StringAssert.DoesNotContain("(flat)", line,
+                    kind + " must not claim a flat level - it has a real persisted one now.");
+            }
+
+            // The other eight are unchanged: a plain LEVEL, because their features are real.
+            StringAssert.DoesNotContain("STRUCTURE LEVEL",
+                EmpireBuildingDetailCopy.FormatLevelLine(EmpireBuildingKind.Castle, profile),
+                "Castle's feature set is live - it should stay a plain LEVEL.");
+        }
+
+        [Test]
+        public void TheStructureLevelTooltip_IsLockedCopy_ButHasNoHostYet()
+        {
+            // Records a real gap rather than letting locked copy quietly not exist: this popup has
+            // no tooltip mechanism at all, so the string is captured and ready and nothing shows
+            // it. If a tooltip host is ever added, this test is where to notice the wiring is owed.
+            StringAssert.Contains("does not imply", EmpireBuildingDetailCopy.StructureLevelTooltip);
+            StringAssert.Contains("Empire interlocks", EmpireBuildingDetailCopy.StructureLevelTooltip);
         }
 
         [Test]
