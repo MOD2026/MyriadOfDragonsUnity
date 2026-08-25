@@ -226,10 +226,27 @@ namespace MyriadOfDragons.Battle
         /// stands in for Veteran specifically), so left unchanged pending real measurement rather
         /// than guessed. No tier supplied (legacy/mirrored-loadout callers) keeps the original flat
         /// 40%, unchanged, matching "every pre-existing caller keeps old behaviour."</summary>
-        public bool RollAiSpellCastProbabilityGate() =>
-            _forceAiSpellCastGateAlwaysPassForTests || _aiSpellCastRng.NextDouble() < NonAvatarStrikeGateProbability(EnemyDifficultyTier);
+        public bool RollAiSpellCastProbabilityGate()
+        {
+            if (_forceAiSpellCastGateAlwaysPassForTests) return true;
+            double roll = _aiSpellCastRng.NextDouble();
+            if (_forceAiSpellCastGateAlwaysFailForTests) return false; // still draws above - see SetForceAiSpellCastGateAlwaysFailForTests.
+            return roll < NonAvatarStrikeGateProbability(EnemyDifficultyTier);
+        }
 
         private bool _forceAiSpellCastGateAlwaysPassForTests;
+        private bool _forceAiSpellCastGateAlwaysFailForTests;
+
+        /// <summary>EditMode-only test seam (diagnose-before-tune, LOCKED 2026-08-25): forces the
+        /// ordinary-spell probability gate to always FAIL - the "AI decision loop active but
+        /// casting forcibly disabled" control condition (distinct from EnableMirroredEnemySpellsForPvE
+        /// simply not being called at all, which skips the decision loop and RNG draw entirely).
+        /// Still draws from _aiSpellCastRng exactly as a real roll would, so this isolates "does
+        /// merely running the decision loop + consuming a roll (without ever actually casting)
+        /// perturb anything" from "does having spells enabled at all perturb anything." Defaults
+        /// to false; a real match never sets this.</summary>
+        public void SetForceAiSpellCastGateAlwaysFailForTests(bool forceAlwaysFail) =>
+            _forceAiSpellCastGateAlwaysFailForTests = forceAlwaysFail;
 
         /// <summary>EditMode-only test seam (diagnose-before-tune, LOCKED 2026-08-25): forces the
         /// ordinary-spell probability gate above to always pass, for measuring the theoretical
@@ -266,7 +283,9 @@ namespace MyriadOfDragons.Battle
         {
             if (_avatarStrikeCommitmentDecided) return _avatarStrikeCommitmentAllowed;
             _avatarStrikeCommitmentDecided = true;
-            _avatarStrikeCommitmentAllowed = _aiSpellCastRng.NextDouble() < 0.10;
+            if (_forceAiSpellCastGateAlwaysPassForTests) { _avatarStrikeCommitmentAllowed = true; return true; }
+            double roll = _aiSpellCastRng.NextDouble();
+            _avatarStrikeCommitmentAllowed = !_forceAiSpellCastGateAlwaysFailForTests && roll < 0.10;
             return _avatarStrikeCommitmentAllowed;
         }
 
