@@ -2331,3 +2331,32 @@ screen. Reasons: (1) thematically consistent with the "War-Room Reconstructions"
 tied to the Academy/Empire building system, (2) HomePagePresenter.cs is WH's file - moving it there
 would create an unnecessary cross-seat dependency for a UX call with no real functional difference.
 No change needed.
+
+## Full EditMode baseline: 1449/1458 (2026-08-25, VS, verified HEAD 91392d3 -> 0f931d0)
+
+Suite has grown a lot (Ch11-18 etc) - 1458 executed vs the older 1081 baseline, compare the FAILURE
+SET not the ratio. Nothing in VS's own lane regressed - all 73 TacticalPuzzle tests pass inside the
+full-suite context (not just isolation), EmpirePresenter's chip-strip respread disturbed nothing.
+Also self-caught and fixed a real bug while verifying: the result-modal art was loaded but never
+applied to anything (91392d3).
+
+**2 of the 9 failures were misclassified in the standing notes - real findings, not noise:**
+1. **Stage 2-6 and 17-13 field the identical 3-card roster** - fires in BOTH Chapter17FullDepthTests
+   and Chapter18FullDepthTests, same stage pair, same message, every time - NOT the flaky
+   "winnability, failing stage moves every run" class. Real content collision. WH's lane (campaign
+   content), not touched, flagged for WH.
+2. **ReleaseProfilePersistenceContractTests fails in full suite, passes in isolation** (VS
+   re-bisected: 120 candidates + victim, 941 tests, zero victim failures) - order-dependent
+   pollution, not a test/code defect. "Repeated gem pack purchase after reload must still grant a
+   new owned card - Expected 12, But was 11." Economy/save lane, frozen-file adjacent - not VS's to
+   chase.
+
+**MirroredAi note, ties directly to the pending BS thread (zero-cast metric drop-vs-descriptive):**
+SimulationMatrix_Apprentice still fails on the zero-cast-trial band (11.74 vs 8.65, 1.36x) at a HEAD
+that already includes c136c7d's conclusion that this is a population property, not an AI defect. If
+that conclusion holds, the ASSERTION is now measuring something already decided as expected - the
+TEST needs re-reading once BS answers, not the AI. Same shape as the art-role/Prison-cooldown cases:
+a test whose subject moved underneath it.
+
+Remaining 7 failures: unchanged known set (1 winnability - genuinely moving, 2 MirroredAi under
+active tuning, 3 UI shells peer-in-flight, 1 pollution above).
