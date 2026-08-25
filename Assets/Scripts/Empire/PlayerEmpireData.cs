@@ -282,17 +282,18 @@ namespace MyriadOfDragons.Empire
             24, // Ch9
             27, // Ch10
             30, // Ch11 — The Storm's Price
-            30, // Ch12 — The Mortal Host (Gate ladder caps at L30 until a higher paid milestone lands)
+            30, // Ch12 — The Mortal Host
+            30, // Ch13 — The Olympian Answer (Gate ladder caps at L30 until a higher paid milestone lands)
         };
 
         /// <summary>
-        /// Highest Campaign chapter (1–12) this Gate level may attempt.
+        /// Highest Campaign chapter (1–13) this Gate level may attempt.
         /// </summary>
         public static int GetHighestCampaignChapterAllowed(int gateLevel)
         {
             int level = Mathf.Max(1, gateLevel);
             int highest = 1;
-            for (int chapter = 1; chapter <= 12; chapter++)
+            for (int chapter = 1; chapter <= 13; chapter++)
             {
                 if (level >= GateLevelForChapter[chapter])
                     highest = chapter;
@@ -306,7 +307,7 @@ namespace MyriadOfDragons.Empire
         /// <summary>True if Gate alone permits this chapter. Does not check stage unlock.</summary>
         public static bool IsCampaignChapterAllowedByGate(int gateLevel, int chapter)
         {
-            if (chapter < 1 || chapter > 12)
+            if (chapter < 1 || chapter > 13)
                 return false;
             return gateLevel >= GateLevelForChapter[chapter];
         }
@@ -317,7 +318,7 @@ namespace MyriadOfDragons.Empire
         /// GateLevelForChapter itself.</summary>
         public static int MinimumGateLevelForChapter(int chapter)
         {
-            if (chapter < 1 || chapter > 12)
+            if (chapter < 1 || chapter > 13)
                 return 0;
             return GateLevelForChapter[chapter];
         }

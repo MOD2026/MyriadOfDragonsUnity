@@ -181,6 +181,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter10DepthStages());
             chapterStages.AddRange(BuildChapter11DepthStages());
             chapterStages.AddRange(BuildChapter12DepthStages());
+            chapterStages.AddRange(BuildChapter13DepthStages());
             ApplyLockedCampaignGemRewards();
         }
 
@@ -200,10 +201,10 @@ namespace MyriadOfDragons.UI
                 total += stage.gemReward;
             }
 
-            if (total != CampaignGemRewardRules.LockedTotalCh1Through12)
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through13)
             {
                 Debug.LogError(
-                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through12} " +
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through13} " +
                     $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
             }
         }
@@ -1322,6 +1323,90 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Chapter 13 depth pool — Chapter12DepthPool rotated by 21 (continuing 17→19→21).</summary>
+        private static readonly string[] Chapter13DepthPool =
+        {
+            "owl_keeper", "ladyinlake", "iron_dragon", "pandora", "drain", "shaman", "druid", "succubus",
+            "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue", "giant_worms",
+            "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer", "corrupted_warrior",
+            "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess", "conquistador",
+        };
+
+        /// <summary>Linear from Stage 12-30's 42940 gold. 13-30 lands at 42940 + 30*190 = 48640 gold.</summary>
+        private static (int gold, int gems) Chapter13DepthReward(int stageNumber)
+        {
+            const int baseGold = 42940, goldPerStage = 190;
+            const int baseGems = 8588, gemsPerStage = 38;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 13 — The Olympian Answer (Olympus answers the mortal host).</summary>
+        private static readonly (string title, string enemyName)[] Chapter13DepthFlavor =
+        {
+            ("Olympian Outrider Post", "Outrider Watch"),
+            ("Godsworn Beacon Gate", "Godsworn Gate Guard"),
+            ("Aegis Answer Court", "Aegis Answer Cohort"),
+            ("Thunder Decree Yard", "Decree Yard Wardens"),
+            ("Sky-Oath Tithe Hall", "Sky-Oath Legion"),
+            ("Divine Levy Stair", "Divine Levy Guard"),
+            ("The Oracle Muster", "Oracle Muster Command"),
+            ("Boltbound Causeway", "Boltbound Cohort"),
+            ("Answer Antechamber", "Answer Antechamber Guard"),
+            ("Eagle-of-Olympus Roost", "Olympus Roost Legion"),
+            ("Crown Decree Gallery", "Decree Gallery Wardens"),
+            ("The Judgment Steps", "Judgment Guard"),
+            ("Stormgod Barracks", "Stormgod Command"),
+            ("Olympian Oath Chamber", "Olympian Oath Cohort"),
+            ("The Answer Court", "Answer Court Guard"),
+            ("Godscar Road", "Godscar Legion"),
+            ("Levy Vault of Bolts", "Bolt Vault Wardens"),
+            ("Aegiswatch Parapet", "Aegiswatch Guard"),
+            ("War Engine of Heaven", "Heaven Engine Cohort"),
+            ("Balcony of Edicts", "Edict Balcony Command"),
+            ("Godseal Reliquary", "Godseal Reliquary Guard"),
+            ("Crown Rampart Decree", "Decree Rampart Legion"),
+            ("Thunderbrand Sanctum", "Thunderbrand Sanctum Wardens"),
+            ("The Last Divine Debt", "Last Divine Cohort"),
+            ("Skyfire Vestibule", "Skyfire Vestibule Guard"),
+            ("Sky King's Answer Bastion", "Answer Bastion Command"),
+            ("The Broken God Scepter", "Broken God Legion"),
+            ("Stormheart Decree Gate", "Decree Gate Guard"),
+            ("The Judgment Dais", "Judgment High Command"),
+            ("The Olympian Answer", "Olympian Answer High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter13DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                // Stride 23 is coprime with pool 29 (unlike 29 itself, which collapsed every baseIndex).
+                int baseIndex = (23 * i + 5) % poolSize;
+                string[] ids =
+                {
+                    Chapter13DepthPool[baseIndex],
+                    Chapter13DepthPool[(baseIndex + 8) % poolSize],
+                    Chapter13DepthPool[(baseIndex + 19) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "goblin_shaman", "elf_wanderer", "persian_princess" };
+
+                // Stages 13-5 / 13-16 measured AF defeats under starter+AF policy.
+                // Avoid Ch12's 12-8 patch trio (fire_worm+butcher+wood_wizard).
+                if (stageNumber == 5)
+                    ids = new[] { "snake_archer", "cursed_soldier", "goblin_shaman" };
+                if (stageNumber == 16)
+                    ids = new[] { "fire_worm", "zombified_captain", "druid" };
+
+                (string title, string enemyName) = Chapter13DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. Olympus answers the mortal host.";
+                (int gold, int gems) = Chapter13DepthReward(stageNumber);
+                yield return new CampaignStageData($"13-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
         /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
         /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
         /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
@@ -1654,6 +1739,7 @@ namespace MyriadOfDragons.UI
                 case 10: return "CHAPTER 10: THE EMPTY THRONE";
                 case 11: return "CHAPTER 11: THE STORM'S PRICE";
                 case 12: return "CHAPTER 12: THE MORTAL HOST";
+                case 13: return "CHAPTER 13: THE OLYMPIAN ANSWER";
                 default: return $"CHAPTER {chapter}";
             }
         }

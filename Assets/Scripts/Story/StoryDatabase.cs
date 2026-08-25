@@ -1328,6 +1328,80 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The mortal host still waits.");
             }
+
+            // Chapter 13 — The Olympian Answer.
+            (string stageId, string title, string enemyName)[] chapter13Stages =
+            {
+                ("13-1", "Olympian Outrider Post", "Outrider Watch"),
+                ("13-2", "Godsworn Beacon Gate", "Godsworn Gate Guard"),
+                ("13-3", "Aegis Answer Court", "Aegis Answer Cohort"),
+                ("13-4", "Thunder Decree Yard", "Decree Yard Wardens"),
+                ("13-5", "Sky-Oath Tithe Hall", "Sky-Oath Legion"),
+                ("13-6", "Divine Levy Stair", "Divine Levy Guard"),
+                ("13-7", "The Oracle Muster", "Oracle Muster Command"),
+                ("13-8", "Boltbound Causeway", "Boltbound Cohort"),
+                ("13-9", "Answer Antechamber", "Answer Antechamber Guard"),
+                ("13-10", "Eagle-of-Olympus Roost", "Olympus Roost Legion"),
+                ("13-11", "Crown Decree Gallery", "Decree Gallery Wardens"),
+                ("13-12", "The Judgment Steps", "Judgment Guard"),
+                ("13-13", "Stormgod Barracks", "Stormgod Command"),
+                ("13-14", "Olympian Oath Chamber", "Olympian Oath Cohort"),
+                ("13-15", "The Answer Court", "Answer Court Guard"),
+                ("13-16", "Godscar Road", "Godscar Legion"),
+                ("13-17", "Levy Vault of Bolts", "Bolt Vault Wardens"),
+                ("13-18", "Aegiswatch Parapet", "Aegiswatch Guard"),
+                ("13-19", "War Engine of Heaven", "Heaven Engine Cohort"),
+                ("13-20", "Balcony of Edicts", "Edict Balcony Command"),
+                ("13-21", "Godseal Reliquary", "Godseal Reliquary Guard"),
+                ("13-22", "Crown Rampart Decree", "Decree Rampart Legion"),
+                ("13-23", "Thunderbrand Sanctum", "Thunderbrand Sanctum Wardens"),
+                ("13-24", "The Last Divine Debt", "Last Divine Cohort"),
+                ("13-25", "Skyfire Vestibule", "Skyfire Vestibule Guard"),
+                ("13-26", "Sky King's Answer Bastion", "Answer Bastion Command"),
+                ("13-27", "The Broken God Scepter", "Broken God Legion"),
+                ("13-28", "Stormheart Decree Gate", "Decree Gate Guard"),
+                ("13-29", "The Judgment Dais", "Judgment High Command"),
+                ("13-30", "The Olympian Answer", "Olympian Answer High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter13Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "13-1" => "Olympus answers. Kneel or burn.",
+                    "13-15" => "Every edict costs a kingdom.",
+                    "13-30" => "The Olympian answer will not wait.",
+                    _ => $"{enemyName} holds {title}. The gods answer only defiance.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "13-1" => "Then answer me standing.",
+                    "13-15" => "Then I take the kingdom.",
+                    "13-30" => "Then I rewrite the answer.",
+                    _ => "Clear the path. Olympus still waits.",
+                };
+
+                if (stageId == "13-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The answer is mine — and Olympus heard it."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Heard, Sovereign. Hearing is not surrender."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The Olympian answer still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

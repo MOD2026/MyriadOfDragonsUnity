@@ -150,6 +150,9 @@ namespace MyriadOfDragons.Tests
 
             public Task<BazaarCancelResult> CancelListingAsync(string listingId, CancellationToken cancellationToken) =>
                 Task.FromResult(new BazaarCancelResult { success = false, errorCode = "LISTING_NOT_AVAILABLE" });
+
+            public Task<BazaarListingsQueryResult> QueryListingsAsync(int pageSize, string pageToken, CancellationToken cancellationToken) =>
+                Task.FromResult(new BazaarListingsQueryResult { success = false, errorCode = "NOT_IMPLEMENTED" });
         }
     }
 }

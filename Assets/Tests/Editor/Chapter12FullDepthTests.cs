@@ -192,30 +192,29 @@ namespace MyriadOfDragons.Tests
         // ---------- Order / unlock chain ----------
 
         [Test]
-        public void ChapterStages_ContainsTheCompleteChainFrom1_1through12_30_EndingThere()
+        public void ChapterStages_ContainsTheCompleteChainFrom1_1through12_30_AsPrefix()
         {
             string cursor = "1-1";
             var actualOrder = new List<string> { cursor };
-            while (true)
+            for (int i = 0; i < AllStageIdsInOrder.Length - 1; i++)
             {
                 string next = CampaignMapPresenter.GetNextStageId(cursor);
-                if (next == null) break;
+                Assert.IsNotNull(next, $"Setup: expected a real next stage after {cursor}.");
                 actualOrder.Add(next);
                 cursor = next;
-                Assert.LessOrEqual(actualOrder.Count, AllStageIdsInOrder.Length,
-                    "Setup: the ordered campaign list grew unexpectedly long - possible infinite chain or duplicate id.");
             }
 
             CollectionAssert.AreEqual(AllStageIdsInOrder, actualOrder,
-                "The complete ordered campaign list must be exactly 1-1..1-12 then 2-1..2-21 then 3-1..3-30 then 4-1..4-30 then 5-1..5-30 then 6-1..6-30 then 7-1..7-30 then 8-1..8-30 then 9-1..9-30 then 10-1..10-30 then 11-1..11-30 then 12-1..12-30, in that order, with no gaps.");
+                "The ordered campaign list must begin with exactly 1-1..1-12 then 2-1..2-21 then 3-1..3-30 then 4-1..4-30 then 5-1..5-30 then 6-1..6-30 then 7-1..7-30 then 8-1..8-30 then 9-1..9-30 then 10-1..10-30 then 11-1..11-30 then 12-1..12-30, in that order, with no gaps.");
         }
 
         [Test]
-        public void GetNextStageId_12_30IsTerminal()
+        public void GetNextStageId_12_30ChainsIntoChapter13()
         {
             Assert.AreEqual("12-1", CampaignMapPresenter.GetNextStageId("11-30"));
             Assert.AreEqual("12-30", CampaignMapPresenter.GetNextStageId("12-29"));
-            Assert.IsNull(CampaignMapPresenter.GetNextStageId("12-30"), "Stage 12-30 is the campaign terminal.");
+            Assert.AreEqual("13-1", CampaignMapPresenter.GetNextStageId("12-30"),
+                "Stage 12-30 unlocks Chapter 13.");
         }
 
         [Test]
@@ -223,7 +222,7 @@ namespace MyriadOfDragons.Tests
         {
             var profile = new PlayerProfile();
             CollectionAssert.AreEqual(new[] { "1-1" }, profile.unlockedStageIds,
-                "A brand-new profile must start with exactly Stage 1-1 unlocked, even after the full campaign grew to three hundred thirty-three stages.");
+                "A brand-new profile must start with exactly Stage 1-1 unlocked, even after the full campaign grew to three hundred sixty-three stages.");
         }
 
         [Test]
@@ -256,7 +255,7 @@ namespace MyriadOfDragons.Tests
                 }
                 else
                 {
-                    Assert.AreEqual(stageId, "12-30", "Only Stage 12-30 should have no next stage.");
+                    Assert.Fail($"Stage {stageId} should unlock the next chapter stage; only 13-30 is terminal.");
                 }
 
                 if (i + 1 < NewChapter12StageIds.Length)
