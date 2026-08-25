@@ -117,22 +117,20 @@ namespace MyriadOfDragons.Empire
         public const int MaxCapturesPerUtcDay = 1;
 
         /// <summary>
-        /// Days before the same opponent can be captured from again.
+        /// Days before the same opponent can be captured from again. LOCKED at 7 (register
+        /// 761d801) after this file's own test flagged that the previous placeholder of 1 was a
+        /// no-op - MaxCapturesPerUtcDay=1 already blocked every same-day repeat, and at exactly
+        /// 1.0 days the cooldown had expired, so the guardrail did nothing. At 7 it is real.
         ///
-        /// NUMBER IS OPEN - the locked design states the RULE ("cooldown vs same opponent") but
-        /// never a duration, so this is a placeholder, not a locked value. Flagged 2026-08-25:
-        /// at 1 day this guardrail is entirely SUBSUMED by MaxCapturesPerUtcDay=1 (a same-day
-        /// repeat is already blocked by the cap, and exactly 1.0 days later the cooldown has
-        /// expired), so it currently does nothing. It only becomes a real anti-farming rule at
-        /// >= 2. Needs an owner/GPT number rather than an invented one - see the standing
-        /// "structure locked, numbers open" pattern.
+        /// Keyed by attacker/defender PAIR, and consumed only by a SUCCESSFUL capture - a failed
+        /// attempt must not burn the cooldown, or losing would protect the target.
+        ///
+        /// HONEST LIMITATION, do not overstate this: it is CLIENT-TRACKED, using the same
+        /// idempotent-ledger pattern as MaxCapturesPerUtcDay. Prison has no server backend yet, so
+        /// this is NOT abuse-proof - a modified client could ignore it. It is a correctness rule
+        /// today and becomes an enforcement rule only when real server work lands.
         /// </summary>
-        public const int SameOpponentCooldownDays = 1;
-
-        /// <summary>True while the cooldown cannot bite because the daily cap already covers it.
-        /// Exists so the gap is assertable rather than only described in a comment.</summary>
-        public static bool SameOpponentCooldownIsRedundant =>
-            SameOpponentCooldownDays <= MaxCapturesPerUtcDay;
+        public const int SameOpponentCooldownDays = 7;
 
         /// <summary>
         /// Sacrifice yield for a Fodder item. Intentionally delegates to the SAME rarity table a

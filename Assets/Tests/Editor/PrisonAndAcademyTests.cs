@@ -21,6 +21,7 @@ namespace MyriadOfDragons.Tests
         private static readonly DateTime Day1 = new DateTime(2026, 8, 25, 12, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime Day2 = new DateTime(2026, 8, 26, 12, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime Day4 = new DateTime(2026, 8, 28, 12, 0, 0, DateTimeKind.Utc);
+        private static readonly DateTime Day10 = new DateTime(2026, 9, 4, 12, 0, 0, DateTimeKind.Utc);
 
         private static BoundCaptiveMatchContext EligibleWin(string opponent = "opp-1") =>
             new BoundCaptiveMatchContext
@@ -153,18 +154,49 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(1, state.Items.Count);
         }
 
-        /// <summary>Documents a REAL GAP rather than hiding it: at the current placeholder value the
-        /// same-opponent cooldown cannot ever fire, because the daily cap already blocks everything
-        /// it would block. The locked design asks for this guardrail but never states a duration.
-        /// This test passes today and will fail the moment someone sets a real (>= 2 day) value -
-        /// at which point the redundancy is gone and this test should be deleted.</summary>
+        /// <summary>The gap this file's earlier self-retiring test flagged is now closed: the
+        /// cooldown is 7 days (register 761d801) and genuinely blocks a repeat the daily cap does
+        /// not. This is the real assertion that replaced it.</summary>
         [Test]
-        public void TheSameOpponentCooldown_IsCurrentlyRedundant_AndTheNumberIsStillOpen()
+        public void TheSameOpponent_StaysOnCooldown_AcrossDaysTheDailyCapWouldAllow()
         {
-            Assert.IsTrue(BoundCaptiveFodderRules.SameOpponentCooldownIsRedundant,
-                "If this now fails, a real cooldown value was set - good. Delete this test and " +
-                "replace it with one asserting the cooldown actually blocks a cross-day repeat.");
-            Assert.AreEqual(1, BoundCaptiveFodderRules.MaxCapturesPerUtcDay);
+            var state = new BoundCaptivePrisonState();
+            BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-1"), "cap-1", Day1);
+
+            // Day4 is well clear of the 1/day cap, so ONLY the cooldown can block this.
+            BoundCaptiveCaptureResult sameOpponent =
+                BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-1"), "cap-2", Day4);
+
+            Assert.AreEqual(BoundCaptiveCaptureStatus.SameOpponentOnCooldown, sameOpponent.Status,
+                "At 7 days the cooldown must outlast the daily cap - that is the whole point of it.");
+        }
+
+        [Test]
+        public void ADifferentOpponent_IsUnaffectedByAnotherPairsCooldown()
+        {
+            var state = new BoundCaptivePrisonState();
+            BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-1"), "cap-1", Day1);
+
+            BoundCaptiveCaptureResult other =
+                BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-2"), "cap-2", Day2);
+
+            Assert.IsTrue(other.Granted,
+                "The cooldown is keyed by attacker/defender PAIR, not a global lockout.");
+        }
+
+        [Test]
+        public void AFailedAttempt_DoesNotBurnTheCooldown()
+        {
+            var state = new BoundCaptivePrisonState();
+            BoundCaptiveMatchContext lost = EligibleWin("opp-1");
+            lost.AttackerWon = false;
+            BoundCaptiveFodderRules.TryCapture(state, lost, "cap-lost", Day1);
+
+            BoundCaptiveCaptureResult win =
+                BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-1"), "cap-win", Day2);
+
+            Assert.IsTrue(win.Granted,
+                "Only a SUCCESSFUL capture consumes the cooldown - losing must not protect the target.");
         }
 
         [Test]
@@ -173,8 +205,9 @@ namespace MyriadOfDragons.Tests
             var state = new BoundCaptivePrisonState();
             BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-1"), "cap-1", Day1);
 
+            // Day10 is past the locked 7-day window; Day4 no longer is.
             BoundCaptiveCaptureResult later =
-                BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-1"), "cap-2", Day4);
+                BoundCaptiveFodderRules.TryCapture(state, EligibleWin("opp-1"), "cap-2", Day10);
 
             Assert.IsTrue(later.Granted);
         }
