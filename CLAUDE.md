@@ -160,6 +160,14 @@ Partition multi-part asks into **separate labeled blocks**, one fenced block per
 never bundle several questions into one block with internal numbering; the owner needs to copy
 exactly the part they want to send.
 
+**Channel discipline, before replying to ANY report:** confirm which channel it actually arrived on
+before addressing a reply — `tools/seat_mailbox.md` content is VS, a `<cross-session-message>` block
+is whichever seat its `from-name` says (verify against `ListAgents`, names churn). Reply on the SAME
+channel the report arrived on. This has caused two real misdirected messages in one session
+(2026-08-25) — both times because two seats' reports landed in the same turn and the reply went to
+the wrong one on autopilot. Before sending an acknowledgment, name the source explicitly in your own
+head ("this came from the mailbox, so it's VS") rather than replying to "whoever's freshest in mind."
+
 **Decisiveness:** don't ask permission for something checkable or decidable directly — check it or
 decide it, then say what was done. Only escalate genuine judgment calls (design/balance decisions
 past a coding seat's authority, or destructive/frozen-file actions). Never bring a yes/no question to
