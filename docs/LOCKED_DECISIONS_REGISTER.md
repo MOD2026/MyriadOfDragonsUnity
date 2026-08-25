@@ -2547,3 +2547,22 @@ the clean version.
 
 **Decision: keep anyCastTickRatio as the hard gate for now - do NOT widen or retune until this
 control is complete.**
+
+## VS self-picked work while holding: compile_check fix + results.xml race finding (2026-08-25, VS, verified 08b7168)
+
+**compile_check false-FAIL fixed (08b7168).** The script was reporting confusing CS0103/CS0246 for
+brand-new files that were actually correct - root cause: Unity owns .csproj and lists every source
+file explicitly, so a file created since Unity's last refresh isn't in the project yet. The compiler
+never says "file missing," it reports an undefined NAME at each use site, which points at the
+CALLER and reads as "my new type is broken" - nothing in the output pointed at the real cause. Fix:
+now lists any .cs file on disk but absent from the .csproj before build output, with what to do.
+Validated both directions (clean tree silent, a dropped throwaway file correctly named and located).
+VS caught its own first version being wrong before committing it.
+
+**Real cross-seat process finding, no code commit (a CLI-usage fix, not a file change): data race
+on results.xml/run.log.** Getting one set of real numbers took VS six attempts - four lock refusals,
+plus one run that EXECUTED and then had its results.xml AND run.log deleted by another seat's run
+starting right after (the wrapper clears both at startup). The dangerous direction isn't the
+deletion (that stops you) - it's a REFUSED run leaving the PREVIOUS run's results.xml in place,
+which parses perfectly and answers confidently wrong. Fix: pass seat-unique -ResultsPath/-LogPath
+(VS now uses vs_*.xml/vs_*.log). Every seat running tools/run_editmode_tests.ps1 should do the same.
