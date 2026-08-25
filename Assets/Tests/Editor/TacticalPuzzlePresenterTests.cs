@@ -419,6 +419,99 @@ namespace MyriadOfDragons.Tests
                 "The screen must still render its own chrome without sprites.");
         }
 
+        // ------------------------------------------------------------------ art wiring
+        //
+        // The pre-existing MissingArt test only asserts a path is RESERVED per role. That was right
+        // while no art existed, but it CANNOT FAIL when art is broken - it never loads anything. Now
+        // that real renders have landed, these tests do the part that check could not.
+
+        [Test]
+        public void EveryArtRole_ActuallyLoadsASprite()
+        {
+            // File-on-disk is not the same as loadable. Unity resolves Resources.Load<Sprite> only
+            // when the importer produced a Sprite - a texture imported with the wrong Texture Type
+            // returns null from a path that looks perfectly correct. That exact failure already bit
+            // this project once with audio, where present files loaded as null.
+            var missing = new List<string>();
+            foreach (string role in TacticalPuzzlePresenter.ArtRolesForTests)
+            {
+                if (TacticalPuzzlePresenter.LoadArtForTests(role) == null) missing.Add(role);
+            }
+
+            CollectionAssert.IsEmpty(missing,
+                "These art roles resolved to null - the file may exist but not be imported as a " +
+                "Sprite: " + string.Join(", ", missing));
+        }
+
+        [Test]
+        public void EachView_RendersItsOwnArt_NotAnotherViewsFallback()
+        {
+            // The result modal art was delivered and then never applied: the backdrop picked
+            // "entry" or "board" only, so the result view rendered the BOARD frame. A role that
+            // loads but is never used looks identical to working art in every other check.
+            TacticalPuzzlePresenter presenter = Open(Puzzle("a"));
+            Sprite entry = BackdropSprite(presenter);
+
+            presenter.OpenSlot(0);
+            Sprite board = BackdropSprite(presenter);
+
+            presenter.DeploySelectedInto(Lane.Back);
+            Assert.AreEqual(TacticalPuzzleView.Result, presenter.CurrentView, "Setup: expected the result view.");
+            Sprite result = BackdropSprite(presenter);
+
+            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("entry"), entry, "Entry view art.");
+            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("board"), board, "Board view art.");
+            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("result"), result,
+                "The result view must use the result-modal art, not fall back to the board frame.");
+            Assert.AreNotSame(board, result, "Result and board must not render the same sprite.");
+        }
+
+        private static Sprite BackdropSprite(TacticalPuzzlePresenter presenter) =>
+            presenter.CanvasObjectForTests.GetComponentsInChildren<Image>(true)
+                .First(i => i.name == "Backdrop").sprite;
+
+        [Test]
+        public void SlotTiles_RenderThePerStateArt()
+        {
+            // Three separate per-state images landed rather than one atlas, so the state->art
+            // mapping is real logic and can be wired to the wrong role without anything failing.
+            TacticalPuzzlePresenter presenter = Open(Puzzle("a"), Puzzle("b"));
+
+            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("tile_available"), TileSprite(presenter, 0),
+                "Slot 0 starts available.");
+            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("tile_locked"), TileSprite(presenter, 1),
+                "Slot 1 starts locked.");
+
+            presenter.OpenSlot(0);
+            presenter.DeploySelectedInto(Lane.Back);
+            presenter.BackToEntry();
+
+            Assert.AreEqual(TacticalPuzzleSlotState.Completed, presenter.SlateForTests.SlotAt(0).State,
+                "Setup: slot 0 should be completed by now.");
+            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("tile_completed"), TileSprite(presenter, 0),
+                "A completed slot must render the completed art.");
+            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("tile_available"), TileSprite(presenter, 1),
+                "The newly unlocked slot must render the available art.");
+        }
+
+        private static Sprite TileSprite(TacticalPuzzlePresenter presenter, int index) =>
+            presenter.CanvasObjectForTests.GetComponentsInChildren<Image>(true)
+                .First(i => i.name == "Slot_" + index).sprite;
+
+        [Test]
+        public void TheThreeTileStates_AreThreeDifferentSprites()
+        {
+            // Guards the mapping above from passing vacuously if two roles ever point at the same
+            // file - every assertion there would still hold while the states looked identical.
+            Sprite locked = TacticalPuzzlePresenter.LoadArtForTests("tile_locked");
+            Sprite available = TacticalPuzzlePresenter.LoadArtForTests("tile_available");
+            Sprite completed = TacticalPuzzlePresenter.LoadArtForTests("tile_completed");
+
+            Assert.AreNotSame(locked, available, "Locked and available tiles must be distinguishable.");
+            Assert.AreNotSame(available, completed, "Available and completed tiles must be distinguishable.");
+            Assert.AreNotSame(locked, completed, "Locked and completed tiles must be distinguishable.");
+        }
+
         [Test]
         public void TheEmpireEntryPoint_OpensTheScreen()
         {

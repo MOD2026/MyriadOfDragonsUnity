@@ -201,7 +201,14 @@ namespace MyriadOfDragons.UI
             // Opaque by design: a transparent root lets the camera clear colour bleed through on
             // non-16:9 viewports, which is the class of bug already logged against other screens.
             bgImage.color = new Color(0.07f, 0.07f, 0.09f, 1f);
-            ApplyOptionalArt(bgImage, CurrentView == TacticalPuzzleView.Entry ? "entry" : "board");
+            // One role per view. This used to be entry-or-board, which silently left the delivered
+            // result-modal art unused - the result view rendered the board frame instead.
+            ApplyOptionalArt(bgImage, CurrentView switch
+            {
+                TacticalPuzzleView.Entry => "entry",
+                TacticalPuzzleView.Result => "result",
+                _ => "board",
+            });
 
             _viewRoot = bg.transform;
 
@@ -227,6 +234,13 @@ namespace MyriadOfDragons.UI
         }
 
         public static bool HasArtPathForTests(string role) => ArtResourcePaths.ContainsKey(role);
+
+        /// <summary>Test seam: resolves a role to its sprite exactly as the screen does. Lets a
+        /// test prove the art actually LOADS, which a reserved-path check cannot.</summary>
+        public static Sprite LoadArtForTests(string role) =>
+            ArtResourcePaths.TryGetValue(role, out string path) ? Resources.Load<Sprite>(path) : null;
+
+        public static IEnumerable<string> ArtRolesForTests => ArtResourcePaths.Keys;
 
         private void BuildEntryView()
         {
