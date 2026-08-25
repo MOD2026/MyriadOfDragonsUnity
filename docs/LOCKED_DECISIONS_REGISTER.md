@@ -3848,3 +3848,11 @@ retention telemetry.** Not dispatching implementation to CR/VS until that sign-o
 8-building version (everything except Embassy/Prison/GuildHall) COULD ship without touching
 PlayerProfile, but BS's design explicitly includes all 11, and shipping 8-of-11 silently instead
 would be a real, undisclosed scope cut from what was just locked.
+
+## OWNER SIGN-OFF: 3 new PlayerProfile fields for Empire interlock (2026-08-26)
+
+Owner explicitly approved adding `embassyLevel`, `prisonLevel`, `guildHallLevel` (int fields,
+additive-only, same pattern as every other level field - `SaveMigration.Normalize` gives old saves
+a default of 0/1 same as existing building levels) to `PlayerProfile.cs`, unblocking BS's full
+11-building Day-1/paired-milestone interlock design. This is the vetted, locked field list required
+before any frozen-file edit per standing rule - implementation may now proceed.
