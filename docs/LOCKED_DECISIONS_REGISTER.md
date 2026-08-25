@@ -2208,3 +2208,28 @@ trivial/unsolvable/frustrating puzzle doesn't force an emergency fix. First batc
 completion rate, retries, average solution length, abandonment to guide future difficulty - explicitly
 does NOT create new currencies or deck-building rewards, consistent with the locked reward-boundary
 rules (shared solo reward budget, no new currency per mode).
+
+## Tactical Puzzle authoring tooling SHIPPED - both halves of the gate now exist (2026-08-25, VS, verified 73c8a86)
+
+40/40 (TacticalPuzzleAuthoringTests 24 + TacticalPuzzleVerifierTests 16), 0 error CS, HEAD 2e497fb
+pinned run, committed 73c8a86. Structure only - no proposed cards, Resource amounts, clash counts or
+difficulty; every number is an author-supplied field with no baked default.
+
+Real design: TacticalPuzzleAction takes live BattleCardInstance objects, which stored data can't
+name - coordinate references (side/lane/index-in-lane) resolve at materialization and are captured
+THEN, not re-read off live lane lists (otherwise an early Windstep would renumber every later
+reference). Validate/Materialize/CheckEnvelope kept deliberately separate: a definition failing
+Validate is an AUTHORING bug, a play failing verification is a puzzle WORKING - conflating them makes
+an unsolvable puzzle look like a code defect. Capacity uses real SlotWeight, not card count (two
+rarity-7 units can overflow a 3-slot lane).
+
+**Recommend CheckEnvelope run in CI once real content exists** - catches an intended solution that
+doesn't actually solve, a line that reaches the right outcome via the wrong action (mis-attributed
+hint), and a puzzle going silently trivial after a card/reposition rule changes underneath it.
+
+**REAL TRAP, worth recording for any seat building fixed battle states:** PlayerBattleState's
+constructor SHUFFLES the deck it's given (unseeded in production) and auto-draws StartingHandSize.
+Passing an intended fixed hand AS a deck randomizes its order - every Deploy index in every envelope
+would then point at the wrong card, INTERMITTENTLY. Fix: both sides use an empty deck with the hand
+placed explicitly. Same class of bug as the earlier derived-stat trap (Card.Attack/Health/
+ResourceCost) - an inherited constructor doing more than its name suggests.
