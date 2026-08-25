@@ -1157,3 +1157,26 @@ Upgrade required pre-beta (not internal-testing-only): 12 bespoke beats total ac
 midpoint/finale/post-finale hook x4 chapters), matching Ch8-11's treatment shape. Ordinary stages
 keep the existing lightweight template. Explicitly classified as required pre-beta content debt,
 NOT an MVP systems blocker - real, but not urgent tonight. Queued behind WH's current Ch12/13 work.
+
+## Play Mode capability MEASURED, not assumed (2026-08-25, VS) - real, nuanced answer
+
+Added additive -TestPlatform param to tools/run_editmode_tests.ps1 (defaults EditMode, existing
+invocations unchanged) and ran a real probe. First attempt hit a transient compile break -
+Chapter13FullDepthTests.cs was mid-write by WH (still declared class Chapter12FullDepthTests,
+copy-paste not yet renamed), correctly identified as not VS's to fix, self-resolved 44s later.
+Second probe, clean: **Play Mode DOES execute headlessly here** (2 tests ran, 0 compile errors,
+HEAD stable). But both failed on the actual raycast - GraphicRaycaster returns zero hits without a
+rendered frame, a known limitation already anticipated in the test file's own bail-out string.
+
+**Real verdict: Play Mode runs, but pointer/raycast/tap verification does not work headlessly in
+this environment.** So: VS can own Reposition's targeting LOGIC (legality, state machine,
+selection rules - plain testable C#, same pattern as RepositionSelectionState/Memory Expedition),
+but the actual tap-UI wiring needs a session with an interactive Editor to verify the one thing
+that matters (a real tap reaching the right handler). Assigning the full task to a headless
+session would produce code that looks verified while its central claim is untested - correctly
+declined rather than taken.
+
+**New coordination-rule gap found, worth adding to the standing rules:** untracked files being
+actively authored are invisible to .unity_batch.lock (which only guards Unity process access, not
+file-write-in-progress state). Third time today a mid-write file broke another seat's run. No fix
+proposed yet, just flagged as a real gap in the parallel-work protocol.

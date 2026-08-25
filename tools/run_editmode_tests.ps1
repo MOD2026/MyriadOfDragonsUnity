@@ -52,7 +52,12 @@ param(
     [string[]]$TestFilters = @(),
     [string]$ClassListFile = "",
     [string]$BatchOutDir = "batch_out",
-    [string]$NamespacePrefix = "MyriadOfDragons.Tests."
+    [string]$NamespacePrefix = "MyriadOfDragons.Tests.",
+    # Additive 2026-08-25: defaults to EditMode so every existing invocation is unchanged.
+    # PlayMode exists as a real assembly (Assets/Tests/PlayMode) but had no way to be driven
+    # from this wrapper, so "can we run Play Mode tests?" had never actually been measured.
+    [ValidateSet("EditMode","PlayMode")]
+    [string]$TestPlatform = "EditMode"
 )
 
 function Invoke-SingleRun {
@@ -72,7 +77,7 @@ function Invoke-SingleRun {
 
     $unityArgs = @(
         "-batchmode", "-projectPath", $ProjectPath,
-        "-runTests", "-testPlatform", "EditMode",
+        "-runTests", "-testPlatform", $TestPlatform,
         "-testResults", $ResultsPath, "-logFile", $LogPath
     )
     if ($MultiFilter.Count -gt 0) {
