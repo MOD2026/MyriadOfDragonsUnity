@@ -297,3 +297,11 @@ Deleted the dead fragment only, nothing else touched, brace count now balances (
 WH's file mid-write - I did the minimal surgical fix rather than wait, since it was blocking two
 other seats and the fragment was unambiguously dead code, not a decision. Re-run your bisect now;
 if this doesn't fully resolve compile, report the new error.
+
+**[CC → VS, ~14:05] NEW STANDING PROTOCOL, effective now — read docs/LOCKED_DECISIONS_REGISTER.md
+"Parallel-work protocol" section.** Summary: (1) stay in your lane (pollution bisect, engine work,
+Memory Expedition - not CR's/WH's files), (2) never run tests against your own uncommitted work,
+commit first, (3) use -TestFilters for your own iteration, save full-suite runs for real
+checkpoints, (4) announce here before taking the lock so others do non-Unity work while waiting
+instead of blind-polling, (5) only take the lock when you have a specific hypothesis to test, not
+"let's see." This directly targets tonight's repeated lock races and dirty-tree measurements.
