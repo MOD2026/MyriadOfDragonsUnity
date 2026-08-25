@@ -50,10 +50,48 @@ this resumes.
 
 ## 4. UI/UX polish vs. industry standard
 
-**In progress — a systematic sweep of all 23 UI screens is running now** (color/palette
-consistency, spacing conventions, border/frame usage vs. plain colored boxes, button feedback/
-animation, shared design-token usage). This section will be filled in with real file:line findings
-once that returns — not asserting anything here yet.
+**Complete — systematic sweep of all 54 UI files, findings spot-verified before locking.**
+
+**The single decisive finding, matching the "boxes and borders" complaint exactly:** real border/
+frame art exists in only TWO places in the whole game - `GameBootstrap.cs`'s battle-screen buttons
+(a bespoke `CreateRoundedGradientSprite`/`AccentBorderColor` rim treatment, verified used ONLY in
+that one file) and `CampaignMapPresenter.cs`'s single stage-detail modal (via
+`CampaignMapUiLibrary.ApplyModalChrome`). **Every other metagame screen - Empire, Avatar, Friends,
+BattlePass, Collection, GuildExpedition, MailInbox, Chat, Bazaar, VIP, DailyLogin, PermitWeekKey,
+SpellLoadout, MemoryExpedition (~20 screens)** - uses flat colored `Image` rectangles for panel/
+header/divider chrome, with no border sprite anywhere. Their `*UiLibrary.cs` companions don't even
+expose a border/frame method to call - only `ApplyFullscreenShell` (full-bleed background only).
+
+**Root cause, verified: a shared design-token file exists but is barely used.**
+`UISharedFoundation.cs`'s `UIFrozenTokens` defines spacing/touch-target/radius/type-scale constants
+- confirmed via direct grep that **it is referenced only from within its own file**, zero times from
+any of the 23 presenters or 18 `UiLibrary` companions. Concretely:
+- **No shared color-token set exists at all.** Every screen independently authors its own near-
+  identical charcoal/navy panel color as a raw float literal (13+ distinct near-duplicate values
+  cited, e.g. `EmpirePresenter.cs:198` vs `BattlePassPresenter.cs:59` vs `CollectionPresenter.cs:90`
+  - all within ~0.02-0.04 of each other, none sharing a source). The project's own register
+  (`LOCKED_DECISIONS_REGISTER.md:3296-3297`) had already independently noticed this drift without
+  resolving it into a token.
+- **Font sizes are set by the token system then routinely overwritten by hand.** Screen titles
+  nominally the same "Display" role range from 26 to 40 across different screens with no shared
+  value.
+- **4 major screens bypass the shared foundation entirely:** `CampaignMapPresenter.cs`,
+  `CollectionPresenter.cs`, `DeckBuilderPresenter.cs`, and `GameBootstrap.cs` have ZERO references
+  to `UISharedFoundation` anywhere in their files (confirmed by grep) - each maintains its own
+  duplicated text/button/canvas primitives, own font handling, own color literals.
+- **Animation/feedback is real in exactly 3 files** (`GameBootstrap.cs` combat/cinematic sequencing,
+  `PackOpenRevealRunner.cs` tile-reveal animation, `SpellIconPointerHandler.cs` long-press) - the
+  entire menu/hub/social/economy layer (the majority of daily-session screens) is animation-free,
+  hard-cut UI with no button-press feedback beyond Unity's own subtle default tint.
+- No touch target below the accessibility floor (44/48px) was found in the sampled files - flagged
+  as verified-not-a-problem, not just unchecked.
+
+**This is the single highest-leverage fix available:** harden `UISharedFoundation`/`UIFrozenTokens`
+with a real color-token set and a shared border/frame primitive (generalizing `GameBootstrap`'s
+rounded-rect technique and `CampaignMapUiLibrary.ApplyModalChrome` into something every screen can
+call), then migrate the 4 foundation-bypassing screens onto it. Cheaper and more durable than
+polishing screens one at a time - the "borders don't match mockup" complaint is really "there is no
+shared border system for ~20 of 23 screens to draw from," not 20 separate bugs.
 
 **Already fixed this session (real, verified):**
 - Empire structure-strip tiles (were plain colored boxes despite approved art existing) — `e208114`
