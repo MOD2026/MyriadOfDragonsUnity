@@ -1030,3 +1030,18 @@ RarityFrameRenderingTests + TutorialTeachingOverlayTests, expect 28/28, ~30s.
 
 SECOND LEAKER (RarityFrame's Card_warrior null) still open and separate - VS has released the
 lock and is ready to bisect it next on request.
+
+## Acquisition channel wiring COMPLETE — 35/36 reachable, self-verifying (2026-08-25, CR, 64966fb)
+
+275/275 clean (one transient Unity-process crash on SpellCatalogPhase4Tests during a contended
+run, reproduced clean 14/14 isolated - correctly identified as not a regression, not hidden).
+Ashfall/Stormchain wired as real Stage rules (4-30/6-30); Windstep/Seismic Swap wired as real
+AvatarLevel rules (18/24), correctly NOT routed through SpellBookGrant per GPT's spec. New audit
+test checks the full 36-spell catalog against LIVE Rules/SpellBookGrant membership rather than a
+hand-maintained list - a future spell added without a real channel gets caught automatically, not
+just today's 36.
+
+**Spell system is now genuinely complete: 36/36 implemented, 35/36 reachable (Aegis Return
+permanent exception), 6-slot progressive loadout, self-verifying acquisition audit.** Only
+remaining real spell-system work: the mandated AI matrix remeasurement (greenlit below), and the
+5/6-slot picker UI + Reposition tap UI (both queued, both need Play Mode verification).
