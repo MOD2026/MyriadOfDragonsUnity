@@ -247,5 +247,58 @@ namespace MyriadOfDragons.Tests
                     subject + " must drive the real sinks safely with no assets present.");
             }
         }
-    }
+    
+        // ------------------------------------------------------------------ do the assets LOAD?
+        //
+        // Everything above tests the PATH STRING. A correct path is not a loadable asset, and this
+        // project has now been bitten by that distinction three times in one session: the .opus
+        // audio (real files, correct paths, Resources.Load returns null because the codec is not
+        // importable), the Empire structure tiles (renders existed, nothing loaded them), and the
+        // puzzle art roles (a reserved path that was never applied). ee95210 hand-authored these
+        // four prefabs and verified the RawImage script GUID against the installed package - which
+        // is the right check and still not the same as Unity importing the prefab.
+
+        /// <summary>The four combinations ee95210 actually delivered. Others intentionally have no
+        /// prefab: a missing particle must be silence, not an exception.</summary>
+        private static readonly (CombatPresentationPalette palette, CombatPresentationVisualTier tier)[]
+            DeliveredParticles =
+            {
+                (CombatPresentationPalette.Andras, CombatPresentationVisualTier.Medium),
+                (CombatPresentationPalette.Ktini, CombatPresentationVisualTier.Medium),
+                (CombatPresentationPalette.Pnevmas, CombatPresentationVisualTier.Medium),
+                (CombatPresentationPalette.Bespoke, CombatPresentationVisualTier.Heavy),
+            };
+
+        [Test]
+        public void EveryDeliveredParticlePrefab_ActuallyLoads()
+        {
+            var missing = new List<string>();
+            foreach (var (palette, tier) in DeliveredParticles)
+            {
+                string path = CombatPresentationAssetMap.ParticlePathFor(palette, tier);
+                Assert.IsFalse(string.IsNullOrEmpty(path), palette + "/" + tier + " has no path.");
+                if (Resources.Load<GameObject>(path) == null) missing.Add(path);
+            }
+
+            CollectionAssert.IsEmpty(missing,
+                "These particle prefabs exist on disk but Resources.Load returns null - a " +
+                "hand-authored prefab that Unity cannot import looks exactly like a correct one in " +
+                "the file listing: " + string.Join(", ", missing));
+        }
+
+        [Test]
+        public void AnUndeliveredCombination_LoadsAsNull_AndThatIsNotAFailure()
+        {
+            // Guards the test above from being read as "every combination must have art". Light and
+            // Heavy tiers for the three schools were never authored, and the sink is null-tolerant
+            // by design - a missing particle is no VFX, never an exception mid-combat.
+            string path = CombatPresentationAssetMap.ParticlePathFor(
+                CombatPresentationPalette.Andras, CombatPresentationVisualTier.Light);
+
+            Assert.IsFalse(string.IsNullOrEmpty(path), "A path is still produced for undelivered art.");
+            Assert.IsNull(Resources.Load<GameObject>(path),
+                "Setup: andras_light is not authored yet. If it now exists, add it to " +
+                "DeliveredParticles so it is load-checked too.");
+        }
+}
 }
