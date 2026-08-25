@@ -26,7 +26,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-25 | WH batch size ~50% up from single-atom tasks; owner is LIVE (15-30 min deliverable band) | Owner signals stepping away (then batch freely) |
 | 2026-08-25 | Frozen-file edits (PlayerProfile.cs etc.) need a vetted, locked field list BEFORE the edit - per-case, never blanket | Standing rule, does not lift |
 | 2026-08-25 | Empire Defense: design-only, behind evidence gate - no build/art/story dispatch | Memory Expedition live + gate criteria met (10+ wks) |
-| 2026-08-25 | Windstep ablation conclusions pre-facfe8a are VOID (enemyTier bug) - never cite them | Permanent |
+| 2026-08-25 | Windstep ablation conclusions pre-0fdd193 are VOID (two stacked confounds: enemyTier spellbook bug, then gate-probability bug) - only 0fdd193's numbers are real | Permanent |
 
 ## PENDING DISPATCH (check this first, every turn)
 
@@ -42,7 +42,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | CR | Re-measure Windstep for VeteranPlus + implement Apprentice removal/replacement (BS answered, locked) | PENDING - dispatched |
+| 2026-08-25 | CR | Implement Apprentice Windstep removal/replacement, validate via doubly-corrected ablation | PENDING - in progress (VeteranPlus re-measure DONE, 0fdd193) |
+| 2026-08-25 | BS (via owner) | VeteranPlus also loses 6.5pp to Windstep - extend the removal, or treat differently at a non-teaching tier? | PENDING - awaiting relay |
 | 2026-08-25 | WH (via owner) | Fix Stage 2-6/17-13 identical roster collision | PENDING - no confirmation yet |
 | 2026-08-25 | BS (via owner) | Retention telemetry: custom Cloud Code pipeline vs Unity Analytics service | PENDING - awaiting relay, not urgent (10+ weeks out) |
 
