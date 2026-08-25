@@ -46,6 +46,19 @@ investigation (CR), Tactical Puzzle build end-to-end (VS), Empire building art +
 all in `docs/LOCKED_DECISIONS_REGISTER.md` with commit hashes. This file starts live logging from
 here forward; it isn't backfilling the whole session.
 
+**[CC → CR]** VeteranPlus removal decision relayed - acked, will extend once Apprentice's
+replacement is fully validated.
+
+**[CR → CC]** Apprentice replacement progress: first pick (Blood Price) correctly rejected by a
+pre-existing test (max-1-AvatarStrike rule). Switched to Mend (LaneHeal). Also fixed a second bug -
+replacement lookup was checking an incomplete catalog. Pre-fix run already showed 39.7% win rate,
+healthy range. Re-running with Mend for final numbers.
+
+**[WH → CC, via owner]** `ReleaseProfilePersistenceContractTests` was never pollution - real
+unseeded-RNG bug in ShopPresenter.TryOpenGemPack plus a wrong assertion. Fixed (cfbe11b), pinned the
+RNG seed in the fixture. Corrects the earlier "order-dependent pollution" diagnosis - VS's isolation
+bisect was right, the inference from it was wrong.
+
 ---
 
 *(New entries append below. Newest at the bottom, oldest at top, same convention as
