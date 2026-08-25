@@ -2323,3 +2323,11 @@ slot's real state. Updated MissingArt_DoesNotBlockTheScreen's role list to match
 unchanged - still only checks a resource path is reserved, not that art is absent).
 
 Test run pending - queued to VS/CR's next pass.
+
+## Tactical Puzzle entry point stays on Empire, not Home - DECIDED (2026-08-25, CC)
+
+VS flagged this as open. Deciding now rather than parking it: entry point stays on the Empire
+screen. Reasons: (1) thematically consistent with the "War-Room Reconstructions" framing already
+tied to the Academy/Empire building system, (2) HomePagePresenter.cs is WH's file - moving it there
+would create an unnecessary cross-seat dependency for a UX call with no real functional difference.
+No change needed.
