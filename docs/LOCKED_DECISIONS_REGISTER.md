@@ -1581,3 +1581,13 @@ feels repetitive - not built speculatively.
 
 This is now closed - no further design round needed on this topic unless real post-launch data
 reopens it.
+
+## CORRECTION: Empire Duration [runtime] already resolved, no wiring needed (2026-08-25, VS)
+
+The prior entry's "wire the real build duration" instruction was already stale by the time it was
+sent - WH's 7b419ed (Empire construction timer fix) landed in between VS's original report and
+CC's decision, and already resolved it. VS correctly checked before implementing rather than
+duplicating finished work. Only v2-persist and the Castle interlock table remain genuinely open
+(interlock table parked per owner request, not being pursued right now).
+
+VS's queue is genuinely empty - standing by, not manufacturing work.
