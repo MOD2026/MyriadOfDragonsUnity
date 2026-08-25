@@ -2836,3 +2836,35 @@ Apprentice first.** Not assuming either direction - the "availability bias" conc
 under a real test, or may not. Do not cite either prior "decisive" entry as current until the
 corrected number lands. VeteranPlus's original 4-condition study needs the same re-measurement once
 Apprentice's is confirmed.
+
+## REVERSAL: Windstep measurably HURTS Apprentice AI's win rate - not availability bias (2026-08-25, CR, verified facfe8a)
+
+**This reverses the earlier "availability bias, not causation" conclusion for Apprentice, both
+prior entries now confirmed WRONG (not just suspect).**
+
+**Properly-powered measurement:** first single-run 1500-trial number was 2.3pp, not clearly
+distinguishable from noise - CR correctly did not stop there. Ran 3 independent repeats x 2000
+matched-seed trials/condition (distinct base seeds each repeat, 6000 trials/condition pooled).
+
+**Result: removing Windstep from Apprentice's loadout INCREASES AI win rate by 4.2pp (33.7% with
+Windstep -> 37.9% without). SE=0.9%, z=4.75 - far beyond noise.** Consistent direction across all 3
+independent repeats (4.3%, 5.0%, 3.3%) - every one positive, no sign flips.
+
+**Real meaning: Windstep is not just non-causal for Apprentice - it appears mildly counterproductive
+for the AI's own win rate.** Having it in the loadout measurably HURTS the AI relative to not having
+it. Not touched - CR did not remove Windstep, retune the loadout, or touch AI behavior. Real decision
+needed, not CR's to make: is this acceptable/expected design, or does the spell need rework for this
+tier?
+
+**VeteranPlus's original 4-condition ablation (0c5d276) has the IDENTICAL enemyTier bug and has NOT
+been re-measured** - given how wrong the Apprentice number turned out once corrected, its "<1pp,
+availability bias" conclusion cannot be trusted either until it gets the same corrected treatment.
+Both VeteranPlus AND the earlier Apprentice "vetted and locked" entries are retroactively WRONG, not
+just suspect - correcting the record plainly.
+
+**Also landed in this commit:** SpellRemovalWinRateDelta permanent gate added to
+MirroredAiSimulationMatrixTests.cs, built correctly from the start (enemyTier: null - this is what
+surfaced the bug). Novice validated cleanly (Divine Bolt: winRateWith=44.6%, winRateWithout=44.6%,
+delta=0.0%, a real valid removal test). Apprentice/VeteranPlus both hit a pre-existing unrelated
+flaky player-win-rate-drop assertion earlier in RunGroup before reaching this new gate this run - not
+yet end-to-end verified for those two tiers.
