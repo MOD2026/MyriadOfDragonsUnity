@@ -4143,3 +4143,16 @@ whole sweep (VIP, Shop Loyalty), both now have real, verified fixes in flight. N
 broader systemic problem beyond those two - the failure mode was real but appears to have been
 limited to this one directive (VIP+Loyalty bundled together in the same 2026-08-22 "Option C" note),
 not a pattern across the whole design history.
+
+## Gallery rewards: BS confirmed dropped, then owner REOPENED for Phase 1 (2026-08-26)
+
+BS's answer: Gallery rewards were 2017-era directional-list content only - no current mechanic,
+reward, trigger, save field, or implementation. Correctly identified as never real Phase-1 scope.
+
+**Owner reopened it immediately after, with real reasoning:** this is a solo-collection game, and
+PvP (async ladder, locked design, effectively zero real player activity expected right at launch
+since matchmaking needs a population) won't carry engagement in the early window. Real solo
+repeatable engagement content is MORE needed at launch, not less - Gallery (or whatever the real
+mechanic becomes) is being asked for specifically to fill that gap, not out of nostalgia for the old
+concept. Re-sent to BS as a real Phase-1 design ask, reframed around this actual need rather than
+the original 2017 pitch.
