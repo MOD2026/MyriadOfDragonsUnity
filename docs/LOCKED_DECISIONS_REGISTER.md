@@ -4109,3 +4109,9 @@ language, zero code. Real, worth a light check, but not confirmed to the same st
 **Not yet done, offered by the audit agent:** extending this same search to `Economy_Blueprint.md`
 and `tools/mechanics_v2_extract.txt` (repeatedly cited as sources of "still directionally valid"
 content, not originally in scope) - real candidate location for more of the same pattern.
+
+## OWNER SIGN-OFF: shopMilestoneProgress field for PlayerProfile (2026-08-26)
+
+Owner approved adding an `int shopMilestoneProgress` field (additive-only, same migration pattern as
+every other resource field) to `PlayerProfile.cs`, unblocking the Shop Loyalty Points track per the
+real spec already documented in `Shop_V1_Release_Contract.md:28,50`. Implementation may now proceed.
