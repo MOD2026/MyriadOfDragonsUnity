@@ -101,6 +101,13 @@ log — check its "PENDING DISPATCH" table at the start of every turn before any
   are accurate and relevant, check internal consistency against what's already locked, check the
   reply actually answered what was asked. If a claim is checkable (a file exists, a commit is real,
   a design doc says X), check it — don't relay an unverified claim as fact.
+  - **Every BS reply gets a full diagnose against real industry standard before it's locked** —
+    not just an internal-consistency check. Run a real `WebSearch` benchmarking the specific
+    numbers/mechanics proposed against comparable shipped games, not just checking that citations
+    exist. Internal consistency alone missed a real balance risk once (2026-08-25, Empire Defense's
+    Lane Integrity number looked fine in isolation, but benchmarking against Bloons TD6's actual
+    lives system exposed a real margin-too-tight risk that consistency-checking alone never would
+    have caught). Do this before every BS lock, not only when asked.
   - **BS** = Brainstorm — design/balance/mechanics judgment calls.
   - **ST** = Storyteller — narrative/lore framing. Does NOT reliably have access to the real story
     bible — verify any lore-tone claim against actual docs/story code before locking; it doesn't
