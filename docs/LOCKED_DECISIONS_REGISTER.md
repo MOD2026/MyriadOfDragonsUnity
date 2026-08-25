@@ -1994,3 +1994,30 @@ later the cooldown has already expired, so the anti-farming guardrail does nothi
 is >=2. The locked spec states the RULE but never a DURATION. Exposed as
 SameOpponentCooldownIsRedundant (assertable, self-retiring test that fails the moment a real value
 is set) rather than buried in a comment. **Needs an owner/GPT number for the actual cooldown days.**
+
+## Tick-ratio split refactor SHIPPED - real result contradicts GPT's prediction (2026-08-25, CR, verified 8968e43)
+
+Real refactor implemented exactly as locked (e262bac), not the fallback: RunPairedZeroCastSplit,
+matched-seed baseline-vs-AI-on, split zero-cast/any-cast populations, each gated at the original
+±15% independently. NoSpellFallbackRate (zero-cast frequency) left untouched, already tier-specific.
+
+**Real, seed-paired result, 2000 trials/tier:**
+- Novice: zero-cast ratio=1.045, any-cast=0.917 - both pass.
+- Apprentice: zero-cast ratio=1.351 (n=704) - **FAILS**. any-cast=1.095 (n=1296) - passes.
+- VeteranPlus: zero-cast ratio=1.197 (n=842) - **FAILS**. any-cast=1.086 (n=1158) - passes.
+
+**GPT predicted the split would turn Apprentice's failure into descriptive telemetry - the opposite
+happened.** Isolating the populations made the zero-cast deviation LARGER (1.351, not smaller) and
+now also implicates VeteranPlus, which passed the old blended check (~1.14) but fails once isolated
+(1.197). The any-cast trials (healthy at every tier) were diluting the blended average, masking how
+large the zero-cast effect really is - the blended number UNDERSTATED the real deviation, not
+overstated it.
+
+Any-cast population is clean at every tier - the entire problem lives in zero-cast trials
+specifically. Confirmed real, not a measurement artifact (matched seeds, same deck/hand between
+baseline and on-condition for every pair).
+
+**Not decided here - genuinely new evidence, routed back to GPT:** the original "split will fix the
+false failure" prediction did not hold. Real options on the table now: leave zero-cast timing as a
+real unresolved finding, widen a zero-cast-specific band (informed by real isolated numbers, not the
+old blended guess), or something else GPT proposes. CR correctly did not guess or self-adjust.
