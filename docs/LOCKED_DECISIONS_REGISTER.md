@@ -1507,3 +1507,14 @@ already established on Reposition tap-UI.
    duplicates the mode line.
 
 Approved for split commits (5 logically distinct fixes, easier individual review/revert).
+
+## Vertical-slice asset spec FULLY LOCKED (2026-08-25, GPT) - ready for production
+
+Audio: 6 WAV files at Assets/Art/Audio/, filenames = exact cue IDs (combat.commit, combat.cast,
+combat.impact, combat.resolve.soft, avatarstrike.release.impact, avatarstrike.release.stinger).
+Stinger stays exclusive to AvatarStrike, plays alongside (not instead of) the impact cue.
+Particles: 3 transparent PNGs at Assets/Art/VFX/ (Medium/Heavy Particle System textures,
+AvatarStrike bespoke flipbook sheet), format/dimensions locked earlier.
+
+Nothing left to decide - this is now purely a production task (generate the 9 files, drop into the
+folders, VS's binding layer picks them up automatically).
