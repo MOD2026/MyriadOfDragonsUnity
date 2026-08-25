@@ -27,6 +27,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-25 | Frozen-file edits (PlayerProfile.cs etc.) need a vetted, locked field list BEFORE the edit - per-case, never blanket | Standing rule, does not lift |
 | 2026-08-25 | Empire Defense: design-only, behind evidence gate - no build/art/story dispatch | Memory Expedition live + gate criteria met (10+ wks) |
 | 2026-08-25 | Windstep ablation conclusions pre-0fdd193 are VOID (two stacked confounds: enemyTier spellbook bug, then gate-probability bug) - only 0fdd193's numbers are real | Permanent |
+| 2026-08-26 | **CC does NOT write/edit code, run Unity EditMode batches, or commit code changes directly.** Owner needs to relay messages to CC and CC occupying the shell with long-running commands blocks that. All coding (fixes, features, verification-by-running-tests) is CR's job scope now - CC diagnoses, packages a clear task, dispatches to CR (idling, underused), and verifies CR's returned commit/diff. CC may still use read-only Bash (grep/git log/git show/git diff) for diagnosis - that is not "coding". Editing docs/register/mailbox files is not code and stays CC's job. | Owner explicitly lifts it |
 
 ## PENDING DISPATCH (check this first, every turn)
 
