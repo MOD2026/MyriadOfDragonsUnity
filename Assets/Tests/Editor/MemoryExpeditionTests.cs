@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MyriadOfDragons.Empire;
+using MyriadOfDragons.Save;
 using NUnit.Framework;
 
 namespace MyriadOfDragons.Tests
@@ -350,6 +351,72 @@ namespace MyriadOfDragons.Tests
 
             Assert.AreEqual(MemoryExpeditionClaimStatus.WrongDay, result.Status);
             Assert.AreEqual(0, result.Gold);
+        }
+
+        // ---------- PlayerProfile persistence (12 additive fields, owner-approved 2026-08-25) ----------
+
+        [Test]
+        public void AFreshProfile_HasNoStoredRun_AndDoesNotLookLikeTileZeroIsSelected()
+        {
+            var profile = new PlayerProfile();
+
+            Assert.IsNull(profile.ToMemoryExpeditionState(), "An empty dayKey must read as 'no run today'.");
+            Assert.AreEqual(-1, profile.memoryExpeditionFirstSelectedTile,
+                "Default must be -1. A 0 default would make an old save look like tile 0 was already flipped.");
+        }
+
+        [Test]
+        public void StateRoundTripsThroughPlayerProfile_WithoutLosingAnyField()
+        {
+            MemoryExpeditionState state = Fresh();
+            ClearCurrentRound(state);            // highest cleared = 1, now on round 2
+            MemoryExpedition.Tap(state, 0);      // leave a tile mid-selection
+            MemoryExpedition.Claim(state, Day1, 0, 100, true);
+
+            var profile = new PlayerProfile();
+            profile.ApplyMemoryExpeditionState(state);
+            MemoryExpeditionState restored = profile.ToMemoryExpeditionState();
+
+            Assert.AreEqual(state.DayKey, restored.DayKey);
+            Assert.AreEqual(state.Seed, restored.Seed, "A lost seed would reshuffle the grid on reload.");
+            Assert.AreEqual(state.RulesVersion, restored.RulesVersion);
+            Assert.AreEqual(state.CurrentRound, restored.CurrentRound);
+            Assert.AreEqual(state.RevealedPairMask, restored.RevealedPairMask, "Revealed pairs must survive a reload.");
+            Assert.AreEqual(state.FirstSelectedTile, restored.FirstSelectedTile);
+            Assert.AreEqual(state.MistakesRemaining, restored.MistakesRemaining, "Reload must not restore mistakes.");
+            Assert.AreEqual(state.HighestRoundCleared, restored.HighestRoundCleared);
+            Assert.AreEqual(state.RewardClaimed, restored.RewardClaimed, "A reload must not re-enable a spent claim.");
+            Assert.AreEqual(state.RunFailed, restored.RunFailed);
+            Assert.AreEqual(state.TemporaryResearchPoints, restored.TemporaryResearchPoints);
+            Assert.AreEqual(state.TemporaryResearchExpiryDayKey, restored.TemporaryResearchExpiryDayKey);
+        }
+
+        [Test]
+        public void APersistedRun_ResumesRatherThanRestarting_WhenReloadedTheSameDay()
+        {
+            MemoryExpeditionState state = Fresh();
+            TapAMismatch(state);
+            var profile = new PlayerProfile();
+            profile.ApplyMemoryExpeditionState(state);
+
+            MemoryExpeditionState resumed =
+                MemoryExpedition.StartOrResume(profile.ToMemoryExpeditionState(), "acct-1", Day1Later);
+
+            Assert.AreEqual(state.Seed, resumed.Seed, "Same day must resume the same arrangement.");
+            Assert.AreEqual(state.MistakesRemaining, resumed.MistakesRemaining, "Mistakes must not be restored by a reload.");
+        }
+
+        [Test]
+        public void ClearingTheStoredRun_ResetsTheSelectionSentinel()
+        {
+            var profile = new PlayerProfile();
+            profile.ApplyMemoryExpeditionState(Fresh());
+            profile.memoryExpeditionFirstSelectedTile = 4;
+
+            profile.ApplyMemoryExpeditionState(null);
+
+            Assert.IsNull(profile.ToMemoryExpeditionState());
+            Assert.AreEqual(-1, profile.memoryExpeditionFirstSelectedTile);
         }
 
         // ---------- helpers ----------

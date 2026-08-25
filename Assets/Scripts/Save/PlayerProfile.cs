@@ -195,6 +195,98 @@ namespace MyriadOfDragons.Save
         /// Additive beyond the register's named field list — flagged for owner sign-off.</summary>
         public int passSeasonXp = 0;
 
+        // --- MEMORY EXPEDITION (Tree of Knowledge daily minigame) ---
+        // Additive, owner-approved 2026-08-25 (all 12 fields listed and approved verbatim before
+        // this frozen file was touched). Core logic lives in Empire/MemoryExpedition.cs as a plain
+        // testable class; these are only its persistence. Old saves deserialize to the initializers
+        // below, which read as "no run today" and start a fresh run - no migration step needed.
+
+        /// <summary>UTC day (yyyy-MM-dd) the stored run belongs to. Empty = no run yet.</summary>
+        public string memoryExpeditionDayKey = string.Empty;
+
+        /// <summary>Layout seed, stored so a run's grid can never re-roll across app launches.</summary>
+        public int memoryExpeditionSeed = 0;
+
+        /// <summary>Rules version the stored run was generated under; a bump starts a fresh run.</summary>
+        public int memoryExpeditionRulesVersion = 0;
+
+        /// <summary>1-based current round (0 = not started).</summary>
+        public int memoryExpeditionCurrentRound = 0;
+
+        /// <summary>Bit per tile index, set once a pair is permanently face-up.</summary>
+        public long memoryExpeditionRevealedPairMask = 0L;
+
+        /// <summary>Tile currently flipped awaiting its pair. -1 = none. NOTE the -1 initializer:
+        /// defaulting to 0 would make an old save look like "tile 0 is already selected".</summary>
+        public int memoryExpeditionFirstSelectedTile = -1;
+
+        /// <summary>Mistakes left in the current round.</summary>
+        public int memoryExpeditionMistakesRemaining = 0;
+
+        /// <summary>Highest round cleared today (0..3) - the reward band is keyed off this.</summary>
+        public int memoryExpeditionHighestRoundCleared = 0;
+
+        /// <summary>Whether today's single atomic reward claim has been taken. Blocks a second
+        /// claim, so a practice replay after claiming grants nothing.</summary>
+        public bool memoryExpeditionRewardClaimed = false;
+
+        /// <summary>Whether the run ended by running out of mistakes. Cleared rounds stay credited.</summary>
+        public bool memoryExpeditionRunFailed = false;
+
+        /// <summary>Research points held from a Memory Expedition claim.</summary>
+        public int temporaryResearchPoints = 0;
+
+        /// <summary>UTC day key on/after which temporaryResearchPoints expire. Null/empty = none
+        /// held. Points never silently carry past a UTC reset.</summary>
+        public string temporaryResearchExpiryDayKey = string.Empty;
+
+        /// <summary>Reads the persisted fields into the plain logic type. Kept as an explicit
+        /// mapping rather than serializing the state class directly, so the save shape and the game
+        /// logic can evolve independently.</summary>
+        public MyriadOfDragons.Empire.MemoryExpeditionState ToMemoryExpeditionState()
+        {
+            if (string.IsNullOrEmpty(memoryExpeditionDayKey)) return null;
+            return new MyriadOfDragons.Empire.MemoryExpeditionState
+            {
+                DayKey = memoryExpeditionDayKey,
+                Seed = memoryExpeditionSeed,
+                RulesVersion = memoryExpeditionRulesVersion,
+                CurrentRound = memoryExpeditionCurrentRound,
+                RevealedPairMask = memoryExpeditionRevealedPairMask,
+                FirstSelectedTile = memoryExpeditionFirstSelectedTile,
+                MistakesRemaining = memoryExpeditionMistakesRemaining,
+                HighestRoundCleared = memoryExpeditionHighestRoundCleared,
+                RewardClaimed = memoryExpeditionRewardClaimed,
+                RunFailed = memoryExpeditionRunFailed,
+                TemporaryResearchPoints = temporaryResearchPoints,
+                TemporaryResearchExpiryDayKey = string.IsNullOrEmpty(temporaryResearchExpiryDayKey)
+                    ? null : temporaryResearchExpiryDayKey,
+            };
+        }
+
+        /// <summary>Writes the logic type back onto the persisted fields. Null clears the run.</summary>
+        public void ApplyMemoryExpeditionState(MyriadOfDragons.Empire.MemoryExpeditionState state)
+        {
+            if (state == null)
+            {
+                memoryExpeditionDayKey = string.Empty;
+                memoryExpeditionFirstSelectedTile = -1;
+                return;
+            }
+            memoryExpeditionDayKey = state.DayKey;
+            memoryExpeditionSeed = state.Seed;
+            memoryExpeditionRulesVersion = state.RulesVersion;
+            memoryExpeditionCurrentRound = state.CurrentRound;
+            memoryExpeditionRevealedPairMask = state.RevealedPairMask;
+            memoryExpeditionFirstSelectedTile = state.FirstSelectedTile;
+            memoryExpeditionMistakesRemaining = state.MistakesRemaining;
+            memoryExpeditionHighestRoundCleared = state.HighestRoundCleared;
+            memoryExpeditionRewardClaimed = state.RewardClaimed;
+            memoryExpeditionRunFailed = state.RunFailed;
+            temporaryResearchPoints = state.TemporaryResearchPoints;
+            temporaryResearchExpiryDayKey = state.TemporaryResearchExpiryDayKey ?? string.Empty;
+        }
+
         // Battle History & Stats
         public int winStreak = 0;
         public int totalMatches = 0;
