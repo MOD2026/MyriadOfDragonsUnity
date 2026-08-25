@@ -2360,3 +2360,36 @@ a test whose subject moved underneath it.
 
 Remaining 7 failures: unchanged known set (1 winnability - genuinely moving, 2 MirroredAi under
 active tuning, 3 UI shells peer-in-flight, 1 pollution above).
+
+## Tactical Puzzle PlayerProfile fields - VETTED AND LOCKED (2026-08-25, VS proposal, CC decision on the one open question)
+
+```
+public List<TacticalPuzzleRecord> tacticalPuzzleRecords = new List<TacticalPuzzleRecord>();
+public int tacticalPuzzleRulesVersion = 0;
+
+[Serializable] public class TacticalPuzzleRecord
+{
+    public string puzzleId;
+    public int bestActionsUsed = -1;
+    public int bestResourceRemaining = -1;
+    public int bestUnitsPreserved = -1;
+    public int bestLanesHeld = -1;
+    public string firstSolvedUtcDate = string.Empty;
+}
+```
+
+Keyed on puzzleId (stable), not slate position - avoids a later re-order silently re-pointing
+completions at different puzzles. All "best" fields default -1, not 0 - same trap class as the
+memoryExpeditionFirstSelectedTile incident: a field added later would deserialize existing records
+as 0, and 0 orders would silently read as a perfect unbeatable score. Deliberately excludes
+unlock/locked state (derived from completions), in-progress attempt state (mode is "immediate reset
+on failure" by design), and attempt/failure counters (nothing in the locked design uses them yet).
+Migration: old saves deserialize with an empty list + rulesVersion 0, reads correctly as "no puzzles
+solved" - no backfill, no sentinel needed elsewhere in PlayerProfile.
+
+**Open question DECIDED: accumulate, not reset-per-cycle, no third cycle-key field.** Records already
+carry firstSolvedUtcDate, so a "best this cycle" view can be derived later in application logic by
+filtering by date range - accumulation is both the safer default (never destroys player history) and
+doesn't foreclose per-cycle views without a schema change.
+
+VS clear to add these fields to PlayerProfile.cs now.
