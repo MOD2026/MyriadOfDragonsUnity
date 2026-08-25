@@ -1909,31 +1909,34 @@ namespace MyriadOfDragons.UI
 
             CreateTextElement(backBtnObj.transform, "Text", "< BACK", Vector2.zero, 24, TextAnchor.MiddleCenter);
 
-            // Chapter Title
+            // Chapter Title + progress + stamina status — stacked anchors (no overlapping 700×100 boxes).
             int displayChapter = ResolveDisplayChapterForTests(SaveSystem.CurrentProfile);
             List<CampaignStageData> visibleStages = GetMvpWindowStages(displayChapter, SaveSystem.CurrentProfile);
 
-            CreateTextElement(topBar.transform, "TitleText", GetChapterTitle(displayChapter), new Vector2(0, 10), 32, TextAnchor.MiddleCenter);
-            CreateTextElement(topBar.transform, "ProgressHint", BuildMvpProgressHint(displayChapter, SaveSystem.CurrentProfile, visibleStages),
-                new Vector2(0, -28), 22, TextAnchor.MiddleCenter);
+            CreateHeaderStackText(topBar.transform, "TitleText", GetChapterTitle(displayChapter),
+                0.62f, 0.98f, 28, FontStyle.Bold);
+            CreateHeaderStackText(topBar.transform, "ProgressHint",
+                BuildMvpProgressHint(displayChapter, SaveSystem.CurrentProfile, visibleStages),
+                0.34f, 0.60f, 18, FontStyle.Normal);
 
             // Campaign launch feedback contract, requirement 1: a persistent status surface
             // (Stamina: current/max + the per-attempt entry cost), reused for requirement 2's
             // blocked-launch messages so there is exactly one status surface on this screen, not
-            // a new one per concern. Placed below the title inside the existing header bar - no
-            // new panel, no layout change to the Back button/title/stage nodes below.
+            // a new one per concern. Bottom band of the header bar only.
             GameObject statusObj = new GameObject("StatusText");
             statusObj.transform.SetParent(topBar.transform, false);
             statusText = statusObj.AddComponent<Text>();
             statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            statusText.fontSize = 20;
+            statusText.fontSize = 18;
             statusText.alignment = TextAnchor.MiddleCenter;
             statusText.color = new Color(0.9f, 0.82f, 0.64f);
             statusText.supportRichText = true;
-            statusText.raycastTarget = false; // informational only - must never intercept clicks.
+            statusText.raycastTarget = false;
             RectTransform statusRect = statusObj.GetComponent<RectTransform>();
-            statusRect.anchoredPosition = new Vector2(0, -35);
-            statusRect.sizeDelta = new Vector2(900, 40);
+            statusRect.anchorMin = new Vector2(0.18f, 0.04f);
+            statusRect.anchorMax = new Vector2(0.82f, 0.30f);
+            statusRect.offsetMin = Vector2.zero;
+            statusRect.offsetMax = Vector2.zero;
             RefreshPersistentStatusText();
 
             // 4. Stage nodes — horizontal scroll: all unlocked (replay) + one locked teaser.
@@ -2233,6 +2236,31 @@ namespace MyriadOfDragons.UI
         {
             rect.anchorMin = new Vector2(left / 1920f, 1f - bottom / 1080f);
             rect.anchorMax = new Vector2(right / 1920f, 1f - top / 1080f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private static void CreateHeaderStackText(Transform parent, string objectName, string content,
+            float anchorMinY, float anchorMaxY, int fontSize, FontStyle fontStyle)
+        {
+            GameObject textObj = new GameObject(objectName);
+            textObj.transform.SetParent(parent, false);
+
+            Text txt = textObj.AddComponent<Text>();
+            txt.text = content;
+            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            txt.fontSize = fontSize;
+            txt.fontStyle = fontStyle;
+            txt.alignment = TextAnchor.MiddleCenter;
+            txt.color = Color.white;
+            txt.supportRichText = true;
+            txt.horizontalOverflow = HorizontalWrapMode.Wrap;
+            txt.verticalOverflow = VerticalWrapMode.Truncate;
+            txt.raycastTarget = false;
+
+            RectTransform rect = textObj.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.18f, anchorMinY);
+            rect.anchorMax = new Vector2(0.82f, anchorMaxY);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
         }
