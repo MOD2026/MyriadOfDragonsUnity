@@ -4292,3 +4292,72 @@ number rather than adding the requested combined view.
 **Real next step, now correctly identified as a design gap, not a coding gap:** BS needs to actually
 lock Empire Expedition's Stamina-cost/Gold-per-clear/daily-cap numbers and Battle Pass's tier Gold
 amounts before any combined simulation is possible. Routing back to BS.
+
+## END-OF-NIGHT STATUS: everything pending, by room (2026-08-26, owner logging off)
+
+**Read this first thing next session - real state, not a guess, as of the last confirmed report
+from each room.**
+
+### VS - awaiting confirmation on:
+- [ ] Empire display copy ("STRUCTURE LEVEL" hybrid framing for Guild Hall/Embassy/Prison, BS's
+      locked answer) - dispatched, no landed-commit confirmation yet.
+- [ ] Materials field on PlayerProfile + Empire Expedition Materials grant wiring - dispatched
+      (owner signed off), no confirmation yet.
+- [ ] Loyalty field (shopMilestoneProgress) on PlayerProfile + earn-side wiring - dispatched (owner
+      signed off), no confirmation yet.
+- [ ] Solo Collection Circuit (new Phase-1 solo system, BS-locked spec) - dispatched, no
+      confirmation yet.
+- [ ] Loyalty redemption milestones (100/250/500/1000/2000/4000/8000pt table) - dispatched together
+      with the Circuit task, no confirmation yet.
+- [x] Tactical Puzzle Week 1 - CLOSED, 6/6 real passes, commit 9c54dd2.
+- [x] Empire interlock 11-building implementation - CLOSED, commit 7d99e23.
+
+### CR - awaiting confirmation on:
+- [ ] Guild Hall/Mail bug investigation (real symptom dispatched, root cause NOT yet
+      diagnosed/confirmed by CR - do not assume it's the same canvas-cleanup issue until CR reports
+      back).
+- [ ] Design-token foundation ROLLOUT across ~20 screens still using flat colored boxes - real,
+      current top priority per owner's repeated standing complaint. Dispatched just before logging
+      off, batched (5-6 screens/commit), no landed commits yet.
+- [ ] Combined economy simulation - BLOCKED, correctly not forced: needs BS to lock Empire
+      Expedition's Stamina-cost/Gold-per-clear/daily-cap and Battle Pass's tier Gold amounts first
+      (both are real `null` values in code right now, verified). Real ask sent to BS, awaiting reply
+      before CR can build the actual simulation.
+- [x] UI design-token FOUNDATION (not rollout) - CLOSED, commit f80a804.
+- [x] Retention telemetry pipeline + partial wiring (3 of 6 call sites; remaining 3 need WH/owner,
+      correctly refused as Metagame-owned) - CLOSED as far as CR's own lane goes, commits
+      6e9081c/c90d05e.
+- [x] Placeholder-staleness sweep + 2 stale test fixes (BattlePass/Chat) - CLOSED, commits
+      a6017b2/7e06ea3.
+
+### WH - awaiting confirmation on (all paste-ready, re-paste if session reset overnight):
+- [ ] Chapter 3-18 continuity dialogue (ST's full verbatim packet + CC's 18-30 special-case flag)
+      - dispatched, no confirmation yet.
+- [ ] Guild Expedition/Permit Weekly Key/Spell Loadout Picker screen wiring - real approved assets
+      already copied into `Assets/Resources/UI/{GuildExpeditionV1,PermitWeekKeyV1,SpellLoadoutV1}/`,
+      dispatch given, no confirmation yet.
+- [ ] VIP real entitlement implementation (BS's re-locked spec: 800/1500/3000 Gems, bonus Stamina
+      claims not rate change) - dispatched, no confirmation yet.
+- [x] VIP/Friends atlas-icon fix - CLOSED, commit bee2c1f.
+- [x] Layout tests for 5 high-traffic screens (Home/Shop/Collection/DeckBuilder/CampaignMap) -
+      CLOSED, commit 288f91f.
+
+### BS - awaiting reply on:
+- [ ] Empire Expedition + Battle Pass real Gold numbers (blocks the combined economy simulation
+      above - this is the actual next real ask, not yet answered).
+- [x] Everything else from tonight (Solo Collection Circuit, PvP minimum slice, Loyalty
+      redemption, Guild Vault archive decision, VIP re-lock, Empire display copy) - answered, real
+      WebSearch-benchmarked per the reinforced standing gate, locked.
+
+### Owner decisions still open (not assigned to any room, need owner input first):
+- Chapter 19+ hold - still explicitly held, no change.
+- Whether/when to bring in outside AI help on the Guild Hall/Mail bug if CR's investigation doesn't
+  resolve it (owner's own stated fallback, not decided yet).
+
+### Standing reminders, don't re-litigate:
+- CC does not investigate/root-cause bugs or write code - assign only, verify claims after the
+  fact (locked 2026-08-26, twice-corrected this session).
+- WH has no direct channel - every WH task must be a paste-ready block, never assumed sent via
+  mailbox.
+- Every BS reply needs both internal-consistency AND a real WebSearch industry-standard benchmark
+  before it's locked - this was missed once this session and explicitly corrected.
