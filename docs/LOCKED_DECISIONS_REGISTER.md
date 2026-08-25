@@ -2233,3 +2233,10 @@ Passing an intended fixed hand AS a deck randomizes its order - every Deploy ind
 would then point at the wrong card, INTERMITTENTLY. Fix: both sides use an empty deck with the hand
 placed explicitly. Same class of bug as the earlier derived-stat trap (Card.Attack/Health/
 ResourceCost) - an inherited constructor doing more than its name suggests.
+
+## Chapter 16 (The Hollow Crown) SHIPPED (2026-08-25, WH, verified d3c0de3)
+
+16-1..16-30, same depth pattern as 11-15. Campaign now 453 stages total. Gate L30 through Ch16
+unlock; gem lock LockedTotalCh1Through16 = 10536. 15-30 -> 16-1 chained correctly, 16-30 terminal.
+AF (auto-fail?) retune at 16-24 and 16-29. Chapter16FullDepthTests 11/11, plus Gate/roster/permit/
+Castle/Ch15 smoke green. Next in WH's pipeline: Ch17.
