@@ -4042,3 +4042,42 @@ in the register itself (not just chat) precisely because of tonight's real lesso
 system with no live call sites is exactly the shape of thing that goes quiet and gets assumed "done"
 when it is not. **This row stays open until real emit calls exist at real trigger points** - do not
 mark this closed on "pipeline exists" alone.
+
+## LOCKED: VIP/Subscription real entitlement spec (2026-08-26, BS, verified) - was buried, now re-locked properly
+
+**Real root cause of the earlier VIP gap, now understood and fixed:** the 2026-08-22 brainstorm's
+VIP membership design (800/1,500/3,000 gems) never got explicitly carried into the current economy
+lock or explicitly descoped - it just went quiet between docs, and `VipSubscriptionOpenValues.cs`
+stayed all-"Open" with nobody noticing until the owner asked "who buys VIP if it has no benefit."
+This re-lock closes that gap with real numbers, verified against actual code before acceptance.
+
+**Verified before locking:** `ShopStaminaCatalog.cs:11` confirms `StaminaGrantPerPotion = 50` and
+`.cs:16` confirms `MaxPurchasesPerRollingDay = 4` - both exactly match BS's cited numbers, not
+invented.
+
+**Prices/duration (unchanged from the original 2026-08-22 numbers):** Weekly 800 Gems/7 days,
+Fortnight 1,500 Gems/14 days, Monthly 3,000 Gems/30 days.
+
+**Stamina benefit - bonus CLAIMS, not a rate/regen change:** Weekly = 1 claim (one 50-Stamina grant
+across the 7 days); Fortnight = 2 claims (one per 7-day period); Monthly = 4 claims (one per 7-day
+period). Each claim consumes one of the existing 4-per-rolling-24h purchase slots - cannot bypass
+the cap, stack above the normal Stamina cap, or bank. A claim landing while already at full Stamina
+is forfeited, not converted to anything else.
+
+**"Periodic packs" wording explicitly RETIRED** - VIP grants no Single Sigil/Scout Cache/cards/
+Forge-Dust/Permits/Evolution materials/spell ownership. The real periodic value is the scheduled
+Stamina claim itself. Cosmetic grants may be added later, only from an existing cosmetic catalog -
+no new currency/gameplay item introduced by this lock.
+
+**Constraints (unchanged from the earlier pre-lock):** one active subscription, no stacking/overlap;
+Auto-Fight identical for everyone; no combat stats/deck slots/cards/packs/spells/building levels/
+construction speedups/timer skips; unused claims expire on lapse, earned cosmetics remain; purchase
+goes through the existing Shop/IAP entitlement path.
+
+**Whale/F2P verdict:** max monthly VIP benefit is 4 existing-size Stamina claims, still gated by the
+same rate cap everyone has. F2P reaches the identical Stamina system through ordinary Gems - VIP
+buys convenience/predictability, not exclusive power. No compounding shortcut found.
+
+**BS's own sign-off: "READY FOR CC."** Implementation may now proceed - real entitlement coding in
+`VipSubscriptionOpenValues.cs`/`VipSubscriptionPresenter.cs` (WH's lane, same file WH already
+touched for the art fix).
