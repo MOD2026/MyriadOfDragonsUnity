@@ -2136,3 +2136,33 @@ solution AND a known-wrong one, confirm both resolve as expected. This validates
 works end to end before BS's real content gets built on top of it - cheaper to find a pipeline bug
 now on a throwaway example than after real puzzles are authored. Tag it clearly as an example/test
 fixture, not shippable content.
+
+**[CC → VS, real gap caught by the owner, fixing now] Nothing is playable yet - build the actual
+UI, not more backend.**
+
+TacticalPuzzleDefinition/Verifier/Authoring are all backend-only (Assets/Scripts/Battle/), zero
+UI/presenter exists, no entry point reaches it from anywhere in the game. Fix that now:
+
+**TacticalPuzzlePresenter.cs** (new, Assets/Scripts/UI/ - same pattern as EmpirePresenter/
+AvatarPresenter): a real screen with (1) an entry view listing the week's puzzle slots (locked/
+available/completed state per slot - reuse the authoring data you already built to know what's
+solved), (2) a board view that renders a TacticalPuzzleDefinition's fixed state and lets the player
+issue actions within the legal-action budget, feeding them through the verifier you shipped, (3) a
+result view showing solved/not-solved + the decision-based score.
+
+**Locked ST framing to embed directly, don't invent new copy:** entry screen title/intro uses
+"War-Room Reconstructions" framing - "The outcome is known. The better command is not. Study the
+position, test your orders, and find the line that preserves the Empire's strength." Use neutral
+provisional labels "Recon Record" / "Battle Reconstruction" / "Tactical Brief" for individual puzzle
+names until real story-bible terminology is confirmed - see register "Tactical Puzzle narrative
+framing - FULLY LOCKED".
+
+**Art is a separate, non-blocking track:** 4 art prompts are queued for generation (entry chrome,
+board frame, result modal, tile states) but don't wait on them - same graceful pattern you'd use
+elsewhere (a resource-path lookup that falls back to plain color/no art if the sprite isn't found
+yet, like EmpireBuildingDetailPresenter's ArtResourcePaths dict). Ship with placeholder visuals now,
+swap in real art later without a second UI pass.
+
+**Entry point:** needs a real button/tile somewhere reachable from Home or Empire - your call on
+placement, flag it for review rather than guessing if unsure. This is the actual "can a player play
+it" gap - close it.
