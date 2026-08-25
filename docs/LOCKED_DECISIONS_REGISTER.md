@@ -2115,3 +2115,22 @@ anywhere in the project. GPT's FIRST pass on this topic had correctly hedged ("I
 full story bible... should remain a framing layer until Command Centre checks it") - the second pass
 dropped that hedge without actually gaining any new access to story content. Sent back to redo the
 "why this fits" reasoning without unverified lore claims.
+
+## Tactical Puzzle narrative framing - FULLY LOCKED (2026-08-25, GPT, corrected + vetted)
+
+Completes the prior split decision (4812b27) - GPT fully accepted the correction and removed the
+unverified claims, no new overclaims introduced.
+
+**"Why this fits" (mechanical only, no lore assertions):** deterministic authored state, not a live
+battle or random Campaign replay; player solves a bounded problem with known units/lanes/resources/
+objectives; weekly rotation is data configuration, no new combat rules; no host required in Phase 1;
+neutral provisional wording ("Recon Record" / "Battle Reconstruction" / "Tactical Brief") until the
+real story bible confirms actual terminology - explicitly a presentation wrapper, not a claim about
+existing campaign lore. If the story bible later establishes real terminology/title/faction voice,
+layer it onto the presentation without touching the deterministic puzzle system underneath.
+
+**Empire Defense separation (reinforces existing locks, no new content):** Reconstructions use fixed
+tactical states + deterministic verifier; Empire Defense uses wave spawning/placement/base integrity/
+temporary boons; neither may alter Campaign/PvP combat rules; neither grants cards/Forge/Dust/
+Permits/Evolution materials/permanent combat power; separate idempotent reward-claim entries under
+the shared solo reward budget.
