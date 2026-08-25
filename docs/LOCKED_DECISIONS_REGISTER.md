@@ -1844,3 +1844,25 @@ Formation Tactics Trial proposal - which is structurally close to a curated hard
 (fixed hand/budget/objective, existing formation rules, 60-90s). Sent back for a real answer on
 what specifically differentiates it, rather than locking on the assumption it's automatically a
 distinct mode.
+
+## Novice band + Windstep ablation plan LOCKED (2026-08-25, GPT)
+
+**Novice band, real fix confirmed:** per-tick (0-5%) and per-trial (TrialsWithAiCast/
+TrialsWithOpportunity) are genuinely different metrics, don't conflate. Lock the per-trial
+acceptance band at 15-35%, centered on the observed ~22.7% - matches CR's own provisional number
+independently. Per-tick stays diagnostic-only. Lock the band only after remeasuring with the
+dead-slot-filtered loadout (not the old contaminated numbers).
+
+**Windstep ablation, real 4-condition plan:**
+A: current corrected loadout (with Windstep). B: remove Windstep, leave slot empty. C: remove ALL
+Reposition spells from equipped AND candidate pools. D: replace Windstep with a legal
+non-Reposition spell matched by cost/role. Identical seeds across all 4. Report: AI casts/match,
+per-trial cast conversion, player/AI win-rate delta, Windstep win-share + win-rate-when-cast, avg
+ticks, no-spell fallback, legal-candidate availability.
+
+Real causal caution: 75.2% win-rate-when-cast doesn't prove Windstep WINS games - it may just be
+selected mostly when the AI is already ahead (availability bias). The remove/replace comparisons
+are required to separate causation from correlation, not optional. Windstep dominance is
+mechanically plausible (repositioning can convert lane bonuses/rescue units/create favorable
+formations without raising card stats) - a real high-leverage tactic, not automatically a defect.
+But 78.1% win-share is too concentrated to accept without the ablation proving cause.
