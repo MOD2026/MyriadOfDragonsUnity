@@ -65,5 +65,70 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(unlockedNames, "Gale Break");
             CollectionAssert.Contains(unlockedNames, "Titan Seal");
         }
+
+        // ---------- Final 4 spell acquisition channels (LOCKED 2026-08-25, GPT) ----------
+
+        [TestCase("Ashfall", "4-30")]
+        [TestCase("Stormchain", "6-30")]
+        public void FinalStageSpell_UnlocksOnlyAfterItsRealFirstClearStage(string spellName, string requiredStageId)
+        {
+            AvatarSpell spell = AvatarSpell.CreateCatalog().Single(s => s.Name == spellName);
+
+            Assert.IsFalse(SpellUnlockResolver.IsUnlocked(spell, avatarLevel: 99, unlockedStageIds: new List<string>()),
+                $"{spellName} must not unlock without its real stage clear, no matter how high Avatar level is.");
+            Assert.IsTrue(SpellUnlockResolver.IsUnlocked(spell, avatarLevel: 1, unlockedStageIds: new List<string> { requiredStageId }),
+                $"{spellName} must unlock once its real first-clear stage ({requiredStageId}) is cleared.");
+        }
+
+        [TestCase("Windstep", 18)]
+        [TestCase("Seismic Swap", 24)]
+        public void FinalAvatarLevelSpell_UnlocksAtItsRealLevel_NotBefore(string spellName, int requiredLevel)
+        {
+            AvatarSpell spell = AvatarSpell.CreateCatalog().Single(s => s.Name == spellName);
+
+            Assert.IsFalse(SpellUnlockResolver.IsUnlocked(spell, avatarLevel: requiredLevel - 1, unlockedStageIds: null));
+            Assert.IsTrue(SpellUnlockResolver.IsUnlocked(spell, avatarLevel: requiredLevel, unlockedStageIds: null));
+        }
+
+        [Test]
+        public void EveryCatalogSpellExceptAegisReturn_IsReachable_ByARuleOrARealSpellBookGrant()
+        {
+            // Final 4 spell acquisition channels (LOCKED 2026-08-25): "catalog genuinely 36/36
+            // reachable now" - checked directly rather than assumed, same discipline as the
+            // earlier overclaim this session caught (register corrected from "36/36" to "32/36"
+            // acquisition channels before this task existed). Aegis Return ("Event book later")
+            // remains the one genuine, permanent exception - no real acquisition channel exists
+            // for it anywhere in the game yet, not a gap introduced or left by this commit.
+            List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
+            Assert.AreEqual(36, catalog.Count, "Setup: expected the full catalog.");
+
+            HashSet<string> spellBookGrantedIds = new HashSet<string>
+            {
+                "sun_lance", "tempest_brand", "magma_rend", "stonewall", "infernal_mark", "veil_of_zeus",
+                "grave_mend", "celestial_verdict", "scorched_sky", "volcanic_prison", "leyline_draw", "thunder_decree",
+            };
+
+            List<string> unreachable = catalog
+                .Where(s => s.Id != "aegis_return")
+                .Where(s => !spellBookGrantedIds.Contains(s.Id))
+                .Where(s => !HasAnyStageOrLevelRuleReachableEventually(s))
+                .Select(s => s.Name)
+                .ToList();
+
+            CollectionAssert.IsEmpty(unreachable,
+                "Every catalog spell except Aegis Return must have either a real SpellUnlockResolver Rule or a real SpellBookGrant entry.");
+        }
+
+        /// <summary>True if SpellUnlockResolver would EVER return true for this spell at some
+        /// high enough level with every stage cleared - i.e. it has a real Stage/AvatarLevel/
+        /// Starter Rule, not just "no Rule = never unlocks."</summary>
+        private static bool HasAnyStageOrLevelRuleReachableEventually(AvatarSpell spell)
+        {
+            var everyKnownStageId = new List<string>
+            {
+                "1-1", "1-2", "1-6", "2-4", "2-8", "3-3", "4-15", "4-30", "5-15", "6-30", "7-15",
+            };
+            return SpellUnlockResolver.IsUnlocked(spell, avatarLevel: 999, unlockedStageIds: everyKnownStageId);
+        }
     }
 }

@@ -100,11 +100,6 @@ namespace MyriadOfDragons.Battle
             new Rule("Cleansing Root", UnlockKind.AvatarLevel, requiredAvatarLevel: 16),
             new Rule("Infernal Mark", UnlockKind.SpellBookGrant), // catalog: "Ch6 spell book"
 
-            // Wave 4 (LOCKED 2026-08-24): Ashfall ("Ch5"), Stormchain ("Ch6"), Windstep ("Ch4"),
-            // and Seismic Swap ("Ch7") deliberately still have no Rule - the acquisition-channel
-            // spec below resolved 8 of the remaining 12 unresolved spells, but these 4 were not
-            // among them (checked directly against that spec, not assumed) - the bare-chapter-
-            // number gap for these four is unchanged.
             new Rule("Oracle Sight", UnlockKind.AvatarLevel, requiredAvatarLevel: 20),
 
             // Acquisition channels for all remaining spells (LOCKED 2026-08-25, GPT): resolves 8 of
@@ -126,6 +121,19 @@ namespace MyriadOfDragons.Battle
             new Rule("Leyline Draw", UnlockKind.SpellBookGrant), // catalog: "Ch9 finale book"
             new Rule("Thunder Decree", UnlockKind.SpellBookGrant), // catalog: "Ch10 finale book"
             new Rule("Titan Seal", UnlockKind.AvatarLevel, requiredAvatarLevel: 30),
+
+            // Final 4 spell acquisition channels (LOCKED 2026-08-25, GPT): the catalog's last four
+            // unresolved spells. Ashfall/Stormchain get real Stage rules now that precise first-
+            // clear stage ids exist (same shape as Wave 5's Ember Guard/Earthward/Gale Break -
+            // previously blocked on the catalog doc's own bare-chapter-number imprecision).
+            // Windstep/Seismic Swap get real AvatarLevel rules - deliberately NOT SpellBookGrant
+            // (the spec is explicit: "no new finale books, one-spell-per-finale rule preserved").
+            // With this, every one of the 36 catalog spells has a real Rule or a real
+            // SpellBookGrant entry - genuinely 36/36 reachable, not just 36/36 implemented.
+            new Rule("Ashfall", UnlockKind.Stage, stageId: "4-30"),
+            new Rule("Stormchain", UnlockKind.Stage, stageId: "6-30"),
+            new Rule("Windstep", UnlockKind.AvatarLevel, requiredAvatarLevel: 18),
+            new Rule("Seismic Swap", UnlockKind.AvatarLevel, requiredAvatarLevel: 24),
         };
 
         /// <summary>RESOLVED 2026-08-24 - always false now. Kept (rather than deleted outright) as
