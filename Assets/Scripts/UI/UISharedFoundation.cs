@@ -22,6 +22,51 @@ namespace MyriadOfDragons.UI
         public const int TypeTitleSize = 20;
         public const int TypeBodySize = 16;
         public const int TypeCaptionSize = 12;
+
+        // Real color tokens (LOCKED 2026-08-26, register: docs/INDUSTRY_STANDARD_GAP_DIAGNOSIS_
+        // 2026-08-26.md §4). Before this, no shared color-token set existed at all - every screen
+        // independently authored its own near-identical charcoal/navy/bronze/emerald literal
+        // (13+ near-duplicate raw values found, none sharing a source). Each token below is
+        // DERIVED from the actual most-common existing literal across presenters, not invented -
+        // see each one's own doc comment for the real citation. This pass only builds the token
+        // set + the border/frame primitive below; migrating existing screens onto these is a
+        // separate, later task.
+
+        /// <summary>Full-screen shell background. Matches the (0.08, 0.09, 0.1x) literal already
+        /// used as the fullscreen-shell fallback in BattlePassPresenter.cs:59,
+        /// BazaarPresenter.cs:78, ChatSocialPresenter.cs:71, CollectionPresenter.cs:90,
+        /// DailyLoginQuestsPresenter.cs:72 and FriendsPresenter.cs:71 - 6 of 23 screens
+        /// independently converged on essentially this same value with no shared source.</summary>
+        public static readonly Color ColorBackground = new Color(0.08f, 0.09f, 0.12f);
+
+        /// <summary>Secondary surface sitting on top of ColorBackground (cards, panels, modals).
+        /// Matches the (0.12, 0.14, 0.2) literal already used in AvatarPresenter.cs:113,
+        /// CollectionPresenter.cs:195 and CampaignMapUiLibrary.cs:87's own modal-chrome
+        /// fallback.</summary>
+        public static readonly Color ColorPanel = new Color(0.12f, 0.14f, 0.2f);
+
+        /// <summary>Header/top-bar band, darker than ColorPanel. Matches the (0.06, 0.06, 0.1)
+        /// literal already used identically in AvatarPresenter.cs:52,
+        /// CampaignMapPresenter.cs:2232 and EmpirePresenter.cs:86's own top bars.</summary>
+        public static readonly Color ColorHeader = new Color(0.06f, 0.06f, 0.1f);
+
+        /// <summary>Warm gold/bronze accent - GameBootstrap.cs:221's own AccentBorderColor
+        /// verbatim, the ONE place in ~23 screens with a genuine border treatment already
+        /// shipping (its battle-screen buttons). Reused, not reinvented.</summary>
+        public static readonly Color ColorAccentBronze = new Color(0.85f, 0.72f, 0.4f, 0.5f);
+
+        /// <summary>Forest-emerald accent for primary/positive actions (confirm, continue,
+        /// recommend). Matches the (0.16-0.2, 0.4-0.45, 0.28-0.32) literal already used near-
+        /// identically across BazaarPresenter.cs:197, CollectionPresenter.cs:309,
+        /// DailyLoginQuestsPresenter.cs:220, EmpireBuildingDetailPresenter.cs:186,
+        /// PackOpenOverlayPresenter.cs:87, SpellLoadoutPickerPresenter.cs:270 and
+        /// TacticalPuzzlePresenter.cs:535 - 7 of 23 screens.</summary>
+        public static readonly Color ColorAccentEmerald = new Color(0.18f, 0.4f, 0.28f);
+
+        /// <summary>Primary readable text on a dark surface (cream/parchment). Matches the single
+        /// most common text-color literal found across presenters (12 occurrences of exactly this
+        /// value, e.g. ChatSocialPresenter.cs, FriendsPresenter.cs, VipSubscriptionPresenter.cs).</summary>
+        public static readonly Color ColorTextPrimary = new Color(0.9f, 0.88f, 0.75f);
     }
 
     public enum UITextRole
@@ -216,6 +261,95 @@ namespace MyriadOfDragons.UI
             panelRect.anchoredPosition = panelAnchoredPos;
             panelRect.sizeDelta = panelSize;
             return panelRect;
+        }
+
+        /// <summary>Real border/frame primitive (LOCKED 2026-08-26, register: docs/
+        /// INDUSTRY_STANDARD_GAP_DIAGNOSIS_2026-08-26.md §4) - generalizes the ONLY two real
+        /// border/frame treatments that existed anywhere in ~23 screens before this:
+        /// GameBootstrap.cs's CreateRoundedGradientSprite (a procedurally-generated rounded-
+        /// corner, top-to-bottom gradient sprite - its battle-screen buttons/modals) and
+        /// CampaignMapUiLibrary.ApplyModalChrome's real-art-first/procedural-fallback pattern
+        /// (its one stage-detail modal). Every other screen used flat colored Image rectangles
+        /// with no border/frame at all.
+        ///
+        /// Tries a real authored frame sprite from Resources.Load(frameResourcePath) first (same
+        /// binding-layer convention as CombatPresentationAssetMap/ApplyModalChrome - when real
+        /// art exists, someone drops a file at the path and this picks it up with no code
+        /// change), falls back to the procedural gradient sprite when no art exists yet. Either
+        /// way every caller gets a REAL rounded/framed look today, not a flat rectangle.</summary>
+        public static void ApplyFramedPanel(Image target, string frameResourcePath, Color topColor, Color bottomColor,
+            int cornerRadius = UIFrozenTokens.RadiusPrimary)
+        {
+            if (target == null) return;
+
+            Sprite real = string.IsNullOrEmpty(frameResourcePath) ? null : Resources.Load<Sprite>(frameResourcePath);
+            if (real != null)
+            {
+                target.sprite = real;
+                target.type = Image.Type.Sliced;
+                target.color = Color.white;
+            }
+            else
+            {
+                target.sprite = CreateRoundedPanelSprite(topColor, bottomColor, cornerRadius);
+                target.type = Image.Type.Sliced;
+                target.color = Color.white;
+            }
+        }
+
+        /// <summary>Builds a new panel GameObject with <see cref="ApplyFramedPanel"/> already
+        /// applied - the convenience most call sites want ("give me a real bordered panel"),
+        /// matching the existing CreateModalShell/CreateCardPrimitive style.</summary>
+        public static RectTransform CreateFramedPanel(Transform parent, string name, Vector2 size,
+            string frameResourcePath, Color topColor, Color bottomColor, int cornerRadius = UIFrozenTokens.RadiusPrimary)
+        {
+            GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.sizeDelta = size;
+            ApplyFramedPanel(go.GetComponent<Image>(), frameResourcePath, topColor, bottomColor, cornerRadius);
+            return rect;
+        }
+
+        /// <summary>The exact per-pixel alpha-shaping algorithm GameBootstrap.
+        /// CreateRoundedGradientSprite already uses (that method's own real, working technique -
+        /// not re-derived), generalized here so any screen can call it instead of duplicating the
+        /// same math. A top-to-bottom color gradient with soft-edged rounded corners (1.5px
+        /// anti-alias band, not a hard cutoff), returned as a 9-sliceable Sprite so it scales to
+        /// any panel size without stretching the corners. Public so a caller that wants a raw
+        /// Sprite directly (e.g. for a Button's spriteState variants) can get one without going
+        /// through ApplyFramedPanel/CreateFramedPanel.</summary>
+        public static Sprite CreateRoundedPanelSprite(Color topColor, Color bottomColor,
+            int cornerRadius = UIFrozenTokens.RadiusPrimary, int size = 64)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            for (int y = 0; y < size; y++)
+            {
+                float t = (float)y / (size - 1);
+                Color rowColor = Color.Lerp(bottomColor, topColor, t);
+                for (int x = 0; x < size; x++)
+                {
+                    float alpha = rowColor.a;
+                    bool nearEdgeX = x < cornerRadius || x >= size - cornerRadius;
+                    bool nearEdgeY = y < cornerRadius || y >= size - cornerRadius;
+                    if (nearEdgeX && nearEdgeY)
+                    {
+                        float cx = x < cornerRadius ? cornerRadius : size - cornerRadius - 1;
+                        float cy = y < cornerRadius ? cornerRadius : size - cornerRadius - 1;
+                        float dist = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                        // 1.5px soft edge instead of a hard cutoff, so the curve doesn't look jagged.
+                        alpha *= Mathf.Clamp01(cornerRadius - dist + 1.5f);
+                    }
+                    tex.SetPixel(x, y, new Color(rowColor.r, rowColor.g, rowColor.b, alpha));
+                }
+            }
+            tex.Apply();
+            var border = new Vector4(cornerRadius, cornerRadius, cornerRadius, cornerRadius);
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
         }
 
         public static RectTransform CreateCardPrimitive(Transform parent, string name, Vector2 size, Color background)
