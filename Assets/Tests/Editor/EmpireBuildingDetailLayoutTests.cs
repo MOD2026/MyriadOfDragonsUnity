@@ -92,8 +92,18 @@ namespace MyriadOfDragons.Tests
         };
 
         [Test]
-        public void TheBuildingRender_NeverOverlapsAnInteractiveControl()
+        public void TheBuildingRender_NeverDrawsOnTopOfAnInteractiveControl()
         {
+            // DRAW ORDER MATTERS, NOT BARE OVERLAP. A full-screen backdrop or dimmer geometrically
+            // overlaps every button on the popup BY DESIGN - it is the background. What would
+            // actually steal a tap is art drawn AFTER the button, so only that is flagged.
+            //
+            // This check was order-blind until now and stayed quiet purely by accident: the popup's
+            // Dimmer carries no sprite, and the loop skips sprite-less images. The moment anyone
+            // gives this popup a background sprite - and art is being added across every screen
+            // right now - it would have flagged that background against every button and read as a
+            // real overlap bug. CC hit exactly that false positive writing the equivalent test for
+            // the puzzle screen (252aeb2) and flagged this file as carrying the same latent gap.
             var collisions = new List<string>();
 
             foreach (EmpireBuildingKind kind in RenderedKinds)
@@ -101,23 +111,30 @@ namespace MyriadOfDragons.Tests
                 EmpireBuildingDetailPresenter detail = OpenDetail(kind);
                 Transform canvas = detail.CanvasObjectForTests.transform;
 
-                // The art region is the only Image added by 150f32d; find it by its rect rather
-                // than a name assumption, so a rename cannot silently skip this check.
+                // GetComponentsInChildren returns depth-first hierarchy order, which is the order
+                // Unity paints in and the order GraphicRaycaster resolves (last drawn wins), so an
+                // element's index here stands in for its real paint order.
+                Transform[] drawOrder = canvas.GetComponentsInChildren<Transform>(true);
+                var indexOf = new Dictionary<Transform, int>();
+                for (int i = 0; i < drawOrder.Length; i++) indexOf[drawOrder[i]] = i;
+
                 foreach (Button button in canvas.GetComponentsInChildren<Button>(true))
                 {
                     if (!button.gameObject.activeInHierarchy) continue;
                     Rect btn = WorldRect(button.GetComponent<RectTransform>());
+                    int buttonIndex = indexOf[button.transform];
 
                     foreach (Image img in canvas.GetComponentsInChildren<Image>(true))
                     {
                         if (img.sprite == null || !img.gameObject.activeInHierarchy) continue;
                         if (img.GetComponent<Button>() != null) continue;      // the button's own art
                         if (img.transform.IsChildOf(button.transform)) continue;
+                        if (indexOf[img.transform] <= buttonIndex) continue;   // behind it: harmless
 
                         Rect art = WorldRect(img.rectTransform);
                         if (art.width <= 0f || art.height <= 0f) continue;
                         if (art.Overlaps(btn))
-                            collisions.Add($"{kind}: '{img.name}' {art} overlaps '{button.name}' {btn}");
+                            collisions.Add($"{kind}: '{img.name}' {art} overlaps '{button.name}' {btn} and draws AFTER it");
                     }
                 }
 
@@ -125,8 +142,8 @@ namespace MyriadOfDragons.Tests
             }
 
             CollectionAssert.IsEmpty(collisions,
-                "A building render overlaps an interactive control, so a tap would land on art " +
-                "instead of the button: " + string.Join("  |  ", collisions));
+                "A building render draws on top of an interactive control, so a tap would land on " +
+                "art instead of the button: " + string.Join("  |  ", collisions));
         }
 
         [Test]
