@@ -26,7 +26,13 @@ namespace MyriadOfDragons.Combat
             { CombatPresentation.CueImpact, "combat_impact" },
             { CombatPresentation.CueSoftResolve, "combat_resolve_soft" },
             { CombatPresentation.CueAvatarStrikeReleaseImpact, "avatarstrike_release_impact" },
-            { CombatPresentation.CueAvatarStrikeStinger, "avatarstrike_stinger" },
+            // NOTE the "release" segment. This binding said "avatarstrike_stinger" while its sibling
+            // said "avatarstrike_release_impact" and every delivered file is avatarstrike_release_*.
+            // The inconsistency was written when no audio existed to check against, and stayed
+            // invisible because the sink is null-tolerant BY DESIGN - a wrong binding produces
+            // silence, which is indistinguishable from "no audio shipped yet". Only a load test
+            // surfaces it.
+            { CombatPresentation.CueAvatarStrikeStinger, "avatarstrike_release_stinger" },
         };
 
         /// <summary>Every cue id this map knows about. Tests compare it against the cue constants
@@ -37,6 +43,10 @@ namespace MyriadOfDragons.Combat
             !string.IsNullOrEmpty(cueId) && AudioPaths.ContainsKey(cueId);
 
         /// <summary>Full Resources path for a cue, or null when the cue is unknown.</summary>
+        /// <summary>Every cue id that has an audio binding. Exposed so a test can enumerate the
+        /// REAL map instead of a hand-copied list that silently drifts when a cue is added.</summary>
+        public static IEnumerable<string> BoundAudioCueIdsForTests => AudioPaths.Keys;
+
         public static string AudioPathFor(string cueId) =>
             HasAudioBinding(cueId) ? AudioRoot + AudioPaths[cueId] : null;
 

@@ -303,6 +303,31 @@ namespace MyriadOfDragons.Tests
             };
 
         [Test]
+        public void EveryBoundAudioCue_ActuallyLoadsAsAnAudioClip()
+        {
+            // THE BLOCKER THIS CLOSES. The six combat SFX were originally delivered as .opus, which
+            // Unity assigns a generic AssetImporter - the files were real and the paths correct, and
+            // Resources.Load<AudioClip> returned null for all six. Renaming to .ogg switched the
+            // importer but still loaded null, so the CODEC was the blocker, not the container.
+            // They have since been re-exported as .wav.
+            //
+            // This is the check that distinguishes "the audio arrived" from "the audio plays", and
+            // it is the same distinction that has bitten this project three separate times tonight.
+            var missing = new List<string>();
+            foreach (string cueId in CombatPresentationAssetMap.BoundAudioCueIdsForTests)
+            {
+                string path = CombatPresentationAssetMap.AudioPathFor(cueId);
+                Assert.IsFalse(string.IsNullOrEmpty(path), cueId + " has no bound path.");
+                if (Resources.Load<AudioClip>(path) == null) missing.Add(cueId + " -> " + path);
+            }
+
+            CollectionAssert.IsEmpty(missing,
+                "These combat cues resolve to a path but load as null - a present file in an " +
+                "unimportable format is indistinguishable from a working one in a directory " +
+                "listing: " + string.Join(", ", missing));
+        }
+
+        [Test]
         public void EveryDeliveredParticlePrefab_ActuallyLoads()
         {
             var missing = new List<string>();
