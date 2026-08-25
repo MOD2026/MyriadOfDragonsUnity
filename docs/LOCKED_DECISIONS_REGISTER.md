@@ -2054,3 +2054,36 @@ did during the run, not a pre-treatment condition. Real methodological caveat, c
 question, not just a local test fix - if combat and spell RNG do share a stream, separating them is
 a nontrivial refactor with project-wide balance-verification risk, not something to silently do.
 Escalate back if that's what's found, don't just fix it inline.
+
+## Empire Defense evidence gate - LOCKED (2026-08-25, GPT, vetted)
+
+**Decision: no fixed build calendar for Empire Defense - gated by measured repeat engagement, not a
+timeline.** Restores the original "prove repeat engagement" safeguard the reopened three-mode
+"Minigame count" lock had dropped.
+
+**Stage 1 - Memory Expedition:** 6 weeks post-stable-release, >=500-1000 players who actually unlock
+the mode. Track D1/D7/D14/D28 retention, runs on distinct days, % completing 4+ runs in 14 days, %
+returning week 2, % hitting daily reward cap. Green: >=25% complete 4+ runs in 14 days, >=15% return
+week 2, D7/D28 don't materially underperform the rest of the game's cohort, GREEN ACROSS TWO
+CONSECUTIVE COHORTS (not one lucky week). If Memory is weak: fix onboarding/reward
+value/difficulty/discoverability first - do not jump to building a bigger mode to compensate.
+
+**Stage 2 - Tactical Puzzle:** 4-6 more weeks after shipping. Green: >=20% of WAU complete 2+ puzzles/
+week, >=15% return following week, real evidence of optimization/replay (not just first-completion),
+no material cannibalization of Campaign/PvP/Memory participation.
+
+**Empire Defense build gate - BOTH required:**
+1. Memory AND Tactical Puzzle both hit their green thresholds above.
+2. Real evidence of unmet demand: >=20% of engaged users regularly exhaust available solo rewards or
+   report wanting a longer strategic session (measurement method for "report" not yet specified -
+   open detail, not blocking since this is 10+ weeks out regardless).
+
+**Decision table:** Memory weak -> fix Memory, do not start Defense. Memory strong/Puzzle weak ->
+fix or replace Puzzle, hold Defense. Both strong, no demand signal -> keep 3-mode plan deferred, not
+cancelled. Both strong + clear demand -> approve Defense PROTOTYPE (not production). Demand present
+but buildings/server systems still unresolved -> prototype rules offline only, no production reward
+commitment - consistent with the server-ledger risk already flagged for Defense's reward path.
+
+**Real practical implication, not GPT's framing but the honest read:** Empire Defense cannot even
+start prototyping for >=10-12 weeks minimum after Memory Expedition ships stable to real players,
+and the clock hasn't started at all until Memory is actually live with a real population reaching it.
