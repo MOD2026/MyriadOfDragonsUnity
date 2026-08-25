@@ -1518,3 +1518,24 @@ AvatarStrike bespoke flipbook sheet), format/dimensions locked earlier.
 
 Nothing left to decide - this is now purely a production task (generate the 9 files, drop into the
 folders, VS's binding layer picks them up automatically).
+
+## SERVER ACCESS BUG FULLY FIXED AND VERIFIED (2026-08-25, CR, 27a8fd1) - real, live, end-to-end
+
+Root cause confirmed: context.AccessToken (player-scoped) was used where context.ServiceToken
+(elevated write rights) was needed, on all 3 real Custom Items write call sites - Bazaar's
+SaveCustomItemAsync, Friends' SaveFriendshipAsync/DeleteFriendshipAsync, Chat's SaveChannelAsync.
+Read calls correctly left on AccessToken (matches the documented "readable by any player, writeable
+only from a server" design). Verified incrementally, not broadly assumed - fixed Friends alone
+first, confirmed real success, THEN applied to all 3.
+
+Full live re-verification, real numbers: Bazaar 8/8, Chat 6/6, Friends 7/7 - 21/21, full post/
+fetch/limit round trips genuinely working, not just validation paths. This closes out the entire
+CloudCode Option B track for real (previous "live-working" claims for Bazaar were corrected earlier
+tonight as never having exercised a real write - this is the first time it's actually proven).
+
+Chat seed data: done, 4 real messages posted into Global via actual PostChatMessage calls, seeding
+script deleted after (ops tool, not a test, correctly not committed).
+
+Bazaar seed data: correctly NOT done - separate, pre-existing gap (no endpoint exists to create an
+ItemInstance to list, documented in Bazaar's own README). CR correctly declined to fabricate fake
+data to work around this; real fix needs a Collection-system endpoint, out of CR's scope.
