@@ -78,7 +78,7 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
             Button openBtn = homeCanvas.transform
-                .Find("WeeklyPermitStrip/Btn_PermitWeekKey")?.GetComponent<Button>();
+                .Find("TopHud/WeeklyPermitStrip/Btn_PermitWeekKey")?.GetComponent<Button>();
             Assert.NotNull(openBtn);
             openBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);

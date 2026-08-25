@@ -155,7 +155,7 @@ namespace MyriadOfDragons.Tests
         {
             GameObject canvas = home.HomeCanvasObjectForTests;
             Assert.NotNull(canvas);
-            return canvas.transform.Find("WeeklyPermitStrip");
+            return canvas.transform.Find("TopHud/WeeklyPermitStrip");
         }
 
         private static Button FindClaimButton(HomePagePresenter home)
