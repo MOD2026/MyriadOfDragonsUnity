@@ -835,13 +835,34 @@ namespace MyriadOfDragons.Tests
 
             // ---------- AI casting scenario, relative to Baseline parity ----------
 
-            double aiWinDeltaPp = aiOn.AiWinRate.Center - baseline.AiWinRate.Center;
-            Assert.That(aiWinDeltaPp, Is.InRange(-0.05, 0.08),
-                $"[{g}] AI win-rate delta {aiWinDeltaPp:P1} outside the locked -5pp..+8pp band (baseline {baseline.AiWinRate}, on {aiOn.AiWinRate}). ESCALATE TO CC.");
+            // Win-rate bands RETUNED for Apprentice/VeteranPlus (BS-vetted, LOCKED, register):
+            // the old delta-based bands (aiWinDeltaPp -5pp..+8pp, playerWinDropPp <=8pp cap) were
+            // calibrated against the PRE-Windstep-removal AI (97eef16/103ef71) - once the AI got
+            // correctly stronger (the whole point of that fix, not a defect), both tripped as a
+            // direct, expected consequence, not a new bug. BS's explicit call: don't nerf Mend,
+            // don't pull SoloAIScalingSystem - retune the acceptance band to the new, correct
+            // target instead. Gated directly on the AI's own absolute win rate (not a delta vs
+            // baseline) since that's the real quantity BS's target numbers describe. Novice is
+            // untouched - it was never part of the Windstep removal, keeps the original
+            // delta-based bands below.
+            if (group == TierGroup.Apprentice || group == TierGroup.VeteranPlus)
+            {
+                (double floor, double ceiling) = group == TierGroup.Apprentice ? (0.35, 0.42) : (0.31, 0.38);
+                Assert.That(aiOn.AiWinRate.Center, Is.InRange(floor, ceiling),
+                    $"[{g}] AI win rate {aiOn.AiWinRate} outside the RETUNED {floor:P0}-{ceiling:P0} band (post-Windstep-removal target). ESCALATE TO CC.");
+                double aiWinDeltaPpLogged = aiOn.AiWinRate.Center - baseline.AiWinRate.Center;
+                Debug.Log($"[SimMatrix] {g}: aiWinDeltaPp={aiWinDeltaPpLogged:P1} vs THIS run's own baseline {baseline.AiWinRate} (descriptive only under the retuned band - not the obsolete pre-Windstep-removal figure).");
+            }
+            else
+            {
+                double aiWinDeltaPp = aiOn.AiWinRate.Center - baseline.AiWinRate.Center;
+                Assert.That(aiWinDeltaPp, Is.InRange(-0.05, 0.08),
+                    $"[{g}] AI win-rate delta {aiWinDeltaPp:P1} outside the locked -5pp..+8pp band (baseline {baseline.AiWinRate}, on {aiOn.AiWinRate}). ESCALATE TO CC.");
 
-            double playerWinDropPp = baseline.PlayerWinRate.Center - aiOn.PlayerWinRate.Center;
-            Assert.LessOrEqual(playerWinDropPp, 0.08,
-                $"[{g}] Player win-rate dropped {playerWinDropPp:P1} vs baseline, exceeding the locked 8pp cap (baseline {baseline.PlayerWinRate}, on {aiOn.PlayerWinRate}). ESCALATE TO CC.");
+                double playerWinDropPp = baseline.PlayerWinRate.Center - aiOn.PlayerWinRate.Center;
+                Assert.LessOrEqual(playerWinDropPp, 0.08,
+                    $"[{g}] Player win-rate dropped {playerWinDropPp:P1} vs baseline, exceeding the locked 8pp cap (baseline {baseline.PlayerWinRate}, on {aiOn.PlayerWinRate}). ESCALATE TO CC.");
+            }
 
             // Tick-ratio metric REFACTORED (LOCKED 2026-08-25, GPT decision after CR root-caused
             // the Apprentice ±15% failure): the OLD single aggregate ratio blended two populations
