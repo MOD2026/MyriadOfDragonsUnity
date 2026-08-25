@@ -881,3 +881,38 @@ parked - not retuned.
 **This is the actual completion of the Full 36-Spell Catalogue Diagnosis opened earlier
 (commit locking the diagnosis) - every spell now has real code AND (per the separately-locked
 acquisition-channel spec) a real acquisition path once that wiring lands.**
+
+## Parallel-work protocol — LOCKED (2026-08-25), prevents lock races and dirty-tree measurements
+
+Real problem diagnosed: Unity can only run ONE test process at a time (.unity_batch.lock enforces
+this), but seats have been blind-queueing against it and running tests against each other's
+uncommitted edits, producing both wasted waits and untrustworthy numbers (HEAD moving mid-run,
+"artifacts persist" readings that were really dirty-tree noise).
+
+**Rule 1 — Lane separation by file ownership (already CLAUDE.md, reinforced here):**
+CR = spell catalog, acquisition channels, CloudCode/server work (Battle-adjacent, Cards/AI/Empire).
+VS = pollution bisect, engine determinism, Memory Expedition core logic (Battle/Empire).
+WH = campaign content (CampaignMapPresenter/StoryDatabase), Daily Login, save-field additions
+(Economy/Story/UI presenter shells). Seats do NOT edit outside their lane without explicit CC
+sign-off - already the standing rule, restated because tonight's clashes were files, not people.
+
+**Rule 2 — Commit before you run, always.** Never trigger a full/continuous Unity test run while
+your OWN changes are uncommitted. Finish your change, commit it, THEN queue for the lock. A dirty
+working tree at run time is always partly someone else's in-flight work you can't control - the
+only way to get a trustworthy number is to run against a state you (or CC) actually committed.
+
+**Rule 3 — Prefer scoped runs over full-suite runs while iterating.** Use `-TestFilters
+<YourClassName>` for your own new/changed classes during development - fast, low-value-to-others,
+doesn't need to block on a "give everyone a turn" queue as hard. Reserve full continuous suite runs
+for real milestone checkpoints (post-commit verification, pre-beta gate checks), not routine
+iteration - this is most of tonight's lock contention, and most of it didn't need the full suite.
+
+**Rule 4 — Announce before you run.** Post to the mailbox (or, for CC<->CR, direct message)
+"starting a Unity run, ~N min" before triggering one. Other seats then do non-Unity work (writing
+code, reading specs, drafting - anything that doesn't touch the lock) instead of blind sleep-loop
+polling. This doesn't eliminate the queue, it makes the wait productive instead of idle.
+
+**Rule 5 — Don't run tests to answer someone else's open question if you don't own that question.**
+Tonight: VS spent a cycle bisecting pollution that turned out unrelated to the fixture it was
+investigating; running the full suite "just to see" when you don't have a specific hypothesis
+wastes the one shared resource. Have a real hypothesis before you take the lock.
