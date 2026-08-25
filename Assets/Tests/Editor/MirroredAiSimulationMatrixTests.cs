@@ -348,6 +348,123 @@ namespace MyriadOfDragons.Tests
             return RunScenario(pool, group, label + " (2000)", 2000, aiSpellsOn, playerSpellsOn, resourceStress, equippedSpellIdsOverride);
         }
 
+        // ---------- Zero-cast / any-cast tick-ratio split (LOCKED 2026-08-25) ----------
+
+        private sealed class SplitTickResult
+        {
+            public int ZeroCastN;
+            public double ZeroCastBaselineAvg;
+            public double ZeroCastOnAvg;
+            public int AnyCastN;
+            public double AnyCastBaselineAvg;
+            public double AnyCastOnAvg;
+
+            public double ZeroCastTickRatio => ZeroCastBaselineAvg == 0 ? 1 : ZeroCastOnAvg / ZeroCastBaselineAvg;
+            public double AnyCastTickRatio => AnyCastBaselineAvg == 0 ? 1 : AnyCastOnAvg / AnyCastBaselineAvg;
+
+            public void Log(string label)
+            {
+                Debug.Log($"[SimMatrix] {label}: zeroCastSplit n={ZeroCastN} baselineAvg={ZeroCastBaselineAvg:F2} onAvg={ZeroCastOnAvg:F2} ratio={ZeroCastTickRatio:F3}");
+                Debug.Log($"[SimMatrix] {label}: anyCastSplit n={AnyCastN} baselineAvg={AnyCastBaselineAvg:F2} onAvg={AnyCastOnAvg:F2} ratio={AnyCastTickRatio:F3}");
+            }
+        }
+
+        /// <summary>Runs baseline (spells off) and AI-casting (spells on) TOGETHER, per trial,
+        /// under the identical seed for both (same seed-pairing methodology as the Windstep
+        /// ablation - UnityEngine.Random.InitState(seed) before each side's own deck/hand draw,
+        /// StartMatch's own rngSeed: seed) - so any tick-count difference between the two is
+        /// attributable to AI casting itself, not trial-to-trial deck/hand variance. Buckets each
+        /// matched pair by whether the ON side cast anything at all, so the zero-cast and any-cast
+        /// populations (which behave oppositely - see the class-level LOCKED comment at the call
+        /// site) each get compared against their OWN matched-seed baseline average, not a single
+        /// blended aggregate.</summary>
+        private SplitTickResult RunPairedZeroCastSplit(List<Card> pool, TierGroup group, int trials, int baseSeed)
+        {
+            (int avatarLevel, int castleLevel, AIDifficultyTier tier) = GroupConfig(group);
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+            empire.InitializeTCGModifiers();
+            var economy = new BattleController.MatchEconomy(empire.ResourceCap, empire.Turn1Resource, empire.StartingAvatarHealth);
+            List<string> equippedIds = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Id).ToList();
+
+            var zeroCastBaseline = new List<long>();
+            var zeroCastOn = new List<long>();
+            var anyCastBaseline = new List<long>();
+            var anyCastOn = new List<long>();
+
+            for (int i = 0; i < trials; i++)
+            {
+                if (i % 200 == 0) Debug.Log($"[SimMatrix] {group}/ZeroCastSplit: trial {i}/{trials}");
+                int seed = baseSeed + i;
+
+                UnityEngine.Random.InitState(seed);
+                BattleController baseController = CreateController();
+                List<Card> basePlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> baseEnemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                baseController.StartMatch(basePlayerDeck, baseEnemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                baseController.DealFormationHand(baseController.PlayerState);
+                baseController.DealFormationHand(baseController.EnemyState);
+                DeployWholeSquad(baseController, baseController.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(baseController, AIArchetype.Balanced);
+                bool baseConfirmed = baseController.ConfirmFormation();
+                long baselineTicks = 0;
+                if (baseConfirmed)
+                {
+                    while (baseController.Phase == BattlePhase.Combat) baseController.AdvanceCombatTick();
+                    baselineTicks = baseController.TickCount;
+                }
+                UnityEngine.Object.DestroyImmediate(baseController.gameObject);
+
+                UnityEngine.Random.InitState(seed);
+                BattleController onController = CreateController();
+                List<Card> onPlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> onEnemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                onController.StartMatch(onPlayerDeck, onEnemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                onController.EnableMirroredEnemySpellsForPvE();
+                onController.DealFormationHand(onController.PlayerState);
+                onController.DealFormationHand(onController.EnemyState);
+                DeployWholeSquad(onController, onController.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(onController, AIArchetype.Balanced);
+                bool onConfirmed = onController.ConfirmFormation();
+                long onTicks = 0;
+                bool hadAnyCast = false;
+                if (onConfirmed)
+                {
+                    while (onController.Phase == BattlePhase.Combat) onController.AdvanceCombatTick();
+                    onTicks = onController.TickCount;
+                    hadAnyCast = onController.SpellCastLog.Any(c => !c.CastByPlayer);
+                }
+                UnityEngine.Object.DestroyImmediate(onController.gameObject);
+
+                if (!baseConfirmed || !onConfirmed) continue; // pair unusable without both sides.
+
+                if (hadAnyCast)
+                {
+                    anyCastBaseline.Add(baselineTicks);
+                    anyCastOn.Add(onTicks);
+                }
+                else
+                {
+                    zeroCastBaseline.Add(baselineTicks);
+                    zeroCastOn.Add(onTicks);
+                }
+            }
+
+            var result = new SplitTickResult
+            {
+                ZeroCastN = zeroCastOn.Count,
+                ZeroCastBaselineAvg = zeroCastBaseline.Count == 0 ? 0 : zeroCastBaseline.Average(),
+                ZeroCastOnAvg = zeroCastOn.Count == 0 ? 0 : zeroCastOn.Average(),
+                AnyCastN = anyCastOn.Count,
+                AnyCastBaselineAvg = anyCastBaseline.Count == 0 ? 0 : anyCastBaseline.Average(),
+                AnyCastOnAvg = anyCastOn.Count == 0 ? 0 : anyCastOn.Average(),
+            };
+            result.Log(group.ToString());
+            return result;
+        }
+
         /// <summary>The 5 locked scenarios for one tier group, asserted against the locked
         /// acceptance bands. A band miss fails loudly here - this method never adjusts a threshold
         /// to make a bad number pass (LOCKED spec's own failure policy).</summary>
@@ -378,9 +495,33 @@ namespace MyriadOfDragons.Tests
             Assert.LessOrEqual(playerWinDropPp, 0.08,
                 $"[{g}] Player win-rate dropped {playerWinDropPp:P1} vs baseline, exceeding the locked 8pp cap (baseline {baseline.PlayerWinRate}, on {aiOn.PlayerWinRate}). ESCALATE TO CC.");
 
-            double tickRatio = baseline.AverageTicks == 0 ? 1 : aiOn.AverageTicks / baseline.AverageTicks;
-            Assert.That(tickRatio, Is.InRange(0.85, 1.15),
-                $"[{g}] Average ticks {aiOn.AverageTicks:F2} vs baseline {baseline.AverageTicks:F2} outside the locked ±15% band. ESCALATE TO CC.");
+            // Tick-ratio metric REFACTORED (LOCKED 2026-08-25, GPT decision after CR root-caused
+            // the Apprentice ±15% failure): the OLD single aggregate ratio blended two populations
+            // that behave oppositely - trials where the AI casts nothing run structurally LONGER
+            // (close/grindy fights correlate with both running long AND offering fewer legal
+            // spell windows) while trials where it casts at least once run structurally SHORTER.
+            // Apprentice's aggregate crossed ±15% only because its zero-cast trials happen to
+            // deviate from ITS OWN baseline by a wider margin than VeteranPlus's do, not because
+            // of a real per-tier defect - widening the shared band would have hidden a real signal
+            // for every OTHER tier instead of fixing the metric. Split into zero-cast and any-cast
+            // populations, matched-seed against baseline (RunPairedZeroCastSplit - same
+            // seed-pairing methodology as the Windstep ablation), each gated at the original ±15%
+            // independently. Zero-cast FREQUENCY remains its own separate, already-tier-specific
+            // metric (NoSpellFallbackRate, asserted below) - this split only concerns match
+            // LENGTH within each population, not how often each population occurs.
+            SplitTickResult split = RunPairedZeroCastSplit(pool, group, trials: 2000, baseSeed: 800001);
+            if (split.ZeroCastN > 0)
+            {
+                Assert.That(split.ZeroCastTickRatio, Is.InRange(0.85, 1.15),
+                    $"[{g}] Zero-cast-trial ticks {split.ZeroCastOnAvg:F2} vs matched-seed baseline {split.ZeroCastBaselineAvg:F2} " +
+                    $"({split.ZeroCastN} trials) outside the locked ±15% band. ESCALATE TO CC.");
+            }
+            if (split.AnyCastN > 0)
+            {
+                Assert.That(split.AnyCastTickRatio, Is.InRange(0.85, 1.15),
+                    $"[{g}] Any-cast-trial ticks {split.AnyCastOnAvg:F2} vs matched-seed baseline {split.AnyCastBaselineAvg:F2} " +
+                    $"({split.AnyCastN} trials) outside the locked ±15% band. ESCALATE TO CC.");
+            }
 
             Assert.LessOrEqual(aiOn.EarlyKORate.Center, 0.10,
                 $"[{g}] Early-KO rate {aiOn.EarlyKORate} exceeds the locked 10% ceiling. ESCALATE TO CC.");
