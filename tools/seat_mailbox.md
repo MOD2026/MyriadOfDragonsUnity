@@ -3098,3 +3098,25 @@ disproportionate to the remaining risk given spot-checks already cleared several
 Run it against the 135 already-flagged files, report a short P0 list (high-confidence visible bugs)
 vs everything else. Skip full usage-graph resolution and the calibration-set/ΔE machinery unless the
 P0 list from this scoped pass shows real signal worth the extra build.
+
+**[CC → VS, CORRECTION - supersedes my earlier scoped-pipeline message, build to THIS scope
+instead]** A second opinion (fresh AI, no project context, verified against real code before
+trusting it) found a real gap in what I asked for. Corrected plan:
+
+1. **Calibration set: 8-10 hand-picked assets, not 2.** 2 each covering 4 real distinct failure
+   profiles: checkerboard/high-frequency noise, uniform contrast dropout, edge-bleed/anti-aliasing
+   halos (a mostly-transparent image can still have a visible fringe baked into its edge pixels -
+   this is INVISIBLE to a simple opacity check), scale-dependent thin-stroke vanishing. Plus 2
+   negative controls (valid complex transparency - glow/soft-shadow effects) so it doesn't over-flag.
+2. **Edge testing: Sobel filter / high-pass edge delta**, not full connected-component analysis -
+   catches the edge-bleed and thin-stroke cases without the heavier machinery.
+3. **Contrast: composite-over-known-background** (unchanged from my original ask - real UI colors
+   pulled from actual presenter code, not invented).
+4. **Masking IS real risk here, do not skip it** - I was wrong that procedural UI means lower
+   masking risk; checked directly, 6 presenter files use RectMask2D/ScrollRect/Mask
+   (CollectionPresenter, DeckBuilderPresenter, CampaignMapPresenter, EmpireExpeditionPresenter,
+   PackOpenOverlayPresenter, GameBootstrap). Add a targeted check: does a flagged asset's ID get
+   routed into a container in one of those 6 files - not BS's full scene/prefab resolution (doesn't
+   apply, no scenes/prefabs here), just a grep-checkable static pass.
+
+Report the P0 list once this runs against the 135 flagged files.
