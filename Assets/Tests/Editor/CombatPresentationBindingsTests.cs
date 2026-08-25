@@ -215,6 +215,39 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(bespokeImage.texture, "bespoke_heavy must reference the real flipbook sheet texture.");
         }
 
+        /// <summary>Real per-frame flipbook animation follow-up (was flagged as not-yet-built in
+        /// this class' own doc comment) - bespoke_heavy must now carry a real FlipbookRawImagePlayer
+        /// wired to the real 4x4/16-frame sheet, referencing the SAME RawImage the prefab already
+        /// has, not a duplicate. Configured to match CombatPresentation.AvatarStrike's own Release
+        /// beat duration (150ms) - the beat that actually spawns this particle.</summary>
+        [Test]
+        public void TheParticleSink_BespokeHeavyPrefab_CarriesARealWiredFlipbookPlayer()
+        {
+            var host = new GameObject("ParticleSinkFlipbookHost");
+            _spawned.Add(host);
+            var sink = new ResourcesCombatParticleSink(host.transform);
+
+            GameObject bespoke = sink.Resolve(CombatPresentationPalette.Bespoke, CombatPresentationVisualTier.Heavy);
+            Assert.IsNotNull(bespoke, "AvatarStrike's bespoke_heavy prefab should resolve.");
+
+            RawImage bespokeImage = bespoke.GetComponent<RawImage>();
+            FlipbookRawImagePlayer player = bespoke.GetComponent<FlipbookRawImagePlayer>();
+            Assert.IsNotNull(player, "bespoke_heavy must carry a FlipbookRawImagePlayer for real per-frame animation.");
+            Assert.AreSame(bespokeImage, player.Image, "FlipbookRawImagePlayer must reference the prefab's own RawImage, not a separate/missing one.");
+            Assert.AreEqual(4, player.Columns, "AvatarStrike's real sheet is 4 columns.");
+            Assert.AreEqual(4, player.Rows, "AvatarStrike's real sheet is 4 rows.");
+            Assert.AreEqual(150f, player.DurationMs, 0.01f,
+                "Configured duration should match CombatPresentation.AvatarStrike's own Release beat (150ms) - the real referenced value, not an invented one.");
+
+            // Real cross-check against CombatPresentation.cs itself, not a hand-copied constant -
+            // if the Release beat's duration ever changes, this test fails loudly instead of the
+            // flipbook silently drifting out of sync with the beat that actually spawns it.
+            CombatPresentationCue releaseBeat = CombatPresentation.SequenceFor(CombatPresentationSubject.AvatarStrike)
+                .First(c => c.Beat == CombatPresentationBeat.Release);
+            Assert.AreEqual(releaseBeat.DurationMs, player.DurationMs, 0.01f,
+                "FlipbookRawImagePlayer's durationMs must stay in sync with CombatPresentation's real Release beat duration.");
+        }
+
         [Test]
         public void TheParticleSink_NeverEmitsForNoneValues()
         {
