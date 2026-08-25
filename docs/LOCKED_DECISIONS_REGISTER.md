@@ -2447,3 +2447,17 @@ scheduler, enemy targeting/cadence, node placement/upgrades, Command-resource cl
 Integrity state machine, boon selection/run state, weekly floor persistence, once-only reward claims.
 Confirmed: "a substantial second combat simulation" - still needs prototyping/simulation before art,
 reward values, or production commitments lock. No build triggered by this entry.
+
+## Empire Defense spec - real benchmarking gap found post-lock, not yet resolved (2026-08-25, CC, web-verified)
+
+Web research (Bloons TD6 "lives" system, Kingdom Rush lane/reinforcement structure, Rush Royale live
+mana economy) confirms the overall design pattern is structurally sound and matches real, proven
+games - not invented. Sources: bloons.fandom.com/wiki/Bloons_TD_6, blog.udonis.co (Kingdom Rush),
+en.androidayuda.com (Rush Royale).
+
+**Real gap: 2 Lane Integrity per lane is a very tight margin, and the spec never states enemies-per-
+wave, so there is no way to judge whether that number is reasonable.** In Bloons TD6, lives deplete
+across a large sustained stream of enemies (a big buffer); if Empire Defense sends more than 2
+enemies down one lane before the player can react, that lane breaks almost immediately, every
+time. Not blocking (still fully behind the evidence gate, no build triggered) but flagged back to
+BS before this number gets treated as more settled than it is.
