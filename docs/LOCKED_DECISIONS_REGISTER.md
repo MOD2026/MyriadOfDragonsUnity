@@ -42,8 +42,9 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | VS | Real 7-step verifier validation on the 6 Tactical Puzzle Week 1 candidates | PENDING - dispatched, awaiting real pass/fail |
+| 2026-08-25 | VS | Build the 6 puzzle definitions from the register + run real 7-step validation (solver now exists) | PENDING - dispatched |
 | 2026-08-25 | BS (via owner) | Windstep fix made both tiers correctly stronger, tripping old bands - invoke HP/Resource scaling, or revisit the bands? | PENDING - awaiting relay |
+| 2026-08-25 | BS (via owner) | Curated per-chapter battle arena theming (mechanism now real, mapping is a content decision) | PENDING - awaiting relay |
 
 ---
 
