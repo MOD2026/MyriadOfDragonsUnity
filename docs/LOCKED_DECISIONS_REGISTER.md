@@ -2966,3 +2966,25 @@ facing design, same projected-value guard for reintroduction at either tier.
 makes VeteranPlus too strong after replacement, tune ONLY the existing HP/Resource scaling lever -
 explicitly NOT Windstep's player-facing design, NOT the AI's casting probability. After replacement,
 rerun the full matrix for both tiers.
+
+## CORRECTION: ReleaseProfilePersistenceContractTests was NOT pollution - real RNG+assertion bug (2026-08-25, WH, verified cfbe11b)
+
+**VS's original 941-test isolation bisect was right; the "order-dependent pollution" INFERENCE drawn
+from it was wrong.** Real mechanism: ShopPresenter.TryOpenGemPack uses an unseeded `new
+System.Random()`. A duplicate draw bumps copyCount (so FindNewlyGrantedCardId is non-null) but does
+NOT grow cardProgression.Count. The test asserted `Count + (grant ? 1 : 0)` -> expected 12, actual
+11 whenever a duplicate happened to be drawn - a real flaky-by-RNG bug that LOOKS like order
+dependence (intermittent full-suite-only failure) without actually being one.
+
+**Fix:** assert the grant itself, not distinct-id arithmetic; pin pack RNG in this fixture via
+ShopPresenter.SetPackRngSeedForTests(42). Passed in isolation after the fix.
+
+**Also, real Apprentice Windstep replacement progress (CR, in progress, no commit yet):** first pick
+(Blood Price, AvatarStrike) correctly caught and rejected by a PRE-EXISTING real test -
+ResolveSpellbook_EveryTier_NeverEquipsTwoAvatarStrikes - Blood Price + Stone Judgment would violate
+the locked max-1-AvatarStrike-equipped rule. Switched to Mend (LaneHeal, magnitude 4, 3-tick
+cooldown vs Renewal's 5) - no shared-effect-type MOS constraint. Also found and fixed a second bug:
+the replacement lookup was checking Phase1Catalog only (incomplete) rather than the properly-
+resolved avatarLevelPool. Pre-fix empirical run already showed the mechanism working (replacement
+not shadowed to zero, win rate 39.7%, inside the healthy post-removal range) before the Mend swap -
+re-running now for final numbers.
