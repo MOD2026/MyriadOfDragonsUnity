@@ -1379,3 +1379,41 @@ happening right now, which may be several commits and several seats past the one
 
 TREE NOW CLEAN: HEAD 94dc514, 0 error CS, 119/119 (CombatPresentationTests 26/26 +
 BattleLogicTests 92/92). CR unblocked, resuming live server verification.
+
+## REAL VISUAL AUDIT — owner's first direct Play Mode inspection, 2026-08-25 - major findings
+
+First genuine human visual pass across ~18 screens. Findings no headless test could catch:
+
+**P0 bugs, real, visible to any player right now:**
+1. Bazaar screen renders a raw DEV COMMENT as live UI text: "Browse catalog OPEN - BazaarGateway
+   has wallet/list/buy/cancel only (no Query/Listings)" - a debug/status string leaked into
+   production UI.
+2. `[runtime]` placeholder strings visible live on Battle Pass (timer, tier costs) and Daily
+   Login/Quests (quest descriptions, some progress values) - unresolved template tokens shipping
+   to the player.
+3. Overlapping/garbled text on Campaign map header and Formation screen header - two text blocks
+   rendering on top of each other.
+4. Solid orange/debug-color block covering a panel on the stage-detail popup - looks like a
+   missing/broken texture reference.
+
+**Real functional discrepancy:** Empire building screen shows "Upgrade charges Gold and finishes
+instantly - then Collect" - contradicts the LOCKED design (real 30min-14day construction timer
+curve, `EMPIRE_SCHEMA_LOCK`). Either never wired to real timers, or quietly simplified without
+being logged anywhere. Needs investigation - is this an intentional stub or a real regression from
+the locked spec.
+
+**Pervasive but already-known:** missing art assets (blank/gray placeholder boxes) across nearly
+every screen - confirms the animation/art pipeline gap discussed earlier is more visually severe
+than estimated from code alone.
+
+**Real open design question the owner raised:** no PvP/opponent-finding system exists at all - no
+world map, no base placement, no coordinate-based search, no troop deployment. Owner explicitly
+wants to AVOID the Clash-of-Clans-style world-map/base-raid model that's now industry-default for
+base-builders, and asked for a genre-appropriate alternative given this is a CARD BATTLER, not a
+base-builder. CC recommendation: async ladder matchmaking against a saved defense-formation
+snapshot (Clash Royale's actual model, not CoC's) - fits the existing Season XP/Battle Pass system
+already locked, avoids building an entire new world-map subsystem, and matches real genre
+precedent for card battlers specifically. Guild-vs-guild content should be cooperative
+boss/event-damage-contribution (extends the already-shipped Guild Expedition), not territory war -
+no map needed for either. Real, substantial new system - needs its own GPT/owner design round
+before any building starts, not started tonight.
