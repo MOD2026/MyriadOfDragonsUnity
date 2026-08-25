@@ -1002,3 +1002,31 @@ explicit owner sign-off to ship logic-only).
 Owner approved the 6 additive fields in bf236e0 (lastLoginClaimUtcDate, loginStreakIndex,
 dailyQuestUtcDate, dailyQuestCompletionMask, dailyQuestGenerationId, passSeasonXp). No longer
 pending - frozen-file addition is finalized.
+
+## Pollution culprit #1 MECHANISM CONFIRMED (2026-08-25, VS) - fix proposed, not applied (WH's lane)
+
+Root cause: CampaignStageBattleConfigurationTests' SpawnAndInitializeBootstrap runs 3x in a loop
+per test, but its object-collection step uses a Find-returns-first-match pattern - so only the
+FIRST loop iteration's Canvas/EventSystem/CardDatabase/BattleController get tracked for teardown;
+iterations 2 and 3 leak, uncollected and undestroyed. This is what produces the y:0.00 vs y:-45.20
+mismatch seen in every run.
+
+VS self-corrected an earlier wrong ruling-out of this exact theory: it had counted call-site text
+occurrences (1) instead of actual loop executions (3), disproving a correct theory with a bad
+measurement and reporting it as fact. Flagged as the 4th silent-measurement failure of this shape
+today (zero-match filter, last-filter-wins drop, header-bounded mailbox watcher, now this) - a
+check that looks authoritative while measuring the wrong thing. Worth institutional awareness, not
+a one-off mistake to forget.
+
+PROPOSED FIX (not applied - file is campaign content, WH's lane per parallel-work protocol Rule 1):
+collect every matching root object per spawned-name, not just the first, inside
+SpawnAndInitializeBootstrap. Same GameObject.Find-first-match pattern exists in ~58 fixtures
+project-wide; only this one currently loops so only this one leaks today, but any fixture later
+wrapped in a loop reintroduces this silently. A shared test helper across all 58 is a real,
+bigger question - not decided here, flagged for a future pass, not urgent tonight.
+
+Verification plan once applied: re-run CampaignStageBattleConfigurationTests +
+RarityFrameRenderingTests + TutorialTeachingOverlayTests, expect 28/28, ~30s.
+
+SECOND LEAKER (RarityFrame's Card_warrior null) still open and separate - VS has released the
+lock and is ready to bisect it next on request.
