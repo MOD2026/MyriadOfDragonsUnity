@@ -84,7 +84,75 @@ namespace MyriadOfDragons.AI
             // avatar-level-representative mapping this class already had, rather than a second
             // AI-specific slot table.
             int slotCount = SpellLoadoutAutoEquip.RequiredSlotCount(TierRepresentativeAvatarLevel(tier));
-            return SpellLoadoutAutoEquip.SelectHighestMagnitudePerEffect(pool, slotCount);
+            List<AvatarSpell> loadout = SpellLoadoutAutoEquip.SelectHighestMagnitudePerEffect(pool, slotCount);
+
+            if (tier == AIDifficultyTier.Apprentice)
+                loadout = ApplyApprenticeWindstepRemoval(loadout, avatarLevelPool);
+
+            return loadout;
+        }
+
+        /// <summary>BS-vetted, LOCKED (register): Apprentice's Windstep (Reposition) removed from
+        /// the AI loadout - the corrected ablation methodology (0fdd193, real EnemyDifficultyTier +
+        /// real spellbook override, no longer confounded) found removing it INCREASES Apprentice's
+        /// AI win rate by 6.6pp (SE 0.9%, z=7.61), a real, highly significant effect. This is a
+        /// hypothesis about mechanism ("the problem is AI selection, not the spell itself"), NOT a
+        /// proven one - the ablation shows the net effect is negative, not why. The spell itself is
+        /// untouched (player cost/cooldown/design unchanged, and it stays available at other AI
+        /// tiers via the normal pool/selection above - this override is Apprentice-only).
+        ///
+        /// Replaced with Mend (LaneHeal, magnitude 4, a Starter spell already in the pool - no new
+        /// unlock rule invented) rather than an empty slot, per the explicit instruction not to
+        /// just drop a slot. AvatarStrike was the first candidate considered (Blood Price/magnitude
+        /// 90 alongside Stone Judgment/magnitude 120 have genuinely non-overlapping HP-threshold
+        /// legal windows, not pure list-order shadowing) but real bug found on first run:
+        /// AIEnemySpellbookResolverTests.ResolveSpellbook_EveryTier_NeverEquipsTwoAvatarStrikes
+        /// caught that this violates MOS's own locked max-1-AvatarStrike-equipped rule, which
+        /// applies to the AI too - ruling AvatarStrike out entirely, not just a bad pick. LaneDamage
+        /// (a second Firestorm/Ember Wave/Cinder Lash alongside Fault Line) is also ruled out - the
+        /// earlier Windstep ablation's condition D already proved this class of doubling shadows to
+        /// zero real casts (Ember Wave, listed after Fault Line, never fired - Fault Line's own
+        /// TryPickDamageLane legality is satisfied whenever ANY enemy lane has living units, so it
+        /// was legal essentially every time Ember Wave would also have been). LaneHeal doesn't share
+        /// AvatarStrike's magnitude-threshold legality shape, and TryPickHealLane's own legality (a
+        /// real threat to the lane) is spell-independent - so list order was the first suspected
+        /// mechanism, but real data disproved it: Renewal listed BEFORE Mend still gets 0/3000 real
+        /// casts (tried both orderings empirically - reordering made no difference at all). The
+        /// actual cause looks like Energy-cost timing instead - Renewal costs 45 vs Mend's 25, and
+        /// Apprentice matches run short (~6-9 ticks per the earlier root-cause studies), so the
+        /// tick where a real heal opportunity exists is often too early in the Energy ramp
+        /// (EnergyPerTick 18) for Renewal's threshold, while Mend's is already met - but this is an
+        /// observation, not confirmed by a dedicated diagnostic, and may already have been true of
+        /// Renewal in the OLD Windstep-included loadout too (not something this change necessarily
+        /// caused). What IS confirmed: Mend itself gets a real, substantial share of AI casts
+        /// (91/3000, ~6.7% of all AI casts in the validation run) - the actual requirement this
+        /// task cared about (not a dead slot like Ember Wave was). Validated empirically via
+        /// ApprenticeMaxSpellWinShareDiagnosticTests.WindstepAblation_ApprenticeReplacementValidation
+        /// - see that test for the real cast counts and win-rate numbers.</summary>
+        private static List<AvatarSpell> ApplyApprenticeWindstepRemoval(List<AvatarSpell> loadout, List<AvatarSpell> avatarLevelPool)
+        {
+            List<AvatarSpell> result = loadout.Where(s => s.Effect != SpellEffect.Reposition).ToList();
+            // Real bug found on first run: passing Phase1Catalog here (14 spells) instead of the
+            // full-catalog-derived avatarLevelPool missed the replacement spell entirely if it's a
+            // Phase-2+ expansion spell not in CreatePhase1Catalog - the removal silently succeeded
+            // but the replacement silently no-opped. avatarLevelPool is built from
+            // SpellUnlockResolver.ResolveUnlockedSpells, which resolves against
+            // AvatarSpell.CreateCatalog() (the full 36-spell catalog), so a Starter-kind spell like
+            // Mend is always genuinely present there regardless of tier.
+            // First attempt (Insert(0, mend), Mend before Renewal in index order) got Renewal to
+            // 0/3000 real casts, so this appends Mend AFTER instead on the theory that list order
+            // (TrySelectCast tries same-effect spells in index order) was the cause - but a second
+            // run with this exact ordering (Renewal first) ALSO measured Renewal at 0/3000, so list
+            // order is NOT the actual mechanism (see the class doc comment above for the real,
+            // still-unconfirmed suspect: Energy-cost timing in Apprentice's short matches). Kept
+            // Renewal-first anyway since it's the more conservative choice either way (the
+            // stronger, already-real spell stays primary in the one interpretation where order
+            // does matter) and it does not regress anything measured. What's confirmed either way:
+            // Mend itself gets real, non-zero casts (see WindstepAblation_ApprenticeReplacementValidation).
+            AvatarSpell mend = avatarLevelPool.FirstOrDefault(s => s.Id == "mend");
+            if (mend != null && result.All(s => s.Id != "mend"))
+                result.Add(mend);
+            return result;
         }
 
         /// <summary>The top of each tier's own already-locked avatar-level band (SoloAIScalingSystem.

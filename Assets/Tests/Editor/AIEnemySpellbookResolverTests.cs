@@ -76,18 +76,24 @@ namespace MyriadOfDragons.Tests
         /// starter counterparts once unlocked at Apprentice - the register's own "materially
         /// change tier loadouts" case. Banner of Ashes isn't unlocked until Veteran, so War Cry
         /// still holds LaneAttackBuff. Stone Judgment (L12, cleared at rep level 25) replaces
-        /// Divine Bolt. Windstep (Reposition, Avatar L18, cleared at rep level 25) wins the
-        /// Reposition slot uncontested - Seismic Swap needs Avatar L24, still locked here. Only 5
-        /// of the 6 slots are genuinely fillable: after the dead-loadout-slot fix (see class doc),
-        /// the AI-castable pool has exactly 5 distinct effect types available at this tier
-        /// (LaneHeal/LaneDamage/LaneAttackBuff/AvatarStrike/Reposition), each capped at one spell
-        /// by SelectHighestMagnitudePerEffect - there is no second real candidate for any of them
-        /// to fill a 6th slot.</summary>
+        /// Divine Bolt.
+        ///
+        /// Windstep REMOVED, LOCKED (register, grew out of 0fdd193's corrected ablation: removing
+        /// it increases Apprentice's real AI win rate by 6.6pp, SE 0.9%, z=7.61 - a real, highly
+        /// significant, previously-masked-by-a-broken-control effect, not availability bias).
+        /// AIEnemySpellbookResolver.ApplyApprenticeWindstepRemoval strips the Reposition slot for
+        /// this tier specifically (the spell itself, and its role at other AI tiers, are
+        /// untouched) and adds Mend (LaneHeal, magnitude 4) instead of leaving the slot empty.
+        /// AvatarStrike-doubling (Blood Price alongside Stone Judgment) was tried first but real
+        /// bug found: ResolveSpellbook_EveryTier_NeverEquipsTwoAvatarStrikes below caught that it
+        /// violates MOS's own locked max-1-AvatarStrike rule - see
+        /// ApplyApprenticeWindstepRemoval's own doc comment for the full reasoning and why LaneHeal
+        /// was picked instead.</summary>
         [Test]
-        public void ResolveSpellbook_Apprentice_FaultLineAndRenewalTakeOver_WarCryStillHolds()
+        public void ResolveSpellbook_Apprentice_FaultLineAndRenewalTakeOver_WarCryStillHolds_WindstepReplacedByMend()
         {
             List<string> names = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Apprentice).Select(s => s.Name).ToList();
-            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "War Cry", "Stone Judgment", "Windstep" }, names);
+            CollectionAssert.AreEquivalent(new[] { "Fault Line", "Renewal", "War Cry", "Stone Judgment", "Mend" }, names);
         }
 
         [TestCase(AIDifficultyTier.Veteran)]

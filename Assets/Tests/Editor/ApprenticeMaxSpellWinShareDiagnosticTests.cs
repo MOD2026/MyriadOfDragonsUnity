@@ -207,6 +207,113 @@ namespace MyriadOfDragons.Tests
                       "(small aiWins denominator inflates variance in MaxSingleSpellWinShare independent of any real behavior change).");
         }
 
+        /// <summary>Empirical validation (BS-vetted task, LOCKED) of AIEnemySpellbookResolver.
+        /// ApplyApprenticeWindstepRemoval's Mend replacement: does the real, production
+        /// AIEnemySpellbookResolver.ResolveSpellbook(Apprentice) loadout (Windstep gone, Mend
+        /// added - no manual override needed here, this uses the exact same tier-resolution
+        /// path a real match does) actually cast Mend a real, non-shadowed amount, and does
+        /// its overall AI win rate stay inside the healthy range rather than regressing back
+        /// toward the old Windstep-included number?</summary>
+        [Test]
+        public void WindstepAblation_ApprenticeReplacementValidation()
+        {
+            List<Card> pool = LoadDatabase().AllCards.ToList();
+            const int trials = 3000;
+            const int baseSeed = 790001;
+
+            List<string> newLoadoutNames = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Apprentice).Select(s => s.Name).ToList();
+            Debug.Log($"[ReplacementValidation] Apprentice real resolved loadout: {string.Join(", ", newLoadoutNames)}.");
+            Assert.IsFalse(newLoadoutNames.Contains("Windstep"), "Setup: Windstep should be removed from Apprentice's real resolved loadout.");
+            Assert.Contains("Mend", newLoadoutNames, "Setup: Mend should be the real replacement.");
+            Assert.LessOrEqual(newLoadoutNames.Count(n => n == "Divine Bolt" || n == "Stone Judgment" || n == "Blood Price"), 1,
+                "MOS's max-1-AvatarStrike-equipped lock must hold for the replacement too.");
+
+            (double winRate, int aiWins, int completedTrials, Dictionary<string, int> castCounts, int totalCasts) =
+                RunRealApprenticeLoadout(pool, trials, baseSeed);
+
+            Debug.Log($"[ReplacementValidation] Apprentice: winRate={winRate:P1} ({aiWins}/{completedTrials}), totalAiCasts={totalCasts}, " +
+                      $"perSpellCasts=[{string.Join(", ", castCounts.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}={kv.Value}"))}].");
+
+            castCounts.TryGetValue("Mend", out int mendCasts);
+            castCounts.TryGetValue("Renewal", out int renewalCasts);
+            Debug.Log($"[ReplacementValidation] Apprentice: Mend casts={mendCasts} ({(totalCasts == 0 ? 0 : (double)mendCasts / totalCasts):P1} of all AI casts), " +
+                      $"Renewal casts={renewalCasts} - Mend NOT shadowed to zero means this is a real replacement, not a dead slot like Ember Wave was.");
+            Assert.Greater(mendCasts, 0, "Mend got zero real casts - it's shadowed exactly like Ember Wave was in the earlier ablation's condition D, not a real replacement.");
+
+            // The earlier corrected ablation measured baseline (spells off) at ~31.4-33.7% across
+            // its own repeats/seeds for Apprentice - reusing that same ballpark rather than
+            // re-running a fresh baseline here, since this test's real question is "does the NEW
+            // loadout's win rate look like the healthy 'Windstep removed' result (~38%) or drift
+            // back toward the old 'Windstep included' result (~31-34%)."
+            Debug.Log($"[ReplacementValidation] Apprentice: INTERPRETATION - new loadout winRate={winRate:P1} vs the corrected ablation's " +
+                      "own reference points (0fdd193: ~31-34% with Windstep, ~35-38% without) - " +
+                      (winRate >= 0.35
+                          ? "consistent with the healthy 'Windstep removed' range, not a regression back toward the old number."
+                          : "LOWER than the healthy range - Mend's addition may be dragging win rate back down, needs a closer look before treating this as settled."));
+        }
+
+        private (double winRate, int aiWins, int completedTrials, Dictionary<string, int> castCounts, int totalCasts) RunRealApprenticeLoadout(
+            List<Card> pool, int trials, int baseSeed)
+        {
+            const int avatarLevel = 25;
+            const int castleLevel = 15;
+            const AIDifficultyTier tier = AIDifficultyTier.Apprentice;
+
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+            empire.InitializeTCGModifiers();
+            var economy = new BattleController.MatchEconomy(empire.ResourceCap, empire.Turn1Resource, empire.StartingAvatarHealth);
+
+            int aiWins = 0;
+            int completedTrials = 0;
+            int totalCasts = 0;
+            var castCounts = new Dictionary<string, int>();
+
+            for (int i = 0; i < trials; i++)
+            {
+                if (i % 500 == 0) Debug.Log($"[ReplacementValidation] trial {i}/{trials}");
+                int seed = baseSeed + i;
+                UnityEngine.Random.InitState(seed);
+
+                BattleController controller = CreateController();
+                List<Card> playerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> enemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                // Real production path: enemyTier: Apprentice resolves the enemy spellbook via
+                // AIEnemySpellbookResolver.ResolveSpellbook, which now includes the Windstep
+                // removal/Mend replacement internally - no test-only override needed here.
+                controller.StartMatch(playerDeck, enemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: null, enemyTier: tier, rngSeed: seed);
+                controller.EnableMirroredEnemySpellsForPvE();
+                controller.DealFormationHand(controller.PlayerState);
+                controller.DealFormationHand(controller.EnemyState);
+                DeployWholeSquad(controller, controller.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(controller, AIArchetype.Balanced);
+
+                if (!controller.ConfirmFormation())
+                {
+                    UnityEngine.Object.DestroyImmediate(controller.gameObject);
+                    continue;
+                }
+
+                while (controller.Phase == BattlePhase.Combat) controller.AdvanceCombatTick();
+
+                completedTrials++;
+                if (controller.PlayerState.IsDefeated && !controller.EnemyState.IsDefeated) aiWins++;
+
+                foreach (SpellCastRecord cast in controller.SpellCastLog.Where(c => !c.CastByPlayer))
+                {
+                    totalCasts++;
+                    castCounts.TryGetValue(cast.SpellName, out int cur);
+                    castCounts[cast.SpellName] = cur + 1;
+                }
+
+                UnityEngine.Object.DestroyImmediate(controller.gameObject);
+            }
+
+            double winRate = completedTrials == 0 ? 0 : (double)aiWins / completedTrials;
+            return (winRate, aiWins, completedTrials, castCounts, totalCasts);
+        }
+
         /// <summary>Causal check, same pattern as VeteranPlusWindstepAblationTests
         /// (WindstepAblation_FourConditions, conditions A/B): the diagnostic above shows Windstep
         /// dominates Apprentice's MaxSingleSpellWinShare (76.0% pooled, stable), but co-occurring
