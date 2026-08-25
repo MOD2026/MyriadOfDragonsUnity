@@ -145,6 +145,21 @@ namespace MyriadOfDragons.UI
         // render into them") - non-raycasting and effectively invisible outside a guided step.
         private const float TitleY0 = 0.876f, TitleY1 = 0.884f;
 
+        // Formation/mode caption slot, ADDED 2026-08-25 (CC decision: "move", not widen/shrink).
+        // The caption used to sit in TitleY0..TitleY1 - a 0.008 sliver (8.64px at 1080) wedged
+        // between the board top (0.875) and the Top HUD floor (0.885). Its own 18pt text measures
+        // 20.00px, so it overflowed by 11.36px into the Top HUD region that the V4 collision table
+        // explicitly reserves ("no board, guide, tooltip, or combat text may render into them") -
+        // i.e. the code violated the rule its own comment cited, and that is what rendered on
+        // screen as two text blocks stacked on each other.
+        // V4 defines no slot for this caption, so this creates one in the only genuinely free
+        // full-width gutter in the region table: every region either ENDS at 0.195 (HandPanel,
+        // PrimaryAction) or STARTS at 0.225 (LaneLabels, PlayerBoard, LaneTotals, SpellRail),
+        // leaving 0.195-0.225 unoccupied across the full width. 0.197-0.223 keeps a ~2px margin on
+        // both sides and gives 28.08px of height for 20px of text. It also sits directly above the
+        // hand dock, which is where the player is already looking during Formation.
+        private const float CaptionY0 = 0.197f, CaptionY1 = 0.223f;
+
         // Battle Screen Production V4 board slot geometry, verbatim from the handoff's own
         // "Board geometry" section: "Each board row has three equal slots. A slot is 0.165
         // screen width by 0.088 screen height before internal card padding." At 1920x1080 that
@@ -2545,9 +2560,13 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void BuildTutorialGuidanceCaption(Transform canvasTransform, Font font)
         {
-            RectTransform panel = CreateBandPanel(canvasTransform, "TutorialGuidanceCaption", Color.clear, TitleY0, TitleY1);
+            RectTransform panel = CreateBandPanel(canvasTransform, "TutorialGuidanceCaption", Color.clear, CaptionY0, CaptionY1);
             _tutorialGuidanceCaption = CreateText(panel, "", 18, GoldTextColor, font);
             _tutorialGuidanceCaption.fontStyle = FontStyle.Bold;
+            // Truncate, not Overflow: even in its own roomy slot the caption must never be
+            // able to grow outside its rect into a neighbouring region.
+            _tutorialGuidanceCaption.verticalOverflow = VerticalWrapMode.Truncate;
+            _tutorialGuidanceCaption.horizontalOverflow = HorizontalWrapMode.Overflow;
             StretchFull(_tutorialGuidanceCaption.rectTransform);
             _tutorialGuidanceCaption.gameObject.SetActive(false);
         }
