@@ -1180,3 +1180,22 @@ declined rather than taken.
 actively authored are invisible to .unity_batch.lock (which only guards Unity process access, not
 file-write-in-progress state). Third time today a mid-write file broke another seat's run. No fix
 proposed yet, just flagged as a real gap in the parallel-work protocol.
+
+## Tutorial overflow mystery SOLVED: was a pollution artifact, real bug is cosmetic (2026-08-25, VS)
+
+Real measurement, diagnostic test deleted after use: actual overflow is exactly 10.2px per side
+(196-175.6=20.4, centered), matching VS's ORIGINAL arithmetic prediction. **The earlier 35px
+figure was corrupted by the still-live Canvas pollution bug at measurement time** - ~25px of it
+was stale leaked canvas artifacts, not real overflow. The pollution bug silently poisoned this
+unrelated investigation for hours - worth remembering as a case study in why order-dependent state
+leaks are dangerous beyond their obvious symptoms.
+
+Confirmed: belowCanvas = -20.80 (negative = inside canvas). Nothing is off-screen, no tap target
+lost, no input blocked. The earlier "unreachable tap target, MVP gate row 1" claim is confirmed
+WRONG, not just unproven. Real severity: minor cosmetic bleed (~10px card overlap into neighboring
+UI), not a gate issue.
+
+The originally-reverted GameBootstrap.cs fix (derive card height from real HandPanelMin/Max
+constants instead of stale hardcoded 196) is confirmed CORRECT IN SUBSTANCE - it was reverted for
+a false severity justification, which was the right call on the info available at the time. Now
+correctly re-requesting approval on accurate severity rather than re-applying unilaterally.
