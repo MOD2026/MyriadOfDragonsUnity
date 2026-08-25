@@ -4081,3 +4081,31 @@ buys convenience/predictability, not exclusive power. No compounding shortcut fo
 **BS's own sign-off: "READY FOR CC."** Implementation may now proceed - real entitlement coding in
 `VipSubscriptionOpenValues.cs`/`VipSubscriptionPresenter.cs` (WH's lane, same file WH already
 touched for the art fix).
+
+## Design-vs-implementation audit: 1 real gap found (Shop Loyalty), matching the VIP pattern exactly (2026-08-26)
+
+**Real, verified second instance of tonight's core lesson** (a locked design going quiet between
+docs and implementation with nobody flagging it): Shop Loyalty Points was locked as part of the SAME
+"Option C" directive as VIP (`SINGLE_BIBLE_MASTER_PLAN_2026-08-22.md:186/216-218`: "loyalty points on
+every purchase → redeem for memberships or specific cards... keep multi-tier pack + loyalty + VIP
+spirit"). Explicitly flagged as missing exactly once (`Shop_V1_Release_Contract.md:28,50`:
+"Loyalty/reward track: **None**... needs a `int shopMilestoneProgress` field and a milestone table")
+- then never mentioned again anywhere in the register's full history. **Verified myself: zero
+"loyalty" matches anywhere in `Assets/Scripts`, confirming no implementation exists.**
+
+**3 candidates checked and correctly ruled out, not silent gaps:** rewarded ads (Master Plan itself
+says "not locked yet"), Normal/High-draw pack odds (legitimately reconciled into the real pity/
+rarity-floor system, confirmed implemented), Treasury/inflation Market Credits tax (self-flagged
+"nothing simulated," correctly Phase-2-deferred, tracked in the currencies table).
+
+**One lower-confidence near-miss, not yet a confirmed gap:** "Gallery rewards at max level" -
+mentioned once in a bulleted "still directionally valid" list, no specific numbers or "locked"
+language, zero code. Real, worth a light check, but not confirmed to the same standard as Loyalty.
+
+**Real next step:** Loyalty needs the same frozen-file pattern as Empire buildings/Materials - a
+`shopMilestoneProgress` PlayerProfile field, per the real spec already written in
+`Shop_V1_Release_Contract.md`. Needs owner sign-off before any coding room touches it.
+
+**Not yet done, offered by the audit agent:** extending this same search to `Economy_Blueprint.md`
+and `tools/mechanics_v2_extract.txt` (repeatedly cited as sources of "still directionally valid"
+content, not originally in scope) - real candidate location for more of the same pattern.
