@@ -1345,3 +1345,11 @@ clears after success. Verified CR staged only its own 5 files - CombatPresentati
 CombatPresentationTests.cs correctly left untouched (VS's active work).
 
 CR's queue now empty except the live server validation, blocked on VS's compile fix.
+
+## CR self-review during lock wait, real gap found and documented (2026-08-25, 94dc514)
+
+RemoveFriendAsync is the only mutating Friends operation without optimistic-lock retry (deletes
+carry no WriteLock, so there's no conflict to retry against) - a concurrent Accept landing between
+load and delete could get silently discarded. Low severity, same accepted-scope class as Bazaar's
+own documented "no true cross-entity atomicity" limitation elsewhere. Documented explicitly via
+doc comment rather than left implicit, no behavior change. 21/21 still clean.
