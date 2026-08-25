@@ -2087,3 +2087,31 @@ commitment - consistent with the server-ledger risk already flagged for Defense'
 **Real practical implication, not GPT's framing but the honest read:** Empire Defense cannot even
 start prototyping for >=10-12 weeks minimum after Memory Expedition ships stable to real players,
 and the clock hasn't started at all until Memory is actually live with a real population reaching it.
+
+## Tactical Puzzle narrative framing - PARTIALLY LOCKED (2026-08-25, GPT, vetted - split decision)
+
+**LOCKED (mechanical/scope parts, verified safe):**
+- Framing: "War-Room Reconstructions" - the Empire preserves fixed tactical records; player studies a
+  known position and issues the best order, does not fight a live opponent or predict one. Avoids
+  prophecy framing (no supernatural authority claim over canonical outcomes).
+- No dedicated NPC host for Phase 1 - systemic "War Room Records"/"Tactical Records" institutional
+  voice, not a speaking character. Backed by real, properly-analogous citations this pass:
+  Hearthstone Puzzle Lab, Shadowverse Puzzles-under-Practice, LoR Challenges, Yu-Gi-Oh Master Duel's
+  tutorial/story split.
+- Explicit boundary vs Empire Defense (both hit the same building-rotation temptation, kept separate
+  on purpose): do NOT rotate Tactical Puzzle rules by building; do NOT scale puzzle state/solutions
+  from building levels; do NOT require a building upgrade to make a fixed puzzle solvable; do NOT
+  attach a different building host each week; do NOT use Tactical Puzzle to duplicate the
+  Tower/Empire Defense rotating-purpose intent.
+- If a host is added later: Academy Strategist as presentation role only, not gameplay authority -
+  curator of archived scenarios, precise/observant/calm personality, praises correct reasoning. Only
+  add once a visual prototype proves an avatar improves comprehension, not by default.
+
+**NOT LOCKED - sent back for correction:** GPT's second pass asserted specific claims about existing
+campaign tone ("matches the campaign's emphasis on command, evidence, preparation, earned mastery,"
+"the campaign's concern with incomplete and contested history") and referenced a `[Player Title]`
+convention as an existing leadership-title system. CC grepped docs/ and Assets/ - neither exists
+anywhere in the project. GPT's FIRST pass on this topic had correctly hedged ("I could not find the
+full story bible... should remain a framing layer until Command Centre checks it") - the second pass
+dropped that hedge without actually gaining any new access to story content. Sent back to redo the
+"why this fits" reasoning without unverified lore claims.
