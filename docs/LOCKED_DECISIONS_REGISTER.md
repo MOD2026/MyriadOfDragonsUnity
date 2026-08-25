@@ -932,11 +932,19 @@ L18 (between existing L16/L20 unlocks). Seismic Swap = Avatar L24. All permanent
 unlocks, no Shop/drop/event/trade/paid path, no new finale books (one-spell-per-finale rule
 preserved), ownership sync grants but does not auto-equip. Existing assignments unchanged.
 
-**Real net result, now actually true (previous claim on this was corrected 2026-08-25 for
-overclaiming before this round landed): all 36 spells have both a real implementation and a real
-acquisition channel.** Remaining work is implementation only: wiring these 4 channels + the
-earlier 8 into SpellUnlockResolver, the 6-slot loadout expansion, AI loadout cap, then the
-mandated matrix remeasurement.
+**CORRECTED AGAIN 2026-08-25 (CR caught this precisely before committing the wiring, same
+discipline as the earlier catch):** "36/36 reachable" still overclaims by 1. **Aegis Return is a
+permanent exception** - its own acquisition note has always been "event book later," and no event
+system exists anywhere in the game (same status noted when Ember Guard/Earthward/Gale Break's
+channels were assigned earlier - Aegis Return was the original template for "bare chapter number,
+no real channel yet"). This is not a new gap CR introduced, just precision CC failed to hold twice
+now on a round number. **Real, accurate count: 35/36 spells have both a real implementation and a
+real acquisition channel; Aegis Return remains genuinely unreachable until an event system is
+built (out of scope, no owner request to build one).**
+
+Wiring in progress: the 4 new channels + earlier 8 into SpellUnlockResolver, plus a real audit
+test asserting every catalog spell except Aegis Return is reachable (CR, in flight). Remaining
+after that: AI loadout cap, then the mandated matrix remeasurement.
 
 ## Pollution culprit #1 FOUND: CampaignStageBattleConfigurationTests (2026-08-25, VS bisect) - NOT fully closed
 
