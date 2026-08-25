@@ -4242,3 +4242,32 @@ refused these because they require editing CampaignMapPresenter.cs/HomePagePrese
 ShopPresenter.cs - Metagame-owned, on CR's own "must NOT edit" list, and correctly stated a peer
 dispatch cannot grant that escalation. This is the right call, not a gap to force through CR - these
 3 need either WH or explicit owner authorization to cross the ownership boundary.
+
+## BS second-pass bounce-back LOCKED, one real arithmetic correction, combined-sim required before final lock (2026-08-26)
+
+**Verified BS's own recompute:** `1,250 x 365 = 456,250` is arithmetically correct, but omits the
+weekly completion bonus (2,500 Gold for 7/7 circuits in a UTC week) - that's another ~130,000/year
+(52 weeks x 2,500), so the real realistic annual max is closer to **586,250**, not 456,250. Minor
+correction, doesn't change the qualitative conclusion (still well below the 1,779,550 Ch1-10 Empire
+sink on its own), but the precise number matters for the combined-source simulation BS is
+requesting next.
+
+**Final status, all three, now properly second-passed:**
+1. **PvP minimum slice - industry-validated, ready.** No further check needed.
+2. **Loyalty ratio/reward curve - reasonable, explicitly NOT benchmarked.** BS's own honest
+   assessment: no reliable cross-game "points per Gem" standard exists (games hide this behind IAP
+   bundles). Keep as provisional. Needs a real F2P/regular-spender/whale 6-month simulation before
+   permanent lock - matches the standing F2P/whale diagnostic requirement.
+3. **Solo Collection Circuit rewards - internally plausible, NOT finally locked.** BS's real
+   condition: the ~32-37% figure (corrected: ~33% of Ch1-10 total using the real 586,250 annual max)
+   excludes Empire Expedition/Battle Pass/VIP/future guild bonuses running concurrently. **Do not
+   treat 1,250 Gold/day as final until a combined-source simulation is run.** If combined annual
+   sources for an active F2P account exceed roughly one full Empire L30 sink, BS's explicit
+   direction: reduce the Circuit's Gold component first (750-1,000/day), never inflate construction
+   costs to compensate.
+
+**Real next step, dispatched as coding work (per MOS non-negotiable #4 - simulate in-engine, never
+externally):** a real combined-source economy simulation test - Solo Collection Circuit + Empire
+Expedition + Battle Pass + current VIP Stamina-claim value, run across simulated F2P/regular/whale
+profiles over a 6-month window, checked against the real Empire L30 sink total. This is what
+actually answers BS's open question, not more arithmetic in chat.
