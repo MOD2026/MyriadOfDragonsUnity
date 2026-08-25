@@ -3713,3 +3713,19 @@ rather than under `Resources/` is fine - the prefab references it by GUID, which
 the project regardless of folder. Confirmed the sheet is genuinely 1024x1024 so the flipbook's 4x4
 assumption produces exact 256px cells, closing the one open assumption `FlipbookFramesTests` couldn't
 verify on its own (pure math can't confirm the real asset matches the grid it's told about).
+
+## Work assignment locked across all 3 coding rooms (2026-08-26)
+
+Per the new standing order (CC dispatches, does not code) - assigning every real open item from the
+locked to-do list to whichever room already owns the relevant context, so nothing sits idle and
+nothing gets redone from scratch by the wrong room.
+
+- **VS**: tac_w1_m01/m02 redesign (BS's verified fixes) - VS owns the solver/schema/harness this
+  continues, natural owner, avoids CR re-deriving context it doesn't have. Dispatched via mailbox.
+- **CR**: full-suite regression baseline (below) - real, self-contained, needed after tonight's
+  volume of landed changes (audio, VFX, flipbook, Empire art, Windstep bands, puzzle content), and
+  keeps CR fed with real work per the owner's explicit instruction not to let it idle.
+- **WH**: VIP/Friends art-wiring fix - already dispatched via mailbox, WH's lane (Metagame-shell
+  presenters), not yet confirmed landed.
+
+No task assigned to CC beyond dispatch/verify, per the standing order locked this session.
