@@ -30,6 +30,7 @@ namespace MyriadOfDragons.Tests
             {
                 if (spawned != null) Object.DestroyImmediate(spawned);
             }
+            _spawned.Clear();
 
             SaveSystem.ClearRootDirectoryOverride();
             SaveSystem.ResetCurrentProfileForTests();
@@ -67,6 +68,21 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(bootstrapObject);
             GameBootstrap bootstrap = bootstrapObject.AddComponent<GameBootstrap>();
             bootstrap.Initialize();
+
+            // GameBootstrap.Initialize() creates Canvas/EventSystem/CardDatabase/BattleController
+            // as separate root GameObjects, not children of this fixture's own object - so adding
+            // only the bootstrap object to _spawned left them alive after TearDown, for the rest of
+            // the Unity process. Every later fixture that does GameObject.Find("Canvas") then found
+            // THIS stale one instead of its own: RarityFrameRenderingTests looked up a HandRow with
+            // no cards in it (Card_warrior null) and TutorialTeachingOverlayTests sized the stale
+            // canvas instead of its own (a 234px geometry shift). Both were false failures that only
+            // appeared in a continuous full-suite run. Same collect-then-destroy pattern every other
+            // GameBootstrap fixture in this suite already uses.
+            foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
+            {
+                GameObject autoSpawned = GameObject.Find(spawnedName);
+                if (autoSpawned != null && !_spawned.Contains(autoSpawned)) _spawned.Add(autoSpawned);
+            }
 
             HashSet<string> normalDealtIds = new HashSet<string>(bootstrap.Battle.PlayerState.Hand
                 .Concat(bootstrap.Battle.PlayerState.DrawPile)
@@ -108,6 +124,21 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(bootstrapObject);
             GameBootstrap bootstrap = bootstrapObject.AddComponent<GameBootstrap>();
             bootstrap.Initialize(); // boots with no saved deck yet - the pre-Deck-Builder state
+
+            // GameBootstrap.Initialize() creates Canvas/EventSystem/CardDatabase/BattleController
+            // as separate root GameObjects, not children of this fixture's own object - so adding
+            // only the bootstrap object to _spawned left them alive after TearDown, for the rest of
+            // the Unity process. Every later fixture that does GameObject.Find("Canvas") then found
+            // THIS stale one instead of its own: RarityFrameRenderingTests looked up a HandRow with
+            // no cards in it (Card_warrior null) and TutorialTeachingOverlayTests sized the stale
+            // canvas instead of its own (a 234px geometry shift). Both were false failures that only
+            // appeared in a continuous full-suite run. Same collect-then-destroy pattern every other
+            // GameBootstrap fixture in this suite already uses.
+            foreach (string spawnedName in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
+            {
+                GameObject autoSpawned = GameObject.Find(spawnedName);
+                if (autoSpawned != null && !_spawned.Contains(autoSpawned)) _spawned.Add(autoSpawned);
+            }
 
             List<string> confirmedAfterBoot = database.AllCards
                 .Select(card => card.Id)
