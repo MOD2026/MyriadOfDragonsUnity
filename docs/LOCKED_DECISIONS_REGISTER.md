@@ -1353,3 +1353,29 @@ carry no WriteLock, so there's no conflict to retry against) - a concurrent Acce
 load and delete could get silently discarded. Low severity, same accepted-scope class as Bazaar's
 own documented "no true cross-entity atomicity" limitation elsewhere. Documented explicitly via
 doc comment rather than left implicit, no behavior change. 21/21 still clean.
+
+## CORRECTION: CC misattributed a mid-write break to 090b146 - that commit was fine (2026-08-25, VS)
+
+CC's earlier "confirmed real" finding on FinalBeatFor/CueResolveChime missing was itself a
+measurement error - CC inspected the live WORKING TREE, not the commit. VS proved via
+`git show 090b146:<file>` that every symbol the test used was defined in that commit; it was
+internally consistent and its 15/15 was real. What CR actually hit was VS's OWN subsequent
+mid-rebuild working tree (rewriting CombatPresentation.cs first, tests second, non-atomically,
+after the locked spec landed) - a genuine ~90-second inconsistent-state window, unrelated to
+090b146. CC's symptom report (FinalBeatFor missing) was accurate at the moment checked; the
+attribution to a specific commit was wrong.
+
+**VS's own honest accounting: this is the 5th mid-write tree break of the session, and the first
+one VS itself caused** (the other 4 were reported as other seats' doing: Ch11/12, Ch13,
+MemoryExpeditionShellTests, and the break that killed VS's own PlayMode probe). Same standard
+applied to itself. Fix adopted: write ALL interdependent files before running or ending a turn -
+never leave a half-updated API visible mid-rewrite. This extends c52cd0d (which covers holding
+edits during another seat's LOCK) to a related but distinct hole: an inconsistent intermediate
+state from your OWN non-atomic multi-file rewrite, not just another seat's untracked file.
+
+**Real lesson for CC specifically: verify against `git show <commit>:<file>`, not the live working
+tree, when attributing a break to a specific commit** - the working tree reflects whatever's
+happening right now, which may be several commits and several seats past the one being checked.
+
+TREE NOW CLEAN: HEAD 94dc514, 0 error CS, 119/119 (CombatPresentationTests 26/26 +
+BattleLogicTests 92/92). CR unblocked, resuming live server verification.
