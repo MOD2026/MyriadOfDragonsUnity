@@ -3819,3 +3819,12 @@ hierarchy's real world rects via `GetWorldCorners`, check depth-first draw order
 backdrop isn't flagged as "overlapping" everything by design, flag any non-decorative art drawn
 AFTER an interactive control that geometrically overlaps it. Report any real bug found the same way
 the settings-gear case was - don't just add coverage, fix what it catches.
+
+## CR identity confirmed: myriadofdragonsunity-34 (2026-08-26)
+
+CR self-identified via cross-session message (its prior sends to "myriadofdragonsunity-89" were
+bouncing - that address no longer resolves). Confirmed real by matching against already-verified
+work: 0ee7385 (Windstep bands), 3649c96 (Windstep ablation tests correctly [Ignore]d) - both
+independently verified earlier this session before this identity ping arrived, not accepted on the
+self-report alone. Replied confirming. Use this exact address for CR going forward until it churns
+again (per the standing reminder that session names/addresses are not stable across the session).
