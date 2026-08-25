@@ -3767,3 +3767,33 @@ bug, do not dispatch to CR/WH for this:**
 **Real next step for category 3: a UI (image-gen) request for these 3 screens, once BS/owner decide
 they're worth prioritizing** - same category as Home V3's hero tiles before they existed. Not a
 "movement is slow" coding problem - there is nothing yet for a coding seat to wire.
+
+## VIP/Friends REAL fix landed (2026-08-26, WH+Cursor, verified bee2c1f) - shells were fine, wells weren't
+
+WH's own diagnosis is more precise than either my false alarm or my retraction: shells WERE already
+correctly loaded via `ApplyFullscreenShell` (confirming my retraction), but state/benefit/
+relationship/action wells were still flat colors - the approved atlas art existed but was never
+sliced/applied to any socket/row/button. Real fix, read the diff myself: `LoadHorizontalAtlasCell`
+slices a Single-mode atlas into equal-width runtime cells via `Sprite.Create`, with a try/catch for
+non-readable textures (correctly matches the `.meta` Read/Write-enabled changes in the same commit).
+Also added opaque letterbox backing (Bazaar/Chat pattern). Per the new standing order, did not
+re-run the EditMode suite myself - accepted WH's reported 6/6 (`VipSubscriptionShellTests` 3/3,
+`FriendsShellTests` 3/3) based on reading the real diff, HEAD ordering confirmed consistent
+(75a2f28 correctly precedes bee2c1f).
+
+## Tactical Puzzle: m01 FIXED, m02's zero-action solve survives a SECOND redesign (2026-08-26, VS, verified c3e937b)
+
+**5 of 6 now pass** (e01/e02/h01/h02/m01). tac_w1_m01 confirmed fixed - exactly one solving line
+(Windstep to Front), the Back Fire Golem closes the retreat option that was tying with it.
+
+**tac_w1_m02 still solves in zero actions - verified the arithmetic myself, matches exactly:**
+Middle lane with the locked +1 Health bonus: mountain_harpy 2atk/2hp + goblin_shaman 3atk/4hp = lane
+totals 5atk/6hp. Enemy Ogre 4atk/5hp (with the same +1 Middle bonus). Player's 5 dmg kills the Ogre
+(exactly 5hp); Ogre's 4 dmg kills the 2hp harpy, remaining 2 dmg carries to the 4hp shaman, which
+survives. Player holds Middle unaided - ProtectLane satisfied with zero orders, again.
+
+VS correctly did NOT guess a replacement card itself - gave the precise constraint instead: the
+enemy Middle unit needs attack that clears the player's 6hp pool while having enough HP to survive
+their 5 combined attack. Which card satisfies that is BS's call. SeismicSwap's legality (Middle has
+1 free slot, archer_dragon needs 2, Windstep stays illegal) was reverified correct - only the
+"no-action fails" half of the redesign was wrong, for the second time on this exact lane.
