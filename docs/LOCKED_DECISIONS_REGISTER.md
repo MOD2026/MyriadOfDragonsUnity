@@ -1950,3 +1950,25 @@ below the run average (casting correlates with faster finishes, never slower).
 Real open question, NOT decided here: whether the shared ±15% tick-ratio band needs tier-specific
 treatment (same treatment the other three Novice bands already got). Flagged to GPT for a real
 decision, not guessed.
+
+## Tick-ratio band fix - LOCKED (2026-08-25, GPT, vetted)
+
+**Decision: do NOT widen the shared ±15% band.** The aggregate tick-ratio metric is confounded by
+cast-state composition (mixes zero-cast and any-cast trials in different proportions per tier), so
+it isn't cleanly measuring AI timing behavior - per CR's root-cause finding (commit 6733dc6).
+
+**Fix: split the metric, not the threshold.** For all tiers:
+1. Zero-cast trials: baseline ticks vs AI-on ticks (matched/paired seeds).
+2. At-least-one-cast trials: baseline ticks vs AI-on ticks (matched/paired seeds).
+Apply the existing shared ±15% band to each matched cast-state comparison separately. Keep
+zero-cast frequency itself as a separate tier-specific AI metric (Novice already has one:
+AiCastRateOfOpportunity 15-35%).
+
+Apprentice's current aggregate failure (baseline 8.35, aggregate 9.93, ratio 1.189) becomes
+descriptive telemetry once split, not a balance failure - shared band stays intact for the
+corrected metric. **Apprentice gets no permanent wider aggregate band.**
+
+**Fallback only if the metric refactor can't land immediately:** provisional Apprentice band
+0.85-1.25 (not 1.30 - do not widen further than the measured 1.189 needs). Requires another
+>=2000-trial confirmation run before this provisional band can be locked. This is a stopgap, not
+the fix - CR should refactor the metric itself as the real fix.
