@@ -12,6 +12,22 @@ is still the full history/reasoning; this is the fast-lookup layer that was miss
 
 ---
 
+## STANDING ORDERS (check before ANY dispatch, every turn - constraints, not tasks)
+
+Current operating constraints from the owner. A dispatch that violates a row here is wrong even if
+the task itself is real. Every owner instruction that constrains future action gets a row here IN
+THE SAME TURN it's given - never only recorded as prose in a log entry. Added 2026-08-25 after
+"stop at chapter 18" was logged as narrative deep in a ship entry, then violated one turn later
+because nothing at turn-start surfaced it.
+
+| Since | Constraint | Lifted when |
+|---|---|---|
+| 2026-08-25 | Chapter production HELD at 18 - no Ch19+ dispatch | Owner explicitly lifts it (asked once, no answer yet) |
+| 2026-08-25 | WH batch size ~50% up from single-atom tasks; owner is LIVE (15-30 min deliverable band) | Owner signals stepping away (then batch freely) |
+| 2026-08-25 | Frozen-file edits (PlayerProfile.cs etc.) need a vetted, locked field list BEFORE the edit - per-case, never blanket | Standing rule, does not lift |
+| 2026-08-25 | Empire Defense: design-only, behind evidence gate - no build/art/story dispatch | Memory Expedition live + gate criteria met (10+ wks) |
+| 2026-08-25 | Windstep ablation conclusions pre-facfe8a are VOID (enemyTier bug) - never cite them | Permanent |
+
 ## PENDING DISPATCH (check this first, every turn)
 
 A decision logged below is NOT the same as a decision delivered. This table tracks every dispatch

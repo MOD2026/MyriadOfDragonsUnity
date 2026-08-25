@@ -93,8 +93,18 @@ CC's private memory (`~/.claude/projects/.../memory/`) must NOT be used for anyt
 — decisions, milestones, coordination state all go in `docs/`, visible to every seat and the owner.
 
 **Source of truth:** `docs/LOCKED_DECISIONS_REGISTER.md` is the live, continuously-updated decision
-log — check its "PENDING DISPATCH" table at the start of every turn before anything else.
-`docs/SINGLE_BIBLE_MASTER_PLAN_2026-08-22.md` is superseded, do not update it.
+log — at the start of every turn, before anything else, read BOTH tables at its top: STANDING
+ORDERS (owner constraints — a dispatch violating one is wrong even if the task is real) and PENDING
+DISPATCH (handoffs not yet confirmed). `docs/SINGLE_BIBLE_MASTER_PLAN_2026-08-22.md` is superseded,
+do not update it.
+
+**The conversation is never the system of record.** This chat runs for weeks and gets compressed
+underneath CC — anything that exists only as chat text WILL eventually be flattened or lost. Every
+owner instruction that constrains future action (a hold, a mode, a batch size, a "never do X
+again") gets written to STANDING ORDERS in the same turn it's given — not just acknowledged in the
+reply, not recorded only as prose inside some log entry. If it isn't in a file, it doesn't exist.
+Established 2026-08-25 after "stop at chapter 18" was acknowledged, logged as narrative, and then
+violated one turn later because no turn-start check surfaced it.
 
 **Verify before locking, always:**
 - Never accept a GPT (BS/ST/UI) reply, or a peer seat's self-report, at face value. Check citations
