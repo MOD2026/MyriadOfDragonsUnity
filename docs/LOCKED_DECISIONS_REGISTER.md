@@ -29,6 +29,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-25 | Empire Defense: design-only, behind evidence gate - no build/art/story dispatch | Memory Expedition live + gate criteria met (10+ wks) |
 | 2026-08-25 | Windstep ablation conclusions pre-0fdd193 are VOID (two stacked confounds: enemyTier spellbook bug, then gate-probability bug) - only 0fdd193's numbers are real | Permanent |
 | 2026-08-26 | **CC does NOT write/edit code, run Unity EditMode batches, or commit code changes directly.** Owner needs to relay messages to CC and CC occupying the shell with long-running commands blocks that. All coding (fixes, features, verification-by-running-tests) is CR's job scope now - CC diagnoses, packages a clear task, dispatches to CR (idling, underused), and verifies CR's returned commit/diff. CC may still use read-only Bash (grep/git log/git show/git diff) for diagnosis - that is not "coding". Editing docs/register/mailbox files is not code and stays CC's job. | Owner explicitly lifts it |
+| 2026-08-26 | **WH (Cursor) has NO direct channel from CC - not `tools/seat_mailbox.md` (that is VS's channel only, has real watchers), not `SendMessage`.** WH can only be reached by the owner manually pasting text CC hands over. Every WH task MUST be given to the owner as a standalone, copy-paste-ready fenced code block in the chat reply itself - never written into the mailbox file, never assumed sent. CC has made this exact channel-routing mistake twice already this session (once caught by the owner, once self-corrected) - re-verify the channel before every WH dispatch, don't default to the mailbox out of habit. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
 
@@ -3798,6 +3799,10 @@ their 5 combined attack. Which card satisfies that is BS's call. SeismicSwap's l
 "no-action fails" half of the redesign was wrong, for the second time on this exact lane.
 
 ## Real WH task found: 20 of 23 screens have zero layout/geometry test coverage (2026-08-26)
+
+**Channel correction:** this was mistakenly written into `tools/seat_mailbox.md` (VS's channel) -
+same routing mistake now locked against in STANDING ORDERS above. WH has no direct channel from CC;
+this task was given to the owner as a paste-ready block in chat instead, per the corrected rule.
 
 Owner asked why WH has no pending work. Checked systematically: of 23 UI presenters, only
 `EmpireBuildingDetailPresenter`/`EmpirePresenter` (via `EmpireBuildingDetailLayoutTests.cs`) and
