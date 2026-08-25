@@ -313,6 +313,122 @@ namespace MyriadOfDragons.Tests
             Assert.IsNull(target);
         }
 
+        // ---------- RepositionSelectionState: the player-facing tap-to-target flow ----------
+
+        [Test]
+        public void Windstep_HappyPath_UnitThenDestination_BuildsARealTarget()
+        {
+            var side = MakeState();
+            BattleCardInstance unit = DeployUnit(side, Lane.Front, rarity: 1);
+            var state = new RepositionSelectionState();
+
+            state.BeginWindstep(spellIndex: 3);
+            Assert.AreEqual(RepositionSelectionState.Step.WindstepSelectingUnit, state.Current);
+            CollectionAssert.Contains(state.LegalUnitCandidates(side), unit);
+
+            Assert.IsTrue(state.TrySelectUnit(side, unit));
+            Assert.AreEqual(RepositionSelectionState.Step.WindstepSelectingDestination, state.Current);
+            CollectionAssert.AreEquivalent(new[] { Lane.Middle }, state.LegalDestinationLanes(side));
+
+            Assert.IsTrue(state.TrySelectDestination(side, Lane.Middle));
+            RepositionTarget target = state.TryBuildWindstepTarget(side, Lane.Middle);
+
+            Assert.IsNotNull(target);
+            Assert.AreSame(unit, target.UnitA);
+            Assert.AreEqual(Lane.Middle, target.DestinationLaneForA);
+            Assert.IsNull(target.UnitB);
+        }
+
+        [Test]
+        public void Windstep_TapOnIllegalUnit_IsRejected_StateUnchanged()
+        {
+            var side = MakeState();
+            BattleCardInstance unit = DeployUnit(side, Lane.Front, rarity: 1);
+            BattleCardInstance notOnThisSide = MakeUnit(rarity: 1); // never deployed anywhere
+            var state = new RepositionSelectionState();
+            state.BeginWindstep(spellIndex: 3);
+
+            bool accepted = state.TrySelectUnit(side, notOnThisSide);
+
+            Assert.IsFalse(accepted);
+            Assert.AreEqual(RepositionSelectionState.Step.WindstepSelectingUnit, state.Current,
+                "A rejected tap must not advance the flow.");
+            Assert.IsNull(state.FirstUnit);
+        }
+
+        [Test]
+        public void Windstep_TapOnIllegalDestination_IsRejected_DoesNotBuildATarget()
+        {
+            var side = MakeState();
+            BattleCardInstance unit = DeployUnit(side, Lane.Front, rarity: 1);
+            var state = new RepositionSelectionState();
+            state.BeginWindstep(spellIndex: 3);
+            state.TrySelectUnit(side, unit);
+
+            // Back is not adjacent to Front - illegal.
+            bool accepted = state.TrySelectDestination(side, Lane.Back);
+            RepositionTarget target = state.TryBuildWindstepTarget(side, Lane.Back);
+
+            Assert.IsFalse(accepted);
+            Assert.IsNull(target, "TryBuildWindstepTarget must not hand back an illegal target just because both taps happened.");
+        }
+
+        [Test]
+        public void SeismicSwap_HappyPath_TwoUnits_BuildsARealTarget()
+        {
+            var side = MakeState();
+            BattleCardInstance front = DeployUnit(side, Lane.Front, rarity: 1);
+            BattleCardInstance back = DeployUnit(side, Lane.Back, rarity: 1);
+            var state = new RepositionSelectionState();
+
+            state.BeginSeismicSwap(spellIndex: 4);
+            CollectionAssert.AreEquivalent(new[] { front, back }, state.LegalUnitCandidates(side));
+
+            Assert.IsTrue(state.TrySelectUnit(side, front));
+            Assert.AreEqual(RepositionSelectionState.Step.SeismicSwapSelectingSecondUnit, state.Current);
+            CollectionAssert.AreEquivalent(new[] { back }, state.LegalUnitCandidates(side));
+
+            Assert.IsTrue(state.TrySelectUnit(side, back));
+            RepositionTarget target = state.TryBuildSeismicSwapTarget(side, back);
+
+            Assert.IsNotNull(target);
+            Assert.AreSame(front, target.UnitA);
+            Assert.AreSame(back, target.UnitB);
+        }
+
+        [Test]
+        public void SeismicSwap_SecondTapOnSameUnitAgain_IsRejected()
+        {
+            var side = MakeState();
+            BattleCardInstance front = DeployUnit(side, Lane.Front, rarity: 1);
+            DeployUnit(side, Lane.Back, rarity: 1); // a real partner must exist or nothing here is legal at all
+            var state = new RepositionSelectionState();
+            state.BeginSeismicSwap(spellIndex: 4);
+            state.TrySelectUnit(side, front);
+
+            bool accepted = state.TrySelectUnit(side, front); // tapping the same unit again
+
+            Assert.IsFalse(accepted);
+            Assert.AreEqual(RepositionSelectionState.Step.SeismicSwapSelectingSecondUnit, state.Current);
+        }
+
+        [Test]
+        public void Cancel_ClearsState_EvenMidFlow()
+        {
+            var side = MakeState();
+            BattleCardInstance front = DeployUnit(side, Lane.Front, rarity: 1);
+            var state = new RepositionSelectionState();
+            state.BeginSeismicSwap(spellIndex: 4);
+            state.TrySelectUnit(side, front);
+
+            state.Cancel();
+
+            Assert.AreEqual(RepositionSelectionState.Step.Idle, state.Current);
+            Assert.IsFalse(state.IsActive);
+            Assert.IsNull(state.FirstUnit);
+            Assert.IsNull(state.TryBuildSeismicSwapTarget(side, front), "A cancelled selection must never still produce a castable target.");
+        }
+
         // ---------- helpers ----------
 
         private static PlayerBattleState MakeState() =>
