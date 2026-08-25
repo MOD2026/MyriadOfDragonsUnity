@@ -3194,3 +3194,25 @@ loader is proven via tests building their own JSON, not by shipping real content
 
 Both real Empire building work threads (save fields + entry points, dispatched hours ago) are now
 fully closed.
+
+## CC: TacticalPuzzleLayoutTests shipped - a real coverage gap, and a real self-caught false positive (2026-08-25, CC, verified 8473d33 / 252aeb2)
+
+Picked up directly (own lane, no seat was working on it) rather than waiting - a real, ready,
+unassigned gap: TacticalPuzzlePresenter got real art (383d02d) with zero regression coverage,
+unlike EmpireBuildingDetailPresenter which got EmpireBuildingDetailLayoutTests right after its own
+art landed.
+
+**First version had a real false positive, caught by actually running it, not by reasoning about it
+abstractly:** compiled clean (0 error CS) but failed 3/4 on the first real run. The full-screen
+Backdrop image (which now carries real art) was flagged as "overlapping" every button on screen,
+because a naive rect-overlap check can't distinguish "drawn first, safely behind the button" from
+"drawn after, actually blocking the tap." Fixed by checking hierarchy draw order
+(GetComponentsInChildren's depth-first order matches Unity's real paint/raycast order) - only art
+that comes AFTER a button in that order can actually intercept its tap.
+
+**Re-run: 4/4 passing, 0 error CS, HEAD 8473d33 before -> 252aeb2 after.**
+
+**Real finding for the shared pattern, not urgent, worth knowing:** EmpireBuildingDetailLayoutTests
+has the identical gap (no draw-order check) but has never tripped it, purely because its own Dimmer
+image happens to carry no sprite (sprite==null already filters it out for a different reason). If
+that ever changes, it would silently false-positive the same way this one just did.
