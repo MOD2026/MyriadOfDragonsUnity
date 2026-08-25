@@ -2805,3 +2805,34 @@ Code function alone isn't a complete answer. Real fork not yet resolved: hand-bu
 ingestion pipeline + data store, or add com.unity.services.analytics (same Unity Gaming Services
 platform already in use) which natively handles custom events/retention cohorts/dashboards. Not
 blocking (10+ weeks out) but should be answered before any build work is dispatched.
+
+## CRITICAL: Windstep ablation methodology bug found - 2 prior "locked" conclusions now SUSPECT (2026-08-25, CR, verified by CC directly against source)
+
+**Confirmed real, not a guess - CC read BattleController.cs:479-481 directly.** When StartMatch is
+called with a real `enemyTier` value, `EnemySpellbook` is resolved ENTIRELY via
+`AIEnemySpellbookResolver.ResolveSpellbook(enemyTier.Value)` - a tier-authored catalogue lookup that
+ignores the `equippedSpellIds` parameter completely for the enemy side. `equippedSpellIds` only ever
+affects the PLAYER's spellbook.
+
+**Both VeteranPlusWindstepAblationTests (the original 4-condition study) and the Apprentice copy in
+cec5f37 called StartMatch with a real `enemyTier` set AND hand-edited `equippedSpellIds` to remove
+Windstep for the "B_WindstepRemoved" condition.** Since neither harness has a player-side casting
+loop, the player's spellbook edit was inert either way, and the enemy's real loadout (Windstep
+included) was used in EVERY condition regardless of what the test thought it was testing.
+
+**THEREFORE: the following two "LOCKED"/"vetted" entries are now SUSPECT, not confirmed:**
+- "Windstep ablation DECISIVE" (VeteranPlus, 0c5d276) - the <1pp win-rate delta across A/B/C/D was
+  noise between identical configurations, not evidence of non-causation.
+- "Apprentice MaxSingleSpellWinShare root-caused - availability bias" (cec5f37) - same bug, same
+  invalidity.
+
+**Fix, already applied in the new permanent SpellRemovalWinRateDelta gate:** pass `enemyTier: null`
+so `equippedSpellIds` actually resolves for the enemy via `ResolveMatchSpellbook`, confirmed via
+source read of that method (resolves each id against the full catalog directly when explicitly
+supplied - this is the path that actually respects a hand-edited spell list).
+
+**CR is re-measuring Windstep's real causal effect right now using the corrected method, for
+Apprentice first.** Not assuming either direction - the "availability bias" conclusion may hold up
+under a real test, or may not. Do not cite either prior "decisive" entry as current until the
+corrected number lands. VeteranPlus's original 4-condition study needs the same re-measurement once
+Apprentice's is confirmed.
