@@ -1618,3 +1618,36 @@ functions stay unavailable regardless of Castle gating.
 
 Only after this real evidence table is complete does a second GPT round derive actual Castle-pair
 numbers per building - no numbers assigned blind again.
+
+## MAJOR FINDING: only 3 of 11 buildings are actually implemented (2026-08-25, CR audit)
+
+Real, code-verified audit (direct file reads + spot-verified Explore search), every field tagged
+[LIVE]/[DOC]/[DESIGN]/[UNKNOWN]. Governing fact: `EmpireBuildingId` enum only has Castle/Barracks/
+Gate - the v2 11-building roster (EmpireBuildingRoster.cs) is explicitly documented in its own code
+comment as "not wired into BattleController/GameBootstrap/UI, does not touch PlayerProfile/Save."
+The other 8 buildings CANNOT be started through the one real construction pipeline.
+
+**Real status per building:**
+- **Castle, Barracks, Gate: REAL** - continuous/milestone level shapes confirmed live, real cost
+  tables, real timers, real Castle-interlocks for Barracks/Gate (Gate's register example
+  Castle15->Gate13 is itself flagged stale by the code's own comment - don't treat as current).
+- **Embassy: REAL FORMULA, DEAD CODE** - the 6-band charges/reduction curve is correct, pure-function
+  code, but never called from anywhere (grepped project-wide, zero callers).
+- **Storage, Training Grounds, Quarry, Academy, Tree of Knowledge, Prison: NO IMPLEMENTATION AT
+  ALL.** No level field, no breakpoints, no passive production, no research system, no captive
+  mechanic - just roster text and (for some) static UI copy strings. Their roster "Fully
+  functional" ServerStatus tags are false as of current code - real discrepancy between the design
+  doc and the actual codebase.
+- **Guild Hall: REAL but flat** - no level ladder by design, its "function" is a real entry point
+  into the already-deployed Guild Expedition CloudCode module (separate system, not gated by any
+  Guild Hall level since none exists).
+
+**Construction slot: single global slot for all 11**, not per-building - in practice only
+Castle/Barracks/Gate ever compete for it today since nothing else can start.
+
+**Real implication for the interlock question:** deriving Castle-pair numbers for the other 7
+buildings isn't just "verify their shape first" - THE UNDERLYING BUILDING MECHANIC DOESN'T EXIST
+YET for 7 of 11. An interlock number would have nothing real to gate. This is a genuinely bigger
+scope question than originally framed: build the missing 7 buildings' actual mechanics (a real,
+substantial feature each), or leave them as structure-locked placeholders and drop the
+"11-building interlock" ambition down to the 3-4 buildings that actually function.
