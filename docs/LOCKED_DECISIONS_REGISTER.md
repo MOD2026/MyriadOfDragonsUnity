@@ -1291,12 +1291,14 @@ one-time closure.
 
 ## Vertical-slice spec REFINED and LOCKED (2026-08-25, GPT) - vetted, one error corrected
 
-**Vetting note (CC caught before locking):** GPT's reply claimed the draft's "400ms AvatarStrike
-estimate" was wrong and corrected it to 1000ms. This is a false correction - the draft never had
-AvatarStrike at 400ms; 400ms was the basic-attack figure, and AvatarStrike was already correctly
-1000ms (300+200+150+350). GPT cross-attributed two different targets' numbers. The 1000ms ceiling
-itself is right, just mislabeled as a fix. Everything else in GPT's reply checked out and is
-locked below.
+**Vetting note (CC caught before locking, GPT confirmed the correction 2026-08-25):** GPT's reply
+claimed the draft's "400ms AvatarStrike estimate" was wrong and corrected it to 1000ms. This was a
+false correction - the draft never had AvatarStrike at 400ms; 400ms was the basic-attack figure,
+and AvatarStrike was already correctly 1000ms (300+200+150+350). GPT cross-attributed two
+different targets' numbers. **GPT has since acknowledged this cleanly: AvatarStrike remained
+capped at 1000ms all along, no correction was needed there.** The real, valuable new content from
+that round was the skip-handling/idempotent-resolve safety gap - everything else checked out and
+is locked below. Implementation cleared to start.
 
 **Refined timing:** basic attack 350-400ms (unchanged). Firestorm/Renewal reduced to 600-700ms
 (was 800ms - repeat-cast fatigue). AvatarStrike stays 800-1000ms, hard ceiling 1 second.
