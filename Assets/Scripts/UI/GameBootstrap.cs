@@ -1644,7 +1644,7 @@ namespace MyriadOfDragons.UI
 
             if (_battleController.Phase == BattlePhase.Combat)
             {
-                _tutorialGuidanceCaption.text = WithBattleModePrefix(
+                _tutorialGuidanceCaption.text = CampaignGuidanceBody(
                     "Combat is automatic - your cards attack on their own each clash. Cast a spell below if one is ready; that choice is still yours.");
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
@@ -1652,14 +1652,14 @@ namespace MyriadOfDragons.UI
 
             if (_normalMatchStartError != null)
             {
-                _tutorialGuidanceCaption.text = WithBattleModePrefix(_normalMatchStartError);
+                _tutorialGuidanceCaption.text = CampaignGuidanceBody(_normalMatchStartError);
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
             }
 
             if (AnyPlayerLaneOccupied())
             {
-                _tutorialGuidanceCaption.text = WithBattleModePrefix(
+                _tutorialGuidanceCaption.text = CampaignGuidanceBody(
                     "You can add more cards from hand if you can afford them - Front gives +1 Attack, Middle gives +1 Health, Back has no bonus but is safest. Tap Start Battle when ready; that begins automatic combat, and your placement (plus any spells you cast) is your strategy.");
                 _tutorialGuidanceCaption.gameObject.SetActive(true);
                 return;
@@ -1668,9 +1668,17 @@ namespace MyriadOfDragons.UI
             int deckSlotsForCopy = _empireData != null && _empireData.DeckSlotCount > 0
                 ? _empireData.DeckSlotCount
                 : PlayerEmpireData.DeckSlotsForBarracksLevel(1);
-            _tutorialGuidanceCaption.text = WithBattleModePrefix(
+            _tutorialGuidanceCaption.text = CampaignGuidanceBody(
                 $"Your saved {deckSlotsForCopy}-card deck fills the hand below. Tap Auto Formation for an optional basic three-lane squad, or place manually: tap a hand card, then an empty lane slot - Resource is spent as normal.");
             _tutorialGuidanceCaption.gameObject.SetActive(true);
+        }
+
+        /// <summary>Campaign mode line lives on the phase header — avoid duplicating it in the caption band.</summary>
+        private string CampaignGuidanceBody(string body)
+        {
+            if (_pendingCampaignStage != null)
+                return body ?? string.Empty;
+            return WithBattleModePrefix(body);
         }
 
         /// <summary>
@@ -5734,7 +5742,10 @@ namespace MyriadOfDragons.UI
             {
                 _resourceFill.fillAmount = player.ResourceCap > 0 ? (float)player.Resource / player.ResourceCap : 0f;
                 _resourceText.text = $"Resource: {player.Resource}/{player.ResourceCap}";
-                _turnText.text = "Formation";
+                if (_pendingCampaignStage != null)
+                    _turnText.text = $"{FormatCampaignModeLabel(_pendingCampaignStage.stageId)}\nFormation";
+                else
+                    _turnText.text = "Formation";
             }
             _deckCountText.text = $"Deck: {player.DrawPile.Count}";
 
