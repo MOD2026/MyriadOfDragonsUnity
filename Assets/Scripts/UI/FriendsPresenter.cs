@@ -9,9 +9,9 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.UI
 {
     /// <summary>FRIENDS V1 art shell wired to <see cref="IFriendsGateway"/> (live Friends
-    /// CloudCode module, nonprod-validation). The roster (Friends tab) and daily gift are real;
-    /// there is no text-input widget in this shell yet to send a fresh add-friend request by
-    /// typed account id, so Requests/Find still route through FriendsOpenValues.</summary>
+    /// CloudCode module, nonprod-validation). The roster (Friends tab), daily gift, and
+    /// add-friend-by-typed-account-id (profile drawer) are all real; Requests/Find nav tabs still
+    /// route through FriendsOpenValues (no distinct UI for browsing/searching other accounts).</summary>
     public class FriendsPresenter : MonoBehaviour
     {
         public const string CanvasName = "FriendsCanvas";
@@ -21,6 +21,7 @@ namespace MyriadOfDragons.UI
         private Action _onBack;
         private Text _statusText;
         private Text[] _rowTexts;
+        private InputField _addFriendInput;
         private IFriendsGateway _gateway;
         private CancellationTokenSource _cts;
         private List<FriendSummaryDto> _friends = new();
@@ -28,6 +29,7 @@ namespace MyriadOfDragons.UI
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+        public InputField AddFriendInputForTests => _addFriendInput;
         public int FriendCountForTests => _friends.Count;
         public string SelectedCounterpartIdForTests => _selectedCounterpartId ?? string.Empty;
 
@@ -48,6 +50,12 @@ namespace MyriadOfDragons.UI
         public Task<ListFriendsGatewayResult> RefreshFriendsForTests() => RefreshFriendsAsync();
 
         public Task<GiftGatewayResult> GiftSelectedForTests() => SendGiftAsync();
+
+        public Task<FriendGatewayResult> AddFriendForTests(string targetAccountId)
+        {
+            if (_addFriendInput != null) _addFriendInput.text = targetAccountId ?? string.Empty;
+            return SendAddFriendAsync();
+        }
 
         private void BuildUI()
         {
@@ -256,16 +264,61 @@ namespace MyriadOfDragons.UI
                 $"{MetagameShellProfileBinding.SelfIdentityLine()}\n{MetagameShellProfileBinding.WalletLine()}\n\n" +
                 "Select a friend, then GIFT to send today's daily gift.",
                 UITextRole.Body, TextAnchor.UpperCenter,
-                new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 160f));
-            SetNorm(summary.rectTransform, 0.08f, 0.45f, 0.92f, 0.85f);
+                new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 100f));
+            SetNorm(summary.rectTransform, 0.08f, 0.62f, 0.92f, 0.85f);
+
+            _addFriendInput = UISharedFoundation.CreateInputField(drawer.transform, "AddFriendInput",
+                "Account id…", new Color(0.9f, 0.88f, 0.75f), new Vector2(280f, 44f), characterLimit: 50);
+            SetNorm(_addFriendInput.GetComponent<RectTransform>(), 0.08f, 0.45f, 0.92f, 0.58f);
+            GameObject addBtn = new GameObject("Btn_AddFriend", typeof(RectTransform), typeof(Image), typeof(Button));
+            addBtn.transform.SetParent(drawer.transform, false);
+            Image addImg = addBtn.GetComponent<Image>();
+            HomeV3UiLibrary.ApplyNeutralActionButton(addBtn.GetComponent<Button>(), addImg, new Color(0.24f, 0.36f, 0.24f));
+            addBtn.GetComponent<Button>().onClick.AddListener(() => _ = SendAddFriendAsync());
+            SetNorm(addBtn.GetComponent<RectTransform>(), 0.1f, 0.32f, 0.9f, 0.44f);
+            UISharedFoundation.CreateText(addBtn.transform, "Text", "ADD FRIEND", UITextRole.Body,
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
+
             GameObject msg = new GameObject("Btn_Gift", typeof(RectTransform), typeof(Image), typeof(Button));
             msg.transform.SetParent(drawer.transform, false);
             Image mImg = msg.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(msg.GetComponent<Button>(), mImg, new Color(0.2f, 0.32f, 0.4f));
             msg.GetComponent<Button>().onClick.AddListener(() => _ = SendGiftAsync());
-            SetNorm(msg.GetComponent<RectTransform>(), 0.1f, 0.2f, 0.9f, 0.35f);
+            SetNorm(msg.GetComponent<RectTransform>(), 0.1f, 0.16f, 0.9f, 0.28f);
             UISharedFoundation.CreateText(msg.transform, "Text", "GIFT", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
+        }
+
+        private async Task<FriendGatewayResult> SendAddFriendAsync()
+        {
+            string targetAccountId = _addFriendInput != null ? _addFriendInput.text.Trim() : string.Empty;
+            if (string.IsNullOrEmpty(targetAccountId))
+            {
+                SetStatus("Add friend: type an account id first.");
+                return new FriendGatewayResult { errorCode = "INVALID_REQUEST" };
+            }
+
+            try
+            {
+                FriendGatewayResult result = await _gateway.AddFriendAsync(targetAccountId, Token).ConfigureAwait(true);
+                if (result != null && result.success)
+                {
+                    SetStatus($"Request sent to {targetAccountId}.");
+                    if (_addFriendInput != null) _addFriendInput.text = string.Empty;
+                    await RefreshFriendsAsync().ConfigureAwait(true);
+                }
+                else
+                {
+                    SetStatus($"Add friend failed: {result?.errorCode ?? "unknown"}");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Add friend failed: {ex.Message}");
+                return new FriendGatewayResult { errorCode = "CLIENT_EXCEPTION" };
+            }
         }
 
         private void SetStatus(string message)

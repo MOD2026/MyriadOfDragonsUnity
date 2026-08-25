@@ -10,9 +10,8 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.UI
 {
     /// <summary>CHAT V1 art shell wired to <see cref="IChatSocialGateway"/> (live Chat CloudCode
-    /// module, nonprod-validation). Channel select and SEND are real; there is no text-input
-    /// widget in this shell yet, so SEND posts <see cref="ComposedText"/> (settable, defaults to a
-    /// short canned message) rather than free-typed text.</summary>
+    /// module, nonprod-validation). Channel select, SEND, and the composer text field are all
+    /// real - SEND posts whatever is currently typed into <see cref="_composerInput"/>.</summary>
     public class ChatSocialPresenter : MonoBehaviour
     {
         public const string CanvasName = "ChatSocialCanvas";
@@ -22,6 +21,7 @@ namespace MyriadOfDragons.UI
         private Action _onBack;
         private Text _statusText;
         private Text _streamText;
+        private InputField _composerInput;
         private IChatSocialGateway _gateway;
         private CancellationTokenSource _cts;
         private string _selectedChannelId = string.Empty;
@@ -29,9 +29,14 @@ namespace MyriadOfDragons.UI
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
         public string SelectedChannelIdForTests => _selectedChannelId;
+        public InputField ComposerInputForTests => _composerInput;
 
-        /// <summary>Text SEND posts - settable since this shell has no text-input widget yet.</summary>
-        public string ComposedText { get; set; } = "gg";
+        /// <summary>Text SEND posts. Reads/writes the real composer InputField directly.</summary>
+        public string ComposedText
+        {
+            get => _composerInput != null ? _composerInput.text : string.Empty;
+            set { if (_composerInput != null) _composerInput.text = value ?? string.Empty; }
+        }
 
         public void Initialize(Action onBack, IChatSocialGateway gateway = null)
         {
@@ -157,12 +162,16 @@ namespace MyriadOfDragons.UI
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 400f));
             SetNorm(_streamText.rectTransform, 0.04f, 0.05f, 0.96f, 0.95f);
 
+            _composerInput = UISharedFoundation.CreateInputField(_canvasObj.transform, "ComposerInput",
+                "Type a message…", new Color(0.9f, 0.88f, 0.75f), new Vector2(340f, 44f), characterLimit: 500);
+            SetNorm(_composerInput.GetComponent<RectTransform>(), 0.18f, 0.06f, 0.56f, 0.14f);
+
             GameObject composer = new GameObject("Btn_ComposerSend", typeof(RectTransform), typeof(Image), typeof(Button));
             composer.transform.SetParent(_canvasObj.transform, false);
             Image cImg = composer.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(composer.GetComponent<Button>(), cImg, new Color(0.2f, 0.35f, 0.4f));
             composer.GetComponent<Button>().onClick.AddListener(() => _ = SendComposedAsync());
-            SetNorm(composer.GetComponent<RectTransform>(), 0.18f, 0.06f, 0.72f, 0.14f);
+            SetNorm(composer.GetComponent<RectTransform>(), 0.58f, 0.06f, 0.72f, 0.14f);
             UISharedFoundation.CreateText(composer.transform, "Text", "SEND", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
         }
@@ -221,6 +230,7 @@ namespace MyriadOfDragons.UI
                 if (result != null && result.success)
                 {
                     SetStatus("Sent.");
+                    ComposedText = string.Empty;
                     await RefreshHistoryAsync().ConfigureAwait(true);
                 }
                 else

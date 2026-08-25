@@ -256,6 +256,53 @@ namespace MyriadOfDragons.UI
             return text;
         }
 
+        /// <summary>Single-line text-entry field, styled to match CreateText's legacy-Text
+        /// conventions (same default font, same left-aligned layout). Caller applies its own
+        /// anchoring afterward (e.g. SetNorm), same as CreateText - this only builds the field
+        /// itself. Mirrors CollectionPresenter.CreateSearchField's structure (background + Text +
+        /// Placeholder + InputField wiring) as the one other real InputField usage in this
+        /// codebase, generalized for reuse.</summary>
+        public static InputField CreateInputField(Transform parent, string objectName, string placeholderText, Color textColor, Vector2 size, int characterLimit = 80)
+        {
+            GameObject root = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(InputField));
+            root.transform.SetParent(parent, false);
+            root.transform.localScale = Vector3.one;
+            root.GetComponent<Image>().color = new Color(0.14f, 0.16f, 0.2f, 0.85f);
+            root.GetComponent<RectTransform>().sizeDelta = size;
+
+            GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
+            textObj.transform.SetParent(root.transform, false);
+            Text text = textObj.GetComponent<Text>();
+            text.font = GetDefaultFont();
+            text.fontSize = FontSizeFor(UITextRole.Body);
+            text.color = textColor;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.supportRichText = false;
+            StretchFull(textObj.GetComponent<RectTransform>());
+            textObj.GetComponent<RectTransform>().offsetMin = new Vector2(12f, 0f);
+            textObj.GetComponent<RectTransform>().offsetMax = new Vector2(-12f, 0f);
+
+            GameObject placeholderObj = new GameObject("Placeholder", typeof(RectTransform), typeof(Text));
+            placeholderObj.transform.SetParent(root.transform, false);
+            Text placeholder = placeholderObj.GetComponent<Text>();
+            placeholder.font = GetDefaultFont();
+            placeholder.fontSize = FontSizeFor(UITextRole.Body);
+            placeholder.color = new Color(textColor.r, textColor.g, textColor.b, 0.45f);
+            placeholder.text = placeholderText;
+            placeholder.alignment = TextAnchor.MiddleLeft;
+            placeholder.supportRichText = false;
+            StretchFull(placeholderObj.GetComponent<RectTransform>());
+            placeholderObj.GetComponent<RectTransform>().offsetMin = new Vector2(12f, 0f);
+            placeholderObj.GetComponent<RectTransform>().offsetMax = new Vector2(-12f, 0f);
+
+            InputField input = root.GetComponent<InputField>();
+            input.textComponent = text;
+            input.placeholder = placeholder;
+            input.lineType = InputField.LineType.SingleLine;
+            input.characterLimit = characterLimit;
+            return input;
+        }
+
         public static void StretchFull(RectTransform rect)
         {
             rect.anchorMin = Vector2.zero;
