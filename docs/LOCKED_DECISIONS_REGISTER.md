@@ -42,9 +42,10 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | VS | Build the 6 puzzle definitions from the register + run real 7-step validation (solver now exists) | PENDING - dispatched |
-| 2026-08-25 | BS (via owner) | Windstep fix made both tiers correctly stronger, tripping old bands - invoke HP/Resource scaling, or revisit the bands? | PENDING - awaiting relay |
+| 2026-08-25 | VS (mailbox) | Real 6 puzzle definitions (verbatim, card ids/stats verified) pasted - build + run real 7-step validation | PENDING - dispatched |
+| 2026-08-25 | CR | Retune Windstep-era win-rate bands: Apprentice 35-42%, VeteranPlus 31-38%, after one final matched-seed validation run | PENDING - awaiting identity confirmation before send |
 | 2026-08-25 | owner | 6 combat audio files delivered as `.opus` - not a Unity-importable format, must be re-exported as `.ogg`/`.wav`/`.mp3` before anyone can wire them | PENDING - awaiting re-export |
+| 2026-08-25 | UI | Split combined Campaign/Empire hero render into two separate tiles (Avatar hero already approved, unblocked) | PENDING - awaiting relay |
 
 ---
 
@@ -3493,3 +3494,26 @@ No local `ffmpeg`/`opusdec` available to convert in-session. Routed back to the 
 these 6 as `.ogg` (or `.wav`), no other changes needed to the names beyond dot→underscore, and they
 drop straight into `Assets/Resources/Audio/Combat/` with zero code changes (the binding layer was
 built exactly for this - `CombatPresentationBindings.cs:7-10`).
+
+## Two more BS items closed - real Windstep bands + real Tactical Puzzle content (2026-08-25)
+
+**Windstep band retune - locked target, dispatch pending identity check:** BS's answer: do NOT nerf
+Mend or pull SoloAIScalingSystem - Windstep was empirically suppressing the AI and the correction is
+real, not a bug. Retune acceptance bands to: **Apprentice 35-42%** (current 38.3%), **VeteranPlus
+31-38%** (current 34.6%), after one final matched-seed validation run. Existing causal safeguards
+(no material SpellRemovalWinRateDelta, no illegal casts, cast-rate/fallback bands stay separate,
+delta logged against the NEW baseline not the obsolete Windstep one) remain unchanged. Dispatching to
+CR once identity is reconfirmed (session names churn - two peer sessions present this turn, both
+asked to confirm before this real task is sent to either).
+
+**Tactical Puzzle Week 1 - real content received and verified, unblocks VS:** the register's earlier
+one-clause summaries were the actual root cause of VS's block (see VS's mailbox report above) - not
+carelessness on VS's part, a real gap in what got logged the first time. Re-asked BS directly and
+got the full spec (all 6 puzzles: exact hand/board/objective/stated solution). Verified before
+forwarding: all 8 card ids (warrior/mountain_harpy/archer_dragon/ogre/fire_golem/phoenix/archer_elf/
+titan_chief) confirmed real in `card_data.json` with matching stats; `Windstep`/`SeismicSwap` both
+confirmed real `TacticalPuzzleActionKind` values; all 4 objective kinds confirmed real enum values
+(`TacticalPuzzleVerifier.cs:9-25`). Spot-checked tac_w1_h02's math myself (warrior 5atk + archer_elf
+6atk with Front bonus = 11 >= titan_chief's real 9 HP) - correct. Did NOT hand-verify every puzzle's
+solution end to end; that is what VS's shipped 7-step validator is for, posted verbatim to
+`tools/seat_mailbox.md` for VS to convert and run.
