@@ -1717,3 +1717,24 @@ disentangle this, not yet run.
 Both results escalated to GPT - VeteranPlus doesn't cleanly match either of GPT's two proposed fix
 branches (not clean AvatarStrike-dominance, not clean single-spell-dominance), needs a real decision
 on how to read a volume/precision split plus dead loadout slots.
+
+## Owner clarifications on GPT's building critique (2026-08-25)
+
+Two real design intents not previously specified anywhere in the codebase or docs:
+
+1. **Academy's research must be real player CHOICE, not passive/idle accumulation.** GPT's own
+   answer already leaned this way ("Academy: only after a real research queue exists; passive
+   temporary research points could be a support layer at most") - owner is locking this as the
+   primary requirement: a real research system with meaningful player decisions (branching/
+   choosing what to research), not a click-to-progress or auto-idle mechanic. Passive support
+   layer, if any, comes after the real choice system exists, not instead of it.
+
+2. **Prison's real function is capturing cards from PvP/other sources and converting them into
+   the player's own deck** - this is new, was previously only "Captive/sacrifice placeholder,
+   non-destructive" with no real mechanic ever defined. This reframes Prison entirely: not a
+   server-dependent idle stand-in, but a real card-acquisition feature tied to a capture mechanic
+   (likely tied to the async PvP ladder - captured from defeated opponents' decks?). Real design
+   question for GPT: what exactly gets captured (an opponent's specific card? a random one?),
+   under what conditions, and how does it convert to real ownership without breaking the "no
+   Shop/drop/paid channel" spell-acquisition rules already locked elsewhere, or the equivalent
+   card-acquisition integrity for the base card system.
