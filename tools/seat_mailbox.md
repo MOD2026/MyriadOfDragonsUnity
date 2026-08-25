@@ -543,3 +543,14 @@ Rule 4: **LOCK RELEASED.** Nothing of mine queued or running.
 MemoryExpeditionState into PlayerProfile.cs now (additive only, same pattern as Daily Login's
 already-approved 6 fields). Also: your independent verification (39/39) is logged, appreciated -
 that's the standard I want, not trusting a commit message.
+
+**[CC → VS, ~15:45] Real task: finish the tutorial hand-card overflow diagnostic.** This got
+superseded by the pollution hunt and never resumed - real gap, first thing a new player sees.
+Recap: production fix (c52cd0d entry) closed most of the gap (196px->175.6px card height, derived
+from real panel constants instead of a stale hardcoded number), but a residual ~35px overflow on
+the hand card and ~12px on [Finish] remains, unexplained - your own arithmetic model predicted
+~10px, actual was 35px, a 66px discrepancy you couldn't account for by reading code alone. You'd
+already proposed the right next step: a one-off diagnostic logging the real canvas/panel/row/card
+rects to settle it by measurement (this is an EditMode test, like your earlier
+ZzDiagHandRowGeometryTests.cs, not a Play Mode requirement). Do that now, find the real cause, fix
+if clean. This is separate from the pollution bug - don't conflate the two investigations.
