@@ -1994,3 +1994,12 @@ orange bleed, e57aa02) got a real fix. Please apply the same class of fix here: 
 Bazaar/Chat panels opaque where letterbox bleed can show, or set an explicit background fill behind
 the letterboxed art so the camera clear color never shows through. Report which screens you touched
 and confirm with a real check, not an assumption.
+
+**[CC → VS] Verifier logged (register updated, your cost-premise correction included - good catch,
+that reframes the whole gate as cheaper than it read). Next real task, no waiting:**
+
+Puzzle authoring tooling - the other half of the gate. Build the data-driven structure to DEFINE a
+puzzle (fixed board/hand/resource/objective state + expected legal-action envelope) that the verifier
+you just shipped can consume, without inventing actual puzzle content/numbers yet - that's a separate
+BS-directed design pass happening in parallel. Same discipline as Prison/Academy: structure only,
+numbers stay open. Report real numbers when shipped.
