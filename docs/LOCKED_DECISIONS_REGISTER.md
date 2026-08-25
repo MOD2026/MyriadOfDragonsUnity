@@ -866,3 +866,18 @@ selects within the 6-slot loadout.
 the catalog is genuinely complete and reachable, not just coded.** Remaining work is
 implementation: loadout picker slot-count/tier-unlock logic, SpellUnlockResolver channel wiring,
 AI loadout cap, then the mandated matrix remeasurement.
+
+## SPELL CATALOG: 36/36 COMPLETE AND VERIFIED (2026-08-25, CR, commit ea54c36)
+
+258/258 EditMode tests clean (23 new CardTriggerAbilityTests + full spell-catalog/reposition/
+battle-logic regression). Real bugs found were all in the new test suite itself (rarity table
+structurally couples Attack/Health, so early tests assumed independent stats and got impossible
+combinations - fixed with clamp-aware assertions), not production code. Only Battle-owned files
+committed; WH's in-flight files (Story, CampaignMapPresenter, HomePagePresenter, DailyLogin*,
+Chapter11/12 tests, MemoryExpedition, Save/) correctly left uncommitted for WH's own clean commit.
+3 drifting AI-balance bands (Novice/VeteranPlus/Apprentice) noted in the commit, correctly left
+parked - not retuned.
+
+**This is the actual completion of the Full 36-Spell Catalogue Diagnosis opened earlier
+(commit locking the diagnosis) - every spell now has real code AND (per the separately-locked
+acquisition-channel spec) a real acquisition path once that wiring lands.**
