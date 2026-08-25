@@ -40,10 +40,12 @@ namespace MyriadOfDragons.UI
         /// <summary>Optional art, by role. Nothing here is required to exist yet.</summary>
         private static readonly Dictionary<string, string> ArtResourcePaths = new Dictionary<string, string>
         {
-            { "entry", "UI/TacticalPuzzleV1/entry_chrome_v1" },
-            { "board", "UI/TacticalPuzzleV1/board_frame_v1" },
-            { "result", "UI/TacticalPuzzleV1/result_modal_v1" },
-            { "tile", "UI/TacticalPuzzleV1/tile_states_v1" },
+            { "entry", "UI/TacticalPuzzleV1/tactical_puzzle_entry_shell_v1_rgba" },
+            { "board", "UI/TacticalPuzzleV1/tactical_puzzle_board_frame_v1_rgba" },
+            { "result", "UI/TacticalPuzzleV1/tactical_puzzle_result_modal_v1_rgba" },
+            { "tile_locked", "UI/TacticalPuzzleV1/tactical_puzzle_tile_locked_v1_rgba" },
+            { "tile_available", "UI/TacticalPuzzleV1/tactical_puzzle_tile_available_v1_rgba" },
+            { "tile_completed", "UI/TacticalPuzzleV1/tactical_puzzle_tile_completed_v1_rgba" },
         };
 
         private GameObject _canvasObj;
@@ -275,7 +277,12 @@ namespace MyriadOfDragons.UI
                 TacticalPuzzleSlotState.Available => new Color(0.22f, 0.24f, 0.30f),
                 _ => new Color(0.14f, 0.13f, 0.14f),
             };
-            ApplyOptionalArt(img, "tile");
+            ApplyOptionalArt(img, slot.State switch
+            {
+                TacticalPuzzleSlotState.Completed => "tile_completed",
+                TacticalPuzzleSlotState.Available => "tile_available",
+                _ => "tile_locked",
+            });
 
             int captured = index;
             tile.GetComponent<Button>().onClick.AddListener(() => OpenSlot(captured));

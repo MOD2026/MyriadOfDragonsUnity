@@ -404,9 +404,9 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void MissingArt_DoesNotBlockTheScreen()
         {
-            // Art is a separate, non-blocking track: none of the four sprites exist yet and the
-            // screen must be fully usable without them.
-            foreach (string role in new[] { "entry", "board", "result", "tile" })
+            // Art is a separate, non-blocking track: the screen must be fully usable whether or
+            // not the sprites actually exist on disk.
+            foreach (string role in new[] { "entry", "board", "result", "tile_locked", "tile_available", "tile_completed" })
                 Assert.IsTrue(TacticalPuzzlePresenter.HasArtPathForTests(role),
                     "Art role '" + role + "' must have a resource path reserved so art can drop in later.");
 
