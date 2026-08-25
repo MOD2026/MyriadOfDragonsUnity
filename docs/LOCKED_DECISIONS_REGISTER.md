@@ -2953,3 +2953,17 @@ CC's to guess.
 Real commit exists (21:26) - "Make Stage 17-13's enemy roster distinct from Stage 2-6." Explicit
 Ch17 patch, sorted-triple collision (giant_worms/goblin_shaman/ogre) can no longer match. Was
 dispatched and never confirmed back - tracker had gone stale until this audit. Closing the row.
+
+## Windstep removed from VeteranPlus too - LOCKED (2026-08-25, BS, vetted)
+
+**Decision: extend the removal to VeteranPlus.** 6.5pp self-handicap (0fdd193) too large to treat as
+intentional difficulty tuning. Sound reasoning: VeteranPlus should be hard because of its authored
+HP/Resource scaling and legal spell decisions (SoloAIScalingSystem, the existing purpose-built
+difficulty lever) - not because it repeatedly makes losing reposition choices. Same terms as
+Apprentice: replace with a validated legal non-Reposition spell, do not change Windstep's player-
+facing design, same projected-value guard for reintroduction at either tier.
+
+**Real scoped constraint, avoids two tempting-but-wrong future fixes:** if the corrected loadout
+makes VeteranPlus too strong after replacement, tune ONLY the existing HP/Resource scaling lever -
+explicitly NOT Windstep's player-facing design, NOT the AI's casting probability. After replacement,
+rerun the full matrix for both tiers.
