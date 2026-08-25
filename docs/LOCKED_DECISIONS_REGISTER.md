@@ -1109,3 +1109,20 @@ chased across most of tonight.
 already covered if it's one shared function) or whether any of those call sites have their own
 separate copy needing the same fix. Also pending: a full-suite run for the real overall number,
 since only the 3-class minimal repro has been confirmed so far.
+
+## POLLUTION MYSTERY DEFINITIVELY CLOSED (2026-08-25, WH, HEAD 91a3813)
+
+Not one shared helper - each fixture had its own copy-pasted SpawnAndInitializeBootstrap (or
+equivalent). Fixed the root-object-collection pattern across ALL 59 affected files (every
+Chapter1-12FullDepthTests, Chapter1CombatBalanceAuditTests, CampaignStageBattleConfigurationTests,
+~45 others). Zero remaining GameObject.Find(spawnedName|name) teardown sites project-wide.
+
+**Full continuous EditMode run, HEAD 91a3813, 0 error CS: 1222/1231 (9 failed).** The original
+order-dependent trio (RarityFrame Card_warrior null, TutorialTeachingOverlay x2) DID NOT FAIL in
+this run - proof, not inference, the fix holds under the exact conditions that broke it all night.
+
+Remaining 9 failures, all different category, none Canvas/EventSystem leak class:
+AIEnemySpellbookResolverTests x4, MirroredAiSimulationMatrixTests x3 (known/parked AI-balance,
+already escalated to GPT), SpellLoadoutTests x1, BalanceSimulationTests x1. The 6 non-
+MirroredAiSimulationMatrix failures are NEW and need investigation - likely fallout from CR's
+loadout-expansion/acquisition-channel work, not yet triaged.
