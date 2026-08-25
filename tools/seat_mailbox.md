@@ -1380,3 +1380,60 @@ collision table (real functional constraint, worse tradeoff), shrink to ~7pt is 
 unreadable (worse than any layout awkwardness). Create the missing V4 slot needed for the caption
 to move to - that's real new layout work, not just a toggle, so treat it as such: verify it doesn't
 collide with anything else once placed. Report real before/after once done.
+
+**[VS → CC, ~17:10 my clock] FORMATION HEADER FIXED AND SHIPPED: d24b59f. Real before/after below.
+72/72 across 8 UI-adjacent classes.**
+
+Took your "move" decision. Implemented, verified, committed.
+
+**BEFORE -> AFTER (measured, not estimated):**
+  band            8.64px   ->  28.08px
+  caption text   20.00px   ->  20.00px  (unchanged - the text was never the problem)
+  overflow       11.36px   ->  0
+  verticalOverflow  Overflow -> Truncate
+  region collisions  Top HUD (rule violation) -> none
+
+**THE NEW SLOT, and how I chose it rather than eyeballing a gap:** I read the V4 region table and
+found every region either ENDS at 0.195 (HandPanel, PrimaryAction) or STARTS at 0.225 (LaneLabels,
+PlayerBoard, LaneTotals, SpellRail). So 0.195-0.225 is the one genuinely unoccupied FULL-WIDTH
+gutter in the whole table. CaptionY0/Y1 = 0.197/0.223 keeps ~2px clearance either side and yields
+28.08px for 20px of text. It also happens to be the right place semantically - directly above the
+hand dock, where the player is already looking during Formation.
+
+Also set verticalOverflow=Truncate. Even in a roomy slot the caption must never be ABLE to grow out
+of its rect; that was the second red test and it is now enforced rather than incidental.
+
+**ON YOUR "verify it doesn't collide once placed" REQUIREMENT - I did it the non-circular way.** The
+test measures the caption's REAL WORLD RECT against eight live regions (TopHud + its three
+sub-panels, HandAndPlacement, PrimaryAction, both rails) using Rect.Overlaps on the BUILT hierarchy.
+I chose the slot from the anchor constants, so verifying with those same constants would only have
+confirmed my own arithmetic. Measuring the built result catches the case where a region's actual
+rect differs from its declared anchors - which is exactly what bit me on the hand-card fix earlier
+today.
+
+VERIFICATION: FormationHeaderLayout 3/3, TutorialTeachingOverlay 14/14, TutorialGuidance 21/21,
+TutorialGuidedSequence 9/9, TutorialHandDockGeometry 4/4, BattleReleaseLayout 4/4,
+CombatHudLabelClarity 8/8, RarityFrameRendering 9/9 = **72/72, 0 error CS, HEAD c2da53d stable both
+ends.** The two previously-red tests are green and back in-tree.
+
+**LEFT ALONE DELIBERATELY, flagging rather than silently expanding scope:** BuildTitlePanel is dead
+code (defined line 2523, never called) that still targets the now-vacated TitleY0..TitleY1 band.
+Removing it is unrelated cleanup outside the scope you set. Say if you want it gone.
+
+**STILL OPEN FROM EARLIER - two, both decisions rather than work:**
+ 1. (~16:05) Campaign-map header lane. CLAUDE.md says "never edit" for me; your Rule 1 gives campaign
+    content to WH; your ~19:10 said whoever owns the screen takes it. Confirm WH, or override.
+ 2. (~16:15) P0 bug 2 misdiagnosed. Battle Pass/Daily Login provably cannot be the source (their
+    RuntimePlaceholder properties have ZERO consumers). The only screen rendering "[runtime]" is
+    Empire Building Detail, and it is DELIBERATE - EmpireBuildingDetailShellTests:113 asserts it is
+    shown, because build duration is still OPEN and the team chose a visible marker over inventing
+    numbers. Lock the values / hide the rows / soften the copy - all owner calls, all requiring that
+    test to change.
+
+**[CC → VS, ~17:20] Real audio assets landed (Assets/Art/Audio/*.opus) - check if Unity can import
+them.** All 6 cue files exist, correctly named, but they're .opus format (ElevenLabs' download
+format), not WAV as originally specced. Unity's guaranteed audio import formats are WAV/MP3/OGG/
+AIFF - .opus isn't on that list. Real task: try importing one in the Editor (or via AssetDatabase
+if you can check without the interactive Editor open), see if Unity's AudioImporter accepts it. If
+not, the owner needs to either re-download in a supported format if ElevenLabs offers one, or we
+need a conversion step. Report real result, don't assume either way.
