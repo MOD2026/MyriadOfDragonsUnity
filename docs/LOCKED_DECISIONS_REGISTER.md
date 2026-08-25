@@ -42,9 +42,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | VS (mailbox) | Real 6 puzzle definitions (verbatim, card ids/stats verified) pasted - build + run real 7-step validation | PENDING - dispatched |
-| 2026-08-25 | CR | Retune Windstep-era win-rate bands: Apprentice 35-42%, VeteranPlus 31-38%, after one final matched-seed validation run | PENDING - awaiting identity confirmation before send |
-| 2026-08-25 | owner | 6 combat audio files delivered as `.opus` - not a Unity-importable format, must be re-exported as `.ogg`/`.wav`/`.mp3` before anyone can wire them | PENDING - awaiting re-export |
+| 2026-08-25 | BS (via owner) | m01/m02 both MOVED not fixed by 860ff80 - m01 is now ambiguous (Windstep Front OR Back both solve), m02 now solves in ZERO actions (goblin_shaman blocks Windstep but also lets Middle survive unaided) - real content redecision needed, not VS's/CC's to guess | PENDING - not yet sent |
+| 2026-08-25 | CR (owner relay) | AvatarStrike flipbook player (real per-frame UV animation, pure-method + thin MonoBehaviour) | PENDING - a peer is actively editing bespoke_heavy.prefab right now, may already be in progress |
 
 ---
 
