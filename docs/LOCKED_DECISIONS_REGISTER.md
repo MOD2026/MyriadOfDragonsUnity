@@ -988,3 +988,9 @@ a separate task, not attempted without Play Mode verification. Stopgap: a player
 unlocks 5/6 slots gets an honest, clear refusal on this screen (loadout untouched), not a silent
 failure or truncated save. Real next UI follow-up, needs scheduling (Play-Mode-capable session or
 explicit owner sign-off to ship logic-only).
+
+## Owner sign-off: Daily Login/Quest PlayerProfile fields APPROVED (2026-08-25)
+
+Owner approved the 6 additive fields in bf236e0 (lastLoginClaimUtcDate, loginStreakIndex,
+dailyQuestUtcDate, dailyQuestCompletionMask, dailyQuestGenerationId, passSeasonXp). No longer
+pending - frozen-file addition is finalized.
