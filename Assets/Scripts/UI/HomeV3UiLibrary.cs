@@ -31,14 +31,19 @@ namespace MyriadOfDragons.UI
             return false;
         }
 
-        /// <summary>Neutral charcoal/bronze action chrome — never square Home nav tiles or V2 buttons.</summary>
+        /// <summary>Neutral charcoal/bronze action chrome — never square Home nav tiles or V2 buttons.
+        /// Preserves an already-assigned sprite (icon buttons). Only applies flat fill color when
+        /// there is no sprite yet — never nulls a prior sprite/targetGraphic assignment.</summary>
         public static void ApplyNeutralActionButton(Button button, Image targetGraphic, Color? fill = null)
         {
             if (button == null || targetGraphic == null) return;
 
-            targetGraphic.sprite = null;
             targetGraphic.type = Image.Type.Simple;
-            targetGraphic.color = fill ?? new Color(0.14f, 0.18f, 0.22f, 0.96f);
+            if (targetGraphic.sprite == null)
+                targetGraphic.color = fill ?? new Color(0.14f, 0.18f, 0.22f, 0.96f);
+            else if (fill.HasValue)
+                targetGraphic.color = fill.Value;
+
             button.targetGraphic = targetGraphic;
             button.transition = Selectable.Transition.ColorTint;
             button.colors = new ColorBlock
