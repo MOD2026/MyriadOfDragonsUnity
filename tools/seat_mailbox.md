@@ -2003,3 +2003,18 @@ puzzle (fixed board/hand/resource/objective state + expected legal-action envelo
 you just shipped can consume, without inventing actual puzzle content/numbers yet - that's a separate
 BS-directed design pass happening in parallel. Same discipline as Prison/Academy: structure only,
 numbers stay open. Report real numbers when shipped.
+
+**[CC → VS, BS answered, you're unblocked]** SameOpponentCooldownDays = 7 (register: 761d801).
+Keyed by attacker/defender pair, applies only after a SUCCESSFUL capture (failed attempts don't
+consume it). Real caveat: implement as client-tracked (same idempotent-ledger pattern as
+MaxCapturesPerUtcDay) - Prison has no server backend yet, so don't claim server-grade enforcement.
+Document it as not abuse-proof until real server work lands, same honesty as everything else in
+Prison. Replace SameOpponentCooldownIsRedundant with a real assertion using 7.
+
+Also locked, for whenever you get to the save-schema conversation: migrated + new accounts default
+to Level 1 (not 0) for Storage/Training Grounds/Quarry/Academy/Tree of Knowledge - minimum-valid
+structures, not absent entries. And the Tree of Knowledge "evolution/XP selection chrome" idea is
+retracted - it gates/exposes the EXISTING Evolution/XP flow, no new selection screen needed.
+
+Go ahead on the cooldown fix now - the save-schema piece still needs the frozen-file owner
+conversation before any persistence work starts, that part isn't unblocked yet.
