@@ -619,3 +619,26 @@ AI-castable. Expanding either system is a real design call, not guessed into. Ne
 
 196/196 EditMode tests pass (SpellCatalogPhase1/2/3Tests, SpellBookGrantTests, BattleLogicTests,
 SpellLoadoutTests). Committed as 0e74dba.
+
+## Spell Catalog Wave 4 shipped, Wave 5 genuinely blocked (2026-08-25, CR)
+
+Real catalog count 27->32 (committed 3591402). Landed: Ashfall + Stormchain (CrossLaneDamage),
+Scorched Sky (AllLaneDamage), Leyline Draw + Oracle Sight (DrawCards) - 5 of Wave 4's 7 spells, 3
+new SpellEffect values. Oracle Sight Energy corrected 42->30 per this register. Only Oracle Sight
+("Avatar L20") got a real unlock rule; Ashfall/Stormchain are bare-chapter-number gaps (same honest
+pattern as Wave 3's Ember Guard/Earthward/Gale Break); Scorched Sky/Leyline Draw are "event book"
+with no real acquisition channel yet (same shape as Aegis Return). 210/210 EditMode tests pass.
+
+**Genuine architectural blocker, correctly not guessed past:** Reposition (Windstep + Seismic Swap)
+is NOT implemented. Every spell effect through Wave 4 acts uniformly on "every living unit in a
+lane" - `Cast()`'s signature is `(caster, opponent, targetLane)`, nothing more. Reposition needs to
+name a SPECIFIC unit to move (Windstep) or two specific units, possibly cross-lane, to swap (Seismic
+Swap) - no existing targeting precedent for "pick one card out of a lane" anywhere in the spell
+system, no locked spec for how a player or the AI would select that unit. This needs a real
+`Cast()` signature extension + real single-unit-select UI - a genuinely bigger change than any prior
+wave, not a mechanical extension. An automatic heuristic (e.g. "always move lowest-Health unit")
+would be a guess dressed as an implementation - correctly declined rather than invented.
+
+Wave 5 (Silence) was already known fully blocked (no suppressible-ability system exists).
+**Catalog sits at 32/36 real** pending an owner call on Reposition's targeting model - the last 4
+spells (2x Reposition, Silence package) cannot proceed without real design input, not more coding.
