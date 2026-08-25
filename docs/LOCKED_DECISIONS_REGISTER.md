@@ -1972,3 +1972,25 @@ corrected metric. **Apprentice gets no permanent wider aggregate band.**
 0.85-1.25 (not 1.30 - do not widen further than the measured 1.189 needs). Requires another
 >=2000-trial confirmation run before this provisional band can be locked. This is a stopgap, not
 the fix - CR should refactor the metric itself as the real fix.
+
+## Prison (Bound Captive Fodder) + Academy research-choice backends SHIPPED (2026-08-25, VS, verified 07e6fbe)
+
+40/40 (PrisonAndAcademyTests 26/26 + CollectionEvolutionTests 7/7 + CollectionBurnTests 7/7), HEAD
+1e1ad4a stable both ends, 0 error CS. Every locked guardrail implemented: no capture on
+loss/tutorial/bot/practice/private/rematch/unranked/guildmate/friend; max 1/player/UTC day;
+idempotent via captureId ledger; single exit path (sacrifice credit only, no
+sell/trade/pack/equip/Forge-Dust-burn); item type has NO combat stat, reflection-asserted; yield
+delegates to CollectionBurnRules' existing rarity table (pinned equal by test) so Prison can never
+be a better/worse credit source than burning a real card. Academy: offer->commit->complete->collect
+state machine, one research at a time, past branches persisted, collect idempotent, committing one
+option clears the others, branches are an enum with NO combat branch (structural, not runtime-
+checked). Both invent no numbers/options - correctly deferred per locked spec ("numbers open").
+PlayerProfile.cs frozen - additive fields need owner sign-off before persistence, same as Memory
+Expedition.
+
+**REAL OPEN GAP, flagged by VS's own failing test, not invented:** SameOpponentCooldownDays=1 is
+currently a NO-OP - MaxCapturesPerUtcDay=1 already blocks same-day repeats, and at exactly 1.0 days
+later the cooldown has already expired, so the anti-farming guardrail does nothing until the value
+is >=2. The locked spec states the RULE but never a DURATION. Exposed as
+SameOpponentCooldownIsRedundant (assertable, self-retiring test that fails the moment a real value
+is set) rather than buried in a comment. **Needs an owner/GPT number for the actual cooldown days.**
