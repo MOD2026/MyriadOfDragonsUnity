@@ -3872,3 +3872,42 @@ does not imply that this building's online feature is currently active."
 Guild Hall's old "LEVEL — (flat)" copy is explicitly retired - keeps its real persisted 1-30 level
 (matches the shipped interlock), does not revert to flat. Dispatched to VS (owns
 EmpireBuildingDetailCopy.cs from the interlock work).
+
+## LOCKED: ST's narrative continuity audit - verified real, portrait work HELD pending story fix (2026-08-26)
+
+**Verified before locking (per standing rule - ST doesn't reliably have real story-bible access):**
+spot-checked the load-bearing claims directly against `StoryDatabase.cs`, all real:
+- Thaleia/Rusk/Ione are each declared exactly ONCE (lines 106-108), all three still on the Paladin
+  placeholder, no later re-declaration found - matches ST's "no continuing dialogue after Ch3" claim.
+- The exact quoted contradiction is real: "Then we build no new throne." (line 779, early chapters)
+  vs. "I do not need a voice. I need the throne." (line 1859, stage 18-30) - genuinely opposite
+  framing, not a misquote.
+- The repeated chapter-ending template is real and verbatim: "The storm is mine to keep." /
+  "The host is mine to lead — or to end." / "The hollow crown is mine." / "The ashen banner is
+  mine." / "The silent throne is mine." (lines 1353/1427/1723/1797/1871) - same construction,
+  different noun, across chapters 11-18 as ST described.
+- The source-hierarchy mismatch is real: `MOS_v1.1.md` itself still frames the campaign via
+  "CORE_SYSTEMS_CONSTITUTION §B... 273 planned stages" language, while the real shipped campaign is
+  513 stages/18 chapters (chapter production now held at 18 per standing order).
+
+**Real conclusion, now locked: portrait commissioning is HELD.** The portrait gap is a symptom of a
+deeper issue - Chapters 1-3 have a real character-led arc (Thaleia/Rusk/Ione/Gorn), but Chapters
+4-18 replace it with a content template (repeated "X is mine" endings, ~450 mostly-interchangeable
+enemy-label speakers, an Unknown Voice with no coded reveal/motive by Chapter 18, and a player arc
+that contradicts its own Chapter 3 ending). Commissioning portraits now would visually paper over an
+unresolved narrative gap rather than fix it.
+
+**Locked cast priority for whenever portrait work resumes** (not started, blocked on the continuity
+pass below): Priority 1 (distinct portraits) = Thaleia, Rusk, Ione, Gorn, Unknown Voice (pending its
+identity being decided); Priority 2 (shared archetype art sufficient) = Kaelen, Ares, Thessos, Ash
+Road Overseer; Priority 3 (no unique portraits) = every `stageId_enemy` label across Ch4-18.
+
+**4 existing unused NPC icons (Kyra/Nikator/Pythia/Vulkanos) - confirmed no textual match to any
+real speaker**, per ST's own check. Pythia flagged as a possible art-reuse base for Ione (both
+blindfolded mystics) but explicitly NOT a current match (Ione's documented crystal mask/glass-shard
+markers differ) - would need an explicit CC decision to adapt, not an assumed reuse.
+
+**Real next step, not yet dispatched:** a narrative continuity pass on Chapters 4-18 (why the Ch1-3
+companions leave/continue, what the Unknown Voice wants, whether Ch11-18 depict restoration vs.
+temptation vs. conquest, how claiming the final throne reconciles with the Ch3 refusal). This is
+ST's own natural follow-up, not a coding task.
