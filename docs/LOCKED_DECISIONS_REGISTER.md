@@ -1591,3 +1591,30 @@ duplicating finished work. Only v2-persist and the Castle interlock table remain
 (interlock table parked per owner request, not being pursued right now).
 
 VS's queue is genuinely empty - standing by, not manufacturing work.
+
+## Building interlock: real audit required before any Castle-pair numbers (2026-08-25, GPT, corrected)
+
+GPT withdrew the premature Curve C/Curve U proposal - it copied Barracks' 1/5/10/15/20/25/30 shape
+onto 6 other buildings without verifying any of them actually have that internal milestone shape.
+Correct methodology, locked: audit each building's REAL progression data before deriving any
+interlock pair, don't assume a shared pattern.
+
+**Real task queued for CR:** audit all 11 buildings, recording for each: (1) internal level shape -
+continuous 1-30, milestone-only, or banded; (2) functional breakpoints - which levels actually
+change capacity/output/research/charges/recruitment/evolution; (3) Materials/Gold costs and timer
+bands; (4) construction-slot interaction; (5) server-dependency status. Every field marked as one
+of: confirmed from live code, confirmed from locked documentation, design-only, or unknown/needs
+owner decision. Starting categories (Combat/progression: Barracks/Training Grounds/Tree of
+Knowledge; Economy/utility: Storage/Quarry/Academy/Embassy; Flat: Guild Hall/Prison) are hypotheses
+to verify, not conclusions - a building moves category if evidence says otherwise.
+
+Real constraints the audit must respect: Castle must not become a universal utility-freezing
+bottleneck; Barracks/Training Grounds must not create an early combat bypass; Tree of Knowledge
+must never lock/revoke already-shipped Evolution access; Storage must never cause resource loss at
+capacity (pause, not delete); Quarry output must be checked against the total Materials faucet and
+the locked 6-9mo core-spine target; Embassy's charge/reduction curve stays untouched, Castle only
+gates the next band; Guild Hall/Prison can have entry gates without level ladders; server-dependent
+functions stay unavailable regardless of Castle gating.
+
+Only after this real evidence table is complete does a second GPT round derive actual Castle-pair
+numbers per building - no numbers assigned blind again.
