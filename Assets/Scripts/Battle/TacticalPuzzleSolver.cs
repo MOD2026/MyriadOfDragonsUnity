@@ -10,6 +10,16 @@ namespace MyriadOfDragons.Battle
         public int ActionsUsed;
         public int ResourceSpent;
 
+        /// <summary>
+        /// Canonical identity of this ANSWER: the position it leaves behind.
+        ///
+        /// Two lines that end in the same place are the SAME answer to a player, however they were
+        /// ordered. Deploying warrior-then-archer and archer-then-warrior into the same lane is one
+        /// idea with the steps swapped, not two competing solutions - and counting them as two
+        /// wrongly condemns a puzzle as ambiguous.
+        /// </summary>
+        public string ResultingPosition;
+
         public override string ToString()
         {
             var parts = new List<string>();
@@ -98,6 +108,7 @@ namespace MyriadOfDragons.Battle
                     Actions = new List<TacticalPuzzleActionSpec>(prefix),
                     ActionsUsed = session.Current.ActionsUsed,
                     ResourceSpent = definition.StartingResource - session.Current.ResourceRemaining,
+                    ResultingPosition = DescribePosition(session),
                 });
                 return;   // shortest line only - a solved position does not need padding
             }
@@ -110,6 +121,23 @@ namespace MyriadOfDragons.Battle
                 Explore(definition, cardSource, prefix, budget, found);
                 prefix.RemoveAt(prefix.Count - 1);
             }
+        }
+
+        /// <summary>The player's board as a stable string, for answer identity. Cards are sorted
+        /// within a lane so that arrival ORDER cannot make one position look like two.</summary>
+        private static string DescribePosition(TacticalPuzzleSession session)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (Lane lane in new[] { Lane.Front, Lane.Middle, Lane.Back })
+            {
+                var ids = new List<string>();
+                foreach (BattleCardInstance u in session.Board.PlayerSide.Lanes[lane].Cards)
+                    ids.Add(u.Definition.Id + ":" + u.CurrentHealth);
+                ids.Sort(System.StringComparer.Ordinal);
+                sb.Append(lane).Append('[').Append(string.Join(",", ids)).Append(']');
+            }
+
+            return sb.ToString();
         }
 
         private static List<TacticalPuzzleActionSpec> AllLegalMoves(TacticalPuzzleSession session)
@@ -135,17 +163,21 @@ namespace MyriadOfDragons.Battle
             if (all.Count == 0) return "UNSOLVABLE within its action budget - automatic reject.";
 
             TacticalPuzzleSolution best = all[0];
-            int cheapestCount = 0;
+
+            // Count DISTINCT ANSWERS at the cheapest cost, not distinct action orders. An earlier
+            // version counted sequences and condemned tac_w1_h02 as ambiguous when its two "lines"
+            // were one answer with the two deploys swapped.
+            var cheapestPositions = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (TacticalPuzzleSolution s in all)
             {
                 if (s.ActionsUsed == best.ActionsUsed && s.ResourceSpent == best.ResourceSpent)
-                    cheapestCount++;
+                    cheapestPositions.Add(s.ResultingPosition ?? "");
             }
 
             return string.Format(
-                "{0} solving line(s); cheapest is {1} order(s)/{2} Resource and {3} line(s) tie at that cost.{4}",
-                all.Count, best.ActionsUsed, best.ResourceSpent, cheapestCount,
-                cheapestCount > 1 ? "  AMBIGUOUS - no single intended answer." : "");
+                "{0} solving line(s); cheapest is {1} order(s)/{2} Resource, reached by {3} distinct position(s).{4}",
+                all.Count, best.ActionsUsed, best.ResourceSpent, cheapestPositions.Count,
+                cheapestPositions.Count > 1 ? "  AMBIGUOUS - no single intended answer." : "");
         }
     }
 }

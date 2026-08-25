@@ -106,6 +106,37 @@ namespace MyriadOfDragons.Tests
             };
         }
 
+        /// <summary>
+        /// Genuinely ambiguous: an empty enemy board and a survive-one-clash objective, so
+        /// deploying the single card into ANY of the three lanes solves it - three different end
+        /// positions, three real answers.
+        ///
+        /// The earlier version of this fixture used two IDENTICAL cards and relied on the solver
+        /// counting action orders. Once answer identity became the resulting POSITION, two identical
+        /// cards correctly collapsed to ONE answer and this fixture stopped being ambiguous at all -
+        /// so the fixture, not the rule, was what needed fixing.
+        /// </summary>
+        private TacticalPuzzleDefinition AmbiguousPuzzle(string id)
+        {
+            return new TacticalPuzzleDefinition
+            {
+                PuzzleId = id,
+                DisplayName = id,
+                StartingResource = 99,
+                ResourceCap = 99,
+                AvatarHealth = 20,
+                ActionBudget = 1,
+                Hand = new List<string> { _light.Id },
+                PlayerBoard = new List<TacticalPuzzleUnitSpec>(),
+                EnemyBoard = new List<TacticalPuzzleUnitSpec>(),
+                Objective = new TacticalPuzzleObjectiveSpec
+                {
+                    Kind = TacticalPuzzleObjectiveKind.SurviveClashes,
+                    ClashCount = 1,
+                },
+            };
+        }
+
         private TacticalPuzzlePresenter Open(params TacticalPuzzleDefinition[] puzzles)
         {
             _host = new GameObject("WarRoomHost");
@@ -1051,12 +1082,15 @@ namespace MyriadOfDragons.Tests
             //
             // Two identical cards in hand both solve it in one deploy, so this fixture ties by
             // construction.
-            var ambiguous = Puzzle("ambiguous");
-            string report = TacticalPuzzleSolver.DescribeSolutionSpace(ambiguous);
+            string report = TacticalPuzzleSolver.DescribeSolutionSpace(AmbiguousPuzzle("ambiguous"));
 
-            StringAssert.Contains("tie at that cost", report);
-            Assert.IsTrue(report.Contains("AMBIGUOUS") || report.Contains("1 line(s) tie"),
-                "The report must state plainly whether the cheapest answer is unique: " + report);
+            StringAssert.Contains("distinct position(s)", report);
+            StringAssert.Contains("AMBIGUOUS", report);
+
+            // And the other direction: identical cards reaching the SAME position are ONE answer,
+            // not several. This is the distinction that wrongly failed tac_w1_h02 before the fix.
+            StringAssert.DoesNotContain("AMBIGUOUS",
+                TacticalPuzzleSolver.DescribeSolutionSpace(Puzzle("single_answer")));
         }
 
         [Test]
@@ -1103,8 +1137,11 @@ namespace MyriadOfDragons.Tests
                 return report.Append("STEP 7 FAIL - UNSOLVABLE within its action budget.").ToString();
 
             TacticalPuzzleSolution best = all[0];
-            int ties = all.Count(x => x.ActionsUsed == best.ActionsUsed &&
-                                      x.ResourceSpent == best.ResourceSpent);
+            // Distinct ANSWERS, not distinct action orders - see TacticalPuzzleSolution.ResultingPosition.
+            int ties = all.Where(x => x.ActionsUsed == best.ActionsUsed &&
+                                      x.ResourceSpent == best.ResourceSpent)
+                          .Select(x => x.ResultingPosition ?? "")
+                          .Distinct().Count();
             report.Append("[3 enumerated ").Append(all.Count).Append(" line(s)] ");
             report.Append("[cheapest ").Append(best.ActionsUsed).Append(" order(s)/")
                   .Append(best.ResourceSpent).Append(" Resource] ");
@@ -1124,6 +1161,19 @@ namespace MyriadOfDragons.Tests
                              .Append(string.Join("; ", mismatches.Select(m => m.ToString()))).ToString();
 
             return report.Append("[2/5/6 envelope OK] PASS").ToString();
+        }
+
+        [Test]
+        public void Diagnostic_DumpEverySolvingLineForAuthoredContent()
+        {
+            // Diagnostic, not a gate: prints the actual lines so a TIE verdict can be judged as
+            // genuinely different answers versus mere action-order permutations of one answer.
+            foreach (TacticalPuzzleDefinition def in TacticalPuzzleLibrary.AvailablePuzzles())
+            {
+                foreach (TacticalPuzzleSolution sol in TacticalPuzzleSolver.FindAllSolutions(def))
+                    Debug.Log("[LINE] " + def.PuzzleId + "  ::  " + sol);
+            }
+            Assert.Pass();
         }
 
         [Test]
@@ -1147,6 +1197,9 @@ namespace MyriadOfDragons.Tests
             foreach (TacticalPuzzleDefinition def in content)
             {
                 string verdict = RunSevenStepValidation(def);
+                // Logged unconditionally: a per-candidate report is the deliverable here, not just
+                // a pass/fail bit, and a passing test otherwise prints nothing.
+                Debug.Log("[7STEP] " + verdict);
                 if (!verdict.EndsWith("PASS")) failures.Add(verdict);
             }
 
@@ -1172,8 +1225,8 @@ namespace MyriadOfDragons.Tests
             unsolvable.PlayerBoard = new List<TacticalPuzzleUnitSpec>();
             StringAssert.Contains("UNSOLVABLE", RunSevenStepValidation(unsolvable));
 
-            var ambiguous = Puzzle("harness_ambiguous");   // two identical cards: two equal lines
-            StringAssert.Contains("AMBIGUOUS", RunSevenStepValidation(ambiguous));
+            StringAssert.Contains("AMBIGUOUS",
+                RunSevenStepValidation(AmbiguousPuzzle("harness_ambiguous")));
 
             var broken = Puzzle("harness_broken");
             broken.PlayerBoard.Add(new TacticalPuzzleUnitSpec { CardId = "no_such_card", Lane = Lane.Back });
@@ -1240,18 +1293,25 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void AMissingContentFile_IsNotAnError_AndLeavesTheLibraryEmpty()
+        public void TheAuthoredContentFile_LoadsAndEveryPuzzleSurvivesValidation()
         {
-            // The expected state until the content pass lands. A missing file must read as "no
-            // puzzles", not as a failure - the entry screen already says so honestly.
+            // REWRITTEN 2026-08-26: this used to assert the content file was ABSENT, which was the
+            // honest state until Week 1 content landed. Its subject changed, so the assertion was
+            // re-read rather than deleted - the same call as the Prison cooldown and art-role tests.
             TacticalPuzzleLibrary.ClearPuzzlesForTests();
             TacticalPuzzleLibrary.ResetCacheForTests();
 
-            Assert.IsNull(Resources.Load<TextAsset>(TacticalPuzzleLibrary.ResourcePath),
-                "Setup: this test describes the no-content-yet state; content now exists, so it " +
-                "needs rewriting to load the real file instead.");
-            Assert.IsTrue(TacticalPuzzleLibrary.IsEmpty,
-                "A missing content file must leave the library empty rather than throwing.");
+            Assert.IsNotNull(Resources.Load<TextAsset>(TacticalPuzzleLibrary.ResourcePath),
+                "Authored puzzle content is expected at " + TacticalPuzzleLibrary.ResourcePath + ".");
+
+            IReadOnlyList<TacticalPuzzleDefinition> loaded = TacticalPuzzleLibrary.AvailablePuzzles();
+            CollectionAssert.IsNotEmpty(loaded, "The content file must yield at least one puzzle.");
+
+            // The loader SKIPS anything that fails Validate, so a puzzle silently vanishing is the
+            // failure to catch here - count what is on disk against what survived.
+            foreach (TacticalPuzzleDefinition def in loaded)
+                CollectionAssert.IsEmpty(TacticalPuzzleAuthoring.Validate(def),
+                    def.PuzzleId + " loaded but does not validate.");
         }
 
         [Test]
@@ -1291,15 +1351,19 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void TheLibraryIsEmptyByDefault_WhichIsTheHonestState()
+        public void EveryLoadedPuzzleId_IsUnique_BecauseIdsKeySaveRecords()
         {
-            // If this ever starts returning puzzles without a design pass having happened, someone
-            // has invented content - which is the failure mode the whole authoring layer exists to
-            // prevent.
+            // REWRITTEN 2026-08-26: this used to assert the library was EMPTY, guarding against
+            // invented content before a design pass existed. Week 1 content has now landed through
+            // the proper route, so the guard that still matters is the one the loader enforces:
+            // duplicate ids would make solving one puzzle mark another solved.
             TacticalPuzzleLibrary.ClearPuzzlesForTests();
+            TacticalPuzzleLibrary.ResetCacheForTests();
 
-            Assert.IsTrue(TacticalPuzzleLibrary.IsEmpty,
-                "No puzzle content has been authored yet - the library must not pretend otherwise.");
+            var seen = new HashSet<string>(System.StringComparer.Ordinal);
+            foreach (TacticalPuzzleDefinition def in TacticalPuzzleLibrary.AvailablePuzzles())
+                Assert.IsTrue(seen.Add(def.PuzzleId),
+                    "Duplicate PuzzleId '" + def.PuzzleId + "' - ids key save records.");
         }
     }
 }

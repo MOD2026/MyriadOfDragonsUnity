@@ -1,0 +1,510 @@
+{
+  "puzzles": [
+    {
+      "PuzzleId": "tac_w1_e01",
+      "DisplayName": "Recon Record",
+      "StartingResource": 3,
+      "ResourceCap": 3,
+      "AvatarHealth": 100,
+      "ActionBudget": 1,
+      "Hand": [
+        "warrior"
+      ],
+      "PlayerBoard": [],
+      "EnemyBoard": [
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 0,
+          "PreDamage": 0
+        }
+      ],
+      "Objective": {
+        "Kind": 1,
+        "ClashCount": 0,
+        "MarkedTarget": {
+          "Side": 1,
+          "Lane": 0,
+          "IndexInLane": 0
+        },
+        "ProtectedLane": 0,
+        "ResourceBudget": 0
+      },
+      "Envelope": [
+        {
+          "Description": "BS intended solution: deploy warrior to Front",
+          "Actions": [
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 0,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "tempting alternative: deploy to Back, never engages the marked target",
+          "Actions": [
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 2,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        }
+      ]
+    },
+    {
+      "PuzzleId": "tac_w1_e02",
+      "DisplayName": "Battle Reconstruction",
+      "StartingResource": 0,
+      "ResourceCap": 1,
+      "AvatarHealth": 100,
+      "ActionBudget": 1,
+      "Hand": [],
+      "PlayerBoard": [
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "archer_dragon",
+          "Lane": 1,
+          "PreDamage": 0
+        }
+      ],
+      "EnemyBoard": [
+        {
+          "CardId": "ogre",
+          "Lane": 0,
+          "PreDamage": 0
+        }
+      ],
+      "Objective": {
+        "Kind": 2,
+        "ClashCount": 0,
+        "MarkedTarget": {
+          "Side": 1,
+          "Lane": 0,
+          "IndexInLane": 0
+        },
+        "ProtectedLane": 0,
+        "ResourceBudget": 0
+      },
+      "Envelope": [
+        {
+          "Description": "BS intended solution: Windstep archer_dragon Middle -> Front",
+          "Actions": [
+            {
+              "Kind": 1,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 1,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 0,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: no action, the Front harpy is defeated",
+          "Actions": [],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        }
+      ]
+    },
+    {
+      "PuzzleId": "tac_w1_m01",
+      "DisplayName": "Tactical Brief",
+      "StartingResource": 1,
+      "ResourceCap": 1,
+      "AvatarHealth": 100,
+      "ActionBudget": 1,
+      "Hand": [
+        "mountain_harpy"
+      ],
+      "PlayerBoard": [
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "archer_dragon",
+          "Lane": 1,
+          "PreDamage": 0
+        }
+      ],
+      "EnemyBoard": [
+        {
+          "CardId": "ogre",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "fire_golem",
+          "Lane": 1,
+          "PreDamage": 0
+        }
+      ],
+      "Objective": {
+        "Kind": 3,
+        "ClashCount": 0,
+        "MarkedTarget": {
+          "Side": 1,
+          "Lane": 0,
+          "IndexInLane": 0
+        },
+        "ProtectedLane": 0,
+        "ResourceBudget": 1
+      },
+      "Envelope": [
+        {
+          "Description": "BS intended solution: Windstep archer_dragon Middle -> Front, spends 0 Resource",
+          "Actions": [
+            {
+              "Kind": 1,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 1,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 0,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: no action leaves no living player unit",
+          "Actions": [],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        }
+      ]
+    },
+    {
+      "PuzzleId": "tac_w1_m02",
+      "DisplayName": "Recon Record",
+      "StartingResource": 0,
+      "ResourceCap": 1,
+      "AvatarHealth": 100,
+      "ActionBudget": 1,
+      "Hand": [],
+      "PlayerBoard": [
+        {
+          "CardId": "archer_dragon",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 1,
+          "PreDamage": 0
+        }
+      ],
+      "EnemyBoard": [
+        {
+          "CardId": "fire_golem",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 1,
+          "PreDamage": 0
+        }
+      ],
+      "Objective": {
+        "Kind": 2,
+        "ClashCount": 0,
+        "MarkedTarget": {
+          "Side": 1,
+          "Lane": 0,
+          "IndexInLane": 0
+        },
+        "ProtectedLane": 1,
+        "ResourceBudget": 0
+      },
+      "Envelope": [
+        {
+          "Description": "BS intended solution: SeismicSwap archer_dragon <-> mountain_harpy",
+          "Actions": [
+            {
+              "Kind": 2,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 1,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 0,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: no action, the two harpies destroy one another",
+          "Actions": [],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        }
+      ]
+    },
+    {
+      "PuzzleId": "tac_w1_h01",
+      "DisplayName": "Battle Reconstruction",
+      "StartingResource": 6,
+      "ResourceCap": 6,
+      "AvatarHealth": 100,
+      "ActionBudget": 1,
+      "Hand": [
+        "phoenix"
+      ],
+      "PlayerBoard": [
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 1,
+          "PreDamage": 0
+        }
+      ],
+      "EnemyBoard": [
+        {
+          "CardId": "fire_golem",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "fire_golem",
+          "Lane": 1,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "mountain_harpy",
+          "Lane": 2,
+          "PreDamage": 0
+        }
+      ],
+      "Objective": {
+        "Kind": 0,
+        "ClashCount": 3,
+        "MarkedTarget": {
+          "Side": 1,
+          "Lane": 0,
+          "IndexInLane": 0
+        },
+        "ProtectedLane": 0,
+        "ResourceBudget": 0
+      },
+      "Envelope": [
+        {
+          "Description": "BS intended solution: deploy phoenix to Back",
+          "Actions": [
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 2,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 0,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: Front deployment exposes Phoenix to a Fire Golem",
+          "Actions": [
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: Middle deployment exposes Phoenix to a Fire Golem",
+          "Actions": [
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 1,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        }
+      ]
+    },
+    {
+      "PuzzleId": "tac_w1_h02",
+      "DisplayName": "Tactical Brief",
+      "StartingResource": 6,
+      "ResourceCap": 6,
+      "AvatarHealth": 100,
+      "ActionBudget": 2,
+      "Hand": [
+        "warrior",
+        "archer_elf"
+      ],
+      "PlayerBoard": [],
+      "EnemyBoard": [
+        {
+          "CardId": "titan_chief",
+          "Lane": 0,
+          "PreDamage": 0
+        }
+      ],
+      "Objective": {
+        "Kind": 1,
+        "ClashCount": 0,
+        "MarkedTarget": {
+          "Side": 1,
+          "Lane": 0,
+          "IndexInLane": 0
+        },
+        "ProtectedLane": 0,
+        "ResourceBudget": 0
+      },
+      "Envelope": [
+        {
+          "Description": "BS intended solution: deploy warrior then archer_elf, both to Front",
+          "Actions": [
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            },
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 0,
+          "ExpectedFailedActionIndex": -1
+        },
+        {
+          "Description": "BS stated failure: warrior alone does not reach titan_chief HP",
+          "Actions": [
+            {
+              "Kind": 0,
+              "HandIndex": 0,
+              "Lane": 0,
+              "UnitA": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              },
+              "UnitB": {
+                "Side": 0,
+                "Lane": 0,
+                "IndexInLane": 0
+              }
+            }
+          ],
+          "ExpectedStatus": 1,
+          "ExpectedFailedActionIndex": -1
+        }
+      ]
+    }
+  ]
+}
