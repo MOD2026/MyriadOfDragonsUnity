@@ -2513,3 +2513,37 @@ asserting either way. Untested this pass (aborted before reaching it).
 **Real open question, routed to BS:** does Apprentice's any-cast population genuinely run longer when
 the AI casts (a real behavior finding), or is this a residual measurement artifact even after the
 shuffle fix? Not decided here.
+
+## Apprentice any-cast signal - real diagnostic protocol LOCKED, no verdict yet (2026-08-25, BS, vetted)
+
+**Real methodological catch: anyCast is a post-treatment outcome** (the AI casting is itself an
+event, not a pre-existing condition) - so 1.355 could be the spell's LEGITIMATE gameplay effect
+(healing/buffs/repositioning genuinely extending the match), not an AI-timing defect. Do not
+conflate these.
+
+**Diagnostic protocol:**
+1. Record the first tick the AI casts.
+2. Compare baseline vs AI-on state hashes every tick BEFORE that cast (catches any residual
+   mismatch predating the spell entirely).
+3. Classify the first cast by spell and effect type.
+4. Shadow/no-op control: AI evaluates and selects the SAME real cast, RNG rolls/decision calls
+   consumed identically, but the spell's gameplay EFFECT is suppressed, no resource/cooldown
+   mutation beyond the explicitly controlled values.
+5. Compare normal AI-on vs shadow/no-op on the same seeds.
+
+**Interpretation (all branches, not just the expected one):**
+- State diverges before the first cast -> residual simulation/state-mutation defect.
+- State matches until cast, shadow matches baseline -> 1.355 comes from the spell's real gameplay
+  effect, not AI timing - the metric itself may be measuring combat-effect impact, not AI timing,
+  and should be reconsidered as a balance gate entirely.
+- Shadow still longer than baseline -> investigate cast-selection bookkeeping, resource/cooldown
+  mutation, or tick-order effects - a real bug class.
+- Only one spell/effect type drives the increase -> run a per-spell ablation before touching any
+  global AI metric.
+
+**Explicitly rejected: a forced-cast control that changes the cast schedule arbitrarily** - would
+confound spell impact with decision behavior. Shadow control using the real selected-cast trace is
+the clean version.
+
+**Decision: keep anyCastTickRatio as the hard gate for now - do NOT widen or retune until this
+control is complete.**
