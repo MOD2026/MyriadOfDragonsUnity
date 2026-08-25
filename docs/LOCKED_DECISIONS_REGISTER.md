@@ -816,3 +816,18 @@ SocialSafety-filtered). Same module patterns as the 4 live-verified modules (con
 ICloudCodeSetup/AddGameApiClient, RFC-compliant Cloud Save keys, {"request":{...}} call shape).
 Client gateways follow the existing IBazaarGateway pattern. Assigned to CR after the Silence
 package lands. Empty-states remain the automatic fallback for any endpoint that misses beta cut.
+
+## Pollution culprit STILL UNIDENTIFIED — 72c8abe ruled out (2026-08-25, VS re-run)
+
+Re-run at HEAD 889e913->86fe2f9 (HEAD moved mid-run; 19 peer-dirty files; first attempt hit the
+documented stall, exit 124 — indicative measurement, not clean): 1154 tests, 1144 passed, 10
+failed, 0 error CS. The 3 order-dependent artifacts (RarityFrame Card_warrior null,
+TutorialTeachingOverlay x2, byte-identical numbers to every prior run) PERSIST with 72c8abe in
+history — the NormalBattleSavedDeckIntegrationTests leak was real but is NOT this pollution's
+cause. 63a6afe stands amended: RarityFrame is a victim of a still-unidentified leaker, NOT
+resolved. VS is building additive multi-filter runner tooling (option b) and bisecting.
+
+AI-band drift under the parked tuning thread (flag-only, nobody touches): Novice cast rate 22.7%
+(improving toward the 25% floor), VeteranPlus -9.8pp vs 8pp cap, and Apprentice NOW also out of
+band (+9.0pp vs -5..+8) — first Apprentice miss since it was declared fully solved. Whole thread
+stays parked pending owner/GPT decision; drift is expected while 36/36 spell content lands.
