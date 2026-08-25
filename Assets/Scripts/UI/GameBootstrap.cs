@@ -2502,12 +2502,52 @@ namespace MyriadOfDragons.UI
         /// decorative Image. Fixed at the source instead of per-region, matching the fix already
         /// applied to CreateAnchoredPanel's own backgrounds.
         /// </summary>
+        /// <summary>The 11 real arena backdrops that exist under Resources/UI/Backdrops/Arenas -
+        /// every match used exactly one of these (Lava_Fortress, hardcoded) regardless of chapter
+        /// or event, which is the real gap behind wanting different battle screens per chapter/
+        /// event. This picks deterministically BY CHAPTER so campaign matches at least vary and
+        /// stay stable per chapter - it is NOT a curated theme mapping (which arena actually suits
+        /// which chapter's story is a real content decision, not invented here). Non-campaign
+        /// matches (_pendingCampaignStage null - "To Battle", PvP) keep the prior fixed backdrop,
+        /// unchanged behaviour.</summary>
+        private static readonly string[] ArenaBackdropNames =
+        {
+            "Castle_Valley", "Celestial_Palace", "Desert_Ruins", "Enchanted_Forest",
+            "Frozen_Citadel", "Haunted_Citadel", "Infernal_Hellscape", "Lava_Fortress",
+            "Steampunk_Harbor", "Storm_Coast",
+        };
+
+        /// <summary>Parses the leading integer out of a "12-34" stageId. Returns null (not 0) for
+        /// anything that doesn't parse, so a malformed id falls back to the fixed backdrop instead
+        /// of silently aliasing to chapter 0's arena.</summary>
+        public static int? ChapterNumberForStageIdForTests(string stageId) => ChapterNumberForStageId(stageId);
+
+        private static int? ChapterNumberForStageId(string stageId)
+        {
+            if (string.IsNullOrEmpty(stageId)) return null;
+            int dash = stageId.IndexOf('-');
+            string chapterPart = dash > 0 ? stageId.Substring(0, dash) : stageId;
+            return int.TryParse(chapterPart, out int chapter) ? chapter : (int?)null;
+        }
+
+        /// <summary>Real selection, exposed for tests - a fixed chapter always resolves to the same
+        /// arena name (stable, not per-match random), and an unparseable/null chapter falls back to
+        /// the original single fixed arena rather than guessing.</summary>
+        public static string ArenaBackdropNameForTests(string stageId)
+        {
+            int? chapter = ChapterNumberForStageId(stageId);
+            if (chapter == null) return "Lava_Fortress";
+            int index = ((chapter.Value - 1) % ArenaBackdropNames.Length + ArenaBackdropNames.Length) % ArenaBackdropNames.Length;
+            return ArenaBackdropNames[index];
+        }
+
         private void BuildBattleBackdrop(Transform root)
         {
             var bgGo = new GameObject("Background", typeof(RectTransform));
             bgGo.transform.SetParent(root, false);
             var bg = bgGo.AddComponent<Image>();
-            Sprite backdrop = Resources.Load<Sprite>("UI/Backdrops/Arenas/Lava_Fortress");
+            string arenaName = ArenaBackdropNameForTests(_pendingCampaignStage?.stageId);
+            Sprite backdrop = Resources.Load<Sprite>("UI/Backdrops/Arenas/" + arenaName);
             if (backdrop != null)
             {
                 bg.sprite = backdrop;
