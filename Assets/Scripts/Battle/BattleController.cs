@@ -236,6 +236,7 @@ namespace MyriadOfDragons.Battle
 
         private bool _forceAiSpellCastGateAlwaysPassForTests;
         private bool _forceAiSpellCastGateAlwaysFailForTests;
+        private bool _shadowModeSuppressEnemySpellEffectForTests;
 
         /// <summary>EditMode-only test seam (diagnose-before-tune, LOCKED 2026-08-25): forces the
         /// ordinary-spell probability gate to always FAIL - the "AI decision loop active but
@@ -257,6 +258,25 @@ namespace MyriadOfDragons.Battle
         /// Defaults to false; a real match never sets this.</summary>
         public void SetForceAiSpellCastGateAlwaysPassForTests(bool forceAlwaysPass) =>
             _forceAiSpellCastGateAlwaysPassForTests = forceAlwaysPass;
+
+        /// <summary>EditMode-only test seam (diagnose-before-tune, shadow/no-op control per GPT's
+        /// any-cast root-cause protocol): when set, TryCastEnemySpell runs its entire real path
+        /// unchanged - candidate selection, gate roll, Energy spend, cooldown, and the
+        /// SpellCastLog entry all happen exactly as a real cast would - EXCEPT the call into
+        /// spell.Cast(...) that actually resolves the battlefield effect (lane damage/heal/buff/
+        /// reposition/silence) is skipped. Deliberately NOT a pre-recorded trace replay: the AI's
+        /// own live decision loop keeps running every tick against whatever state actually exists,
+        /// so if the AI selects a different spell/lane on a later tick than an unsuppressed run
+        /// would have (because the earlier suppressed effect never happened), that is real,
+        /// expected data - the diagnostic compares this run's own ticks against baseline, not
+        /// against another run's exact cast trace. Isolates "is the observed tick elongation the
+        /// spell's genuine gameplay effect" from "is it something in the AI's own cast-selection/
+        /// bookkeeping mechanics" (GPT's explicit distinction - a forced-no-cast control changes
+        /// the cast SCHEDULE arbitrarily and would confound the two; this does not, since a legal
+        /// cast is still genuinely selected and its energy/cooldown bookkeeping still genuinely
+        /// mutates). Defaults to false; a real match never sets this.</summary>
+        public void SetShadowModeSuppressEnemySpellEffectForTests(bool suppressEffect) =>
+            _shadowModeSuppressEnemySpellEffectForTests = suppressEffect;
 
         private static double NonAvatarStrikeGateProbability(AIDifficultyTier? tier) => tier switch
         {
@@ -816,7 +836,9 @@ namespace MyriadOfDragons.Battle
 
             EnemyEnergy -= spell.EnergyCost;
             spell.PutOnCooldown();
-            avatarDamageDealt = spell.Cast(EnemyState, PlayerState, targetLane, repositionTarget, silenceTarget);
+            avatarDamageDealt = _shadowModeSuppressEnemySpellEffectForTests
+                ? 0
+                : spell.Cast(EnemyState, PlayerState, targetLane, repositionTarget, silenceTarget);
             _lastSuccessfulEnemyCastTick = TickCount;
 
             _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt, castByPlayer: false));
