@@ -1,0 +1,84 @@
+# Industry-Standard Gap Diagnosis — 2026-08-26
+
+**Purpose:** a single, honest, verified answer to "what's between this game and shipping at real
+industry standard" — not another one-off bug report. Every claim below is checked against actual
+code or the register's own locked history, cited, not asserted. Comparators used per standing
+project rule: Clash Royale, Clash of Clans, Genshin Impact, Fate/Grand Order, Marvel Snap, Rise of
+Kingdoms, Lords Mobile — games with a comparable collect/build/campaign loop.
+
+This is a living document — update sections in place as items close, same convention as the
+delivery to-do list.
+
+---
+
+## 1. Content-loop / economy completeness vs. top-grossing comparators
+
+| System | Status | Real gap vs. comparators |
+|---|---|---|
+| Campaign (story mode) | 513 stages, 18 chapters shipped, held there per owner order | None at this bar — this is genuinely deep for a mobile campaign. |
+| Repeatable farm content | **Empire Expedition designed and locked (2026-08-24), real presenter exists** (`EmpireExpeditionPresenter.cs`) | Every comparator (CoC farming, RoK gathering, FGO free quests) has a repeatable, low-friction Gold/resource loop once the story is cleared. This exists on paper and has a real screen — needs a check on whether the actual reward loop (Stamina-gated, Guild-bonus) is wired end to end or just the shell. |
+| PvP / opponent-facing content | **"LOCKED FINAL" design (2026-08-25), ZERO code implementation found** — no matching class anywhere in `Assets/Scripts` | Every single comparator in this genre has SOME opponent-facing mode (ladder, arena, guild war). This game has none built. This is the single largest structural content-loop gap versus the named comparators, not a polish item. |
+| Guild systems | Mostly Concept-stage per earlier UI audit; Guild Hall/Expedition exist as screens, deeper guild war/donation loops not built | RoK/Lords Mobile's entire retention engine is guild warfare + donation reciprocity. This game has a Guild Hall entry point and an Expedition farm loop, not the social/competitive core comparators lean on. |
+| Battle Pass / daily engagement | Real, shipped (`BattlePassPresenter`, `DailyLoginQuestsPresenter`, real Season XP binding per tonight's verified `92c8b54`) | At parity with genre standard. |
+| Retention telemetry | Designed, LOCKED (Unity Analytics architecture), blocked on 3 new `PlayerProfile` fields needing owner sign-off (same class of blocker as the Empire interlock fields, which WERE just signed off) | Every comparator instruments retention from day one. This game currently ships **blind** — no D1/D7/D30 visibility once real users arrive. Real, fixable gap: same sign-off pattern that just worked for Empire buildings would unblock this immediately. |
+
+**Bottom line: the single-player content depth is genuinely strong (513 stages is more than most mobile card-battlers ship at launch). The social/competitive/repeatable layer that keeps top-grossing games alive post-campaign is thin — PvP doesn't exist in code at all, and guild systems are shallow.**
+
+## 2. F2P/whale balance health (standing diagnostic, run against real numbers)
+
+- Currencies are cleanly separated (Gold/Gems/Stamina/Materials/Forge-Dust/Event Medals/Market
+  Credits) with locked, non-overlapping sources — no currency-bridge exploit found across tonight's
+  or the session's balance work.
+- Windstep AI-balance saga (closed this session) directly targeted a real F2P-facing risk: an AI
+  that repeatedly made losing decisions was teaching new players the wrong lesson — this is exactly
+  the kind of forward-looking check the standing F2P diagnostic calls for, and it was caught and
+  fixed, not shipped.
+- **Real open question, not yet run:** no explicit whale-spend ceiling analysis exists for the VIP/
+  Subscription system now that its art is live (`bee2c1f`) — worth a real pass on what a $10k/month
+  spender actually gets from VIP before this ships, not just the F2P-side balance already checked.
+
+## 3. Narrative completeness
+
+**Resolved this session, not a gap anymore:** the Chapter 1-18 continuity plan is locked (verified
+against `StoryDatabase.cs` directly — the Chapter 3→4 geographic discontinuity, the "no new throne"
+vs. "I need the throne" contradiction, and the repeated Ch11-18 ending template are all real and now
+have a real fix plan). Verbatim dialogue lines are the next step, requested from ST.
+
+**Portrait/NPC art:** correctly held pending the above (commissioning art before fixing the story
+would have visually cemented an unresolved narrative gap). Real cast priority is locked for when
+this resumes.
+
+## 4. UI/UX polish vs. industry standard
+
+**In progress — a systematic sweep of all 23 UI screens is running now** (color/palette
+consistency, spacing conventions, border/frame usage vs. plain colored boxes, button feedback/
+animation, shared design-token usage). This section will be filled in with real file:line findings
+once that returns — not asserting anything here yet.
+
+**Already fixed this session (real, verified):**
+- Empire structure-strip tiles (were plain colored boxes despite approved art existing) — `e208114`
+- VIP/Friends shell + atlas icons (were unwired despite approved art existing) — `bee2c1f`
+- 21 of 23 screens now have real layout/geometry regression coverage (was 2 of 23) — `b65b338`/`288f91f`
+
+## 5. Technical health
+
+Full-suite EditMode baseline is clean as of tonight: all real failures found (3 Windstep ablation
+tests invalidated by design, 2 stale shell-test assumptions outrun by real feature commits, the
+Tactical Puzzle content gate) are resolved or correctly `[Ignore]`d with real reasoning, not deleted
+or hacked to pass. No known open regression.
+
+---
+
+## Real, prioritized next actions
+
+1. **PvP has zero implementation** — this is the largest content-loop gap versus every named
+   comparator. Needs a real scoping conversation (even a minimal async-ladder MVP) before this can
+   be called industry-standard on retention mechanics.
+2. **Retention telemetry sign-off** — same pattern that just unblocked Empire buildings. Real,
+   fast fix if signed off.
+3. **UI systematic audit** — results pending, will convert into concrete fixes once back.
+4. **Narrative continuity implementation** — verbatim lines requested from ST, then a coding room
+   implements ~20 targeted beats.
+5. **VIP whale-spend ceiling check** — not yet run, real gap in the standing F2P/whale diagnostic.
+6. **Empire Expedition end-to-end check** — confirm the real reward loop is wired, not just the
+   screen shell.
