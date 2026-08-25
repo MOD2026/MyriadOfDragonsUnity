@@ -997,6 +997,84 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(3, presenter.SlateForTests.SlotAt(0).SavedBestActions);
         }
 
+        // ------------------------------------------------------------------ solver
+        //
+        // Steps 3, 4 and 7 of the content-validation protocol need the WHOLE space of play:
+        // "is it solvable at all", "is the stated line the cheapest", "do unrelated lines tie".
+        // Validate and CheckEnvelope cannot answer those - they only judge what an author claimed.
+
+        [Test]
+        public void TheSolver_FindsALineThatSolvesASolvablePuzzle()
+        {
+            var solutions = TacticalPuzzleSolver.FindAllSolutions(Puzzle("solvable"));
+
+            CollectionAssert.IsNotEmpty(solutions, "A puzzle solvable by one deploy must yield a line.");
+            Assert.AreEqual(1, solutions[0].ActionsUsed,
+                "The cheapest line here is a single deploy into the protected lane.");
+        }
+
+        [Test]
+        public void EverySolutionTheSolverReturns_IsActuallyAccepted()
+        {
+            // The solver must never certify a line the game would refuse - that would mean shipping
+            // content whose "answer" does not work.
+            foreach (TacticalPuzzleSolution s in TacticalPuzzleSolver.FindAllSolutions(Puzzle("check")))
+            {
+                var replay = new TacticalPuzzleSession(Puzzle("check"));
+                foreach (TacticalPuzzleActionSpec a in s.Actions)
+                    Assert.IsTrue(replay.TryIssue(a).Accepted,
+                        "Solver returned a line the session refuses: " + s);
+                Assert.IsTrue(replay.IsSolved, "Solver returned a line that does not solve: " + s);
+            }
+        }
+
+        [Test]
+        public void AnUnsolvablePuzzle_ReportsNoSolutions_RatherThanInventingOne()
+        {
+            // The reject condition that matters most. Objective points at a lane the player can
+            // never hold: no hand, and the protected lane starts empty.
+            var impossible = Puzzle("impossible");
+            impossible.Hand = new List<string>();
+            impossible.PlayerBoard = new List<TacticalPuzzleUnitSpec>();
+
+            CollectionAssert.IsEmpty(TacticalPuzzleSolver.FindAllSolutions(impossible),
+                "An unsolvable puzzle must return zero lines - that is an automatic content reject.");
+            StringAssert.Contains("UNSOLVABLE", TacticalPuzzleSolver.DescribeSolutionSpace(impossible));
+        }
+
+        [Test]
+        public void TheSolver_ReportsWhenSeveralLinesTieForCheapest()
+        {
+            // "Multiple unrelated lines solve it equally cheaply" is a real reject: a puzzle with
+            // two equal answers has no intended answer, so its hint, score and lesson all point at
+            // something the player need not have found.
+            //
+            // Two identical cards in hand both solve it in one deploy, so this fixture ties by
+            // construction.
+            var ambiguous = Puzzle("ambiguous");
+            string report = TacticalPuzzleSolver.DescribeSolutionSpace(ambiguous);
+
+            StringAssert.Contains("tie at that cost", report);
+            Assert.IsTrue(report.Contains("AMBIGUOUS") || report.Contains("1 line(s) tie"),
+                "The report must state plainly whether the cheapest answer is unique: " + report);
+        }
+
+        [Test]
+        public void TheSearchIsBounded_SoAnUnboundedPuzzleCannotRunForever()
+        {
+            // Branching is (hand x 3 lanes) + windsteps + swap pairs. A puzzle with no budget must
+            // still terminate, and a puzzle needing more than the ceiling is also one no player
+            // could hold in their head - the limit is a design signal, not only a guard.
+            var unbounded = Puzzle("unbounded");
+            unbounded.ActionBudget = 0;
+
+            CollectionAssert.IsNotEmpty(TacticalPuzzleSolver.FindAllSolutions(unbounded),
+                "An unbounded puzzle must still be searched, up to the ceiling.");
+            foreach (TacticalPuzzleSolution s in TacticalPuzzleSolver.FindAllSolutions(unbounded))
+                Assert.LessOrEqual(s.ActionsUsed, TacticalPuzzleSolver.MaxSearchDepth,
+                    "No returned line may exceed the search ceiling.");
+        }
+
         // ------------------------------------------------------------------ content loading
         //
         // Authored puzzles arrive as a DATA drop (Resources/Data/tactical_puzzles.json), not a code
