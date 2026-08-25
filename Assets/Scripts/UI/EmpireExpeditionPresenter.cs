@@ -151,7 +151,12 @@ namespace MyriadOfDragons.UI
             _statusText.fontSize = 18;
             RectTransform statusRect = _statusText.rectTransform;
             statusRect.anchorMin = new Vector2(0.02f, 0.05f);
-            statusRect.anchorMax = new Vector2(0.98f, 0.50f);
+            // 0.50 -> 0.55: measured 2026-08-25, StatusNote wraps to two 18pt lines needing 41.0px
+            // but the 0.05-0.50 band is only 38.88px (rail is 0.80-0.88 = 86.4px at 1080), so it
+            // bled 2.1px. There was already a 4.32px dead gap between this band's top (0.50) and
+            // GuildBonusLine's bottom (0.55), so this consumes dead space rather than taking room
+            // from a neighbour - the band becomes 43.2px and GuildBonusLine is untouched.
+            statusRect.anchorMax = new Vector2(0.98f, 0.55f);
             statusRect.offsetMin = Vector2.zero;
             statusRect.offsetMax = Vector2.zero;
         }
