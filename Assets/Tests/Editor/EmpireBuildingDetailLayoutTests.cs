@@ -214,6 +214,56 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void EveryStructureTile_RendersItsBuildingArt_NotJustAColouredBox()
+        {
+            // REGRESSION TEST FOR A MISS OF MINE. I built this strip as the entry point for the five
+            // buildings and never set a sprite on the tiles, so they rendered as text-on-colour
+            // boxes - while the five isometric renders already existed and were wired into the
+            // detail popup ONE TAP AWAY. Fixed in e208114; this is the test that should have made
+            // the omission impossible to ship.
+            //
+            // My original tests asserted the tiles EXIST and open the right building. Neither could
+            // fail on a tile that showed nothing - the same "tested existence, not appearance" gap
+            // I flagged in the puzzle art-role test earlier.
+            var go = new GameObject("EmpireStripArtHost");
+            _spawned.Add(go);
+            var empire = go.AddComponent<EmpirePresenter>();
+            empire.Initialize(onBackToHome: null);
+
+            var missing = new List<string>();
+            foreach (EmpireBuildingKind kind in RenderedKinds)
+            {
+                Transform tile = Object.FindObjectsOfType<Button>(true)
+                    .FirstOrDefault(b => b.name == "Structure_" + kind)?.transform;
+                Assert.IsNotNull(tile, "No entry tile for " + kind + ".");
+
+                bool hasArt = tile.GetComponentsInChildren<Image>(true)
+                    .Any(i => i.sprite != null && i.GetComponent<Button>() == null);
+                if (!hasArt) missing.Add(kind.ToString());
+            }
+
+            CollectionAssert.IsEmpty(missing,
+                "These entry tiles render no building art at all, even though the renders exist and " +
+                "are already used by the detail popup: " + string.Join(", ", missing));
+        }
+
+        [Test]
+        public void TheStripArtPath_IsTheSameSourceTheDetailPopupUses()
+        {
+            // Two hard-coded copies of the same path map is how a strip and a popup drift into
+            // showing different art for one building. e208114 exposed ArtResourcePathFor as the
+            // single source; this holds that line.
+            foreach (EmpireBuildingKind kind in RenderedKinds)
+            {
+                string path = EmpireBuildingDetailPresenter.ArtResourcePathFor(kind);
+                Assert.IsFalse(string.IsNullOrEmpty(path), kind + " has no art path.");
+                Assert.IsNotNull(Resources.Load<Sprite>(path),
+                    kind + " art path '" + path + "' does not resolve to a Sprite - a correct path " +
+                    "to a badly-imported texture loads as null and renders as nothing.");
+            }
+        }
+
+        [Test]
         public void EachStructure_ShowsItsRealStoredLevel_NotTheRuntimePlaceholder()
         {
             // Before the save fields existed these five could only render "[runtime]". That marker

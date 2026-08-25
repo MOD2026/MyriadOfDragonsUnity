@@ -682,16 +682,22 @@ namespace MyriadOfDragons.UI
                 art.sprite = artSprite;
                 art.preserveAspect = true;
                 art.raycastTarget = false;
-                SetNormalizedRect(art.rectTransform, 0.10f, 0.34f, 0.90f, 0.92f);
+                SetNormalizedRect(art.rectTransform, 0.10f, 0.42f, 0.90f, 0.96f);
             }
 
+            // FONT SIZES FIT THE BAND, not the other way round. Adding the building thumbnail
+            // (e208114) correctly took most of this tile's height, which left the two text bands
+            // ~10px tall while the labels still asked for 17px - the geometry audit caught
+            // "STORAGE" overflowing by 6.8px. This strip is a compact entry point, so the text
+            // shrinks to fit rather than the art giving its space back.
             Text label = UISharedFoundation.CreateText(tile.transform, "StructureName",
                 def.DisplayName.ToUpperInvariant(), UITextRole.Caption, TextAnchor.MiddleCenter,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 24f));
-            label.fontSize = 15;
+            label.fontSize = 11;
+            label.resizeTextForBestFit = false;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.raycastTarget = false;
-            SetNormalizedRect(label.rectTransform, 0.04f, 0.18f, 0.96f, 0.32f);
+            SetNormalizedRect(label.rectTransform, 0.02f, 0.20f, 0.98f, 0.40f);
 
             // Reads the real stored level now that the fields exist. Before today these five had
             // no level field and this line could only have shown a placeholder.
@@ -699,9 +705,9 @@ namespace MyriadOfDragons.UI
                 "LEVEL " + EmpireBuildingLevels.LevelOf(SaveManager.SaveData, kind),
                 UITextRole.Caption, TextAnchor.MiddleCenter, HexColor("#9FD3A0"), true,
                 new Vector2(200f, 22f));
-            level.fontSize = 14;
+            level.fontSize = 10;
             level.raycastTarget = false;
-            SetNormalizedRect(level.rectTransform, 0.04f, 0.04f, 0.96f, 0.16f);
+            SetNormalizedRect(level.rectTransform, 0.02f, 0.02f, 0.98f, 0.19f);
         }
 
         public int StructureTileCountForTests =>
