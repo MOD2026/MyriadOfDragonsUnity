@@ -2710,3 +2710,26 @@ in the session now confirmed on this exact pattern (Windstep dominant win-share,
 here, routed to BS:** should MaxSingleSpellWinShare itself be redesigned to distinguish "cast during
 a win" from "caused the win" (e.g. something closer to the earlier ablation's own
 slotWinRateWhenCast/shareOfAiWins split)? CR correctly did not touch the cap or the metric.
+
+## MaxSingleSpellWinShare removed from pass/fail - causal ablation formalized (2026-08-25, BS, vetted)
+
+**Decision: MaxSingleSpellWinShare measures availability/correlation, not causation - remove from
+pass/fail.** Windstep proves the failure mode cleanly: high candidacy -> appears in many matches ->
+appears in many wins for the same reason -> removing it changes win rate by <1pp -> 76% share does
+NOT mean Windstep is overpowered. Confirmed independently at two tiers tonight (VeteranPlus,
+Apprentice), same conclusion both times.
+
+**Redesigned metric set:**
+- MaxSingleSpellWinShare: descriptive telemetry only, may be kept as a review flag but must never
+  fail the suite by itself - a cheap, frequently-legal spell will naturally exceed 40% even with
+  near-zero causal power.
+- slotWinRateWhenCast: descriptive (already computed by CR's ablations - reused, not new).
+- shareOfAiWins: descriptive availability/correlation measure (already computed - reused, not new).
+- SpellRemovalWinRateDelta: NEW real causal balance metric - paired ablation, normal-loadout win
+  rate minus spell-removed win rate. Gated by the EXISTING overall AI win-rate tolerance, not a new
+  threshold. A spell only triggers escalation when removing it produces a MATERIAL win-rate change,
+  not merely high win-share appearance.
+
+This formalizes the exact manual ablation pattern already proven twice tonight (VeteranPlus and
+Apprentice Windstep investigations) into a permanent, repeatable test, so future tiers/spells don't
+need a one-off manual investigation each time.
