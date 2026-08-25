@@ -808,7 +808,10 @@ public class HomePagePresenter : MonoBehaviour
         SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), 1780, 18, 1896, 90);
 
         Image img = btnObj.GetComponent<Image>();
+        Button btn = btnObj.GetComponent<Button>();
         Sprite gear = Resources.Load<Sprite>("UI/Icons/icon_settings_gear");
+        // ApplyNeutralActionButton clears targetGraphic.sprite — style first, then assign gear.
+        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(1f, 1f, 1f, gear != null ? 1f : 0.85f));
         if (gear != null)
         {
             img.sprite = gear;
@@ -820,8 +823,6 @@ public class HomePagePresenter : MonoBehaviour
             img.color = new Color(0.2f, 0.24f, 0.3f, 0.9f);
         }
 
-        Button btn = btnObj.GetComponent<Button>();
-        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(1f, 1f, 1f, gear != null ? 1f : 0.85f));
         btn.onClick.AddListener(OpenSettings);
 
         if (gear == null)
