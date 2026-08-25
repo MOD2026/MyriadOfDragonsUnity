@@ -3054,3 +3054,13 @@ real balance-tuning decision with project-wide implications rather than guessing
 **Real decision needed, routed to BS:** invoke the HP/Resource scaling lever for both tiers (per
 BS's own pre-committed contingency), or reconsider the win-rate bands themselves now that the AI's
 real target behavior has legitimately changed?
+
+## AUDIT FINDING: Tactical Puzzle content-design BS prompt was never sent (2026-08-25, CC self-audit)
+
+Real miss, caught by the owner asking "what am I supposed to do here" after I repeated "blocked on
+BS's puzzle-design pass" without having actually sent that prompt. Checked: the specific validation
+task dispatched to VS (b59186a, throwaway example puzzle) was never explicitly confirmed complete -
+but the underlying prerequisite (prove the pipeline works) has since been satisfied far more
+rigorously anyway: 40/40 real authoring tests (73c8a86), 16/16 verifier tests (5bde81e), a full-suite
+pass at 1449/1458, and a real gameplay bug found and fixed through actual use (14c9bdf). Prerequisite
+is genuinely met - the prompt was just never sent. Sending now.
