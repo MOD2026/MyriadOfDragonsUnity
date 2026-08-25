@@ -1766,3 +1766,32 @@ Only after this evidence does anyone decide whether AvatarStrike or Stone Judgme
 
 **Real order: (1) Novice band correction, (2) dead-slot fix, (3) VeteranPlus matrix rerun on fixed
 loadout, (4) 4-condition ablation study.**
+
+## Academy + Prison real design LOCKED (2026-08-25, GPT, vetted not surface-accepted)
+
+**ACADEMY:** genuine player-choice research, kept. NOT offline production, NOT a linear click-bar,
+NOT a hidden combat-stat booster. Real branches (capacity support/construction planning/codex
+access/Expedition utility) - never directly increases card Attack/HP, never bypasses campaign
+gates. Passive research-point accrual can support this LATER, never replace the real choice system.
+
+**PRISON:** real PvP-capture building, but full-card capture REJECTED for Phase 1 (real, specific
+abuse vectors: new PvP acquisition route, alt-account farming, whale exploitation, collision with
+the locked collection-acquisition-channel model). Locked version: "Bound Captive Fodder" -
+server-authoritative, non-destructive, sacrifice-only. On an eligible async-ladder win, server picks
+one card from the opponent's revealed defense formation snapshot; opponent keeps their original
+(no loss); attacker gets a Fodder item with no combat stats, cannot be equipped, doesn't count
+toward collection, cannot be traded/sold/packed/burned for Forge/Dust - can ONLY be consumed as an
+Evolution sacrifice-credit input (reuses the EXISTING sacrifice-credit system, not a new mechanic).
+
+Guardrails (all real, matching existing project patterns - Permits' weekly cap, Daily Login's
+claim logic): max 1 Prison capture/player/day, cooldown vs same opponent, no
+guildmate/friend/rematch/private-match rewards, no reward if opponent has no eligible card, no
+capture from tutorial/bot/practice/unranked matches, failed attacks grant nothing, idempotent +
+ledger-backed transaction.
+
+**If a usable substandard card version is ever wanted instead of pure fodder, that requires its own
+formal Collection-acquisition-rules reopening - explicitly NOT a Prison implementation detail,
+needs its own GPT/owner round.**
+
+Both are real, substantial features - not urgent, logged as locked design ready for
+implementation whenever prioritized, not dispatched tonight.
