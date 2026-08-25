@@ -595,3 +595,27 @@ existing yet) - tracked above, not gate-blocking.
 Minor loose end, not fixed (not broken, just inconsistent): TutorialFoundationTests.cs has no
 namespace declaration, unlike every other test file (MyriadOfDragons.Tests). Works today, but will
 silently no-op under any namespace-scoped test filter. Cosmetic/consistency fix for whoever's free.
+
+## Spell Catalog Wave 3 shipped (2026-08-25, CR)
+
+Real catalog count 19->27 (AvatarSpell.CreateCatalog()). 8 new spells: Ember Guard, Earthward,
+Stonewall, Veil of Zeus, Cleansing Root, Gale Break, Infernal Mark, Thunder Decree. Real
+BattleCardInstance state added: Shield (absorbs before Health, replace-not-stack, expires match
+end), Vulnerability mark (+1 dmg on trigger, consumed, expires unused at end of its own clash, swept
+in LaneBattleResolver.ResolveLaneClash), spell-Attack-buff capped +3/unit cumulative (retroactively
+caps War Cry/Rallying Gale/Banner of Ashes per the already-locked correction). Veil of Zeus shield
+corrected 6->10/unit per this register.
+
+Acquisition wired: Stonewall+Infernal Mark share Ch6 spell book (6-30), Veil of Zeus 8-30, Cleansing
+Root gets a real Avatar L16 SpellUnlockResolver rule. Ember Guard/Earthward/Gale Break left with no
+unlock rule - Phase-2 catalog only gives a bare chapter number, no stage precision (same honest
+pattern as Aegis Return, not guessed). Thunder Decree's unlock condition wasn't available this
+session - flagged, not guessed.
+
+**Real gap, explicitly out of Wave 3 scope:** none of the 5 new effects are wired into
+SpellLoadoutSelection's 4-slot one-per-effect-type player picker or AISpellCaster's EffectPriority
+list yet - the 8 spells are castable/ownable/unlockable but not yet equippable by a player or
+AI-castable. Expanding either system is a real design call, not guessed into. Needs its own pass.
+
+196/196 EditMode tests pass (SpellCatalogPhase1/2/3Tests, SpellBookGrantTests, BattleLogicTests,
+SpellLoadoutTests). Committed as 0e74dba.
