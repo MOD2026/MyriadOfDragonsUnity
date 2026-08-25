@@ -22,7 +22,8 @@ because nothing at turn-start surfaced it.
 
 | Since | Constraint | Lifted when |
 |---|---|---|
-| 2026-08-25 | Chapter production HELD at 18 - no Ch19+ dispatch | Owner explicitly lifts it (asked once, no answer yet) |
+| 2026-08-26 | Chapter production HELD at 18 - **owner explicitly confirmed, not just unanswered**: too much UI is still broken (borders/boxes not matching mockups) to justify more content before more polish. Do NOT re-ask this as if undecided. | Owner explicitly lifts it |
+| 2026-08-26 | **UI-fixing is the current top priority across all rooms** - owner flagged real frustration at slow visible progress on border/box/mockup-mismatch bugs. CC should proactively hunt for this bug class (reachable screen + real approved art + Load() never called) via read-only diagnosis and batch-dispatch findings, not wait for one-off reports. | Owner signals priority has shifted |
 | 2026-08-25 | WH batch size ~50% up from single-atom tasks; owner is LIVE (15-30 min deliverable band) | Owner signals stepping away (then batch freely) |
 | 2026-08-25 | Frozen-file edits (PlayerProfile.cs etc.) need a vetted, locked field list BEFORE the edit - per-case, never blanket | Standing rule, does not lift |
 | 2026-08-25 | Empire Defense: design-only, behind evidence gate - no build/art/story dispatch | Memory Expedition live + gate criteria met (10+ wks) |
@@ -3627,14 +3628,19 @@ don't append a new copy each time.
       hero-tile commit.
 - [x] Empire structure-strip art (Storage/Training Grounds/Quarry/Academy/Tree of Knowledge) -
       CLOSED, fixed commit e208114.
-- [ ] **VIP Subscription screen** - real gap found 2026-08-25/26: `VipSubscriptionPresenter.cs` has
-      a working `VipSubscriptionUiLibrary.Load()` helper and the approved art already sits at
-      `Resources/UI/VipSubscriptionV1/*.png`, but the presenter never calls Load anywhere - renders
-      as plain colored boxes. Screen IS reachable (Home's VIP button wires through correctly).
-      Dispatched to WH via mailbox, not yet fixed as of this entry.
-- [ ] **Friends screen** - identical gap, same entry: `FriendsPresenter.cs` never calls
-      `FriendsUiLibrary.Load()` despite the helper and the approved art (`Resources/UI/FriendsV1/*.png`)
-      both already existing. Reachable via Home's FRIENDS button. Dispatched to WH, not yet fixed.
+- [x] **VIP Subscription screen - FALSE ALARM, RETRACTED (2026-08-26).** Earlier entry claimed
+      `VipSubscriptionPresenter.cs` "never calls Load anywhere" - that check only grepped for the
+      literal substring `.Load(` and missed the real pattern: `VipSubscriptionPresenter.cs:61` calls
+      `VipSubscriptionUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback)`, which
+      itself calls `Load(ScreenShellName)` internally and correctly sets the sprite. **Real art IS
+      wired.** A false bug was dispatched to WH - retract it, no fix needed. Root cause: checked one
+      naming convention (`Xxx.Load(`) and generalized from 2 real hits (Empire/before) to "this bug
+      class" without re-verifying the actual call site for THIS presenter first.
+- [x] **Friends screen - same false alarm, RETRACTED.** `FriendsPresenter.cs` correctly calls
+      `FriendsUiLibrary.ApplyFullscreenShell` (shell background) and `ApplyAtlasIcon`/
+      `LoadRelationshipCell`/`LoadProfileActionCell` (relationship + action icon atlases) at multiple
+      real call sites (lines 82, 175, 222, 235, 308, 320). Real art IS wired. Retracted, no fix
+      needed.
 - [x] Collection screen/acquisition - CONTRADICTION RESOLVED (2026-08-26, read-only check, no fix
       needed): `CollectionPresenter.cs:363` calls `db.GetArt(resolved)` (real `CardDatabase` art
       lookup, same mechanism Battle uses) - real art genuinely loads here. The MOS §20 "incomplete"
@@ -3653,12 +3659,13 @@ loop, real combat with real audio + particle VFX, AI opponent that casts spells 
 verified. (*Collection status itself needs the direct check above - don't assume.)
 
 **Ship-blocking gaps for "next working prototype," in priority order:**
-1. VIP and Friends screens actually show their approved art (real gap, dispatched, not fixed).
-2. Confirm Collection screen's real status (claimed both "done" and "incomplete" by different
-   sources - resolve the contradiction with a direct code check, not another claim).
-3. Tactical Puzzle m01/m02 resolved (BS redecision needed).
-4. AvatarStrike flipbook actually animates (verify the in-flight work landed, don't assume).
-5. Owner decides whether to lift the Chapter 19+ hold.
+1. Tactical Puzzle m01/m02 resolved (BS's redesign dispatched to VS, awaiting re-validation).
+2. AvatarStrike flipbook actually animates (verify the in-flight work landed, don't assume).
+3. Chapter 19+ hold stays in place per owner's explicit 2026-08-26 confirmation - UI-fixing is the
+   current priority, not more content.
+
+VIP/Friends/Collection were all false alarms or already-resolved on direct check - retracted above.
+Everything else already closed this session is real expansion/polish, not blocking this bar.
 
 Everything else already closed this session is real expansion/polish, not blocking this bar.
 
