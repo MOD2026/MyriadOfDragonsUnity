@@ -34,6 +34,11 @@ namespace MyriadOfDragons.Tests
         private const int Weak = 1;
         private const int Strong = 7;
 
+        /// <summary>Resource defaults deliberately high. ResourceCost is DERIVED from rarity, so
+        /// a hand-picked pool silently turns unrelated tests into affordability tests - that is
+        /// exactly what happened on the first run here, where every rarity-7 deploy was correctly
+        /// rejected and five objective tests failed as a consequence. Only the affordability test
+        /// constrains the pool.</summary>
         private static PlayerBattleState Side(IEnumerable<Card> hand, int resource)
         {
             var s = new PlayerBattleState(new List<Card>(), 10, resource, 30);
@@ -59,7 +64,7 @@ namespace MyriadOfDragons.Tests
             TacticalPuzzleResult first = null;
             for (int run = 0; run < 5; run++)
             {
-                PlayerBattleState player = Side(new[] { MakeCard("a", Weak) }, 5);
+                PlayerBattleState player = Side(new[] { MakeCard("a", Weak) }, 99);
                 PlayerBattleState enemy = Side(new Card[0], 0);
                 Place(enemy, Lane.Front, MakeCard("e", Weak), false);
 
@@ -83,7 +88,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void ADeployBeyondLaneCapacity_IsRejected_ByTheSameSlotWeightRuleTheBattleUses()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("d", Weak) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("d", Weak) }, 99);
             for (int i = 0; i < LaneState.MaxSlots; i++)
                 Place(player, Lane.Front, MakeCard("filler" + i, Weak), true);
             Assert.AreEqual(0, player.Lanes[Lane.Front].FreeSlots, "Setup: lane should be full.");
@@ -117,7 +122,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void AnOutOfRangeHandIndex_IsRejected()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("a", Weak) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("a", Weak) }, 99);
 
             TacticalPuzzleResult r = TacticalPuzzleVerifier.Verify(
                 player, Side(new Card[0], 0),
@@ -130,14 +135,14 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void ADeploy_SpendsResourceAndConsumesTheHandCard()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("a", Weak) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("a", Weak) }, 99);
 
             TacticalPuzzleVerifier.Verify(
                 player, Side(new Card[0], 0),
                 new TacticalPuzzleObjective { Kind = TacticalPuzzleObjectiveKind.ProtectLane, ProtectedLane = Lane.Front },
                 new[] { Deploy(0, Lane.Front) });
 
-            Assert.Less(player.Resource, 5, "Resource must be spent.");
+            Assert.Less(player.Resource, 99, "Resource must be spent.");
             CollectionAssert.IsEmpty(player.Hand, "There is no draw, so a played card simply leaves the fixed hand.");
         }
 
@@ -146,7 +151,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void ProtectLane_IsMet_WhenTheLaneStillHoldsALivingUnit()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("tank", Strong) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("tank", Strong) }, 99);
             PlayerBattleState enemy = Side(new Card[0], 0);
             Place(enemy, Lane.Front, MakeCard("weak", Weak), false);
 
@@ -162,7 +167,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void ProtectLane_IsNotMet_WhenNothingWasDeployedThere()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("tank", Strong) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("tank", Strong) }, 99);
             PlayerBattleState enemy = Side(new Card[0], 0);
 
             TacticalPuzzleResult r = TacticalPuzzleVerifier.Verify(
@@ -176,7 +181,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void DefeatMarkedTarget_IsMet_OnlyWhenThatSpecificUnitDies()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("hitter", Strong) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("hitter", Strong) }, 99);
             PlayerBattleState enemy = Side(new Card[0], 0);
             Place(enemy, Lane.Front, MakeCard("mark", Weak), false);
             BattleCardInstance marked = enemy.Lanes[Lane.Front].Cards[0];
@@ -193,7 +198,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void DefeatMarkedTarget_IsNotMet_WhenTheTargetSurvives()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("weak", Weak) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("weak", Weak) }, 99);
             PlayerBattleState enemy = Side(new Card[0], 0);
             Place(enemy, Lane.Front, MakeCard("tanky", Strong), false);
             BattleCardInstance marked = enemy.Lanes[Lane.Front].Cards[0];
@@ -210,7 +215,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void SurviveClashes_FailsWhenTheBoardIsWipedBeforeTheCountIsReached()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("paper", Weak) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("paper", Weak) }, 99);
             PlayerBattleState enemy = Side(new Card[0], 0);
             Place(enemy, Lane.Front, MakeCard("crusher", Strong), false);
 
@@ -225,7 +230,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void SurviveClashes_WithNoClashCount_IsAMalformedObjective_NotAFreeWin()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("a", Strong) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("a", Strong) }, 99);
 
             TacticalPuzzleResult r = TacticalPuzzleVerifier.Verify(
                 player, Side(new Card[0], 0),
@@ -239,7 +244,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void MinimalResourceSolve_FailsWhenTheBudgetIsExceeded()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("a", Strong) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("a", Strong) }, 99);
             PlayerBattleState enemy = Side(new Card[0], 0);
 
             TacticalPuzzleResult r = TacticalPuzzleVerifier.Verify(
@@ -253,7 +258,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void MinimalResourceSolve_IsNotSatisfiedByDoingNothingAndHoldingNoBoard()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("a", Strong) }, 5);
+            PlayerBattleState player = Side(new[] { MakeCard("a", Strong) }, 99);
 
             TacticalPuzzleResult r = TacticalPuzzleVerifier.Verify(
                 player, Side(new Card[0], 0),
@@ -269,7 +274,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void TheResult_ReportsTheDecisionBasedScoreInputs()
         {
-            PlayerBattleState player = Side(new[] { MakeCard("a", Strong), MakeCard("b", Strong) }, 6);
+            PlayerBattleState player = Side(new[] { MakeCard("a", Strong), MakeCard("b", Strong) }, 99);
             PlayerBattleState enemy = Side(new Card[0], 0);
 
             TacticalPuzzleResult r = TacticalPuzzleVerifier.Verify(
@@ -278,7 +283,7 @@ namespace MyriadOfDragons.Tests
                 new[] { Deploy(0, Lane.Front), Deploy(0, Lane.Middle) });
 
             Assert.AreEqual(2, r.ActionsUsed);
-            Assert.Less(r.ResourceRemaining, 6, "Two deploys must have cost Resource.");
+            Assert.Less(r.ResourceRemaining, 99, "Two deploys must have cost Resource.");
             Assert.AreEqual(2, r.FriendlyUnitsAlive);
             Assert.AreEqual(2, r.LanesHeld);
         }
@@ -295,7 +300,7 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void NoActions_IsValidInput_NotACrash()
         {
-            PlayerBattleState player = Side(new Card[0], 3);
+            PlayerBattleState player = Side(new Card[0], 99);
 
             Assert.DoesNotThrow(() => TacticalPuzzleVerifier.Verify(
                 player, Side(new Card[0], 0),
