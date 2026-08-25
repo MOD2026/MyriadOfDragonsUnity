@@ -3960,3 +3960,13 @@ across Ch3-18), not a rewrite of all 513 stages - ordinary encounter dialogue st
 **Next step, not yet dispatched:** the plan describes WHAT each beat needs dramatically but doesn't
 give verbatim dialogue text for most of them (only a few direct quotes provided). Real verbatim
 lines needed before any coding room can implement this - requesting those from ST next.
+
+## Placeholder-staleness sweep: real negative result (2026-08-26, CR)
+
+CR checked every "OPEN"/"[runtime]"/"PLACEHOLDER"/"TBD"-style sentinel string across the test suite
+against current source. Real, correctly-reasoned negative: no other stale placeholder-text tests
+found. Two live-presenter-text checks (EmpireExpeditionShellTests, VipSubscriptionShellTests) looked
+like candidates but were verified still genuinely correct - neither screen has had a real-data-
+binding pass like BattlePass's `92c8b54`, so their tests correctly still check the open/placeholder
+state. Also re-flagged (not new) a pre-existing ShopV1ChromeTests/ShopPresenter full-suite hang,
+already routed to WH earlier this session.
