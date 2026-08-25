@@ -1199,3 +1199,32 @@ The originally-reverted GameBootstrap.cs fix (derive card height from real HandP
 constants instead of stale hardcoded 196) is confirmed CORRECT IN SUBSTANCE - it was reverted for
 a false severity justification, which was the right call on the info available at the time. Now
 correctly re-requesting approval on accurate severity rather than re-applying unilaterally.
+
+## Visual direction: 2.5D presentation on 2D assets — LOCKED (2026-08-25, GPT)
+
+Confirmed: dimension doesn't define quality bar - consistency, timing, audio, effects, and
+production polish do (real precedent: Hearthstone, Marvel SNAP both premium 2D card games).
+Direction: illustrated 2D cards/portraits stay the visual foundation; layered parallax for depth;
+particles/glow/distortion/lighting/camera impact sell power; flipbooks for spell motion; SELECTIVE
+skeletal animation only for recurring avatars/villains that need reusable body deformation, NOT
+"every asset must be Spine." Unity-native sprites/flipbooks/particles/tweens are the efficient
+foundation given the game is dominated by short combat events. This directly extends the already-
+locked "Spell Visual Identity Phase-1" 3-layer model (school palette/shape/motion -> effect-type
+shape -> per-spell signature beat) - compatible, not conflicting.
+
+**Real execution plan, in order:**
+1. Build ONE polished vertical slice: one card attack, one damage spell, one heal/buff spell, one
+   AvatarStrike (which already has its own locked 4-beat Commit->Lock->Release->Consequence
+   sequence).
+2. Lock concrete parameters from that slice: timing budget, camera language, audio hit points,
+   particle style, skip/fast-forward behavior - real numbers, not vague "polish."
+3. Apply that locked language consistently across the remaining 32 spells/cards.
+4. Cinematic/trailer production comes AFTER the in-game visual identity is stable, not before -
+   this also resolves the earlier open question (in-game animation before opening scene).
+
+Hardcore-player constraint carried over: every animation must be fast-forwardable, strategic lane
+state stays visible during effects, no animation delays the next meaningful decision.
+
+**Real gap: this needs an actual asset-production/VFX resource, not just coding seats.** CR/VS
+handle spell LOGIC; none of tonight's seats have confirmed art/animation production capability.
+This is a new workstream, not something to fold into the current CR/VS/WH coding queues blind.
