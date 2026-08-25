@@ -561,6 +561,147 @@ namespace MyriadOfDragons.Tests
             return mismatches;
         }
 
+        private sealed class EffectImpact
+        {
+            public int N;
+            public double BaselineAvg;
+            public double NormalAvg;
+        }
+
+        private sealed class ShadowDiagnosticResult
+        {
+            public int AnyCastN;
+            public int ShadowMismatches;
+            public Dictionary<SpellEffect, EffectImpact> PerEffect = new Dictionary<SpellEffect, EffectImpact>();
+        }
+
+        /// <summary>Any-cast root-cause protocol, formalized as a permanent per-tier-group
+        /// diagnostic (BS-vetted, LOCKED, grew out of b81592b's one-off Apprentice study). For
+        /// every any-cast matched-seed trial: baseline (spells off), normal (real AI gate,
+        /// classified by its first cast's SpellEffect), and shadow (BattleController.
+        /// SetShadowModeSuppressEnemySpellEffectForTests - the AI's real decision loop/Energy/
+        /// cooldown/log all genuine, only the battlefield effect suppressed). ShadowMismatches
+        /// counts trials where shadow ticks != baseline ticks exactly - the real correctness gate
+        /// (see RunGroup). PerEffect is purely descriptive tick-impact data, gated by the caller's
+        /// own minimum-sample-count before being reported (rare effects like Renewal/War Cry don't
+        /// get a number just because they showed up once).</summary>
+        private ShadowDiagnosticResult RunAnyCastShadowDiagnostic(List<Card> pool, TierGroup group, int trials, int baseSeed)
+        {
+            (int avatarLevel, int castleLevel, AIDifficultyTier tier) = GroupConfig(group);
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+            empire.InitializeTCGModifiers();
+            var economy = new BattleController.MatchEconomy(empire.ResourceCap, empire.Turn1Resource, empire.StartingAvatarHealth);
+            List<string> equippedIds = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Id).ToList();
+
+            var result = new ShadowDiagnosticResult();
+            var perEffectSamples = new Dictionary<SpellEffect, List<(long baseline, long normal)>>();
+
+            for (int i = 0; i < trials; i++)
+            {
+                int seed = baseSeed + i;
+
+                PlayerBattleState.SetShuffleSeedForTests(seed);
+                UnityEngine.Random.InitState(seed);
+                BattleController baseController = CreateController();
+                List<Card> basePlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> baseEnemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                baseController.StartMatch(basePlayerDeck, baseEnemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                baseController.DealFormationHand(baseController.PlayerState);
+                baseController.DealFormationHand(baseController.EnemyState);
+                DeployWholeSquad(baseController, baseController.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(baseController, AIArchetype.Balanced);
+                bool baseConfirmed = baseController.ConfirmFormation();
+                long baselineTicks = 0;
+                if (baseConfirmed)
+                {
+                    while (baseController.Phase == BattlePhase.Combat) baseController.AdvanceCombatTick();
+                    baselineTicks = baseController.TickCount;
+                }
+                UnityEngine.Object.DestroyImmediate(baseController.gameObject);
+
+                PlayerBattleState.SetShuffleSeedForTests(seed);
+                UnityEngine.Random.InitState(seed);
+                BattleController normalController = CreateController();
+                List<Card> normalPlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> normalEnemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                normalController.StartMatch(normalPlayerDeck, normalEnemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                normalController.EnableMirroredEnemySpellsForPvE();
+                normalController.DealFormationHand(normalController.PlayerState);
+                normalController.DealFormationHand(normalController.EnemyState);
+                DeployWholeSquad(normalController, normalController.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(normalController, AIArchetype.Balanced);
+                bool normalConfirmed = normalController.ConfirmFormation();
+                long normalTicks = 0;
+                SpellEffect firstCastEffect = default;
+                bool hadAnyCast = false;
+                if (normalConfirmed)
+                {
+                    while (normalController.Phase == BattlePhase.Combat) normalController.AdvanceCombatTick();
+                    normalTicks = normalController.TickCount;
+                    hadAnyCast = normalController.SpellCastLog.Any(c => !c.CastByPlayer);
+                    if (hadAnyCast)
+                    {
+                        SpellCastRecord firstCast = normalController.SpellCastLog.First(c => !c.CastByPlayer);
+                        AvatarSpell matched = normalController.EnemySpellbook.FirstOrDefault(s => s.Name == firstCast.SpellName);
+                        firstCastEffect = matched?.Effect ?? default;
+                    }
+                }
+                UnityEngine.Object.DestroyImmediate(normalController.gameObject);
+
+                if (!baseConfirmed || !normalConfirmed || !hadAnyCast) continue; // zero-cast trials are out of scope here.
+
+                PlayerBattleState.SetShuffleSeedForTests(seed);
+                UnityEngine.Random.InitState(seed);
+                BattleController shadowController = CreateController();
+                List<Card> shadowPlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> shadowEnemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                shadowController.StartMatch(shadowPlayerDeck, shadowEnemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                shadowController.EnableMirroredEnemySpellsForPvE();
+                shadowController.SetShadowModeSuppressEnemySpellEffectForTests(true);
+                shadowController.DealFormationHand(shadowController.PlayerState);
+                shadowController.DealFormationHand(shadowController.EnemyState);
+                DeployWholeSquad(shadowController, shadowController.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(shadowController, AIArchetype.Balanced);
+                bool shadowConfirmed = shadowController.ConfirmFormation();
+                long shadowTicks = 0;
+                if (shadowConfirmed)
+                {
+                    while (shadowController.Phase == BattlePhase.Combat) shadowController.AdvanceCombatTick();
+                    shadowTicks = shadowController.TickCount;
+                }
+                UnityEngine.Object.DestroyImmediate(shadowController.gameObject);
+
+                if (!shadowConfirmed) continue;
+
+                result.AnyCastN++;
+                if (shadowTicks != baselineTicks) result.ShadowMismatches++;
+
+                if (!perEffectSamples.TryGetValue(firstCastEffect, out List<(long, long)> list))
+                {
+                    list = new List<(long, long)>();
+                    perEffectSamples[firstCastEffect] = list;
+                }
+                list.Add((baselineTicks, normalTicks));
+            }
+
+            foreach (var kv in perEffectSamples)
+            {
+                result.PerEffect[kv.Key] = new EffectImpact
+                {
+                    N = kv.Value.Count,
+                    BaselineAvg = kv.Value.Average(s => s.baseline),
+                    NormalAvg = kv.Value.Average(s => s.normal),
+                };
+            }
+
+            Debug.Log($"[SimMatrix] {group}/AnyCastShadowDiagnostic: n={result.AnyCastN} shadowMismatches={result.ShadowMismatches}.");
+            return result;
+        }
+
         /// <summary>The 5 locked scenarios for one tier group, asserted against the locked
         /// acceptance bands. A band miss fails loudly here - this method never adjusts a threshold
         /// to make a bad number pass (LOCKED spec's own failure policy).</summary>
@@ -610,23 +751,51 @@ namespace MyriadOfDragons.Tests
             // root-cause protocol at c136c7d proved forced-no-cast is tick-for-tick identical to
             // baseline in 1500/1500 trials - i.e. the zero-cast population's own deviation is a
             // population-selection artifact, not an AI defect, and is not causally produced by the
-            // AI decision loop at all). anyCastTickRatio is the causally-clean population and stays
-            // the real pass/fail gate. zeroCastTickRatio becomes descriptive telemetry only - it is
+            // AI decision loop at all). zeroCastTickRatio becomes descriptive telemetry only - it is
             // real signal about which matches are already going to run long, never a suite failure.
             // zeroCastRate (tier AI-behavior descriptive metric, same class as
             // AiCastRateOfOpportunity) is logged alongside it. The genuine regression guard for "did
-            // the AI decision loop start having a real side effect" moves to the NEW hard invariant
+            // the AI decision loop start having a real side effect" moves to the hard invariant
             // below (RunForcedNoCastMatchesBaseline) instead of leaning on zeroCastTickRatio for that.
             SplitTickResult split = RunPairedZeroCastSplit(pool, group, trials: 2000, baseSeed: 800001);
             Debug.Log($"[SimMatrix] {g}: zeroCastRate={split.ZeroCastRate:P1} zeroCastTickRatio={split.ZeroCastTickRatio:F3} (descriptive only, not gated)" +
                       (split.ZeroCastN > 0 && !(split.ZeroCastTickRatio >= 0.85 && split.ZeroCastTickRatio <= 1.15)
                           ? " - FLAGGED for CC review (outside the old ±15% reference band, not auto-retuned)."
                           : "."));
-            if (split.AnyCastN > 0)
+
+            // Contract FINAL (BS-vetted, LOCKED, closes the zero-cast/any-cast thread end to end):
+            // anyCastTickRatio was ALSO a hard gate until CR's shadow/no-op root-cause (b81592b)
+            // proved its Apprentice 1.35x is the AI spells' real, legitimate gameplay effect
+            // (Reposition/Windstep and LaneDamage/Fault Line both prolong combat on purpose) - not
+            // an AI-timing defect. Widening the band to accommodate that was explicitly rejected
+            // (the catalogue's effect mix will keep changing, so a wider shared band would be an
+            // arbitrary tolerance, not a meaningful test). anyCastTickRatio is now descriptive only.
+            // The real correctness gate moves to shadowCastTickRatio - the shadow control itself
+            // (spell.Cast's effect suppressed, everything else about the real cast genuine),
+            // formalized as a permanent hard invariant instead of a one-off study: shadow ticks
+            // must equal baseline ticks EXACTLY on every any-cast matched-seed pair, expected
+            // ~1.000x always, since a suppressed-effect cast cannot touch anything LaneBattleResolver
+            // reads (deterministic combat resolves off Attack/Health only, never Energy/cooldown).
+            Debug.Log($"[SimMatrix] {g}: anyCastTickRatio={split.AnyCastTickRatio:F3} (n={split.AnyCastN}, descriptive only, not gated - " +
+                      $"real spellcasting gameplay effect per b81592b root-cause, not an AI-mechanics signal).");
+
+            ShadowDiagnosticResult shadow = RunAnyCastShadowDiagnostic(pool, group, trials: 1000, baseSeed: 860001);
+            Assert.AreEqual(0, shadow.ShadowMismatches,
+                $"[{g}] Shadow-control ticks diverged from baseline on {shadow.ShadowMismatches}/{shadow.AnyCastN} any-cast matched-seed " +
+                $"pairs (spell effect suppressed, decision loop + Energy/cooldown/log otherwise genuine) - the AI's own cast-selection " +
+                $"or resource/cooldown bookkeeping is no longer side-effect-free. This is a real regression, not a gameplay-balance " +
+                $"question. ESCALATE TO CC.");
+            const int minEffectSampleCount = 30;
+            foreach (var kv in shadow.PerEffect.OrderByDescending(kv => kv.Value.N))
             {
-                Assert.That(split.AnyCastTickRatio, Is.InRange(0.85, 1.15),
-                    $"[{g}] Any-cast-trial ticks {split.AnyCastOnAvg:F2} vs matched-seed baseline {split.AnyCastBaselineAvg:F2} " +
-                    $"({split.AnyCastN} trials) outside the locked ±15% band. ESCALATE TO CC.");
+                EffectImpact e = kv.Value;
+                double ratio = e.BaselineAvg == 0 ? 1 : e.NormalAvg / e.BaselineAvg;
+                if (e.N < minEffectSampleCount)
+                {
+                    Debug.Log($"[SimMatrix] {g}: effect={kv.Key} n={e.N} - below the {minEffectSampleCount}-sample minimum, not reported (insufficient data, not zero impact).");
+                    continue;
+                }
+                Debug.Log($"[SimMatrix] {g}: effect={kv.Key} n={e.N} baselineAvg={e.BaselineAvg:F2} normalAvg={e.NormalAvg:F2} tickImpactRatio={ratio:F3} (descriptive only).");
             }
 
             int forcedMismatches = RunForcedNoCastMatchesBaseline(pool, group, trials: 300, baseSeed: 850001);
