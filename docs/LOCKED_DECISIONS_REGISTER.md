@@ -4156,3 +4156,47 @@ repeatable engagement content is MORE needed at launch, not less - Gallery (or w
 mechanic becomes) is being asked for specifically to fill that gap, not out of nostalgia for the old
 concept. Re-sent to BS as a real Phase-1 design ask, reframed around this actual need rather than
 the original 2017 pitch.
+
+## LOCKED: Solo Collection Circuit (Phase-1 solo engagement), PvP minimum slice, Loyalty milestones, Guild Vault archived (2026-08-26, BS, verified)
+
+**Verified before locking:** Event Medals as a reward is consistent with existing pattern - already
+granted by Memory Expedition/Battle Pass/Daily Login (lines 118/207/226) despite the currencies
+table's "no live source yet" note being itself stale, not a new conflict. BS's own reply already
+addresses the VIP-voucher-vs-active-subscription consistency question directly (vouchers cannot
+stack with an active subscription, no second tier created) - no gap found there either.
+
+**Solo Collection Circuit - real Phase-1 solo engagement, reuses existing systems only:**
+UTC-seeded daily circuit, 3 deterministic trials (Formation Trial - lane/formation restriction;
+Collection Trial - 5+ owned cards matching a daily school/rarity/faction rule; Tactical Brief -
+complete one existing Tactical Puzzle). First-clear-per-day per trial, retryable on fail, claim key
+= UTC date + trialId (clock rollback invalidates rather than re-grants). Rewards: 250 Gold + 10
+Avatar XP per trial clear, +500 Gold +1 Event Medal for all 3 same day, +2,500 Gold +25 Avatar XP for
+7 circuits/UTC week. Max 1,250 Gold/30 Avatar XP per day + weekly bonus. No cards/packs/Forge-Dust/
+Permits/Evolution materials/Market Credits/combat stats granted. New work needed: deterministic
+daily selection, restriction validation, claim persistence - reuses existing battle resolution +
+Tactical Puzzle verification, no new combat engine.
+
+**PvP minimum real slice, locked as the actual Phase-1 target:** submit one validated defense
+snapshot -> server assigns Battle Rating -> "find opponent" picks nearest eligible rating bracket ->
+server resolves/validates the async result -> rating+history stored. Launch with rank feedback ONLY
+- no seasons/rewards/guild effects/leaderboards until real population data justifies them. Solo
+Collection Circuit is the primary repeatable loop until this exists - real, honest sequencing.
+
+**Loyalty Points, redemption side now specified:** 1 point per 10 Gems spent (rounded down per
+transaction, no double-counting on refunds/free Gems/duplicated receipts, lifetime, no decay).
+One-time milestones: 100pts=1 Stamina claim (counts against the existing 4/24h cap), 250pts=3-day
+VIP voucher, 500pts=cosmetic badge/frame (existing catalog only), 1,000pts=7-day VIP voucher,
+2,000pts=1 more cosmetic, 4,000pts=30-day VIP voucher, 8,000pts=premium cosmetic frame. No cards/
+packs/Forge-Dust/Permits/Evolution materials/Market Credits/spell ownership/combat stats/timer
+skips anywhere in the reward list - kept as a pure recognition/convenience sink, not a second
+acquisition path (the exact mistake VIP's original "periodic packs" wording made).
+
+**Guild Vault card-lending/taxation - ARCHIVED, not Phase-1, real reasoning given:** assumes systems
+that don't exist (guild ranks/permissions, server-authoritative card custody, borrowed-card
+validation across Deck Builder/Battle/Evolution/Burn/Bazaar/Prison/PvP, anti-alt/anti-collusion
+limits, opt-in taxation reconciled against the existing anti-coercion Guild Competition rule). Real
+risk analysis given (new-player power access, guild card-pooling, multi-account tax farming,
+borrowed-card leakage into other systems) - not a shallow "not built yet," a genuine explanation of
+why this needs a trusted-server guild architecture pass before it can even be scoped safely.
+Classification locked: "Archived 2017 concept; deferred pending trusted-server guild architecture.
+Not Phase-1." Full reopening prerequisite list given, not touched until all of it exists.
