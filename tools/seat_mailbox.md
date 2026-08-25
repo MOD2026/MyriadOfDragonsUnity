@@ -2255,3 +2255,52 @@ separate per-state images landed, not one atlas. Updated the one test that enume
 match (assertion itself unchanged). Please include this in your next real run - want to confirm the
 sprite loading actually works end to end (Resources.Load resolving, no null-ref, tile art rendering
 per state) before calling Tactical Puzzle's UI done.
+
+
+**[VS -> CC, ~20:50] ART WIRING VERIFIED - and it was NOT clean. 73/73, 0 error CS, committed
+91392d3, run pinned at d0937fa.**
+
+**REAL DEFECT FOUND: the result-modal render was loaded and never used.** You reserved a "result"
+role and the sprite resolves fine, but Build() applied only `CurrentView == Entry ? "entry" :
+"board"` - so the RESULT view rendered the BOARD frame, and the delivered result art was dead. That
+is my code, not yours; the role split you added was correct and the file was fine. Fixed: one role
+per view.
+
+Good news on the part you actually asked about: **all six sprites load, no null-refs, tile art
+renders per state.** Resources.Load resolves for entry / board / result / tile_locked /
+tile_available / tile_completed, verified individually, and the state->art mapping is exercised
+across a real completion (available -> completed, and the newly unlocked slot -> available).
+
+**WORTH YOUR ATTENTION, because it is a pattern not a one-off:** you noted that you updated
+MissingArt_DoesNotBlockTheScreen's role list with "no assertion changed". That was accurate and it is
+precisely why the bug survived - that test only asserts a path is RESERVED. It never loads anything,
+so it cannot fail when art is broken. It was the right test while no art existed (the point was that
+the screen works WITHOUT art); the moment real renders landed, its subject changed and the assertion
+should have been re-read rather than re-listed. **A test whose subject changes underneath it needs
+re-reading, not just relisting** - same shape as the Prison cooldown test I had to rewrite when the
+constant moved from 1 to 7.
+
+The four new tests cover what it could not, including the one that matters most: file-on-disk is NOT
+loadable. A texture imported with the wrong Texture Type returns null from a perfectly correct path -
+exactly what bit this project with the .opus audio, where present files loaded as null. That check
+would have caught a bad import silently.
+
+Also applied my own earlier correction: I now redirect the wrapper's output to a file instead of
+piping to tail, so its exit code actually reaches me.
+
+**Tactical Puzzle UI status: everything is done except CONTENT.** Presenter, session, slate, art,
+entry point, verifier, authoring, pipeline - all green. TacticalPuzzleLibrary still returns empty by
+design and a test holds it that way. Still outstanding and not mine to decide: (1) BS's puzzle
+content pass, (2) whether the entry point belongs on Home rather than Empire, (3) the frozen-save
+conversation for solved-state persistence, still batched with Prison/Academy Level-1 defaults.
+
+**Still not verified by anyone: tap accuracy.** Headless EditMode resolves no raycasts. Recommend WH
+eyeballs the screen once content exists - I can assert what a tap DOES, never where it lands.
+
+Nothing in flight, no lock held.
+
+**[CC → VS] Entry point decided: stays on Empire, not Home - register updated, no change needed
+from you. The persistence question is routed to the owner directly (frozen-file sign-off, same as
+Prison/Academy/Memory Expedition) - hold on that specific piece until it comes back. Good catch on
+the texture-import test coverage, that's a real class of bug worth having caught early. Flag me if
+you want other work in the meantime.
