@@ -46,6 +46,42 @@ namespace MyriadOfDragons.Battle
 
         /// <summary>Draw Magnitude cards for the caster from their own draw pile - never creates cards, safely no-ops once the pile is empty.</summary>
         DrawCards,
+
+        /// <summary>Move one friendly unit (Windstep, to an adjacent lane) or exchange two friendly units' lanes (Seismic Swap) - see RepositionRules for the shared legality evaluator and AvatarSpell.RepositionTarget for how Cast() receives the target. Never targets an enemy unit, an empty slot, or an Avatar.</summary>
+        Reposition,
+    }
+
+    /// <summary>
+    /// The unit-level target a Reposition cast needs, on top of Cast()'s existing (caster,
+    /// opponent, targetLane) - every other effect acts uniformly on a whole lane, so this is the
+    /// first (and so far only) spell family that has to name a specific unit. One shape covers
+    /// both Reposition spells: Windstep sets UnitA + DestinationLaneForA and leaves UnitB null;
+    /// Seismic Swap sets UnitA + UnitB and ignores DestinationLaneForA (each unit's destination is
+    /// simply the other's current lane). Which shape a caller builds is driven by which spell id
+    /// it's actually casting (the UI flow and the AI evaluator both already know that before they
+    /// ever touch this class), the same trust boundary AvatarSpell.Cast already places on its
+    /// caller for every other effect/targetLane combination.
+    /// </summary>
+    public sealed class RepositionTarget
+    {
+        public readonly BattleCardInstance UnitA;
+        public readonly Lane DestinationLaneForA;
+        public readonly BattleCardInstance UnitB;
+
+        /// <summary>Windstep: pass unitA and its destination, leave unitB null.</summary>
+        public static RepositionTarget ForWindstep(BattleCardInstance unit, Lane destination) =>
+            new RepositionTarget(unit, destination, null);
+
+        /// <summary>Seismic Swap: pass both units, destination is derived from each unit's own current lane.</summary>
+        public static RepositionTarget ForSeismicSwap(BattleCardInstance unitA, BattleCardInstance unitB) =>
+            new RepositionTarget(unitA, default, unitB);
+
+        private RepositionTarget(BattleCardInstance unitA, Lane destinationLaneForA, BattleCardInstance unitB)
+        {
+            UnitA = unitA;
+            DestinationLaneForA = destinationLaneForA;
+            UnitB = unitB;
+        }
     }
 
     /// <summary>
@@ -144,8 +180,13 @@ namespace MyriadOfDragons.Battle
         /// TryCastSpell owns those rules, so this stays a pure "what the effect does" method.
         /// Returns the amount of Avatar damage dealt (0 for anything that isn't AvatarStrike),
         /// so the caller can drive damage numbers off the same value the state changed by.
+        /// `repositionTarget` is required (and only meaningful) for Reposition-effect spells -
+        /// see RepositionTarget's own doc comment. A Reposition cast with a null or illegal
+        /// target is a no-op (0 returned, nothing mutated), the same "reject silently, no partial
+        /// effect" contract every other effect already has for an impossible cast.
         /// </summary>
-        public int Cast(PlayerBattleState caster, PlayerBattleState opponent, Lane targetLane)
+        public int Cast(PlayerBattleState caster, PlayerBattleState opponent, Lane targetLane,
+            RepositionTarget repositionTarget = null)
         {
             switch (Effect)
             {
@@ -211,7 +252,7 @@ namespace MyriadOfDragons.Battle
 
                 case SpellEffect.CrossLaneDamage:
                     int crossLaneTotal = DealLaneDamage(opponent, targetLane, Magnitude);
-                    foreach (Lane adjacent in AdjacentLanes(targetLane))
+                    foreach (Lane adjacent in RepositionRules.AdjacentLanes(targetLane))
                     {
                         crossLaneTotal += DealLaneDamage(opponent, adjacent, SecondaryMagnitude);
                     }
@@ -229,6 +270,24 @@ namespace MyriadOfDragons.Battle
                     for (int i = 0; i < Magnitude; i++)
                     {
                         caster.DrawCard();
+                    }
+                    return 0;
+
+                case SpellEffect.Reposition:
+                    if (repositionTarget == null) return 0;
+                    if (repositionTarget.UnitB == null)
+                    {
+                        // Windstep.
+                        if (!RepositionRules.IsLegalWindstep(caster, repositionTarget.UnitA, repositionTarget.DestinationLaneForA))
+                            return 0;
+                        RepositionRules.ExecuteWindstep(caster, repositionTarget.UnitA, repositionTarget.DestinationLaneForA);
+                    }
+                    else
+                    {
+                        // Seismic Swap.
+                        if (!RepositionRules.IsLegalSeismicSwap(caster, repositionTarget.UnitA, repositionTarget.UnitB))
+                            return 0;
+                        RepositionRules.ExecuteSeismicSwap(caster, repositionTarget.UnitA, repositionTarget.UnitB);
                     }
                     return 0;
 
@@ -261,25 +320,6 @@ namespace MyriadOfDragons.Battle
             // removal in one place avoids two different rules about when a corpse stops occupying
             // its slot.
             return 0;
-        }
-
-        /// <summary>Front-Middle-Back, no wrap-around (catalog lock): Front/Back each have exactly
-        /// one neighbor, Middle has both.</summary>
-        private static IEnumerable<Lane> AdjacentLanes(Lane lane)
-        {
-            switch (lane)
-            {
-                case Lane.Front:
-                    yield return Lane.Middle;
-                    break;
-                case Lane.Middle:
-                    yield return Lane.Front;
-                    yield return Lane.Back;
-                    break;
-                case Lane.Back:
-                    yield return Lane.Middle;
-                    break;
-            }
         }
 
         private static List<BattleCardInstance> LivingUnits(PlayerBattleState side, Lane lane)
@@ -482,10 +522,13 @@ namespace MyriadOfDragons.Battle
 
         /// <summary>
         /// Wave 4 (Full 36-Spell Catalogue Diagnosis, LOCKED 2026-08-24, "CrossLane/AllLane
-        /// damage+DrawCards+Reposition"): five of the wave's seven catalog spells - Ashfall/
-        /// Stormchain (CrossLaneDamage), Scorched Sky (AllLaneDamage), Leyline Draw/Oracle Sight
-        /// (DrawCards). Reposition's two spells (Windstep, Seismic Swap) are deliberately NOT
-        /// here - see the class doc's own flag on CreateCatalog for why.
+        /// damage+DrawCards+Reposition"): all seven catalog spells - Ashfall/Stormchain
+        /// (CrossLaneDamage), Scorched Sky (AllLaneDamage), Leyline Draw/Oracle Sight (DrawCards),
+        /// Windstep/Seismic Swap (Reposition). Windstep/Seismic Swap's targeting model (GPT spec,
+        /// LOCKED 2026-08-25) closes the gap that originally held them out of this method - see
+        /// RepositionTarget's own doc comment for the shape Cast() needs, and RepositionRules for
+        /// the shared legality evaluator both this catalog's spells and the UI/AI targeting layers
+        /// call into.
         ///
         /// Locked correction applied here, not the catalog doc's raw number: Oracle Sight Energy
         /// 42-&gt;30 (register: "still draw-2/CD4, now cheaper-but-slower vs Leyline Draw's 36E,
@@ -519,32 +562,32 @@ namespace MyriadOfDragons.Battle
                 new AvatarSpell("Oracle Sight", "Draw 2 cards.",
                     energyCost: 30, cooldownTicks: 4, SpellEffect.DrawCards, magnitude: 2,
                     id: "oracle_sight", school: SpellSchool.Pnevmas),
+
+                new AvatarSpell("Windstep", "Move one friendly unit to an adjacent lane.",
+                    energyCost: 26, cooldownTicks: 3, SpellEffect.Reposition, magnitude: 0,
+                    id: "windstep", school: SpellSchool.Pnevmas),
+
+                new AvatarSpell("Seismic Swap", "Exchange two friendly units' lanes.",
+                    energyCost: 48, cooldownTicks: 5, SpellEffect.Reposition, magnitude: 0,
+                    id: "seismic_swap", school: SpellSchool.Ktini),
             };
         }
 
         /// <summary>
-        /// The real, full castable catalog (32 as of Wave 4 - CreatePhase1Catalog's 14, Wave 2's
-        /// 5, Wave 3's 8, plus this wave's 5) - the source of truth for anything that must resolve
-        /// a spell id into a real AvatarSpell: BattleController.ResolveMatchSpellbook,
+        /// The real, full castable catalog (34 as of Wave 4 completing - CreatePhase1Catalog's
+        /// 14, Wave 2's 5, Wave 3's 8, plus this wave's 7) - the source of truth for anything that
+        /// must resolve a spell id into a real AvatarSpell: BattleController.ResolveMatchSpellbook,
         /// SpellBookGrant's id validation, and SpellUnlockResolver's own iteration - a catalog
         /// member with no Rule entry (Aegis Return; Ember Guard/Earthward/Gale Break/Thunder
-        /// Decree, whose Phase-2 catalog Unlock column only gives a bare chapter number with no
-        /// stage-level precision to build a real Rule from) simply never unlocks, the same
-        /// behaviour a stale/unrecognized id already had.
+        /// Decree/Ashfall/Stormchain/Windstep/Seismic Swap, whose Phase-2 catalog Unlock column
+        /// only gives a bare chapter number with no stage-level precision to build a real Rule
+        /// from; Scorched Sky/Leyline Draw, "event book" with no real acquisition channel yet)
+        /// simply never unlocks, the same behaviour a stale/unrecognized id already had.
         ///
-        /// NOT 36 yet, and deliberately so: Reposition's two spells (Windstep "move one friendly
-        /// unit to an adjacent lane", Seismic Swap "exchange two units, any lanes") are the one
-        /// piece of Wave 4 left out. Every other effect implemented so far - Wave 1 through the
-        /// rest of Wave 4 - acts uniformly on "every living unit in a lane"; Cast()'s own signature
-        /// (caster, opponent, targetLane) has no way to name a SPECIFIC unit or a second
-        /// destination lane, which Reposition genuinely needs (which unit moves, and - for Seismic
-        /// Swap - which two units, possibly in two different lanes, swap). Extending Cast()'s
-        /// targeting arity and building real single-unit-selection UI is a materially bigger
-        /// change than every effect shipped in Waves 1-4 so far, not a mechanical add-a-case -
-        /// flagged rather than guessed at (an automatic "always move the lowest-Health unit"
-        /// heuristic would be exactly that kind of guess). 32/36 real; 4 blocked total (these 2
-        /// Reposition spells, plus Volcanic Prison/Titan Seal - Wave 5's Silence package, blocked
-        /// since no suppressible-ability system exists at all).
+        /// NOT 36 yet: only Wave 5's Silence package (Volcanic Prison, Titan Seal) remains
+        /// blocked, and stays blocked separately - no suppressible-ability system exists at all,
+        /// so there is nothing a targeting-model spec could unblock the way it did for Reposition.
+        /// 34/36 real.
         /// </summary>
         public static List<AvatarSpell> CreateCatalog()
         {

@@ -39,6 +39,14 @@ namespace MyriadOfDragons.Battle
         private int _spellAttackBuffApplied;
         private const int SpellAttackBuffCap = 3;
 
+        /// <summary>The lane bonus (Front Attack / Middle Health, Part II §2.3) already folded
+        /// into Attack/MaxHealth above, tracked separately so <see cref="ReapplyLaneBonuses"/> -
+        /// Windstep/Seismic Swap moving this unit to a different lane (GPT spec, LOCKED
+        /// 2026-08-25) - can remove exactly the old bonus and add exactly the new one, without
+        /// touching any spell buff/Shield/etc. also folded into the same two fields.</summary>
+        private int _laneAttackBonusApplied;
+        private int _laneHealthBonusApplied;
+
         public BattleCardInstance(Card definition, bool isPlayerOwned, int laneAttackBonus, int laneHealthBonus)
         {
             Definition = definition;
@@ -47,6 +55,8 @@ namespace MyriadOfDragons.Battle
             MaxHealth = definition.Health + laneHealthBonus;
             CurrentHealth = MaxHealth;
             HasTaunt = definition.Class == CardClass.Knight;
+            _laneAttackBonusApplied = laneAttackBonus;
+            _laneHealthBonusApplied = laneHealthBonus;
         }
 
         public bool IsAlive => CurrentHealth > 0;
@@ -128,6 +138,26 @@ namespace MyriadOfDragons.Battle
             if (amount <= 0) return;
             MaxHealth += amount;
             CurrentHealth += amount;
+        }
+
+        /// <summary>Windstep/Seismic Swap (GPT spec, LOCKED 2026-08-25): removes exactly the lane
+        /// bonus this unit was carrying and applies exactly the new lane's, so moving a unit into
+        /// or out of Front/Middle correctly changes its Attack/MaxHealth - a straight relocate
+        /// with no recompute would leave a unit permanently carrying a bonus from a lane it no
+        /// longer occupies, or missing one it now qualifies for. CurrentHealth shifts by the same
+        /// delta as MaxHealth (mirrors BuffMaxHealth's own reasoning) and is clamped like
+        /// ApplyDamage - losing a Health bonus can, in the rare case a unit was already at exactly
+        /// that much Health, legitimately defeat it; that is a natural consequence of the same
+        /// Health model everywhere else, not a special case invented for repositioning.</summary>
+        public void ReapplyLaneBonuses(int newAttackBonus, int newHealthBonus)
+        {
+            Attack = Attack - _laneAttackBonusApplied + newAttackBonus;
+            _laneAttackBonusApplied = newAttackBonus;
+
+            int healthDelta = newHealthBonus - _laneHealthBonusApplied;
+            MaxHealth += healthDelta;
+            CurrentHealth = System.Math.Max(0, System.Math.Min(MaxHealth, CurrentHealth + healthDelta));
+            _laneHealthBonusApplied = newHealthBonus;
         }
     }
 }

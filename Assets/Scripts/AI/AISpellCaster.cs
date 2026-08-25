@@ -68,6 +68,7 @@ namespace MyriadOfDragons.AI
                     controller.PlayerState,
                     out int spellIndex,
                     out Lane targetLane,
+                    out RepositionTarget repositionTarget,
                     controller.EnemyDifficultyTier))
                 return false;
 
@@ -86,10 +87,13 @@ namespace MyriadOfDragons.AI
                 : controller.RollAiSpellCastProbabilityGate();
             if (!gatePassed) return false;
 
-            return controller.TryCastEnemySpell(spellIndex, targetLane, out _);
+            return controller.TryCastEnemySpell(spellIndex, targetLane, out _, repositionTarget);
         }
 
-        /// <summary>Deterministic spell + lane pick for one AI cast attempt.</summary>
+        /// <summary>Deterministic spell + lane pick for one AI cast attempt. `repositionTarget` is
+        /// only ever non-null when the picked spell's Effect is Reposition - every other case
+        /// leaves it null, matching AvatarSpell.Cast's own "only meaningful for Reposition"
+        /// contract for the same parameter.</summary>
         public static bool TrySelectCast(
             IReadOnlyList<AvatarSpell> spellbook,
             int energy,
@@ -98,10 +102,12 @@ namespace MyriadOfDragons.AI
             PlayerBattleState playerSide,
             out int spellIndex,
             out Lane targetLane,
+            out RepositionTarget repositionTarget,
             AIDifficultyTier? aiTier = null)
         {
             spellIndex = -1;
             targetLane = Lane.Front;
+            repositionTarget = null;
 
             if (spellbook == null || spellbook.Count == 0 || tickCount < MinTickForAnySpell)
                 return false;
@@ -116,11 +122,12 @@ namespace MyriadOfDragons.AI
                     AvatarSpell spell = spellbook[i];
                     if (spell.Effect != effect) continue;
                     if (!spell.IsOffCooldown || spell.EnergyCost > energy) continue;
-                    if (!TryPickTarget(spell.Effect, spell, aiSide, playerSide, aiTier, out Lane lane))
+                    if (!TryPickTarget(spell, aiSide, playerSide, aiTier, out Lane lane, out RepositionTarget reposition))
                         continue;
 
                     spellIndex = i;
                     targetLane = lane;
+                    repositionTarget = reposition;
                     return true;
                 }
             }
@@ -134,17 +141,24 @@ namespace MyriadOfDragons.AI
             SpellEffect.LaneDamage,
             SpellEffect.LaneAttackBuff,
             SpellEffect.AvatarStrike,
+            // Reposition (GPT spec, LOCKED 2026-08-25) sits last: it's a positioning tool, not a
+            // heal/damage/buff/finisher, and the priority order the spec actually locks is WITHIN
+            // Reposition's own unit-pair evaluation, not where Reposition ranks against the other
+            // four effect types - lowest priority here is this implementation's own reasonable
+            // default, not a separately confirmed locked line.
+            SpellEffect.Reposition,
         };
 
         private static bool TryPickTarget(
-            SpellEffect effect,
             AvatarSpell spell,
             PlayerBattleState aiSide,
             PlayerBattleState playerSide,
             AIDifficultyTier? aiTier,
-            out Lane lane)
+            out Lane lane,
+            out RepositionTarget repositionTarget)
         {
-            switch (effect)
+            repositionTarget = null;
+            switch (spell.Effect)
             {
                 case SpellEffect.LaneHeal:
                     return TryPickHealLane(aiSide, playerSide, out lane);
@@ -159,6 +173,12 @@ namespace MyriadOfDragons.AI
                     if (playerSide.AvatarHealth > spell.Magnitude) break;
                     lane = Lane.Front;
                     return true;
+
+                case SpellEffect.Reposition:
+                    lane = Lane.Front; // unused by Reposition's own Cast() case - targeting rides on repositionTarget.
+                    return spell.Id == "seismic_swap"
+                        ? AIRepositionSelector.TryPickSeismicSwap(aiSide, playerSide, out repositionTarget)
+                        : AIRepositionSelector.TryPickWindstep(aiSide, playerSide, out repositionTarget);
 
                 default:
                     break;
@@ -204,6 +224,21 @@ namespace MyriadOfDragons.AI
             return aiSide.Lanes[lane].Cards.Any(c => c.IsAlive && c.CurrentHealth <= incomingAttack);
         }
 
+        /// <summary>Novice Firestorm single-unit exception (LOCKED 2026-08-24, GPT's revised, looser
+        /// version of the reciprocal-threat check): true when a lone enemy unit in this lane can
+        /// deal ANY real damage (Attack &gt; 0) to a living AI unit that's actually present here -
+        /// a genuine contested clash, not a defenseless mop-up target or an already-lost lane
+        /// (no living AI unit = automatically false). Deliberately weaker than
+        /// <see cref="LaneIsUnderRealThreat"/> (which requires the threat be lethal) - "can damage"
+        /// per GPT's own wording, not "can defeat."</summary>
+        private static bool LaneIsActiveReciprocalThreat(PlayerBattleState opposingSide, PlayerBattleState aiSide, Lane lane)
+        {
+            int incomingAttack = opposingSide.Lanes[lane].Cards.Where(c => c.IsAlive).Sum(c => c.Attack);
+            if (incomingAttack <= 0) return false;
+
+            return aiSide.Lanes[lane].Cards.Any(c => c.IsAlive);
+        }
+
         /// <summary>"...preferring a lane where the damage can defeat a unit" - AvatarSpell.Cast's
         /// real LaneDamage effect applies Magnitude uniformly to every living unit in the lane, so
         /// "can defeat a unit" is exact here (CurrentHealth &lt;= Magnitude), not approximated.
@@ -212,11 +247,15 @@ namespace MyriadOfDragons.AI
         /// impact diagnostic found Firestorm firing 0.43/match with a 95.7% same-tick kill rate,
         /// driving an -11pp player win-rate swing - Novice already clears the frequency floor, this
         /// is a pure outcome-efficiency problem): at Novice, Firestorm specifically may only target
-        /// a lane with >=2 living enemy units, OR a single-unit lane that is a genuine reciprocal
-        /// threat to the AI's own board right now (that lone unit's Attack alone would drop a
-        /// living AI unit in the mirrored lane to 0) - reusing the same "real threat" concept
-        /// already established for heal-lane selection, not inventing a new numeric threshold.
-        /// Spell magnitude/cooldown/energy and every other spell/tier are unaffected.</summary>
+        /// a lane with >=2 living enemy units, OR a single-unit lane that is an active reciprocal
+        /// threat (that lone unit poses any real damage to a living AI unit in the mirrored lane -
+        /// a genuine contested clash, not a defenseless mop-up target). REVISED 2026-08-24 (GPT,
+        /// after the first version's lethal-only threshold proved too restrictive - 0.12
+        /// spells/match, 88.3% fallback, both over-corrected): loosened from "can defeat" (Attack
+        /// &gt;= CurrentHealth) to "can damage" (Attack &gt; 0 against a lane the AI actually has a
+        /// living unit in) - still a genuine reciprocal-threat check, not "any living enemy exists
+        /// anywhere," just no longer requiring the threat be lethal. Spell magnitude/cooldown/
+        /// energy and every other spell/tier are unaffected.</summary>
         private static bool TryPickDamageLane(PlayerBattleState aiSide, PlayerBattleState playerSide, AvatarSpell spell, AIDifficultyTier? aiTier, out Lane lane)
         {
             lane = Lane.Front;
@@ -229,7 +268,7 @@ namespace MyriadOfDragons.AI
                 int living = LivingCount(playerSide, candidate);
                 if (living <= 0) continue;
 
-                if (restraintActive && living < 2 && !LaneIsUnderRealThreat(playerSide, aiSide, candidate))
+                if (restraintActive && living < 2 && !LaneIsActiveReciprocalThreat(playerSide, aiSide, candidate))
                     continue;
 
                 bool canKill = playerSide.Lanes[candidate].Cards.Any(c => c.IsAlive && c.CurrentHealth <= spell.Magnitude);
@@ -303,7 +342,7 @@ namespace MyriadOfDragons.AI
 
                 bool cooldownOk = spell.IsOffCooldown;
                 bool energyOk = spell.EnergyCost <= energy;
-                bool targetOk = cooldownOk && energyOk && TryPickTarget(spell.Effect, spell, aiSide, playerSide, aiTier, out _);
+                bool targetOk = cooldownOk && energyOk && TryPickTarget(spell, aiSide, playerSide, aiTier, out _, out _);
 
                 if (isAvatarStrike)
                 {

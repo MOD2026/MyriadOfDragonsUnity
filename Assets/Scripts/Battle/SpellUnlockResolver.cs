@@ -109,7 +109,10 @@ namespace MyriadOfDragons.Battle
             // implements (that's tied to HomePagePresenter.ChapterFinalePermitStageIds), so this is
             // the same "no real acquisition channel yet" gap as Aegis Return's "Event book later" -
             // not folded into SpellBookGrant as a guessed stand-in. Oracle Sight's "Avatar L20" is
-            // precise and gets a real AvatarLevel Rule.
+            // precise and gets a real AvatarLevel Rule. Windstep ("Ch4") and Seismic Swap ("Ch7")
+            // deliberately have no Rule either - same bare-chapter-number gap; their targeting
+            // model (RepositionTarget/RepositionRules) is a separate, now-resolved question from
+            // their acquisition data, which is still imprecise.
             new Rule("Oracle Sight", UnlockKind.AvatarLevel, requiredAvatarLevel: 20),
         };
 

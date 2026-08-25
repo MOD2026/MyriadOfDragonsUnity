@@ -258,7 +258,7 @@ namespace MyriadOfDragons.Tests
                         controller.EnemyEnergy + controller.EnergyPerTick + BattleController.BackLaneEnergy(controller.EnemyState));
                     bool aiPredictedCast = aiSpellsOn && AISpellCaster.TrySelectCast(
                         controller.EnemySpellbook, predictedEnemyEnergy, predictedTick,
-                        controller.EnemyState, controller.PlayerState, out _, out _, controller.EnemyDifficultyTier);
+                        controller.EnemyState, controller.PlayerState, out _, out _, out _, controller.EnemyDifficultyTier);
                     if (aiPredictedCast) hadOpportunity = true;
                     int castLogBefore = controller.SpellCastLog.Count;
 
@@ -282,9 +282,10 @@ namespace MyriadOfDragons.Tests
                     if (playerSpellsOn && controller.Phase == BattlePhase.Combat)
                     {
                         if (AISpellCaster.TrySelectCast(controller.Spellbook, controller.Energy, controller.TickCount,
-                                controller.PlayerState, controller.EnemyState, out int spellIndex, out Lane targetLane))
+                                controller.PlayerState, controller.EnemyState, out int spellIndex, out Lane targetLane,
+                                out RepositionTarget repositionTarget))
                         {
-                            bool cast = controller.TryCastSpell(spellIndex, targetLane, out _);
+                            bool cast = controller.TryCastSpell(spellIndex, targetLane, out _, repositionTarget);
                             // Invalid-cast hard failure (player side).
                             Assert.IsTrue(cast, $"HARD FAILURE [{label}]: player-side selected cast was illegal at tick {controller.TickCount}.");
                         }

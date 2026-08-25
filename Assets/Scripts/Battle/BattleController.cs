@@ -334,8 +334,11 @@ namespace MyriadOfDragons.Battle
         /// </summary>
         public event Action<MatchResult> OnMatchCompleted;
 
-        private const int FrontLaneAttackBonus = 1; // Part II §2.3
-        private const int MiddleLaneHealthBonus = 1; // Part II §2.3
+        // Not private any more (Windstep/Seismic Swap, GPT spec LOCKED 2026-08-25): a unit that
+        // changes lanes needs these same two numbers to recompute its lane bonus - see
+        // RepositionRules.LaneAttackBonusFor/LaneHealthBonusFor, the only other reader.
+        public const int FrontLaneAttackBonus = 1; // Part II §2.3
+        public const int MiddleLaneHealthBonus = 1; // Part II §2.3
 
         // Hardcore-CCG rework (Part II §2.2): 1 card/turn from a small deck was too high-
         // variance to make Strategist/tutoring synergies reliable - Marvel Snap's 75%-of-deck-

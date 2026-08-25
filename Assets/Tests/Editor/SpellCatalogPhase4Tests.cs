@@ -15,10 +15,11 @@ namespace MyriadOfDragons.Tests
     public class SpellCatalogPhase4Tests
     {
         [Test]
-        public void CreateCatalog_ContainsExactlyThirtyTwoSpells_TwentySevenPlusFiveWave4()
+        public void CreateCatalog_ContainsFiveOfTheSevenWave4Spells()
         {
+            // Not an exact-count assertion any more - Reposition (RepositionTests) added Windstep/
+            // Seismic Swap on top of these 5, and that test file now owns the catalog's real total.
             List<AvatarSpell> catalog = AvatarSpell.CreateCatalog();
-            Assert.AreEqual(32, catalog.Count);
             CollectionAssert.IsSubsetOf(
                 new[] { "Ashfall", "Stormchain", "Scorched Sky", "Leyline Draw", "Oracle Sight" },
                 catalog.Select(s => s.Name).ToList());
