@@ -1434,3 +1434,10 @@ is correctly imported, contradicting the fallback firing. Also possible the map'
 through the stage-detail modal's semi-transparent dim backdrop rather than being drawn inside the
 modal itself. Needs owner to confirm exact screen location (behind the popup vs inside it) before
 anyone chases the wrong path.
+
+## Ch4-7 narrative upgrade SHIPPED (2026-08-25, WH, HEAD dc5f00f, approved to commit)
+
+12 bespoke beats across Ch4-7 (N-1/N-15/N-30 pre, N-30_post + Unknown Voice hook), matching Ch10/11
+shape, ordinary stages stay templated. Verified: Chapter4To7NarrativeUpgradeTests 1/1,
+StoryDatabase_DefinesPreAndPostVictorySequencesForAllThirtyNewStages 12/12, 0 error CS. This closes
+the last remaining narrative content debt.
