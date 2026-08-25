@@ -693,7 +693,10 @@ namespace MyriadOfDragons.UI
             Text label = UISharedFoundation.CreateText(tile.transform, "StructureName",
                 def.DisplayName.ToUpperInvariant(), UITextRole.Caption, TextAnchor.MiddleCenter,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 24f));
-            label.fontSize = 11;
+            // Use the shared token rather than a magic number where it FITS. The UI audit
+            // (2979e1b) names "font sizes set by the token system then overwritten by hand" as a
+            // root cause, and this strip was an instance of it.
+            label.fontSize = UIFrozenTokens.TypeCaptionSize;
             label.resizeTextForBestFit = false;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.raycastTarget = false;
