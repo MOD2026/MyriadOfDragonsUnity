@@ -3597,3 +3597,66 @@ point estimates (38.3%/34.6%) were stable, not a one-off. 3/3 SimulationMatrix t
 
 Windstep saga is now fully closed end to end: ablation -> replacement (Mend) -> band retune, all
 three verified against real code/commits at each step, not taken on any seat's word alone.
+
+## LOCKED: Full delivery to-do list + "next working prototype" criteria (2026-08-25/26)
+
+**Purpose:** durable, git-tracked checklist so "what's left to ship" survives context
+compaction/session churn - not conversation-only. Update this section in place as items close;
+don't append a new copy each time.
+
+### Campaign content
+- [ ] Chapters 19-30 (12 chapters, ~360 stages) - **HELD at owner's explicit standing order**, not
+      started. Do not dispatch until the hold is lifted.
+- [ ] Empire building interlock table (9 of 11 buildings) - parked per owner request, not urgent.
+
+### Combat/Battle systems
+- [ ] Tactical Puzzle Week 1: 4/6 pass (e01/e02/h01/h02 shippable now, commit 860ff80). m01/m02 both
+      MOVED to new failure modes (m01 now ambiguous between two equal-cost lines; m02 now solves in
+      zero actions) - real BS redecision needed, not yet sent as of this entry.
+- [x] Windstep-era AI win-rate bands - CLOSED, verified commit 0ee7385.
+- [x] Combat audio (6 cues) - CLOSED, wired, commit 5aaf91e.
+- [x] Combat VFX particles (andras/ktini/pnevmas_medium + bespoke_heavy static frame) - CLOSED,
+      wired + load-verified, commits ee95210/aee31ea.
+- [ ] AvatarStrike flipbook animation (real per-frame cycling, not the current static single frame)
+      - dispatched to CR, a peer was actively editing bespoke_heavy.prefab as of this entry, likely
+      in progress. Verify the actual landed diff before counting this closed.
+
+### Metagame/UI
+- [x] Home V3 dock (Campaign/Empire/Avatar/Cards/Shop) - CLOSED, all wired, commit d2e29ac + WH's
+      hero-tile commit.
+- [x] Empire structure-strip art (Storage/Training Grounds/Quarry/Academy/Tree of Knowledge) -
+      CLOSED, fixed commit e208114.
+- [ ] **VIP Subscription screen** - real gap found 2026-08-25/26: `VipSubscriptionPresenter.cs` has
+      a working `VipSubscriptionUiLibrary.Load()` helper and the approved art already sits at
+      `Resources/UI/VipSubscriptionV1/*.png`, but the presenter never calls Load anywhere - renders
+      as plain colored boxes. Screen IS reachable (Home's VIP button wires through correctly).
+      Dispatched to WH via mailbox, not yet fixed as of this entry.
+- [ ] **Friends screen** - identical gap, same entry: `FriendsPresenter.cs` never calls
+      `FriendsUiLibrary.Load()` despite the helper and the approved art (`Resources/UI/FriendsV1/*.png`)
+      both already existing. Reachable via Home's FRIENDS button. Dispatched to WH, not yet fixed.
+- [ ] Collection screen/acquisition (MOS §20, P1 row) - flagged incomplete in the design doc; the
+      earlier UI-backlog audit suggested it's already wired as one of "8 already-wired chrome
+      systems" - this is a real discrepancy that needs a direct code check, not yet done. Do not
+      assume either claim without checking `Resources.Load` calls actually fire, same as the VIP/
+      Friends/Empire pattern above.
+
+### Systems/backend
+- [ ] Retention/engagement telemetry - correctly stopped; needs new `PlayerProfile` fields, requires
+      **owner sign-off** (frozen-file rule) before any seat touches `PlayerProfile.cs`/
+      `SaveSystem.cs`/`SaveMigration.cs`.
+- [ ] Marketplace/ownership ledger (MOS P2) - explicitly phase 2, not blocking.
+
+### "Next working prototype" - definition, not vibes
+A build right now plays: Campaign 1-18 (513 stages) end to end, Home/Empire/Shop/Collection*/Cards
+loop, real combat with real audio + particle VFX, AI opponent that casts spells and is balance-
+verified. (*Collection status itself needs the direct check above - don't assume.)
+
+**Ship-blocking gaps for "next working prototype," in priority order:**
+1. VIP and Friends screens actually show their approved art (real gap, dispatched, not fixed).
+2. Confirm Collection screen's real status (claimed both "done" and "incomplete" by different
+   sources - resolve the contradiction with a direct code check, not another claim).
+3. Tactical Puzzle m01/m02 resolved (BS redecision needed).
+4. AvatarStrike flipbook actually animates (verify the in-flight work landed, don't assume).
+5. Owner decides whether to lift the Chapter 19+ hold.
+
+Everything else already closed this session is real expansion/polish, not blocking this bar.
