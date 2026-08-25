@@ -85,10 +85,39 @@ namespace MyriadOfDragons.UI
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.85f);
         }
 
+        /// <summary>Resource paths (no extension) for kinds that have a real isometric render.
+        /// Kinds not in this map render with text only - no placeholder image is shown.</summary>
+        private static readonly System.Collections.Generic.Dictionary<EmpireBuildingKind, string> ArtResourcePaths =
+            new System.Collections.Generic.Dictionary<EmpireBuildingKind, string>
+            {
+                { EmpireBuildingKind.Storage, "UI/EmpireBuildingDetailV1/Buildings/storage_isometric_v1" },
+                { EmpireBuildingKind.TrainingGrounds, "UI/EmpireBuildingDetailV1/Buildings/training_grounds_isometric_v1" },
+                { EmpireBuildingKind.Quarry, "UI/EmpireBuildingDetailV1/Buildings/quarry_isometric_v1" },
+                { EmpireBuildingKind.Academy, "UI/EmpireBuildingDetailV1/Buildings/academy_isometric_v1" },
+                { EmpireBuildingKind.TreeOfKnowledge, "UI/EmpireBuildingDetailV1/Buildings/tree_of_knowledge_isometric_v1" },
+            };
+
+        public bool HasArtForTests(EmpireBuildingKind kind) => ArtResourcePaths.ContainsKey(kind);
+
         private void BuildBody(Transform panel)
         {
             EmpireBuildingDefinition def = EmpireBuildingRoster.Get(_kind);
             PlayerProfile profile = SaveManager.SaveData;
+
+            if (ArtResourcePaths.TryGetValue(_kind, out string artPath))
+            {
+                Sprite art = Resources.Load<Sprite>(artPath);
+                if (art != null)
+                {
+                    GameObject artObj = new GameObject("BuildingArt", typeof(RectTransform), typeof(Image));
+                    artObj.transform.SetParent(panel, false);
+                    Image artImg = artObj.GetComponent<Image>();
+                    artImg.sprite = art;
+                    artImg.preserveAspect = true;
+                    artImg.raycastTarget = false;
+                    SetNorm(artImg.rectTransform, 0.64f, 0.20f, 0.97f, 0.49f);
+                }
+            }
 
             Text name = UISharedFoundation.CreateText(panel, "BuildingName",
                 $"BUILDING {def.DisplayName.ToUpperInvariant()}", UITextRole.Title, TextAnchor.MiddleLeft,
