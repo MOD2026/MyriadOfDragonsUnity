@@ -1795,3 +1795,10 @@ needs its own GPT/owner round.**
 
 Both are real, substantial features - not urgent, logged as locked design ready for
 implementation whenever prioritized, not dispatched tonight.
+
+## Open theory thread: minigame count/variety - sent to GPT (2026-08-25)
+
+Memory Expedition's OWN design is already fully specified (rounds, difficulty curve, exact reward
+table, seed/resume logic - not a gap). Real open question: is ONE minigame enough for the stated
+milestone target, or does variety matter at this scope? No clean genre-standard number found via
+research - genuinely non-obvious, sent to GPT rather than guessed.
