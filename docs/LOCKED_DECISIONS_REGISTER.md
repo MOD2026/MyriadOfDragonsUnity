@@ -26,7 +26,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-25 | BS (via owner) | Should MaxSingleSpellWinShare distinguish "cast during a win" from "caused the win"? | PENDING - awaiting relay |
+| 2026-08-25 | CR | Implement SpellRemovalWinRateDelta causal metric (BS answered, locked) | PENDING - dispatched, awaiting real numbers |
 | 2026-08-25 | owner | Retention telemetry needs frozen-file (PlayerProfile.cs) sign-off before WH can wire it | PENDING - real decision needed |
 | 2026-08-25 | WH (via owner) | Fix Stage 2-6/17-13 identical roster collision | PENDING - no confirmation yet |
 
