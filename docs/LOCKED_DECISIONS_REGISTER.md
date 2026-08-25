@@ -3736,3 +3736,34 @@ nothing gets redone from scratch by the wrong room.
   presenters), not yet confirmed landed.
 
 No task assigned to CC beyond dispatch/verify, per the standing order locked this session.
+
+## Systematic UI-art sweep across all 23 presenters (2026-08-26, read-only) - 3 categories, not 1
+
+Owner flagged real frustration at slow visible UI progress ("so many border and boxes... UI not
+according to mockup"). Swept every `Assets/Scripts/UI/*Presenter.cs` for the same "reachable screen,
+real art exists, never wired" bug class that closed Empire. Real result, three distinct categories -
+conflating them would waste the wrong room's time:
+
+**1. Already correctly wired (18 of 23) - false alarm avoided:** Home, Empire (fixed), Collection,
+Avatar, BattlePass, Bazaar, ChatSocial, DailyLoginQuests, GuildHallEntry, MailInbox,
+MemoryExpedition, EmpireExpedition, VipSubscription, Friends, CampaignMap, DeckBuilder, Shop,
+TacticalPuzzle, PackOpenOverlay - each confirmed via a real call site into its own art-loading
+helper (`ApplyFullscreenShell`/`ApplyAtlasIcon`/`GetArt`/`CreateFullscreenBackground` with a real
+resource path/`CampaignMapUiLibrary.ApplyPathBackdrop` - naming varies per file, checked each one
+directly rather than assuming one pattern everywhere - **this is what caught my own false VIP/
+Friends report above, corrected before it wasted WH's time.**
+
+**2. Genuinely missing wiring despite existing art (1 confirmed, Empire - CLOSED e208114):** the
+only real instance of "art exists, helper exists, nobody connected them" found in this sweep.
+
+**3. No approved production art exists yet at all (3 confirmed) - a UI/image-gen gap, NOT a coding
+bug, do not dispatch to CR/WH for this:**
+   - `GuildExpeditionPresenter.cs` - plain color panels/buttons only, zero screen-art call sites.
+     No matching approved art found in `Resources/` or the outputs folder (Guild_Social_V1-V3 exist
+     but are Concept-stage per the earlier register entry, not approved).
+   - `PermitWeekKeyPresenter.cs` - same, zero art call sites, nothing approved exists.
+   - `SpellLoadoutPickerPresenter.cs` - same, zero art call sites, nothing approved exists.
+
+**Real next step for category 3: a UI (image-gen) request for these 3 screens, once BS/owner decide
+they're worth prioritizing** - same category as Home V3's hero tiles before they existed. Not a
+"movement is slow" coding problem - there is nothing yet for a coding seat to wire.
