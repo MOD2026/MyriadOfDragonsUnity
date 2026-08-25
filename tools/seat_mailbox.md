@@ -2166,3 +2166,92 @@ swap in real art later without a second UI pass.
 **Entry point:** needs a real button/tile somewhere reachable from Home or Empire - your call on
 placement, flag it for review rather than guessing if unsure. This is the actual "can a player play
 it" gap - close it.
+
+
+**[VS -> CC, ~20:15] WAR-ROOM RECONSTRUCTIONS IS PLAYABLE. 71/71, 0 error CS, committed 2e84132**
+(run pinned between fb6e0b5 and c136c7d). 20 new presenter/session tests + 8 pipeline + 24 authoring
++ 16 verifier + 3 EmpireBuildingDetailLayout.
+
+Entry list -> playable board -> result, reachable from Empire. Locked ST framing used VERBATIM from
+TacticalPuzzleCopy, with slot labels marked PROVISIONAL by decision so the story-bible swap is one
+edit in one file. Art non-blocking: 4 resource paths reserved, all optional, missing sprites fall
+back to flat colour like EmpireBuildingDetailPresenter - drop the art in with no second UI pass.
+
+The presenter holds NO rules; everything goes through TacticalPuzzleSession to the real verifier.
+That is why 20 tests can drive the whole screen headlessly. The session RE-DERIVES the board from the
+verifier on every action instead of mutating a parallel copy - mildly redundant, but the board then
+cannot drift out of agreement with the rules, because it IS the verifier's board.
+
+**THREE THINGS YOU NEED TO DECIDE, all flagged not buried:**
+
+1. **NO CONTENT EXISTS, and I did not invent any.** TacticalPuzzleLibrary returns empty; the screen
+says "NO RECORDS HAVE BEEN RECOVERED YET" rather than faking a populated row. A test asserts it stays
+empty so it cannot be filled in by accident. **This is now the only thing between the mode and
+players - everything else is done.** BS's design pass is the blocker; content drops into one method.
+
+2. **Entry point is on EMPIRE, not Home** - HomePagePresenter is the metagame seat's file, not mine.
+I respread the variant chip strip from thirds to quarters (a fourth chip in hardcoded thirds would
+have overlapped Embassy) and ran EmpireBuildingDetailLayoutTests for exactly that reason. **If the
+design wants this on Home, that is a metagame-seat task, not mine.**
+
+3. **Progress is IN-MEMORY ONLY.** Persisting solved-state needs a PlayerProfile field and that file
+is FROZEN. Completion survives the screen, not the app. This is the SECOND feature now blocked on the
+same frozen-save conversation (Prison/Academy Level-1 defaults is the other) - worth batching into
+one owner conversation rather than two.
+
+**NOT CLAIMED:** whether a real finger lands on the right rect. Headless EditMode resolves no
+raycasts, so tap accuracy needs a seat with visual verification - same limit I reported for the
+Reposition tap UI. Recommend WH eyeballs it once content exists.
+
+**PROCESS CATCH WORTH SHARING.** My first UI run was REFUSED (your lock, PID 5608) - the wrapper
+exits 0 on refusal, and the stale results.xml from my PREVIOUS run still parsed perfectly as 48/48.
+I nearly reported that as the UI result. Now deleting results.xml before every run so a refused run
+yields nothing instead of last run's numbers. **Any seat parsing results.xml is exposed to this** -
+exit code 0 does not mean your tests ran.
+
+**Also, a real limitation in tools/compile_check.ps1:** it cannot see brand-new .cs files until Unity
+regenerates the .csproj, so a new file reads as CS0103/CS0246 - a FALSE FAIL. Safe direction (it
+never falsely passes), but do not chase a phantom error; add the Compile Include or let Unity
+refresh. It also passed on both of my BEHAVIOURAL test bugs earlier, exactly as documented: it checks
+compilation, not behaviour.
+
+Nothing in flight, no lock held. Next task welcome.
+
+
+**[VS -> CC, ~20:30] CORRECTION - I WAS WRONG ABOUT run_editmode_tests.ps1. Please do not act on my
+last process note.**
+
+I told every seat that "the wrapper exits 0 on refusal" and that results.xml can go stale under it.
+**Both halves are false, and I should have checked the script before reporting a defect in a shared
+tool other seats depend on.**
+
+What the wrapper actually does, verified by reading it:
+- On a live lock it Write-Errors and **exits 1** (line 150). Correct behaviour, no defect.
+- It **already deletes results.xml and the log before every run** (lines 75-76), so a stale results
+  file cannot survive a run that actually starts.
+
+**The bug was in MY invocation.** I ran it as `... 2>&1 | tail -8`, and a shell pipeline reports the
+exit status of the LAST command - tail - which is always 0. I measured this directly just now:
+`powershell -Command "exit 1" | tail -2` -> 0, without the pipe -> 1. So the wrapper told me it had
+refused, and my own pipe threw that signal away. The stale 48/48 I nearly reported was the previous
+run's file, still present because MY run never started.
+
+**The real lesson, and it applies to any seat:** do not pipe this wrapper's output to tail/head and
+then trust `$?`. Read the exit code directly, or check $LASTEXITCODE / PIPESTATUS. The refusal notice
+is also printed in plain text - "Unity is locked by another seat" - so reading the output is enough;
+I had that text in front of me and still parsed the results file.
+
+My deleting results.xml beforehand is harmless but redundant - the wrapper does it. **No change to
+the tool is needed and I am not making one.** Retracting the suggestion that any seat "fix" this.
+
+The compile_check.ps1 csproj limitation I reported IS real and stands: a brand-new .cs file reads as
+CS0103/CS0246 until Unity regenerates the .csproj. False FAIL, never a false pass.
+
+Nothing in flight, no lock held.
+
+**[CC → VS] Real art wired on top of your presenter (383d02d) - retargeted ArtResourcePaths to the
+actual delivered filenames and split "tile" into tile_locked/tile_available/tile_completed since 3
+separate per-state images landed, not one atlas. Updated the one test that enumerated art roles to
+match (assertion itself unchanged). Please include this in your next real run - want to confirm the
+sprite loading actually works end to end (Resources.Load resolving, no null-ref, tile art rendering
+per state) before calling Tactical Puzzle's UI done.
