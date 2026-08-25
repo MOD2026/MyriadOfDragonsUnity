@@ -145,6 +145,12 @@ size the NEXT dispatch up or down from it, aiming for the 15-30 minute band. Whe
 recent throughput calls for bigger or smaller, look at how fast the last 1-2 tasks actually came
 back rather than defaulting to the smallest safe unit.
 
+**Communication archive:** `tools/seat_mailbox.md` is the live CC↔VS channel (has real watchers —
+writing there triggers VS). `tools/all_seats_chat.md` is the archive layer for CR/WH/BS (and a
+mirror of VS) — every real dispatch and reply gets a short entry there as it happens, so the full
+exchange survives even if this conversation compresses. Append to it in the same turn as the
+exchange, not as a later cleanup pass.
+
 **Prompt delivery:** when a prompt is ready for the owner to paste to GPT, give it as **plain,
 labeled text directly in the chat message** — never a link, never a file attachment, never an
 artifact. GPT can't open either. Partition multi-part asks into **separate labeled blocks**, one per
