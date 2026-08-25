@@ -78,6 +78,52 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(profile.ownedSpellIds, spellId);
         }
 
+        [TestCase("7-30", "scorched_sky", "Scorched Sky")]
+        public void TryGrant_Ch7FinaleStage_GrantsItsRealSpell(string finaleStageId, string spellId, string spellName)
+        {
+            var profile = new PlayerProfile { claimedStageRewardIds = new List<string> { finaleStageId } };
+
+            SpellBookGrantResult result = SpellBookGrant.TryGrant(profile, finaleStageId, persist: false);
+
+            Assert.AreEqual(SpellBookGrantStatus.Applied, result.Status);
+            CollectionAssert.Contains(result.UnlockedSpellNames, spellName);
+            CollectionAssert.Contains(profile.ownedSpellIds, spellId);
+        }
+
+        // Acquisition channels for all remaining spells (LOCKED 2026-08-25, GPT): Ch8/Ch9/Ch10
+        // each became a second deliberate 2-spell finale book (Volcanic Prison joins Veil of
+        // Zeus; Leyline Draw joins Grave Mend; Thunder Decree joins Celestial Verdict) - same
+        // "going forward" exception shape Ch6 already had, not a new one-off.
+        [TestCase("8-30", "veil_of_zeus", "volcanic_prison")]
+        [TestCase("9-30", "grave_mend", "leyline_draw")]
+        [TestCase("10-30", "celestial_verdict", "thunder_decree")]
+        public void TryGrant_TwoSpellFinaleStages_GrantBothSpellsInOneClaim(string finaleStageId, string firstSpellId, string secondSpellId)
+        {
+            var profile = new PlayerProfile { claimedStageRewardIds = new List<string> { finaleStageId } };
+
+            SpellBookGrantResult result = SpellBookGrant.TryGrant(profile, finaleStageId, persist: false);
+
+            Assert.AreEqual(SpellBookGrantStatus.Applied, result.Status);
+            CollectionAssert.Contains(profile.ownedSpellIds, firstSpellId);
+            CollectionAssert.Contains(profile.ownedSpellIds, secondSpellId);
+        }
+
+        [TestCase("8-30")]
+        [TestCase("9-30")]
+        [TestCase("10-30")]
+        public void TryGrant_TwoSpellFinaleStages_AreIdempotent_NoReGrantOnReplay(string finaleStageId)
+        {
+            var profile = new PlayerProfile { claimedStageRewardIds = new List<string> { finaleStageId } };
+            SpellBookGrant.TryGrant(profile, finaleStageId, persist: false);
+            int ownedCountAfterFirst = profile.ownedSpellIds.Count;
+
+            SpellBookGrantResult second = SpellBookGrant.TryGrant(profile, finaleStageId, persist: false);
+
+            Assert.AreEqual(SpellBookGrantStatus.AlreadyClaimed, second.Status);
+            Assert.AreEqual(0, second.UnlockedSpellNames.Count, "A replay must never re-report either spell as newly unlocked.");
+            Assert.AreEqual(ownedCountAfterFirst, profile.ownedSpellIds.Count, "A replay must not duplicate or re-add anything.");
+        }
+
         [Test]
         public void TryGrant_FinaleNotCleared_RefusesAndOwnsNothing()
         {

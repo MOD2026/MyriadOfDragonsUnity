@@ -46,13 +46,20 @@ namespace MyriadOfDragons.Battle
             // ChapterFinalePermitStageIds values as Wave 1's two, cited not imported (see the class
             // doc comment above for why).
             ["4-30"] = new[] { "magma_rend" },
-            ["9-30"] = new[] { "grave_mend" },
-            ["10-30"] = new[] { "celestial_verdict" },
             // Wave 3 (LOCKED 2026-08-24): Stonewall AND Infernal Mark are both "Ch6 spell book" per
             // SPELL_CATALOG_v1.md - same finale stage id, two spells in the grant array (the
-            // dictionary's own value type already supports this). Veil of Zeus "Ch8 spell book".
+            // dictionary's own value type already supports this).
             ["6-30"] = new[] { "stonewall", "infernal_mark" },
-            ["8-30"] = new[] { "veil_of_zeus" },
+            // Acquisition channels for all remaining spells (LOCKED 2026-08-25, GPT): "one-spell-
+            // per-finale rule applies going forward (existing Ch2/Ch3/Ch6 books unchanged, Ch6's
+            // 2-spell grant stays as already approved)" - Ch8/Ch9/Ch10 each deliberately become a
+            // second 2-spell finale here (Volcanic Prison joins Veil of Zeus at Ch8; Leyline Draw
+            // joins Grave Mend at Ch9; Thunder Decree joins Celestial Verdict at Ch10), the exact
+            // same shape as the pre-approved Ch6 exception, not a new pattern being invented here.
+            ["7-30"] = new[] { "scorched_sky" },
+            ["8-30"] = new[] { "veil_of_zeus", "volcanic_prison" },
+            ["9-30"] = new[] { "grave_mend", "leyline_draw" },
+            ["10-30"] = new[] { "celestial_verdict", "thunder_decree" },
         };
 
         /// <summary>

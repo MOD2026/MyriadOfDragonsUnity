@@ -99,25 +99,33 @@ namespace MyriadOfDragons.Battle
             new Rule("Veil of Zeus", UnlockKind.SpellBookGrant), // catalog: "Ch8 spell book"
             new Rule("Cleansing Root", UnlockKind.AvatarLevel, requiredAvatarLevel: 16),
             new Rule("Infernal Mark", UnlockKind.SpellBookGrant), // catalog: "Ch6 spell book"
-            // Thunder Decree ("Ch9") deliberately has no Rule either - same bare-chapter-number
-            // gap as Ember Guard/Earthward/Gale Break above.
 
-            // Wave 4 (LOCKED 2026-08-24): Ashfall ("Ch5") and Stormchain ("Ch6") deliberately have
-            // no Rule - same bare-chapter-number gap as Wave 3's Ember Guard/Earthward/Gale Break.
-            // Scorched Sky ("Ch7 event book") and Leyline Draw ("Ch5 event book") deliberately have
-            // no Rule either - "event book" is not the chapter-finale grant SpellBookGrant actually
-            // implements (that's tied to HomePagePresenter.ChapterFinalePermitStageIds), so this is
-            // the same "no real acquisition channel yet" gap as Aegis Return's "Event book later" -
-            // not folded into SpellBookGrant as a guessed stand-in. Oracle Sight's "Avatar L20" is
-            // precise and gets a real AvatarLevel Rule. Windstep ("Ch4") and Seismic Swap ("Ch7")
-            // deliberately have no Rule either - same bare-chapter-number gap; their targeting
-            // model (RepositionTarget/RepositionRules) is a separate, now-resolved question from
-            // their acquisition data, which is still imprecise.
+            // Wave 4 (LOCKED 2026-08-24): Ashfall ("Ch5"), Stormchain ("Ch6"), Windstep ("Ch4"),
+            // and Seismic Swap ("Ch7") deliberately still have no Rule - the acquisition-channel
+            // spec below resolved 8 of the remaining 12 unresolved spells, but these 4 were not
+            // among them (checked directly against that spec, not assumed) - the bare-chapter-
+            // number gap for these four is unchanged.
             new Rule("Oracle Sight", UnlockKind.AvatarLevel, requiredAvatarLevel: 20),
 
-            // Wave 5 (LOCKED 2026-08-25, register commit 2b54084): Volcanic Prison ("Ch8") and
-            // Titan Seal ("Ch10") deliberately have no Rule either - same bare-chapter-number gap
-            // as every other imprecise Phase-2 Unlock entry above.
+            // Acquisition channels for all remaining spells (LOCKED 2026-08-25, GPT): resolves 8 of
+            // the 12 spells that had no Rule after Wave 5 (Ashfall/Stormchain/Windstep/Seismic Swap
+            // are not part of this spec and stay unresolved - see the comment above). Ember Guard/
+            // Earthward/Gale Break get real Stage rules now that precise first-clear stage ids
+            // exist (previously blocked on the catalog doc's own bare-chapter-number imprecision).
+            // Scorched Sky/Volcanic Prison/Leyline Draw/Thunder Decree are SpellBookGrant-kind,
+            // joining an already-occupied Ch8/Ch9/Ch10 finale book as a second deliberate 2-spell
+            // grant (the same "going forward" exception shape Ch6 already had, not a new pattern -
+            // see SpellBookGrant's own dictionary comment). Titan Seal's "Avatar L30" is precise
+            // and gets a real AvatarLevel Rule - deliberately the progression capstone, chosen
+            // specifically to avoid crowding Ch10's finale book further.
+            new Rule("Ember Guard", UnlockKind.Stage, stageId: "4-15"),
+            new Rule("Earthward", UnlockKind.Stage, stageId: "5-15"),
+            new Rule("Gale Break", UnlockKind.Stage, stageId: "7-15"),
+            new Rule("Scorched Sky", UnlockKind.SpellBookGrant), // catalog: "Ch7 finale book"
+            new Rule("Volcanic Prison", UnlockKind.SpellBookGrant), // catalog: "Ch8 finale book"
+            new Rule("Leyline Draw", UnlockKind.SpellBookGrant), // catalog: "Ch9 finale book"
+            new Rule("Thunder Decree", UnlockKind.SpellBookGrant), // catalog: "Ch10 finale book"
+            new Rule("Titan Seal", UnlockKind.AvatarLevel, requiredAvatarLevel: 30),
         };
 
         /// <summary>RESOLVED 2026-08-24 - always false now. Kept (rather than deleted outright) as
