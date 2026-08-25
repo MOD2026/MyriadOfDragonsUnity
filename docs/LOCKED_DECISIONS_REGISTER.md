@@ -3992,3 +3992,23 @@ Owner approved adding a `materials` field (int, additive-only, same migration pa
 resource field) to `PlayerProfile.cs`, unblocking Empire Expedition's Materials grant
 (`EmpireExpeditionClearTransaction.cs:170-174` currently hardcodes `MaterialsPersisted = false`
 pending exactly this field). Implementation may now proceed.
+
+## VIP whale-spend check: real negative, verified (2026-08-26, BS)
+
+**Verified before locking:** `VipSubscriptionOpenValues.cs:36-37` confirms `TrySubscribe()` and
+`TryRestore()` unconditionally return `Refuse(...)` with status `OpenValuesNotLocked` - VIP has
+genuinely zero live entitlement right now (art/UI shell only, matches BS's claim exactly). No whale
+shortcut currently exists because nothing is purchasable yet.
+
+**Constraints locked for whenever entitlement coding happens** (BS's pre-lock, before any
+implementation): one active subscription, no stacking/banking; Auto-Fight stays identical for
+everyone; VIP Stamina claims consume the existing purchase/rate cap, no separate bypass; any Gold/
+Materials benefit is a bounded convenience grant, never a production multiplier or uncapped Quarry
+replacement; explicitly NO cards/packs/Forge-Dust/Permits/Evolution materials/spell ownership/
+combat stats/building-level skips/timer skips; cosmetics may accumulate freely (no progression
+impact); on lapse, benefits stop, earned cosmetics remain, unclaimed temporary grants expire/stay
+capped.
+
+**Status: correctly not ready for a real economy lock** - price/duration/entitlement list/grant
+schedule all still need locking before a real $10k/month simulation is possible. Real gap closed:
+this is a legitimate "nothing built yet" finding, not a whale-exploit risk needing a fix.
