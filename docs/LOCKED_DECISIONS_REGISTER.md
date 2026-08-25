@@ -1676,3 +1676,20 @@ implicated Stone Judgment but that must be re-measured, not assumed, against the
 
 Real remeasurement note: current acceptance bands were locked against the old 4-effect AI priority
 pool - not authoritative anymore post-36/36-catalog. Diagnose first in both cases.
+
+## Two proactive cross-genre proposals, drafted for GPT (2026-08-25, CC-initiated)
+
+Not user-sourced this round - real research + synthesis against two problems already found tonight
+(no post-chapter replay depth; 7 of 11 buildings have zero implementation per CR's audit).
+
+1. Roguelike branching-node replay mode (Slay the Spire pattern, real proven genre - the sequel is
+   shipping in 2026). Completed chapters unlock a branching node-map run (Combat/Elite/Event/Rest
+   nodes), player picks path, escalating difficulty, one-run stakes, reuses the EXISTING formation-
+   combat engine untouched - no new combat system needed, just a map generator + node-reward table.
+2. Idle/passive production for the 7 unimplemented buildings (Storage/Quarry/Training Grounds/
+   Academy/Tree of Knowledge/Embassy/Prison) - proven low-cost-high-retention genre pattern
+   (AFK Arena-style). Passive resource/XP generation while offline, claimed on return, scaled by
+   building level - gives the dead roster entries a real purpose instead of leaving them as
+   unimplemented placeholders indefinitely.
+
+Sent to GPT for real critique/refinement, not accepted at face value.
