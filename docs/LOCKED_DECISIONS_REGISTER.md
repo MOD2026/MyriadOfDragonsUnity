@@ -955,3 +955,20 @@ just a seat decision. CampaignStageBattleConfigurationTests itself is campaign-c
 
 Shipped clean alongside: commit 97c0b74, Memory Expedition core logic + 24 tests + additive
 -TestFilters runner flag (VS's own 5 files only).
+
+## Chapter 11 + Daily Login SHIPPED (2026-08-25, WH)
+
+Ch11 committed as adea127 (commit message got overwritten by a concurrent commit riding along -
+git hygiene note, not a content issue, content is real per WH's own report). Daily Login + Daily
+Quests committed as bf236e0, verified 11/11 (Logic 7/7, Shell 3/3, NavigationSpine 1/1).
+
+**OWNER SIGN-OFF PENDING (not CC's to approve - explicitly the owner's per the frozen-file rule):**
+bf236e0 adds 6 fields to PlayerProfile.cs: lastLoginClaimUtcDate, loginStreakIndex,
+dailyQuestUtcDate, dailyQuestCompletionMask, dailyQuestGenerationId, plus passSeasonXp (Pass
+Season XP sink - beyond the register's originally-named field list, WH self-flagged this one
+specifically). All additive-only per CC's earlier direct verification of the diff.
+
+Chapter 12 in tree, not yet committed: stages 12-1 to 12-30 ("The Mortal Host"), Gate L30 ceiling,
+finale 12-30, story + tests. Last batch 10/11 (only 12-8 AF failure, retuned roster, re-verify
+pending - blocked by lock contention with other seats, same shared-resource issue as tonight's
+other work). CR's Silence/loadout files correctly left unstaged by WH.
