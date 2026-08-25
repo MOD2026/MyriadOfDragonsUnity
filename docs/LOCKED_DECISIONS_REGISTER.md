@@ -1835,3 +1835,12 @@ Needs a revised plan before step 4 runs.
 
 19/21 tests pass in affected classes, both failures are the flagged items above, not silent
 workarounds. CR correctly held rather than running the wrong ablation test.
+
+## Vetting note on minigame-count answer (2026-08-25, CC) - real gap found before locking
+
+Citations and reward-rule consistency check out. Real gap: GPT applied "does this risk being just
+combat-replay with a label?" scrutiny to CC's roguelike-map proposal earlier but not to its own
+Formation Tactics Trial proposal - which is structurally close to a curated hard Campaign stage
+(fixed hand/budget/objective, existing formation rules, 60-90s). Sent back for a real answer on
+what specifically differentiates it, rather than locking on the assumption it's automatically a
+distinct mode.
