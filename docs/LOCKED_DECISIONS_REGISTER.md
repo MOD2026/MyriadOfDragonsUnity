@@ -4227,3 +4227,18 @@ internal consistency:
 
 **Standing gate reinforced in STANDING ORDERS** so this stops being missed: no BS reply gets locked
 without both internal-consistency AND a real WebSearch benchmark, going forward, permanently.
+
+## Retention telemetry emit-call wiring PARTIALLY LANDED (2026-08-26, CR, verified c90d05e)
+
+Real, verified: 3 of the locked event types now emit for real (mode_run_completed/mode_reward_claimed
+on Empire Expedition clears, mode_reward_claimed on Battle Pass/Daily Login claims,
+daily_cap_reached on Expedition caps), all through the existing RetentionTelemetryOutbox, 20/20
+tests pass, HEAD unchanged (c8d4904) before/after. Also fixed a real stale pre-existing test
+(EmpireExpeditionShellTests asserted materials never persist, predating materials persistence going
+live) - same class as the earlier BattlePass/Chat fixes, correctly caught and fixed in passing.
+
+**Correctly NOT wired: Campaign win/loss, Home feature_entry, Stamina cap hit.** CR explicitly
+refused these because they require editing CampaignMapPresenter.cs/HomePagePresenter.cs/
+ShopPresenter.cs - Metagame-owned, on CR's own "must NOT edit" list, and correctly stated a peer
+dispatch cannot grant that escalation. This is the right call, not a gap to force through CR - these
+3 need either WH or explicit owner authorization to cross the ownership boundary.
