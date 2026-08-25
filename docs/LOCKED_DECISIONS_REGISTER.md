@@ -2768,3 +2768,40 @@ distinguish the failure you're worried about.
 
 Tap accuracy remains unverified by anyone (headless EditMode resolves no raycasts) - still
 recommended: WH eyeballs the screen once real content lands.
+
+## Retention telemetry architecture - LOCKED, do NOT touch PlayerProfile (2026-08-25, BS, vetted with one open implementation question)
+
+**Decision: do not add retention fields to frozen PlayerProfile.** Aggregate retention is inherently
+server-side; local save data can't answer cross-player questions. A local field is only justified
+for a bounded offline outbox queuing events until sync - and even that should be a separate
+telemetry queue, not part of the gameplay save schema.
+
+**Architecture:** reuse the existing authenticated Cloud Code/gateway pattern (same one already
+powering Bazaar/Chat/Friends/Permits/Guild Expedition) to validate, deduplicate, and forward events
+to an append-only analytics sink - do NOT store raw events in PlayerProfile or ordinary Cloud Save.
+
+**Event schema (minimum):** eventId (idempotent dedup key), playerId (stable pseudonymous), eventType
+(first_seen/session_start/run_completed/daily_claimed/cap_reached), serverReceivedAtUtc (authoritative
+ordering/cohort timestamp), clientOccurredAtUtc (offline-delay diagnostic only), schemaVersion,
+appBuild, mode, runId, outcome. D1/D7/D14/D28 computed from elapsed UTC windows (D1: 24-48h, D7:
+168-192h, D14: 336-360h, D28: 672-696h) in analytics QUERIES, never precomputed/stored (e.g. no
+d7Retained boolean in a save file) - consistent with the original "raw events not aggregates"
+principle.
+
+**Real failure modes covered:** offline loss/survivorship bias (bounded local outbox, flush on next
+auth session, keep both timestamps, never pretend unsent = received); identity resets (anonymous-
+auth can create duplicate players - retention cohorts need a stable authenticated identity or an
+explicit merge policy - a real, often-missed mobile-analytics gotcha); duplicate delivery
+(eventId/runId dedup server-side); clock tampering (server receipt time is authoritative); privacy
+(no message content/card lists/unnecessary PII, real retention/deletion windows, account-deletion
+support by pseudonymous id); backend cost (batch low-value events, rate-limit, avoid Cloud Save as
+an event DB); partial deployment (analytics must never block gameplay/rewards/saves - queue and
+continue if ingestion is down).
+
+**One open implementation question, CC-verified gap, not yet answered:** the project has NO
+analytics service package installed (Packages/manifest.json has only
+com.unity.services.authentication/cloudcode/core) - confirming BS's own caveat that a bare Cloud
+Code function alone isn't a complete answer. Real fork not yet resolved: hand-build a custom
+ingestion pipeline + data store, or add com.unity.services.analytics (same Unity Gaming Services
+platform already in use) which natively handles custom events/retention cohorts/dashboards. Not
+blocking (10+ weeks out) but should be answered before any build work is dispatched.
