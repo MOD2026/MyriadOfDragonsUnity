@@ -169,6 +169,13 @@ namespace MyriadOfDragons.Tests
             public int TotalAiCasts;
             public int TrialsWithZeroAiCasts;
             public readonly Dictionary<string, int> AiWinContributionBySpell = new Dictionary<string, int>();
+            /// <summary>Every trial (win, loss, or undecided) where the AI cast this spell at
+            /// least once - the denominator MaxSingleSpellWinShare's own "share of wins" number
+            /// alone can't distinguish from "cast almost every match regardless of outcome"
+            /// (BS-vetted, LOCKED, grew out of the Apprentice Windstep availability-bias finding,
+            /// cec5f37). WinRateWhenCast/PerSpellDescriptiveStats below is the real answer to
+            /// that ambiguity.</summary>
+            public readonly Dictionary<string, int> TrialsCastInBySpell = new Dictionary<string, int>();
             /// <summary>AI Spell Cast Probability Gate (LOCKED 2026-08-24): "recorded seeds" - one
             /// per trial, StartMatch's own MatchRngSeed (real production seed, not a harness-side
             /// duplicate), so any specific trial can be replayed exactly by passing it back in.</summary>
@@ -183,6 +190,31 @@ namespace MyriadOfDragons.Tests
             public double SpellsPerMatch => Trials == 0 ? 0 : (double)TotalAiCasts / Trials;
             public double MaxSingleSpellWinShare => AiWins == 0 || AiWinContributionBySpell.Count == 0
                 ? 0 : (double)AiWinContributionBySpell.Values.Max() / AiWins;
+            /// <summary>The spell driving MaxSingleSpellWinShare - null if the AI never won with a
+            /// spell cast. This is what SpellRemovalWinRateDelta's ablation removes, so future
+            /// tiers/catalogue changes get checked automatically instead of needing a manual
+            /// one-off investigation each time a new spell happens to dominate.</summary>
+            public string MaxShareSpellName => AiWins == 0 || AiWinContributionBySpell.Count == 0
+                ? null : AiWinContributionBySpell.OrderByDescending(kv => kv.Value).First().Key;
+
+            /// <summary>Descriptive only (BS-vetted, LOCKED, cec5f37): for every spell with at
+            /// least minSampleCount trials cast in, (winRateWhenCast, shareOfAiWins) - reused
+            /// exactly from the manual ablations' own SlotSpellWinsWhenCast/SlotSpellTrialsCastIn
+            /// definitions rather than rebuilt. shareOfAiWins alone (~MaxSingleSpellWinShare's own
+            /// per-spell number) can look dominant purely from being cast often; winRateWhenCast
+            /// next to it is what actually distinguishes "wins because of this spell" from "cast in
+            /// most matches regardless of outcome."</summary>
+            public IEnumerable<(string spell, int n, double winRateWhenCast, double shareOfAiWins)> PerSpellDescriptiveStats(int minSampleCount)
+            {
+                foreach (var kv in TrialsCastInBySpell.OrderByDescending(x => x.Value))
+                {
+                    if (kv.Value < minSampleCount) continue;
+                    AiWinContributionBySpell.TryGetValue(kv.Key, out int wins);
+                    double winRateWhenCast = kv.Value == 0 ? 0 : (double)wins / kv.Value;
+                    double shareOfAiWins = AiWins == 0 ? 0 : (double)wins / AiWins;
+                    yield return (kv.Key, kv.Value, winRateWhenCast, shareOfAiWins);
+                }
+            }
 
             public void Log()
             {
@@ -308,6 +340,12 @@ namespace MyriadOfDragons.Tests
                 if (aiCasts.Count > 0) result.TrialsWithAiCast++;
                 else result.TrialsWithZeroAiCasts++;
                 result.TotalAiCasts += aiCasts.Count;
+
+                foreach (string spellName in aiCasts.Select(c => c.SpellName).Distinct())
+                {
+                    result.TrialsCastInBySpell.TryGetValue(spellName, out int castCur);
+                    result.TrialsCastInBySpell[spellName] = castCur + 1;
+                }
 
                 // Real bug found post-fix-verification: a >100% maxSingleSpellWinShare surfaced,
                 // which is mathematically impossible under this method's own definition unless
@@ -702,6 +740,64 @@ namespace MyriadOfDragons.Tests
             return result;
         }
 
+        /// <summary>SpellRemovalWinRateDelta's real work (NEW, BS-vetted, LOCKED, formalizes the
+        /// manual VeteranPlus/Apprentice Windstep ablations - WindstepAblation_FourConditions,
+        /// WindstepAblation_ApprenticeTwoConditions - into a permanent per-tier check): matched-seed
+        /// A/B, real loadout vs `removedSpellId` excluded (slot left empty, not backfilled). Returns
+        /// (winRateWith, winRateWithout) so the caller gates the delta by the existing win-rate
+        /// tolerance rather than a new one.</summary>
+        private (double winRateWith, double winRateWithout) RunSpellRemovalAblation(
+            List<Card> pool, TierGroup group, string removedSpellId, int trials, int baseSeed)
+        {
+            (int avatarLevel, int castleLevel, AIDifficultyTier tier) = GroupConfig(group);
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+            empire.InitializeTCGModifiers();
+            var economy = new BattleController.MatchEconomy(empire.ResourceCap, empire.Turn1Resource, empire.StartingAvatarHealth);
+            List<string> withIds = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Id).ToList();
+            List<string> withoutIds = withIds.Where(id => id != removedSpellId).ToList();
+
+            double RunCondition(List<string> equippedIds)
+            {
+                int aiWins = 0;
+                int completedTrials = 0;
+                for (int i = 0; i < trials; i++)
+                {
+                    int seed = baseSeed + i;
+                    UnityEngine.Random.InitState(seed);
+
+                    BattleController controller = CreateController();
+                    List<Card> playerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                    List<Card> enemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                    controller.StartMatch(playerDeck, enemyDeck, economy, economy,
+                        avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: null, rngSeed: seed);
+                    controller.EnableMirroredEnemySpellsForPvE();
+                    controller.DealFormationHand(controller.PlayerState);
+                    controller.DealFormationHand(controller.EnemyState);
+                    DeployWholeSquad(controller, controller.PlayerState, AIArchetype.Balanced);
+                    SimpleAIOpponent.TakeTurn(controller, AIArchetype.Balanced);
+
+                    if (!controller.ConfirmFormation())
+                    {
+                        UnityEngine.Object.DestroyImmediate(controller.gameObject);
+                        continue;
+                    }
+
+                    while (controller.Phase == BattlePhase.Combat) controller.AdvanceCombatTick();
+
+                    completedTrials++;
+                    if (controller.PlayerState.IsDefeated && !controller.EnemyState.IsDefeated) aiWins++;
+
+                    UnityEngine.Object.DestroyImmediate(controller.gameObject);
+                }
+                return completedTrials == 0 ? 0 : (double)aiWins / completedTrials;
+            }
+
+            double winRateWith = RunCondition(withIds);
+            double winRateWithout = RunCondition(withoutIds);
+            return (winRateWith, winRateWithout);
+        }
+
         /// <summary>The 5 locked scenarios for one tier group, asserted against the locked
         /// acceptance bands. A band miss fails loudly here - this method never adjusts a threshold
         /// to make a bad number pass (LOCKED spec's own failure policy).</summary>
@@ -863,8 +959,41 @@ namespace MyriadOfDragons.Tests
             Assert.That(aiOn.NoSpellFallbackRate.Center, Is.InRange(0.10, noSpellFallbackCeiling),
                 $"[{g}] No-spell fallback rate {aiOn.NoSpellFallbackRate} outside the locked 10-{noSpellFallbackCeiling:P0} band. ESCALATE TO CC.");
 
-            Assert.LessOrEqual(aiOn.MaxSingleSpellWinShare, 0.40,
-                $"[{g}] A single spell contributed {aiOn.MaxSingleSpellWinShare:P1} of AI wins, exceeding the locked 40% cap. ESCALATE TO CC.");
+            // Contract FINAL (BS-vetted, LOCKED, cec5f37): MaxSingleSpellWinShare's own 40% cap
+            // was removed from pass/fail - the Apprentice Windstep diagnostic (cec5f37) and the
+            // earlier VeteranPlus ablation both proved a dominant win-share number measures
+            // availability/correlation (a cheap, frequently-legal spell gets cast in most matches
+            // regardless of outcome, so it co-occurs with most wins too), not causation. Widening
+            // the cap would have been exactly the wrong fix - it doesn't distinguish "cast often"
+            // from "causes wins" any better at 60% than at 40%. Descriptive only from here.
+            const int minEffectSampleCountForSpellStats = 30;
+            Debug.Log($"[SimMatrix] {g}: maxSingleSpellWinShare={aiOn.MaxSingleSpellWinShare:P1} maxShareSpell={aiOn.MaxShareSpellName ?? "(none)"} (descriptive only, not gated).");
+            foreach (var (spell, n, winRateWhenCast, shareOfAiWins) in aiOn.PerSpellDescriptiveStats(minEffectSampleCountForSpellStats))
+            {
+                Debug.Log($"[SimMatrix] {g}: spell={spell} trialsCastIn={n} winRateWhenCast={winRateWhenCast:P1} shareOfAiWins={shareOfAiWins:P1} (descriptive only).");
+            }
+
+            // SpellRemovalWinRateDelta (NEW, BS-vetted, LOCKED): the real causal gate, formalizing
+            // the exact manual ablation already run twice by hand (VeteranPlus, Apprentice
+            // Windstep) into a permanent, repeatable check - so a future tier or catalogue change
+            // that produces a new dominant spell gets this verified automatically instead of
+            // needing another one-off investigation. Removes whichever spell is CURRENTLY driving
+            // MaxSingleSpellWinShare (not hardcoded to Windstep) from the loadout, matched-seed
+            // against the real loadout, and gates the win-rate delta by the SAME tolerance already
+            // used for aiWinDeltaPp above - not a new threshold, per the explicit instruction not
+            // to invent one.
+            if (aiOn.MaxShareSpellName != null)
+            {
+                (double winRateWith, double winRateWithout) = RunSpellRemovalAblation(
+                    pool, group, aiOn.MaxShareSpellName, trials: 1000, baseSeed: 870001);
+                double removalDeltaPp = winRateWith - winRateWithout;
+                Debug.Log($"[SimMatrix] {g}: SpellRemovalWinRateDelta spell={aiOn.MaxShareSpellName} winRateWith={winRateWith:P1} winRateWithout={winRateWithout:P1} delta={removalDeltaPp:P1}.");
+                Assert.That(removalDeltaPp, Is.InRange(-0.05, 0.08),
+                    $"[{g}] Removing {aiOn.MaxShareSpellName} (the current MaxSingleSpellWinShare driver) changed AI win rate by " +
+                    $"{removalDeltaPp:P1} ({winRateWith:P1} with it -> {winRateWithout:P1} without), outside the same -5pp..+8pp " +
+                    $"tolerance already used for aiWinDeltaPp - this spell has a real, material causal effect on win rate, not just " +
+                    $"high win-share appearance. ESCALATE TO CC.");
+            }
 
             // ---------- Full Match scenario, relative to AiCasting(on,off) ----------
 

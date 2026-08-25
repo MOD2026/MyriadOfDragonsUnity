@@ -209,29 +209,55 @@ namespace MyriadOfDragons.Tests
         public void WindstepAblation_ApprenticeTwoConditions()
         {
             List<Card> pool = LoadDatabase().AllCards.ToList();
-            const int trials = 1500;
-            const int baseSeed = 720001;
+            const int trialsPerRepeat = 2000;
+            const int repeats = 3;
+            int[] baseSeeds = { 720001, 750001, 780001 };
 
             List<string> baseIds = AIEnemySpellbookResolver.ResolveSpellbook(AIDifficultyTier.Apprentice).Select(s => s.Id).ToList();
             Debug.Log($"[Ablation] Apprentice condition A base loadout: {string.Join(", ", baseIds)}");
             Assert.Contains("windstep", baseIds, "Setup: this ablation assumes Apprentice's loadout still includes Windstep.");
-
-            (int aiWinsA, int trialsA) = RunAblationCondition(pool, "A_ApprenticeWithWindstep", baseIds, trials, baseSeed);
-
             List<string> idsNoWindstep = baseIds.Where(id => id != "windstep").ToList();
-            (int aiWinsB, int trialsB) = RunAblationCondition(pool, "B_ApprenticeWindstepRemoved", idsNoWindstep, trials, baseSeed);
 
-            double winRateA = trialsA == 0 ? 0 : (double)aiWinsA / trialsA;
-            double winRateB = trialsB == 0 ? 0 : (double)aiWinsB / trialsB;
-            double deltaPp = winRateB - winRateA;
-            Debug.Log($"[Ablation] Apprentice: A(withWindstep) winRate={winRateA:P1} ({aiWinsA}/{trialsA}) vs " +
-                      $"B(windstepRemoved) winRate={winRateB:P1} ({aiWinsB}/{trialsB}) - delta={deltaPp:P1}.");
+            int aiWinsAPooled = 0, trialsAPooled = 0, aiWinsBPooled = 0, trialsBPooled = 0;
+            var perRepeatDeltas = new List<double>();
+
+            for (int r = 0; r < repeats; r++)
+            {
+                (int aiWinsA, int trialsA) = RunAblationCondition(pool, $"A_ApprenticeWithWindstep_r{r}", baseIds, trialsPerRepeat, baseSeeds[r]);
+                (int aiWinsB, int trialsB) = RunAblationCondition(pool, $"B_ApprenticeWindstepRemoved_r{r}", idsNoWindstep, trialsPerRepeat, baseSeeds[r]);
+
+                double winRateA = trialsA == 0 ? 0 : (double)aiWinsA / trialsA;
+                double winRateB = trialsB == 0 ? 0 : (double)aiWinsB / trialsB;
+                double deltaPp = winRateB - winRateA;
+                perRepeatDeltas.Add(deltaPp);
+                Debug.Log($"[Ablation] Apprentice: repeat {r + 1}/{repeats} A(withWindstep) winRate={winRateA:P1} ({aiWinsA}/{trialsA}) vs " +
+                          $"B(windstepRemoved) winRate={winRateB:P1} ({aiWinsB}/{trialsB}) - delta={deltaPp:P1}.");
+
+                aiWinsAPooled += aiWinsA; trialsAPooled += trialsA;
+                aiWinsBPooled += aiWinsB; trialsBPooled += trialsB;
+            }
+
+            double pooledWinRateA = trialsAPooled == 0 ? 0 : (double)aiWinsAPooled / trialsAPooled;
+            double pooledWinRateB = trialsBPooled == 0 ? 0 : (double)aiWinsBPooled / trialsBPooled;
+            double pooledDeltaPp = pooledWinRateB - pooledWinRateA;
+            // Wilson-adjacent normal-approximation SE on the pooled two-proportion difference -
+            // enough to judge "is this delta distinguishable from zero," not a formal hypothesis test.
+            double seA = trialsAPooled == 0 ? 0 : System.Math.Sqrt(pooledWinRateA * (1 - pooledWinRateA) / trialsAPooled);
+            double seB = trialsBPooled == 0 ? 0 : System.Math.Sqrt(pooledWinRateB * (1 - pooledWinRateB) / trialsBPooled);
+            double seDelta = System.Math.Sqrt(seA * seA + seB * seB);
+            double zScore = seDelta == 0 ? 0 : pooledDeltaPp / seDelta;
+
+            Debug.Log($"[Ablation] Apprentice: POOLED across {repeats} repeats ({trialsAPooled} trials/condition) " +
+                      $"A(withWindstep)={pooledWinRateA:P1} B(windstepRemoved)={pooledWinRateB:P1} delta={pooledDeltaPp:P1} " +
+                      $"SE(delta)={seDelta:P1} z={zScore:F2}.");
+            Debug.Log($"[Ablation] Apprentice: per-repeat deltas=[{string.Join(", ", perRepeatDeltas.Select(d => d.ToString("P1")))}].");
             Debug.Log($"[Ablation] Apprentice: INTERPRETATION - " +
-                      (System.Math.Abs(deltaPp) < 0.01
-                          ? "removing Windstep changed AI win rate by <1pp, same conclusion as the VeteranPlus ablation: " +
-                            "Windstep's win-share dominance is availability bias/correlation, not causation."
-                          : $"removing Windstep changed AI win rate by {deltaPp:P1} - does NOT match the VeteranPlus result, " +
-                            "this needs its own real causal read, not an assumption borrowed from the other tier."));
+                      (System.Math.Abs(zScore) < 1.96
+                          ? $"pooled delta {pooledDeltaPp:P1} is within ~2 SE of zero (z={zScore:F2}) - not distinguishable from noise " +
+                            "at this trial count. Same practical conclusion as before (Windstep's win-share dominance is availability " +
+                            "bias, not a proven causal win-rate driver) but now on a methodologically valid measurement, not the broken one."
+                          : $"pooled delta {pooledDeltaPp:P1} is {zScore:F2} SE from zero - distinguishable from noise. This is a real " +
+                            "signal that needs escalation, not something to fold into the earlier availability-bias conclusion."));
         }
 
         private (int aiWins, int trials) RunAblationCondition(List<Card> pool, string label, List<string> equippedIds, int trials, int baseSeed)
@@ -257,8 +283,14 @@ namespace MyriadOfDragons.Tests
                 BattleController controller = CreateController();
                 List<Card> playerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
                 List<Card> enemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                // BUG FIX (real, found while implementing SpellRemovalWinRateDelta): enemyTier:
+                // tier here made BattleController.StartMatch re-resolve EnemySpellbook from
+                // AIEnemySpellbookResolver, IGNORING equippedIds entirely for the enemy side (see
+                // StartMatch's own `enemyTier.HasValue ? ResolveSpellbook(...) : ...` branch) - so
+                // "Windstep removed" never actually removed it from the AI. enemyTier: null makes
+                // ResolveMatchSpellbook resolve equippedIds directly instead, the fix.
                 controller.StartMatch(playerDeck, enemyDeck, economy, economy,
-                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: null, rngSeed: seed);
                 controller.EnableMirroredEnemySpellsForPvE();
                 controller.DealFormationHand(controller.PlayerState);
                 controller.DealFormationHand(controller.EnemyState);
