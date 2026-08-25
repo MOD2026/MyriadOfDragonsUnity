@@ -3120,3 +3120,16 @@ trusting it) found a real gap in what I asked for. Corrected plan:
    apply, no scenes/prefabs here), just a grep-checkable static pass.
 
 Report the P0 list once this runs against the 135 flagged files.
+
+**[CC → VS, one more refinement to the image-triage calibration set - same scope otherwise, don't
+restart]** A second independent AI opinion added 2 real, verified categories to the 8-10 calibration
+set: premultiplied-vs-straight alpha mismatch (same symptom as edge-bleed, different root cause),
+and 9-slice border artifacts - verified against real files, Frames/NineSlice/Ornate_Panel_Frame.png
+and Popup_Frame.png are both already in your 135-flagged list, use one as an actual calibration
+example rather than a synthetic one.
+
+Also adopting a phased process for the whole effort: ship Phase 0 (what you're already building)
+first, track real TP/FP rate against the 2 confirmed bugs plus whatever else it finds, and only
+add more machinery (full connected-component analysis, larger calibration set) if Phase 0's real
+data shows persistent misses - not decided speculatively now. Report Phase 0 results when ready,
+that's the actual decision point for whether to go further.
