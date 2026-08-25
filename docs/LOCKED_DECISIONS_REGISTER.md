@@ -3377,3 +3377,26 @@ these exist. This needs a UI (image-gen) request, not a WH dispatch.
 Wireframes/High-Fidelity batches, Battle UI Portrait Replacement) is either explicit Concept-stage
 per the register, superseded, or blocked on unresolved product/backend decisions - none dispatchable
 as-is.
+
+## Battle backdrop now varies by chapter - real parallel work, not waiting on anything (2026-08-25, CC, verified fd1f3aa)
+
+**Direct response to real owner intent misread earlier:** "Battle screen redesign rejected" was
+about specific unapproved VISUAL DIRECTIONS (V3-V7), not about the underlying intent of varying
+battle screens per chapter/event - which was never actually built at all, in any version. Found the
+real gap: BuildBattleBackdrop (GameBootstrap.cs) hardcoded EVERY match to the same Lava_Fortress
+arena regardless of chapter, even though 10 real arena images already exist under
+Resources/UI/Backdrops/Arenas/ (Castle_Valley, Celestial_Palace, Desert_Ruins, Enchanted_Forest,
+Frozen_Citadel, Haunted_Citadel, Infernal_Hellscape, Lava_Fortress, Steampunk_Harbor, Storm_Coast) -
+confirmed via a real typo caught before testing (had "Ancient_Temple" in the array, which is only in
+the top-level Backdrops/ folder, not Arenas/ - fixed before commit).
+
+**Built the SELECTION MECHANISM, not a curated mapping:** deterministic by chapter number (parsed
+from stageId's "C-S" format) - same chapter always resolves to the same arena, non-campaign matches
+(_pendingCampaignStage null) keep the exact prior fixed-backdrop behavior, unparseable input falls
+back safely rather than guessing. WHICH arena actually suits which chapter's story is a real content
+decision, correctly not invented here - flagged as the real next step if curated theming is wanted.
+
+Verified: 4/4 passing, 0 error CS, HEAD 39cd484 before -> fd1f3aa after.
+
+**Done specifically to demonstrate real parallel progress** - built and shipped while BS's pending
+decision and the UI art compilation request were both still outstanding, not waiting on either.
