@@ -2869,3 +2869,36 @@ surfaced the bug). Novice validated cleanly (Divine Bolt: winRateWith=44.6%, win
 delta=0.0%, a real valid removal test). Apprentice/VeteranPlus both hit a pre-existing unrelated
 flaky player-win-rate-drop assertion earlier in RunGroup before reaching this new gate this run - not
 yet end-to-end verified for those two tiers.
+
+## Windstep removed from Apprentice AI loadout - LOCKED (2026-08-25, BS, vetted with one flagged gap)
+
+**Decision: remove Windstep from Apprentice's AI loadout, replace with a validated legal non-
+Reposition spell (not left empty, not an untested substitute).** Do NOT change Windstep's player
+cost/cooldown/design - the spell stays exactly as-is for players and other tiers. Reasoning: 4.2pp
+self-inflicted AI win-rate loss (facfe8a) is too large to treat as flavor at the teaching/early tier
+- an AI that repeatedly makes losing reposition decisions teaches the wrong lesson to new players.
+Apprentice-only removal preserves the spell everywhere else.
+
+**Flagged gap, not BS's fault - CC caught before locking:** "the problem is AI selection, not the
+spell itself" is asserted, not proven by the current data. The ablation shows Windstep's NET effect
+is negative (with vs without) - it does not isolate WHY (bad cast timing/selection vs. the spell
+being weak for this tier's AI regardless of when it's cast). Treat this as a working hypothesis, not
+a confirmed mechanism, especially given this exact session already had two prior "confirmed
+mechanism" claims (both Windstep availability-bias conclusions) turn out wrong once measured
+properly. Low risk either way since removing a proven net-negative spell is safe regardless of
+mechanism - but the reintroduction condition below is built entirely on this unconfirmed hypothesis
+and should be labeled as such when implemented.
+
+**Reintroduction condition (future, not blocking the immediate removal):** Windstep returns to
+Apprentice only after a projected-value guard exists - AI casts it only when the move produces a
+verified immediate tactical improvement (saves a unit from its next clash loss; creates a lane bonus
+or prevents overflow; moves to a lane with demonstrably better survival/damage; reduces expected
+Avatar/lane damage next resolution). Neutral-or-worse projection = AI must pass. Re-run the same
+3-repeat matched ablation after the guard lands; reintroduction requires no consistent negative
+delta, no new win-rate-band failure, no major increase in dead-cast/fallback behavior. A scripted
+tutorial demonstration may still show Windstep intentionally regardless of this gate.
+
+**Real follow-up needed, routed to CR (catalog lookup, not a design judgment):** identify actual
+legal replacement candidates from the 36-spell catalog for Apprentice's real tier gate, propose one,
+implement the removal+replacement, and verify via the same 3-repeat ablation methodology that the
+replacement doesn't introduce its own negative surprise.
