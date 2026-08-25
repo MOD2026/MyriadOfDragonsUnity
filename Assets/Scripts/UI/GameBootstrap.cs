@@ -2502,20 +2502,46 @@ namespace MyriadOfDragons.UI
         /// decorative Image. Fixed at the source instead of per-region, matching the fix already
         /// applied to CreateAnchoredPanel's own backgrounds.
         /// </summary>
-        /// <summary>The 11 real arena backdrops that exist under Resources/UI/Backdrops/Arenas -
-        /// every match used exactly one of these (Lava_Fortress, hardcoded) regardless of chapter
-        /// or event, which is the real gap behind wanting different battle screens per chapter/
-        /// event. This picks deterministically BY CHAPTER so campaign matches at least vary and
-        /// stay stable per chapter - it is NOT a curated theme mapping (which arena actually suits
-        /// which chapter's story is a real content decision, not invented here). Non-campaign
-        /// matches (_pendingCampaignStage null - "To Battle", PvP) keep the prior fixed backdrop,
-        /// unchanged behaviour.</summary>
+        /// <summary>The 10 real arena backdrops that exist under Resources/UI/Backdrops/Arenas.
+        /// Used as the deterministic fallback rotation for any chapter past the curated table
+        /// below (BS decision, 2026-08-25) so future chapters still vary and stay stable per
+        /// chapter without needing a code change every time a new chapter ships.</summary>
         private static readonly string[] ArenaBackdropNames =
         {
             "Castle_Valley", "Celestial_Palace", "Desert_Ruins", "Enchanted_Forest",
             "Frozen_Citadel", "Haunted_Citadel", "Infernal_Hellscape", "Lava_Fortress",
             "Steampunk_Harbor", "Storm_Coast",
         };
+
+        /// <summary>Curated chapter-to-arena theming per BS's story-benchmarked recommendation
+        /// (2026-08-25) - replaces the earlier modulo-only rotation, which was functional but
+        /// thematically arbitrary. Enchanted_Forest is deliberately NOT used here: BS flagged it
+        /// as the weakest fit for chapters 1-18's story beats and reserved it for future
+        /// forest-focused content or a later stage-level override, rather than forcing it onto a
+        /// chapter it doesn't suit. It still appears in ArenaBackdropNames and remains reachable
+        /// via the modulo fallback for chapters beyond this table.</summary>
+        private static readonly System.Collections.Generic.Dictionary<int, string> CuratedChapterArenaMap =
+            new System.Collections.Generic.Dictionary<int, string>
+            {
+                { 1, "Castle_Valley" },
+                { 2, "Lava_Fortress" },
+                { 3, "Celestial_Palace" },
+                { 4, "Desert_Ruins" },
+                { 5, "Steampunk_Harbor" },
+                { 6, "Celestial_Palace" },
+                { 7, "Storm_Coast" },
+                { 8, "Storm_Coast" },
+                { 9, "Frozen_Citadel" },
+                { 10, "Haunted_Citadel" },
+                { 11, "Storm_Coast" },
+                { 12, "Castle_Valley" },
+                { 13, "Celestial_Palace" },
+                { 14, "Haunted_Citadel" },
+                { 15, "Desert_Ruins" },
+                { 16, "Haunted_Citadel" },
+                { 17, "Infernal_Hellscape" },
+                { 18, "Haunted_Citadel" },
+            };
 
         /// <summary>Parses the leading integer out of a "12-34" stageId. Returns null (not 0) for
         /// anything that doesn't parse, so a malformed id falls back to the fixed backdrop instead
@@ -2532,11 +2558,15 @@ namespace MyriadOfDragons.UI
 
         /// <summary>Real selection, exposed for tests - a fixed chapter always resolves to the same
         /// arena name (stable, not per-match random), and an unparseable/null chapter falls back to
-        /// the original single fixed arena rather than guessing.</summary>
+        /// the original single fixed arena rather than guessing. Chapters 1-18 use the curated
+        /// story-matched table above; anything beyond it (chapters not yet authored) falls back to
+        /// the deterministic modulo rotation over all 10 real arenas so new chapters still vary
+        /// without a code change, per BS's "modulo fallback only, never primary" instruction.</summary>
         public static string ArenaBackdropNameForTests(string stageId)
         {
             int? chapter = ChapterNumberForStageId(stageId);
             if (chapter == null) return "Lava_Fortress";
+            if (CuratedChapterArenaMap.TryGetValue(chapter.Value, out string curated)) return curated;
             int index = ((chapter.Value - 1) % ArenaBackdropNames.Length + ArenaBackdropNames.Length) % ArenaBackdropNames.Length;
             return ArenaBackdropNames[index];
         }

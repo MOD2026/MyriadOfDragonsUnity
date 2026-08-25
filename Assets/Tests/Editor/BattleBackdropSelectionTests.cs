@@ -42,18 +42,42 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void EveryRealArenaFile_IsReachableBySomeChapter()
+        public void CuratedChapters_MatchTheStoryBenchmarkedMapping()
         {
-            // Guards against a typo silently orphaning one of the real files - if a name in the
-            // rotation array doesn't match a real asset, this test can't catch that directly (it
-            // only checks the rotation logic), but it does prove the rotation actually cycles
-            // through all 10 rather than collapsing onto a smaller set.
+            // Spot-checks BS's 2026-08-25 curated table (docs/LOCKED_DECISIONS_REGISTER.md) - the
+            // real content decision for chapters 1-18, not invented here.
+            Assert.AreEqual("Castle_Valley", GameBootstrap.ArenaBackdropNameForTests("1-1"));
+            Assert.AreEqual("Frozen_Citadel", GameBootstrap.ArenaBackdropNameForTests("9-3"));
+            Assert.AreEqual("Infernal_Hellscape", GameBootstrap.ArenaBackdropNameForTests("17-5"));
+            Assert.AreEqual("Haunted_Citadel", GameBootstrap.ArenaBackdropNameForTests("18-1"));
+        }
+
+        [Test]
+        public void CuratedChapters_DeliberatelyNeverUseTheReservedForestArena()
+        {
+            // BS explicitly flagged Enchanted_Forest as the weakest fit for chapters 1-18 and
+            // reserved it rather than forcing it onto a chapter it doesn't suit - so it must not
+            // appear anywhere in the curated range, only in the fallback rotation beyond it.
+            for (int chapter = 1; chapter <= 18; chapter++)
+                Assert.AreNotEqual("Enchanted_Forest", GameBootstrap.ArenaBackdropNameForTests(chapter + "-1"),
+                    $"Chapter {chapter} must not use the reserved Enchanted_Forest arena.");
+        }
+
+        [Test]
+        public void ChaptersBeyondTheCuratedTable_FallBackToTheDeterministicRotation()
+        {
+            // Chapters 19-28 is exactly one full cycle of the 10-arena modulo rotation (indices
+            // (chapter-1)%10 run 8,9,0,1,...,7), proving the fallback still reaches every real
+            // arena file - including the reserved Enchanted_Forest - once a chapter isn't in the
+            // curated table, without forcing it into the curated story mapping above.
             var seen = new System.Collections.Generic.HashSet<string>();
-            for (int chapter = 1; chapter <= 20; chapter++)
+            for (int chapter = 19; chapter <= 28; chapter++)
                 seen.Add(GameBootstrap.ArenaBackdropNameForTests(chapter + "-1"));
 
             Assert.AreEqual(10, seen.Count,
-                "20 chapters over a 10-arena rotation must reach all 10 distinct names.");
+                "10 consecutive post-curated chapters over a 10-arena rotation must reach all 10 distinct names.");
+            CollectionAssert.Contains(seen, "Enchanted_Forest",
+                "The reserved forest arena must still be reachable once chapters run past the curated table.");
         }
     }
 }
