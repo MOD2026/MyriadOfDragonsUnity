@@ -239,6 +239,11 @@
           "CardId": "mountain_harpy",
           "Lane": 1,
           "PreDamage": 0
+        },
+        {
+          "CardId": "goblin_shaman",
+          "Lane": 1,
+          "PreDamage": 0
         }
       ],
       "EnemyBoard": [
@@ -266,7 +271,7 @@
       },
       "Envelope": [
         {
-          "Description": "BS intended solution: SeismicSwap archer_dragon <-> mountain_harpy",
+          "Description": "BS redesign intended solution: SeismicSwap archer_dragon <-> Middle mountain_harpy",
           "Actions": [
             {
               "Kind": 2,
@@ -288,7 +293,7 @@
           "ExpectedFailedActionIndex": -1
         },
         {
-          "Description": "BS stated failure: no action, the two harpies destroy one another",
+          "Description": "BS stated failure: no action, the harpies trade and Middle is lost",
           "Actions": [],
           "ExpectedStatus": 1,
           "ExpectedFailedActionIndex": -1
@@ -312,7 +317,17 @@
           "PreDamage": 0
         },
         {
+          "CardId": "snake_archer",
+          "Lane": 0,
+          "PreDamage": 0
+        },
+        {
           "CardId": "mountain_harpy",
+          "Lane": 1,
+          "PreDamage": 0
+        },
+        {
+          "CardId": "snake_archer",
           "Lane": 1,
           "PreDamage": 0
         }
@@ -347,7 +362,7 @@
       },
       "Envelope": [
         {
-          "Description": "BS intended solution: deploy phoenix to Back",
+          "Description": "BS redesign intended solution: deploy phoenix to Back (the only lane with room)",
           "Actions": [
             {
               "Kind": 0,
@@ -369,7 +384,7 @@
           "ExpectedFailedActionIndex": -1
         },
         {
-          "Description": "BS stated failure: Front deployment exposes Phoenix to a Fire Golem",
+          "Description": "BS stated failure: Front has only 1 free slot, Phoenix needs 2",
           "Actions": [
             {
               "Kind": 0,
@@ -387,11 +402,11 @@
               }
             }
           ],
-          "ExpectedStatus": 1,
+          "ExpectedStatus": 2,
           "ExpectedFailedActionIndex": -1
         },
         {
-          "Description": "BS stated failure: Middle deployment exposes Phoenix to a Fire Golem",
+          "Description": "BS stated failure: Middle has only 1 free slot, Phoenix needs 2",
           "Actions": [
             {
               "Kind": 0,
@@ -409,7 +424,7 @@
               }
             }
           ],
-          "ExpectedStatus": 1,
+          "ExpectedStatus": 2,
           "ExpectedFailedActionIndex": -1
         }
       ]

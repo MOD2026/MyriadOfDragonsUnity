@@ -310,8 +310,22 @@ namespace MyriadOfDragons.Battle
                     if (objective.ResourceBudget <= 0) return false;
                     int spent = startingResource - playerSide.Resource;
                     if (spent > objective.ResourceBudget) return false;
-                    // Still has to hold the board - a "solve" that spends nothing and loses
-                    // everything is not a solve.
+
+                    // RESOLVE THE CLASH BEFORE JUDGING (fixed 2026-08-26, owner-approved via BS).
+                    //
+                    // The comment below this line always said a solve that spends nothing and loses
+                    // everything is not a solve - but nothing ever resolved a clash, so "loses
+                    // everything" could not be detected and DOING NOTHING ALWAYS PASSED. The real
+                    // validator caught tac_w1_m01 being solved in zero actions because of it; the
+                    // intent was right and the implementation never matched it.
+                    //
+                    // One deterministic full clash, exactly like ProtectLane and DefeatMarkedTarget
+                    // above. No RNG and no new combat rule - the same LaneBattleResolver every other
+                    // objective already uses.
+                    foreach (Lane lane in new[] { Lane.Front, Lane.Middle, Lane.Back })
+                        LaneBattleResolver.ResolveLaneClash(playerSide.Lanes[lane], enemySide.Lanes[lane]);
+
+                    // Still has to hold the board AFTER the clash - now actually checkable.
                     return playerSide.Lanes.Values.Any(l => l.AliveCards.Any());
                 }
             }

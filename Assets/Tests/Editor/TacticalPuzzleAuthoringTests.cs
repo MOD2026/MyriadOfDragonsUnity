@@ -227,6 +227,108 @@ namespace MyriadOfDragons.Tests
                 "A budget larger than the whole pool is a constraint that can never fail - that is an authoring slip.");
         }
 
+        // ---------------------------------------------------------------- MinimalResourceSolve
+        //
+        // FIXED 2026-08-26. This objective never resolved a clash, so "still holding the board" was
+        // unverifiable and DOING NOTHING ALWAYS PASSED. The real content validator caught it:
+        // tac_w1_m01 reported as solved in ZERO actions. The old code's own comment said a solve
+        // that spends nothing and loses everything is not a solve - the intent was right and the
+        // implementation never matched it.
+
+        /// <summary>A minimal-Resource puzzle whose player side faces the supplied enemy board.</summary>
+        private TacticalPuzzleDefinition MinResPuzzle(
+            string id, int budget, List<TacticalPuzzleUnitSpec> enemy, int startingResource = 5)
+        {
+            return new TacticalPuzzleDefinition
+            {
+                PuzzleId = id,
+                DisplayName = id,
+                StartingResource = startingResource,
+                ResourceCap = 99,
+                AvatarHealth = 20,
+                Hand = new List<string> { "small_a" },
+                PlayerBoard = new List<TacticalPuzzleUnitSpec>
+                {
+                    new TacticalPuzzleUnitSpec { CardId = "small_a", Lane = Lane.Front },
+                },
+                EnemyBoard = enemy,
+                Objective = new TacticalPuzzleObjectiveSpec
+                {
+                    Kind = TacticalPuzzleObjectiveKind.MinimalResourceSolve,
+                    ResourceBudget = budget,
+                },
+            };
+        }
+
+        [Test]
+        public void MinimalResourceSolve_ADoNothingBoardThatLoses_DoesNotCountAsASolve()
+        {
+            // THE BUG THIS FIXES. A heavy enemy against one light defender: after the clash the
+            // player holds nothing, so spending zero cannot be a "solve". Before the fix this
+            // passed, because no clash was ever resolved.
+            var def = MinResPuzzle("minres_loses", 3, new List<TacticalPuzzleUnitSpec>
+            {
+                new TacticalPuzzleUnitSpec { CardId = "heavy", Lane = Lane.Front },
+            });
+
+            TacticalPuzzleResult result = TacticalPuzzleAuthoring.Run(
+                def, new List<TacticalPuzzleActionSpec>(), _source);
+
+            Assert.AreEqual(TacticalPuzzleStatus.ObjectiveNotMet, result.Status,
+                "Spending nothing while losing the board must not count as a minimal-Resource solve.");
+        }
+
+        [Test]
+        public void MinimalResourceSolve_ADoNothingBoardThatSurvives_StillCounts()
+        {
+            // The other direction: the objective is about SPENDING LITTLE, so a position that
+            // already holds without spending is a legitimate solve. Over-correcting into "you must
+            // always act" would break the mode's whole point.
+            var def = MinResPuzzle("minres_survives", 3, new List<TacticalPuzzleUnitSpec>());
+
+            TacticalPuzzleResult result = TacticalPuzzleAuthoring.Run(
+                def, new List<TacticalPuzzleActionSpec>(), _source);
+
+            Assert.AreEqual(TacticalPuzzleStatus.ObjectiveMet, result.Status,
+                "A board that survives on its own spends zero and is a valid minimal-Resource solve.");
+        }
+
+        [Test]
+        public void MinimalResourceSolve_ALineWithinBudget_Passes_AndOverBudgetFails()
+        {
+            // Budget is still enforced after the clash change - the fix must not have quietly
+            // turned this objective into "did you survive".
+            var within = MinResPuzzle("minres_within", 99, new List<TacticalPuzzleUnitSpec>());
+            Assert.AreEqual(TacticalPuzzleStatus.ObjectiveMet,
+                TacticalPuzzleAuthoring.Run(within, new List<TacticalPuzzleActionSpec>
+                {
+                    new TacticalPuzzleActionSpec
+                    {
+                        Kind = TacticalPuzzleActionKind.Deploy, HandIndex = 0, Lane = Lane.Back,
+                    },
+                }, _source).Status,
+                "A deploy inside the budget must still solve.");
+
+            // Over-budget needs a card that actually costs more than the budget. small_a is
+            // rarity 1 and costs exactly 1, so the first version of this test asserted its own
+            // setup and failed there - correctly, rather than passing on a line that was never
+            // over budget. Cost is DERIVED from rarity, so the heavy card is the one to use.
+            var over = MinResPuzzle("minres_over", 1, new List<TacticalPuzzleUnitSpec>());
+            over.Hand = new List<string> { "heavy" };
+            over.StartingResource = 99;
+            Assert.Greater(_cards["heavy"].ResourceCost, 1,
+                "Setup: the deploy must cost more than the budget for this to test anything.");
+            Assert.AreEqual(TacticalPuzzleStatus.ObjectiveNotMet,
+                TacticalPuzzleAuthoring.Run(over, new List<TacticalPuzzleActionSpec>
+                {
+                    new TacticalPuzzleActionSpec
+                    {
+                        Kind = TacticalPuzzleActionKind.Deploy, HandIndex = 0, Lane = Lane.Back,
+                    },
+                }, _source).Status,
+                "A line that overspends the authored budget must fail.");
+        }
+
         // ---------------------------------------------------------------- materialisation
 
         [Test]
