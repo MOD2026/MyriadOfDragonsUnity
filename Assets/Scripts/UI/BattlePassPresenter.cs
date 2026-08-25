@@ -1,4 +1,5 @@
 using System;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Season;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,23 +16,40 @@ namespace MyriadOfDragons.UI
 
         private GameObject _canvasObj;
         private Action _onBackToHome;
+        private RetentionTelemetryOutbox _telemetryOutbox;
         private Text _statusText;
         private Text _xpValuesText;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+        public RetentionTelemetryOutbox TelemetryOutboxForTests => _telemetryOutbox;
 
-        public void Initialize(Action onBackToHome)
+        public void Initialize(Action onBackToHome, RetentionTelemetryOutbox telemetryOutbox = null)
         {
             _onBackToHome = onBackToHome;
+            _telemetryOutbox = telemetryOutbox ?? new RetentionTelemetryOutbox(new UnityCloudCodeRetentionTelemetryGateway());
             BuildUI();
             RefreshBound();
         }
 
-        public BattlePassClaimResult ClaimTierForTests(int tierIndex, bool premiumTrack)
+        public BattlePassClaimResult ClaimTierForTests(int tierIndex, bool premiumTrack) => AttemptClaim(tierIndex, premiumTrack);
+
+        /// <summary>Real retention-telemetry trigger point (register: "Retention telemetry
+        /// architecture - LOCKED" / dispatch "wire the actual emit calls into real gameplay call
+        /// sites") - the single real claim path both the production tier-well button and the
+        /// EditMode test entry go through.</summary>
+        private BattlePassClaimResult AttemptClaim(int tierIndex, bool premiumTrack)
         {
             BattlePassClaimResult result = BattlePassOpenValues.TryClaimTier(tierIndex, premiumTrack);
             SetStatus(result.Message);
+
+            if (_telemetryOutbox != null && result.Status == BattlePassClaimStatus.Applied)
+            {
+                string playerId = RetentionTelemetryPlayerId.CurrentOrEmpty();
+                _telemetryOutbox.Enqueue(RetentionTelemetryEvents.ModeRewardClaimed(
+                    playerId, "battle_pass", $"tier_{tierIndex}_{(premiumTrack ? "premium" : "free")}", "claimed"));
+                _ = _telemetryOutbox.FlushAsync(System.Threading.CancellationToken.None);
+            }
             return result;
         }
 
@@ -156,11 +174,7 @@ namespace MyriadOfDragons.UI
                 img.color = new Color(0.12f, 0.16f, 0.14f, 0.35f);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
-                btn.onClick.AddListener(() =>
-                {
-                    BattlePassClaimResult result = BattlePassOpenValues.TryClaimTier(tier, capturedPremium);
-                    SetStatus(result.Message);
-                });
+                btn.onClick.AddListener(() => AttemptClaim(tier, capturedPremium));
                 SetNorm(well.GetComponent<RectTransform>(), left, 0.08f, left + wellWidth * 0.92f, 0.92f);
 
                 Text headerN = UISharedFoundation.CreateText(well.transform, "TierIndex", $"T{i + 1}", UITextRole.Caption,

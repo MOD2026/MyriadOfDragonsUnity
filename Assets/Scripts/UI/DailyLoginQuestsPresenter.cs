@@ -1,5 +1,6 @@
 using System;
 using MyriadOfDragons.Data;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.Season;
 using UnityEngine;
@@ -17,6 +18,7 @@ namespace MyriadOfDragons.UI
 
         private GameObject _canvasObj;
         private Action _onBackToHome;
+        private RetentionTelemetryOutbox _telemetryOutbox;
         private Text _statusText;
         private Text _walletText;
         private Text _clockText;
@@ -26,10 +28,12 @@ namespace MyriadOfDragons.UI
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+        public RetentionTelemetryOutbox TelemetryOutboxForTests => _telemetryOutbox;
 
-        public void Initialize(Action onBackToHome)
+        public void Initialize(Action onBackToHome, RetentionTelemetryOutbox telemetryOutbox = null)
         {
             _onBackToHome = onBackToHome;
+            _telemetryOutbox = telemetryOutbox ?? new RetentionTelemetryOutbox(new UnityCloudCodeRetentionTelemetryGateway());
             BuildUI();
             RefreshBound();
         }
@@ -47,11 +51,25 @@ namespace MyriadOfDragons.UI
         public DailyLoginQuestClaimResult ClaimQuestAtUtcForTests(int questIndex, DateTime utcNow) =>
             Apply(DailyLoginQuestsService.ClaimQuest(SaveManager.SaveData, questIndex, utcNow));
 
+        /// <summary>Real retention-telemetry trigger point (register: "Retention telemetry
+        /// architecture - LOCKED" / dispatch "wire the actual emit calls into real gameplay call
+        /// sites") - the single real completion path every login/quest claim (production button
+        /// or EditMode test entry) goes through.</summary>
         private DailyLoginQuestClaimResult Apply(DailyLoginQuestClaimResult result)
         {
             RefreshBound();
             if (_statusText != null && !string.IsNullOrEmpty(result?.Message))
                 _statusText.text = result.Message;
+
+            if (_telemetryOutbox != null && result != null && result.Status == DailyLoginQuestClaimStatus.Applied)
+            {
+                string playerId = RetentionTelemetryPlayerId.CurrentOrEmpty();
+                string outcome = $"gold={result.GoldGranted},materials={result.MaterialsGranted},stamina={result.StaminaGranted}," +
+                                  $"medals={result.EventMedalsGranted},xp={result.PassSeasonXpGranted}";
+                _telemetryOutbox.Enqueue(RetentionTelemetryEvents.ModeRewardClaimed(
+                    playerId, "daily_login_quests", $"slot_{result.SlotIndex}", outcome));
+                _ = _telemetryOutbox.FlushAsync(System.Threading.CancellationToken.None);
+            }
             return result;
         }
 

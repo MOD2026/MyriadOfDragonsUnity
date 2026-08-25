@@ -1,4 +1,5 @@
 using System.IO;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.Season;
 using MyriadOfDragons.UI;
@@ -107,6 +108,32 @@ namespace MyriadOfDragons.Tests
             back.onClick.Invoke();
             Assert.IsTrue(homeCanvas.activeSelf);
             Assert.IsNull(go.GetComponent<BattlePassPresenter>());
+        }
+
+        [Test]
+        public void RefusedClaim_OpenValuesNotLocked_NeverEmitsTelemetry()
+        {
+            // Real retention-telemetry wiring check (register: "Retention telemetry architecture
+            // - LOCKED" / dispatch "wire the actual emit calls into real gameplay call sites").
+            // Unlike Daily Login/Empire Expedition, BattlePassOpenValues.AreTierRewardsConfigured
+            // is still false (see OpenValues_StayUnset_AndSeasonLengthIsLocked28Days above) with
+            // no test-only override - a real "Applied" claim genuinely cannot happen yet, so this
+            // is the one real behavior currently reachable: a refused claim must never be reported
+            // to analytics as a real reward claim.
+            var go = new GameObject("BattlePassTelemetryHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<BattlePassPresenter>();
+            var fakeGateway = new FakeRetentionTelemetryGateway();
+            var telemetryScratchDir = Path.Combine(Path.GetTempPath(), "MoDBattlePassTelemetry_" + System.Guid.NewGuid().ToString("N"));
+            var outbox = new RetentionTelemetryOutbox(fakeGateway, telemetryScratchDir);
+            presenter.Initialize(onBackToHome: null, telemetryOutbox: outbox);
+
+            BattlePassClaimResult claim = presenter.ClaimTierForTests(0, premiumTrack: false);
+            Assert.AreEqual(BattlePassClaimStatus.OpenValuesNotLocked, claim.Status, "Setup: real production claim must still refuse.");
+
+            Assert.AreEqual(0, fakeGateway.SentEvents.Count, "An OpenValuesNotLocked refusal is not a real claim - must not emit telemetry.");
+
+            if (Directory.Exists(telemetryScratchDir)) Directory.Delete(telemetryScratchDir, recursive: true);
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Empire;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,6 +23,7 @@ namespace MyriadOfDragons.UI
         private GameObject _canvasObj;
         private Action _onBack;
         private IGuildExpeditionBonusQuery _guildBonusQuery;
+        private RetentionTelemetryOutbox _telemetryOutbox;
         private Text _statusText;
         private Text _guildBonusText;
         private bool _autoFightToggle;
@@ -30,11 +32,13 @@ namespace MyriadOfDragons.UI
         public bool AutoFightEnabledForTests => _autoFightToggle;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
         public string GuildBonusTextForTests => _guildBonusText != null ? _guildBonusText.text : null;
+        public RetentionTelemetryOutbox TelemetryOutboxForTests => _telemetryOutbox;
 
-        public void Initialize(Action onBack, IGuildExpeditionBonusQuery guildBonusQuery = null)
+        public void Initialize(Action onBack, IGuildExpeditionBonusQuery guildBonusQuery = null, RetentionTelemetryOutbox telemetryOutbox = null)
         {
             _onBack = onBack;
             _guildBonusQuery = guildBonusQuery ?? UnavailableGuildExpeditionBonusQuery.Instance;
+            _telemetryOutbox = telemetryOutbox ?? new RetentionTelemetryOutbox(new UnityCloudCodeRetentionTelemetryGateway());
             _autoFightToggle = false;
             BuildUI();
         }
@@ -44,6 +48,23 @@ namespace MyriadOfDragons.UI
         /// <summary>Simulates a clear settlement without combat — for EditMode / shell wiring only.</summary>
         public EmpireExpeditionClearResult SimulateClearForTests(string stageId) =>
             AttemptClearSettlement(stageId);
+
+        /// <summary>Same shape as EmpireExpeditionClearTransaction.TryApplyClearWithConfiguredAmountsForTests
+        /// - lets a test reach the real "Applied" path (and therefore the real telemetry emission
+        /// in EmitClearTelemetry) through the presenter itself, without needing
+        /// EmpireExpeditionOpenValues locked. Production behavior is unaffected - this is a new
+        /// test-only entry point, not a change to the real button's own call path.</summary>
+        public EmpireExpeditionClearResult SimulateClearWithConfiguredAmountsForTests(
+            string stageId, int staminaCost, int baseGold, int baseMaterials, int dailyGoldCap,
+            int? dailyAttemptCap = null, int expeditionGoldEarnedTodayUtc = 0, int expeditionAttemptsTodayUtc = 0)
+        {
+            PlayerProfile profile = SaveSystem.CurrentProfile ?? SaveManager.SaveData;
+            EmpireExpeditionClearResult result = EmpireExpeditionClearTransaction.TryApplyClearWithConfiguredAmountsForTests(
+                profile, stageId, _guildBonusQuery, staminaCost, baseGold, baseMaterials, dailyGoldCap,
+                dailyAttemptCap, expeditionGoldEarnedTodayUtc, expeditionAttemptsTodayUtc, persist: false);
+            EmitClearTelemetry(stageId, result);
+            return result;
+        }
 
         private void BuildUI()
         {
@@ -268,7 +289,35 @@ namespace MyriadOfDragons.UI
         private EmpireExpeditionClearResult AttemptClearSettlement(string stageId)
         {
             PlayerProfile profile = SaveSystem.CurrentProfile ?? SaveManager.SaveData;
-            return EmpireExpeditionClearTransaction.TryApplyClear(profile, stageId, _guildBonusQuery);
+            EmpireExpeditionClearResult result = EmpireExpeditionClearTransaction.TryApplyClear(profile, stageId, _guildBonusQuery);
+            EmitClearTelemetry(stageId, result);
+            return result;
+        }
+
+        /// <summary>Real retention-telemetry trigger point (register: "Retention telemetry
+        /// architecture - LOCKED" / dispatch "wire the actual emit calls into real gameplay call
+        /// sites") - the single real settlement path both the production button handler
+        /// (OnStageNodeClicked) and the EditMode test entry (SimulateClearForTests) go through.
+        /// Enqueue never blocks/throws (RetentionTelemetryOutbox's own contract), so a telemetry
+        /// failure can never affect the real clear result already returned above.</summary>
+        private void EmitClearTelemetry(string stageId, EmpireExpeditionClearResult result)
+        {
+            if (_telemetryOutbox == null || result == null) return;
+            string playerId = RetentionTelemetryPlayerId.CurrentOrEmpty();
+
+            if (result.Status == EmpireExpeditionClearStatus.Applied)
+            {
+                _telemetryOutbox.Enqueue(RetentionTelemetryEvents.ModeRunCompleted(playerId, "empire_expedition", stageId, "success"));
+                _telemetryOutbox.Enqueue(RetentionTelemetryEvents.ModeRewardClaimed(playerId, "empire_expedition", stageId,
+                    result.MaterialsGranted > 0 ? "gold_and_materials" : "gold"));
+            }
+            else if (result.Status == EmpireExpeditionClearStatus.DailyGoldCapWouldReject
+                     || result.Status == EmpireExpeditionClearStatus.DailyAttemptCapWouldReject)
+            {
+                _telemetryOutbox.Enqueue(RetentionTelemetryEvents.DailyCapReached(playerId, "empire_expedition", result.Status.ToString()));
+            }
+
+            _ = _telemetryOutbox.FlushAsync(System.Threading.CancellationToken.None);
         }
 
         private void SetStatus(string message)

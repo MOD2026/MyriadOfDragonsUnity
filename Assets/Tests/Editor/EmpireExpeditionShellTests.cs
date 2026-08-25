@@ -1,5 +1,6 @@
 using System.IO;
 using MyriadOfDragons.Empire;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
@@ -90,7 +91,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void ConfiguredClear_SpendsStamina_GrantsGold_FailClosedGuild_NoMaterialsPersist()
+        public void ConfiguredClear_SpendsStamina_GrantsGold_FailClosedGuild_MaterialsPersist()
         {
             var profile = new PlayerProfile { stamina = 50, gold = 100, maxStamina = 100 };
             EmpireExpeditionClearResult result =
@@ -109,8 +110,14 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(140, profile.gold);
             Assert.IsFalse(result.GuildBonusApplied, "Unavailable guild query must fail closed.");
             Assert.AreEqual(10, result.MaterialsGranted);
-            Assert.IsFalse(result.MaterialsPersisted,
-                "Materials must not invent a PlayerProfile field.");
+            // Stale since 2026-08-26: this asserted materials could never persist because
+            // PlayerProfile.constructionMaterials didn't exist yet. It has existed since
+            // 2026-08-24, and EmpireExpeditionClearTransaction.cs now writes to it (see its own
+            // comment at the grant site). Fail-closed guild bonus is orthogonal to materials
+            // persistence - updated to assert the real, current behavior.
+            Assert.IsTrue(result.MaterialsPersisted,
+                "Materials grant must persist to PlayerProfile.constructionMaterials.");
+            Assert.AreEqual(10, profile.constructionMaterials);
         }
 
         [Test]
@@ -172,6 +179,80 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsNotNull(go.GetComponent<EmpireExpeditionPresenter>());
             Assert.IsNotNull(GameObject.Find(EmpireExpeditionPresenter.CanvasName));
+        }
+
+        [Test]
+        public void RealClearApplied_EmitsBothModeRunCompletedAndModeRewardClaimed()
+        {
+            // Real retention-telemetry wiring check (register: "Retention telemetry architecture
+            // - LOCKED" / dispatch "wire the actual emit calls into real gameplay call sites").
+            // The real production clear refuses while EmpireExpeditionOpenValues stays OPEN (see
+            // EmpireScreen_ExpeditionRefusesWhileOpenValuesUnset above) - this reaches the real
+            // "Applied" path (and therefore the real EmitClearTelemetry logic) through
+            // SimulateClearWithConfiguredAmountsForTests, the same configured-amounts pattern
+            // EmpireExpeditionClearTransactionTests already uses for the transaction class itself.
+            var go = new GameObject("EmpireExpeditionTelemetryHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<EmpireExpeditionPresenter>();
+            var fakeGateway = new FakeRetentionTelemetryGateway();
+            var telemetryScratchDir = Path.Combine(Path.GetTempPath(), "MoDEmpireExpeditionTelemetry_" + System.Guid.NewGuid().ToString("N"));
+            var outbox = new RetentionTelemetryOutbox(fakeGateway, telemetryScratchDir);
+            presenter.Initialize(onBack: null, telemetryOutbox: outbox);
+
+            EmpireExpeditionClearResult result = presenter.SimulateClearWithConfiguredAmountsForTests(
+                "exp-1", staminaCost: 1, baseGold: 50, baseMaterials: 5, dailyGoldCap: 500);
+            Assert.AreEqual(EmpireExpeditionClearStatus.Applied, result.Status, "Setup: expected a real successful clear.");
+
+            Assert.AreEqual(2, fakeGateway.SentEvents.Count, "A real successful clear must emit both a run-completed and a reward-claimed event.");
+            Assert.AreEqual(RetentionTelemetryEvents.EventTypeModeRunCompleted, fakeGateway.SentEvents[0].eventType);
+            Assert.AreEqual("empire_expedition", fakeGateway.SentEvents[0].mode);
+            Assert.AreEqual("exp-1", fakeGateway.SentEvents[0].runId);
+            Assert.AreEqual(RetentionTelemetryEvents.EventTypeModeRewardClaimed, fakeGateway.SentEvents[1].eventType);
+            Assert.AreEqual(0, outbox.QueuedEventsForTests.Count, "Successfully-sent events must not remain queued.");
+
+            if (Directory.Exists(telemetryScratchDir)) Directory.Delete(telemetryScratchDir, recursive: true);
+        }
+
+        [Test]
+        public void RealClearHittingTheDailyGoldCap_EmitsDailyCapReached()
+        {
+            var go = new GameObject("EmpireExpeditionTelemetryCapHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<EmpireExpeditionPresenter>();
+            var fakeGateway = new FakeRetentionTelemetryGateway();
+            var telemetryScratchDir = Path.Combine(Path.GetTempPath(), "MoDEmpireExpeditionTelemetryCap_" + System.Guid.NewGuid().ToString("N"));
+            var outbox = new RetentionTelemetryOutbox(fakeGateway, telemetryScratchDir);
+            presenter.Initialize(onBack: null, telemetryOutbox: outbox);
+
+            // dailyGoldCap already fully earned today -> real DailyGoldCapWouldReject path.
+            EmpireExpeditionClearResult result = presenter.SimulateClearWithConfiguredAmountsForTests(
+                "exp-1", staminaCost: 1, baseGold: 50, baseMaterials: 0, dailyGoldCap: 100,
+                expeditionGoldEarnedTodayUtc: 100);
+            Assert.AreEqual(EmpireExpeditionClearStatus.DailyGoldCapWouldReject, result.Status, "Setup: expected a real cap refusal.");
+
+            Assert.AreEqual(1, fakeGateway.SentEvents.Count);
+            Assert.AreEqual(RetentionTelemetryEvents.EventTypeDailyCapReached, fakeGateway.SentEvents[0].eventType);
+
+            if (Directory.Exists(telemetryScratchDir)) Directory.Delete(telemetryScratchDir, recursive: true);
+        }
+
+        [Test]
+        public void RefusedClear_OpenValuesNotLocked_NeverEmitsTelemetry()
+        {
+            var go = new GameObject("EmpireExpeditionTelemetryRefuseHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<EmpireExpeditionPresenter>();
+            var fakeGateway = new FakeRetentionTelemetryGateway();
+            var telemetryScratchDir = Path.Combine(Path.GetTempPath(), "MoDEmpireExpeditionTelemetryRefuse_" + System.Guid.NewGuid().ToString("N"));
+            var outbox = new RetentionTelemetryOutbox(fakeGateway, telemetryScratchDir);
+            presenter.Initialize(onBack: null, telemetryOutbox: outbox);
+
+            EmpireExpeditionClearResult refused = presenter.SimulateClearForTests("exp-1");
+            Assert.AreEqual(EmpireExpeditionClearStatus.OpenValuesNotLocked, refused.Status, "Setup: real production clear must still refuse.");
+
+            Assert.AreEqual(0, fakeGateway.SentEvents.Count, "An OpenValuesNotLocked refusal is not a real completion or cap event - must not emit telemetry.");
+
+            if (Directory.Exists(telemetryScratchDir)) Directory.Delete(telemetryScratchDir, recursive: true);
         }
 
         private sealed class FixedGuildExpeditionBonusQuery : IGuildExpeditionBonusQuery
