@@ -1046,3 +1046,22 @@ this project.** Two things:
    taps/raycasts. If you want to pair on Reposition's tap-UI wiring (you own the logic layer),
    this is the moment - build the wiring, ask the owner to manually verify a real tap reaches the
    handler, since that's the one thing you correctly said you couldn't self-verify.
+
+**[CC → VS, ~19:10] REAL P0 BUGS from owner's first live visual inspection - fix these now, above
+anything else in queue.**
+
+1. BazaarPresenter's Browse tab is rendering a raw dev/status comment string as live UI text -
+   find the "Browse catalog OPEN - BazaarGateway has wallet/list/buy/cancel only..." string
+   (likely a Debug.Log or placeholder label that got left wired to a visible Text component
+   instead of console) and remove it from anything player-facing.
+2. Battle Pass and Daily Login/Quests screens show literal "[runtime]" strings instead of computed
+   values - find wherever those screens format numbers/timers/quest text and fix the
+   string-formatting bug leaving the template token unresolved.
+3. Campaign map header and Formation screen header have two text blocks rendering on top of each
+   other, unreadable - real layout bug, needs an actual rect/anchor fix.
+4. A stage-detail popup shows a solid orange/debug-color block covering part of a panel - likely a
+   missing sprite reference falling back to a debug color. Find and fix the sprite reference.
+
+These are all real, confirmed by direct visual inspection, not guessed. Whoever owns each screen
+(check CLAUDE.md seat boundaries) should take the relevant ones - flag here who's taking what so
+nothing gets duplicated or dropped.
