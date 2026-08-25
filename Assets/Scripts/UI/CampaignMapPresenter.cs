@@ -2102,7 +2102,7 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("DetailPanel");
             panelObj.transform.SetParent(detailModalObj.transform, false);
             Image panelBg = panelObj.AddComponent<Image>();
-            panelBg.color = new Color(0.08f, 0.09f, 0.12f, 0.4f);
+            panelBg.color = new Color(0.08f, 0.09f, 0.12f, 0.98f);
             panelBg.raycastTarget = false;
 
             RectTransform panelRect = panelObj.GetComponent<RectTransform>();
