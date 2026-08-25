@@ -2987,3 +2987,39 @@ the replacement lookup was checking Phase1Catalog only (incomplete) rather than 
 resolved avatarLevelPool. Pre-fix empirical run already showed the mechanism working (replacement
 not shadowed to zero, win rate 39.7%, inside the healthy post-removal range) before the Mend swap -
 re-running now for final numbers.
+
+## Retention telemetry: Unity Analytics as the sink, gateway stays the trust boundary - LOCKED (2026-08-25, BS, vetted + citations verified via WebFetch)
+
+**Decision: do NOT hand-build a custom analytics database.** Add com.unity.services.analytics as
+the sink; keep the existing Cloud Code/gateway as the server-side ingestion/validation/dedup
+boundary. Flow: client event -> existing gateway/Cloud Code -> validate+dedupe -> Unity Analytics
+REST API. Preserves the already-locked server-side architecture, doesn't create a second data
+platform.
+
+**Citations spot-checked directly against docs.unity.com/en-us/analytics/faq - all confirmed
+accurate:** free tier to 50,000 MAU/month; raw event retention 13 months then auto-deleted;
+server-side REST API submission explicitly supported ("events can be sent to the Analytics REST
+API," including from non-Unity server sources).
+
+**What stays server-authoritative, analytics never decides:** reward grants, daily cap checks,
+stamina spend, Bazaar/Prison/Guild/Tower claim success - all stay in Cloud Code/gateway logic.
+Analytics receives a COPY of the accepted result for reporting only.
+
+**Telemetry events to send:** mode_run_completed, mode_reward_claimed, feature_entry,
+daily_cap_reached - each with eventId/runId/mode/result/schemaVersion/appBuild. Gateway dedupes
+retries before forwarding.
+
+**Real risks flagged, not hidden:** offline events can be lost before upload; gateway failure
+creates reporting gaps; 13-month raw retention is a hard limit; exact D28 needs custom query/export
+(default dashboard is D1/D7/D14/D30-shaped); consent/deletion/regional privacy stays the owner's
+responsibility regardless of vendor; Unity Analytics is explicitly NOT a durable audit ledger for
+economy/anti-fraud (that's what the gateway is for).
+
+**When to revisit and build custom instead (none true yet):** strict regional data residency
+required; raw history beyond 13 months needed; real-time analytics driving authoritative decisions;
+multiple games sharing one warehouse; Unity's MAU pricing exceeds owned-infra cost; schema limits
+block required analysis.
+
+This closes the retention telemetry thread. No implementation dispatch yet - still 10+ weeks out
+per the Empire Defense evidence gate, and telemetry only matters once Memory Expedition is live with
+real players.
