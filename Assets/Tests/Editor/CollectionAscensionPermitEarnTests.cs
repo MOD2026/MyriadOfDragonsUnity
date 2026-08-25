@@ -126,7 +126,7 @@ namespace MyriadOfDragons.Tests
             profile.ascensionPermitWeekKey = "locked-week";
             profile.ascensionPermitsEarnedThisWeek = 2;
 
-            Assert.AreEqual(14, HomePagePresenter.ChapterFinalePermitStageIds.Length);
+            Assert.AreEqual(15, HomePagePresenter.ChapterFinalePermitStageIds.Length);
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "1-3");
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "2-21");
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "10-30");
@@ -134,6 +134,7 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "12-30");
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "13-30");
             CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "14-30");
+            CollectionAssert.Contains(HomePagePresenter.ChapterFinalePermitStageIds, "15-30");
 
             // Each finale grants 1 via the milestone path, which respects the hoard cap - with a
             // hoard cap of 8 and 12 finale stages, the first 8 each grant 1 and the rest grant 0

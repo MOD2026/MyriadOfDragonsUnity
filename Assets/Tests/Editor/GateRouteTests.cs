@@ -22,8 +22,8 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(8, PlayerEmpireData.GetHighestCampaignChapterAllowed(21));
             Assert.AreEqual(9, PlayerEmpireData.GetHighestCampaignChapterAllowed(24));
             Assert.AreEqual(10, PlayerEmpireData.GetHighestCampaignChapterAllowed(27));
-            Assert.AreEqual(14, PlayerEmpireData.GetHighestCampaignChapterAllowed(30),
-                "Gate L30 unlocks through Chapter 14 (The Fallen Pantheon) while the paid Gate ladder caps at L30.");
+            Assert.AreEqual(15, PlayerEmpireData.GetHighestCampaignChapterAllowed(30),
+                "Gate L30 unlocks through Chapter 15 (The Godless Dawn) while the paid Gate ladder caps at L30.");
         }
 
         [Test]
@@ -37,6 +37,7 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 12));
             Assert.IsTrue(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 13));
             Assert.IsTrue(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 14));
+            Assert.IsTrue(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 15));
             Assert.IsFalse(PlayerEmpireData.IsCampaignChapterAllowedByGate(27, 11));
             Assert.IsFalse(PlayerEmpireData.IsCampaignChapterAllowedByGate(30, 0));
         }

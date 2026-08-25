@@ -1584,6 +1584,80 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The fallen pantheon still waits.");
             }
+
+            // Chapter 15 — The Godless Dawn.
+            (string stageId, string title, string enemyName)[] chapter15Stages =
+            {
+                ("15-1", "Godless Causeway", "Godless Watch"),
+                ("15-2", "Hollow Sky Gate", "Hollow Sky Guard"),
+                ("15-3", "Dawn-Without-Gods Court", "Dawn Court Cohort"),
+                ("15-4", "Empty Thunder Yard", "Empty Thunder Wardens"),
+                ("15-5", "Ash-of-Heaven Hall", "Ash-of-Heaven Legion"),
+                ("15-6", "Mortal Levy Stair", "Mortal Levy Guard"),
+                ("15-7", "The First Light Muster", "First Light Command"),
+                ("15-8", "Sunless Bolt Road", "Sunless Bolt Cohort"),
+                ("15-9", "Dawn Antechamber", "Dawn Antechamber Guard"),
+                ("15-10", "Eagle-of-Dust Roost", "Dust Roost Legion"),
+                ("15-11", "Crownless Dawn Gallery", "Dawn Gallery Wardens"),
+                ("15-12", "The Mortal Judgment", "Mortal Judgment Guard"),
+                ("15-13", "Stormgod-Empty Barracks", "Empty Barracks Command"),
+                ("15-14", "Oathless Chamber", "Oathless Cohort"),
+                ("15-15", "The Godless Court", "Godless Court Guard"),
+                ("15-16", "Dawnscar Road", "Dawnscar Legion"),
+                ("15-17", "Vault of Hollow Bolts", "Hollow Bolt Wardens"),
+                ("15-18", "Sky-Cracked Parapet", "Sky-Cracked Guard"),
+                ("15-19", "War Engine of Dawn", "Dawn Engine Cohort"),
+                ("15-20", "Balcony of First Light", "First Light Balcony Command"),
+                ("15-21", "Unsealed Reliquary", "Unsealed Reliquary Guard"),
+                ("15-22", "Rampart of Mortal Crowns", "Mortal Crown Legion"),
+                ("15-23", "Thunderbrand Dawn Crypt", "Dawn Crypt Wardens"),
+                ("15-24", "The Last Godless Debt", "Last Godless Cohort"),
+                ("15-25", "Skyfire Dawn Vestibule", "Dawn Vestibule Guard"),
+                ("15-26", "Sky King's Hollow Bastion", "Hollow Bastion Command"),
+                ("15-27", "The Broken Dawn Scepter", "Broken Dawn Legion"),
+                ("15-28", "Stormheart Dawn Gate", "Dawn Gate Guard"),
+                ("15-29", "The Godless Dais", "Godless High Command"),
+                ("15-30", "The Godless Dawn", "Godless Dawn High Guard"),
+            };
+
+            foreach ((string stageId, string title, string enemyName) in chapter15Stages)
+            {
+                var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
+                string preEnemyLine = stageId switch
+                {
+                    "15-1" => "The gods are gone. Dawn still belongs to whoever bleeds for it.",
+                    "15-15" => "A godless court still judges.",
+                    "15-30" => "There is no pantheon left to save you.",
+                    _ => $"{enemyName} holds {title}. The sky is empty and the road is not.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "15-1" => "Then I bleed for it.",
+                    "15-15" => "Then I rewrite the verdict.",
+                    "15-30" => "I do not need saving. I need the dawn.",
+                    _ => "Clear the path. Dawn does not wait.",
+                };
+
+                if (stageId == "15-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The dawn is ours. The sky is still empty."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Empty is not finished, Sovereign. Hollow skies remember hunger."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
+                AddStageDialogue(stageId, title, enemy,
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. The godless dawn still waits.");
+            }
         }
 
         public static StorySequence GetSequence(string sequenceId)

@@ -183,6 +183,7 @@ namespace MyriadOfDragons.UI
             chapterStages.AddRange(BuildChapter12DepthStages());
             chapterStages.AddRange(BuildChapter13DepthStages());
             chapterStages.AddRange(BuildChapter14DepthStages());
+            chapterStages.AddRange(BuildChapter15DepthStages());
             ApplyLockedCampaignGemRewards();
         }
 
@@ -202,10 +203,10 @@ namespace MyriadOfDragons.UI
                 total += stage.gemReward;
             }
 
-            if (total != CampaignGemRewardRules.LockedTotalCh1Through14)
+            if (total != CampaignGemRewardRules.LockedTotalCh1Through15)
             {
                 Debug.LogError(
-                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through14} " +
+                    $"[Campaign] Locked Gem total mismatch: sum={total}, expected {CampaignGemRewardRules.LockedTotalCh1Through15} " +
                     $"(stages={chapterStages.Count}). Check finale ids vs HomePagePresenter.ChapterFinalePermitStageIds.");
             }
         }
@@ -1497,6 +1498,90 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Chapter 15 depth pool — Chapter14DepthPool rotated by 25 (continuing 17→19→21→23→25).</summary>
+        private static readonly string[] Chapter15DepthPool =
+        {
+            "elven_high_lord", "archer_dragon", "castle_lady", "hooded_rogue", "giant_worms",
+            "mountain_harpy", "snake_archer", "fire_worm", "butcher", "cursed_soldier",
+            "ogre", "werewolf", "wood_wizard", "zombified_captain", "eastern_sorcerer",
+            "corrupted_warrior", "undead_pirate", "goblin_shaman", "elf_wanderer", "persian_princess",
+            "conquistador", "owl_keeper", "ladyinlake", "iron_dragon", "pandora",
+            "drain", "shaman", "druid", "succubus",
+        };
+
+        /// <summary>Linear from Stage 14-30's 54640 gold. 15-30 lands at 54640 + 30*210 = 60940 gold.</summary>
+        private static (int gold, int gems) Chapter15DepthReward(int stageNumber)
+        {
+            const int baseGold = 54640, goldPerStage = 210;
+            const int baseGems = 10928, gemsPerStage = 42;
+            return (baseGold + stageNumber * goldPerStage, baseGems + stageNumber * gemsPerStage);
+        }
+
+        /// <summary>Chapter 15 — The Godless Dawn (pantheon fallen; mortals walk a sky without gods).</summary>
+        private static readonly (string title, string enemyName)[] Chapter15DepthFlavor =
+        {
+            ("Godless Causeway", "Godless Watch"),
+            ("Hollow Sky Gate", "Hollow Sky Guard"),
+            ("Dawn-Without-Gods Court", "Dawn Court Cohort"),
+            ("Empty Thunder Yard", "Empty Thunder Wardens"),
+            ("Ash-of-Heaven Hall", "Ash-of-Heaven Legion"),
+            ("Mortal Levy Stair", "Mortal Levy Guard"),
+            ("The First Light Muster", "First Light Command"),
+            ("Sunless Bolt Road", "Sunless Bolt Cohort"),
+            ("Dawn Antechamber", "Dawn Antechamber Guard"),
+            ("Eagle-of-Dust Roost", "Dust Roost Legion"),
+            ("Crownless Dawn Gallery", "Dawn Gallery Wardens"),
+            ("The Mortal Judgment", "Mortal Judgment Guard"),
+            ("Stormgod-Empty Barracks", "Empty Barracks Command"),
+            ("Oathless Chamber", "Oathless Cohort"),
+            ("The Godless Court", "Godless Court Guard"),
+            ("Dawnscar Road", "Dawnscar Legion"),
+            ("Vault of Hollow Bolts", "Hollow Bolt Wardens"),
+            ("Sky-Cracked Parapet", "Sky-Cracked Guard"),
+            ("War Engine of Dawn", "Dawn Engine Cohort"),
+            ("Balcony of First Light", "First Light Balcony Command"),
+            ("Unsealed Reliquary", "Unsealed Reliquary Guard"),
+            ("Rampart of Mortal Crowns", "Mortal Crown Legion"),
+            ("Thunderbrand Dawn Crypt", "Dawn Crypt Wardens"),
+            ("The Last Godless Debt", "Last Godless Cohort"),
+            ("Skyfire Dawn Vestibule", "Dawn Vestibule Guard"),
+            ("Sky King's Hollow Bastion", "Hollow Bastion Command"),
+            ("The Broken Dawn Scepter", "Broken Dawn Legion"),
+            ("Stormheart Dawn Gate", "Dawn Gate Guard"),
+            ("The Godless Dais", "Godless High Command"),
+            ("The Godless Dawn", "Godless Dawn High Guard"),
+        };
+
+        private static IEnumerable<CampaignStageData> BuildChapter15DepthStages()
+        {
+            const int poolSize = 29;
+            for (int i = 0; i < 30; i++)
+            {
+                int stageNumber = i + 1;
+                // Stride 13 is coprime with pool 29; offsets {0,9,16} distinct from Ch11–14 builders.
+                int baseIndex = (13 * i + 2) % poolSize;
+                string[] ids =
+                {
+                    Chapter15DepthPool[baseIndex],
+                    Chapter15DepthPool[(baseIndex + 9) % poolSize],
+                    Chapter15DepthPool[(baseIndex + 16) % poolSize],
+                };
+                if (stageNumber == 30)
+                    ids = new[] { "ogre", "ladyinlake", "goblin_shaman" };
+
+                // Stages 15-4 / 15-7 measured AF defeats under starter+AF (stride-13 builder).
+                if (stageNumber == 4)
+                    ids = new[] { "werewolf", "shaman", "persian_princess" };
+                if (stageNumber == 7)
+                    ids = new[] { "butcher", "drain", "wood_wizard" };
+
+                (string title, string enemyName) = Chapter15DepthFlavor[i];
+                string description = $"{enemyName} holds {title}. The gods are gone; dawn still costs blood.";
+                (int gold, int gems) = Chapter15DepthReward(stageNumber);
+                yield return new CampaignStageData($"15-{stageNumber}", title, enemyName, "UI/Portraits/Paladin", description, gold, gems, enemyDeckCardIds: ids);
+            }
+        }
+
         /// <summary>Linear from Stage 7-30's own 18940/3788, same +10 gold / +2 gems per-stage step
         /// growth pattern every chapter since Ch2 has followed. 8-30 lands at 18940 + 30*140 =
         /// 23140 gold / 3788 + 30*28 = 4628 gems.</summary>
@@ -1831,6 +1916,7 @@ namespace MyriadOfDragons.UI
                 case 12: return "CHAPTER 12: THE MORTAL HOST";
                 case 13: return "CHAPTER 13: THE OLYMPIAN ANSWER";
                 case 14: return "CHAPTER 14: THE FALLEN PANTHEON";
+                case 15: return "CHAPTER 15: THE GODLESS DAWN";
                 default: return $"CHAPTER {chapter}";
             }
         }

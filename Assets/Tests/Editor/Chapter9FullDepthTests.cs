@@ -257,7 +257,7 @@ namespace MyriadOfDragons.Tests
                 }
                 else
                 {
-                    Assert.Fail($"Stage {stageId} should unlock the next chapter stage; only 14-30 is terminal.");
+                    Assert.Fail($"Stage {stageId} should unlock the next chapter stage; only 15-30 is terminal.");
                 }
 
                 if (i + 1 < NewChapter9StageIds.Length)
