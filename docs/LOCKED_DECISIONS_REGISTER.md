@@ -45,7 +45,6 @@ confirms receipt/action, or the row is removed once confirmed.**
 | 2026-08-25 | VS (mailbox) | Real 6 puzzle definitions (verbatim, card ids/stats verified) pasted - build + run real 7-step validation | PENDING - dispatched |
 | 2026-08-25 | CR | Retune Windstep-era win-rate bands: Apprentice 35-42%, VeteranPlus 31-38%, after one final matched-seed validation run | PENDING - awaiting identity confirmation before send |
 | 2026-08-25 | owner | 6 combat audio files delivered as `.opus` - not a Unity-importable format, must be re-exported as `.ogg`/`.wav`/`.mp3` before anyone can wire them | PENDING - awaiting re-export |
-| 2026-08-25 | UI | Split combined Campaign/Empire hero render into two separate tiles (Avatar hero already approved, unblocked) | PENDING - awaiting relay |
 
 ---
 
@@ -3517,3 +3516,22 @@ confirmed real `TacticalPuzzleActionKind` values; all 4 objective kinds confirme
 6atk with Front bonus = 11 >= titan_chief's real 9 HP) - correct. Did NOT hand-verify every puzzle's
 solution end to end; that is what VS's shipped 7-step validator is for, posted verbatim to
 `tools/seat_mailbox.md` for VS to convert and run.
+
+## Home V3 dock: Campaign/Empire hero tiles wired (2026-08-25, WH) - both art blockers now clear
+
+**Relay note:** this report was labeled "from VS" but the file touched (`HomePagePresenter.cs`) is
+WH's lane, not VS's - matches the earlier `home_hero_out` batch-lock naming already observed this
+session (WH's own test-output convention). Logging under WH; verified the diff directly rather than
+trusting the label either way.
+
+Verified real: `git diff` on `HomePagePresenter.cs` shows exactly the dispatched change -
+`Place(0, "Campaign", "home_tile_campaign_hero_v3", ...)` and `Place(1, "Empire",
+"home_tile_empire_hero_v3", ...)`, matching the two approved renders already copied into
+`Assets/Resources/UI/HomeV3/`. HEAD pinned `ef4f2bf` before and after: Home nav batch (5 classes -
+`HomeReleaseGateTests`, `HomeLayoutRegressionTests`, `CollectionDeckHomeV3ChromeTests`,
+`MetagameNavigationSpineTests`, `EmpireAvatarScreenReachabilityTests`) **9/9 both runs, 0 error CS.**
+Change is uncommitted in the shared working tree - left as-is for WH to commit its own set, per the
+standing rule against CC guessing which uncommitted files belong to which seat.
+
+**Home V3 dock is now fully unblocked:** Avatar (approved earlier), Campaign, and Empire hero tiles
+all wired. Cards/Shop were already live. No art blockers remain on the Home V3 dock.
