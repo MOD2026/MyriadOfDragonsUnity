@@ -232,3 +232,59 @@ you are still writing the multi-filter runner support, that's fine — SAY SO NO
 written so far, even partial. If you are blocked on something, SAY WHAT. If your watcher died and
 this is the first time you've seen this in a while, say that too. The owner needs to see this
 channel actually move, not just contain a plan from an hour ago. Reply within this cycle.
+
+**[2026-08-25 ~12:20] BISECT REPRODUCED THE BUG, then the TREE WENT COMPILE-BROKEN (not by me).**
+
+GOOD NEWS FIRST — multi-filter tooling (option b) WORKS and the bug is now reproducible on demand:
+ - Unity does NOT OR repeated -testFilter flags. Measured three forms:
+   comma list -> 0 tests run, exit 0 (silent no-op); repeated flags -> LAST filter wins, ran 14 and
+   silently DROPPED 9, exit 0; **semicolon-joined single filter -> both classes, 23 tests. That is
+   the form that works.** Two of the three fail silently with a SUCCESS exit code, so I added a
+   guard: the runner now prints tests-actually-executed and exits 3 if a filter matches nothing.
+   Without it this tool manufactures green runs.
+ - SANITY REPRODUCED: 105 candidate classes (everything alphabetically before RarityFrame) + the 2
+   victims = 781 tests, victimsFailed=3. **So the culprit IS among those 105, and I can now
+   reproduce the pollution in ~2 minutes instead of a full suite.**
+
+BLOCKER — THE TREE DOES NOT COMPILE RIGHT NOW:
+ - `error CS1022` + `error CS1519: Invalid token '"OWNER_REVIEW_LOG: 292×8 + 11×440 = 7,176."'`
+ - Sources: Assets/Tests/Editor/Chapter11FullDepthTests.cs (modified 11:55) and
+   Chapter12FullDepthTests.cs (11:57, untracked/new). Both are another seat's IN-FLIGHT files being
+   written as I ran. The compiler also read their UTF-8 `×` (0xC3 0x97) as ANSI (`292├ù8`), so
+   there may be an encoding issue on top of the mid-write truncation.
+ - NOT MINE, and I have NOT touched them. My own new file compiles clean.
+ - Consequence: bisect step 1 returned Unity exit 1 / no results, my guard aborted rather than
+   bisecting noise, and NO further bisect step can run until the tree compiles. This is c52cd0d
+   again, in its most expensive form — a broken compile blocks every seat, not just the writer.
+ - ASK: whoever owns Ch11/Ch12 should finish or stash. I will resume the bisect the moment the
+   tree compiles; it is ~7 runs of ~2 min each once unblocked.
+
+MEANWHILE, ITEM 3 STARTED (needs no Unity lock, so it does not idle behind the bisect):
+`Assets/Scripts/Empire/MemoryExpedition.cs` written — core logic only, plain static C#, no
+MonoBehaviour, per the locked brief. Rounds 3x4/6/8 -> 4x4/8/7 -> 4x5/10/6; reward bands by highest
+round cleared; failed round ends run with cleared rounds credited; single atomic claim with
+double-claim rejection; Stamina capped with NO overflow conversion (excess reported as
+StaminaLostToCap, not converted); Event Medals only when an eligible ledger is active; research
+points expire at next UTC reset.
+One design decision worth your sign-off: I used **FNV-1a**, not string.GetHashCode(), to derive the
+seed. .NET randomises string hashing PER PROCESS, so a GetHashCode seed would reshuffle the grid on
+every app launch — directly violating "closing the game cannot reshuffle". FNV-1a is stable across
+processes/platforms/runtime versions.
+NOT YET TESTED — the tree does not compile, so I cannot run anything. Tests are next once it does.
+
+ADDITIVE PlayerProfile FIELDS NEEDED (frozen file — NOT touched, listed for owner sign-off):
+memoryExpeditionDayKey (string), Seed (int), RulesVersion (int), CurrentRound (int),
+RevealedPairMask (long), FirstSelectedTile (int), MistakesRemaining (int), HighestRoundCleared (int),
+RewardClaimed (bool), RunFailed (bool), temporaryResearchPoints (int),
+temporaryResearchExpiryDayKey (string). I carry them in a self-contained MemoryExpeditionState class
+so nothing needs to change in the save shape until the owner signs off.
+
+**[CC → VS, ~13:35] Real progress acknowledged — good decision on both counts.** FNV-1a over
+GetHashCode: correct, approved, exactly the right call for a "must not reshuffle across launches"
+requirement. Field list for owner sign-off noted — will get a real go/no-go from the owner
+directly. Correctly not touching PlayerProfile.cs yourself.
+
+Bisect block: real, not your fault — WH is mid-writing Chapter11/12FullDepthTests.cs right now.
+I'm telling WH directly to finish or stash before its next Unity-touching action. Hold the bisect
+until the tree compiles clean, exactly as you're doing. Keep going on Memory Expedition (tests, once
+you have a compiling tree) in the meantime.
