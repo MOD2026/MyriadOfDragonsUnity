@@ -67,17 +67,27 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void TryApply_RejectsTwoHeals()
+        public void TryApply_RejectsTwoDifferentHealSpells_AsDuplicateEffect()
+        {
+            var profile = new PlayerProfile { avatarLevel = 1, unlockedStageIds = new List<string> { "1-6" } }; // unlocks Vital Spark alongside starter Mend
+            SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
+
+            SpellLoadoutApplyResult result = SpellLoadoutSelection.TryApply(profile,
+                new[] { "firestorm", "mend", "vital_spark", "divine_bolt" });
+
+            Assert.AreEqual(SpellLoadoutApplyStatus.DuplicateEffect, result.Status);
+        }
+
+        [Test]
+        public void TryApply_RejectsTheSameSpellIdTwice_AsDuplicateSpellId()
         {
             var profile = new PlayerProfile { avatarLevel = 1 };
             SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
 
             SpellLoadoutApplyResult result = SpellLoadoutSelection.TryApply(profile,
-                new[] { "firestorm", "mend", "vital_spark", "divine_bolt" });
-            // vital_spark is heal - but fresh pool may not have it. Use war_cry replaced wrongly:
-            result = SpellLoadoutSelection.TryApply(profile,
                 new[] { "firestorm", "mend", "mend", "divine_bolt" });
-            Assert.AreEqual(SpellLoadoutApplyStatus.DuplicateEffect, result.Status);
+
+            Assert.AreEqual(SpellLoadoutApplyStatus.DuplicateSpellId, result.Status);
         }
 
         [Test]
@@ -85,16 +95,20 @@ namespace MyriadOfDragons.Tests
         {
             var profile = new PlayerProfile
             {
-                avatarLevel = 12,
+                avatarLevel = 9, // under the L10 five-slot threshold - this test is about slot ORDER/write, not the loadout expansion itself
                 unlockedStageIds = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3" },
             };
             SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
 
+            // divine_bolt, not stone_judgment (L12) - stone_judgment's own gate would push this
+            // profile's own required slot count to 5 (see SpellLoadoutAutoEquip.RequiredSlotCount),
+            // which is a different test's job (SpellLoadoutExpansionTests); this one stays about
+            // slot order/write at the original 4.
             SpellLoadoutApplyResult result = SpellLoadoutSelection.TryApply(profile,
-                new[] { "cinder_lash", "vital_spark", "rallying_gale", "stone_judgment" });
+                new[] { "cinder_lash", "vital_spark", "rallying_gale", "divine_bolt" });
             Assert.AreEqual(SpellLoadoutApplyStatus.Applied, result.Status);
             CollectionAssert.AreEqual(
-                new[] { "cinder_lash", "vital_spark", "rallying_gale", "stone_judgment" },
+                new[] { "cinder_lash", "vital_spark", "rallying_gale", "divine_bolt" },
                 profile.equippedSpellIds);
         }
 
@@ -114,7 +128,7 @@ namespace MyriadOfDragons.Tests
         {
             var profile = new PlayerProfile
             {
-                avatarLevel = 12,
+                avatarLevel = 9, // under the L10 five-slot threshold - this test is about the presenter's own confirm flow, not expansion
                 unlockedStageIds = new List<string> { "1-1", "1-2", "1-6", "2-4", "2-8", "3-3" },
                 equippedSpellIds = new List<string> { "firestorm", "mend", "war_cry", "divine_bolt" },
             };
@@ -134,14 +148,14 @@ namespace MyriadOfDragons.Tests
             presenter.SelectSpellForTests("cinder_lash");
             presenter.SelectSpellForTests("vital_spark");
             presenter.SelectSpellForTests("rallying_gale");
-            presenter.SelectSpellForTests("stone_judgment");
+            presenter.SelectSpellForTests("divine_bolt"); // not stone_judgment (L12) - see the other test's own note
 
             SpellLoadoutApplyResult applied = presenter.ConfirmForTests();
             Assert.AreEqual(SpellLoadoutApplyStatus.Applied, applied.Status);
 
             PlayerProfile saved = SaveManager.SaveData;
             CollectionAssert.AreEqual(
-                new[] { "cinder_lash", "vital_spark", "rallying_gale", "stone_judgment" },
+                new[] { "cinder_lash", "vital_spark", "rallying_gale", "divine_bolt" },
                 saved.equippedSpellIds);
         }
 

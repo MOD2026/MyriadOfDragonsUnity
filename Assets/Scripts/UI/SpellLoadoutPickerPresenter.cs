@@ -253,7 +253,27 @@ namespace MyriadOfDragons.UI
         private SpellLoadoutApplyResult ConfirmSelection()
         {
             PlayerProfile profile = SaveManager.SaveData;
-            var orderedIds = new List<string>(SpellLoadoutSelection.RequiredSlotCount);
+
+            // Loadout expansion (LOCKED 2026-08-25): this screen still only renders the original
+            // four effect-type columns (see BuildSlotSummary/BuildEffectColumns) - a real 5th/6th
+            // slot picker UI is a separate, larger follow-up, not done here. A player whose Avatar
+            // level has unlocked more than 4 slots gets a clear, honest refusal instead of this
+            // screen silently saving a WrongCount-rejected 4-spell selection or truncating their
+            // real slot count - their existing loadout is left completely untouched either way.
+            int avatarLevel = profile?.avatarLevel > 0 ? profile.avatarLevel : 1;
+            int required = SpellLoadoutSelection.RequiredSlotCount(avatarLevel);
+            if (required > SpellLoadoutAutoEquip.EquipSlotOrder.Length)
+            {
+                var notYetSupported = new SpellLoadoutApplyResult
+                {
+                    Status = SpellLoadoutApplyStatus.WrongCount,
+                    Message = $"Your unlocked loadout now has {required} slots - this screen doesn't support picking beyond the original {SpellLoadoutAutoEquip.EquipSlotOrder.Length} yet. Your current loadout is unchanged.",
+                };
+                SetStatus(notYetSupported.Message);
+                return notYetSupported;
+            }
+
+            var orderedIds = new List<string>(required);
             foreach (SpellEffect effect in SpellLoadoutAutoEquip.EquipSlotOrder)
             {
                 if (!_slotSelection.TryGetValue(effect, out string id) || string.IsNullOrEmpty(id))
@@ -301,8 +321,9 @@ namespace MyriadOfDragons.UI
                 return;
             }
 
-            if (filled < SpellLoadoutSelection.RequiredSlotCount)
-                SetStatus($"Select one spell per type ({filled}/{SpellLoadoutSelection.RequiredSlotCount}).");
+            int required = SpellLoadoutAutoEquip.EquipSlotOrder.Length; // this screen's own rendered slot count - see ConfirmSelection's own note on the 5th/6th slot gap.
+            if (filled < required)
+                SetStatus($"Select one spell per type ({filled}/{required}).");
             else
                 SetStatus("Ready — confirm to save loadout.");
         }

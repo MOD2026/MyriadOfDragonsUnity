@@ -59,7 +59,12 @@ namespace MyriadOfDragons.AI
             List<AvatarSpell> stageGatedPool = catalog.Where(s => stageGatedIds.Contains(s.Id)).ToList();
 
             List<AvatarSpell> pool = avatarLevelPool.Concat(stageGatedPool).Distinct().ToList();
-            return SpellLoadoutAutoEquip.SelectHighestMagnitudePerEffect(pool);
+            // Loadout expansion (LOCKED 2026-08-25): "AI may equip up to the same 6-slot cap,
+            // same effect/AvatarStrike rules, tier-gated as before" - reuses the same
+            // avatar-level-representative mapping this class already had, rather than a second
+            // AI-specific slot table.
+            int slotCount = SpellLoadoutAutoEquip.RequiredSlotCount(TierRepresentativeAvatarLevel(tier));
+            return SpellLoadoutAutoEquip.SelectHighestMagnitudePerEffect(pool, slotCount);
         }
 
         /// <summary>The top of each tier's own already-locked avatar-level band (SoloAIScalingSystem.
