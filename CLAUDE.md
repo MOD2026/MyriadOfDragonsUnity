@@ -44,7 +44,7 @@ The rest of those two files is yours; those members are not.
    goes stale fast. Report real numbers, never "should pass".
 
 ```
-powershell -File tools/run_editmode_tests.ps1
+powershell -ExecutionPolicy Bypass -File tools/run_editmode_tests.ps1
 ```
 
 Timeout-guarded (see `docs/AI_CONTRIBUTING.md` §5) — use this instead of the bare `Unity.exe`

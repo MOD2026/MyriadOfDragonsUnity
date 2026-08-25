@@ -238,6 +238,14 @@ namespace MyriadOfDragons.Tests
             {
                 string stageId = NewChapter4StageIds[i];
                 presenter.SetActiveStageForTests(FindStage(stageId));
+                // AI Spell Cast Probability Gate: BattleController.StartMatch rebuilds
+                // _aiSpellCastRng from a fresh Guid every call (see StartMatch's
+                // rngSeed ?? Guid.NewGuid() line), and PlayAgainForTests() starts a new
+                // match each iteration - so pinning once outside this loop is not enough,
+                // and RunDeterministicPolicy's pin (e5f2ea1) never applied on this path at
+                // all. Re-pin per match or the unlock chain fails at a different stage
+                // every run (observed 7-29 -> 7-14 -> 7-12 across three runs).
+                controller.SetAiSpellCastRngSeedForTests(42);
                 PlayOneCardAndWin(controller);
 
                 string expectedNext = CampaignMapPresenter.GetNextStageId(stageId);

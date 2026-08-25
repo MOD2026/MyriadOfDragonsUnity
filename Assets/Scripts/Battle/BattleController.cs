@@ -201,6 +201,15 @@ namespace MyriadOfDragons.Battle
 
         private System.Random _aiSpellCastRng;
 
+        /// <summary>EditMode-only sticky seed. Null in production, always - when it is null this
+        /// type behaves exactly as before. Set by SetAiSpellCastRngSeedForTests so the pinned seed
+        /// SURVIVES later StartMatch calls on this same controller: StartMatch otherwise rebuilds
+        /// _aiSpellCastRng from a fresh Guid every call, so a test that replays matches (Play Again,
+        /// a stage-by-stage unlock chain) silently went non-deterministic after the first match.
+        /// Two separate per-file test-side pin passes each missed a code path before this existed;
+        /// keeping the invariant here means a new call site cannot reintroduce the flake.</summary>
+        private int? _aiSpellCastSeedOverrideForTests;
+
         /// <summary>AI Spell Cast Probability Gate (LOCKED 2026-08-24): "roll once (match-seeded
         /// RNG, reproducible) - 40% cast, 60% deliberate pass... no roll if no valid candidate."
         /// Only AISpellCaster.TryCastDuringCombatTick calls this, and only after it already has a
@@ -252,14 +261,23 @@ namespace MyriadOfDragons.Battle
         /// for a test that needs a fully reproducible match (deck-shuffle seed alone does not pin
         /// this - it's an independent stream, matching the lock's "match-seeded... reproducible"
         /// intent for a caller that actually wants to replay one specific match). Never call from
-        /// production - a real match's AI cast pattern should stay unpredictable.</summary>
+        /// production - a real match's AI cast pattern should stay unpredictable.
+        /// STICKY as of 2026-08-25: this also installs the seed as this controller's override, so it
+        /// survives later StartMatch calls (Play Again, a stage-by-stage unlock chain) instead of
+        /// pinning only the current match. Call ClearAiSpellCastRngSeedOverrideForTests to undo.</summary>
         public void SetAiSpellCastRngSeedForTests(int seed)
         {
+            _aiSpellCastSeedOverrideForTests = seed;
             MatchRngSeed = seed;
             _aiSpellCastRng = new System.Random(seed);
             _avatarStrikeCommitmentDecided = false;
             _avatarStrikeCommitmentAllowed = false;
         }
+
+        /// <summary>EditMode-only: drops the sticky seed set by SetAiSpellCastRngSeedForTests so
+        /// later matches on this controller go back to fresh per-match randomness. Only needed by a
+        /// test that deliberately wants unpredictability after pinning.</summary>
+        public void ClearAiSpellCastRngSeedOverrideForTests() => _aiSpellCastSeedOverrideForTests = null;
 
         private readonly List<CombatTickRecord> _combatLedger = new List<CombatTickRecord>();
 
@@ -385,7 +403,9 @@ namespace MyriadOfDragons.Battle
             EnemyState = new PlayerBattleState(enemyDeck,
                 enemyEconomy.ResourceCap, enemyEconomy.Turn1Resource, enemyEconomy.StartingAvatarHealth);
 
-            MatchRngSeed = rngSeed ?? System.Guid.NewGuid().GetHashCode();
+            // Explicit rngSeed wins; then any EditMode sticky test seed; otherwise a fresh Guid
+            // exactly as before. Production never sets the override, so behaviour is unchanged.
+            MatchRngSeed = rngSeed ?? _aiSpellCastSeedOverrideForTests ?? System.Guid.NewGuid().GetHashCode();
             _aiSpellCastRng = new System.Random(MatchRngSeed);
             _avatarStrikeCommitmentDecided = false;
             _avatarStrikeCommitmentAllowed = false;
@@ -688,7 +708,8 @@ namespace MyriadOfDragons.Battle
         /// (energy, cooldown, phase) so AvatarSpell.Cast can stay a pure effect. Returns false
         /// with nothing changed if the cast isn't legal.
         /// </summary>
-        public bool TryCastSpell(int spellIndex, Lane targetLane, out int avatarDamageDealt)
+        public bool TryCastSpell(int spellIndex, Lane targetLane, out int avatarDamageDealt,
+            RepositionTarget repositionTarget = null)
         {
             avatarDamageDealt = 0;
 
@@ -701,10 +722,17 @@ namespace MyriadOfDragons.Battle
             if (spell.Effect == SpellEffect.AvatarStrike && TickCount < MinimumCombatTickForAvatarStrike) return false;
             // Catalogue diagnosis lock: max 1 successful cast per side per combat tick.
             if (TickCount == _lastSuccessfulPlayerCastTick) return false;
+            // Reposition targeting legality (GPT spec, LOCKED 2026-08-25): checked here, before
+            // Energy is spent - AvatarSpell.Cast's own Reposition case re-checks and no-ops on an
+            // illegal target too, but that would still burn Energy/cooldown for nothing. Rejecting
+            // early keeps an illegal Reposition attempt free, the same as every other spell's
+            // early-return checks above.
+            if (spell.Effect == SpellEffect.Reposition && !IsLegalRepositionTarget(PlayerState, repositionTarget))
+                return false;
 
             Energy -= spell.EnergyCost;
             spell.PutOnCooldown();
-            avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane);
+            avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane, repositionTarget);
             _lastSuccessfulPlayerCastTick = TickCount;
 
             // Combat Tick Feed data (2026-08-22): logged only once the cast is confirmed legal
@@ -724,7 +752,8 @@ namespace MyriadOfDragons.Battle
         }
 
         /// <summary>Mirrored PvE spell cast — same energy/cooldown rules as the player path.</summary>
-        public bool TryCastEnemySpell(int spellIndex, Lane targetLane, out int avatarDamageDealt)
+        public bool TryCastEnemySpell(int spellIndex, Lane targetLane, out int avatarDamageDealt,
+            RepositionTarget repositionTarget = null)
         {
             avatarDamageDealt = 0;
 
@@ -740,10 +769,12 @@ namespace MyriadOfDragons.Battle
             // guard here makes both cast paths symmetric and keeps that true even if a future
             // caller ever invokes this outside AISpellCaster's single per-tick call.
             if (TickCount == _lastSuccessfulEnemyCastTick) return false;
+            if (spell.Effect == SpellEffect.Reposition && !IsLegalRepositionTarget(EnemyState, repositionTarget))
+                return false;
 
             EnemyEnergy -= spell.EnergyCost;
             spell.PutOnCooldown();
-            avatarDamageDealt = spell.Cast(EnemyState, PlayerState, targetLane);
+            avatarDamageDealt = spell.Cast(EnemyState, PlayerState, targetLane, repositionTarget);
             _lastSuccessfulEnemyCastTick = TickCount;
 
             _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt, castByPlayer: false));
@@ -755,6 +786,19 @@ namespace MyriadOfDragons.Battle
             }
 
             return true;
+        }
+
+        /// <summary>Shared by both cast paths: a Reposition attempt with no target, or a target
+        /// RepositionRules itself would reject, must never spend Energy/cooldown for nothing.
+        /// AvatarSpell.Cast's own Reposition case re-checks the same legality (it has no other
+        /// caller than these two methods, but stays defensive rather than trusting this gate
+        /// alone) - this is the "reject before paying the cost" half of that contract.</summary>
+        private static bool IsLegalRepositionTarget(PlayerBattleState side, RepositionTarget target)
+        {
+            if (target == null) return false;
+            return target.UnitB == null
+                ? RepositionRules.IsLegalWindstep(side, target.UnitA, target.DestinationLaneForA)
+                : RepositionRules.IsLegalSeismicSwap(side, target.UnitA, target.UnitB);
         }
 
         /// <summary>

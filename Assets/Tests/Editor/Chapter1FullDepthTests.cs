@@ -113,6 +113,7 @@ namespace MyriadOfDragons.Tests
         private static MatchResult RunDeterministicPolicy(GameBootstrap bootstrap, HomePagePresenter home, CampaignStageData stage)
         {
             home.LaunchCampaignStageForTests(stage);
+            bootstrap.Battle.SetAiSpellCastRngSeedForTests(42); // AI Spell Cast Probability Gate: e5f2ea1 pinned this in Chapter2-10 but skipped Chapter1, leaving this winnability path on a Guid-seeded AI-cast stream (latent flake). Mirrors Chapter7FullDepthTests.
             Assert.IsTrue(bootstrap.BattleCanvasVisibleForTests, $"Setup: expected Stage {stage.stageId} to launch successfully under this policy.");
             Assert.IsNull(bootstrap.NormalMatchStatusForTests, $"Setup: expected Stage {stage.stageId} to be a valid, unblocked campaign match.");
 
@@ -252,6 +253,14 @@ namespace MyriadOfDragons.Tests
             {
                 string stageId = NewChapter1StageIds[i];
                 presenter.SetActiveStageForTests(FindStage(stageId));
+                // AI Spell Cast Probability Gate: BattleController.StartMatch rebuilds
+                // _aiSpellCastRng from a fresh Guid every call (see StartMatch's
+                // rngSeed ?? Guid.NewGuid() line), and PlayAgainForTests() starts a new
+                // match each iteration - so pinning once outside this loop is not enough,
+                // and RunDeterministicPolicy's pin (e5f2ea1) never applied on this path at
+                // all. Re-pin per match or the unlock chain fails at a different stage
+                // every run (observed 7-29 -> 7-14 -> 7-12 across three runs).
+                controller.SetAiSpellCastRngSeedForTests(42);
                 PlayOneCardAndWin(controller);
 
                 string expectedNext = CampaignMapPresenter.GetNextStageId(stageId);
