@@ -642,3 +642,15 @@ would be a guess dressed as an implementation - correctly declined rather than i
 Wave 5 (Silence) was already known fully blocked (no suppressible-ability system exists).
 **Catalog sits at 32/36 real** pending an owner call on Reposition's targeting model - the last 4
 spells (2x Reposition, Silence package) cannot proceed without real design input, not more coding.
+
+## Standing rule: HEAD-pinning discipline for all seats (2026-08-25)
+
+Five sessions have been sharing one working tree overnight. Real, repeated cost: HEAD moved 13+
+times in one night (~every 20 min), causing a stale-result-reported-as-live mistake three separate
+times, plus one case of the same fix attributed to the wrong session. Flagged by VS (myriadofdragonsunity-4e/-8f).
+
+**Standing rule, applies to every seat (CC/CR/VS/WH) from now on:** pin HEAD (`git log --oneline -1`
+or equivalent) immediately BEFORE and AFTER any test run, and quote both alongside the reported
+numbers. HEAD-pinning alone is not sufficient - also check `git status` for uncommitted peer edits
+in flight before trusting a "clean" full-suite result, since another session's uncommitted work can
+silently change what's actually being measured.
