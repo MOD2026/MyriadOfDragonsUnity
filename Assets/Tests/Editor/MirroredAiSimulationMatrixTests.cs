@@ -76,6 +76,7 @@ namespace MyriadOfDragons.Tests
         public void TearDown()
         {
             LaneBattleResolver.ResetRulesToDefault();
+            PlayerBattleState.ClearShuffleSeedForTests();
             foreach (GameObject go in _spawned)
             {
                 if (go != null) UnityEngine.Object.DestroyImmediate(go);
@@ -362,9 +363,15 @@ namespace MyriadOfDragons.Tests
             public double ZeroCastTickRatio => ZeroCastBaselineAvg == 0 ? 1 : ZeroCastOnAvg / ZeroCastBaselineAvg;
             public double AnyCastTickRatio => AnyCastBaselineAvg == 0 ? 1 : AnyCastOnAvg / AnyCastBaselineAvg;
 
+            /// <summary>Descriptive tier-behavior metric (BS-vetted contract, LOCKED
+            /// docs/... register 8fc8d56): fraction of matched pairs where the AI cast nothing at
+            /// all, out of this split's own trial population. Same class as Novice's
+            /// AiCastRateOfOpportunity - logged for tier-behavior visibility, never gated.</summary>
+            public double ZeroCastRate => (ZeroCastN + AnyCastN) == 0 ? 0 : (double)ZeroCastN / (ZeroCastN + AnyCastN);
+
             public void Log(string label)
             {
-                Debug.Log($"[SimMatrix] {label}: zeroCastSplit n={ZeroCastN} baselineAvg={ZeroCastBaselineAvg:F2} onAvg={ZeroCastOnAvg:F2} ratio={ZeroCastTickRatio:F3}");
+                Debug.Log($"[SimMatrix] {label}: zeroCastSplit n={ZeroCastN} baselineAvg={ZeroCastBaselineAvg:F2} onAvg={ZeroCastOnAvg:F2} ratio={ZeroCastTickRatio:F3} rate={ZeroCastRate:P1}");
                 Debug.Log($"[SimMatrix] {label}: anyCastSplit n={AnyCastN} baselineAvg={AnyCastBaselineAvg:F2} onAvg={AnyCastOnAvg:F2} ratio={AnyCastTickRatio:F3}");
             }
         }
@@ -397,6 +404,11 @@ namespace MyriadOfDragons.Tests
                 if (i % 200 == 0) Debug.Log($"[SimMatrix] {group}/ZeroCastSplit: trial {i}/{trials}");
                 int seed = baseSeed + i;
 
+                // Pin the deck-shuffle RNG too (PlayerBattleState.Shuffle's own separate,
+                // otherwise-unseeded System.Random) so baseline/on are genuinely tick-for-tick
+                // matched-seed, not just UnityEngine.Random-matched - gap found and fixed for the
+                // root-cause harness in c136c7d, backfilled here since this method predates that fix.
+                PlayerBattleState.SetShuffleSeedForTests(seed);
                 UnityEngine.Random.InitState(seed);
                 BattleController baseController = CreateController();
                 List<Card> basePlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
@@ -416,6 +428,7 @@ namespace MyriadOfDragons.Tests
                 }
                 UnityEngine.Object.DestroyImmediate(baseController.gameObject);
 
+                PlayerBattleState.SetShuffleSeedForTests(seed);
                 UnityEngine.Random.InitState(seed);
                 BattleController onController = CreateController();
                 List<Card> onPlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
@@ -465,6 +478,89 @@ namespace MyriadOfDragons.Tests
             return result;
         }
 
+        /// <summary>Hard invariant (NEW, BS-vetted contract, LOCKED docs/... register 8fc8d56,
+        /// grew out of the c136c7d root-cause finding): baseline (spells off entirely) vs
+        /// forced-no-cast (AI decision loop runs every tick, RNG rolls consumed exactly as a real
+        /// roll would, casting itself forced to always fail via
+        /// BattleController.SetForceAiSpellCastGateAlwaysFailForTests) must produce byte-identical
+        /// tick counts on every matched-seed pair. c136c7d proved this holds today (1500/1500,
+        /// zero divergence) - this assertion is what would actually catch it if the AI decision
+        /// loop ever grows a real side effect later, since the descriptive zeroCastTickRatio below
+        /// no longer fails the suite on its own. Returns the count of mismatched pairs (expected:
+        /// 0) and logs the first divergent seed/ticks if any are found.</summary>
+        private int RunForcedNoCastMatchesBaseline(List<Card> pool, TierGroup group, int trials, int baseSeed)
+        {
+            (int avatarLevel, int castleLevel, AIDifficultyTier tier) = GroupConfig(group);
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+            empire.InitializeTCGModifiers();
+            var economy = new BattleController.MatchEconomy(empire.ResourceCap, empire.Turn1Resource, empire.StartingAvatarHealth);
+            List<string> equippedIds = AIEnemySpellbookResolver.ResolveSpellbook(tier).Select(s => s.Id).ToList();
+
+            int mismatches = 0;
+            for (int i = 0; i < trials; i++)
+            {
+                int seed = baseSeed + i;
+
+                PlayerBattleState.SetShuffleSeedForTests(seed);
+                UnityEngine.Random.InitState(seed);
+                BattleController baseController = CreateController();
+                List<Card> basePlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> baseEnemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                baseController.StartMatch(basePlayerDeck, baseEnemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                baseController.DealFormationHand(baseController.PlayerState);
+                baseController.DealFormationHand(baseController.EnemyState);
+                DeployWholeSquad(baseController, baseController.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(baseController, AIArchetype.Balanced);
+                bool baseConfirmed = baseController.ConfirmFormation();
+                long baselineTicks = 0;
+                if (baseConfirmed)
+                {
+                    while (baseController.Phase == BattlePhase.Combat) baseController.AdvanceCombatTick();
+                    baselineTicks = baseController.TickCount;
+                }
+                UnityEngine.Object.DestroyImmediate(baseController.gameObject);
+
+                PlayerBattleState.SetShuffleSeedForTests(seed);
+                UnityEngine.Random.InitState(seed);
+                BattleController forcedController = CreateController();
+                List<Card> forcedPlayerDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                List<Card> forcedEnemyDeck = pool.OrderBy(_ => UnityEngine.Random.value).Take(empire.DeckSlotCount).ToList();
+                forcedController.StartMatch(forcedPlayerDeck, forcedEnemyDeck, economy, economy,
+                    avatarLevel, unlockedStageIds: null, equippedSpellIds: equippedIds, enemyTier: tier, rngSeed: seed);
+                forcedController.EnableMirroredEnemySpellsForPvE();
+                forcedController.SetForceAiSpellCastGateAlwaysFailForTests(true);
+                forcedController.DealFormationHand(forcedController.PlayerState);
+                forcedController.DealFormationHand(forcedController.EnemyState);
+                DeployWholeSquad(forcedController, forcedController.PlayerState, AIArchetype.Balanced);
+                SimpleAIOpponent.TakeTurn(forcedController, AIArchetype.Balanced);
+                bool forcedConfirmed = forcedController.ConfirmFormation();
+                long forcedTicks = 0;
+                if (forcedConfirmed)
+                {
+                    while (forcedController.Phase == BattlePhase.Combat) forcedController.AdvanceCombatTick();
+                    forcedTicks = forcedController.TickCount;
+                }
+                UnityEngine.Object.DestroyImmediate(forcedController.gameObject);
+
+                if (!baseConfirmed || !forcedConfirmed) continue; // pair unusable without both sides.
+
+                if (forcedTicks != baselineTicks)
+                {
+                    if (mismatches == 0)
+                    {
+                        Debug.LogError($"[SimMatrix] {group}/ForcedNoCastMatchesBaseline: FIRST DIVERGENCE at seed={seed} " +
+                                        $"baselineTicks={baselineTicks} forcedNoCastTicks={forcedTicks}.");
+                    }
+                    mismatches++;
+                }
+            }
+
+            Debug.Log($"[SimMatrix] {group}/ForcedNoCastMatchesBaseline: {mismatches}/{trials} mismatched pairs.");
+            return mismatches;
+        }
+
         /// <summary>The 5 locked scenarios for one tier group, asserted against the locked
         /// acceptance bands. A band miss fails loudly here - this method never adjusts a threshold
         /// to make a bad number pass (LOCKED spec's own failure policy).</summary>
@@ -509,19 +605,35 @@ namespace MyriadOfDragons.Tests
             // independently. Zero-cast FREQUENCY remains its own separate, already-tier-specific
             // metric (NoSpellFallbackRate, asserted below) - this split only concerns match
             // LENGTH within each population, not how often each population occurs.
+            //
+            // Contract REVISED AGAIN (BS-vetted, LOCKED docs/... register 8fc8d56, after CR's
+            // root-cause protocol at c136c7d proved forced-no-cast is tick-for-tick identical to
+            // baseline in 1500/1500 trials - i.e. the zero-cast population's own deviation is a
+            // population-selection artifact, not an AI defect, and is not causally produced by the
+            // AI decision loop at all). anyCastTickRatio is the causally-clean population and stays
+            // the real pass/fail gate. zeroCastTickRatio becomes descriptive telemetry only - it is
+            // real signal about which matches are already going to run long, never a suite failure.
+            // zeroCastRate (tier AI-behavior descriptive metric, same class as
+            // AiCastRateOfOpportunity) is logged alongside it. The genuine regression guard for "did
+            // the AI decision loop start having a real side effect" moves to the NEW hard invariant
+            // below (RunForcedNoCastMatchesBaseline) instead of leaning on zeroCastTickRatio for that.
             SplitTickResult split = RunPairedZeroCastSplit(pool, group, trials: 2000, baseSeed: 800001);
-            if (split.ZeroCastN > 0)
-            {
-                Assert.That(split.ZeroCastTickRatio, Is.InRange(0.85, 1.15),
-                    $"[{g}] Zero-cast-trial ticks {split.ZeroCastOnAvg:F2} vs matched-seed baseline {split.ZeroCastBaselineAvg:F2} " +
-                    $"({split.ZeroCastN} trials) outside the locked ±15% band. ESCALATE TO CC.");
-            }
+            Debug.Log($"[SimMatrix] {g}: zeroCastRate={split.ZeroCastRate:P1} zeroCastTickRatio={split.ZeroCastTickRatio:F3} (descriptive only, not gated)" +
+                      (split.ZeroCastN > 0 && !(split.ZeroCastTickRatio >= 0.85 && split.ZeroCastTickRatio <= 1.15)
+                          ? " - FLAGGED for CC review (outside the old ±15% reference band, not auto-retuned)."
+                          : "."));
             if (split.AnyCastN > 0)
             {
                 Assert.That(split.AnyCastTickRatio, Is.InRange(0.85, 1.15),
                     $"[{g}] Any-cast-trial ticks {split.AnyCastOnAvg:F2} vs matched-seed baseline {split.AnyCastBaselineAvg:F2} " +
                     $"({split.AnyCastN} trials) outside the locked ±15% band. ESCALATE TO CC.");
             }
+
+            int forcedMismatches = RunForcedNoCastMatchesBaseline(pool, group, trials: 300, baseSeed: 850001);
+            Assert.AreEqual(0, forcedMismatches,
+                $"[{g}] Forced-no-cast ticks diverged from baseline on {forcedMismatches}/300 matched-seed pairs - the AI decision " +
+                $"loop (candidate scan + RNG draw, casting itself forced to fail) is no longer side-effect-free. This is a real " +
+                $"regression, not a metric issue. ESCALATE TO CC.");
 
             Assert.LessOrEqual(aiOn.EarlyKORate.Center, 0.10,
                 $"[{g}] Early-KO rate {aiOn.EarlyKORate} exceeds the locked 10% ceiling. ESCALATE TO CC.");
