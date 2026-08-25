@@ -3243,3 +3243,30 @@ masking - the opposite of CC's assumption.
 
 This replaces both CC's earlier scoped proposal and the mailbox dispatch sent before this
 correction - VS should build to THIS scope, not the earlier message.
+
+## Image-triage pipeline: refined further with a second independent AI opinion (2026-08-25, verified)
+
+Adds real, non-redundant value to the already-locked scope (8-10 calibration/Sobel-edge/composite-
+contrast/targeted-mask-check) - not a repeat of the first second-opinion reply:
+
+**Two new failure-mode categories for the calibration set, both technically distinct from what was
+already covered:**
+- Premultiplied vs non-premultiplied alpha mismatch - same visual symptom as "edge bleeding" but a
+  different, specifically-checkable root cause (RGB channels pre-multiplied by alpha vs Unity's
+  expected straight alpha).
+- 9-slice border artifacts - VERIFIED against real files: Frames/NineSlice/Ornate_Panel_Frame.png
+  and Popup_Frame.png are both already in the 135-flagged list. 9-slice sprites stretch/tile
+  specific border regions independently of the center - an alpha bug could hit corners and center
+  differently, a distinct failure shape from a uniform checkerboard/contrast-dropout check.
+
+**Process discipline adopted for the whole effort:** phased rollout, not a one-shot scope decision.
+Phase 0 (the already-locked 2 checks + 8-10 calibration + basic mask tagging) ships first. Track
+real KPIs (true/false positive rate against confirmed bugs, time per manual triage). Stop-rule for
+adding more machinery: only when the DATA from Phase 0 shows persistent misses simple heuristics
+can't resolve (new failure clusters found, or false-positive rate high enough that manual review
+time exceeds what added engineering would cost) - not decided speculatively upfront.
+
+Updated calibration checklist for VS: known bugs (2) + premultiplied-alpha example (1) + masked-vs-
+unmasked pair (2) + 9-slice border example, ideally one of the 2 real NineSlice files (1) +
+semi-transparent gradient/fringe example (1) + mipmap/small-scale example (1) + intended-checkerboard
+negative control (1) + one hard negative (1) = 8-10, matches the already-locked count.
