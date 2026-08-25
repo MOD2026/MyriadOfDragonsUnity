@@ -287,6 +287,43 @@ namespace MyriadOfDragons.Save
             temporaryResearchExpiryDayKey = state.TemporaryResearchExpiryDayKey ?? string.Empty;
         }
 
+        // --- TACTICAL PUZZLE (War-Room Reconstructions) ---
+        // Additive, owner-cleared 2026-08-25 after CC vetted and locked the exact field list below
+        // (register 5fbc2f1) - proposed, vetted, THEN written, same discipline as Memory Expedition.
+        // Core logic lives in Battle/TacticalPuzzleSlate.cs as plain testable classes; these are
+        // only its persistence. Old saves deserialize to the initializers below, which read as
+        // "no puzzles solved" - no migration step needed.
+        //
+        // DELIBERATELY SMALL. Unlock/locked state is NOT stored because it is DERIVED from
+        // completions by the slate's sequential rule; persisting it would let a later rule change
+        // leave old saves disagreeing with the code. In-progress attempts are not stored either -
+        // the mode resets immediately on failure and a session rebuilds from the definition.
+
+        /// <summary>One entry per SOLVED puzzle. An absent entry IS "not solved", so no separate
+        /// completion flag exists. Keyed by puzzleId only - never by slot index, because slate
+        /// ORDER can change between releases and a positional key would silently re-point a
+        /// player's completions at different puzzles.</summary>
+        public List<TacticalPuzzleRecord> tacticalPuzzleRecords = new List<TacticalPuzzleRecord>();
+
+        /// <summary>Bumped when verifier or reposition rules change, so a migration can invalidate
+        /// stored BEST scores without wiping completions - a best earned under different rules may
+        /// no longer be reachable.</summary>
+        public int tacticalPuzzleRulesVersion = 0;
+
+        /// <summary>Finds a puzzle's record, or null when it has never been solved.</summary>
+        public TacticalPuzzleRecord FindTacticalPuzzleRecord(string puzzleId)
+        {
+            if (string.IsNullOrEmpty(puzzleId) || tacticalPuzzleRecords == null) return null;
+            for (int i = 0; i < tacticalPuzzleRecords.Count; i++)
+            {
+                if (tacticalPuzzleRecords[i] != null && tacticalPuzzleRecords[i].puzzleId == puzzleId)
+                    return tacticalPuzzleRecords[i];
+            }
+            return null;
+        }
+
+        public bool HasSolvedTacticalPuzzle(string puzzleId) => FindTacticalPuzzleRecord(puzzleId) != null;
+
         // Battle History & Stats
         public int winStreak = 0;
         public int totalMatches = 0;

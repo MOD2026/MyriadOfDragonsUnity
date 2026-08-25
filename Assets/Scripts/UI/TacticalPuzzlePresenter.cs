@@ -73,6 +73,10 @@ namespace MyriadOfDragons.UI
         {
             _onExit = onExit;
             _slate = new TacticalPuzzleSlate(puzzles);
+            // Solved-state now persists (PlayerProfile.tacticalPuzzleRecords). Availability is
+            // re-derived from those completions rather than loaded, so the unlock rule stays the
+            // single source of truth for old and new saves alike.
+            _slate.ApplySavedProgress(MyriadOfDragons.Data.SaveManager.SaveData);
             CurrentView = TacticalPuzzleView.Entry;
             _status = null;
             Build();
@@ -165,6 +169,20 @@ namespace MyriadOfDragons.UI
         {
             if (_session == null) return;
             _slate?.RecordAttempt(_activeSlotIndex, _session.Current);
+
+            // Only a solved attempt writes anything - WriteProgress no-ops otherwise, so walking
+            // away from an unsolved position never touches the save.
+            if (_session.IsSolved)
+            {
+                MyriadOfDragons.Save.PlayerProfile profile = MyriadOfDragons.Data.SaveManager.SaveData;
+                if (profile != null)
+                {
+                    _slate?.WriteProgress(_activeSlotIndex, profile, _session.Current,
+                        System.DateTime.UtcNow.ToString("yyyy-MM-dd"));
+                    MyriadOfDragons.Data.SaveManager.Save();
+                }
+            }
+
             CurrentView = TacticalPuzzleView.Result;
             Build();
         }

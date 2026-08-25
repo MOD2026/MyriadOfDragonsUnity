@@ -54,17 +54,22 @@ namespace MyriadOfDragons.Battle
         /// <summary>Best score inputs from the completing attempt, for the entry list. Null until
         /// solved.</summary>
         public TacticalPuzzleResult BestResult;
+
+        /// <summary>Best orders-used loaded from a previous session. -1 = unknown, which must be
+        /// rendered as "no record" rather than as a perfect score.</summary>
+        public int SavedBestActions = -1;
     }
 
     /// <summary>
     /// The set of puzzle slots a player can see, and which of them are open.
     ///
-    /// PROGRESS IS IN-MEMORY ONLY, DELIBERATELY. Persisting "which puzzles are solved" needs a
-    /// PlayerProfile field, and PlayerProfile is a FROZEN file - a shape change there needs the
-    /// human to coordinate both seats. So completion survives the screen but not the app, and this
-    /// is flagged rather than worked around: writing a save field unilaterally is the one thing
-    /// the seat rules forbid outright, and quietly faking persistence would be worse than not
-    /// having it.
+    /// PROGRESS PERSISTS as of 2026-08-25: PlayerProfile.tacticalPuzzleRecords, added after the
+    /// field list was proposed, vetted and locked (register 5fbc2f1) rather than written
+    /// unilaterally into a frozen file.
+    ///
+    /// ONLY COMPLETIONS AND BEST SCORES ARE STORED. Locked/available state is recomputed from them
+    /// on load by the same rule that produces it during play, so a later change to the unlock rule
+    /// applies to existing saves instead of leaving them inconsistent with the code.
     ///
     /// Unlock rule is sequential - slot N opens when slot N-1 is completed - which is a STRUCTURAL
     /// choice, not a content one: it needs no numbers and no schedule. If the design later wants
@@ -93,6 +98,87 @@ namespace MyriadOfDragons.Battle
                     State = i == 0 ? TacticalPuzzleSlotState.Available : TacticalPuzzleSlotState.Locked,
                 });
                 i++;
+            }
+        }
+
+        /// <summary>
+        /// Marks slots solved from saved records and re-derives which are open. Safe to call on a
+        /// profile that has never seen this mode - an absent record simply means "not solved".
+        /// </summary>
+        public void ApplySavedProgress(MyriadOfDragons.Save.PlayerProfile profile)
+        {
+            if (profile == null) return;
+
+            foreach (TacticalPuzzleSlot slot in _slots)
+            {
+                MyriadOfDragons.Save.TacticalPuzzleRecord record =
+                    profile.FindTacticalPuzzleRecord(slot.Definition?.PuzzleId);
+                if (record == null) continue;
+
+                slot.State = TacticalPuzzleSlotState.Completed;
+                slot.SavedBestActions = record.HasRankingInfo ? record.bestActionsUsed : -1;
+            }
+
+            RederiveAvailability();
+        }
+
+        /// <summary>
+        /// Recomputes locked/available from completions. Availability is DERIVED, never stored -
+        /// that is why a rule change here reaches old saves too.
+        /// </summary>
+        private void RederiveAvailability()
+        {
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (_slots[i].State == TacticalPuzzleSlotState.Completed) continue;
+
+                bool open = i == 0 || _slots[i - 1].State == TacticalPuzzleSlotState.Completed;
+                _slots[i].State = open ? TacticalPuzzleSlotState.Available : TacticalPuzzleSlotState.Locked;
+            }
+        }
+
+        /// <summary>
+        /// Writes a solved attempt into the profile, keeping the better record. Does nothing for an
+        /// unsolved attempt, so walking away never writes anything.
+        ///
+        /// The caller saves; this only shapes the data. Keeping the write and the save separate is
+        /// what lets a test assert the record without touching the disk.
+        /// </summary>
+        public void WriteProgress(int index, MyriadOfDragons.Save.PlayerProfile profile,
+            TacticalPuzzleResult result, string utcDate)
+        {
+            TacticalPuzzleSlot slot = SlotAt(index);
+            if (profile == null || slot == null || result == null || !result.Solved) return;
+            if (profile.tacticalPuzzleRecords == null)
+                profile.tacticalPuzzleRecords = new List<MyriadOfDragons.Save.TacticalPuzzleRecord>();
+
+            string id = slot.Definition?.PuzzleId;
+            if (string.IsNullOrEmpty(id)) return;
+
+            MyriadOfDragons.Save.TacticalPuzzleRecord record = profile.FindTacticalPuzzleRecord(id);
+            if (record == null)
+            {
+                record = new MyriadOfDragons.Save.TacticalPuzzleRecord
+                {
+                    puzzleId = id,
+                    firstSolvedUtcDate = utcDate ?? string.Empty,
+                };
+                profile.tacticalPuzzleRecords.Add(record);
+            }
+
+            // A stored best with no ranking info (-1) must lose to any real result rather than
+            // beating it - -1 is "unknown", not "zero orders used".
+            bool better = !record.HasRankingInfo ||
+                          result.ActionsUsed < record.bestActionsUsed ||
+                          (result.ActionsUsed == record.bestActionsUsed &&
+                           result.ResourceRemaining > record.bestResourceRemaining);
+
+            if (better)
+            {
+                record.bestActionsUsed = result.ActionsUsed;
+                record.bestResourceRemaining = result.ResourceRemaining;
+                record.bestUnitsPreserved = result.FriendlyUnitsAlive;
+                record.bestLanesHeld = result.LanesHeld;
             }
         }
 

@@ -27,10 +27,23 @@ namespace MyriadOfDragons.Tests
         private GameObject _host;
         private GameObject _databaseHost;
         private Card _light;
+        private string _scratchSaveDir;
 
         [SetUp]
         public void SetUp()
         {
+            // The screen now WRITES to the real save when a puzzle is solved, so every test here
+            // needs its own profile on its own disk. Without this, a test that solves puzzle "a"
+            // persists it, and a later test asserting "slot 0 starts available" finds it already
+            // completed - which is exactly what happened the first time this suite ran against
+            // persistence, and it is the same order-dependent pollution pattern that has bitten
+            // this project before.
+            _scratchSaveDir = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "MoDPuzzleUi_" + System.Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(_scratchSaveDir);
+            MyriadOfDragons.Save.SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
+            MyriadOfDragons.Save.SaveSystem.ResetCurrentProfileForTests();
+
             CardDatabase.ResetForTests();
             _databaseHost = new GameObject("PuzzleUiCardDatabase");
             CardDatabase db = _databaseHost.AddComponent<CardDatabase>();
@@ -53,6 +66,11 @@ namespace MyriadOfDragons.Tests
                 if (c != null) Object.DestroyImmediate(c.gameObject);
             TacticalPuzzleLibrary.ClearPuzzlesForTests();
             CardDatabase.ResetForTests();
+
+            MyriadOfDragons.Save.SaveSystem.ClearRootDirectoryOverride();
+            MyriadOfDragons.Save.SaveSystem.ResetCurrentProfileForTests();
+            if (_scratchSaveDir != null && System.IO.Directory.Exists(_scratchSaveDir))
+                System.IO.Directory.Delete(_scratchSaveDir, true);
         }
 
         /// <summary>Hold the Back lane; it starts empty and the enemy is elsewhere, so the outcome
@@ -529,6 +547,173 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(TacticalPuzzleView.Entry, puzzles.CurrentView);
             Assert.AreEqual(1, puzzles.SlateForTests.Slots.Count,
                 "The entry point must pass the library's puzzles through.");
+        }
+
+        // ------------------------------------------------------------------ persistence
+        //
+        // PlayerProfile.tacticalPuzzleRecords, added 2026-08-25 after the field list was proposed,
+        // vetted and locked - not written unilaterally into a frozen file.
+
+        [Test]
+        public void AProfileThatHasNeverSeenThisMode_ReadsAsNothingSolved()
+        {
+            // The migration case. Old saves deserialize to an empty list, and that must read as
+            // "not solved" without any backfill step.
+            var profile = new MyriadOfDragons.Save.PlayerProfile();
+            var slate = new TacticalPuzzleSlate(new[] { Puzzle("a"), Puzzle("b") });
+
+            slate.ApplySavedProgress(profile);
+
+            Assert.AreEqual(0, slate.CompletedCount);
+            Assert.AreEqual(TacticalPuzzleSlotState.Available, slate.SlotAt(0).State);
+            Assert.AreEqual(TacticalPuzzleSlotState.Locked, slate.SlotAt(1).State);
+        }
+
+        [Test]
+        public void ASolvedPuzzle_IsWrittenToTheProfile_AndReloadsAsCompleted()
+        {
+            var profile = new MyriadOfDragons.Save.PlayerProfile();
+            var slate = new TacticalPuzzleSlate(new[] { Puzzle("a"), Puzzle("b") });
+            var session = new TacticalPuzzleSession(slate.SlotAt(0).Definition);
+            session.TryIssue(new TacticalPuzzleActionSpec
+            {
+                Kind = TacticalPuzzleActionKind.Deploy, HandIndex = 0, Lane = Lane.Back,
+            });
+            Assert.IsTrue(session.IsSolved, "Setup: expected a solve.");
+
+            slate.WriteProgress(0, profile, session.Current, "2026-08-25");
+
+            Assert.IsTrue(profile.HasSolvedTacticalPuzzle("a"));
+            MyriadOfDragons.Save.TacticalPuzzleRecord record = profile.FindTacticalPuzzleRecord("a");
+            Assert.AreEqual(session.Current.ActionsUsed, record.bestActionsUsed);
+            Assert.AreEqual("2026-08-25", record.firstSolvedUtcDate);
+
+            // A FRESH slate built from the same profile must come back completed and unlocked.
+            var reloaded = new TacticalPuzzleSlate(new[] { Puzzle("a"), Puzzle("b") });
+            reloaded.ApplySavedProgress(profile);
+
+            Assert.AreEqual(TacticalPuzzleSlotState.Completed, reloaded.SlotAt(0).State);
+            Assert.AreEqual(TacticalPuzzleSlotState.Available, reloaded.SlotAt(1).State,
+                "Availability must be RE-DERIVED from completions, not read from the save.");
+        }
+
+        [Test]
+        public void AnUnsolvedAttempt_WritesNothingAtAll()
+        {
+            var profile = new MyriadOfDragons.Save.PlayerProfile();
+            var slate = new TacticalPuzzleSlate(new[] { Puzzle("a") });
+            var session = new TacticalPuzzleSession(slate.SlotAt(0).Definition);
+            session.TryIssue(new TacticalPuzzleActionSpec
+            {
+                Kind = TacticalPuzzleActionKind.Deploy, HandIndex = 0, Lane = Lane.Middle,
+            });
+            Assert.IsFalse(session.IsSolved, "Setup: this line must not solve.");
+
+            slate.WriteProgress(0, profile, session.Current, "2026-08-25");
+
+            Assert.AreEqual(0, profile.tacticalPuzzleRecords.Count,
+                "Walking away from an unsolved position must never touch the save.");
+        }
+
+        [Test]
+        public void ReSolvingBetter_ReplacesTheRecord_AndReSolvingWorseDoesNot()
+        {
+            var profile = new MyriadOfDragons.Save.PlayerProfile();
+            var slate = new TacticalPuzzleSlate(new[] { Puzzle("a") });
+
+            var good = new TacticalPuzzleResult
+            {
+                Status = TacticalPuzzleStatus.ObjectiveMet, ActionsUsed = 2, ResourceRemaining = 5,
+            };
+            var better = new TacticalPuzzleResult
+            {
+                Status = TacticalPuzzleStatus.ObjectiveMet, ActionsUsed = 1, ResourceRemaining = 3,
+            };
+            var worse = new TacticalPuzzleResult
+            {
+                Status = TacticalPuzzleStatus.ObjectiveMet, ActionsUsed = 4, ResourceRemaining = 9,
+            };
+
+            slate.WriteProgress(0, profile, good, "2026-08-25");
+            slate.WriteProgress(0, profile, better, "2026-08-26");
+            Assert.AreEqual(1, profile.FindTacticalPuzzleRecord("a").bestActionsUsed,
+                "Fewer orders must replace the stored best.");
+
+            slate.WriteProgress(0, profile, worse, "2026-08-27");
+            Assert.AreEqual(1, profile.FindTacticalPuzzleRecord("a").bestActionsUsed,
+                "A worse attempt must not overwrite a better stored best.");
+
+            Assert.AreEqual(1, profile.tacticalPuzzleRecords.Count, "Re-solving must not add a second record.");
+            Assert.AreEqual("2026-08-25", profile.FindTacticalPuzzleRecord("a").firstSolvedUtcDate,
+                "firstSolvedUtcDate must stay the FIRST solve, not the latest.");
+        }
+
+        [Test]
+        public void AnUnknownStoredBest_LosesToARealResult_RatherThanBeatingIt()
+        {
+            // THE REASON THE -1 SENTINEL EXISTS. If a field added to the record later defaults to
+            // 0 on existing saves, "0 orders used" reads as a perfect score and every stored best
+            // becomes permanently unbeatable. -1 means unknown and must lose to any real attempt.
+            var profile = new MyriadOfDragons.Save.PlayerProfile();
+            profile.tacticalPuzzleRecords.Add(new MyriadOfDragons.Save.TacticalPuzzleRecord
+            {
+                puzzleId = "a",   // every best left at its -1 default
+            });
+            var slate = new TacticalPuzzleSlate(new[] { Puzzle("a") });
+
+            Assert.IsFalse(profile.FindTacticalPuzzleRecord("a").HasRankingInfo,
+                "A record with -1 bests must report that it carries no ranking info.");
+
+            slate.WriteProgress(0, profile, new TacticalPuzzleResult
+            {
+                Status = TacticalPuzzleStatus.ObjectiveMet, ActionsUsed = 6, ResourceRemaining = 1,
+            }, "2026-08-25");
+
+            Assert.AreEqual(6, profile.FindTacticalPuzzleRecord("a").bestActionsUsed,
+                "A real result must overwrite an unknown best - -1 means no information, not zero orders.");
+        }
+
+        [Test]
+        public void RecordsAreKeyedByPuzzleId_NotBySlotPosition()
+        {
+            // Slate ORDER can change between releases; a positional key would silently re-point a
+            // player's completions at different puzzles.
+            var profile = new MyriadOfDragons.Save.PlayerProfile();
+            var original = new TacticalPuzzleSlate(new[] { Puzzle("a"), Puzzle("b") });
+            original.WriteProgress(0, profile, new TacticalPuzzleResult
+            {
+                Status = TacticalPuzzleStatus.ObjectiveMet, ActionsUsed = 1, ResourceRemaining = 1,
+            }, "2026-08-25");
+
+            // Same puzzles, opposite order.
+            var reordered = new TacticalPuzzleSlate(new[] { Puzzle("b"), Puzzle("a") });
+            reordered.ApplySavedProgress(profile);
+
+            Assert.AreEqual(TacticalPuzzleSlotState.Completed, reordered.SlotAt(1).State,
+                "The solved puzzle must still read as solved after moving position.");
+            Assert.AreNotEqual(TacticalPuzzleSlotState.Completed, reordered.SlotAt(0).State,
+                "An unsolved puzzle must not inherit another puzzle completion.");
+        }
+
+        [Test]
+        public void TheScreen_LoadsSavedProgressOnOpen()
+        {
+            // End to end through the presenter, using the live profile the screen actually reads.
+            MyriadOfDragons.Save.PlayerProfile profile = MyriadOfDragons.Data.SaveManager.SaveData;
+            Assert.IsNotNull(profile, "Setup: expected a live profile.");
+            profile.tacticalPuzzleRecords.Clear();
+            profile.tacticalPuzzleRecords.Add(new MyriadOfDragons.Save.TacticalPuzzleRecord
+            {
+                puzzleId = "a", bestActionsUsed = 3, bestResourceRemaining = 2,
+            });
+
+            TacticalPuzzlePresenter presenter = Open(Puzzle("a"), Puzzle("b"));
+
+            Assert.AreEqual(TacticalPuzzleSlotState.Completed, presenter.SlateForTests.SlotAt(0).State,
+                "The screen must show a previously solved puzzle as completed.");
+            Assert.AreEqual(TacticalPuzzleSlotState.Available, presenter.SlateForTests.SlotAt(1).State,
+                "The next slot must be open again after a reload.");
+            Assert.AreEqual(3, presenter.SlateForTests.SlotAt(0).SavedBestActions);
         }
 
         [Test]
