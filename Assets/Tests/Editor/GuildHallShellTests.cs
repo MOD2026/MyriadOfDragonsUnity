@@ -63,6 +63,8 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.AreEqual(GuildHallEntryOpenValues.FlatNonUpgradeCopy,
                 canvas.transform.Find("EntryPanel/FlatStatus")?.GetComponent<Text>()?.text);
+            StringAssert.Contains("Guild Contribution",
+                canvas.transform.Find("EntryPanel/Availability")?.GetComponent<Text>()?.text);
             Assert.AreEqual("EXPEDITION",
                 canvas.transform.Find("EntryPanel/Btn_EntryAction/Text")?.GetComponent<Text>()?.text);
         }

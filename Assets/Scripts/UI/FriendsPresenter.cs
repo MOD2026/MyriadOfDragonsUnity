@@ -81,6 +81,11 @@ namespace MyriadOfDragons.UI
             title.fontSize = 30;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
+            Text identity = UISharedFoundation.CreateText(topBar.transform, "SelfIdentity",
+                MetagameShellProfileBinding.SelfIdentityLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
+                new Color(0.8f, 0.85f, 0.7f), true, new Vector2(280f, 28f));
+            SetNorm(identity.rectTransform, 0.18f, 0.15f, 0.40f, 0.85f);
+
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", FriendsOpenValues.StatusNote,
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
                 new Vector2(520f, 40f));
@@ -125,7 +130,12 @@ namespace MyriadOfDragons.UI
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SetStatus(FriendsOpenValues.TrySelectFriend(row).Message));
                 SetNorm(well.GetComponent<RectTransform>(), 0.02f, 1f - (i + 1) * h + 0.02f, 0.98f, 1f - i * h - 0.02f);
-                UISharedFoundation.CreateText(well.transform, "DisplayName", FriendsOpenValues.RuntimePlaceholder,
+                string rowLabel = i == 0
+                    ? MetagameShellProfileBinding.SelfIdentityLine()
+                    : (i == 1
+                        ? "No friends list — relationship graph not live"
+                        : MetagameShellProfileBinding.EmptyBackendLabel);
+                UISharedFoundation.CreateText(well.transform, "DisplayName", rowLabel,
                     UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(400f, 28f));
             }
         }
@@ -136,7 +146,9 @@ namespace MyriadOfDragons.UI
             drawer.transform.SetParent(_canvasObj.transform, false);
             SetNorm(drawer.GetComponent<RectTransform>(), 0.70f, 0.08f, 0.95f, 0.88f);
             Text summary = UISharedFoundation.CreateText(drawer.transform, "PublicSummary",
-                FriendsOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.UpperCenter,
+                $"{MetagameShellProfileBinding.SelfIdentityLine()}\n{MetagameShellProfileBinding.WalletLine()}\n\n" +
+                "Message/roster OPEN — no friends graph in Save.",
+                UITextRole.Body, TextAnchor.UpperCenter,
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 160f));
             SetNorm(summary.rectTransform, 0.08f, 0.45f, 0.92f, 0.85f);
             GameObject msg = new GameObject("Btn_Message", typeof(RectTransform), typeof(Image), typeof(Button));

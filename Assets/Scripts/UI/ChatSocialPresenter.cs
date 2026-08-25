@@ -13,6 +13,7 @@ namespace MyriadOfDragons.UI
         private GameObject _canvasObj;
         private Action _onBack;
         private Text _statusText;
+        private Text _streamText;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
@@ -81,6 +82,11 @@ namespace MyriadOfDragons.UI
             title.fontSize = 30;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
+            Text identity = UISharedFoundation.CreateText(topBar.transform, "SelfIdentity",
+                MetagameShellProfileBinding.SelfIdentityLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
+                new Color(0.8f, 0.85f, 0.7f), true, new Vector2(280f, 28f));
+            SetNorm(identity.rectTransform, 0.18f, 0.15f, 0.35f, 0.85f);
+
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", ChatSocialOpenValues.StatusNote,
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
                 new Vector2(520f, 40f));
@@ -103,7 +109,13 @@ namespace MyriadOfDragons.UI
                 img.color = new Color(0.12f, 0.14f, 0.18f, 0.4f);
                 Button btn = row.GetComponent<Button>();
                 btn.targetGraphic = img;
-                btn.onClick.AddListener(() => SetStatus(ChatSocialOpenValues.TrySelectChannel(idx).Message));
+                btn.onClick.AddListener(() =>
+                {
+                    SetStream(
+                        $"Channel: {channels[idx]}\n{MetagameShellProfileBinding.SelfIdentityLine()}\n\n" +
+                        "No history — send/history OPEN (Social identity bootstrap exists; chat transport does not).");
+                    SetStatus(ChatSocialOpenValues.TrySelectChannel(idx).Message);
+                });
                 SetNorm(row.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.02f, 0.95f, 1f - i * h - 0.02f);
                 UISharedFoundation.CreateText(row.transform, "Label", channels[i], UITextRole.Caption,
                     TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 28f));
@@ -115,10 +127,12 @@ namespace MyriadOfDragons.UI
             GameObject stream = new GameObject("MessageStream", typeof(RectTransform));
             stream.transform.SetParent(_canvasObj.transform, false);
             SetNorm(stream.GetComponent<RectTransform>(), 0.18f, 0.20f, 0.72f, 0.84f);
-            Text body = UISharedFoundation.CreateText(stream.transform, "Placeholder",
-                ChatSocialOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.UpperLeft,
+            _streamText = UISharedFoundation.CreateText(stream.transform, "Placeholder",
+                $"Select a channel.\n{MetagameShellProfileBinding.SelfIdentityLine()}\n\n" +
+                "No channel history — send/history OPEN.",
+                UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 400f));
-            SetNorm(body.rectTransform, 0.04f, 0.05f, 0.96f, 0.95f);
+            SetNorm(_streamText.rectTransform, 0.04f, 0.05f, 0.96f, 0.95f);
 
             GameObject composer = new GameObject("Btn_ComposerSend", typeof(RectTransform), typeof(Image), typeof(Button));
             composer.transform.SetParent(_canvasObj.transform, false);
@@ -134,6 +148,12 @@ namespace MyriadOfDragons.UI
         {
             if (_statusText != null)
                 _statusText.text = message ?? string.Empty;
+        }
+
+        private void SetStream(string message)
+        {
+            if (_streamText != null)
+                _streamText.text = message ?? string.Empty;
         }
 
         private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)

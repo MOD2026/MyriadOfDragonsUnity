@@ -65,6 +65,13 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.NotNull(canvas.transform.Find("ListingGrid/ListingWell_5"));
             Assert.NotNull(canvas.transform.Find("TabStrip/Tab_Wallet"));
+            StringAssert.Contains("Empty",
+                canvas.transform.Find("ListingGrid/ListingWell_0/Placeholder")?.GetComponent<Text>()?.text);
+
+            canvas.transform.Find("ListingGrid/ListingWell_0").GetComponent<Button>().onClick.Invoke();
+            Assert.AreEqual(string.Empty, presenter.SelectedListingIdForTests);
+            BazaarBuyResult buyEmpty = await presenter.BuySelectedForTests();
+            Assert.AreEqual("INVALID_REQUEST", buyEmpty.errorCode);
 
             canvas.transform.Find("TabStrip/Tab_Wallet").GetComponent<Button>().onClick.Invoke();
             BazaarWalletResult wallet = await presenter.RefreshWalletForTests();

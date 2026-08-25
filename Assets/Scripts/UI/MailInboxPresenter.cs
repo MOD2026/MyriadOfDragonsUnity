@@ -81,6 +81,11 @@ namespace MyriadOfDragons.UI
             title.fontSize = 30;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
+            Text wallet = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
+                MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
+                new Color(0.8f, 0.85f, 0.7f), true, new Vector2(420f, 28f));
+            SetNorm(wallet.rectTransform, 0.18f, 0.12f, 0.48f, 0.88f);
+
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", MailInboxOpenValues.StatusNote,
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
                 new Vector2(520f, 40f));
@@ -104,7 +109,10 @@ namespace MyriadOfDragons.UI
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SetStatus(MailInboxOpenValues.TrySelectMessage(row).Message));
                 SetNorm(well.GetComponent<RectTransform>(), 0.04f, 1f - (i + 1) * h + 0.02f, 0.96f, 1f - i * h - 0.02f);
-                UISharedFoundation.CreateText(well.transform, "Subject", MailInboxOpenValues.RuntimePlaceholder,
+                string subject = i == 0
+                    ? "Empty inbox — mail backend not live"
+                    : MetagameShellProfileBinding.EmptyBackendLabel;
+                UISharedFoundation.CreateText(well.transform, "Subject", subject,
                     UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(280f, 28f));
             }
         }
@@ -114,7 +122,9 @@ namespace MyriadOfDragons.UI
             GameObject detail = new GameObject("MessageDetail", typeof(RectTransform));
             detail.transform.SetParent(_canvasObj.transform, false);
             SetNorm(detail.GetComponent<RectTransform>(), 0.38f, 0.12f, 0.97f, 0.86f);
-            Text body = UISharedFoundation.CreateText(detail.transform, "Body", MailInboxOpenValues.RuntimePlaceholder,
+            Text body = UISharedFoundation.CreateText(detail.transform, "Body",
+                "No messages.\nClaim attachment stays OPEN until a mail backend exists.\n\n" +
+                MetagameShellProfileBinding.WalletLine(),
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 360f));
             SetNorm(body.rectTransform, 0.04f, 0.28f, 0.96f, 0.95f);
             GameObject claim = new GameObject("Btn_ClaimAttachment", typeof(RectTransform), typeof(Image), typeof(Button));

@@ -63,6 +63,8 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.NotNull(canvas.transform.Find("ChannelRail/Channel_Guild"));
             Assert.AreEqual(7, ChatSocialOpenValues.ChannelLabels.Length);
+            StringAssert.Contains("You:",
+                canvas.transform.Find("MessageStream/Placeholder")?.GetComponent<Text>()?.text);
             var refuse = presenter.SendMessageForTests();
             Assert.AreEqual(ChatSocialActionStatus.OpenValuesNotLocked, refuse.Status);
 

@@ -62,6 +62,8 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(MailInboxUiLibrary.InboxShellName,
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.NotNull(canvas.transform.Find("MessageList/MailRow_5"));
+            StringAssert.Contains("Empty inbox",
+                canvas.transform.Find("MessageList/MailRow_0/Subject")?.GetComponent<Text>()?.text);
             var refuse = presenter.ClaimAttachmentForTests();
             Assert.AreEqual(MailInboxActionStatus.OpenValuesNotLocked, refuse.Status);
 

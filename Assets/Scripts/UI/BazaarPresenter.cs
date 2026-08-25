@@ -33,6 +33,7 @@ namespace MyriadOfDragons.UI
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
         public int ActiveTabForTests => _activeTab;
+        public string SelectedListingIdForTests => _selectedListingId ?? string.Empty;
 
         public void Initialize(Action onBack, IBazaarGateway gateway = null)
         {
@@ -154,7 +155,8 @@ namespace MyriadOfDragons.UI
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SelectListingWell(slot));
                 SetNorm(well.GetComponent<RectTransform>(), col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f, (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
-                Text t = UISharedFoundation.CreateText(well.transform, "Placeholder", BazaarOpenValues.RuntimePlaceholder,
+                Text t = UISharedFoundation.CreateText(well.transform, "Placeholder",
+                    "Empty — no browse catalog endpoint",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(160f, 40f));
                 SetNorm(t.rectTransform, 0.05f, 0.35f, 0.95f, 0.65f);
             }
@@ -165,7 +167,8 @@ namespace MyriadOfDragons.UI
             GameObject panel = new GameObject("SelectedPanel", typeof(RectTransform));
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.60f, 0.18f, 0.97f, 0.86f);
-            _detailsText = UISharedFoundation.CreateText(panel.transform, "Details", BazaarOpenValues.RuntimePlaceholder,
+            _detailsText = UISharedFoundation.CreateText(panel.transform, "Details",
+                "Browse catalog OPEN — IBazaarGateway has wallet/list/buy/cancel only (no QueryListings).",
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(480f, 220f));
             SetNorm(_detailsText.rectTransform, 0.05f, 0.35f, 0.95f, 0.95f);
             GameObject action = new GameObject("Btn_PrimaryAction", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -184,8 +187,10 @@ namespace MyriadOfDragons.UI
             switch (_activeTab)
             {
                 case 0:
-                    SetDetails("Browse — select a listing well, then CONFIRM to BuyItem (needs a real listingId).");
-                    SetStatus("Browse tab.");
+                    SetDetails(
+                        "Browse — no QueryListings on IBazaarGateway. Wells stay empty; Buy needs a real listingId (none invented).");
+                    SetStatus("Browse tab — catalog empty.");
+                    _selectedListingId = string.Empty;
                     break;
                 case 1:
                     SetDetails(
@@ -194,8 +199,10 @@ namespace MyriadOfDragons.UI
                     SetStatus("Sell tab.");
                     break;
                 case 2:
-                    SetDetails("My Listings — select a well (sets listing id placeholder), CONFIRM cancels that listing.");
-                    SetStatus("My Listings tab.");
+                    SetDetails(
+                        "My Listings — no listing-query endpoint. Paste/select a real listingId via BuySelectedForTests / CancelSelectedForTests only.");
+                    SetStatus("My Listings tab — no local catalog.");
+                    _selectedListingId = string.Empty;
                     break;
                 case 3:
                     SetDetails("Wallet — CONFIRM calls GetBazaarWallet (live).");
@@ -208,10 +215,12 @@ namespace MyriadOfDragons.UI
         private void SelectListingWell(int wellIndex)
         {
             _selectedWell = wellIndex;
-            // No browse catalog yet — well index becomes a deterministic placeholder listing id for Buy/Cancel plumbing.
-            _selectedListingId = $"listing-well-{wellIndex}";
-            SetDetails($"Selected well {wellIndex}. Listing id placeholder: {_selectedListingId}");
-            SetStatus($"Selected well {wellIndex}.");
+            // Honest empty catalog: do not invent listing-well-N ids for Buy/Cancel.
+            _selectedListingId = string.Empty;
+            SetDetails(
+                $"Selected empty well {wellIndex}. No browse catalog endpoint — listingId not set.\n" +
+                "Buy/Cancel refuse until a real listingId is supplied.");
+            SetStatus($"Empty well {wellIndex} — no listingId.");
         }
 
         private async Task RunPrimaryActionAsync()
@@ -308,7 +317,7 @@ namespace MyriadOfDragons.UI
         {
             if (string.IsNullOrWhiteSpace(listingId))
             {
-                SetStatus("Buy: select a listing well first.");
+                SetStatus("Buy: no listingId (browse catalog endpoint not live).");
                 return new BazaarBuyResult { errorCode = "INVALID_REQUEST" };
             }
 
@@ -348,7 +357,7 @@ namespace MyriadOfDragons.UI
         {
             if (string.IsNullOrWhiteSpace(listingId))
             {
-                SetStatus("Cancel: select a listing well first.");
+                SetStatus("Cancel: no listingId (no my-listings query endpoint).");
                 return new BazaarCancelResult { errorCode = "INVALID_REQUEST" };
             }
 

@@ -87,7 +87,7 @@ namespace MyriadOfDragons.UI
             SetNorm(season.rectTransform, 0.32f, 0.08f, 0.68f, 0.48f);
 
             Text timer = UISharedFoundation.CreateText(topBar.transform, "SeasonTimer",
-                BattlePassOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.MiddleLeft,
+                MetagameShellProfileBinding.UtcDayKeyLine(), UITextRole.Body, TextAnchor.MiddleLeft,
                 new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 28f));
             SetNorm(timer.rectTransform, 0.18f, 0.08f, 0.32f, 0.48f);
         }
@@ -109,7 +109,7 @@ namespace MyriadOfDragons.UI
             SetNorm(bar.GetComponent<RectTransform>(), 0.18f, 0.28f, 0.72f, 0.72f);
 
             Text values = UISharedFoundation.CreateText(xp.transform, "XpValues",
-                $"{BattlePassOpenValues.RuntimePlaceholder} / {BattlePassOpenValues.RuntimePlaceholder} XP",
+                $"{MetagameShellProfileBinding.OpenAmountLabel} / {MetagameShellProfileBinding.OpenAmountLabel} XP",
                 UITextRole.Body, TextAnchor.MiddleRight, new Color(0.9f, 0.95f, 0.85f), true,
                 new Vector2(280f, 28f));
             SetNorm(values.rectTransform, 0.74f, 0.15f, 1f, 0.85f);
@@ -154,12 +154,12 @@ namespace MyriadOfDragons.UI
                 });
                 SetNorm(well.GetComponent<RectTransform>(), left, 0.08f, left + wellWidth * 0.92f, 0.92f);
 
-                Text headerN = UISharedFoundation.CreateText(well.transform, "TierIndex", "[N]", UITextRole.Caption,
+                Text headerN = UISharedFoundation.CreateText(well.transform, "TierIndex", $"T{i + 1}", UITextRole.Caption,
                     TextAnchor.UpperCenter, new Color(0.8f, 0.85f, 0.7f), true, new Vector2(80f, 24f));
                 SetNorm(headerN.rectTransform, 0.05f, 0.72f, 0.95f, 0.98f);
 
                 Text amount = UISharedFoundation.CreateText(well.transform, "RewardAmount",
-                    BattlePassOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.MiddleCenter,
+                    MetagameShellProfileBinding.OpenAmountLabel, UITextRole.Body, TextAnchor.MiddleCenter,
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(100f, 28f));
                 SetNorm(amount.rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
             }
@@ -186,8 +186,8 @@ namespace MyriadOfDragons.UI
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
 
             Text access = UISharedFoundation.CreateText(bar.transform, "PremiumAccessCopy",
-                "Premium track access " + BattlePassOpenValues.RuntimePlaceholder, UITextRole.Body,
-                TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(800f, 36f));
+                $"Premium track access {MetagameShellProfileBinding.OpenAmountLabel} · {MetagameShellProfileBinding.WalletLine()}",
+                UITextRole.Body, TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(800f, 36f));
             SetNorm(access.rectTransform, 0.36f, 0.45f, 0.98f, 0.90f);
 
             _statusText = UISharedFoundation.CreateText(bar.transform, "StatusLine", BattlePassOpenValues.StatusNote,

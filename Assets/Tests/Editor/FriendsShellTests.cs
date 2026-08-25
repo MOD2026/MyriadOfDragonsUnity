@@ -63,6 +63,10 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.NotNull(canvas.transform.Find("FriendsList/FriendRow_5"));
             Assert.NotNull(canvas.transform.Find("NavRail/Nav_Friends"));
+            StringAssert.Contains("You:",
+                canvas.transform.Find("FriendsList/FriendRow_0/DisplayName")?.GetComponent<Text>()?.text);
+            StringAssert.Contains("You:",
+                canvas.transform.Find("ProfileDrawer/PublicSummary")?.GetComponent<Text>()?.text);
             var refuse = presenter.MessageForTests();
             Assert.AreEqual(FriendsActionStatus.OpenValuesNotLocked, refuse.Status);
 

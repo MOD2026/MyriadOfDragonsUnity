@@ -62,6 +62,8 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(MemoryExpeditionUiLibrary.RouteChoiceShellName,
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.NotNull(canvas.transform.Find("RouteRow/RouteWell_2"));
+            StringAssert.Contains("OPEN",
+                canvas.transform.Find("RouteRow/RouteWell_0/Placeholder")?.GetComponent<Text>()?.text);
             var refuse = presenter.SelectRouteForTests(1);
             Assert.AreEqual(MemoryExpeditionActionStatus.OpenValuesNotLocked, refuse.Status);
 

@@ -93,7 +93,11 @@ namespace MyriadOfDragons.UI
             SetNorm(name.rectTransform, 0.34f, 0.82f, 0.92f, 0.95f);
 
             Text avail = UISharedFoundation.CreateText(panel.transform, "Availability",
-                GuildHallEntryOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.UpperLeft,
+                $"{MetagameShellProfileBinding.SelfIdentityLine()}\n" +
+                $"{MetagameShellProfileBinding.GuildContributionLine()}\n\n" +
+                "Find/Create/Enter stay OPEN until social guild eligibility locks.\n" +
+                "EXPEDITION opens the live Guild Expedition gateway.",
+                UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.85f, 0.82f, 0.7f), true, new Vector2(900f, 160f));
             SetNorm(avail.rectTransform, 0.34f, 0.48f, 0.95f, 0.78f);
 

@@ -102,7 +102,8 @@ namespace MyriadOfDragons.UI
             SetNorm(col.GetComponent<RectTransform>(), 0.02f, 0.16f, 0.26f, 0.86f);
 
             Text state = UISharedFoundation.CreateText(col.transform, "EntitlementState",
-                VipSubscriptionOpenValues.RuntimePlaceholder, UITextRole.Title, TextAnchor.UpperLeft,
+                $"Not subscribed · IAP {MetagameShellProfileBinding.OpenAmountLabel}",
+                UITextRole.Title, TextAnchor.UpperLeft,
                 new Color(0.95f, 0.9f, 0.79f), true, new Vector2(400f, 48f));
             SetNorm(state.rectTransform, 0.04f, 0.78f, 0.96f, 0.96f);
 
@@ -144,7 +145,8 @@ namespace MyriadOfDragons.UI
                 SetNorm(well.GetComponent<RectTransform>(),
                     col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f,
                     (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
-                UISharedFoundation.CreateText(well.transform, "Label", VipSubscriptionOpenValues.RuntimePlaceholder,
+                UISharedFoundation.CreateText(well.transform, "Label",
+                    $"Benefit {i + 1} — convenience {MetagameShellProfileBinding.OpenAmountLabel}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true,
                     new Vector2(220f, 36f));
             }
@@ -156,7 +158,10 @@ namespace MyriadOfDragons.UI
             strip.transform.SetParent(_canvasObj.transform, false);
             SetNorm(strip.GetComponent<RectTransform>(), 0.70f, 0.16f, 0.97f, 0.86f);
             Text label = UISharedFoundation.CreateText(strip.transform, "MilestoneStatus",
-                VipSubscriptionOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.UpperLeft,
+                $"Milestones {MetagameShellProfileBinding.OpenAmountLabel}\n\n" +
+                $"{MetagameShellProfileBinding.SelfIdentityLine()}\n{MetagameShellProfileBinding.WalletLine()}\n\n" +
+                "Prices/durations/store entitlements stay server-owned — no local purchase truth.",
+                UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 400f));
             SetNorm(label.rectTransform, 0.06f, 0.08f, 0.94f, 0.94f);
         }

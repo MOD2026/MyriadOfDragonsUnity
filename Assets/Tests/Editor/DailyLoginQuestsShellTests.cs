@@ -66,8 +66,12 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(DailyLoginQuestsOpenValues.StreakPausedCopy, presenter.StatusTextForTests);
             Assert.NotNull(canvas.transform.Find("DailyLoginPanel/StreakNodes/LoginWell_5"));
             Assert.NotNull(canvas.transform.Find("DailyQuestsPanel/QuestRow_2/Btn_Claim"));
-            Assert.AreEqual(DailyLoginQuestsOpenValues.RuntimePlaceholder,
+            StringAssert.Contains("Quest 1",
                 canvas.transform.Find("DailyQuestsPanel/QuestRow_0/QuestCopy")?.GetComponent<Text>()?.text);
+            StringAssert.Contains("OPEN",
+                canvas.transform.Find("DailyLoginPanel/StreakNodes/LoginWell_0/RewardAmount")?.GetComponent<Text>()?.text);
+            StringAssert.Contains("Gold",
+                canvas.transform.Find("DailyLoginHeader/WalletLine")?.GetComponent<Text>()?.text);
 
             DailyLoginQuestClaimResult login = presenter.ClaimLoginForTests(0);
             Assert.AreEqual(DailyLoginQuestClaimStatus.OpenValuesNotLocked, login.Status);

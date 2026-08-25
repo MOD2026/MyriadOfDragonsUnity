@@ -67,8 +67,10 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(canvas.transform.Find("Background").GetComponent<Image>().raycastTarget);
             Assert.NotNull(canvas.transform.Find("BenefitGrid/BenefitWell_5"));
             Assert.NotNull(canvas.transform.Find("IdentityColumn/StateSocket_2"));
-            Assert.AreEqual(VipSubscriptionOpenValues.RuntimePlaceholder,
+            StringAssert.Contains("OPEN",
                 canvas.transform.Find("BenefitGrid/BenefitWell_0/Label")?.GetComponent<Text>()?.text);
+            StringAssert.Contains("Not subscribed",
+                canvas.transform.Find("IdentityColumn/EntitlementState")?.GetComponent<Text>()?.text);
 
             VipSubscriptionActionResult subscribe = presenter.SubscribeForTests();
             Assert.AreEqual(VipSubscriptionActionStatus.OpenValuesNotLocked, subscribe.Status);

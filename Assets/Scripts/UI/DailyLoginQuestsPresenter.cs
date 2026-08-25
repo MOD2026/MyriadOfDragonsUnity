@@ -85,9 +85,14 @@ namespace MyriadOfDragons.UI
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
 
             Text clock = UISharedFoundation.CreateText(topBar.transform, "ResetClock",
-                DailyLoginQuestsOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.MiddleRight,
+                MetagameShellProfileBinding.UtcDayKeyLine(), UITextRole.Body, TextAnchor.MiddleRight,
                 new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 32f));
             SetNorm(clock.rectTransform, 0.72f, 0.2f, 0.97f, 0.8f);
+
+            Text wallet = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
+                MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
+                new Color(0.75f, 0.8f, 0.7f), true, new Vector2(520f, 28f));
+            SetNorm(wallet.rectTransform, 0.22f, 0.15f, 0.70f, 0.85f);
         }
 
         private void BuildLoginPanel()
@@ -124,13 +129,13 @@ namespace MyriadOfDragons.UI
                 btn.onClick.AddListener(() => Apply(DailyLoginQuestsOpenValues.TryClaimLogin(day)));
                 SetNorm(node.GetComponent<RectTransform>(), i * well + 0.01f, 0.1f, (i + 1) * well - 0.01f, 0.9f);
 
-                Text dayLabel = UISharedFoundation.CreateText(node.transform, "DayIndex", $"[N]",
+                Text dayLabel = UISharedFoundation.CreateText(node.transform, "DayIndex", $"Day {i + 1}",
                     UITextRole.Caption, TextAnchor.UpperCenter, new Color(0.85f, 0.9f, 0.8f), true,
                     new Vector2(60f, 22f));
                 SetNorm(dayLabel.rectTransform, 0.05f, 0.7f, 0.95f, 0.98f);
 
                 Text reward = UISharedFoundation.CreateText(node.transform, "RewardAmount",
-                    DailyLoginQuestsOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.MiddleCenter,
+                    MetagameShellProfileBinding.OpenAmountLabel, UITextRole.Body, TextAnchor.MiddleCenter,
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(80f, 24f));
                 SetNorm(reward.rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
             }
@@ -172,7 +177,7 @@ namespace MyriadOfDragons.UI
                 SetNorm(row.GetComponent<RectTransform>(), 0.04f, top - rowH, 0.96f, top);
 
                 Text name = UISharedFoundation.CreateText(row.transform, "QuestCopy",
-                    DailyLoginQuestsOpenValues.RuntimePlaceholder, UITextRole.Body, TextAnchor.MiddleLeft,
+                    $"Quest {i + 1} — rewards OPEN", UITextRole.Body, TextAnchor.MiddleLeft,
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(360f, 28f));
                 SetNorm(name.rectTransform, 0.16f, 0.55f, 0.58f, 0.92f);
 
@@ -183,7 +188,7 @@ namespace MyriadOfDragons.UI
                 SetNorm(progress.GetComponent<RectTransform>(), 0.16f, 0.18f, 0.52f, 0.48f);
 
                 Text progressCopy = UISharedFoundation.CreateText(row.transform, "ProgressCopy",
-                    DailyLoginQuestsOpenValues.RuntimePlaceholder, UITextRole.Caption, TextAnchor.MiddleLeft,
+                    $"0 / {MetagameShellProfileBinding.EmptyBackendLabel}", UITextRole.Caption, TextAnchor.MiddleLeft,
                     new Color(0.8f, 0.85f, 0.7f), true, new Vector2(120f, 22f));
                 SetNorm(progressCopy.rectTransform, 0.54f, 0.18f, 0.68f, 0.48f);
 
@@ -195,7 +200,7 @@ namespace MyriadOfDragons.UI
                 claim.GetComponent<Button>().onClick.AddListener(() =>
                     Apply(DailyLoginQuestsOpenValues.TryClaimQuest(quest)));
                 SetNorm(claim.GetComponent<RectTransform>(), 0.72f, 0.18f, 0.96f, 0.82f);
-                UISharedFoundation.CreateText(claim.transform, "Text", DailyLoginQuestsOpenValues.RuntimePlaceholder,
+                UISharedFoundation.CreateText(claim.transform, "Text", "CLAIM",
                     UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 32f));
             }
         }

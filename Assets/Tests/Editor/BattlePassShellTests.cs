@@ -68,8 +68,10 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("BattlePassHeader/SeasonLength")?.GetComponent<Text>()?.text);
             Assert.NotNull(canvas.transform.Find("TrackTable/FreeTrackRow/TierWell_0/RewardAmount"));
             Assert.NotNull(canvas.transform.Find("TrackTable/PremiumTrackRow/TierWell_7"));
-            Assert.AreEqual(BattlePassOpenValues.RuntimePlaceholder,
+            Assert.AreEqual(MetagameShellProfileBinding.OpenAmountLabel,
                 canvas.transform.Find("TrackTable/FreeTrackRow/TierWell_0/RewardAmount")?.GetComponent<Text>()?.text);
+            StringAssert.Contains("OPEN",
+                canvas.transform.Find("SeasonXpRow/XpValues")?.GetComponent<Text>()?.text);
 
             BattlePassClaimResult claim = presenter.ClaimTierForTests(0, premiumTrack: false);
             Assert.AreEqual(BattlePassClaimStatus.OpenValuesNotLocked, claim.Status);

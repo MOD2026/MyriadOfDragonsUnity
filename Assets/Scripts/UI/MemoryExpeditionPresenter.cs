@@ -81,6 +81,11 @@ namespace MyriadOfDragons.UI
             title.fontSize = 30;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
+            Text wallet = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
+                MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
+                new Color(0.8f, 0.85f, 0.7f), true, new Vector2(420f, 28f));
+            SetNorm(wallet.rectTransform, 0.16f, 0.12f, 0.48f, 0.88f);
+
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", MemoryExpeditionOpenValues.StatusNote,
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
                 new Vector2(520f, 40f));
@@ -109,7 +114,7 @@ namespace MyriadOfDragons.UI
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(200f, 40f));
                 SetNorm(label.rectTransform, 0.1f, 0.7f, 0.9f, 0.9f);
                 Text ph = UISharedFoundation.CreateText(well.transform, "Placeholder",
-                    MemoryExpeditionOpenValues.RuntimePlaceholder, UITextRole.Caption, TextAnchor.MiddleCenter,
+                    $"Rewards {MetagameShellProfileBinding.OpenAmountLabel}", UITextRole.Caption, TextAnchor.MiddleCenter,
                     new Color(0.85f, 0.82f, 0.7f), true, new Vector2(200f, 36f));
                 SetNorm(ph.rectTransform, 0.1f, 0.35f, 0.9f, 0.55f);
             }
