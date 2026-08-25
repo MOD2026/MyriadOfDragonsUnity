@@ -784,9 +784,11 @@ namespace MyriadOfDragons.Story
                     new DialogueLine(thaleia, "Chapter Four begins there. Olympus has survived—but something beyond it has learned how to return."),
                 });
 
-            // Chapter 4 depth fill, Stages 4-1..4-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
-            // wartime doctrine - token efficiency): same templated generator. title/enemyName
-            // match CampaignMapPresenter.Chapter4DepthFlavor.
+            // Shared post-finale voice for Ch4–7 / Ch10+ hooks (LOCKED Ch4-7 narrative upgrade 2026-08-25).
+            var unknownVoice = new StorySpeaker("unknown_voice", "Unknown Voice", "UI/Portraits/Paladin", SpeakerPosition.Right);
+
+            // Chapter 4 depth fill, Stages 4-1..4-30. Ordinary stages stay templated; required
+            // beats (4-1 / 4-15 / 4-30 pre + 4-30 post hook) match Ch8–11 treatment shape.
             (string stageId, string title, string enemyName)[] chapter4Stages =
             {
                 ("4-1", "Ashroad Gatehouse", "Gatehouse Watch"),
@@ -824,18 +826,44 @@ namespace MyriadOfDragons.Story
             foreach ((string stageId, string title, string enemyName) in chapter4Stages)
             {
                 var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
-                bool isFinal = stageId == "4-30";
+                string preEnemyLine = stageId switch
+                {
+                    "4-1" => "The ember spine does not open for the unburned.",
+                    "4-15" => "Threshing ash takes everything soft. You included.",
+                    "4-30" => "The reserve is Olympus's last ash before the coast.",
+                    _ => $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "4-1" => "Then I walk already burning.",
+                    "4-15" => "I am not soft. Clear the floor.",
+                    "4-30" => "Then this is where ash ends and marching begins.",
+                    _ => $"Olympus isn't here. Clear {title} and keep moving.",
+                };
+
+                if (stageId == "4-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The spine is broken. The coast can hear us coming."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Hear carefully, Sovereign — coasts answer with tides, not with mercy."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
                 AddStageDialogue(stageId, title, enemy,
-                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
-                    isFinal ? "This is the last of them, for now. Finish it." : $"Olympus isn't here. Clear {title} and keep moving.",
-                    isFinal ? "The reserve breaks. Whatever Olympus sends next, it won't be this." : $"{enemyName} scatter, broken.",
-                    isFinal ? "Chapter four ends here." : $"{title} is behind us. Boiotia's ash still stretches on.");
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. Boiotia's ash still stretches on.");
             }
 
-            // Chapter 5 depth fill, Stages 5-1..5-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
-            // wartime doctrine - token efficiency). No ChatGPT naming kit exists in docs/ yet
-            // (checked before writing this) - coherent placeholders continuing the coastal
-            // approach toward Olympus. title/enemyName match CampaignMapPresenter.Chapter5DepthFlavor.
+            // Chapter 5 depth fill, Stages 5-1..5-30. Ordinary stages stay templated; required
+            // beats (5-1 / 5-15 / 5-30 pre + 5-30 post hook) match Ch8–11 treatment shape.
             (string stageId, string title, string enemyName)[] chapter5Stages =
             {
                 ("5-1", "Cindertide Shoals", "Shoal Wardens"),
@@ -873,18 +901,44 @@ namespace MyriadOfDragons.Story
             foreach ((string stageId, string title, string enemyName) in chapter5Stages)
             {
                 var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
-                bool isFinal = stageId == "5-30";
+                string preEnemyLine = stageId switch
+                {
+                    "5-1" => "The ash coast takes ships and soldiers the same way.",
+                    "5-15" => "Windward holds. Your climb dies here if we choose.",
+                    "5-30" => "The sea wall is Olympus's shoreline. Break it and drown.",
+                    _ => $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "5-1" => "I am neither. Clear the shoals.",
+                    "5-15" => "Then choose wrong.",
+                    "5-30" => "I break walls. The sea can wait.",
+                    _ => $"Olympus isn't here. Clear {title} and keep moving.",
+                };
+
+                if (stageId == "5-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The coast is ours. The climb begins where the wall ends."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Begin carefully, Sovereign. Heights punish the hurried."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
                 AddStageDialogue(stageId, title, enemy,
-                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
-                    isFinal ? "The sea wall is the last line before the climb. Break it." : $"Olympus isn't here. Clear {title} and keep moving.",
-                    isFinal ? "The wall falls. Nothing coastal stands between us and Olympus now." : $"{enemyName} scatter, broken.",
-                    isFinal ? "Chapter five ends here. The climb to Olympus begins next." : $"{title} is behind us. Boiotia's ash still stretches on.");
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. Boiotia's ash still stretches on.");
             }
 
-            // Chapter 6 depth fill, Stages 6-1..6-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
-            // wartime doctrine - token efficiency). No ChatGPT naming kit exists in docs/ yet
-            // (checked before writing this) - coherent placeholders continuing the climb toward
-            // Olympus. title/enemyName match CampaignMapPresenter.Chapter6DepthFlavor.
+            // Chapter 6 depth fill, Stages 6-1..6-30. Ordinary stages stay templated; required
+            // beats (6-1 / 6-15 / 6-30 pre + 6-30 post hook) match Ch8–11 treatment shape.
             (string stageId, string title, string enemyName)[] chapter6Stages =
             {
                 ("6-1", "Ashfoot Trailhead", "Trailhead Watch"),
@@ -922,18 +976,44 @@ namespace MyriadOfDragons.Story
             foreach ((string stageId, string title, string enemyName) in chapter6Stages)
             {
                 var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
-                bool isFinal = stageId == "6-30";
+                string preEnemyLine = stageId switch
+                {
+                    "6-1" => "The climb begins where soft feet stop.",
+                    "6-15" => "From this watchpost you can see Olympus — and it can see you.",
+                    "6-30" => "The summit stand does not fall. Turn back.",
+                    _ => $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "6-1" => "Then soft feet were never the point.",
+                    "6-15" => "Good. Let it watch.",
+                    "6-30" => "I came to take the view — and the gate beyond it.",
+                    _ => $"Olympus isn't here. Clear {title} and keep moving.",
+                };
+
+                if (stageId == "6-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The summit is ours. The outer gate is next."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "Gates open both ways, Sovereign. Remember that."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
                 AddStageDialogue(stageId, title, enemy,
-                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
-                    isFinal ? "The summit is close. Break this line and it's ours." : $"Olympus isn't here. Clear {title} and keep moving.",
-                    isFinal ? "The summit falls. The outer gate of Olympus stands open before us." : $"{enemyName} scatter, broken.",
-                    isFinal ? "Chapter six ends here. Whatever waits past that gate is next." : $"{title} is behind us. Boiotia's ash still stretches on.");
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. Boiotia's ash still stretches on.");
             }
 
-            // Chapter 7 depth fill, Stages 7-1..7-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
-            // wartime doctrine - token efficiency). No ChatGPT naming kit exists in docs/ yet
-            // (checked before writing this) - coherent placeholders continuing past the Olympus
-            // outer gate. title/enemyName match CampaignMapPresenter.Chapter7DepthFlavor.
+            // Chapter 7 depth fill, Stages 7-1..7-30. Ordinary stages stay templated; required
+            // beats (7-1 / 7-15 / 7-30 pre + 7-30 post hook) match Ch8–11 treatment shape.
             (string stageId, string title, string enemyName)[] chapter7Stages =
             {
                 ("7-1", "Beyond the Outer Gate", "Inner Gate Watch"),
@@ -971,12 +1051,40 @@ namespace MyriadOfDragons.Story
             foreach ((string stageId, string title, string enemyName) in chapter7Stages)
             {
                 var enemy = new StorySpeaker(stageId + "_enemy", enemyName, "UI/Portraits/Paladin", SpeakerPosition.Right);
-                bool isFinal = stageId == "7-30";
+                string preEnemyLine = stageId switch
+                {
+                    "7-1" => "Beyond the outer gate, Olympus stops pretending to be distant.",
+                    "7-15" => "The amphitheater remembers every army that died for applause.",
+                    "7-30" => "This threshold answers for Olympus. You will not cross it.",
+                    _ => $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
+                };
+                string prePlayerLine = stageId switch
+                {
+                    "7-1" => "Good. Distance was never the problem.",
+                    "7-15" => "Then it can remember one more.",
+                    "7-30" => "I cross what I break. Stand aside.",
+                    _ => $"Olympus isn't here. Clear {title} and keep moving.",
+                };
+
+                if (stageId == "7-30")
+                {
+                    var pre = new StorySequence($"{stageId}_pre", $"Stage {stageId}: {title}");
+                    pre.lines.Add(new DialogueLine(enemy, preEnemyLine));
+                    pre.lines.Add(new DialogueLine(playerSpeaker, prePlayerLine));
+                    sequences[$"{stageId}_pre"] = pre;
+
+                    var post = new StorySequence($"{stageId}_post", $"Stage {stageId}: Cleared");
+                    post.lines.Add(new DialogueLine(playerSpeaker, "The divine threshold is open. Whatever answers for Olympus — answer me."));
+                    post.lines.Add(new DialogueLine(unknownVoice, "It will, Sovereign. Crowns of storms do not ignore open doors."));
+                    sequences[$"{stageId}_post"] = post;
+                    continue;
+                }
+
                 AddStageDialogue(stageId, title, enemy,
-                    $"{enemyName} bar the road through {title}. Olympus does not forgive trespassers.",
-                    isFinal ? "This is the last threshold before whatever answers for Olympus. Break it." : $"Olympus isn't here. Clear {title} and keep moving.",
-                    isFinal ? "The threshold falls. Whatever comes next, it will have to answer to us." : $"{enemyName} scatter, broken.",
-                    isFinal ? "Chapter seven ends here." : $"{title} is behind us. Boiotia's ash still stretches on.");
+                    preEnemyLine,
+                    prePlayerLine,
+                    $"{enemyName} scatter, broken.",
+                    $"{title} is behind us. Boiotia's ash still stretches on.");
             }
 
             // Chapter 8 depth fill, Stages 8-1..8-30 (2026-08-22, CORE_SYSTEMS_CONSTITUTION §0
@@ -1107,7 +1215,7 @@ namespace MyriadOfDragons.Story
             }
 
             // Chapter 10 — The Empty Throne (CAMPAIGN_CH10_NAMING_AND_BEATS_v1.md).
-            var unknownVoice = new StorySpeaker("unknown_voice", "Unknown Voice", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            // unknownVoice declared once above Ch4 (shared post-finale hook speaker).
             (string stageId, string title, string enemyName)[] chapter10Stages =
             {
                 ("10-1", "Throneward Causeway", "Throneward Watch"),
