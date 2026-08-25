@@ -3916,3 +3916,12 @@ ST's own natural follow-up, not a coding task.
 
 Per ST's own audit conclusion, opening the Chapter 4-18 continuity pass now rather than waiting -
 owner reminded standing Golden Rule 1 (act decisively on the obvious next step).
+
+## Both stale test fixes verified real - closed (2026-08-26, CR, commit a6017b2)
+
+Verified against the actual commit before logging: BattlePassShellTests and ChatShellTests both
+updated to assert real current product behavior (Season XP binding, live CloudCode gateway via a
+new FakeChatSocialGateway matching the Bazaar/GuildExpedition/PermitWeekKey pattern), neither
+product feature touched. 6/6 pass, 0 compile errors, HEAD drift correctly identified as an unrelated
+docs-only commit. Full-suite baseline is now clean: all real failures from tonight's volume of work
+are resolved (Windstep ablations [Ignore]d, Tactical Puzzle 6/6, these 2 stale tests fixed).
