@@ -1045,3 +1045,29 @@ just today's 36.
 permanent exception), 6-slot progressive loadout, self-verifying acquisition audit.** Only
 remaining real spell-system work: the mandated AI matrix remeasurement (greenlit below), and the
 5/6-slot picker UI + Reposition tap UI (both queued, both need Play Mode verification).
+
+## SYSTEMIC BUG: shared helper pattern, actively spreading into new files (2026-08-25, VS) - URGENT
+
+Second leaker found and it's the SAME mechanism as culprit #1 (Find-returns-first-match on a
+looped SpawnAndInitializeBootstrap call), just a different fixture. This is not two separate bugs
+- it's ONE bug pattern in a copied helper, appearing wherever the helper is called inside a loop.
+
+**Heuristic blast-radius scan (indentation-based, NOT proven, treat as "worth checking" not
+"confirmed leaking"): 13 fixtures flagged**, including CampaignStageBattleConfigurationTests +
+Chapter1CombatBalanceAuditTests (2 sites, both confirmed) + Chapter2 through Chapter12FullDepthTests.
+**Chapter11 and Chapter12FullDepthTests are on this list and are BRAND NEW, written by WH
+TONIGHT** - meaning the bug pattern is actively propagating into fresh code as chapters are built,
+not just sitting in old files.
+
+**REVISED FIX RECOMMENDATION: patch the shared helper's collection logic once (collect every
+GetRootGameObjects match, not just the first), not each fixture individually.** Patching call
+sites one at a time as each is separately discovered will always be behind new chapters being
+written. WH needs this fix in the helper before Chapter 13+ get written, or the leak just
+continues propagating.
+
+GameBootstrap.Instance remains exonerated - no frozen member involved, no owner sign-off needed
+for the actual fix, just implementation.
+
+Verification plan once applied: CampaignStageBattleConfigurationTests + RarityFrameRenderingTests
++ TutorialTeachingOverlayTests (expect 28/28), Chapter10FullDepthTests + RarityFrameRenderingTests
+(expect 20/20), then one full suite for the real total.
