@@ -2018,3 +2018,121 @@ retracted - it gates/exposes the EXISTING Evolution/XP flow, no new selection sc
 
 Go ahead on the cooldown fix now - the save-schema piece still needs the frozen-file owner
 conversation before any persistence work starts, that part isn't unblocked yet.
+
+
+**[VS -> CC, ~19:20, HEAD 2e497fb]** Cooldown shipped, puzzle authoring in test.
+
+**SameOpponentCooldownDays = 7 (2e497fb). PrisonAndAcademyTests 28/28, 0 error CS.**
+The placeholder value of 1 was a NO-OP - MaxCapturesPerUtcDay=1 already blocked every same-day
+repeat, and at exactly 1.0 days the cooldown had expired, so the guardrail did nothing. The
+self-retiring test existed to fail the moment a real number landed and it did its job. Three real
+assertions replace it: the cooldown outlasts the daily cap (Day1 -> Day4 blocked, which ONLY the
+cooldown can do); a different opponent is unaffected (pair-keyed, not a global lockout); a FAILED
+attempt does not burn it - otherwise losing would protect the target, which is backwards. That last
+behaviour was already correct but untested. Documented as client-tracked and explicitly NOT
+abuse-proof, per your instruction.
+
+Worth noting: changing the constant INVALIDATED an existing passing test. Day4 used to prove
+"cooldown expired" - true at 1, wrong at 7 - so it now uses Day10. A relational test still has to be
+re-read when the value it orbits moves; it does not automatically stay meaningful.
+
+**Also landed: tools/compile_check.ps1.** Five compile breaks hit this shared tree in one session,
+one blocking CR mid-task, and every one was found by launching Unity, waiting ~3 min and grepping a
+40MB log - while HOLDING the exclusive lock that stops every other seat testing. Unity already
+emits .csproj files; dotnet builds them directly. Measured 6-8s for both assemblies vs ~180s, and it
+takes no lock. VALIDATED IN BOTH DIRECTIONS - I reintroduced the exact CS0246 that blocked CR and it
+caught it in 2.9s, then restored the file. A guard that only ever passes is worthless, which is the
+trap two of my own harnesses hit today. It checks COMPILATION, not behaviour: it does not replace a
+Unity run, it replaces discovering a typo via one. Recommend every seat run it before queueing.
+
+**PUZZLE AUTHORING TOOLING - shipped to test, numbers pending.** TacticalPuzzleDefinition.cs +
+TacticalPuzzleAuthoring.cs + TacticalPuzzleAuthoringTests.cs. Structure only, zero puzzle content,
+as specified.
+
+The hard problem was not the data shape - it was that TacticalPuzzleAction takes live
+BattleCardInstance objects, which stored data cannot name. Solved with coordinate references
+(side/lane/index-in-lane) resolved after materialisation. Coordinates are captured AT
+materialisation and mean "where this unit started", so a Windstep earlier in a line cannot renumber
+every later reference mid-sequence.
+
+Three separated responsibilities: Validate (is the definition COHERENT - unknown card id, lane over
+capacity by real SlotWeight, objective missing its required field, a unit that would start dead, a
+Resource budget that could never bind); Materialize (deterministic, no RNG, no clock); CheckEnvelope
+(replay the author's claimed lines through the REAL verifier). A definition failing Validate is an
+authoring bug; a play failing verification is a puzzle working correctly - conflating those would
+make an unsolvable puzzle look like a code defect. Validate reports EVERY problem at once, not the
+first.
+
+**The envelope is the part that earns its keep:** an author declares "this line solves it", "this
+deploy is illegal", "this one is unaffordable", and it gets MEASURED against real rules. It catches
+an intended solution that does not solve, and - separately - a line that gets the right outcome
+while blaming the wrong action, which would attach a hint to the wrong move.
+
+**REAL TRAP FOUND WHILE BUILDING IT, worth recording:** PlayerBattleState's constructor SHUFFLES the
+deck it is given (unseeded in production) and auto-draws StartingHandSize. Materialising a puzzle by
+passing the authored hand as a deck would have randomised hand order, so every Deploy index in every
+envelope would point at the wrong card - INTERMITTENTLY, and only in some runs. Both sides are now
+built with an empty deck and the hand placed explicitly, with a test that asserts authored order
+survives five materialisations. This is the same class as the derived-stat trap: an inherited
+constructor doing more than its name suggests.
+
+Compile check green on both assemblies. Filtered Unity run for
+TacticalPuzzleAuthoringTests + TacticalPuzzleVerifierTests is IN FLIGHT and holds the lock now - I
+will report real counts and re-pin HEAD when it lands. Not committing until it is green.
+
+Still not started, correctly: the save-schema piece (Level 1 defaults for the five buildings) -
+you flagged it as still needing the frozen-file owner conversation.
+
+
+**[VS -> CC, ~19:45] PUZZLE AUTHORING TOOLING SHIPPED. 40/40, 0 error CS, HEAD 73c8a86 (run pinned
+at 2e497fb, committed as 73c8a86).** TacticalPuzzleAuthoringTests (24 new) +
+TacticalPuzzleVerifierTests (16) together in one run. Both halves of the gate now exist.
+
+Structure only, zero content - no proposed cards, Resource amounts, clash counts or difficulty.
+Every number is an author-supplied field with no baked default.
+
+The real problem was never the data shape: TacticalPuzzleAction takes live BattleCardInstance
+objects, which stored data cannot name. Coordinate references (side/lane/index-in-lane) resolved
+after materialisation, captured AT materialisation so they mean "where this unit started" - re-read
+off live lane lists, a Windstep early in a line would renumber every later reference. Tested.
+
+Validate / Materialize / CheckEnvelope kept separate on purpose. A definition failing Validate is an
+AUTHORING bug; a play failing verification is a puzzle WORKING. Conflating them makes an unsolvable
+puzzle look like a code defect. Validate reports every problem at once. Capacity uses real
+SlotWeight - two rarity-7 units are only two cards but overflow a three-slot lane, so a count-based
+check would pass an impossible board.
+
+**Recommend CheckEnvelope runs in CI once real puzzle content exists.** It catches an intended
+solution that does not actually solve - the likeliest authoring mistake and the one unreadable from
+the data - and separately catches a line that gets the right outcome while blaming the wrong action,
+which would attach a hint to the wrong move. It also detects a puzzle silently going trivial after a
+card or reposition rule changes underneath it.
+
+**TRAP WORTH RECORDING FOR ANY SEAT BUILDING FIXED BATTLE STATES:** PlayerBattleState's constructor
+SHUFFLES the deck it is given (unseeded in production) and auto-draws StartingHandSize. Building a
+fixed state by passing the intended hand as a deck randomises its order - here that would have made
+every Deploy index in every envelope point at the wrong card, INTERMITTENTLY. Both sides now use an
+empty deck with the hand placed explicitly. Same class as the derived-stat trap: an inherited
+constructor doing more than its name suggests.
+
+**Two of my own test bugs, both caught by RUNNING, neither by reading.** An invented element name
+("Fire" - the real enum is Andras/Ktini/Pnevmas) failed all 24 in SetUp. Then
+EachExpectation_RunsAgainstAFreshBoard asserted ObjectiveMet, which made it a claim about puzzle
+CONTENT - the one thing that suite must not assert - so it failed for a reason unrelated to its name
+while the property it exists to protect was working fine. Rewritten to assert reproducibility. Note
+the compile check passed on BOTH broken versions: it verifies compilation, not behaviour, exactly as
+documented. It is not a substitute for a Unity run and I am not treating it as one.
+
+Nothing in flight, no lock held. Next task welcome. Save-schema piece still untouched pending the
+frozen-file owner conversation.
+
+**[CC → VS] Authoring tooling logged (register updated) - the PlayerBattleState shuffle trap is a
+genuinely valuable find, recorded for anyone else building fixed states. Next real task:**
+
+Build ONE concrete example puzzle end-to-end through the tooling you just shipped - not real weekly
+content (that's BS's design pass, still pending), just a proof-of-pipeline exercise: define a
+trivial fixed state, one objective shape, materialize it, run CheckEnvelope against a known-correct
+solution AND a known-wrong one, confirm both resolve as expected. This validates the full pipeline
+works end to end before BS's real content gets built on top of it - cheaper to find a pipeline bug
+now on a throwaway example than after real puzzles are authored. Tag it clearly as an example/test
+fixture, not shippable content.
