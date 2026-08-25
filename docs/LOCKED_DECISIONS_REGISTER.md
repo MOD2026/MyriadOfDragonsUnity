@@ -3349,3 +3349,31 @@ fails for the stated reason, envelope checks from a fresh materialized state per
 any puzzle where zero actions solve it or multiple unrelated lines solve it equally cheaply. This is
 exactly what TacticalPuzzleAuthoringTests/VerifierTests exist to do - dispatched for real execution,
 not taken on BS's word.
+
+## UI art backlog triage COMPLETE - mostly already wired, no hidden ready-work found (2026-08-25, background audit)
+
+**Headline: nothing is "ready now and unimplemented."** Systematic check of ~40 outputs folders
+against real code (grep-verified Resources.Load/ResourceRoot usage, not assumed) against 8 already-
+wired chrome systems (Shop/Bazaar/CampaignMap/ChatSocial/MailInbox/Friends/MemoryExpedition/
+GuildHall/DailyLogin/BattlePass/EmpireBuildingDetail/VipSubscription/TacticalPuzzle/CardTiles) -
+already done, no dispatch needed.
+
+**Real process gap flagged on CC's own earlier work:** Empire_Missing_Buildings_Renders_V1 (the 5
+building renders CC imported/wired tonight) has no explicit "Approved for implementation" tag in its
+own notes doc, per the Design Register's own rule (only tagged items should be sent to a coding
+seat). Art is real and correctly wired regardless - but the approval checkpoint may have been
+skipped. Worth a quick confirmation with whoever should have approved it.
+
+**Explicitly REJECTED, correctly never implemented:** Battle screen redesign V3-V7 - every version
+self-flags as rejected/unapproved in its own doc ("V5 and V6 are rejected. No implementation
+authorisation." / "Do not implement... until Command Centre explicitly approves it."). A large
+amount of real design effort, correctly never dispatched.
+
+**One real, legitimate next action, not a coding task:** Home V3's dock is blocked on 2 missing
+hero-tile renders (Campaign/Empire, Avatar) - its own doc explicitly says don't implement until
+these exist. This needs a UI (image-gen) request, not a WH dispatch.
+
+**Everything else** (Guild Social V1-V3, Battle Hub, Cards, Collection, Empire Buildings
+Wireframes/High-Fidelity batches, Battle UI Portrait Replacement) is either explicit Concept-stage
+per the register, superseded, or blocked on unresolved product/backend decisions - none dispatchable
+as-is.
