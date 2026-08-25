@@ -3316,3 +3316,16 @@ test harness, or an ordering change from the refactor, than in this method itsel
 **Correcting the earlier "Home screen bugs fully fixed" log entry - it was accurate for the layout
 suite it verified, but incomplete as a claim that ALL of Home was fixed.** Routed to WH: diagnose
 and fix, same rigor as everything else tonight.
+
+## Weekly-permit "regression" was a test bug, not a production bug (2026-08-25, WH, verified 332d224)
+
+**Real diagnosis: production claim wiring was fine the whole time.** BuildWeeklyPermitClaimStrip
+still correctly creates WeeklyPermitStrip under TopHud - ef3c048's semantic-region refactor legitimately
+moved it there. The failures were HomeWeeklyPermitClaimTests + PermitWeekKeyShellTests using
+Transform.Find("WeeklyPermitStrip"), which only checks DIRECT canvas children - after the refactor
+nested it one level deeper, the shallow find broke. A false regression signal from the tests, not a
+live economy bug.
+
+Fix: search path corrected to TopHud/WeeklyPermitStrip in both test files. Verified 7/7 EditMode
+passing. Closes the "Home fully fixed" correction from earlier - the underlying game was never
+actually broken, only the tests' search depth was stale relative to the refactor.
