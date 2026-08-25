@@ -3119,3 +3119,31 @@ concept without destabilizing the whole screen today.
 
 **Revisit full refactor when:** the same class of overlap bug recurs after the contract tests exist;
 multiple aspect ratios are required; or more than one screen needs shared responsive layout.
+
+## CORRECTION + real systemic audit: fake-checkerboard assets, clobber pattern confirmed isolated (2026-08-25, CC)
+
+**Correcting my own earlier claim to WH:** I said icon_settings_gear.png "itself is fine (real
+transparency, confirmed)" - that was wrong, caught by pixel data, not eyeballing. Alpha channel is
+255 (fully opaque) at every single pixel - min/max both 255. The checkerboard visible when viewing
+the file is FAKE - baked into the image's actual RGB content as a literal grey/white pattern
+mimicking a transparency-preview background, not real alpha. My visual read was fooled by it; a
+direct histogram check was not. Real consequence: once WH's call-order fix lands (making the gear
+sprite actually render again), it will show a checkerboard square behind the gear instead of
+transparency - fixing bug #3 would surface a NEW visible bug. Needs the same treatment as "player
+profile frame.png" - regenerate with real alpha transparency.
+
+**Systemic mechanical audit, two real checks run project-wide instead of screen-by-screen:**
+1. Sprite-clobber pattern (HomePagePresenter's ApplyNeutralActionButton/ApplyNavTileButton nulling a
+   sprite assigned before it runs) - scripted a check across all 23 UI presenter files for the same
+   variable having .sprite set then passed into either helper. RESULT: exactly ONE site exists
+   project-wide, the one already found and dispatched (HomePagePresenter.cs:824). Confirmed isolated,
+   not systemic - real negative result, not assumed.
+2. Missing-alpha assets - scripted a real alpha-histogram check across all 325 PNGs under
+   Assets/Resources/UI/. 135 flagged as fully opaque. **Caveat, not yet triaged:** many of these are
+   almost certainly INTENTIONALLY opaque by design (full-screen backdrops, health/mana bar fills,
+   possibly portraits/status icons/VFX meant as solid rectangles) - the blunt "0 transparent pixels"
+   heuristic does not distinguish "should be opaque" from "should be transparent but isn't." Real
+   confirmed bugs from this list so far: icon_settings_gear.png (above) and the earlier player
+   profile frame.png. The rest need a second triage pass (checking USAGE CONTEXT - is each asset
+   composited over varying backgrounds in a shape implying a cutout, like a ring or icon, vs. used
+   as a full-bleed rectangle) before being treated as real findings, not just flagged as suspects.
