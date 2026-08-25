@@ -330,6 +330,110 @@ public sealed class BazaarOperationsTests
         Assert.That(result.ErrorCode, Is.EqualTo("LISTING_NOT_AVAILABLE"));
     }
 
+    // ---------------- QueryListings ----------------
+
+    [Test]
+    public async Task QueryListings_MissingActorIsRejected()
+    {
+        var result = await Create().QueryListingsAsync(new FakeExecutionContext(null), null!, new QueryListingsRequest());
+        Assert.That(result.ErrorCode, Is.EqualTo("AUTHENTICATION_REQUIRED"));
+    }
+
+    [TestCase(0)]
+    [TestCase(101)]
+    public async Task QueryListings_OutOfRangePageSizeIsRejected(int pageSize)
+    {
+        var result = await Create().QueryListingsAsync(Context(), null!, new QueryListingsRequest { PageSize = pageSize });
+        Assert.That(result.ErrorCode, Is.EqualTo("INVALID_REQUEST"));
+    }
+
+    [Test]
+    public async Task QueryListings_MalformedPageTokenIsRejected()
+    {
+        var result = await Create().QueryListingsAsync(Context(), null!, new QueryListingsRequest { PageToken = "not-a-number" });
+        Assert.That(result.ErrorCode, Is.EqualTo("INVALID_REQUEST"));
+    }
+
+    [Test]
+    public async Task QueryListings_EmptyBoard_ReturnsSuccessWithNoListingsAndNoNextPage()
+    {
+        var result = await Create().QueryListingsAsync(Context(), null!, new QueryListingsRequest());
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Listings, Is.Empty);
+        Assert.That(result.NextPageToken, Is.Null);
+    }
+
+    [Test]
+    public async Task QueryListings_ReturnsOnlyActiveListings_NewestFirst()
+    {
+        var store = new FakeStore();
+        SeedActiveListing(store, listingId: "older", sellerId: "seller", ask: 100);
+        store.Listings["older"].CreatedUtcMs = Now - 1000;
+        SeedActiveListing(store, listingId: "newer", sellerId: "seller", ask: 200);
+        store.Listings["newer"].CreatedUtcMs = Now;
+        SeedActiveListing(store, listingId: "sold-one", sellerId: "seller", ask: 300);
+        store.Listings["sold-one"].State = BazaarListingState.Sold;
+
+        var result = await Create(store).QueryListingsAsync(Context(), null!, new QueryListingsRequest { PageSize = 20 });
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Listings.Select(l => l.ListingId).ToList(), Is.EqualTo(new[] { "newer", "older" }),
+            "Sold listings must be filtered out and the rest ordered newest-first.");
+    }
+
+    [Test]
+    public async Task QueryListings_PagesUsingTheReturnedNextPageToken()
+    {
+        var store = new FakeStore();
+        for (int i = 0; i < 5; i++)
+        {
+            SeedActiveListing(store, listingId: $"listing-{i}", sellerId: "seller", ask: 100);
+            store.Listings[$"listing-{i}"].CreatedUtcMs = Now + i;
+        }
+
+        var operations = Create(store);
+        var firstPage = await operations.QueryListingsAsync(Context(), null!, new QueryListingsRequest { PageSize = 2 });
+        Assert.That(firstPage.Listings.Count, Is.EqualTo(2));
+        Assert.That(firstPage.NextPageToken, Is.Not.Null);
+
+        var secondPage = await operations.QueryListingsAsync(Context(), null!, new QueryListingsRequest { PageSize = 2, PageToken = firstPage.NextPageToken });
+        Assert.That(secondPage.Listings.Count, Is.EqualTo(2));
+        Assert.That(secondPage.NextPageToken, Is.Not.Null);
+
+        var thirdPage = await operations.QueryListingsAsync(Context(), null!, new QueryListingsRequest { PageSize = 2, PageToken = secondPage.NextPageToken });
+        Assert.That(thirdPage.Listings.Count, Is.EqualTo(1));
+        Assert.That(thirdPage.NextPageToken, Is.Null, "Exhausted the index - no further page.");
+
+        var seenIds = firstPage.Listings.Concat(secondPage.Listings).Concat(thirdPage.Listings).Select(l => l.ListingId).ToList();
+        Assert.That(seenIds.Distinct().Count(), Is.EqualTo(5), "Paging through every page must cover each listing exactly once.");
+    }
+
+    [Test]
+    public async Task ListItem_AddsToTheIndex_BuyItem_RemovesFromIt()
+    {
+        var store = new FakeStore();
+        store.Seed(EligibleInstance("inst-1", ownerId: "actor"));
+        var operations = Create(store);
+
+        var listResult = await operations.ListItemAsync(Context("actor"), null!, ListRequest("inst-1", 100));
+        Assert.That(store.Index.ActiveListingIds, Does.Contain(listResult.ListingId));
+
+        store.Wallets["buyer"] = new WalletState { AccountId = "buyer", BalanceCredits = 1000 };
+        await operations.BuyItemAsync(Context("buyer"), null!, BuyRequest(listResult.ListingId!, "key-1"));
+        Assert.That(store.Index.ActiveListingIds, Does.Not.Contain(listResult.ListingId), "A sold listing must not still surface in QueryListings.");
+    }
+
+    [Test]
+    public async Task CancelListing_RemovesFromTheIndex()
+    {
+        var store = new FakeStore();
+        SeedActiveListing(store, listingId: "listing-1", sellerId: "seller", ask: 100);
+        Assert.That(store.Index.ActiveListingIds, Does.Contain("listing-1"));
+
+        await Create(store).CancelListingAsync(Context("seller"), null!, new CancelListingRequest { ListingId = "listing-1" });
+        Assert.That(store.Index.ActiveListingIds, Does.Not.Contain("listing-1"));
+    }
+
     // ---------------- Wallet / contract / config ----------------
 
     [Test]
@@ -428,6 +532,7 @@ public sealed class BazaarOperationsTests
             State = BazaarListingState.Active,
             CreatedUtcMs = Now,
         };
+        store.Index.ActiveListingIds.Add(listingId);
     }
 
     private static ListItemRequest ListRequest(string instanceId, int ask) => new() { InstanceId = instanceId, AskCredits = ask };
@@ -441,6 +546,7 @@ public sealed class BazaarOperationsTests
         public Dictionary<string, ItemInstance> Instances { get; } = new();
         public Dictionary<string, BazaarListing> Listings { get; } = new();
         public Dictionary<string, WalletState> Wallets { get; } = new();
+        public BazaarListingIndex Index { get; } = new();
         private readonly Dictionary<(string, string), BuyResult> _idempotency = new();
 
         public void Seed(ItemInstance instance) => Instances[instance.InstanceId] = instance;
@@ -486,6 +592,30 @@ public sealed class BazaarOperationsTests
         {
             _idempotency[(buyerId, idempotencyKey)] = result;
             return Task.CompletedTask;
+        }
+
+        public Task<BazaarListingIndex> LoadIndexAsync(IExecutionContext context, IGameApiClient apiClient)
+            => Task.FromResult(new BazaarListingIndex { ActiveListingIds = new List<string>(Index.ActiveListingIds) });
+
+        public Task SaveIndexAsync(IExecutionContext context, IGameApiClient apiClient, BazaarListingIndex index)
+        {
+            Index.ActiveListingIds.Clear();
+            Index.ActiveListingIds.AddRange(index.ActiveListingIds);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<BazaarListing>> LoadListingsBatchAsync(IExecutionContext context, IGameApiClient apiClient, IReadOnlyList<string> listingIds)
+        {
+            var results = new List<BazaarListing>();
+            foreach (string listingId in listingIds)
+            {
+                if (Listings.TryGetValue(listingId, out var listing))
+                {
+                    results.Add(Clone(listing));
+                }
+            }
+
+            return Task.FromResult<IReadOnlyList<BazaarListing>>(results);
         }
 
         private static ItemInstance Clone(ItemInstance instance) =>

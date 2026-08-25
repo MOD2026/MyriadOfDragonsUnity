@@ -1,29 +1,44 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using MyriadOfDragons.Metagame;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace MyriadOfDragons.UI
 {
-    /// <summary>CHAT V1 art shell. Actions refuse while OpenValues stay OPEN.</summary>
+    /// <summary>CHAT V1 art shell wired to <see cref="IChatSocialGateway"/> (live Chat CloudCode
+    /// module, nonprod-validation). Channel select and SEND are real; there is no text-input
+    /// widget in this shell yet, so SEND posts <see cref="ComposedText"/> (settable, defaults to a
+    /// short canned message) rather than free-typed text.</summary>
     public class ChatSocialPresenter : MonoBehaviour
     {
         public const string CanvasName = "ChatSocialCanvas";
+        private const int HistoryLimit = 20;
 
         private GameObject _canvasObj;
         private Action _onBack;
         private Text _statusText;
         private Text _streamText;
+        private IChatSocialGateway _gateway;
+        private CancellationTokenSource _cts;
+        private string _selectedChannelId = string.Empty;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+        public string SelectedChannelIdForTests => _selectedChannelId;
 
-        public void Initialize(Action onBack)
+        /// <summary>Text SEND posts - settable since this shell has no text-input widget yet.</summary>
+        public string ComposedText { get; set; } = "gg";
+
+        public void Initialize(Action onBack, IChatSocialGateway gateway = null)
         {
             _onBack = onBack;
+            _gateway = gateway ?? new UnityCloudCodeChatSocialGateway();
             BuildUI();
         }
-
 
         public ChatSocialActionResult SendMessageForTests()
         {
@@ -32,10 +47,14 @@ namespace MyriadOfDragons.UI
             return r;
         }
 
+        public Task<PostChatMessageGatewayResult> SendComposedForTests() => SendComposedAsync();
+
+        public Task<FetchChatHistoryGatewayResult> RefreshHistoryForTests() => RefreshHistoryAsync();
 
         private void BuildUI()
         {
             TeardownUI();
+            _cts = new CancellationTokenSource();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
@@ -49,6 +68,12 @@ namespace MyriadOfDragons.UI
 
             BuildHeader();
             BuildChannels(); BuildStream();
+
+            if (ChatSocialOpenValues.ChannelLabels.Length > 0)
+            {
+                _selectedChannelId = ChannelIdFor(ChatSocialOpenValues.ChannelLabels[0]);
+                _ = RefreshHistoryAsync();
+            }
         }
 
         private void BuildHeader()
@@ -111,10 +136,9 @@ namespace MyriadOfDragons.UI
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() =>
                 {
-                    SetStream(
-                        $"Channel: {channels[idx]}\n{MetagameShellProfileBinding.SelfIdentityLine()}\n\n" +
-                        "No history — send/history OPEN (Social identity bootstrap exists; chat transport does not).");
+                    _selectedChannelId = ChannelIdFor(channels[idx]);
                     SetStatus(ChatSocialOpenValues.TrySelectChannel(idx).Message);
+                    _ = RefreshHistoryAsync();
                 });
                 SetNorm(row.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.02f, 0.95f, 1f - i * h - 0.02f);
                 UISharedFoundation.CreateText(row.transform, "Label", channels[i], UITextRole.Caption,
@@ -128,8 +152,7 @@ namespace MyriadOfDragons.UI
             stream.transform.SetParent(_canvasObj.transform, false);
             SetNorm(stream.GetComponent<RectTransform>(), 0.18f, 0.20f, 0.72f, 0.84f);
             _streamText = UISharedFoundation.CreateText(stream.transform, "Placeholder",
-                $"Select a channel.\n{MetagameShellProfileBinding.SelfIdentityLine()}\n\n" +
-                "No channel history — send/history OPEN.",
+                "Loading…",
                 UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 400f));
             SetNorm(_streamText.rectTransform, 0.04f, 0.05f, 0.96f, 0.95f);
@@ -138,11 +161,83 @@ namespace MyriadOfDragons.UI
             composer.transform.SetParent(_canvasObj.transform, false);
             Image cImg = composer.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(composer.GetComponent<Button>(), cImg, new Color(0.2f, 0.35f, 0.4f));
-            composer.GetComponent<Button>().onClick.AddListener(() => SetStatus(ChatSocialOpenValues.TrySendMessage().Message));
+            composer.GetComponent<Button>().onClick.AddListener(() => _ = SendComposedAsync());
             SetNorm(composer.GetComponent<RectTransform>(), 0.18f, 0.06f, 0.72f, 0.14f);
             UISharedFoundation.CreateText(composer.transform, "Text", "SEND", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
         }
+
+        private static string ChannelIdFor(string channelLabel) => channelLabel.ToLowerInvariant().Replace(" ", "-");
+
+        private async Task<FetchChatHistoryGatewayResult> RefreshHistoryAsync()
+        {
+            if (string.IsNullOrEmpty(_selectedChannelId))
+                return new FetchChatHistoryGatewayResult { errorCode = "INVALID_REQUEST" };
+
+            SetStream("Loading…");
+            try
+            {
+                FetchChatHistoryGatewayResult result = await _gateway.FetchChannelHistoryAsync(_selectedChannelId, HistoryLimit, Token).ConfigureAwait(true);
+                if (result == null)
+                {
+                    SetStream("No response.");
+                    SetStatus("History: null response.");
+                    return new FetchChatHistoryGatewayResult { errorCode = "NULL_RESPONSE" };
+                }
+
+                if (!result.success)
+                {
+                    SetStream($"History error: {result.errorCode}");
+                    SetStatus($"History failed: {result.errorCode ?? "unknown"}");
+                    return result;
+                }
+
+                List<ChatMessageDto> messages = result.messages ?? new List<ChatMessageDto>();
+                SetStream(messages.Count == 0
+                    ? $"Channel: {_selectedChannelId}\n{MetagameShellProfileBinding.SelfIdentityLine()}\n\nNo messages yet."
+                    : string.Join("\n", messages.AsEnumerable().Reverse().Select(m => $"{m.senderAccountId}: {m.text}")));
+                SetStatus($"History: {messages.Count} message(s).");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStream("Load failed.");
+                SetStatus($"History failed: {ex.Message}");
+                return new FetchChatHistoryGatewayResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+        }
+
+        private async Task<PostChatMessageGatewayResult> SendComposedAsync()
+        {
+            if (string.IsNullOrEmpty(_selectedChannelId) || string.IsNullOrWhiteSpace(ComposedText))
+            {
+                SetStatus("Send: no channel or empty message.");
+                return new PostChatMessageGatewayResult { errorCode = "INVALID_REQUEST" };
+            }
+
+            try
+            {
+                PostChatMessageGatewayResult result = await _gateway.PostMessageAsync(_selectedChannelId, ComposedText, Token).ConfigureAwait(true);
+                if (result != null && result.success)
+                {
+                    SetStatus("Sent.");
+                    await RefreshHistoryAsync().ConfigureAwait(true);
+                }
+                else
+                {
+                    SetStatus($"Send failed: {result?.errorCode ?? "unknown"}");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Send failed: {ex.Message}");
+                return new PostChatMessageGatewayResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+        }
+
+        private CancellationToken Token => _cts != null ? _cts.Token : CancellationToken.None;
 
         private void SetStatus(string message)
         {
@@ -166,6 +261,13 @@ namespace MyriadOfDragons.UI
 
         public void TeardownUI()
         {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+
             if (_canvasObj == null) return;
             if (Application.isPlaying) Destroy(_canvasObj);
             else DestroyImmediate(_canvasObj);

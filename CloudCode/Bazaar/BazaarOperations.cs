@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -96,6 +98,7 @@ public sealed class BazaarOperations
                 instance.State = ItemInstanceState.Listed;
                 await _store.SaveInstanceAsync(context, apiClient, instance);
                 await _store.SaveListingAsync(context, apiClient, listing);
+                await AddToIndexAsync(context, apiClient, listing.ListingId);
 
                 int goldFee = Math.Max(rules.ListingFeeMinimumGold, (request.AskCredits * rules.ListingFeePercent) / 100);
                 return new ListingResult { Success = true, ListingId = listing.ListingId, GoldFeeDue = goldFee };
@@ -199,6 +202,7 @@ public sealed class BazaarOperations
             await _store.SaveWalletAsync(context, apiClient, sellerWallet);
             await _store.SaveInstanceAsync(context, apiClient, instance);
             await _store.SaveListingAsync(context, apiClient, listing);
+            await RemoveFromIndexAsync(context, apiClient, listing.ListingId);
         }
         catch (BazaarStorageException exception)
         {
@@ -255,6 +259,7 @@ public sealed class BazaarOperations
         {
             await _store.SaveInstanceAsync(context, apiClient, instance);
             await _store.SaveListingAsync(context, apiClient, listing);
+            await RemoveFromIndexAsync(context, apiClient, listing.ListingId);
         }
         catch (BazaarStorageException exception)
         {
@@ -262,6 +267,117 @@ public sealed class BazaarOperations
         }
 
         return new CancelListingResult { Success = true };
+    }
+
+    /// <summary>Browse the active-listing board, batch-loading full listings for one page of the
+    /// shared id index. PageToken is just the (string-encoded) offset into that index - the index
+    /// is a simple ordered list, not a real cursor-stable store, so a listing added/removed by
+    /// another caller between two pages can shift what a given token returns. Acceptable for a
+    /// beta browse screen; not a durable pagination contract.</summary>
+    public async Task<ListingsQueryResult> QueryListingsAsync(IExecutionContext context, IGameApiClient apiClient, QueryListingsRequest request)
+    {
+        if (context == null || string.IsNullOrWhiteSpace(context.PlayerId))
+        {
+            return new ListingsQueryResult { ErrorCode = "AUTHENTICATION_REQUIRED" };
+        }
+
+        int pageSize = request?.PageSize ?? 20;
+        if (pageSize <= 0 || pageSize > 100)
+        {
+            return new ListingsQueryResult { ErrorCode = "INVALID_REQUEST" };
+        }
+
+        int offset = 0;
+        if (!string.IsNullOrEmpty(request?.PageToken) && !int.TryParse(request!.PageToken, out offset))
+        {
+            return new ListingsQueryResult { ErrorCode = "INVALID_REQUEST" };
+        }
+
+        try
+        {
+            var index = await _store.LoadIndexAsync(context, apiClient);
+            List<string> pageIds = index.ActiveListingIds.Skip(offset).Take(pageSize).ToList();
+            IReadOnlyList<BazaarListing> listings = await _store.LoadListingsBatchAsync(context, apiClient, pageIds);
+
+            var summaries = listings
+                .Where(listing => listing.State == BazaarListingState.Active)
+                .OrderByDescending(listing => listing.CreatedUtcMs)
+                .Select(listing => new BazaarListingSummary
+                {
+                    ListingId = listing.ListingId,
+                    InstanceId = listing.InstanceId,
+                    SellerId = listing.SellerId,
+                    AskCredits = listing.AskCredits,
+                    CreatedUtcMs = listing.CreatedUtcMs,
+                })
+                .ToList();
+
+            bool hasMore = offset + pageIds.Count < index.ActiveListingIds.Count;
+            return new ListingsQueryResult
+            {
+                Success = true,
+                Listings = summaries,
+                NextPageToken = hasMore ? (offset + pageIds.Count).ToString() : null,
+            };
+        }
+        catch (BazaarStorageException exception)
+        {
+            return new ListingsQueryResult { ErrorCode = exception.ErrorCode };
+        }
+    }
+
+    /// <summary>Best-effort index bookkeeping: the listing/instance/wallet writes above are the
+    /// operation's real source of truth and have already succeeded by the time this runs, so a
+    /// failure here (e.g. exhausted conflict retries under heavy concurrent listing activity) is
+    /// swallowed rather than surfaced as an operation failure - it can only make that one listing
+    /// briefly miss QueryListings, never corrupt the listing/instance/wallet state itself.</summary>
+    private async Task AddToIndexAsync(IExecutionContext context, IGameApiClient apiClient, string listingId)
+    {
+        for (int attempt = 0; attempt <= MaxConflictReconciliations; attempt++)
+        {
+            try
+            {
+                var index = await _store.LoadIndexAsync(context, apiClient);
+                if (!index.ActiveListingIds.Contains(listingId))
+                {
+                    index.ActiveListingIds.Add(listingId);
+                    await _store.SaveIndexAsync(context, apiClient, index);
+                }
+
+                return;
+            }
+            catch (BazaarStorageException exception) when (exception.ErrorCode == "CONFLICT" && attempt < MaxConflictReconciliations)
+            {
+            }
+            catch (BazaarStorageException)
+            {
+                return;
+            }
+        }
+    }
+
+    private async Task RemoveFromIndexAsync(IExecutionContext context, IGameApiClient apiClient, string listingId)
+    {
+        for (int attempt = 0; attempt <= MaxConflictReconciliations; attempt++)
+        {
+            try
+            {
+                var index = await _store.LoadIndexAsync(context, apiClient);
+                if (index.ActiveListingIds.Remove(listingId))
+                {
+                    await _store.SaveIndexAsync(context, apiClient, index);
+                }
+
+                return;
+            }
+            catch (BazaarStorageException exception) when (exception.ErrorCode == "CONFLICT" && attempt < MaxConflictReconciliations)
+            {
+            }
+            catch (BazaarStorageException)
+            {
+                return;
+            }
+        }
     }
 
     public async Task<WalletResult> GetWalletAsync(IExecutionContext context, IGameApiClient apiClient)
@@ -326,5 +442,11 @@ public sealed class BazaarModule
     public Task<WalletResult> GetBazaarWallet(IExecutionContext context, IGameApiClient apiClient)
     {
         return _operations.GetWalletAsync(context, apiClient);
+    }
+
+    [CloudCodeFunction("QueryBazaarListings")]
+    public Task<ListingsQueryResult> QueryBazaarListings(IExecutionContext context, IGameApiClient apiClient, QueryListingsRequest request)
+    {
+        return _operations.QueryListingsAsync(context, apiClient, request);
     }
 }

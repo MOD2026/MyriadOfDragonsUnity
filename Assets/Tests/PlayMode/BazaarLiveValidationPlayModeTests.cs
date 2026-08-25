@@ -101,6 +101,20 @@ namespace MyriadOfDragons.Tests.PlayMode
                 return r != null && r.errorCode == "INVALID_REQUEST";
             });
 
+            await CheckAsync(results, "QueryBazaarListings returns success with a valid response shape", async () =>
+            {
+                var r = await CallAsync<QueryListingsResponse>("QueryBazaarListings",
+                    new Dictionary<string, object> { { "pageSize", 20 } });
+                return r != null && r.success && r.listings != null;
+            });
+
+            await CheckAsync(results, "QueryBazaarListings rejects an out-of-range pageSize", async () =>
+            {
+                var r = await CallAsync<QueryListingsResponse>("QueryBazaarListings",
+                    new Dictionary<string, object> { { "pageSize", 0 } });
+                return r != null && r.errorCode == "INVALID_REQUEST";
+            });
+
             int passCount = 0;
             foreach (var (_, pass, _) in results)
             {
@@ -168,6 +182,25 @@ namespace MyriadOfDragons.Tests.PlayMode
         private sealed class CancelResponse
         {
             public bool success;
+            public string errorCode;
+        }
+
+        [Serializable]
+        private sealed class ListingSummaryResponse
+        {
+            public string listingId;
+            public string instanceId;
+            public string sellerId;
+            public int askCredits;
+            public long createdUtcMs;
+        }
+
+        [Serializable]
+        private sealed class QueryListingsResponse
+        {
+            public bool success;
+            public List<ListingSummaryResponse> listings;
+            public string nextPageToken;
             public string errorCode;
         }
     }

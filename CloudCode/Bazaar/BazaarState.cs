@@ -132,6 +132,51 @@ public sealed class WalletResult
     public string? ErrorCode { get; set; }
 }
 
+/// <summary>Shared, single-key index of every currently-active listing id, so QueryListings can
+/// find listings without a real Custom Items query/filter capability (see CloudSaveBazaarStore's
+/// own doc comment on this limitation). Updated alongside the listing itself inside the same
+/// optimistic-lock retry loop every time a listing becomes/stops being Active.</summary>
+public sealed class BazaarListingIndex
+{
+    [JsonProperty("activeListingIds")]
+    public List<string> ActiveListingIds { get; set; } = new();
+
+    [JsonIgnore]
+    public string? WriteLock { get; set; }
+}
+
+public sealed class QueryListingsRequest
+{
+    public int PageSize { get; set; } = 20;
+    public string? PageToken { get; set; }
+}
+
+public sealed class BazaarListingSummary
+{
+    [JsonProperty("listingId")]
+    public string ListingId { get; set; } = string.Empty;
+    [JsonProperty("instanceId")]
+    public string InstanceId { get; set; } = string.Empty;
+    [JsonProperty("sellerId")]
+    public string SellerId { get; set; } = string.Empty;
+    [JsonProperty("askCredits")]
+    public int AskCredits { get; set; }
+    [JsonProperty("createdUtcMs")]
+    public long CreatedUtcMs { get; set; }
+}
+
+public sealed class ListingsQueryResult
+{
+    [JsonProperty("success")]
+    public bool Success { get; set; }
+    [JsonProperty("listings")]
+    public List<BazaarListingSummary> Listings { get; set; } = new();
+    [JsonProperty("nextPageToken")]
+    public string? NextPageToken { get; set; }
+    [JsonProperty("errorCode")]
+    public string? ErrorCode { get; set; }
+}
+
 public sealed class ListItemRequest
 {
     public string InstanceId { get; set; } = string.Empty;

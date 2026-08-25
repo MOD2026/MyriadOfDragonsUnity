@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MyriadOfDragons.CloudCode.Friends</RootNamespace>
+    <AssemblyName>Friends</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <IsPublishable>true</IsPublishable>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.7" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.27" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Friends.ServerTests\**" />
+    <EmbeddedResource Remove="Friends.ServerTests\**" />
+    <None Remove="Friends.ServerTests\**" />
+  </ItemGroup>
+</Project>

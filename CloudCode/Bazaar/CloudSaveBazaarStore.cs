@@ -40,6 +40,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
 {
     private const string BoardCustomId = "bazaar-board";
     private const string WalletKey = "bazaar_wallet";
+    private const string IndexKey = "bazaar_index";
 
     // Cloud Save item keys must be 1-50 chars, [A-Za-z0-9_-] only - no dots. instanceId/listingId/
     // idempotencyKey come from outside this module (or the client, for idempotencyKey), so their
@@ -162,6 +163,62 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
         }
     }
 
+    public async Task<BazaarListingIndex> LoadIndexAsync(IExecutionContext context, IGameApiClient apiClient)
+    {
+        var index = await LoadCustomItemAsync<BazaarListingIndex>(context, apiClient, IndexKey);
+        return index ?? new BazaarListingIndex();
+    }
+
+    public Task SaveIndexAsync(IExecutionContext context, IGameApiClient apiClient, BazaarListingIndex index)
+        => SaveCustomItemAsync(context, apiClient, IndexKey, index, index.WriteLock);
+
+    public async Task<IReadOnlyList<BazaarListing>> LoadListingsBatchAsync(IExecutionContext context, IGameApiClient apiClient, IReadOnlyList<string> listingIds)
+    {
+        if (listingIds.Count == 0)
+        {
+            return Array.Empty<BazaarListing>();
+        }
+
+        try
+        {
+            var keys = new List<string>(listingIds.Count);
+            foreach (string listingId in listingIds)
+            {
+                keys.Add(ListingKey(listingId));
+            }
+
+            var response = await apiClient.CloudSaveData.GetCustomItemsAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                BoardCustomId,
+                keys);
+
+            var results = new List<BazaarListing>(response.Data.Results.Count);
+            foreach (var item in response.Data.Results)
+            {
+                var value = item.Value?.ToString();
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                var listing = JsonConvert.DeserializeObject<BazaarListing>(value);
+                if (listing != null)
+                {
+                    listing.WriteLock = item.WriteLock;
+                    results.Add(listing);
+                }
+            }
+
+            return results;
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
     private static async Task<T?> LoadCustomItemAsync<T>(IExecutionContext context, IGameApiClient apiClient, string key) where T : class
     {
         try
@@ -228,6 +285,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
         {
             case ItemInstance instance: instance.WriteLock = writeLock; break;
             case BazaarListing listing: listing.WriteLock = writeLock; break;
+            case BazaarListingIndex index: index.WriteLock = writeLock; break;
         }
     }
 

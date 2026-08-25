@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MyriadOfDragons.Metagame;
@@ -8,9 +9,11 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.UI
 {
     /// <summary>
-    /// BAZAAR V1 art shell wired to <see cref="IBazaarGateway"/>. Wallet reads are live;
-    /// List/Buy/Cancel are real plumbing (Collection ItemInstance creation is still deferred —
-    /// ListItem expects INSTANCE_NOT_FOUND until that lands).
+    /// BAZAAR V1 art shell wired to <see cref="IBazaarGateway"/>. Wallet reads, Browse
+    /// (QueryListings) and List/Buy/Cancel are all real, live plumbing (Collection ItemInstance
+    /// creation is still deferred — ListItem expects INSTANCE_NOT_FOUND until that lands).
+    /// "My Listings" (tab 2) still has no seller-filtered query endpoint - QueryListings is a
+    /// global browse, not scoped to the caller's own listings.
     /// </summary>
     public class BazaarPresenter : MonoBehaviour
     {
@@ -29,11 +32,14 @@ namespace MyriadOfDragons.UI
         private int _selectedWell = -1;
         private string _selectedListingId = string.Empty;
         private bool _busy;
+        private Text[] _wellTexts;
+        private List<BazaarListingSummaryDto> _browseListings = new();
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
         public int ActiveTabForTests => _activeTab;
         public string SelectedListingIdForTests => _selectedListingId ?? string.Empty;
+        public int BrowseListingCountForTests => _browseListings.Count;
 
         public void Initialize(Action onBack, IBazaarGateway gateway = null)
         {
@@ -54,6 +60,8 @@ namespace MyriadOfDragons.UI
             CancelListingAsync(string.IsNullOrWhiteSpace(listingId) ? _selectedListingId : listingId);
 
         public Task RunPrimaryActionForTests() => RunPrimaryActionAsync();
+
+        public Task<BazaarListingsQueryResult> RefreshBrowseForTests() => RefreshBrowseAsync();
 
         private void BuildUI()
         {
@@ -140,6 +148,7 @@ namespace MyriadOfDragons.UI
             GameObject grid = new GameObject("ListingGrid", typeof(RectTransform));
             grid.transform.SetParent(_canvasObj.transform, false);
             SetNorm(grid.GetComponent<RectTransform>(), 0.04f, 0.22f, 0.56f, 0.72f);
+            _wellTexts = new Text[BazaarOpenValues.ShellListingWellCount];
             for (int i = 0; i < BazaarOpenValues.ShellListingWellCount; i++)
             {
                 int slot = i;
@@ -156,9 +165,10 @@ namespace MyriadOfDragons.UI
                 btn.onClick.AddListener(() => SelectListingWell(slot));
                 SetNorm(well.GetComponent<RectTransform>(), col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f, (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
                 Text t = UISharedFoundation.CreateText(well.transform, "Placeholder",
-                    "Empty — no browse catalog endpoint",
+                    "Empty",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(160f, 40f));
                 SetNorm(t.rectTransform, 0.05f, 0.35f, 0.95f, 0.65f);
+                _wellTexts[i] = t;
             }
         }
 
@@ -187,10 +197,8 @@ namespace MyriadOfDragons.UI
             switch (_activeTab)
             {
                 case 0:
-                    SetDetails(
-                        "Browse — no QueryListings on IBazaarGateway. Wells stay empty; Buy needs a real listingId (none invented).");
-                    SetStatus("Browse tab — catalog empty.");
                     _selectedListingId = string.Empty;
+                    _ = RefreshBrowseAsync();
                     break;
                 case 1:
                     SetDetails(
@@ -215,12 +223,68 @@ namespace MyriadOfDragons.UI
         private void SelectListingWell(int wellIndex)
         {
             _selectedWell = wellIndex;
+            if (_activeTab == 0 && wellIndex >= 0 && wellIndex < _browseListings.Count)
+            {
+                BazaarListingSummaryDto listing = _browseListings[wellIndex];
+                _selectedListingId = listing.listingId;
+                SetDetails($"Selected listing {listing.listingId}\nseller={listing.sellerId} ask={listing.askCredits}");
+                SetStatus($"Selected {listing.listingId} — ask {listing.askCredits}");
+                return;
+            }
+
             // Honest empty catalog: do not invent listing-well-N ids for Buy/Cancel.
             _selectedListingId = string.Empty;
-            SetDetails(
-                $"Selected empty well {wellIndex}. No browse catalog endpoint — listingId not set.\n" +
-                "Buy/Cancel refuse until a real listingId is supplied.");
+            SetDetails($"Selected empty well {wellIndex}. No listingId — Buy/Cancel refuse until a real listingId is supplied.");
             SetStatus($"Empty well {wellIndex} — no listingId.");
+        }
+
+        private async Task<BazaarListingsQueryResult> RefreshBrowseAsync()
+        {
+            if (!BeginBusy("Loading listings…"))
+                return new BazaarListingsQueryResult { errorCode = "BUSY" };
+            try
+            {
+                BazaarListingsQueryResult result = await _gateway.QueryListingsAsync(BazaarOpenValues.ShellListingWellCount, null, Token).ConfigureAwait(true);
+                _browseListings = result != null && result.success && result.listings != null
+                    ? result.listings
+                    : new List<BazaarListingSummaryDto>();
+
+                for (int i = 0; i < _wellTexts.Length; i++)
+                {
+                    _wellTexts[i].text = i < _browseListings.Count
+                        ? $"{_browseListings[i].askCredits}c"
+                        : "Empty";
+                }
+
+                if (result == null)
+                {
+                    SetStatus("Browse: null response.");
+                    SetDetails("QueryBazaarListings returned no response.");
+                }
+                else if (!result.success)
+                {
+                    SetStatus($"Browse failed: {result.errorCode ?? "unknown"}");
+                    SetDetails($"QueryBazaarListings errorCode={result.errorCode}");
+                }
+                else
+                {
+                    SetStatus($"Browse: {_browseListings.Count} active listing(s).");
+                    SetDetails(_browseListings.Count == 0
+                        ? "No active listings right now."
+                        : "Select a well to view a listing and Buy.");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Browse failed: {ex.Message}");
+                return new BazaarListingsQueryResult { errorCode = "CLIENT_EXCEPTION" };
+            }
+            finally
+            {
+                EndBusy();
+            }
         }
 
         private async Task RunPrimaryActionAsync()

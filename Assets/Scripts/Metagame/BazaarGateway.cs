@@ -43,6 +43,25 @@ namespace MyriadOfDragons.Metagame
         public string errorCode;
     }
 
+    [Serializable]
+    public sealed class BazaarListingSummaryDto
+    {
+        public string listingId;
+        public string instanceId;
+        public string sellerId;
+        public int askCredits;
+        public long createdUtcMs;
+    }
+
+    [Serializable]
+    public sealed class BazaarListingsQueryResult
+    {
+        public bool success;
+        public List<BazaarListingSummaryDto> listings;
+        public string nextPageToken;
+        public string errorCode;
+    }
+
     /// <summary>Real client gateway for the live, deployed Bazaar CloudCode module
     /// (nonprod-validation, see docs/LOCKED_DECISIONS_REGISTER.md). GetWallet is fully usable now;
     /// ListItem/BuyItem/CancelListing are real and correct but have nothing to actually list yet -
@@ -55,6 +74,7 @@ namespace MyriadOfDragons.Metagame
         Task<BazaarListingResult> ListItemAsync(string instanceId, int askCredits, CancellationToken cancellationToken);
         Task<BazaarBuyResult> BuyItemAsync(string listingId, string idempotencyKey, CancellationToken cancellationToken);
         Task<BazaarCancelResult> CancelListingAsync(string listingId, CancellationToken cancellationToken);
+        Task<BazaarListingsQueryResult> QueryListingsAsync(int pageSize, string pageToken, CancellationToken cancellationToken);
     }
 
     public sealed class UnityCloudCodeBazaarGateway : IBazaarGateway
@@ -103,6 +123,21 @@ namespace MyriadOfDragons.Metagame
             return await CloudCodeService.Instance.CallModuleEndpointAsync<BazaarCancelResult>(
                 ModuleName, "CancelBazaarListing",
                 new Dictionary<string, object> { { "request", new Dictionary<string, object> { { "listingId", listingId } } } }).ConfigureAwait(false);
+        }
+
+        public async Task<BazaarListingsQueryResult> QueryListingsAsync(int pageSize, string pageToken, CancellationToken cancellationToken)
+        {
+            await EnsureSignedInAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var requestFields = new Dictionary<string, object> { { "pageSize", pageSize } };
+            if (!string.IsNullOrEmpty(pageToken))
+            {
+                requestFields["pageToken"] = pageToken;
+            }
+
+            return await CloudCodeService.Instance.CallModuleEndpointAsync<BazaarListingsQueryResult>(
+                ModuleName, "QueryBazaarListings",
+                new Dictionary<string, object> { { "request", requestFields } }).ConfigureAwait(false);
         }
 
         private static async Task EnsureSignedInAsync(CancellationToken cancellationToken)
