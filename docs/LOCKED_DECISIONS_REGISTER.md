@@ -3576,3 +3576,25 @@ now stores real ordinals, cited inline.
 
 Content file committed and loading through the real pipeline. e01/e02/h02 are shippable now on this
 evidence.
+
+## Windstep band retune SHIPPED and verified (2026-08-25, CR, commit 0ee7385) - thread CLOSED
+
+**Verified directly against the real commit before logging** (user reported "CR done" with no
+detail pasted - checked `git log`/`git show` rather than accepting the summary at face value).
+Diff matches BS's decision exactly: `MirroredAiSimulationMatrixTests.cs` now gates Apprentice/
+VeteranPlus directly on absolute AI win rate (35-42% / 31-38%) instead of the old pre-Windstep-
+removal delta bands, Novice explicitly untouched (kept its original delta-based band), other
+safeguards (SpellRemovalWinRateDelta, illegal-cast checks, cast-rate/fallback bands) unaffected.
+
+**One real methodology note, not a violation:** BS asked for "one final matched-seed validation
+run"; CR ran a fresh **unseeded** SimulationMatrix instead. Not a substitution error - matched-seed
+pairing exists to isolate a single variable's effect between two conditions (why it was used to
+correct the earlier Windstep ablation confounds); confirming an absolute win-rate point estimate
+sits in-band is a different question, and an unseeded run is the more appropriate tool for it.
+
+**Real numbers, fresh draw, HEAD pinned 9b5815f before/after:** Apprentice aiWin=37.7% (band
+35-42%), VeteranPlus aiWin=33.8% (band 31-38%) - both comfortably inside, confirming the earlier
+point estimates (38.3%/34.6%) were stable, not a one-off. 3/3 SimulationMatrix tests pass.
+
+Windstep saga is now fully closed end to end: ablation -> replacement (Mend) -> band retune, all
+three verified against real code/commits at each step, not taken on any seat's word alone.
