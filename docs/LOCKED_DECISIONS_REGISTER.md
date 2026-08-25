@@ -3796,3 +3796,21 @@ enemy Middle unit needs attack that clears the player's 6hp pool while having en
 their 5 combined attack. Which card satisfies that is BS's call. SeismicSwap's legality (Middle has
 1 free slot, archer_dragon needs 2, Windstep stays illegal) was reverified correct - only the
 "no-action fails" half of the redesign was wrong, for the second time on this exact lane.
+
+## Real WH task found: 20 of 23 screens have zero layout/geometry test coverage (2026-08-26)
+
+Owner asked why WH has no pending work. Checked systematically: of 23 UI presenters, only
+`EmpireBuildingDetailPresenter`/`EmpirePresenter` (via `EmpireBuildingDetailLayoutTests.cs`) and
+`TacticalPuzzlePresenter` (via `TacticalPuzzleLayoutTests.cs`) have any geometry/overlap coverage -
+the "art draws on top of a button" / "borders don't match mockup" class of bug this session's own
+pattern (settings-gear bug, Home banner-overlap bug) has repeatedly come from. The other 20 screens,
+including the ones just fixed for missing art (VIP/Friends/Empire structure strip), have NO
+automated check that their real built layout matches intended geometry - only that art loads.
+
+**Real task for WH:** write layout/geometry tests for the highest-traffic remaining screens (Home
+dock, Shop, Collection, DeckBuilder, CampaignMap as a starting set) using the exact pattern already
+proven twice (`EmpireBuildingDetailLayoutTests`/`TacticalPuzzleLayoutTests`): measure the BUILT
+hierarchy's real world rects via `GetWorldCorners`, check depth-first draw order so a full-screen
+backdrop isn't flagged as "overlapping" everything by design, flag any non-decorative art drawn
+AFTER an interactive control that geometrically overlaps it. Report any real bug found the same way
+the settings-gear case was - don't just add coverage, fix what it catches.
