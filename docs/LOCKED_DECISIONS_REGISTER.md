@@ -1150,3 +1150,10 @@ FirstSelectedTile (int), MistakesRemaining (int), HighestRoundCleared (int), Rew
 RunFailed (bool), temporaryResearchPoints (int), temporaryResearchExpiryDayKey (string). VS is
 clear to wire MemoryExpeditionState into PlayerProfile.cs (frozen-file addition, additive only,
 same pattern as the already-approved Daily Login fields).
+
+## Ch4-7 narrative upgrade — LOCKED (2026-08-25, GPT)
+
+Upgrade required pre-beta (not internal-testing-only): 12 bespoke beats total across Ch4-7 (opener/
+midpoint/finale/post-finale hook x4 chapters), matching Ch8-11's treatment shape. Ordinary stages
+keep the existing lightweight template. Explicitly classified as required pre-beta content debt,
+NOT an MVP systems blocker - real, but not urgent tonight. Queued behind WH's current Ch12/13 work.
