@@ -1411,6 +1411,59 @@ numbers without the full file, which is the right behaviour. Remaining order: Ho
 (1892, 400-line chunks), ShopPresenter (933), CampaignMapPresenter (2682, 500-line chunks),
 GameBootstrap (7158, 500-line chunks), then ~20 remaining presenters.
 
+## MECHANICAL SWEEP 2026-08-27 - the hand audit is mostly unnecessary
+
+AD's verdict: the silent-fallback pattern is **mechanically findable**, the presenters are **mostly
+repeats** of the same few patterns, and grep + one strict analyzer rule + one EditMode test will
+catch the majority. Manual reading is only worth it for navigation/bespoke logic. **CC ran the sweep
+directly instead of pasting 24,000 more lines.**
+
+### RESULT 1 - `GameBootstrap.cs` has FOURTEEN sliced sites and ZERO border-fit calls
+
+`Image.Type.Sliced` x14, no `FitSlicedBorderToRect`, no `pixelsPerUnitMultiplier`, anywhere in the
+file. **This is the BATTLE screen - the most-played surface in the game.** Same defect just fixed in
+`UISharedFoundation`, at 14 sites, on the screen players spend most of their time in. It is the only
+file in the entire project still carrying it.
+
+### RESULT 2 - five files load sprites with NO logging on failure
+
+| File | Loads |
+|---|---:|
+| `Combat/CombatPresentationBindings.cs` | 2 |
+| `Story/StoryOverlayPresenter.cs` | 1 |
+| `UI/CardTileCompositionV1.cs` | 2 |
+| `UI/CombatResolutionStage.cs` | 5 |
+| `UI/TacticalPuzzlePresenter.cs` | 2 |
+
+No `LogWarning`, `LogError`, or warn-once gate. A failed load falls back silently and **cannot be
+distinguished from success at runtime.** Three of the five are combat-visible.
+
+### THE PERMANENT CHECKS (build once, run forever - replaces repeat hand audits)
+
+**Roslyn R2, strict, ERROR:** an `Image.type = Image.Type.Sliced` assignment must be accompanied by
+`FitSlicedBorderToRect(image)` or an explicit `pixelsPerUnitMultiplier` in the same method. Low
+false-positive, highest confidence - implement first.
+**Roslyn R1, warning:** a `Resources.Load` whose null branch executes a fallback must log
+(`Debug.LogWarning` / `WarnOnceMissingSprite`) or be explicitly annotated optional. Escalate to ERROR
+for critical categories (primary CTA, nav skins).
+**Roslyn R3, warning:** `sizeDelta` assignment without setting anchors or using
+`SetSizeWithCurrentAnchors`.
+
+**EditMode T1** - for every `Image` with `type == Sliced` and a sprite, if
+`border.x+border.z + MinCenterPx > rect.width` (or the height equivalent), assert
+`pixelsPerUnitMultiplier != 1` - i.e. the fit was actually applied. **Proves the rendered effect, not
+the call.**
+**EditMode T2** - every critical `Resources.Load` path either loads or emits a warning naming that
+path; critical assets FAIL CI.
+**EditMode T3** - no non-zero `sizeDelta` on a stretched axis, anywhere.
+
+**Also worth running once:** a `.meta` trailing-newline check across `Assets/**` - a missing final
+newline is a real asset-pipeline failure mode in this project's history.
+
+**Remaining manual-audit budget, deliberately small:** `HomePagePresenter`, `GameBootstrap`,
+`CampaignMapPresenter` - navigation wiring, input flows, bespoke logic. Everything else is covered
+mechanically.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
