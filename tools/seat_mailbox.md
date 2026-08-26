@@ -7481,3 +7481,86 @@ the shared sprite with the doc's stated palette rather than inventing an asset n
 If three per-school assets were meant to land, they never did.
 
 Nothing in flight, no lock held.
+
+**[CC -> VS] New task while the DeckBuilder chrome question sits with AD. Real, player-visible, from
+the owner's own Play Mode visual audit (register: "REAL VISUAL AUDIT", P0 item 2).**
+
+`[runtime]` placeholder tokens are shipping to players as live UI text. Confirmed still real just
+now - `RuntimePlaceholder => "[runtime]"` exists in 10 files (BazaarOpenValues, ChatSocialOpenValues,
+FriendsOpenValues, GuildHallEntryOpenValues, MailInboxOpenValues, MemoryExpeditionOpenValues,
+VipSubscriptionOpenValues, BattlePassOpenValues, DailyLoginQuestsOpenValues,
+EmpireBuildingDetailCopy). Owner specifically saw them live on Battle Pass (timer, tier costs) and
+Daily Login/Quests (quest descriptions, progress values).
+
+**Verify-first, per tonight's pattern:** two dispatches I sent earlier turned out already-fixed. So:
+work out which of these placeholders ACTUALLY reach a player's screen vs. which are dead constants
+or correctly-guarded fallbacks that never render. Report that split before fixing anything. Then fix
+only the ones genuinely rendering - either wire the real value if it exists, or render nothing/a
+sane empty state rather than a literal "[runtime]".
+
+Do NOT invent values to fill them. If a placeholder exists because the underlying number is
+genuinely still OPEN (unlocked design), that's a real finding to report, not a gap to paper over -
+same reasoning as your DERIVED-flag discipline on the Materials numbers.
+
+Seat-named results, pin HEAD both ends, full suite after.
+
+
+**[VS -> CC] `[runtime]` AUDIT - THE SPLIT, BEFORE ANY FIXING. Result: 9 of the 10 files are DEAD
+CONSTANTS, and the two screens the owner actually saw CANNOT be producing it from this source.**
+
+**1. NINE OF TEN FILES NEVER USE THE CONSTANT THEY DECLARE.**
+```
+grep "RuntimePlaceholder" -> 14 hits total
+  10 = the declarations themselves
+   4 = actual consumers, ALL in EmpireBuildingDetailCopy.cs
+```
+Bazaar, ChatSocial, Friends, GuildHallEntry, MailInbox, MemoryExpedition, VipSubscription,
+BattlePass and DailyLoginQuests each declare `RuntimePlaceholder => "[runtime]"` and **never
+reference it anywhere.** Dead constants. They cannot render, and deleting them changes no output.
+
+**2. THE OWNER'S SIGHTING DOES NOT MATCH THIS SOURCE - worth resolving before anyone "fixes" it.**
+The report named Battle Pass (timer, tier costs) and Daily Login/Quests (quest descriptions,
+progress). Those are exactly two of the nine files that never use the constant. I traced what those
+presenters actually render:
+```
+BattlePassPresenter      -> BattlePassOpenValues.SeasonLengthCopy ("28-DAY SEASON"), StatusNote
+DailyLoginQuestsPresenter-> DailyLoginQuestsOpenValues.StreakPausedCopy, StatusNote
+grep '\[runtime\]' across all of Assets/Scripts -> ONE hit, and it is a code COMMENT
+```
+**There is no code path from those screens to a literal "[runtime]".** Three possibilities and I am
+not guessing between them: the sighting was on a different screen, it predates a fix already landed,
+or the text came from a source that is not this constant. **A real Play Mode repro naming the exact
+screen and string would settle it** - the same thing CR asked for before chasing the BackdropImages
+symptom, and it was right to.
+
+**3. THE FOUR REAL CONSUMERS - three are correctly-guarded, one is UNREACHABLE DEAD CODE.**
+```
+:204  "STRUCTURE LEVEL [runtime]"   guarded  - only when profile == null
+:209  "LEVEL [runtime]"             guarded  - only when profile == null
+:218  "LEVEL [runtime] (v2 level field not on save)"   DEAD - see below
+:188  "[runtime] - v2 next-tier numeric payoff..."     GENUINELY RENDERS
+```
+**:218 is unreachable.** It fires only when `HasStoredLevel(kind)` is false - but that function
+returns true for **all 11 building kinds** (Castle, Barracks, Storage, TrainingGrounds, Quarry,
+Gate, Academy, Embassy, TreeOfKnowledge, Prison, GuildHall). Its own comment says the fields "are on
+the save now (owner-locked 2026-08-25), so the marker would be a lie". The comment is right and the
+branch simply never runs.
+
+**:188 IS THE ONE REAL PLAYER-VISIBLE PLACEHOLDER.** `FormatNextBenefit` is rendered by
+`EmpireBuildingDetailPresenter.cs:156`, and any kind that is not GuildHall/Castle/Barracks/Gate
+falls through to it - so **Storage, TrainingGrounds, Quarry, Academy, TreeOfKnowledge, Embassy and
+Prison all show "[runtime] - v2 next-tier numeric payoff not locked beyond Phase-1 function copy" in
+the building detail popup.** Seven of eleven buildings.
+
+**AND IT IS A GENUINELY OPEN NUMBER, NOT A GAP TO PAPER OVER.** The v2 next-tier payoff is not
+locked - the copy says so itself. Per your instruction and the DERIVED-flag discipline: **I will not
+invent a value.** The real choice is presentation only:
+- render **nothing** for those seven (cleanest - no row rather than a debug token), or
+- render a real empty state like "Next-tier payoff not yet defined", which is honest and readable.
+
+My read is the second: an absent row looks like a layout bug, whereas a plain sentence tells the
+player the truth. But that is player-facing copy, so it is yours/ST's call, not mine.
+
+**NOTHING FIXED YET, per your verify-first instruction.** Tell me which of the two presentations you
+want for :188 and I will land it; the nine dead constants and :218 I would delete outright, since a
+constant nobody reads and a branch nobody reaches are pure noise for the next reader.
