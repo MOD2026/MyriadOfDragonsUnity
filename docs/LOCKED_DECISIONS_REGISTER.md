@@ -210,6 +210,41 @@ guidance, 3-5 tabs, 44x44 touch targets, thumb-reach bottom third), pixune.com /
 / rambod.net (game UI panel + HUD border practice: structure over decoration, one container per
 group, minimal HUD on mobile).
 
+## Spell books + Loyalty 500 - BS replies VERIFIED, both premises were STALE (2026-08-27)
+
+Both prompts CC sent were built off stale register lines. CC verified against real code before
+locking, which is the only reason this was caught. **Do not answer either question again.**
+
+**Spell books - BS said "delete the SpellBook item." REJECTED: it already exists and is locked.**
+`Assets/Scripts/Battle/SpellBookGrant.cs` implements chapter-finale first-clear grants, LOCKED
+2026-08-24, covering ALL remaining spells across Ch2/3/4/6/7/8/9/10 - not just the two.
+`SpellUnlockResolver.HasUnresolvableSpellBookGates` is now hardcoded `false` and
+`SpellLoadoutTests.HasUnresolvableSpellBookGates_IsNowFalse_TheGapIsResolved` asserts it.
+The register's "Content backlogs" line claiming 2 of 14 spells are permanently locked is **STALE and
+now corrected.**
+
+**REAL remaining gap, found during that verification and worse than the original question:**
+`SpellBookGrant.TryGrant` has **ZERO production callers.** Every caller is in
+`Assets/Tests/Editor/SpellBookGrantTests.cs`. The transaction is fully built, fully tested, and
+**never fires in real play** - no campaign finale clear invokes it. Textbook "design answered is not
+shipped." This is a real dispatchable bug, not a design question.
+
+**Loyalty milestone 500 - BS said "keep it resources, do not make it the first cosmetic." ALREADY
+TRUE IN CODE, and BS independently converged on the exact shipped values.**
+`ShopLoyaltyService.Milestones` already reads `new LoyaltyMilestone(500, "5,000 Gold + 100 Materials
++ 1 Stamina claim")` - identical to BS's recommendation. Ratified, no change needed.
+**Stale artifact to delete:** that file's own doc comment (~line 69) still says "MILESTONE 500 IS A
+COSMETIC and no cosmetic ownership model exists on the profile," which contradicts the data table
+directly below it. Comment is wrong, data is right.
+
+**Cosmetics deferred, with BS's ranking kept for whenever it is built:** no first cosmetic until a
+real catalog + equip surface exists. Ranking if/when it does: (1) Avatar frame/portrait border -
+strongest, visible on Home identity, Avatar, Friends, Guild Hall, battle results; (2) title/nameplate;
+(3) battle-cast VFX; (4) Empire decoration - lowest, few players see it. Ownership model when built:
+an additive `ownedCosmeticIds` list of stable IDs - not one boolean per item, not a full inventory.
+Benchmark: Marvel Snap and Genshin both ship cosmetics as part of season/shop reward PACKAGES, never
+as one isolated mid-track item.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server

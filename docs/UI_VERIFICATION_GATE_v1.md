@@ -126,3 +126,61 @@ that fails a build.**
 - The **locked Home IA** (5 destinations + swipeable feed; Social is a global drawer; Avatar tile
   cut) is the reference the "hierarchy and primary action match the locked IA" check is measured
   against.
+
+---
+
+## 4. AMENDMENT 2026-08-27 — BS review, verified and benchmarked
+
+BS reviewed §2 and narrowed it. Benchmark run (required gate): industry guidance is explicit that
+**"a visual report that cannot fail a build is documentation, not a test"** — so hard failures stay.
+But it is equally explicit that a visual gate must **absorb anti-aliasing and pixel offsets without
+failing**, and that false-positive filtering is the difference between a gate teams keep and a gate
+teams disable. BS's narrowing is therefore ACCEPTED — our original §2 would have produced exactly the
+false-positive noise the benchmark warns kills these systems.
+
+### 4a. Overlap rule — NARROWED (was too broad)
+
+- **Do NOT fail on raw rectangle intersection.** Badges, labels inside buttons, decorative overlays,
+  and intentionally-covered inactive content all legitimately intersect.
+- **Fail only when two INDEPENDENTLY ACTIONABLE targets compete for the same tap region** — i.e. the
+  tap is genuinely ambiguous, or one target is unreachable.
+
+### 4b. Text rule — NARROWED (was too broad)
+
+- **Do NOT fail on raw text-bound overflow.** A conservative box with all glyphs still visible is fine.
+- **Fail only on:** actual clipping, unreadable truncation, or collision with a protected control.
+
+### 4c. Added hard failure (was missing)
+
+- **Modal/overlay dismissal or back navigation unavailable.** A player trapped in an overlay is a
+  hard failure. This was not in the original list and should have been.
+
+### 4d. Exception mechanism — MANIFEST, not annotations
+
+An inline annotation becomes the routine escape route and the gate becomes theatre. Instead: a
+**machine-checked exception manifest**. Every entry requires:
+
+| Field | Required |
+|---|---|
+| Unique ID | yes |
+| Exact screen + control scope | yes |
+| Reason | yes |
+| Owner | yes |
+| Expiry build/date | yes |
+| Explicit geometry relationship (e.g. "badge overlaps parent button") | yes |
+
+**The validator FAILS on expired, unmatched, or overbroad exceptions.** An exception that no longer
+matches real geometry is itself a failure — that is what stops the manifest rotting into a
+permanent suppression list.
+
+### 4e. 8/10/4 actionable-control limits — OWNER DECISION PENDING, DO NOT IMPLEMENT AS HARD FAIL YET
+
+**This is a live conflict, not a settled amendment.** The owner locked 8/10/4 as HARD FAILURES. BS
+argues they are design-review thresholds, not correctness invariants — "a modal with five controls is
+not automatically broken" — and recommends WARN, with a Home-specific target of
+**"five root destinations plus one featured action."**
+
+CC's read: BS is right that these are not correctness invariants, and the benchmark agrees the
+Hick's Law fix is categorisation rather than amputation. But this is the owner's own locked number
+and CC does not overturn an owner lock on advice. **Until the owner rules: implement as WARN, and do
+not let a control count block a build.** Everything else in §2/§4 is live.
