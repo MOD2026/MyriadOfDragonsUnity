@@ -346,6 +346,73 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void TrialsSelectINDEPENDENTLY_NotInLockedAntiCorrelation()
+        {
+            // REGRESSION GUARD for a real defect found by measurement, not by a failing test.
+            // FNV-1a ends in a multiply by an ODD prime, which preserves the low bit's parity - so
+            // two trials whose mixed-in constants differed only in the low bit produced hashes of
+            // permanently opposite parity, and for any EVEN pool size could NEVER pick the same
+            // index. Both live pools are size 6, so two of the three trials were perfectly
+            // anti-correlated. An avalanche finalizer fixed it.
+            //
+            // Asserts the collision rate is in a sane band rather than a magnitude: the failure was
+            // absolute (exactly zero collisions, forever), so any real independence passes easily
+            // while the defect fails instantly.
+            const int poolSize = 6;
+            const int days = 600;
+            int collisions = 0;
+
+            DateTime day = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            for (int i = 0; i < days; i++)
+            {
+                string key = SoloCollectionCircuit.UtcDayKey(day);
+                if (SoloCircuitDailySeed.IndexFor(key, SoloCircuitTrial.Formation, poolSize) ==
+                    SoloCircuitDailySeed.IndexFor(key, SoloCircuitTrial.Collection, poolSize))
+                {
+                    collisions++;
+                }
+
+                day = day.AddDays(1);
+            }
+
+            // Expected ~1/6 of 600 = 100. A wide band, because this guards against STRUCTURE,
+            // not against ordinary variance.
+            Assert.Greater(collisions, days / 20,
+                "Trials never agree - they are anti-correlated by construction, not independent. " +
+                "This is the parity defect the avalanche mix exists to fix.");
+            Assert.Less(collisions, days / 2,
+                "Trials agree far too often - they are moving in lockstep.");
+        }
+
+        [Test]
+        public void AnEvenPoolSize_DoesNotSuppressAgreement()
+        {
+            // The defect was invisible at odd pool sizes and total at even ones, so the pool size
+            // is the axis that actually matters. Sweeps both.
+            DateTime start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            foreach (int pool in new[] { 2, 3, 4, 5, 6, 8 })
+            {
+                int collisions = 0;
+                DateTime day = start;
+                for (int i = 0; i < 400; i++)
+                {
+                    string key = SoloCollectionCircuit.UtcDayKey(day);
+                    if (SoloCircuitDailySeed.IndexFor(key, SoloCircuitTrial.Formation, pool) ==
+                        SoloCircuitDailySeed.IndexFor(key, SoloCircuitTrial.Collection, pool))
+                    {
+                        collisions++;
+                    }
+
+                    day = day.AddDays(1);
+                }
+
+                Assert.Greater(collisions, 0,
+                    "Pool size " + pool + ": the two trials NEVER select the same index over 400 " +
+                    "days, which is structural, not chance.");
+            }
+        }
+
+        [Test]
         public void AnEmptyPuzzleLibrary_YieldsNoBrief_RatherThanThrowing()
         {
             Assert.AreEqual(string.Empty, SoloCircuitDailySeed.TacticalBriefFor("2026-08-26", null));

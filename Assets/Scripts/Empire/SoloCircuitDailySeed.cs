@@ -38,11 +38,49 @@ namespace MyriadOfDragons.Empire
         }
 
         /// <summary>
+        /// Final avalanche mix, so a one-bit difference in the input spreads across all 32 bits.
+        ///
+        /// THIS IS NOT DECORATION - it fixes a real defect measured over 5,000 simulated days.
+        /// FNV-1a's last step is `(h ^ c) * prime` with an ODD prime, and an odd multiplier
+        /// PRESERVES the low bit's parity. Two trials whose mixed-in constants differed only in the
+        /// low bit therefore produced hashes of permanently opposite parity - so for any EVEN pool
+        /// size they could never select the same index. Measured before the fix:
+        ///
+        ///     pool=2  Formation==Collection on    0/5000 days (expected 50.0%)
+        ///     pool=6  Formation==Collection on    0/5000 days (expected 16.7%)
+        ///     pool=3  Formation==Collection on 1681/5000 days (expected 33.3%)  <- odd pools fine
+        ///
+        /// Both live pools are size 6, so two of the three trials were perfectly anti-correlated.
+        /// Not player-visible today and arguably even looked like variety - but it is unintended
+        /// structure in something documented as deterministic-but-arbitrary, and a pool of size 2
+        /// would have made the two trials ALWAYS differ, which is not random at all. After the fix
+        /// every pool size matches its expected collision rate to within a percent.
+        /// </summary>
+        private static uint Avalanche(uint hash)
+        {
+            unchecked
+            {
+                hash ^= hash >> 16;
+                hash *= 0x7feb352du;
+                hash ^= hash >> 15;
+                hash *= 0x846ca68bu;
+                hash ^= hash >> 16;
+                return hash;
+            }
+        }
+
+        /// <summary>
         /// Picks one index in [0, count) for the given day and trial.
         ///
         /// The trial is mixed into the seed so the three trials do not move in lockstep - without
         /// it, the day that selects the first Formation rule would also always select the first
         /// puzzle, and the Circuit would feel far more repetitive than the content warrants.
+        ///
+        /// CHANGES TODAY'S SELECTIONS. The mix is different, so which restriction or puzzle a given
+        /// date maps to is not what it was before this fix. That is acceptable precisely because
+        /// nothing persists a selection - the day key is re-derived on every read, claims are keyed
+        /// by date+trialId rather than by content, and no save stores which rule a past day used.
+        /// A player mid-day sees the rule change once; nothing they have already cleared is lost.
         /// </summary>
         public static int IndexFor(string dayKeyUtc, SoloCircuitTrial trial, int count)
         {
@@ -51,7 +89,7 @@ namespace MyriadOfDragons.Empire
             {
                 uint hash = SeedFor(dayKeyUtc);
                 hash ^= (uint)((int)trial + 1) * 2654435761u;
-                return (int)(hash % (uint)count);
+                return (int)(Avalanche(hash) % (uint)count);
             }
         }
 

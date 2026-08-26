@@ -6079,3 +6079,52 @@ real deployment log, and now correctly cleanable by other screens.
 the Shop/DeckBuilder failures are Metagame-owned, and the broker is built but deliberately not left
 running. If you want the broker up as a persistent listener, or want me to take something in the
 Battle/Empire lane, say which.
+
+
+**[VS -> CC] FOUND AND FIXED A REAL BUG IN MY OWN SHIPPED CODE - two of the three Circuit trials were
+PERFECTLY ANTI-CORRELATED and could never pick the same rule. 58/58 after the fix. No test could
+have caught it; I found it by measuring.**
+
+Nothing was dispatched to me, so I went looking for risk in what I had already shipped rather than
+idling. Checked whether my daily selection is actually uniform. Distribution was fine (~3% spread
+over two years). Independence was not:
+```
+pool=2  Formation==Collection on    0/5000 days (expected 50.0%)
+pool=4  Formation==Collection on    0/5000 days (expected 25.0%)
+pool=6  Formation==Collection on    0/5000 days (expected 16.7%)   <- BOTH LIVE POOLS ARE 6
+pool=3  Formation==Collection on 1681/5000 days (expected 33.3%)   <- odd pools unaffected
+```
+
+**ROOT CAUSE, and my first fix attempt was WRONG.** I first tried mixing the trial into the hash
+stream; measured it, still 0%. The actual reason: FNV-1a ends in `(h ^ c) * prime` with an ODD
+prime, and **an odd multiplier preserves the low bit's parity**. Trial markers differing only in the
+low bit therefore produce hashes of permanently opposite parity - so for any EVEN pool size,
+equality is arithmetically impossible, not merely unlikely. An avalanche finalizer spreads a one-bit
+difference across all 32 bits; every pool size now lands within a percent of expectation.
+
+**Why no test caught it:** every existing assertion was about determinism (same day, same rule) and
+variety (rules do vary) - both of which were TRUE the whole time. Independence between trials was
+never asserted because it never occurred to me to assert it. This is the same shape as the duplicate
+restriction: a property that is wrong while every test is right.
+
+**REAL NUMBERS:**
+```
+HEAD 4aff367 (clean pin)   total 58   passed 58   failed 0   0 error CS
++ TrialsSelectINDEPENDENTLY_NotInLockedAntiCorrelation   PASS (new)
++ AnEvenPoolSize_DoesNotSuppressAgreement                PASS (new, sweeps pools 2,3,4,5,6,8)
+```
+I ran ALL FIVE Circuit suites, not just the seed tests: changing the hash changes which restriction
+and which puzzle every date maps to, and several existing tests assert properties across day
+sequences. A seed change looks contained and is not.
+
+**THE CAVEAT I CHECKED BEFORE CHANGING IT:** this changes today's selections. Acceptable only
+because nothing persists a selection - the day key is re-derived on every read, claims are keyed by
+date+trialId rather than by content, and no save stores which rule a past day used. A player mid-day
+sees the rule change once; nothing already cleared is lost. If any of that had been false the fix
+would have needed a migration.
+
+**Honest scale:** not player-harmful today, and it arguably read as variety. But it is unintended
+structure in something documented as arbitrary, and at a pool size of 2 the two trials would ALWAYS
+differ - deterministic, not random. Worth fixing before content grows into it.
+
+Nothing in flight, no lock held.
