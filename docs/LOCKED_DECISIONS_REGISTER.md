@@ -7421,3 +7421,48 @@ worth closing regardless of how this resolves.
 Editor-side operations on a live shared project, not file edits) and is holding rather than building
 on unverified ground. Its `FitSlicedBorderToRect`/`EnsureFitsOnResize` work and tests remain
 implemented but unvalidated.
+
+## CONVERGENCE: the sprite-load failure is confirmed as the live bug, and the owner corrected me on Home (2026-08-26)
+
+**Owner correction, and it was mine to get wrong:** I called Home "genuinely good" off a screenshot.
+Owner: *"no the home is nowhere near the the mock up as there are still tons of boxes there."* I
+substituted my own judgment on a question where the owner holds the reference (the mockup) and I do
+not. **Do not assess visual fidelity from screenshots against a mockup I have never seen** - report
+what code does, let the owner judge whether it matches. Also asked, fairly: *"do i really need to go
+thru every single UI to show u?"* No. That was reactive screenshot-driven triage on my part when a
+mechanical code audit was available the whole time.
+
+**Systematic chrome-coverage audit (should have been run at the very start of the UI thread):**
+```
+SCREEN                        framed  neutral  primary  TOTAL
+GameBootstrap                      0        0        0      0   <- Battle screen
+SoloCircuitPresenter               0        0        0      0
+TacticalPuzzlePresenter            0        0        0      0
+CampaignMapPresenter               0        1        0      1
+PackOpenOverlayPresenter           0        1        0      1
+EmpireExpeditionPresenter          0        2        0      2
+GuildHallEntryPresenter            0        2        0      2
+...
+EmpirePresenter                    3        6        1     10   <- best covered
+```
+**Three screens have ZERO chrome calls**, not one. Several more are in low single digits against far
+higher element counts. The "all 23 presenters done" claim is now definitively dead: coverage is
+uneven and thin, and nothing measured it until now.
+
+**THE CONVERGING EVIDENCE - the art is not loading, and that is the live bug:**
+`HomePagePresenter.cs:673` builds each of the six hero tiles via
+`ApplyNeutralActionButton(tileButton, tileBackground, new Color(0.10f, 0.14f, 0.18f, 0.88f))`. Read
+the helper's branches: a fresh `Image` has `sprite == null`, so it enters the load branch, and **if
+the art loads it applies the 9-slice and returns, ignoring the fill entirely**; only if the load
+FAILS does it fall through to painting that flat fill. **The flat dark-navy boxes the owner sees on
+Home are pixel-for-pixel that fallback color.** That is independent confirmation of CR's reproducible
+`Resources.Load` failure, arrived at from a completely different direction.
+
+**So the ordering is settled:** (1) the SharedFoundation sprites genuinely are not loading - THE live
+bug, explains "tons of boxes" across every screen at once; (2) my 9-slice border finding is
+arithmetically real but **inert**, since the flat-fallback branch never reaches that code; (3) the
+coverage gaps above are a third, separate problem that will only become visible once (1) is fixed.
+Fixing (1) alone may resolve most of what the owner is complaining about.
+
+**Also from the owner, unprompted and not yet actioned:** dislikes the Campaign map's top blackout
+band (the solid dark header strip above the map art).
