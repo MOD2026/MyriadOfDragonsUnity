@@ -23,7 +23,7 @@
 [CmdletBinding()]
 param(
     [int] $PollMs = 1000,
-    [int] $HeartbeatSeconds = 30,
+    [int] $HeartbeatSeconds = 0,   # 0 = off. Set e.g. -HeartbeatSeconds 30 to re-enable.
     [string] $LogPath = 'vs_run.log',
     [string] $ResultsPath = 'vs_results.xml'
 )
@@ -45,8 +45,11 @@ Write-Host '  ================================================================' 
 Write-Host ''
 Say 'watching. (Ctrl+C to stop)' 'Cyan'
 
-$myPids = @{}                     # pids this watcher has already described
-$lastState = ''
+# Seeded on the first poll below, NOT left blank. Starting blank made the watcher announce
+# "The Unity run finished" the moment it launched, because idle looked like a transition into
+# idle. It reported an event that never happened - the exact kind of confident-but-false line
+# this tool exists to avoid.
+$lastState = $null
 $lastLogSize = -1
 $lastResultsWrite = $null
 $lastBeat = Get-Date
@@ -81,7 +84,17 @@ while ($true) {
         }
     }
 
-    if ($state -ne $lastState) {
+    if ($null -eq $lastState) {
+        # First look: describe what IS, never what changed.
+        switch ($state) {
+            'busy' { Say "A Unity run is already in progress ($detail) - VS is waiting for it." 'Yellow' }
+            'stale' { Say "A leftover lock is blocking runs ($detail). It is safe to delete." 'Red' }
+            'lock-unreadable' { Say 'The lock file is unreadable.' 'Red' }
+            default { Say 'No Unity run in progress right now.' 'Gray' }
+        }
+        $lastState = $state
+    }
+    elseif ($state -ne $lastState) {
         $changed = $true
         switch ($state) {
             'busy' { Say "A Unity run is now in progress ($detail)." 'Green' }
@@ -130,7 +143,7 @@ while ($true) {
     }
 
     # ---- heartbeat: silence must never be ambiguous ----
-    if (-not $changed -and ($now - $lastBeat).TotalSeconds -ge $HeartbeatSeconds) {
+    if ($HeartbeatSeconds -gt 0 -and -not $changed -and ($now - $lastBeat).TotalSeconds -ge $HeartbeatSeconds) {
         $msg = switch ($lastState) {
             'busy' { 'still waiting - a Unity run is in progress.' }
             'stale' { 'still blocked by a leftover lock.' }
