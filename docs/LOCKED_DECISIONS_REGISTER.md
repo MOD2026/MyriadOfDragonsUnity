@@ -6807,3 +6807,11 @@ fallback - identical shape to the already-fixed `CollectionPresenter` one).
 no flaky Chapter2/pollution noise this run.** This closes the silent-asset-load-failure thread that
 started from Memory Expedition's unused result modal hours ago, now swept and fixed across every
 presenter in the project.
+
+## CR dispatched: build the dropped pendingLoyaltyStaminaClaims fix (2026-08-26)
+
+Real, previously-unbuilt work surfaced by VS's own honesty a few turns ago - the queued Loyalty
+Stamina entitlement mechanic (BS-locked, benchmarked against Genshin's mailbox pattern, dispatched
+to VS hours ago) never actually landed, confirmed by `grep pending` on `PlayerProfile.cs`. Dispatched
+to CR since VS already has 4 major pieces shipped tonight and is likely mid-context-switch on the
+milestone-500 follow-up; CR is fresh off closing the sprite sweep.
