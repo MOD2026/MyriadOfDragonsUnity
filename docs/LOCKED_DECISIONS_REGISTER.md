@@ -944,6 +944,53 @@ definition asks for.** No verifiable shipped-game empty-state capture was found 
 **Status: internally sound, externally UNVERIFIED against real games. Lowest-authority lock of the
 set - revise first if rendered evidence disagrees.**
 
+## Memory Expedition chapters - STRUCTURE LOCKED, LORE REJECTED 2026-08-27
+
+ST answered the "chapters in the minigame, linked to main story" ask. **Structure accepted; its lore
+was verified against `docs/CAMPAIGN_NARRATIVE_CH1_3_2026-08-23.md` and is WRONG.** Textbook example
+of why ST output is never locked without a real-doc check.
+
+**STRUCTURE - LOCKED:**
+- **Daily play RESTORES ACCESS; it does not serialise scenes by date.** Each concluded expedition
+  contributes a fragment toward the current Memory Chapter; after N active days the whole chapter
+  becomes permanently readable in an archive. Missing days delays, never skips.
+- **BANNED:** "Day 1/2/3" numbering, consecutive-day requirements, calendar dialogue ("yesterday
+  we..."), losing a scene by missing a day, and better clears revealing more canonical truth. A
+  concluded run counts as one active day regardless of clear quality; performance affects only the
+  existing reward band.
+- **Model: EXCAVATED BACKSTORY** - recovering damaged/contested records, not replaying campaign
+  battles. Parallel risks contradictions; prequel presumes undecided facts; interstitial turns a
+  flexible daily into required connective tissue.
+- **Memories are EVIDENCE, not omniscient truth** - accounts may disagree, but an incomplete account
+  must be visibly distinct from a continuity error.
+- **Gating: TWO conditions** - expedition-progress requirement AND an explicit per-chapter
+  `requiredCampaignChapter` chosen from the latest main-story fact it assumes. Progress banks while
+  campaign-locked; banked progress must reveal no titles, summaries, portraits or spoiler fragments.
+  **No universal formula** (not "Memory 5 = Campaign 5"); the gate depends on what that memory
+  reveals. Planning guide only: ~1 Memory Chapter per 3 campaign chapters.
+- **Pacing: 5 concluded expeditions per Memory Chapter.** Long-term 6 chapters against 18 campaign
+  chapters (30 active days). Internal beats: establish subject / corroborate / contradict / reveal
+  the omission / restore + hook - these are PROGRESS beats, not dated scenes.
+- **MVP: 3 chapters, 15 active days**, arc = discovery of damage -> conflicting testimony -> proof of
+  deliberate omission.
+- **External benchmark (real shipped games, owner's definition):** FFXIV beast-tribe dailies raise
+  reputation and unlock permanent episodic story at milestones; Genshin awards Story Keys via Daily
+  Commissions, with the Story Quest itself a separate permanently-available authored episode gated on
+  main-story prerequisites. Both match "daily restores access, story is authored separately."
+
+**LORE - REJECTED, do not use any of it.** ST wrote the setting as vanished dragons and a ruined
+Empire, with chapter titles "The Wounded Ring", "The Divided Bough", "What the Roots Preserved" and
+imagery of memories pressed into tree rings. **None of that is our story.** Our campaign is
+OLYMPUS vs BOIOTIA: Gorn (fallen, his last command still moving armies), Thaleia the Olympus Envoy,
+Rusk Ashrunner, Ione of the Glass Choir, the Crown Below, the Ash Regent (a title passed between
+bodies). No vanished dragons, no ruined-Empire framing.
+
+**The irony worth keeping: Chapter 2 ALREADY runs the memory-destruction theme** - "the ash falling
+from the sky is not ash, it is memory burned into dust", "someone is burning history", a Boiotian
+archive of Olympus treaties burning from within, forged writs copied from voice-recording crystals.
+ST's excavated-backstory instinct was correct; it simply attached it to a setting we do not have. The
+rewrite anchors to the burning archive and the Ash Regent instead.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
