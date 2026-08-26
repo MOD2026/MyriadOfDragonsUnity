@@ -56,7 +56,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-26 | Coding room | Wire milestone-500 Loyalty reward (5,000 Gold+20 Avatar XP+1 Stamina claim) - last unbuilt rung on an otherwise-complete ladder | OPEN - not yet dispatched |
+| 2026-08-26 | VS | Wire milestone-500 + 2,000pt Loyalty rungs and Circuit trial reward per the Avatar-XP-removed/Materials revision | IN PROGRESS - dispatched, VS mid-rework, no report back yet |
 | 2026-08-26 | Coding room | Design-token rollout across ~20 screens - the real "boxes everywhere" fix | RESOLVED - all 23 presenters done (`2626f10`/`29a0845` Home/DeckBuilder/CampaignMap, Shop needs no migration, different hardened bespoke-shell pattern). Silent-sprite-load sweep also closed across all 23 (`617fc90`, 1770/1770 clean). |
 | 2026-08-26 | Coding room | Materials field on PlayerProfile + Empire Expedition Materials grant wiring | RESOLVED - grant live at `EmpireExpeditionClearTransaction.cs:178`, verified by VS 2026-08-26. |
 | 2026-08-26 | Coding room | Empire display copy - "STRUCTURE LEVEL" hybrid framing | RESOLVED - live at `EmpireBuildingDetailCopy.cs:55,193`, BS's lock cited in-code, verified. |
@@ -69,7 +69,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 | 2026-08-26 | WH (paste-ready, owner relays) | Chapter 3-18 continuity dialogue | RESOLVED - landed `965a86d`, real content through 18-30, the flagged `if(stageId=="18-30")` special case preserved exactly as warned. |
 | 2026-08-26 | WH (paste-ready, owner relays) | Guild Expedition/Permit Weekly Key/Spell Loadout Picker screen wiring | RESOLVED - landed `ca3b210`. |
 | 2026-08-26 | WH (paste-ready, owner relays) | VIP real entitlement implementation | RESOLVED - landed `dad3f05`, `VipSubscriptionOpenValues.cs` confirms `WeeklyGemPrice=800`/`FortnightGemPrice=1500`/`MonthlyGemPrice=3000` exactly matching spec. |
-| 2026-08-26 | BS (via owner) | Loyalty ladder milestone-500 cosmetic-ownership gap - real remaining blocker on the whale Gold tier now that the voucher-lockout fix landed | RESOLVED - 5,000 Gold+20 Avatar XP+1 Stamina claim locked, verified for consistency+proportionality. Not yet dispatched to a coding room. |
+| 2026-08-26 | BS (via owner) | Loyalty ladder milestone-500 cosmetic-ownership gap | RESOLVED, then revised - original 5,000 Gold+20 Avatar XP+1 Stamina claim lock was superseded same day by the Avatar-XP-removal decision (Materials replaces XP everywhere). Current locked reward is the Materials version; dispatched to VS, see row above. |
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
 | 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
 
