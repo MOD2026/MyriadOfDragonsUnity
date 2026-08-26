@@ -123,10 +123,13 @@ namespace MyriadOfDragons.UI
             xp.transform.SetParent(_canvasObj.transform, false);
             SetNorm(xp.GetComponent<RectTransform>(), 0.18f, 0.78f, 0.82f, 0.86f);
 
-            // SeasonXpRow is ~1229x86 at 1920x1080; plate only the label column.
-            UISharedFoundation.AddSemiTransparentScrimPanel(
+            // SeasonXpRow label column — dual gradient (sprite-backed).
+            UISharedFoundation.AddLocalGradientScrim(
                 xp.transform, new Vector2(98f, 43f), new Vector2(196f, 48f),
-                UIDesignTokens.FrameTier.Tier2Section);
+                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            UISharedFoundation.AddLocalGradientScrim(
+                xp.transform, new Vector2(98f, 43f), new Vector2(196f, 48f),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
             Text xpLabel = UISharedFoundation.CreateText(xp.transform, "Label", "SEASON XP", UITextRole.Caption,
                 TextAnchor.MiddleLeft, Color.white, true, new Vector2(160f, 24f));
             UISharedFoundation.ApplyTextShadow(xpLabel);
@@ -189,22 +192,17 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
-                // Absolute local plates above framed art (same under-backing trap as Shop pills).
-                const float wellW = 189f;
-                const float wellH = 268f;
+                // Stretch-matched plates above framed art. Dual gradients (sprite-backed) — flat
+                // SemiTransparentScrimPanel has no sprite and does not paint in this Unity build.
                 GameObject indexPlate = new GameObject("TierIndexPlate", typeof(RectTransform));
                 indexPlate.transform.SetParent(well.transform, false);
-                RectTransform indexPlateRect = indexPlate.GetComponent<RectTransform>();
-                indexPlateRect.anchorMin = indexPlateRect.anchorMax = new Vector2(0f, 0f);
-                indexPlateRect.pivot = new Vector2(0.5f, 0.5f);
-                float indexH = wellH * 0.28f;
-                indexPlateRect.sizeDelta = new Vector2(wellW * 0.9f, indexH);
-                indexPlateRect.anchoredPosition = new Vector2(wellW * 0.5f, wellH * 0.85f);
-                UISharedFoundation.AddSemiTransparentScrimPanel(
-                    indexPlate.transform,
-                    new Vector2(wellW * 0.45f, indexH * 0.5f),
-                    new Vector2(wellW * 0.9f, indexH),
-                    UIDesignTokens.FrameTier.Tier1Hero);
+                SetNorm(indexPlate.GetComponent<RectTransform>(), 0.05f, 0.72f, 0.95f, 0.98f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    indexPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    indexPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
                 Text headerN = UISharedFoundation.CreateText(indexPlate.transform, "TierIndex", $"T{i + 1}",
                     UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true, new Vector2(80f, 24f));
                 UISharedFoundation.ApplyTextShadow(headerN);
@@ -216,17 +214,13 @@ namespace MyriadOfDragons.UI
 
                 GameObject rewardPlate = new GameObject("RewardAmountPlate", typeof(RectTransform));
                 rewardPlate.transform.SetParent(well.transform, false);
-                RectTransform rewardPlateRect = rewardPlate.GetComponent<RectTransform>();
-                rewardPlateRect.anchorMin = rewardPlateRect.anchorMax = new Vector2(0f, 0f);
-                rewardPlateRect.pivot = new Vector2(0.5f, 0.5f);
-                float rewardH = wellH * 0.38f;
-                rewardPlateRect.sizeDelta = new Vector2(wellW * 0.9f, rewardH);
-                rewardPlateRect.anchoredPosition = new Vector2(wellW * 0.5f, wellH * 0.26f);
-                UISharedFoundation.AddSemiTransparentScrimPanel(
-                    rewardPlate.transform,
-                    new Vector2(wellW * 0.45f, rewardH * 0.5f),
-                    new Vector2(wellW * 0.9f, rewardH),
-                    UIDesignTokens.FrameTier.Tier1Hero);
+                SetNorm(rewardPlate.GetComponent<RectTransform>(), 0.05f, 0.08f, 0.95f, 0.45f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    rewardPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    rewardPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
                 Text amount = UISharedFoundation.CreateText(rewardPlate.transform, "RewardAmount",
                     MetagameShellProfileBinding.PassSeasonXpLine(), UITextRole.Body, TextAnchor.MiddleCenter,
                     Color.white, true, new Vector2(100f, 28f));
