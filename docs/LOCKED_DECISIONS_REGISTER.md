@@ -6948,3 +6948,40 @@ fix blind - exactly the discipline this session has been trying to instill.
 CR's real task now: the 2 pre-existing `DeckBuilder` layout assertions (Metagame-owned, confirmed
 real via git-stash A/B, not a regression - one of the two other genuine remaining classes in
 CLAUDE.md's non-negotiable #3).
+
+## CORRECTION: the DeckBuilder assertions were ALSO already fixed, by CR, hours ago - second stale claim retired same session (2026-08-26, commit 60793d0)
+
+CR caught this before touching anything, same discipline as the BackdropImages catch. The "2
+pre-existing DeckBuilder layout assertions" were never a DeckBuilderPresenter bug - the real bug was
+`DeckBuilderReleaseGateTests.cs`'s own fixture never isolating save state or granting owned cards,
+so the presenter was correctly showing empty-deck UI against a genuinely empty profile. CR fixed the
+fixture (mirrors `DeckBuilderCollectionOwnershipTests`' working isolation pattern) at 60793d0,
+13:00:51 - which is AFTER the register's own `fd28f63` A/B (12:00:12) that had called this "real,
+confirmed not a regression." The A/B was correct at the time; the fix landed shortly after and the
+baseline note was never updated - identical failure mode to the BackdropImages staleness. Verified
+by CR just now with a fresh isolation run (HEAD `09826f8`, 3/3 pass).
+
+**CLAUDE.md fixed** (`390ad66`) - both stale entries retired this session. Non-negotiable #3's only
+remaining real failure class is now `ShopV1ChromeTests` (WH's active task).
+
+## Real, verified gap found by VS: Avatar XP has no persistence field anywhere - 4th instance of the destroyed-entitlement pattern, VS's OWN code included (2026-08-26)
+
+**Verified directly:** `grep avatarLevel|AvatarXp PlayerProfile.cs` finds `avatarLevel` (an int, set
+from `Empire.AvatarLevel`) but no XP field. `AvatarXpGranted` exists only as a transient result-struct
+field in `SoloCollectionCircuit.cs` - counted toward the Circuit's daily cap and then discarded,
+never written anywhere persistent. Confirmed via direct grep across `Assets/Scripts/`.
+
+**Real, self-caught by VS:** milestone-500's locked reward includes 20 Avatar XP. Granting it as
+written would write to nothing and report a reward the player never actually receives - the same
+destroyed-entitlement shape VS named three times already tonight (vouchers/Stamina claims/Circuit
+guard), except this time VS found it in its OWN prior code (`AvatarXpPerTrialClear` on the Circuit
+has been "granting" XP into a void all night). VS did not grant into nothing - it exposed
+`AvatarXpOwedFor(int milestonePoints)` (currently only wired for the 500pt rung) as a real owed-value
+function a future sink can pay, with an explicit test marking it for rewrite once a sink exists,
+rather than silently completing the milestone-500 task with a lie.
+
+**Correctly NOT auto-approved as a frozen-field mirror** - this isn't just an additive persistence
+field (which WOULD auto-approve under the existing extension), it implies a real, undecided design
+question: does Avatar progression get an actual XP/level-up system, or should the 3 rungs currently
+promising Avatar XP (250/500/2,000pt) be re-specced to grant something that already exists? Real BS
+ask, paste-ready below, not yet sent.
