@@ -3485,6 +3485,14 @@ namespace MyriadOfDragons.UI
             resetRect.sizeDelta = new Vector2(78f, 26f);
             resetRect.anchoredPosition = Vector2.zero;
 
+            // Shared chrome, applied AFTER the anchors above are final. Order is load-bearing:
+            // ApplyFramedPanel-family helpers compute their border-fit multiplier from the rect's
+            // CURRENT size, so calling before positioning measures Unity's default 100x100 and
+            // shrinks the border to a fraction of its authored thickness (locked 2026-08-26 across
+            // ~24 call sites). Reset is subordinate to START BATTLE, so it takes the neutral skin.
+            HomeV3UiLibrary.ApplyNeutralActionButton(
+                _resetLineupButton, _resetLineupButton.GetComponent<Image>());
+
             // Release feature: this control is Auto Formation now, not "Recommended" - same
             // Button/GameObject/slot (no new control created), relabeled and repointed to
             // OnAutoFormationPressed. OnLineupButtonPressed(useRecommendedDeck: true) and
@@ -3499,6 +3507,10 @@ namespace MyriadOfDragons.UI
             recRect.pivot = new Vector2(0f, 1f);
             recRect.sizeDelta = new Vector2(110f, 26f);
             recRect.anchoredPosition = new Vector2(82f, 0f);
+
+            // Also subordinate: AUTO FORMATION is a convenience, not the screen's CTA.
+            HomeV3UiLibrary.ApplyNeutralActionButton(
+                _recommendedLineupButton, _recommendedLineupButton.GetComponent<Image>());
 
             // Centered, not left-packed - a short hand (e.g. the tutorial's 3 cards) used to leave
             // a wide empty gap to its right when packed against the left edge ("giant empty
@@ -3566,6 +3578,16 @@ namespace MyriadOfDragons.UI
             primaryRect.pivot = new Vector2(0.5f, 0.5f);
             primaryRect.sizeDelta = new Vector2(440f, 130f);
             primaryRect.anchoredPosition = Vector2.zero;
+
+            // THE screen's primary CTA - the one control the whole Battle screen exists to lead to.
+            // Applied after the anchors above for the same border-fit reason as Reset.
+            //
+            // This replaces the procedural gradient pill CreateButton draws by default. That pill
+            // fills the entire button with AccentBorderColor for BOTH its rim and its fill, so
+            // there is no rim/fill contrast at all - which is why the Battle screen reads as flat
+            // tan slabs while the 23 restyled presenters do not.
+            HomeV3UiLibrary.ApplyPrimaryActionButton(
+                _primaryActionButton, _primaryActionButton.GetComponent<Image>());
 
             _primaryActionLabel = _primaryActionButton.GetComponentInChildren<Text>();
             _primaryActionLabel.fontSize = 30;
@@ -3711,7 +3733,12 @@ namespace MyriadOfDragons.UI
                 spellName.fontStyle = FontStyle.Bold;
                 spellName.raycastTarget = false;
                 spellName.alignment = TextAnchor.MiddleLeft;
-                spellName.horizontalOverflow = HorizontalWrapMode.Overflow;
+                // Wrap, do not Overflow. Overflow lets "Firestorm"/"Divine Bolt" at 17pt bold spill
+                // outside the 260px column and past the row's own edge - visible in the owner's
+                // Play Mode screenshot. Wrap keeps the text inside the control that owns it; the
+                // row is 62px tall with a 24px name line, so a second line still fits.
+                spellName.horizontalOverflow = HorizontalWrapMode.Wrap;
+                spellName.verticalOverflow = VerticalWrapMode.Truncate;
                 SetPreferredHeight(spellName.gameObject, 24f);
 
                 // Cost/cooldown number - see RefreshPhaseControls for exactly what this shows
@@ -3719,7 +3746,10 @@ namespace MyriadOfDragons.UI
                 Text spellLabel = CreateText(textColGo.transform, "", 15, Color.white, font);
                 spellLabel.raycastTarget = false;
                 spellLabel.alignment = TextAnchor.MiddleLeft;
-                spellLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+                // Same reasoning as the name above. This one carries the cost/cooldown number,
+                // which is short - but Overflow here would still let a long state string escape.
+                spellLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+                spellLabel.verticalOverflow = VerticalWrapMode.Truncate;
                 SetPreferredHeight(spellLabel.gameObject, 20f);
 
                 _spellButtons.Add(spell);
