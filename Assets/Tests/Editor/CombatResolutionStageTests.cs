@@ -238,6 +238,60 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void AnOrdinaryBeat_DrawsREALParticleArt_NotAFlatRectangle()
+        {
+            // THE OWNER'S ACTUAL COMPLAINT: the rail rendered as "flat cyan + grey/black
+            // rectangles rather than real VFX". That was true - I built the doc's fallback layer
+            // and never layered real art on top, then reported the rail as shipped.
+            //
+            // This asserts the real path is taken, which is exactly the class of check that was
+            // missing when three separate asset bugs survived a green 1782/1785 tonight.
+            _stage.ClearAll();
+            _stage.Enqueue(Beat(CombatResolutionEventType.ClashResolved, hasLane: true));
+            _stage.Tick(0.016f);
+
+            Assert.IsNotNull(_stage.SourceProxySpriteForTests,
+                "The beat proxy has no sprite, so it renders as a flat tinted rectangle - the exact " +
+                "symptom reported from Play Mode.");
+        }
+
+        [Test]
+        public void AHeavyBeat_UsesTheHeavyParticle_NotTheMediumOne()
+        {
+            // Tier is a classification the mapper already decided; the stage must honour it rather
+            // than re-deriving weight from the number, which would invent a combat class the game
+            // does not have.
+            _stage.ClearAll();
+            _stage.Enqueue(new CombatResolutionEvent(CombatResolutionEventType.ClashResolved,
+                CombatResolutionSide.Player, 1, signedValue: -3, lane: Lane.Front, hasLane: true,
+                tier: CombatResolutionTier.Medium));
+            _stage.Tick(0.016f);
+            Sprite medium = _stage.SourceProxySpriteForTests;
+
+            _stage.ClearAll();
+            _stage.Enqueue(new CombatResolutionEvent(CombatResolutionEventType.ClashResolved,
+                CombatResolutionSide.Player, 1, signedValue: -3, lane: Lane.Front, hasLane: true,
+                tier: CombatResolutionTier.Heavy));
+            _stage.Tick(0.016f);
+            Sprite heavy = _stage.SourceProxySpriteForTests;
+
+            Assert.IsNotNull(medium);
+            Assert.IsNotNull(heavy);
+            Assert.AreNotSame(medium, heavy,
+                "Heavy and Medium must not share art, or the visual tier carries no information.");
+        }
+
+        [Test]
+        public void TheAvatarStrikeLayer_HasItsRealSheet_NotJustAnEnabledFlag()
+        {
+            // My own bug, pinned at the right level this time. The original test asserted the layer
+            // was ENABLED, which passed while the sprite was null and the layer rendered as a blank
+            // tinted quad. Asserting the sprite is what actually catches it.
+            Assert.IsNotNull(_stage.StrikeSpriteForTests,
+                "The AvatarStrike layer exists but has no sheet - enabled is not the same as visible.");
+        }
+
+        [Test]
         public void ClearAll_EmptiesTheQueueAndTheDisplayedResult()
         {
             // Scene exit / result transition / replay skip. A stale number left on the stage would

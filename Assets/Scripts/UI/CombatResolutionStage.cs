@@ -42,6 +42,8 @@ namespace MyriadOfDragons.UI
         private readonly Image[] _queueDiamonds = new Image[3];
         private readonly Image[] _lanePips = new Image[3];
         private Image _strikeLayer;
+        private Sprite _particleMedium;
+        private Sprite _particleHeavy;
         private float _activeBeatElapsed;
 
         public CombatResolutionQueue QueueForTests => _queue;
@@ -52,6 +54,8 @@ namespace MyriadOfDragons.UI
             _resultIcon != null ? _resultIcon.rectTransform.anchorMin : Vector2.zero;
         public bool StrikeLayerEnabledForTests => _strikeLayer != null && _strikeLayer.enabled;
         public bool LanePipsVisibleForTests => _lanePips[0] != null && _lanePips[0].enabled;
+        public Sprite SourceProxySpriteForTests => _sourceProxy != null ? _sourceProxy.sprite : null;
+        public Sprite StrikeSpriteForTests => _strikeLayer != null ? _strikeLayer.sprite : null;
 
         /// <summary>Faction colours. Motion direction, icon and sign must agree with these - the doc
         /// is explicit that colour alone never carries meaning.</summary>
@@ -118,6 +122,16 @@ namespace MyriadOfDragons.UI
             // other effect, so it sits on a layer only that beat enables.
             _strikeLayer = CreateChild("AvatarStrikeLayer", _root);
             _strikeLayer.sprite = Resources.Load<Sprite>("VFX/avatarstrike_bespoke_sheet");
+
+            // Loaded ONCE here rather than per beat. Resources.Load is not free and a beat can
+            // fire several times a second during a fast tick sequence; caching also means a
+            // missing asset degrades identically every time instead of intermittently.
+            //
+            // These are only usable at all because the three VFX assets were re-imported as
+            // Sprites (textureType 8) - they were plain Textures until now, so every
+            // Resources.Load<Sprite> against them returned null regardless of folder.
+            _particleMedium = Resources.Load<Sprite>("VFX/particle_medium");
+            _particleHeavy = Resources.Load<Sprite>("VFX/particle_heavy");
             _strikeLayer.preserveAspect = true;
             _strikeLayer.enabled = false;
             Stretch(_strikeLayer.rectTransform, 0.26f, 0.35f, 0.70f, 0.95f);
@@ -213,6 +227,7 @@ namespace MyriadOfDragons.UI
             // well as tint and stays readable in greyscale.
             ApplyIconForType(beat, side);
             ApplyLanePips(beat, side);
+            ApplyParticleTier(beat);
 
             if (_strikeLayer != null)
                 _strikeLayer.enabled = beat.Type == CombatResolutionEventType.AvatarStrikeResolved;
@@ -231,6 +246,35 @@ namespace MyriadOfDragons.UI
             if (source == CombatResolutionSide.Player) return PlayerEmerald;
             if (source == CombatResolutionSide.Enemy) return EnemyRed;
             return NeutralCyan;
+        }
+
+        /// <summary>
+        /// Puts real particle art behind the beat, chosen by its already-mapped visual tier.
+        ///
+        /// TIER IS NEVER DERIVED FROM DAMAGE - the doc forbids it, because computing weight from a
+        /// number invents a combat classification the game does not have. Heavy is reserved for
+        /// effects already classified heavy, and AvatarStrike has its own exclusive sheet which is
+        /// never reused for anything else.
+        ///
+        /// Falls back to NO sprite rather than a wrong one: a null sprite renders as the flat tinted
+        /// proxy the doc specifies as the degraded state (proxy + icon + exact number), which stays
+        /// readable. Substituting whatever art happened to load would misreport the effect's weight.
+        /// </summary>
+        private void ApplyParticleTier(CombatResolutionEvent beat)
+        {
+            if (_sourceProxy == null) return;
+
+            Sprite particle = beat.Tier switch
+            {
+                CombatResolutionTier.Heavy => _particleHeavy,
+                CombatResolutionTier.AvatarStrike => _particleHeavy,
+                _ => _particleMedium,
+            };
+
+            _sourceProxy.sprite = particle;
+            // preserveAspect only matters once a sprite exists; setting it unconditionally keeps a
+            // later asset swap from silently stretching the art.
+            _sourceProxy.preserveAspect = particle != null;
         }
 
         /// <summary>
