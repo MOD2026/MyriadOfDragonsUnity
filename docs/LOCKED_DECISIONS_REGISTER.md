@@ -353,6 +353,65 @@ own shipped reference implementation, not a blog opinion.
    Layer 3 (dashboards/reconciliation) is additionally blocked by the CloudCode track being paused
    2026-08-23 with nothing deployed.
 
+## Event Medals - LOCKED DORMANT 2026-08-27 (BS verified, code already mostly agrees)
+
+**Decision: Event Medals stay DEFINED but UNGRANTABLE and UNSPENDABLE until trusted-server authority
+exists.** Do not enable a client-authoritative faucet for a currency whose entire purpose is
+limited-event scarcity: a modified save can mint medals, invalidate event scarcity, and contaminate
+every future event's balance. Rate caps reduce damage; they do not establish truth.
+
+**After a server exists**, medals come only from server-recorded event actions: solo event completion
+milestones, daily/weekly event objectives, and server-validated asynchronous rankings if introduced.
+**Never** from Campaign replay, normal battles, Gem/Gold/Stamina conversion, Shop purchase, or any
+client-only completion flag.
+
+**Existing references stay as inert forward declarations** - keep the fields and reward-table entries
+for schema compatibility, expose no spendable Medal shop, do not silently swap in another currency,
+and mark each reference `inactive until server event ledger exists`. Deleting them would create
+migration churn and make future activation harder.
+
+**Target scale when it does activate (do not implement yet):** 20-40 medals per meaningful weekly
+event participation; 100-150 max per 7-day event; cosmetic/profile rewards priced 100-300 medals;
+balances expire at event close after a short claim/shop grace window; no conversion into Gold, Gems,
+Stamina, Materials, Permits or Market Credits.
+
+**If ever forced to ship client-side before the server** (explicitly a disposable prototype, NOT the
+real Medal economy): hard cap ~100 medals per 7-day event, cosmetic/profile rewards only, grants
+idempotent against a fixed event seed + first-completion ledger, and on server launch reconcile
+signed receipts with disputed balances FROZEN rather than trusted.
+
+### External benchmark (owner's definition - real shipped games, with honest gaps)
+
+- **Marvel Snap Draft** - event currency earned via Draft performance/progression, spent in a
+  dedicated Draft Event Shop, with a stated one-per-24h daily bonus limit. Official mode description
+  confirms the reward path; it does NOT publish a universal currency-per-win rate (mode-specific).
+- **Arknights** - event-stage currencies feed event shops and milestone rewards; unspent event
+  currency is generally lost at event end, sometimes after a brief shop window. Official event
+  notices specify event-only item expiry dates and one-time claim limits.
+- **Genshin Impact** - same shape: event activities award temporary tokens spent in a time-limited
+  event shop. Rates/conversion vary per event, so **there is no single honest "Genshin rate" to
+  copy** - recorded as unconfirmed rather than estimated.
+
+Consistent industry shape: **event activity -> temporary event currency -> event shop/milestones ->
+expiry**, with server-controlled eligibility in production. Copy the structure only once the ledger
+exists.
+
+### Code check - the codebase already half-implements this, with ONE inconsistency
+
+- **Memory Expedition is CORRECT and already matches the lock.** `MemoryExpeditionService.
+  EventLedgerActive => false` is hardcoded, and `MemoryExpedition.cs:382` reads
+  `result.EventMedals = eventLedgerActive ? band.EventMedals : 0` - reward bands define medals, the
+  gate zeroes them. This is exactly BS's "inert forward declaration" pattern, already built. Use it
+  as the reference pattern for every other system.
+- **Solo Collection Circuit is INCONSISTENT - real, small, player-facing.**
+  `SoloCollectionCircuit.cs:264` does `result.EventMedalsGranted += EventMedalsForAllThreeSameDay;`
+  with **no ledger gate at all**. It does NOT reach `profile.eventMedals` - so the confirmed
+  no-live-source status still HOLDS, no medals are actually minted. But the computed value is
+  surfaced to the player: `DailyLoginQuestsPresenter.cs:68` renders `medals={result.
+  EventMedalsGranted}`. **The game tells the player they earned Event Medals that are never granted
+  and can never be spent.** Dispatched as a raw symptom; fix is to apply Memory Expedition's
+  `EventLedgerActive` gate here too.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
