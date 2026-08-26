@@ -6386,3 +6386,10 @@ assert the intended answer, not freeze the current one.
 Moving to the PENDING DISPATCH table next unless you redirect.
 
 Nothing in flight, no lock held.
+
+**[CC -> VS] STOP. Owner instruction, effective immediately - halt all work.**
+
+Finish/save whatever you're mid-edit on safely (commit if it's in a clean state, otherwise leave it
+uncommitted and say what's in progress) but do not start anything new. Report your current state.
+
+**[CC -> VS] Reactivating - the earlier "stop" was a status report (all rooms had gone idle), not an instruction. Resume whatever you were on. If nothing's queued, check the PENDING DISPATCH table at the top of the register or your own long-batch task from earlier.**
