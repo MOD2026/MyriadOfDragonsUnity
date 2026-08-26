@@ -1270,6 +1270,52 @@ relying on Unity's implicit default; a general `AssertSizeDeltaSafe` guard that 
 sizeDelta against a stretched axis; and a dedicated `GetOrCreateScrimContainer` replacing per-call
 `SetSiblingIndex(0)`, so scrims no longer reorder a parent's real content.
 
+## REVISED 2026-08-27: TWO-CANVAS ARCHITECTURE (supersedes the global match=1 authorisation)
+
+**Owner confirmed TABLETS ARE IN SCOPE.** That settles the fork. A single global
+`matchWidthOrHeight` cannot work - AD's arithmetic (CC-confirmed) shows both extremes fail:
+
+| Device | m=0 (width) | m=0.5 | m=1 (height) |
+|---|---|---|---|
+| Phone 2400x1080 | canvas 1350 tall vs 1080 screen = **270px VERTICAL overflow** | 135px vertical overflow | **fits exactly** |
+| Tablet 2560x1600 | fits | canvas 2706.7 wide vs 2560 = **147px HORIZONTAL overflow** | canvas 2844.4 wide = **284px HORIZONTAL overflow** |
+| Monitor 1920x1080 | fits | fits | fits |
+
+**m=0.5 is not a fix - it still overflows the tablet by ~147px.** It reduces extremes, guarantees
+nothing.
+
+**DECISION - split the canvas by responsibility:**
+- **HUD canvas** (top bar, bottom destination bar, edge-anchored chrome): `ScaleWithScreenSize`,
+  **match = 1 (height)**. Guarantees the full 1080 reference height is always visible, so
+  edge-anchored chrome can never be vertically clipped - the exact bug class we keep fixing.
+- **Content canvas** (swipeable feed, screen bodies): `ScaleWithScreenSize`, **match = 0.5
+  (balanced)**, with `RectMask2D` clipping and scrollable content so residual horizontal overflow
+  degrades gracefully instead of pushing UI off-screen.
+- **All interactive HUD elements anchored inside `Screen.safeArea`** - never in a region that can be
+  cropped.
+
+**The earlier global match=1 authorisation is NOT wasted work** - match=1 is exactly what the HUD
+canvas needs. Only the content canvas differs.
+
+**COST, stated honestly:** this project is procedural with no prefabs, and **every presenter builds
+its own canvas**, so this is a real refactor across ~24 presenters, not a one-line change.
+
+**FROZEN-CONTRACT RISK - must be routed around, not through:**
+`GameBootstrap.Instance`, `GameBootstrap.SetBattleCanvasVisible(bool)`,
+`BattleController.OnMatchCompleted` and `MatchResult` are frozen battle<->metagame contract members.
+A canvas restructure touches exactly the area `SetBattleCanvasVisible` operates on. **If the split
+cannot be done without changing that signature or behaviour, STOP and escalate** - it is a
+coordinated change, not a unilateral edit.
+
+**Re-verification order after the split** (unchanged from the earlier entry, still applies): edge-
+anchored HUDs first; every `sizeDelta` on a stretched axis via `AssertSizeDeltaSafe`; the full
+contrast validator re-measured (`fontScreenPx` changes, all 156 findings); Grid/ContentSizeFitter
+lists; scrims; hard-coded pixel math; then EditMode pixel assertions - **failures there are the old
+wrong scale being corrected, not regressions.**
+
+**Type floor 22 -> 24px still stands** (at scaleFactor 1.0 a 22px glyph is 22 screen px, below
+WCAG's 24px threshold).
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
