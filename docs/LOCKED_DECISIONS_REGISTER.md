@@ -6088,3 +6088,25 @@ reports tonight if they recur - not diagnosing further, just noting the pattern 
 This closes a bug that has been sitting unattributed since early tonight - correctly diagnosed as a
 test-fixture gap (not a presenter defect), correctly root-caused against a real working sibling
 pattern, correctly fixed within the actual ownership boundary once that boundary was clarified.
+
+## Mystery of tonight's silently-wiped edits SOLVED: WH and CR were independently fixing the same DeckBuilder bug in parallel, stash-pop collision - resolved cleanly, nothing lost (2026-08-26)
+
+**Real explanation, found before it caused actual damage:** `DeckBuilderReleaseGateTests.cs` was
+found sitting on disk with literal unresolved git conflict markers (non-compiling) - a stash named
+`wh-deck-fixture-wip` collided with CR's already-committed `60793d0` on stash-pop. WH had been
+independently diagnosing/fixing the identical DeckBuilder bug in parallel, unaware CR had already
+closed it. This is very likely the same mechanism behind CR's earlier "my edit got wiped" report
+from before `60793d0` landed - the same collision, probably happening in reverse at that point.
+
+**Handled correctly - verified before resolving, not just picked a side:** checked WH's stashed
+content against the committed fix before touching anything - confirmed it was a strict subset (same
+root-cause diagnosis, missing the deck-completeness half CR's version already covers). Kept the
+more complete verified version, resolved the conflict markers, dropped the now-fully-redundant
+stash. Working tree confirmed clean - zero conflict markers remain, matches `60793d0` exactly (empty
+diff, checked directly).
+
+**Real process gap worth naming:** two rooms independently diagnosed and started fixing the exact
+same bug without either knowing the other was on it - not a failure of either room's individual
+work, but a coordination gap (both correctly identified real work, neither had visibility into the
+other's in-flight state). Nothing lost this time because the collision resolved in the more-complete
+direction, but it easily could have gone the other way.
