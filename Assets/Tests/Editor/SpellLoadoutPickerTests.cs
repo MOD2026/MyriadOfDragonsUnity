@@ -265,7 +265,7 @@ namespace MyriadOfDragons.Tests
             identityBtn.onClick.Invoke();
             GameObject avatarCanvas = GameObject.Find("AvatarCanvas");
             Assert.NotNull(avatarCanvas, "Setup: expected Avatar to open.");
-            Button spellBtn = avatarCanvas.transform.Find("Btn_SpellLoadout")?.GetComponent<Button>();
+            Button spellBtn = avatarCanvas.transform.Find("AvatarBody/Btn_SpellLoadout")?.GetComponent<Button>();
             Assert.NotNull(spellBtn, "Setup: expected Avatar's own Spell Loadout button.");
             spellBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
