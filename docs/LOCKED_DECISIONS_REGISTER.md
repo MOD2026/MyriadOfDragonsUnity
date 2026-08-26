@@ -7165,3 +7165,32 @@ larger rects. Cheapest is very likely the multiplier, set inside the two `HomeV3
 Separately confirmed real and unrelated: `DeckBuilderPresenter.cs:463` uses `ApplyNavTileButton`
 (secondary chrome) for CONFIRM/SAVE DECK, the screen's primary CTA - should be
 `ApplyPrimaryActionButton`. One-line fix, AD's one correct finding across both its audits.
+
+## Visual-audit item 3 (overlapping header text) RETIRED - already fixed, third stale audit item caught tonight (2026-08-26, CR)
+
+CR verified before touching anything, both halves, via direct code read:
+- **Formation screen:** `GameBootstrap.cs:148-161` - already fixed 2026-08-25 (same day as the audit
+  itself). Caption sat in an 8.64px sliver that its own 20px text overflowed by 11.36px into the Top
+  HUD band; moved to a dedicated `CaptionY0/CaptionY1` slot (0.197-0.223, 28px headroom). The in-code
+  comment names the exact symptom - "that is what rendered on screen as two text blocks stacked on
+  each other."
+- **Campaign map:** `CampaignMapPresenter.cs:2292-2300` - title/progress-hint/status are three
+  separate `CreateHeaderStackText` calls on geometrically non-overlapping bands (0.62-0.98 /
+  0.34-0.60 / 0.04-0.30).
+
+**Third stale dispatch caught by a room's own verify-first pass tonight** (BackdropImages, DeckBuilder
+assertions, now this). All three were real fixes that landed and whose source notes were never
+updated. The pattern is now established beyond doubt: **this project's written baselines rot faster
+than they're corrected, and a claimed-open bug is not an open bug until re-verified against code.**
+The verify-first instruction is doing real work every single time it's applied.
+
+**Item 4 (orange block on stage-detail popup) stays OPEN, deliberately unfixed.** CR found the detail
+panel itself is correctly dark-token colored (`CampaignMapPresenter.cs:2482-2545`, no orange), and
+the only nearby orange is `CampaignMapUiLibrary`'s Playable-node fallback (0.85, 0.65, 0.2) - whose
+real sprite asset does exist on disk, so that fallback firing would itself be a bug (now
+LogWarning-instrumented by CR's earlier sprite sweep). Critically, CR identified why the obvious fix
+would be WRONG: the modal's dim backdrop is *deliberately* semi-transparent (alpha 0.35) and
+non-raycast-blocking per a documented Campaign input contract ("modal backdrop must never intercept
+clicks") - so copying tonight's Guild Hall opaque-dimmer fix here would break an intentional design.
+Needs the owner to say whether the orange is INSIDE the detail panel or a node bleeding through
+behind it. Correctly refused to guess.
