@@ -7466,3 +7466,25 @@ Fixing (1) alone may resolve most of what the owner is complaining about.
 
 **Also from the owner, unprompted and not yet actioned:** dislikes the Campaign map's top blackout
 band (the solid dark header strip above the map art).
+
+## SAME DEFECT FOUND ON 322 FILES PROJECT-WIDE, 12 are real assets (2026-08-26, CC)
+
+Full-project scan for the exact truncated-`.meta` signature (missing trailing space/newline after
+`assetBundleVariant:`). **322 total, 310 are `.cs.meta`/test `.meta` (script GUIDs, not import
+settings - lower risk, C# compilation doesn't depend on this trailing key the way texture import
+does), 12 are real asset metas.** Fixed 12/12 already: the 8 SharedFoundation sprites (`5724836`)
+plus 4 more just found and fixed - `btn_home_nav_disabled/hover/normal/pressed_v2.png.meta`
+(confirmed byte-identical defect signature before touching), commit follows this entry.
+
+**Dispatched to CR as its next task, after the current SlicedBorderFitTests/rollout verification**:
+audit whether ANY of the 310 script metas cause a real problem (GUID stability for
+serialized/scene references - unlikely in this procedural no-scenes project per CLAUDE.md #7, but
+verify rather than assume), and if genuinely inert, do a single mechanical batch fix appending the
+missing terminator to all 322 for hygiene/to stop the pattern recurring - one clean commit, not
+322 individual ones. If any script GUID risk is found, stop and report before batch-fixing those.
+
+**Real open question, not yet investigated:** why did an entire asset-import batch land with this
+exact defect on 12 files at once? Same tool/export step, same day, same missing trailing newline
+across every one - points to a single import/export pipeline step (art tool export, or the way these
+were dropped into `Resources/`) rather than 12 independent accidents. Worth asking whoever ran that
+import what tool produced these, so it doesn't recur on the next art drop.
