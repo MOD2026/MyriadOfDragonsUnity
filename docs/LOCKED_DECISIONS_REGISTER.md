@@ -5742,3 +5742,14 @@ own file's documented rule is the one producing the symptom.
 
 Both are localized to `CreateStaminaShopCardTile` - the header and gem-pack code were already
 correct. Dispatching to WH as the concrete fix, since it's already mid-flight on this screen.
+
+## Shop text-overlap + empty-box bugs FIXED, verified real (2026-08-26, WH, commit cd29a4f)
+
+Verified via `git show --stat`, matches exactly. Both confirmed root causes closed:
+`CreateStaminaShopCardTile` now uses measured wells (`StaminaIconWell`/`StaminaCopyWell`/
+`StaminaBuyWell`) + `ApplyShellWellHitTarget` - same pattern as the gem-pack tiles - instead of
+center-anchored `CreateTextElement` and `ApplyNavTileButton`. Real stamina icon wired
+(`UI/Icons/icon_stamina`), filling the empty-circle gap too. 16/16 on the real isolated filter (own
+`-ResultsPath`/`-LogPath`, new standing discipline correctly followed). Full continuous suite not
+run yet - lock held by another room, correctly not forced. This closes the specific screenshot bug;
+broader mockup-alignment work is a separate, larger thread below.
