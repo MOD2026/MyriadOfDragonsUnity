@@ -7901,3 +7901,56 @@ button crowding was accretion - nobody decided it deliberately. Routed to BS wit
 a coder-applicable rule (which element types keep framing, which drop to flat/spacing-only) and an
 explicit invitation to push back if ornate framing is genuinely correct for this dark-fantasy genre
 rather than following a general mobile trend.
+
+## LOCKED: final 4 presenter classifications + the ornamental-border reduction rule - IA map now structurally COMPLETE (2026-08-26, BS, verified)
+
+**Owner's touchpoint principle, benchmarked and CONFIRMED:** owner stated "a ui should not have 20
+over touchpoint (selection) for the players. the UI only showcases the essential and not everything."
+Real benchmark run - this is textbook **Hick's Law**: decision time increases logarithmically with
+option count, and standard practice caps main menu items at **~7** before overload, with anything
+beyond that pushed into sub-menus/categories via **progressive disclosure** (show essentials first,
+reveal detail on demand). Home's 22 targets is roughly 3x the accepted ceiling. Owner's instinct was
+correct and is now evidence-backed, not preference. This retroactively validates the whole
+five-destination decision.
+
+**Final four classifications (completes the 25-presenter map):**
+
+| Presenter | Owner | Standalone root? | Primary action |
+|---|---|---|---|
+| `DeckBuilder` | **Collection** | No - Collection sub-screen | Build/validate/save the active battle deck |
+| `SoloCircuit` | **Quests / Events** | Yes - daily-trial surface | Complete today's three Circuit trials |
+| `PermitWeekKey` | **Quests / Events** | No - part of the merged Permit entry | Claim server-authoritative weekly Permit |
+| `GuildHallEntry` | **Quests / Events** | Guild TAB, not a sixth root | Enter guild activities/contribution/members |
+
+`DeckBuilder` stays Collection-owned because it edits persistent owned-card/deck state; Battle may
+deep-link to it when a deck is invalid, but ownership does not move. **No Guild root yet** - Guild
+Hall/Expedition/Competition/future research live under a Guild tab inside Quests/Events until guild
+systems justify their own destination; guild chat stays in the Social drawer.
+
+**LOCKED: ornamental-border reduction rule.** 42 identical gold-framed panels is accretion, not
+hierarchy. Framing stays part of the dark-fantasy identity but becomes a **high-priority signal**,
+not the default container for every rectangle.
+
+**KEEP the full 9-slice frame for:** modal/dialog shells; primary hero tiles / featured event cards;
+card art and card frames; the single primary action on a screen needing strong emphasis; major
+result/reward panels.
+
+**DROP to flat/minimal (spacing, tonal contrast, typography, separators, small accent lines):**
+resource strips and pills; list rows and inbox entries; tab bodies; ordinary content panels;
+secondary buttons; settings rows; chat/friend/mail items; background sections; repeated
+building/stat tiles.
+
+**The coder-applicable rule, verbatim and directly implementable:**
+> `FramedPanel` is allowed only for modal roots, featured/hero content, card art, result/reward
+> surfaces, and the screen's one primary CTA. All repeated rows, tabs, HUD/resource elements, and
+> secondary controls must be borderless unless they are the current selected/focused item.
+
+Additional hard constraints: **max 3 heavy ornamental frames visible at once**; no nested ornate
+frames; selected tabs use an accent underline or glow, never another full frame; a modal may use one
+outer frame but its internal rows stay flat.
+
+**Sequencing decision (CC):** the border reduction is a SEPARATE pass from the Home nav rebuild
+already in flight with CR. CR builds the nav shell against current helpers; the border rule then
+applies project-wide across all 25 screens as its own sweep. Reason: mixing a structural nav rebuild
+with a 42-site visual-system change in one pass makes both harder to verify and impossible to
+attribute if something regresses - exactly the discipline tonight's own multi-fix confusion taught.
