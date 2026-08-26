@@ -741,6 +741,62 @@ geometry bug. **Every subsequent screen takes its baseline BEFORE work starts.**
 TacticalPuzzle overlap, and **Home TopHud resource-pill label/value text overlap** (pre-existing,
 untouched by the rebuild).
 
+## Interaction states - LOCKED 2026-08-27 (9 composable states, one procedural tween)
+
+**Nine states, and they COMPOSE** (selected+pending, locked+new) - do not build a separate art
+system per state. Two we had missed: **Focused** (keyboard/controller/accessibility/desktop) and
+**Error/rejected**, which is distinct from Disabled - the action was attempted and failed.
+
+| State | Scale | Tint/brightness | Opacity | Border | Shadow | Duration |
+|---|---:|---|---:|---|---|---:|
+| Default | 1.00 | base | 100% | tier base | tier base | - |
+| Pressed | 0.96-0.98 | 10% darker | 100% | 10-15% darker | -20% | 60-80ms |
+| Disabled | 1.00 | 45-60% bright | 45-60% | 50% contrast | none | 100ms |
+| Focused | 1.00 | +8% | 100% | +1px accent line/glow | +10% | 100ms |
+| Selected | 1.00 | +10% | 100% | accent underline/glow, NO box | base | 120ms |
+| Pending | 1.00 | base or -5% | 80-90% | base | base | immediate, pulse 800ms |
+| Locked | 1.00 | 60-70% | 65-75% | Tier-3 equivalent | reduced | 100ms |
+| New | 1.00 | +10% | 100% | accent marker/badge | base | one 600ms reveal |
+| Error | 1.00 | -10% red-shift then restore | 100% | 1-2 flashes | base | 120-180ms |
+
+**MUST NOT change between states:** hit rectangle and layout position; label text, size, line-height;
+core hue identity; frame-tier classification; accessibility name and navigation order. **A disabled
+control must never animate as if it accepted input.** A pressed state is feedback, not a layout
+reflow.
+
+**TIMING (mobile):** visual acknowledgement must BEGIN within **100ms**, target 50-70ms. Pressed
+state fires on **touch-DOWN**. Action commits on **touch-UP only if the pointer is still inside the
+hit rect**. Drag outside -> cancel pressed state, do NOT activate. Re-enter before release -> restore
+pressed, allow activation. Pending begins immediately after accepted touch-up when the action may
+exceed ~150ms.
+
+**DISABLED vs LOCKED vs HIDDEN - decision rule, not examples:** *Disabled* = relevant in context but
+temporarily unavailable, with the reason explained nearby. *Locked-with-reason* = part of expected
+progression, and showing it teaches the unlock condition. *Hidden* = not relevant, no valid path, or
+showing it would imply a promise the game cannot keep. **Never show a disabled control merely to
+occupy space** - this extends the empty-state ban on disabled buttons.
+
+**FEEDBACK BY TIER - one language, varying amplitude:** Tier1 scale 0.96, 10-15% darken, brief inner-
+glow compression, 80ms. Tier2 0.97, 8-10%, 70ms. Tier3 0.98, 5-8% or accent-line brightening, 60ms.
+Tier4 no visible scaling on small icons - 5-8% tint, 1px accent, or a 60ms highlight. All states must
+read as the same system.
+
+**AUDIO/HAPTICS:** sound on Tier-1 CTAs, nav commits, confirmations, claims, irreversible actions;
+Tier-2 only on committed activation, never focus movement; Tier 3/4 optional quiet tick, avoid spam;
+distinct low-volume negative cue on error; **no repeated click during pending**. Haptics: light
+impact 10-20ms on primary actions/confirmations, stronger only for irreversible ones, **never
+continuous during pending**, and a global haptics toggle is required.
+
+**PROCEDURAL IMPLEMENTATION - no Animator Controller needed.** One reusable tween layer over
+RectTransform scale, Graphic color/alpha, border/glow color, optional shadow strength, and
+CanvasGroup for disabled/pending opacity. One state machine + one short interpolation routine per
+control. **Activation must be IDEMPOTENT so a fast double-tap cannot duplicate an action.** Keep all
+transitions under 120ms except the one-shot New reveal.
+
+**Benchmark: UNCONFIRMED numeric values across all 5 games** (Clash Royale, Marvel Snap, Hearthstone,
+Arknights, Royal Match) - no shipped title publishes pixel, timing or haptic constants. Tactile
+feedback is observably present in all; the values above are ours.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
