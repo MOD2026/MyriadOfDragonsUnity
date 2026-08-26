@@ -6067,3 +6067,24 @@ Avatar independently is a likely latent bug in Home/Shop/DeckBuilder/CampaignMap
 exposed because those panels haven't received real bordered art. Worth checking specifically the
 moment any of those four screens gets migrated - don't wait for the owner to report it as a new
 surprise.
+
+## DeckBuilder thread CLOSED - real fix landed and verified (2026-08-26, CR, commit 60793d0)
+
+Verified via `git show --stat`, matches exactly. Correct ownership read: `DeckBuilderReleaseGateTests.cs`
+is a test file, not the frozen/Metagame-owned `DeckBuilderPresenter.cs` production file - legitimately
+CR's to fix directly, not just diagnose. Added the missing `[SetUp]`/`[TearDown]` (SaveSystem
+isolation, real `CardDatabase.AllCards` ownership), mirroring the already-working sibling test
+exactly as proposed earlier. **Real second failure surfaced on the first attempt and got fixed too:**
+ownership alone wasn't enough - `CanConfirmDeck()` also requires a complete deck sized to
+`profile.Empire.DeckSlotCount`, which showed up as `Btn_Confirm` non-interactable. Both fixed,
+16/16 pass, HEAD f0f7191 unchanged both ends, verified on a second pinned run.
+
+**Real coordination risk worth flagging, not urgent:** CR's first attempt at this fix was silently
+wiped from the working tree by a concurrent git operation elsewhere on the shared machine -
+`git status` showed clean/matching-HEAD on a file CR had just edited and never committed. Recovered
+by re-applying and committing immediately. Possible explanation for any other "my edit vanished"
+reports tonight if they recur - not diagnosing further, just noting the pattern exists.
+
+This closes a bug that has been sitting unattributed since early tonight - correctly diagnosed as a
+test-fixture gap (not a presenter defect), correctly root-caused against a real working sibling
+pattern, correctly fixed within the actual ownership boundary once that boundary was clarified.
