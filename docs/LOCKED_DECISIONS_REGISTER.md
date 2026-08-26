@@ -6246,3 +6246,17 @@ verified 16/16 passing. AD traced the same gate from the presenter side without 
 already landed - accurate, but nothing new to dispatch. Noting for the record that AD's discipline
 clearly improved between passes (scoped to available evidence vs. fabricated citations last time) -
 worth remembering that inconsistency is possible pass-to-pass, still verify every time.
+
+## VS status: correctly blocked on a real held lock, self-directed to a valuable verification while it waits (2026-08-26)
+
+Lock genuinely held (pid 48148, checked liveness not just file presence - the exact distinction its
+own monitor exists for, a dead holder would otherwise mean waiting forever). Nothing blocked on a
+decision except the starter-roster band test, already correctly held for BS's ruling.
+
+**Real self-directed task while queued:** measuring whether `CLAUDE.md`'s own claim - "6 flaky
+`Chapter*FullDepth` unlock tests, the failing stage moves every run" - is actually true, same filter
+across 3 pinned runs (HEAD `9f4b30a`), comparing actual failing test names rather than just counts.
+This is a real standing assumption every room has been citing all night to wave through those 6
+failures without anyone having verified it - exactly the same rigor VS applied to its own three
+self-corrections tonight, now pointed at an inherited claim instead of its own work. Good use of
+blocked time, not busywork.
