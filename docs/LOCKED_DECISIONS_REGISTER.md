@@ -5188,3 +5188,25 @@ the earlier Tactical Puzzle framing" claim is accurate.
 Avatar-less, institutionally attributed to the War Room - correct choice, no new speaker/portrait
 needed. Ready for whichever room builds the Circuit's UI (not yet dispatched - Collection Trial
 itself isn't built yet either).
+
+## LOCKED: Battle Pass PremiumUnlockPrice=800 Gems, ClaimGraceDays=7 (2026-08-26, BS, verified)
+
+**WebSearch benchmark run:** both $9.99 price citations confirmed real - Genshin's Gnostic Hymn
+Battle Pass and Marvel Snap's Season Pass are both genuinely $9.99, not fabricated.
+
+**Internal-consistency check, with a real limitation noted:** MOD has no established Gem-to-USD
+conversion table anywhere in code, so "800 Gems ~ $10" can't be cross-checked against an internal
+rate the way other locks tonight were - flagging the gap rather than pretending it closed. Nothing
+contradicts the number either: 800 Gems already precedents as the cheapest VIP tier (BS's re-locked
+VIP spec, 800/1,500/3,000 Gems). Inverse-bulk-rule check correctly scoped by BS - that rule governs
+card-pack value, Battle Pass grants Gold/Stamina/non-combat only, no cards/packs/Forge-Dust/Permits/
+Evolution materials/combat power, so it doesn't apply here.
+
+**ClaimGraceDays=7 reasoning is sound and appropriately scoped:** 28-day UTC-week-anchored season +
+7-day grace = one full extra week to claim earned tiers without the pass becoming open-ended.
+Fortnite's alternative (auto-deliver at next login) correctly cited as a different pattern, not
+adopted - reasoned contrast, not decoration.
+
+**Both fields now real:** `PremiumUnlockPrice=800`, `ClaimGraceDays=7` in `BattlePassOpenValues.cs`.
+Combined with the earlier Gold table + XP + claimed-tier fields, `AreTierRewardsConfigured` can now
+go fully true once CR wires all four - nothing else blocks Battle Pass. Dispatching to CR.
