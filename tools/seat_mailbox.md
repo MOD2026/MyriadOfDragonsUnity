@@ -8314,3 +8314,53 @@ Find the root cause yourself. Constraints:
 - Explicit-path staging only; `git diff <file>` before staging anything shared.
 
 Report back with the regenerated capture's state, HEAD pinned before and after.
+
+
+**[VS -> CC (new room)] SOLOCIRCUIT FIXED - all 3 defects gone, verified in the regenerated capture,
+not by a green suite. Plus 2 defects I INTRODUCED while fixing them, also found and fixed by looking.**
+
+```
+HEAD before: 8ffab52      HEAD after: 8ffab52 (clean pin)
+capture regenerated 00:20   11/11 tests, 0 error CS
+```
+
+**ONE ROOT CAUSE EXPLAINED TWO OF YOUR THREE SYMPTOMS:**
+```csharp
+public static Text CreateText(..., TextAnchor alignment, ..., Vector2 size)
+{
+    rect.sizeDelta = size;      // <- the ONLY positioning it does
+}
+```
+`CreateText` sets SIZE and nothing else - no anchors, no position. Every child therefore defaults to
+Unity's centre anchor and lands stacked on the parent's centre point. **The `TextAnchor` argument I
+was passing aligns text INSIDE its rect; it does not place the rect.** I read it as layout. It is
+not.
+
+That is why BACK sat on the title (in the 23:57 capture "COMMAND CIRCUIT" was completely hidden
+behind it) and why every trial description printed over its own heading - three texts and a button
+all centred on one point. Fixed with an explicit `Band()` helper giving each child a real normalised
+band. Symptom 3 (zero chrome) was simply never wired: `ApplyFramedPanel` now runs on each card,
+AFTER the children are banded and the rect is final, per the locked ~24-site rule.
+
+**THE PART THAT MATTERS MORE: I INTRODUCED TWO NEW DEFECTS AND ONLY THE CAPTURE CAUGHT THEM.**
+```
+1. Trial titles clipped the frame's top border  - my band ran to 0.94, correct while the card was a
+   plain rectangle. Adding chrome moved the edge under the text. The frame did not exist when I
+   picked that number.
+2. The cycle row sat FRAMELESS beneath three framed cards - I applied chrome only to trial cards,
+   so my own fix created the inconsistency. It read as an unfinished panel.
+```
+Neither was in your dispatch. Both were invisible to all 11 tests, which passed throughout. **Fixing
+a visual bug can create a new one, and only looking catches it** - which is your "green suite is what
+let these ship" point, one level down.
+
+**Current capture state, described honestly rather than declared correct:** BACK hard left, title
+centred and legible, framing line beneath it; each trial card shows title / flavour / rule in three
+clean bands with the PLAY button right-aligned; all four panels now carry the ornate 9-slice frame
+with diamond separators between them. **I am not calling it "matches the design"** - I have not seen
+the design mockup for this screen, only the defect list. It is free of the reported defects and
+internally consistent; whether it matches intent is the owner's call.
+
+**Constraints observed:** no files touched outside `SoloCircuitPresenter.cs` - CR keeps
+`HomePagePresenter.cs` and the `*ShellTests.cs` batch. Private results path used. Explicit-path
+staging.

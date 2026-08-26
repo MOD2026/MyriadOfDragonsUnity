@@ -100,22 +100,50 @@ namespace MyriadOfDragons.UI
             RectTransform header = UISharedFoundation.CreateHeaderShell(
                 _canvasObj.transform, "SoloCircuitHeader", 140f, null, UIFrozenTokens.ColorHeader);
 
-            UISharedFoundation.CreateText(
+            // EVERY CHILD BELOW IS EXPLICITLY BANDED, and that is the whole fix for this screen.
+            //
+            // UISharedFoundation.CreateText sets ONLY sizeDelta - it never touches
+            // anchorMin/anchorMax/anchoredPosition. So every child defaults to Unity's centre
+            // anchor and lands stacked on the parent's centre point. The TextAnchor argument I was
+            // passing (UpperLeft/MiddleLeft/...) aligns text INSIDE its own rect; it does not
+            // position the rect. I read it as layout and it is not, which is why the BACK button
+            // sat on top of the title and every trial's description printed over its own heading.
+            Text title = UISharedFoundation.CreateText(
                 header, "Title", "COMMAND CIRCUIT", UITextRole.Title, TextAnchor.MiddleCenter,
-                UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 60f));
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 46f));
+            Band(title.rectTransform, 0.22f, 0.52f, 0.78f, 0.94f);
 
             // ST's locked framing (2026-08-26). Institutionally attributed to the War Room -
             // deliberately avatar-less, so no new speaker or portrait is needed.
-            UISharedFoundation.CreateText(
+            Text framing = UISharedFoundation.CreateText(
                 header, "Framing",
                 "The Empire's War Room sets three daily trials to sharpen formation, judgement, "
                 + "and command of the available ranks.",
                 UITextRole.Caption, TextAnchor.MiddleCenter,
-                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1500f, 40f));
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1500f, 34f));
+            Band(framing.rectTransform, 0.14f, 0.10f, 0.86f, 0.46f);
 
-            UISharedFoundation.CreateButton(
+            // BACK is pinned hard left so it cannot cover the title, which is exactly what it did.
+            Button back = UISharedFoundation.CreateButton(
                 header, "Btn_Back", "BACK", new Vector2(180f, 70f),
                 UIFrozenTokens.ColorPanel, Close, null, true);
+            Band(back.GetComponent<RectTransform>(), 0.01f, 0.24f, 0.13f, 0.80f);
+        }
+
+        /// <summary>
+        /// Anchors a child to an explicit normalised band of its parent.
+        ///
+        /// Exists because CreateText/CreateButton size their rects but never place them - without
+        /// this every child of a panel occupies the same centre point and silently overlaps. A
+        /// green suite cannot see that; the contact sheet showed it immediately.
+        /// </summary>
+        private static void Band(RectTransform rect, float minX, float minY, float maxX, float maxY)
+        {
+            if (rect == null) return;
+            rect.anchorMin = new Vector2(minX, minY);
+            rect.anchorMax = new Vector2(maxX, maxY);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private void BuildTrialRows()
@@ -150,25 +178,46 @@ namespace MyriadOfDragons.UI
             RectTransform card = UISharedFoundation.CreateCardPrimitive(
                 parent, "Trial_" + trial, new Vector2(1400f, 180f), UIFrozenTokens.ColorPanel);
 
-            UISharedFoundation.CreateText(
+            // Three stacked bands rather than three TextAnchor values. See BuildHeader: the anchor
+            // argument aligns text within its rect and does NOT place the rect, so all three of
+            // these previously rendered on top of one another at the card's centre.
+            Text title = UISharedFoundation.CreateText(
                 card, "Label", label, UITextRole.Title, TextAnchor.UpperLeft,
-                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1300f, 44f));
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 40f));
+            // 0.88 not 0.94: once ApplyFramedPanel gave these cards a real 9-slice
+            // border, the title band ran under the frame's top edge and the text clipped
+            // it. The frame did not exist when I first picked these numbers.
+            Band(title.rectTransform, 0.05f, 0.60f, 0.62f, 0.88f);
 
-            UISharedFoundation.CreateText(
-                card, "Flavour", flavour, UITextRole.Caption, TextAnchor.MiddleLeft,
-                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1300f, 36f));
+            Text flavourText = UISharedFoundation.CreateText(
+                card, "Flavour", flavour, UITextRole.Caption, TextAnchor.UpperLeft,
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 32f));
+            Band(flavourText.rectTransform, 0.05f, 0.34f, 0.62f, 0.58f);
 
             // The RULE stays separate from the flavour line and is generated from the same
             // deterministic seed that scores the trial - copy must never drift from what is
             // actually being judged.
-            UISharedFoundation.CreateText(
-                card, "Status", DescribeTrial(trial), UITextRole.Body, TextAnchor.LowerLeft,
-                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1300f, 60f));
+            Text status = UISharedFoundation.CreateText(
+                card, "Status", DescribeTrial(trial), UITextRole.Body, TextAnchor.UpperLeft,
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 36f));
+            Band(status.rectTransform, 0.05f, 0.10f, 0.62f, 0.32f);
 
-            UISharedFoundation.CreateButton(
+            Button play = UISharedFoundation.CreateButton(
                 card, "Btn_Play", IsCleared(trial) ? "CLEARED" : "PLAY", new Vector2(220f, 72f),
                 IsCleared(trial) ? UIFrozenTokens.ColorHeader : UIFrozenTokens.ColorAccentEmerald,
                 () => AttemptTrial(trial), null, true);
+            Band(play.GetComponent<RectTransform>(), 0.68f, 0.28f, 0.94f, 0.72f);
+
+            // Chrome applied AFTER the card's children are banded and its own rect is final -
+            // ApplyFramedPanel fits the 9-slice border against the CURRENT rect, so calling it
+            // earlier measures Unity's default 100x100 and shrinks the border (locked rule across
+            // ~24 call sites; the helper now warns when it detects exactly that).
+            Image cardImage = card.GetComponent<Image>();
+            if (cardImage != null)
+            {
+                UISharedFoundation.ApplyFramedPanel(
+                    cardImage, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorPanel);
+            }
         }
 
         private void BuildCycleRow(Transform parent)
@@ -195,6 +244,17 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.CreateText(
                 card, "CycleText", text, UITextRole.Body, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(1340f, 100f));
+
+            // Chrome to match the trial cards. Added after the text is placed, for the same
+            // border-fit reason - and added at all because the capture showed this row sitting
+            // frameless directly beneath three framed ones, which read as an unfinished panel
+            // rather than a deliberate summary line. My own change created that inconsistency.
+            Image cycleImage = card.GetComponent<Image>();
+            if (cycleImage != null)
+            {
+                UISharedFoundation.ApplyFramedPanel(
+                    cycleImage, null, UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorHeader);
+            }
         }
 
         private bool IsCleared(SoloCircuitTrial trial) =>
