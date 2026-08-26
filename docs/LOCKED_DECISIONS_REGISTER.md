@@ -689,6 +689,58 @@ Immortal, Raid Shadow Legends, Arknights, Marvel Snap) - no shipped title publis
 Observable shared pattern: dark framing plus LOCALISED panels/overlays and high-contrast labels over
 textured art - which is exactly the local-scrim approach locked above.
 
+## HOME IA REBUILD - SHIPPED AND GATE-VERIFIED 2026-08-27 (HEAD 5660dd0)
+
+**First screen to pass the full UI Verification Gate.** CR reported HEAD before (b8fdb92) and after
+(5660dd0), real numbers across 3 consecutive full runs, and personally opened the PNGs.
+
+**Suite:** 1792/1803 (pre-fix) -> **1799/1803 final, 1 failure, ZERO Home findings** across two
+independent runs. That 1 failure's 3 findings are all Shop + TacticalPuzzle (order-dependent, both
+out of scope, both spawned as separate tasks). A one-off `Chapter2CampaignContentTests` failure
+passed 11/11 in isolation - **pollution, not a regression** (the isolation-run-first rule paying off
+again).
+
+**THE OWNER'S "I CAN'T FIND THE MAP" IS CLOSED.** Root cause was the CAMPAIGN feed card's primary CTA
+calling `OnToBattleClicked` directly, skipping `CampaignMapPresenter` entirely - so tapping the
+obvious button jumped straight into a match and the map was only reachable via the small BATTLE
+destination. Now routed through `OpenStoryCampaign`. **CR opened CampaignMap.png personally** and
+confirmed it renders real art (castle, dragon, winding stage path, locked/unlocked nodes, header,
+working Back) and is one tap from Home. Wired call site AND rendered screen both verified - the
+distinction this gate exists to enforce.
+
+**Three real bugs fixed in Home's own new code:**
+1. `c530510` - HomeFeed Content is vertically stretch-anchored, so `sizeDelta.y` is an ADDITIVE delta
+   on the stretched height, not absolute. Set to literal viewport height, it made every feed card
+   786px too tall (measured `content.rect.height=1834 = 1048 + 786`, exact). Found by dumping real
+   RectTransform geometry, not by reading code.
+2. `c530510` - `OpenSocialDrawer`/`CloseSocialDrawer` never hid/restored the Home canvas, unlike every
+   other destination.
+3. `5476ea0` - feed cards are HorizontalLayoutGroup children, so `ApplyFramedPanel` ran against
+   Unity's stale 100x100 default rect at build time (same apply-before-position class as the earlier
+   EmpirePresenter fix). Fixed by pre-setting sizeDelta before the chrome call.
+
+**Counts (diagnostic only):** validator interactiveCount = 14 total; **9 Home-button-equivalents
+excluding the 5 nav roots**; visible-at-once lower still, since only one feed card is in the mask at
+a time. Down from 22.
+
+**Attention hierarchy (the actual gate):** ONE primary CTA visible (the current feed card's action).
+Zero equal-prominence secondaries on WELCOME/CAMPAIGN/EMPIRE; one subordinate on WEEKLY PERMIT - well
+under the <=3 cap. TopHud and DestinationBar confirmed non-competing.
+
+**Frame-tier read:** feed card = the one Tier-1 Hero in viewport (satisfies max-1); its nested
+PrimaryAction reads Tier-2 - **legitimate semantic nesting** (card = surface, button = action).
+DestinationBar, Social/Settings, resource pills, identity plate all Tier 3/4. **Home needs no
+border-pass changes as built** - to be re-confirmed when the pass runs across all screens together.
+
+**ACCEPTED GAP, recorded honestly:** no true pre-rebuild before/after capture exists - the baseline
+was never taken before the rebuild began (a process failure from the previous room, not CR's). Only
+the register's record of the prior 22-tile static grid, plus a real within-cycle before/after on the
+geometry bug. **Every subsequent screen takes its baseline BEFORE work starts.**
+
+**Three out-of-scope defects spawned rather than silently fixed:** Shop text truncation,
+TacticalPuzzle overlap, and **Home TopHud resource-pill label/value text overlap** (pre-existing,
+untouched by the rebuild).
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
