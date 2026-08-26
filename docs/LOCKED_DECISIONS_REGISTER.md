@@ -6110,3 +6110,24 @@ same bug without either knowing the other was on it - not a failure of either ro
 work, but a coordination gap (both correctly identified real work, neither had visibility into the
 other's in-flight state). Nothing lost this time because the collision resolved in the more-complete
 direction, but it easily could have gone the other way.
+
+## Full-suite baseline attempt: honest non-result, but the Shop hang is now a real escalation-worthy pattern (2026-08-26)
+
+**Real, undramatized report from CR:** the unfiltered continuous suite stalled and was killed
+(exit 124) before writing any `results.xml` - correctly reported as "cannot give a pass/fail
+number" rather than substituting a filtered figure and calling it the baseline. What IS real: 0
+`error CS` across the entire 754K-line log - the whole project compiles cleanly right now, genuine
+signal even without a pass count.
+
+**Stall point: `ShopPresenter.cs:829` - this is the THIRD distinct observed stall point in/near this
+file tonight** (previously: line 776, and the original `ShopV1ChromeTests` hang). Three independent
+stalls in the same file, at different points, across different rooms' runs is real evidence of a
+systemic issue in `ShopPresenter.cs` specifically, not one-off flakiness - CR's own escalation
+judgment here is sound, not overclaiming.
+
+**Escalating: dispatching WH to investigate the hang itself, not just work around it.** WH already
+has the deepest context on this file tonight (the stamina-tile fix, the cd29a4f/b5d82ec chain). A
+hang (not a crash, not a red test) in EditMode usually means an infinite loop, a blocking
+synchronous call, or a deadlock somewhere in initialization/construction - worth a focused look now
+that it's a 3x-repeated pattern rather than continuing to route around it with filtered runs
+indefinitely.
