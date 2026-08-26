@@ -6141,3 +6141,37 @@ the Shop hang is already dispatched to WH - putting CR on the same hang risks a 
 parallel-collision just cleaned up on DeckBuilder. Correctly not manufacturing scope. Standing down
 until the boundary resolves or something new surfaces - this is the legitimate "nothing
 dispatchable" case the standing order already accounts for, not a room going idle by default.
+
+## REJECTED, WHOLESALE: AD (Copilot) fabricated an entire DeckBuilder root-cause analysis against a file it never actually saw (2026-08-26)
+
+**Real bug this thread was already about (verified, closed, real fix landed in `60793d0` hours
+ago):** `DeckBuilderReleaseGateTests.cs` had no `[SetUp]` establishing profile/save state at all -
+CR proved this against a real working sibling test (`DeckBuilderCollectionOwnershipTests.cs`), fixed
+it, 16/16 pass. That thread is genuinely closed.
+
+**AD's report claims a totally different root cause - a "profile source divergence" between
+`SaveManager.SaveData` and `SaveSystem.CurrentProfile` - and it is fabricated, not just wrong.**
+Checked directly:
+- The report cites specific line numbers throughout `DeckBuilderPresenter.cs` in the 5400s-6100s
+  range (`Initialize()` at 5419-5433, `LoadProfileState()` at 5453-5470, etc.). **The real file is
+  960 lines total.** None of those line numbers exist.
+- The report claims `profile = SaveManager.SaveData` appears at lines 5419-5433. **It appears once,
+  at line 116.**
+- The theorized mechanism is structurally impossible, not merely unverified:
+  `SaveManager.SaveData` is a one-line facade that directly returns `SaveSystem.CurrentProfile`
+  (`SaveManager.cs:16` - `public static PlayerProfile SaveData => SaveSystem.CurrentProfile;`).
+  **They are the same value by definition.** There is no divergence for two other presenters
+  "migrating" to fix - AD's supporting citations (Empire Expedition/Battle Pass allegedly using
+  `SaveSystem.CurrentProfile ?? SaveManager.SaveData`) may also be fabricated in the same way;
+  not independently re-checked given the base claim is already disproven.
+- AD's own closing paragraph admits it: "if your goal is the exact line-by-line proof... I still
+  need the actual contents of DeckBuilderPresenter.cs. In Batch 2 I only had the file reference,
+  not the source body." Everything above that sentence - the 7-phase audit, the exact line
+  citations, the ASCII hierarchy diagram, the geometry math - was produced without having read the
+  file it was analyzing.
+
+**Nothing from this report is being locked, dispatched, or acted on.** The real fix stands as
+already landed (`60793d0`). This is the exact failure mode the standing verification discipline
+exists to catch - a confident, detailed, well-formatted report is not evidence of a correct one.
+AD is not exempt from verification just because its earlier Shop/Home findings were real and
+checked out - every finding gets checked, every time, this session included.
