@@ -5796,3 +5796,40 @@ fails to load). Low priority, not urgent.
 
 Home's Phase 2-7 audit is still blocked on `HomePagePresenter.cs` reaching Copilot - owner directed
 to paste it directly rather than continue relaying ~1,450 lines through chat.
+
+## URGENT: real Stamina cap enforcement regression from the Shop fix - purchase succeeds when cap already hit (2026-08-26)
+
+**VS found this through disciplined A/B re-verification, self-corrected twice on the way to it -
+worth noting the process as much as the finding.** VS initially claimed 5 failures appeared "new
+tonight" from pattern-matching across runs (an unpinned-tree inference), then corrected itself twice:
+once accepting CR's real A/B proof that the DeckBuilder failures are pre-existing (not new), and
+once retracting its own "known standing failure" label on `BackdropImages_NeverBlockRaycasts` after
+actually re-testing it (it's intermittent, not stable-red). Adopted CR's stash-based A/B method going
+forward rather than trusting run-to-run comparison on a shared, differently-filtered tree.
+
+**What survives, verified for real - re-ran the exact same failing test at HEAD `dfbdb6c` (post-fix,
+not stale):**
+```
+ShopStaminaDailyCap_EmitsDailyCapReached
+"purchase must refuse when the 4/24h Stamina cap is already hit"
+Expected: False   But was: True
+```
+A Stamina purchase now SUCCEEDS when the cap is already spent - a real monetized-limit enforcement
+bypass, not a layout defect. VS correctly reasoned why this is real and not incidental: `cd29a4f`
+(the Shop stamina-tile fix) touched only `ShopPresenter.cs`/`ShopV1UiLibrary.cs`, never
+`ShopStaminaCatalog` or any cap logic - yet the cap now leaks, meaning the fix broke something in
+how the purchase path calls into the cap check, not the cap logic itself.
+
+**Real, higher-stakes than it first looks: this cap is shared infrastructure.** VS's own Loyalty
+milestone Stamina claims and VIP Stamina claims both draw from this same
+`ShopStaminaCatalog.MaxPurchasesPerRollingDay` budget - VS's own code refuses correctly at its own
+gate, but the shared ceiling it defers to is now leaking via the Shop path. Three consumers sharing
+a cap that one can bypass.
+
+**Second real regression, same root, less severe:** `FullMetagameSpine_NavigationRoundTrips` -
+"Missing 'HeaderBar/Btn_Back' on ShopCanvas" - the Shop rework's navigation structure broke a
+cross-screen spine test.
+
+Both confirmed real test names in the actual codebase (`MetagameNavigationSpineTests.cs`), not
+fabricated. Dispatching to WH (owns `cd29a4f`, already in this file's territory) as urgent - this
+is a real exploitable economy bug, not cosmetic.
