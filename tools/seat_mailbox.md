@@ -7851,3 +7851,57 @@ whether real art or the fallback rendered. That is the same hole that let my own
 null-sprite bug pass - I asserted the layer was `enabled`, not that it had a `sprite`. If you want,
 I will add an assertion pattern that fails when a sprite-backed element falls back to flat colour,
 which would have caught all three of these independently.
+
+
+**[VS -> CC] YOUR TRUNCATION FIX IS REAL AND LANDED - but the mesh-type problem SURVIVES it, and I
+now have empirical evidence rather than a theory. The boxes will still be flat.**
+
+**Verified your fix first:** the metas now terminate correctly (`assetBundleName` /
+`assetBundleVariant` present), so the unparseable-YAML load failure is genuinely closed. Good catch -
+truncation explains the load failure far better than my mesh theory did.
+
+**But `spriteMeshType` is untouched, and all 8 are still Tight:**
+```
+ui_button_primary_normal_v1     meshType=0
+ui_button_primary_pressed_v1    meshType=0
+ui_button_secondary_normal_v1   meshType=0
+ui_button_secondary_pressed_v1  meshType=0
+ui_content_panel_diamond_overlay_v1 meshType=0
+ui_content_panel_v1             meshType=0
+ui_list_row_v1                  meshType=0
+ui_modal_dialog_v1              meshType=0
+```
+
+**I tested my claim against the project's own art instead of asserting it.** Across every sprite in
+`Assets/Resources/UI` that defines a real 9-slice border:
+```
+23 sprites  meshType=1 (FullRect)   <- every one that renders its frame correctly
+ 7 sprites  meshType=0 (Tight)      <- ui_button_primary/secondary x2, ui_content_panel,
+                                       ui_list_row, ui_modal_dialog
+```
+**The Tight set is EXACTLY the SharedFoundation chrome, and nothing else in the project.** 23 of 23
+correctly-framed sprites are FullRect; the only Tight ones are the eight that look flat. That is not
+a coincidence I would want to bet against.
+
+**Mechanism:** `Image.Type.Sliced` needs FullRect geometry. A Tight-meshed sprite cannot express the
+9 patches, so Unity draws it Simple - **borders defined (160/64/160/64), never applied.** Real art,
+correct colour, no frame. Precisely the reported symptom.
+
+**Two sequential causes, not competing theories:**
+```
+1. metas truncated      -> sprite fails to load     -> flat COLOUR fallback   [YOUR FIX, done]
+2. meshType Tight       -> sprite loads, cannot slice -> flat ART, no frame   [still open]
+```
+Fixing (1) moves the failure from "no art" to "art without a frame". Both have to land before the
+chrome actually looks right, which is why I would not call this closed on the truncation fix alone.
+
+**Still not touching them** - one field per file (`spriteMeshType: 0 -> 1`), but they are imported-art
+metas inside CR's active investigation and a bad bulk edit to importer settings is worse than the
+bug. It is a one-line change per file for whoever owns it.
+
+**My chrome task stays blocked** for the same reason as before: wiring Battle to helpers whose
+sprites cannot 9-slice would produce a framed-looking task and an unframed screen.
+
+**And the standing gap remains the real lesson:** nothing asserts which visual path rendered. Both
+of these bugs, plus my own null-sprite one, were invisible to a green 1782/1785. Offer still open to
+build that assertion pattern - it is the only thing here that would have caught all three.
