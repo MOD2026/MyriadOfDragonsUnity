@@ -7488,3 +7488,13 @@ exact defect on 12 files at once? Same tool/export step, same day, same missing 
 across every one - points to a single import/export pipeline step (art tool export, or the way these
 were dropped into `Resources/`) rather than 12 independent accidents. Worth asking whoever ran that
 import what tool produced these, so it doesn't recur on the next art drop.
+
+## Campaign map top blackout band - real cause found, dispatched to WH (2026-08-26)
+
+`CampaignMapPresenter.cs:2253` - the header is a 100px-tall, full-width bar filled with
+`UIFrozenTokens.ColorHeader` (`0.045, 0.05, 0.075`) at **0.92 alpha**, near-opaque, covering the
+gorgeous map art directly beneath it. That's the "blackout" the owner flagged - not a bug, a
+deliberate-looking but too-heavy fill nobody revisited once real map art existed behind it.
+
+Dispatched to WH (paste-ready) rather than VS/CR - contained to one file neither is currently in,
+concrete fix, no design ambiguity requiring a BS ask.
