@@ -35,6 +35,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-26 | **No coding room may sit idle.** At the start of every turn, after the STANDING ORDERS/PENDING DISPATCH check, verify VS/CR/WH each have a live task in flight; if any room's queue is empty, dispatch its next real item from PENDING/backlog immediately, in the same turn. Plan ahead across rooms to avoid two rooms editing the same file/system at once (check "You own"/"You must NOT edit" split and PENDING DISPATCH rows before assigning). Pre-clear any BS/ST/UI design or art dependency EARLY, before a room actually blocks on it, not reactively after the room reports blocked. | Standing rule, does not lift |
 | 2026-08-26 | **No room runs `git add -A` (or equivalent blanket-stage) on this shared tree - explicit paths only.** VS caught it real: an uncommitted `highestClaimedLoyaltyMilestone` field edit got silently swept into `dad3f05`, a commit message that had nothing to do with it, almost certainly via a blanket `git add`. Nothing was lost this time, but it could just as easily ship a half-finished edit under someone else's message or silently revert one. Applies to every room, including CC's own commits to this file. **Refinement (same day, recurred at file granularity even with explicit-path staging):** `git add <file>` on a file another room ALSO has pending changes in still sweeps in their content under your commit message (happened again on `SoloCircuitPresenter.cs`, dc4a955 - real content, correct reasoning, wrong attribution). Run `git diff <file>` before staging any file more than one room is likely touching, not just trust "I only meant to touch one line." | Standing rule, does not lift |
 | 2026-08-26 | **Owner questions must be fully vetted and locked BEFORE being asked.** No decision goes to the owner until CC has already run the full verification (code-consistency check, benchmark where applicable, peer confirmation of the concrete blocker) and the question is reduced to a clean, self-contained yes/no or pick-one with the vetting shown. Never ask the owner something still being gathered, hedged, or answerable by CC/a room directly. Complements the existing decisiveness rule - this is specifically about the QUALITY BAR of what does reach the owner. **Extension (owner, same day): a frozen-file field ask that HAS passed the full vetting bar (BS-locked design where applicable, real-code consistency check, mirrors an already-approved pattern, peer-confirmed concrete blocker) is an automatic YES - CC states the sign-off with the vetting shown and proceeds in the same turn, rather than waiting on the owner. Anything falling short of that full bar still goes to the owner explicitly.** | Standing rule, does not lift |
+| 2026-08-26 | **No compile-broken work-in-progress left sitting directly in `Assets/` (especially `Assets/Tests/Editor/`) in this shared tree.** Real global outage tonight: an untracked file with 18 `error CS` blocked every room's compile simultaneously, and because it was untracked, `git log`/`git blame` had nothing - nobody could identify the author while it was live (VS correctly refused to touch/delete/stub it, flagged instead, and it self-resolved once its real author finished). Commit early/often even as visibly red WIP (a failing TEST still lets everyone else compile and run around it) rather than leaving a non-compiling file loose in a shared, actively-compiled folder. | Standing rule, does not lift |
 | 2026-08-26 | **Memory-failure disclosure.** If CC's own private memory system (`~/.claude/projects/.../memory/`) appears to be failing, unavailable, or inconsistent, tell the owner immediately - it is explicitly not the system of record for project state (that is this file + seat_mailbox.md), but a failure is still worth flagging. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -5454,3 +5455,28 @@ Authority Memory doc exactly: chamfered corners, bronze trim (not bright gold), 
 green edge energy, navy secondary, calm stretch zones.
 
 **This is the real unblock CR was waiting on.** Dispatching import + wire-in now.
+
+## Real global outage: untracked file broke the shared tree's compile for every room, self-resolved, VS handled it exactly right (2026-08-26)
+
+**What happened:** `Assets/Tests/Editor/MetagameRetentionTelemetryEmitTests.cs` appeared UNTRACKED
+in the shared worktree with 18 real `error CS` (a compile failure, not a red test - nothing in the
+test assembly could run for ANY room while it existed). VS found it, correctly diagnosed 2 of the 3
+error types as real API drift rather than typos (`CampaignStageData` now requires a leading `id`
+param; `SaveManager` out of scope) - written against an older shape of both. **Did not touch, delete,
+or stub someone else's WIP to unblock itself** - exactly the discipline the `git add -A` standing
+order exists to protect, applied correctly under real pressure. Flagged loudly instead, correctly
+refused to report any suite number off the stale `results.xml`, held its own completed work rather
+than committing on top of a broken tree.
+
+**Resolved before I could act - the file's real author (near-certainly WH, matches the telemetry
+task I dispatched this session) finished and it left the tree clean.** Confirmed via `git status` -
+no trace remains. **Nobody ever identified who wrote it while it was live** - untracked means
+invisible to `git log`, `git blame`, the PENDING DISPATCH table, everything this session uses to
+coordinate. It cost every active room a compile cycle for something none of them caused.
+
+**LOCKING VS's proposed process fix, real and cheap:** work-in-progress in the shared tree that
+doesn't compile should not sit directly in `Assets/` (compiled by every room's Unity instance) -
+commit early/often even as WIP (a red TEST is fine, everyone can still compile and run their own
+work around it) or keep genuinely broken/mid-edit source outside `Assets/` until it compiles. A
+half-written file that doesn't compile is a private problem on a branch and a global outage sitting
+directly in `Assets/Tests/Editor/`. Added as a standing order below.
