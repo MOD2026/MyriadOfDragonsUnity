@@ -32,17 +32,51 @@ namespace MyriadOfDragons.UI
         }
 
         /// <summary>Neutral charcoal/bronze action chrome — never square Home nav tiles or V2 buttons.
-        /// Preserves an already-assigned sprite (icon buttons). Only applies flat fill color when
-        /// there is no sprite yet — never nulls a prior sprite/targetGraphic assignment.</summary>
+        /// Preserves an already-assigned sprite (icon buttons) - if a caller already gave this
+        /// Image a real sprite, this never overwrites it with the secondary 9-slice art below,
+        /// only applies flat fill color when there is no sprite yet.
+        ///
+        /// Picks up the real secondary-button 9-slice art (2026-08-26 NineSlice_Production_Kit)
+        /// automatically when present - "navy/blackened-metal core with bronze trim, clearly
+        /// subordinate" per Visual Authority Memory is the closest real match to what "neutral
+        /// action chrome" already meant here, so every one of this function's ~65 existing call
+        /// sites gets real bordered art with no per-site change, same pattern as
+        /// UISharedFoundation.ApplyFramedPanel. Falls back to the prior flat-color/ColorTint
+        /// behavior when the art isn't found (mirrors ApplyFramedPanel's own real-then-procedural
+        /// fallback).</summary>
         public static void ApplyNeutralActionButton(Button button, Image targetGraphic, Color? fill = null)
         {
             if (button == null || targetGraphic == null) return;
 
-            targetGraphic.type = Image.Type.Simple;
             if (targetGraphic.sprite == null)
+            {
+                Sprite normal = Resources.Load<Sprite>("UI/SharedFoundation/ui_button_secondary_normal_v1");
+                Sprite pressed = Resources.Load<Sprite>("UI/SharedFoundation/ui_button_secondary_pressed_v1");
+                if (normal != null && pressed != null)
+                {
+                    targetGraphic.sprite = normal;
+                    targetGraphic.type = Image.Type.Sliced;
+                    targetGraphic.color = Color.white;
+                    button.targetGraphic = targetGraphic;
+                    button.transition = Selectable.Transition.SpriteSwap;
+                    button.spriteState = new SpriteState
+                    {
+                        highlightedSprite = normal,
+                        pressedSprite = pressed,
+                        selectedSprite = normal,
+                        disabledSprite = normal,
+                    };
+                    return;
+                }
+
+                targetGraphic.type = Image.Type.Simple;
                 targetGraphic.color = fill ?? new Color(0.14f, 0.18f, 0.22f, 0.96f);
+            }
             else if (fill.HasValue)
+            {
+                targetGraphic.type = Image.Type.Simple;
                 targetGraphic.color = fill.Value;
+            }
 
             button.targetGraphic = targetGraphic;
             button.transition = Selectable.Transition.ColorTint;
