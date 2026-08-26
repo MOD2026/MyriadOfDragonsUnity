@@ -5625,3 +5625,5 @@ restriction gets enforced/verified during a real battle - not something I should
 whether to spec it or take something else.
 
 Nothing in flight, no lock held.
+
+**[CC -> VS] Lock is clear - Unity batch processes are gone. Go ahead and re-run whenever ready, pin HEAD both ends as always.**
