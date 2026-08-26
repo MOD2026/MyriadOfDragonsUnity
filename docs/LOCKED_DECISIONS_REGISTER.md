@@ -1571,6 +1571,58 @@ specify what it sits ON and how big it actually renders.**
 go yet because the features that consume them (empty states, loading/transitions) are locked but not
 built. Do not count generated art as shipped.
 
+## Save/currency audit 2026-08-27 - AD DID NOT RECEIVE THE FILES. Split verified vs speculative.
+
+AD's reply opens: *"I can't open your files from here, so everything below is based on the
+architecture you described."* **So it audited a description, not our code.** Several claims are
+factually wrong about what we actually have. CC read all four files directly; this entry records only
+what is verified either way. **Do not action AD's save-layer recommendations wholesale.**
+
+### WRONG - already correctly implemented (do NOT "fix")
+
+- **"Save file is overwritten in place with no atomic replace"** - FALSE. `SaveSystem.Save` writes to
+  `.tmp` then `File.Replace`, explicitly commented as write-then-swap.
+- **"No backup / corrupt file overwritten"** - FALSE. `QuarantineCorruptFile` renames an unreadable
+  save to `.corrupt-<timestamp>` rather than deleting, and repeated failed boots do not overwrite
+  each other's evidence.
+- **"Deserialization may throw on the boot path"** - FALSE. `Deserialize` catches everything and
+  degrades to a fresh profile. It even rejects well-formed JSON of a different shape by checking for
+  `"avatarLevel"` first, because `JsonUtility` would otherwise return something indistinguishable
+  from a genuine new profile.
+- **"Unreadable file treated as new game, then overwritten"** - FALSE. An unreadable file returns a
+  fresh profile **without touching the file**, specifically for the Drive-not-yet-hydrated case.
+
+### VERIFIED REAL - CC confirmed these in the actual code
+
+1. **`ExecutePlayerTrade` is genuinely broken** (`CurrencyManager.cs`). It transfers relics, then
+   calls `seller.inventoryAssets.Remove(asset)` and **ignores the return value**; no null checks on
+   either profile, unlike every other method in the file; and **`transferLockUntil` is never checked**
+   despite existing on `TradeableAssetInstance`. If the asset is not in the seller's inventory the
+   relics still move and the buyer still receives it. Also saves both profiles separately with no
+   rollback - one succeeding and one failing leaves inconsistent state. **Currently dormant (no
+   production caller found), which is the only reason this has not bitten us.**
+2. **No schema version field.** `SaveMigration`'s own comment confirms it: *"there is no separate
+   SaveData wrapper and no saveVersion field, so there is nothing to Upgrade() between schema
+   versions yet."* Real gap - migrations cannot be ordered or tracked.
+3. **Delete-then-Move fallback window.** When `File.Replace` fails (network/sync volumes), the
+   fallback does `File.Delete(path); File.Move(temp, path)` - a real window where neither file
+   exists. Narrow, but it is the one place the atomicity guarantee breaks, and this project runs on
+   a Drive-synced folder.
+4. **Currency is `int`, not `long`, with unchecked arithmetic.** Overflow is silent.
+5. **No idempotency token on `AddCurrency`.** A double-tap or retry grants twice. We locked
+   idempotency as a requirement for interaction states; the currency layer does not implement it.
+6. **`Normalize` runs `SpellOwnershipSync` + `CollectionSchemaMigration` on EVERY load.** Comments
+   claim idempotency; **not independently verified.**
+
+### NOT YET VERIFIED - do not treat as findings
+
+Whether the migrations are genuinely idempotent, and whether any load-path validation would reject a
+hand-edited file. Needs a real read of `SpellOwnershipSync` and `CollectionSchemaMigration`.
+
+**Schema changes AD proposes (`SchemaVersion`, `AppliedMigrations`, `ProcessedRewardIds`) all touch
+FROZEN files and need owner sign-off. Not proposing them yet - the trade bug is dormant and the save
+layer is in better shape than AD assumed.**
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
