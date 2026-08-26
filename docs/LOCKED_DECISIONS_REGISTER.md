@@ -6733,3 +6733,14 @@ one.
 pending-entitlement field from earlier tonight, same shape, same reasoning, real peer-confirmed
 blocker): `pendingLoyaltyVipVoucherIds` (bounded list, empty-list migration default) on
 `PlayerProfile`. Dispatching to VS - full context on this exact system already, no ramp-up needed.
+
+## CR's Background-collision test fixed and PROVEN deterministic - real thread closed for good (2026-08-26, commit 12f3e48)
+
+Verified via `git show --stat`, matches CR's diagnosis exactly - scoped the lookup to
+`bootstrap.BattlePresentationRootForTests.Find("Background")` instead of a global scene search.
+**Real proof, not just a fix committed:** isolation 4/4 clean, AND a full 1770-test run confirms
+the fixed test is genuinely absent from the failure list this time - deterministic, not just
+"passed once." One unrelated new failure in the same run (`Chapter2CampaignContentTests.
+Stage2_3_IsWinnable`, Story-owned, already confirmed clean in isolation earlier tonight) - correctly
+reported only, not touched, matching original instruction. This closes a real intermittent-flaky
+thread for good rather than leaving it as permanent known-noise.
