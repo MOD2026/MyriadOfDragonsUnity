@@ -143,12 +143,12 @@ namespace MyriadOfDragons.Tests
         {
             OpenShop();
             Transform canvas = GameObject.Find("ShopCanvas").transform;
-            Image backImg = canvas.Find("Btn_Back")?.GetComponent<Image>();
+            Image backImg = canvas.Find("HeaderBar/Btn_Back")?.GetComponent<Image>();
             Assert.IsNotNull(backImg);
             Assert.IsNull(backImg.sprite,
                 "Header Back must not get ApplyNavTileButton secondary chrome (empty box beside Back).");
-            Assert.IsNotNull(canvas.Find("Btn_Back/Text")?.GetComponent<Text>());
-            Assert.IsNotNull(canvas.Find("Title")?.GetComponent<Text>());
+            Assert.IsNotNull(canvas.Find("HeaderBar/Btn_Back/Text")?.GetComponent<Text>());
+            Assert.IsNotNull(canvas.Find("HeaderBar/Title")?.GetComponent<Text>());
         }
     }
 }

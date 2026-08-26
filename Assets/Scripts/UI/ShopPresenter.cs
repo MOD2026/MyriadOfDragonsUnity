@@ -326,23 +326,33 @@ namespace MyriadOfDragons.UI
             // 3. Header fills — shell art already draws the ornate wells; do NOT layer a second
             // bordered button chrome (ApplyNavTileButton) or floating CreateTextElement with
             // default center anchors on top of those wells (that produced empty boxes + overlaps).
+            // HeaderBar remains a full-screen transparent host so MetagameNavigationSpine and other
+            // callers keep resolving "HeaderBar/Btn_Back"; children still use shell-well pixel rects
+            // (SetShellWellPx assumes a 1920×1080 parent).
+            GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
+            topBar.transform.SetParent(canvasObj.transform, false);
+            Image topBarBg = topBar.GetComponent<Image>();
+            topBarBg.color = new Color(0f, 0f, 0f, 0f);
+            topBarBg.raycastTarget = false;
+            UISharedFoundation.StretchFull(topBar.GetComponent<RectTransform>());
+
             GameObject backBtnObj = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
-            backBtnObj.transform.SetParent(canvasObj.transform, false);
+            backBtnObj.transform.SetParent(topBar.transform, false);
             Image backImg = backBtnObj.GetComponent<Image>();
             ApplyShellWellHitTarget(backBtnObj.GetComponent<Button>(), backImg);
             SetShellWellPx(backBtnObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ShellBackWellPx);
             CreateWellText(backBtnObj.transform, "Text", "< BACK", 24, TextAnchor.MiddleCenter);
             backBtnObj.GetComponent<Button>().onClick.AddListener(() => onBackToHomeAction?.Invoke());
 
-            GameObject titleObj = CreateWellText(canvasObj.transform, "Title", "SHOP & SUPPLIES", 32, TextAnchor.MiddleCenter);
+            GameObject titleObj = CreateWellText(topBar.transform, "Title", "SHOP & SUPPLIES", 32, TextAnchor.MiddleCenter);
             SetShellWellPx(titleObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ShellTitleWellPx);
             titleObj.GetComponent<Text>().fontStyle = FontStyle.Bold;
 
-            goldText = PlaceHeaderResourcePill(canvasObj.transform, "GoldPill", "home_resource_gold_pill_v3",
+            goldText = PlaceHeaderResourcePill(topBar.transform, "GoldPill", "home_resource_gold_pill_v3",
                 "Gold", $"{player.gold}", ShopV1UiLibrary.ShellGoldPillWellPx);
-            gemsText = PlaceHeaderResourcePill(canvasObj.transform, "GemsPill", "home_resource_gems_pill_v3",
+            gemsText = PlaceHeaderResourcePill(topBar.transform, "GemsPill", "home_resource_gems_pill_v3",
                 "Gems", $"{player.gems}", ShopV1UiLibrary.ShellGemsPillWellPx);
-            energyText = PlaceHeaderResourcePill(canvasObj.transform, "StaminaPill", "home_resource_energy_pill_v3",
+            energyText = PlaceHeaderResourcePill(topBar.transform, "StaminaPill", "home_resource_energy_pill_v3",
                 "Stamina", $"{player.stamina}/{player.maxStamina}", ShopV1UiLibrary.ShellStaminaPillWellPx);
 
             GameObject statusObj = CreateTextElement(canvasObj.transform, "ShopStatus", "Tap BUY on a supply to purchase.",

@@ -89,6 +89,28 @@ namespace MyriadOfDragons.Tests
                 "Status must tell the player which Gem tier is next on the ladder.");
         }
 
+        [Test]
+        public void Ladder_DailyCapAlreadySpent_RefusesWithoutSpendingGemsOrGrantingStamina()
+        {
+            PlayerProfile profile = NewProfile(gems: 9999, stamina: 20);
+            profile.staminaShopWindowStartUtcTicks = ShopStaminaCatalog.NowUtcTicks();
+            profile.staminaShopPurchasesInWindow = ShopStaminaCatalog.MaxPurchasesPerRollingDay;
+            ShopPresenter shop = SpawnShop(profile);
+
+            Assert.IsFalse(shop.StaminaBuyButtonInteractableForTests(30),
+                "When the shared 4/24h cap is spent, the first ladder BUY must not be interactable.");
+
+            Assert.IsTrue(shop.PurchaseForTests(ShopStaminaCatalog.SkuIdForGemCost(30)),
+                "PurchaseForTests only reports SKU existence — cap refuse is asserted on wallet state.");
+            Assert.AreEqual(9999, profile.gems,
+                "purchase must refuse when the 4/24h Stamina cap is already hit (no Gem spend).");
+            Assert.AreEqual(20, profile.stamina,
+                "purchase must refuse when the 4/24h Stamina cap is already hit (no Stamina grant).");
+            Assert.AreEqual(ShopStaminaCatalog.MaxPurchasesPerRollingDay, profile.staminaShopPurchasesInWindow,
+                "A refused purchase must leave the shared cap counter unchanged.");
+            StringAssert.Contains("4", shop.ShopStatusTextForTests ?? string.Empty);
+        }
+
         private ShopPresenter SpawnShop(PlayerProfile profile)
         {
             _shopGo = new GameObject("ShopStaminaLadderHarness");

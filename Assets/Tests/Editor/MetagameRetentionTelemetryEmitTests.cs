@@ -143,11 +143,21 @@ namespace MyriadOfDragons.Tests
             shop.Initialize(profile, onBackToHome: null, telemetryOutbox: outbox);
 
             int gemsBefore = profile.gems;
-            // PurchaseForTests returns whether the SKU exists, not whether the purchase succeeded.
+            int staminaBefore = profile.stamina;
+            int purchasesBefore = profile.staminaShopPurchasesInWindow;
+            Assert.AreEqual(ShopStaminaCatalog.MaxPurchasesPerRollingDay, purchasesBefore,
+                "Setup: profile must already be at the 4/24h Stamina refill cap.");
+
+            // PurchaseForTests returns whether the SKU exists — NOT whether the purchase succeeded.
+            // Cap enforcement is asserted on wallet + window counters below (never on the bool).
             Assert.IsTrue(shop.PurchaseForTests(ShopStaminaCatalog.SkuIdForGemCost(30)),
                 "Setup: stamina ladder SKU must exist on the Shop.");
             Assert.AreEqual(gemsBefore, profile.gems,
-                "Setup: capped ladder purchase must refuse without spending Gems.");
+                "Capped ladder purchase must refuse without spending Gems.");
+            Assert.AreEqual(staminaBefore, profile.stamina,
+                "Capped ladder purchase must refuse without granting Stamina.");
+            Assert.AreEqual(purchasesBefore, profile.staminaShopPurchasesInWindow,
+                "Capped refuse must not increment the shared 4/24h purchase counter.");
 
             Assert.AreEqual(1, fakeGateway.SentEvents.Count);
             Assert.AreEqual(RetentionTelemetryEvents.EventTypeDailyCapReached, fakeGateway.SentEvents[0].eventType);
