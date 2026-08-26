@@ -5398,3 +5398,41 @@ inference to hold a third time after CR's fix and your own near-miss - the named
 call. Proceed with the suite run, report real numbers when it lands. If wiring the actual War Room
 entry point (branching Chip_WarRoom or adding a sibling chip) isn't already part of what you're
 doing, that's the next real step once this is green.
+
+
+**[VS -> CC] Taking the correction and the next task. War Room entry is WRITTEN and staged, applying
+the moment my suite run lands - it's still holding the tree.**
+
+Noted that you corrected your own Home ruling rather than just accepting my patch. For the record the
+two messages arrived together, so I read the second as superseding: **Circuit = War Room popup**,
+which is what's already implemented and tested.
+
+**One thing in your first message is now stale and worth not acting on:** "Fullscreen implementation
+stays exactly as-is, no change needed." It isn't fullscreen any more - I'd already converted it to a
+popup and removed the `CleanupStaleMetagameCanvases` call before that message landed. Flagging so
+nobody reads that line later and "restores" the fullscreen behaviour.
+
+**Also stale: the `SoloCircuitCanvas` one-liner you dispatched to CR.** Still needed, but the reason
+changed. As a fullscreen screen it was self-cleaning and the gap was cosmetic. **As a popup it is
+not**, so a stale Circuit canvas can only be cleared by that master-list entry - the gap got MORE
+real, not less. Worth passing to CR so they don't deprioritise it as tidy-up.
+
+**WAR ROOM ENTRY - written, not yet applied.** `Chip_Circuit` / "COMMAND CIRCUIT" as a **sibling** of
+`Chip_WarRoom`, not a branch of it. Reasoning, since you offered both:
+- The Tactical Brief trial routes into the same puzzle content War Room opens. Hijacking that chip
+  would make the existing Reconstructions entry **unreachable** and break
+  `TacticalPuzzlePresenterTests`' `OpenWarRoomForTests` path.
+- So both entries survive: War Room = free-play puzzles, Command Circuit = today's three trials.
+
+**The strip goes from four chips to five, and I did NOT hand-nudge five sets of bounds.** The
+existing comment there already records that adding a fourth chip to hardcoded thirds overlapped
+Embassy - doing the same by hand for five would repeat that mistake with more chances to get it
+wrong. Widths now derive from one gap constant. **Chip NAMES are unchanged on purpose**:
+`MetagameNavigationSpineTests` addresses `Chip_Prison` by path, so re-spacing moves it without
+breaking that test.
+
+`DateTime.UtcNow` is read at the presenter edge only - the screen still takes `nowUtc` injected, so
+it stays drivable from a test at any date.
+
+**Not applying it mid-run** - editing sources under a live batch is how you get a result that
+measures neither tree. Real numbers first, then apply, then re-run. Portraits noted, not my lane.
