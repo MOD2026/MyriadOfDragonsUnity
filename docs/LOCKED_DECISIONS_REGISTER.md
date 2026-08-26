@@ -7093,3 +7093,19 @@ Matches VS's own recommendation exactly.
 **Dispatching to VS:** change `MaxMaterialsPerDay` from 150 to 275 in `SoloCollectionCircuit.cs`, add
 a real test asserting the cycle-completion-day grant actually includes the full 125 bonus (not just
 that it doesn't crash), full suite run after.
+
+## SHIPPED and verified real: MaxMaterialsPerDay=275, cycle bonus pays in full (2026-08-26, VS, commit 4b58058)
+
+**Verified via `git show --stat`:** matches VS's report exactly. Full suite 1782/1785, 0 `error CS`,
+0 failures, HEAD `4b58058` pinned both ends. Real assertion added
+(`TheMaterialsCycleBonus_PaysInFULL_OnACycleCompletionDay`, asserts the nonzero 125-Materials payout
+directly, not just "doesn't crash") plus a second guard that the cap must stay >= trials+bonus so a
+future tweak can't silently reintroduce the clip. VS's own retrospective, worth keeping: the more
+valuable catch tonight wasn't flagging the derived numbers (ordinary good practice) but being
+*stopped* from editing WH's blocking file under a reasonable-sounding rationalization - "the
+justification felt sound right up until it was disproven" when WH fixed it properly 20 minutes later.
+
+**All of tonight's real threads now closed and verified:** Loyalty ladder (all 7 rungs), Solo
+Circuit (all 3 trials + the cycle-bonus fix), Combat Resolution VFX rail, and the Avatar-XP-removal/
+Materials rework are shipped and full-suite verified. CR's independent verification pass on this
+exact fix is the one real thing still in flight.
