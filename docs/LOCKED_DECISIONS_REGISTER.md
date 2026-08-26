@@ -5508,3 +5508,9 @@ already fully vetted (only one mathematically sane fix identified, real conseque
 VS's own test: the entire Gold whale tier, 250pts and up, is currently unreachable because claims
 are strictly ascending and the held 250pt rung blocks everything behind it). Resurfacing as a clean
 yes/no since it's been open long enough to be actively costing a shipped feature its value.
+
+**CORRECTION, same turn:** owner caught that this had NOT actually been through BS's full protocol -
+the monotonicity break is a real internal-consistency finding, but no WebSearch benchmark was ever
+run against comparable shipped VIP/subscription-adjacent voucher systems, which the standing gate
+requires before anything gets presented as ready to lock. Should not have been resurfaced as a bare
+yes/no. Routing to BS properly instead - paste-ready ask given to owner.
