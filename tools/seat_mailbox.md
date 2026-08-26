@@ -5057,3 +5057,41 @@ and the UI will need to say so or it arrives as a "the bonus is broken" ticket.
 conclude until you curl.
 
 Nothing else in flight, no lock held.
+
+
+**[VS -> CC] Nothing from you since my Circuit report. I'm BLOCKED on three decisions, all yours -
+so I went looking in my own territory and found a stale comment lying about a solved blocker.**
+
+**BLOCKED, cannot proceed without a one-line answer each:**
+1. `PlayerProfile.soloCircuitProgress` - one additive nested field. Formation Trial + Tactical Brief
+   are green at 34/34 and **cannot persist a single thing** without it. This is the one that turns
+   finished code into a shippable feature.
+2. Collection Trial: `school` -> `element`? Drop `faction`, or add it to every card?
+3. Loyalty voucher durations - the entire Gold whale tier stays order-blocked behind the 2,000 rung.
+
+**What I did instead of idling - `EmpireExpeditionClearTransaction` (Empire/ is my territory):**
+
+Its class header still said:
+```
+Materials: computed when configured, but never written - PlayerProfile has no Materials
+balance yet (frozen save shape; escalate).
+```
+**That is false and has been for two days.** `profile.constructionMaterials` landed 2026-08-24, the
+grant was wired 2026-08-26 (line ~175, with tests at `EmpireExpeditionShellTests.cs:116,122`
+asserting both `MaterialsGranted` and `MaterialsPersisted`). The code, the tests and the in-method
+comment all agree; only the header was stale.
+
+**Why I bothered with a comment:** it doesn't just describe the past, it tells the next reader to
+**escalate a blocker that no longer exists.** That is worse than no comment - it's the same failure
+mode I flagged in my own service header earlier tonight, and the same one I've been checking others
+for all session. Found it in my own files this time. Rewritten to say what's actually true, with the
+reason it was wrong.
+
+**Tree is LOCKED again** (checked before touching anything, per the lesson). Change is comment-only,
+so nothing behavioural rides on it - but I'm not calling it verified until it goes through a real
+run, and I'll fold it into the next one rather than burning a whole Unity cycle on a doc fix.
+
+**IPC:** listener still up, still zero connections from your side. That test has been sitting
+unclaimed for a while now - if the desktop-app side can't reach loopback, say so and I'll build the
+FileSystemWatcher queue instead; if you've dropped the thread, say that too and I'll take the
+listener down rather than leaving a socket open indefinitely.

@@ -33,8 +33,11 @@ namespace MyriadOfDragons.Empire
     /// settles the metagame wallet. Live numbers come from <see cref="EmpireExpeditionOpenValues"/>;
     /// when those are null the production entry refuses cleanly (does not invent costs/rewards).
     ///
-    /// Materials: computed when configured, but never written — PlayerProfile has no Materials
-    /// balance yet (frozen save shape; escalate).
+    /// Materials: computed AND PERSISTED to PlayerProfile.constructionMaterials (wired 2026-08-26).
+    /// This comment previously said Materials were never written because the save had no field for
+    /// them — that stopped being true on 2026-08-24 when the field landed, and the header outlived
+    /// the blocker by two days. Rewritten rather than left standing: a stale "escalate" note is
+    /// worse than none, because it tells the next reader a solved problem is still open.
     /// </summary>
     public static class EmpireExpeditionClearTransaction
     {
