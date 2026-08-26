@@ -4757,3 +4757,43 @@ owner's voucher-duration decision (2,000pt -> 30-day) more time-sensitive than i
 
 VS idle, nothing else in flight - told to run the suite once free, then take Solo Collection Circuit
 next (VS's own stated preference: one system in flight at a time, order stands unless reversed).
+
+## Empire Expedition clear rewards LANDED, verified real (2026-08-26, CR, commit 687a69e) - correcting my own earlier error
+
+Verified via `git show --stat`, matches CR's report. All 4 values wired: StaminaCostPerClear=10,
+BaseGoldPerClear=300, BaseMaterialsPerClear=200, DailyExpeditionGoldCap=900. 4 stale
+`EmpireExpeditionShellTests` updated to match the new locked-value reality, 26/26 pass, HEAD 7c3bf79
+unchanged before/after.
+
+**Correction: CR caught a real error in my own earlier dispatch.** I told CR "Materials can't
+persist yet, needs a PlayerProfile field" - wrong. `PlayerProfile.constructionMaterials` has existed
+since 2026-08-24 (confirmed independently in this session too, in the `SaveMigration.cs` diff check
+during the WH-commit verification) and `EmpireExpeditionClearTransaction` already writes to it. CR
+correctly ignored my bad framing and wired all 4 fields together rather than leaving Materials null
+for no reason. Noting this so the same stale claim doesn't get repeated.
+
+## LOCKED: queued Loyalty Stamina entitlement mechanic for the 3-consumer Stamina cap collision (2026-08-26, BS, verified)
+
+**Internal-consistency check:** `ShopStaminaCatalog.StaminaGrantPerPotion = 50` and
+`MaxPurchasesPerRollingDay = 4` both real, confirmed in code - BS's "8 claims = 400 Stamina, max 4
+applied per rolling 24h" math is accurate, not assumed.
+
+**WebSearch benchmark run:** the "queue reward, hold until claimable, deliver when capacity allows"
+pattern is real shipped-game precedent, not novel - Genshin Impact's mailbox does exactly this
+(deliver reward, hold until claimed, capacity-bounded), confirmed via genshin-impact wiki. BS's
+version is simpler (bounded one-time count, no expiry, since it's a finite milestone reward not a
+recurring mailbox) - appropriately scoped down from the general pattern, not a deviation from it.
+
+**Decision locked:** option (c), queued one-time Loyalty Stamina entitlements. Global 4-per-24h cap
+stays shared and unweakened - no separate Loyalty cap, no bypass. A Loyalty claim that can't apply
+immediately becomes a pending entitlement instead of forfeiting; it drains at the normal 4/day rate
+whenever capacity exists, milestone-claimed atomically before delivery so it can't duplicate via
+reload/rollback/refund. Rejected alternatives, both real failure modes: separate cap (weakens the
+anti-farming limiter, creates a privileged 4th source), forfeit-on-collision (makes the whale reward
+worth zero for exactly the players reaching it).
+
+**Real schema ask, needs owner sign-off before VS builds it (frozen-file discipline):** new
+`PlayerProfile` field `pendingLoyaltyStaminaClaims` (int, default 0) - not a currency balance, can't
+be purchased/traded/converted, only increased by a successfully claimed Loyalty milestone and only
+decreased by normal Stamina-cap-gated delivery. Same additive-field pattern as every other field
+added tonight. Escalating to owner now.
