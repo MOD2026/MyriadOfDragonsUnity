@@ -45,6 +45,12 @@ namespace MyriadOfDragons.Tests
         /// ignore it.</summary>
         private const float Tolerance = 1f;
 
+        /// <summary>Matches ScreenContactSheetGenerator exactly. The gate must measure the
+        /// same geometry the reviewed screenshot shows, or the two can disagree with no way to
+        /// tell which is right.</summary>
+        private const int CaptureWidth = 960;
+        private const int CaptureHeight = 540;
+
         [SetUp]
         public void SetUp()
         {
@@ -77,6 +83,12 @@ namespace MyriadOfDragons.Tests
         public void UiValidationRun_EnforcesTheGateHardFailList()
         {
             var findings = new List<string>();
+            // Warnings NEVER fail the run. Section 4e: the 8/10/4 limits are an owner lock
+            // that BS argues is a design-review threshold rather than a correctness invariant,
+            // and CC ruled WARN until the owner decides. A control count must not block a
+            // build, so these are surfaced and counted, never asserted on.
+            var warnings = new List<string>();
+            List<UiGateException> exceptions = UiGateExceptionManifest.Load(findings);
             var graphNodes = new List<string>();
             var dot = new StringBuilder();
             dot.AppendLine("digraph MyriadNavigation {");
@@ -111,12 +123,22 @@ namespace MyriadOfDragons.Tests
                 }
 
                 screensBuilt++;
-                InspectScreen(screen, canvasObj, findings, graphNodes, dot);
+                Camera measureCam = PrepareForMeasurement(canvasObj);
+                InspectScreen(screen, canvasObj, measureCam, findings, warnings, exceptions, graphNodes, dot);
                 CleanupAfterScreen();
             }
 
             dot.AppendLine("}");
             WriteGraphArtifacts(graphNodes, dot.ToString());
+
+            // Checked AFTER the traversal so "matched" reflects measured geometry, not intent.
+            UiGateExceptionManifest.ReportUnmatched(exceptions, findings);
+
+            if (warnings.Count > 0)
+            {
+                Debug.LogWarning("[UiValidation] " + warnings.Count + " WARNINGS (do not fail the build):\n  - " +
+                                 string.Join("\n  - ", warnings));
+            }
 
             Assert.Greater(screensBuilt, 0,
                 "No screen built at all - the validation run itself is broken, which is NOT a pass.");
@@ -124,6 +146,54 @@ namespace MyriadOfDragons.Tests
             Assert.IsEmpty(findings,
                 "UI Verification Gate v1 section 2 violations (" + findings.Count + " across " +
                 screensBuilt + " screens):\n  - " + string.Join("\n  - ", findings));
+        }
+
+        /// <summary>
+        /// Lays the screen out at the SAME resolution the contact sheet renders it at, before a
+        /// single rectangle is measured.
+        ///
+        /// THIS IS NOT A DETAIL - without it every number this file produces is fiction. A freshly
+        /// built canvas in EditMode has never been through a layout pass: RectTransforms still hold
+        /// pre-layout values, so world corners come back at absurd coordinates and `preferredHeight`
+        /// is computed against a width the screen will never actually have. The first run of this
+        /// validator reported 79 violations that way, including six on a screen whose capture had
+        /// already been reviewed by eye and was correct - the measurement was wrong, not the UI.
+        ///
+        /// The capture resolution specifically, not an arbitrary one: the gate and the reviewed
+        /// screenshot must describe the same geometry. If this measured at some other size, the
+        /// validator could fail a screen that looks right in the very image a human signs off on,
+        /// and there would be no way to tell which one was lying.
+        /// </summary>
+        private Camera PrepareForMeasurement(GameObject canvasObj)
+        {
+            Canvas canvas = canvasObj.GetComponent<Canvas>();
+            if (canvas == null) return null;
+
+            var camGo = new GameObject("UiValidationCamera");
+            _spawned.Add(camGo);
+            Camera cam = camGo.AddComponent<Camera>();
+            cam.orthographic = true;
+
+            var rt = new RenderTexture(CaptureWidth, CaptureHeight, 24);
+            cam.targetTexture = rt;
+
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = cam;
+            canvas.planeDistance = 1f;
+
+            // Render drives the canvas through a real update; ForceUpdateCanvases and an explicit
+            // layout rebuild then settle anything driven by layout groups rather than by the
+            // canvas itself. All three, because each covers a case the others miss.
+            cam.Render();
+            Canvas.ForceUpdateCanvases();
+
+            var rootRect = canvasObj.GetComponent<RectTransform>();
+            if (rootRect != null) LayoutRebuilder.ForceRebuildLayoutImmediate(rootRect);
+
+            cam.targetTexture = null;
+            rt.Release();
+            UnityEngine.Object.DestroyImmediate(rt);
+            return cam;
         }
 
         private void CleanupAfterScreen()
@@ -134,12 +204,12 @@ namespace MyriadOfDragons.Tests
         }
 
         private void InspectScreen(
-            UiScreenEntry screen, GameObject canvasObj, List<string> findings,
-            List<string> graphNodes, StringBuilder dot)
+            UiScreenEntry screen, GameObject canvasObj, Camera cam, List<string> findings, List<string> warnings,
+            List<UiGateException> exceptions, List<string> graphNodes, StringBuilder dot)
         {
             Transform root = canvasObj.transform;
             var canvasRect = canvasObj.GetComponent<RectTransform>();
-            Rect screenBounds = canvasRect != null ? WorldRect(canvasRect) : new Rect();
+            Rect screenBounds = canvasRect != null ? ScreenRect(canvasRect, cam) : new Rect();
 
             var interactive = new List<Selectable>();
             foreach (Selectable sel in root.GetComponentsInChildren<Selectable>(true))
@@ -153,7 +223,7 @@ namespace MyriadOfDragons.Tests
             {
                 Graphic target = sel.targetGraphic;
                 var rt = sel.transform as RectTransform;
-                Rect r = rt != null ? WorldRect(rt) : new Rect();
+                Rect r = rt != null ? ScreenRect(rt, cam) : new Rect();
 
                 if (r.width <= Tolerance || r.height <= Tolerance)
                 {
@@ -181,7 +251,11 @@ namespace MyriadOfDragons.Tests
                                  "which needs an approved reason.");
                 }
 
-                if (canvasRect != null && !Contains(screenBounds, r))
+                // Content inside a mask or scroll view is SUPPOSED to extend past the screen -
+                // that is what scrolling is. The first run flagged carousel pages and list rows
+                // sitting off to the right as "clipped", which would have sent someone to fix
+                // working scroll views.
+                if (canvasRect != null && !Contains(screenBounds, r) && !IsInsideMaskedViewport(sel.transform))
                 {
                     findings.Add(screen.Name + ": interactive " + Q(sel.name) + " at " + Describe(r) +
                                  " is clipped or off-screen (screen is " + Describe(screenBounds) + ").");
@@ -197,43 +271,78 @@ namespace MyriadOfDragons.Tests
                     // Nested controls are a containment relationship, not a collision.
                     if (a.transform.IsChildOf(b.transform) || b.transform.IsChildOf(a.transform)) continue;
 
-                    Rect ra = WorldRect((RectTransform)a.transform);
-                    Rect rb = WorldRect((RectTransform)b.transform);
+                    Rect ra = ScreenRect((RectTransform)a.transform, cam);
+                    Rect rb = ScreenRect((RectTransform)b.transform, cam);
                     if (ra.width <= 0f || rb.width <= 0f) continue;
 
-                    if (Overlaps(ra, rb))
-                    {
-                        findings.Add(screen.Name + ": interactive " + Q(a.name) + " " + Describe(ra) +
-                                     " overlaps interactive " + Q(b.name) + " " + Describe(rb) +
-                                     " - one steals the other's taps.");
-                    }
+                    if (!Overlaps(ra, rb)) continue;
+
+                    // Section 4a NARROWED this: raw rectangle intersection is NOT a failure.
+                    // Badges, labels inside buttons and decorative overlays legitimately
+                    // intersect, and failing on those is the false-positive noise that gets
+                    // gates switched off. Both sides here are already active, interactable
+                    // Selectables with real hit targets, and neither contains the other - so
+                    // these are two INDEPENDENTLY ACTIONABLE targets competing for one tap
+                    // region, which is exactly the narrowed rule.
+                    if (UiGateExceptionManifest.Excuses(exceptions, screen.Name, a.name, b.name)) continue;
+
+                    findings.Add(screen.Name + ": interactive " + Q(a.name) + " " + Describe(ra) +
+                                 " overlaps interactive " + Q(b.name) + " " + Describe(rb) +
+                                 " - two independently actionable targets compete for one tap.");
                 }
             }
 
-            // --- text exceeding its container --------------------------------------------
+            // --- text: real clipping, real truncation, or collision with a control ------
+            // Section 4b NARROWED this too. Raw text-bound overflow is NOT a failure - a
+            // conservative box with every glyph still visible reads as wrong on paper and fine on
+            // screen. Only these actually cost the player something.
             foreach (Text text in root.GetComponentsInChildren<Text>(true))
             {
                 if (!text.gameObject.activeInHierarchy || string.IsNullOrEmpty(text.text)) continue;
-                Rect box = WorldRect(text.rectTransform);
-                if (box.width <= Tolerance || box.height <= Tolerance) continue;
-
-                // Only Overflow can escape the rect. Wrap/Truncate are the app deliberately
-                // choosing to contain the text, so measuring those would report intent as a defect.
                 Vector2 size = text.rectTransform.rect.size;
-                if (text.horizontalOverflow == HorizontalWrapMode.Overflow &&
-                    text.preferredWidth > size.x + Tolerance)
-                {
-                    findings.Add(screen.Name + ": text " + Q(text.name) + " needs " +
-                                 F(text.preferredWidth) + "px but its container is " + F(size.x) +
-                                 "px wide and it is set to Overflow - it spills outside its own control.");
-                }
+                if (size.x <= Tolerance || size.y <= Tolerance) continue;
 
-                if (text.verticalOverflow == VerticalWrapMode.Overflow &&
+                // (1) REAL CLIPPING. Truncate means Unity cuts glyphs at the rect edge, so needing
+                // more height than the rect has is words the player cannot read - not a cosmetic
+                // margin complaint.
+                if (text.verticalOverflow == VerticalWrapMode.Truncate &&
                     text.preferredHeight > size.y + Tolerance)
                 {
-                    findings.Add(screen.Name + ": text " + Q(text.name) + " needs " +
-                                 F(text.preferredHeight) + "px of height but its container is " +
-                                 F(size.y) + "px tall and it is set to Overflow.");
+                    findings.Add(screen.Name + ": text " + Q(text.name) + " is Truncate and needs " +
+                                 F(text.preferredHeight) + "px of height in a " + F(size.y) +
+                                 "px box - glyphs are actually cut off, not merely tight.");
+                    continue;
+                }
+
+                if (text.horizontalOverflow != HorizontalWrapMode.Overflow) continue;
+                if (text.preferredWidth <= size.x + Tolerance) continue;
+
+                // (2) COLLISION WITH A PROTECTED CONTROL. Overflowing text paints outside its own
+                // rect; when that spill lands on an interactive control it obscures something the
+                // player has to see and press.
+                Rect painted = PaintedBounds(text, cam);
+                string collidedWith = null;
+                foreach (Selectable sel in interactive)
+                {
+                    if (text.transform.IsChildOf(sel.transform)) continue;
+                    Rect selRect = ScreenRect((RectTransform)sel.transform, cam);
+                    if (selRect.width <= 0f) continue;
+                    if (Overlaps(painted, selRect)) { collidedWith = sel.name; break; }
+                }
+
+                if (collidedWith != null)
+                {
+                    findings.Add(screen.Name + ": text " + Q(text.name) + " overflows its " + F(size.x) +
+                                 "px container (needs " + F(text.preferredWidth) + "px) and the spill " +
+                                 "lands on interactive " + Q(collidedWith) + ".");
+                }
+                else
+                {
+                    // (3) Escapes its box, hits nothing. Reported so a human can look, never
+                    // failed - this is the exact case the narrowing was written for.
+                    warnings.Add(screen.Name + ": text " + Q(text.name) + " needs " +
+                                 F(text.preferredWidth) + "px in a " + F(size.x) + "px box but " +
+                                 "collides with no control - visual review, not a failure.");
                 }
             }
 
@@ -258,8 +367,34 @@ namespace MyriadOfDragons.Tests
             int limit = UiScreenRegistry.ActionLimitFor(screen.Surface);
             if (interactive.Count > limit)
             {
-                findings.Add(screen.Name + ": " + interactive.Count + " visible interactive controls, over the " +
-                             screen.Surface + " limit of " + limit + ".");
+                // WARN, not fail - section 4e, pending the owner ruling on their own locked
+                // number. Deliberately still measured: when the owner does rule, the data to rule
+                // on is already collected.
+                warnings.Add(screen.Name + ": " + interactive.Count + " visible interactive controls, over the " +
+                             screen.Surface + " limit of " + limit + " (WARN pending owner ruling, section 4e).");
+            }
+
+            // --- section 4c: no player may be trapped in an overlay ------------------------
+            // Added by BS and accepted - it was missing from the original list. A modal with no
+            // dismissal is unrecoverable without killing the app.
+            //
+            // VACUOUS TODAY, ARMED FOR WHEN IT IS NOT: nothing in the registry is classified
+            // Overlay yet, because reclassifying tightens a limit and needs the owner. This
+            // currently inspects zero screens - which is NOT evidence that no modal traps the
+            // player, only that no screen is declared a modal.
+            if (screen.Surface == UiSurfaceKind.Overlay)
+            {
+                bool hasEscape = false;
+                foreach (Selectable sel in interactive)
+                {
+                    if (LooksLikeEscape(sel.name)) { hasEscape = true; break; }
+                }
+
+                if (!hasEscape)
+                {
+                    findings.Add(screen.Name + ": overlay has NO dismissal or back control among its " +
+                                 interactive.Count + " interactive controls - the player is trapped.");
+                }
             }
 
             // --- navigation graph node -----------------------------------------------------
@@ -313,20 +448,78 @@ namespace MyriadOfDragons.Tests
             return go;
         }
 
-        private static Rect WorldRect(RectTransform rt)
+        /// <summary>
+        /// The rect in SCREEN PIXELS, via the camera the screen was laid out with.
+        ///
+        /// Not world units. `GetWorldCorners` on a Screen Space - Camera canvas returns world
+        /// units, where the whole 960x540 screen spans about 17.8x10 - so every button comes back
+        /// under 1 unit tall and a pixel-based tolerance condemns the entire UI as untappable.
+        /// That is exactly what the second run did: 110 findings, nearly all of them real controls
+        /// reported as zero-area. The geometry was fine; the units were mine.
+        /// </summary>
+        private static Rect ScreenRect(RectTransform rt, Camera cam)
         {
             var c = new Vector3[4];
             rt.GetWorldCorners(c);
-            float xMin = c[0].x, xMax = c[0].x, yMin = c[0].y, yMax = c[0].y;
+
+            Vector2 first = RectTransformUtility.WorldToScreenPoint(cam, c[0]);
+            float xMin = first.x, xMax = first.x, yMin = first.y, yMax = first.y;
             for (int i = 1; i < 4; i++)
             {
-                if (c[i].x < xMin) xMin = c[i].x;
-                if (c[i].x > xMax) xMax = c[i].x;
-                if (c[i].y < yMin) yMin = c[i].y;
-                if (c[i].y > yMax) yMax = c[i].y;
+                Vector2 p = RectTransformUtility.WorldToScreenPoint(cam, c[i]);
+                if (p.x < xMin) xMin = p.x;
+                if (p.x > xMax) xMax = p.x;
+                if (p.y < yMin) yMin = p.y;
+                if (p.y > yMax) yMax = p.y;
             }
 
             return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
+        }
+
+        /// <summary>True when any ancestor clips its children - a Mask, a RectMask2D, or a
+        /// ScrollRect. Content under one of those is meant to live outside the visible area.</summary>
+        private static bool IsInsideMaskedViewport(Transform t)
+        {
+            Transform cursor = t.parent;
+            while (cursor != null)
+            {
+                if (cursor.GetComponent<Mask>() != null ||
+                    cursor.GetComponent<RectMask2D>() != null ||
+                    cursor.GetComponent<ScrollRect>() != null)
+                {
+                    return true;
+                }
+
+                cursor = cursor.parent;
+            }
+
+            return false;
+        }
+
+        /// <summary>Approximates where overflowing text actually paints: the rect grown to the
+        /// size the glyphs need, about its own centre. Unity does not expose laid-out glyph bounds
+        /// directly, and centre-expansion is the closest honest approximation - it can be off for
+        /// hard left/right alignment, so it is used ONLY to detect collision with a control, never
+        /// to measure a margin.</summary>
+        private static Rect PaintedBounds(Text text, Camera cam)
+        {
+            Rect box = ScreenRect(text.rectTransform, cam);
+            Vector2 size = text.rectTransform.rect.size;
+            float scaleX = size.x > 0f ? box.width / size.x : 1f;
+            float scaleY = size.y > 0f ? box.height / size.y : 1f;
+
+            float wantedW = Mathf.Max(box.width, text.preferredWidth * scaleX);
+            float wantedH = Mathf.Max(box.height, text.preferredHeight * scaleY);
+            Vector2 centre = box.center;
+
+            return new Rect(centre.x - wantedW * 0.5f, centre.y - wantedH * 0.5f, wantedW, wantedH);
+        }
+
+        private static bool LooksLikeEscape(string controlName)
+        {
+            string n = (controlName ?? string.Empty).ToLowerInvariant();
+            return n.Contains("back") || n.Contains("close") || n.Contains("dismiss") ||
+                   n.Contains("cancel") || n.Contains("exit");
         }
 
         private static bool Overlaps(Rect a, Rect b)
