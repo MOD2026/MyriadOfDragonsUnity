@@ -568,17 +568,55 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void AvatarXpIsOWED_ButNotGranted_BecauseThereIsNowhereToPutIt()
+        public void MaterialsAreGRANTEDForReal_BecauseTheyHaveASink()
         {
-            // PlayerProfile has avatarLevel and NO XP field - nothing anywhere stores or consumes
-            // Avatar XP. Granting it would write to a void and report a reward the player never
-            // receives, which is the destroyed-entitlement pattern found three times already
-            // tonight. Exposed as an owed amount instead, so a real sink can pay it later.
-            //
-            // This test should be REWRITTEN, not deleted, once an XP sink exists.
-            Assert.AreEqual(20, ShopLoyaltyService.AvatarXpOwedFor(500),
-                "BS's locked table owes 20 Avatar XP at the 500 rung.");
-            Assert.AreEqual(0, ShopLoyaltyService.AvatarXpOwedFor(100));
+            // REPLACES the AvatarXpIsOWED stopgap. That test existed because Avatar XP had no field
+            // and no consumer, so granting it would have written to a void - I reported an IOU
+            // rather than pretend. BS removed XP entirely and substituted Materials, which has a
+            // real field (constructionMaterials) and a real sink, so this now asserts a grant that
+            // actually lands instead of a number nobody could spend.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            ShopLoyaltyService.Accrue(profile, 500);
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            int materialsBefore = profile.constructionMaterials;
+
+            ShopLoyaltyService.ClaimNext(profile, now);              // 100
+            ShopLoyaltyService.ClaimNext(profile, now);              // 250 -> 50 Materials
+            ShopLoyaltyClaimResult r500 = ShopLoyaltyService.ClaimNext(profile, now);   // 500 -> 100
+
+            Assert.IsTrue(r500.Claimed, r500.Message);
+            Assert.AreEqual(100, r500.MaterialsGranted);
+            Assert.AreEqual(materialsBefore + 150, profile.constructionMaterials,
+                "50 from the 250 rung plus 100 from the 500 rung must actually land on the profile.");
+        }
+
+        [Test]
+        public void MaterialsGrants_MatchTheLockedTable_AndAscend()
+        {
+            Assert.AreEqual(50, ShopLoyaltyService.MaterialsRewardFor(250));
+            Assert.AreEqual(100, ShopLoyaltyService.MaterialsRewardFor(500));
+            Assert.AreEqual(250, ShopLoyaltyService.MaterialsRewardFor(2000));
+            Assert.AreEqual(0, ShopLoyaltyService.MaterialsRewardFor(100));
+
+            Assert.Greater(ShopLoyaltyService.MaterialsRewardFor(2000),
+                ShopLoyaltyService.MaterialsRewardFor(500));
+            Assert.Greater(ShopLoyaltyService.MaterialsRewardFor(500),
+                ShopLoyaltyService.MaterialsRewardFor(250));
+        }
+
+        [Test]
+        public void ACorruptedNegativeMaterialsBalance_IsFlooredBeforeGranting()
+        {
+            // Same read-and-write discipline as every other int here - and the exact rule I broke
+            // one method away earlier tonight, so it gets its own assertion.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100, constructionMaterials = -40 };
+            ShopLoyaltyService.Accrue(profile, 250);
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            ShopLoyaltyService.ClaimNext(profile, now);
+            ShopLoyaltyService.ClaimNext(profile, now);
+
+            Assert.AreEqual(50, profile.constructionMaterials,
+                "A corrupted -40 must not eat the grant - floor first, then add.");
         }
 
         [Test]

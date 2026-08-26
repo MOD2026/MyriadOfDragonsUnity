@@ -44,8 +44,14 @@ namespace MyriadOfDragons.Empire
         /// rather than trusting the per-trial arithmetic to add up.</summary>
         public int goldEarnedTodayUtc = 0;
 
-        /// <summary>Avatar XP granted by the Circuit today. Same reason as goldEarnedTodayUtc.</summary>
-        public int avatarXpEarnedTodayUtc = 0;
+        /// <summary>Construction Materials granted by the Circuit today. Same reason as
+        /// goldEarnedTodayUtc - the cap is enforced explicitly rather than inferred.
+        ///
+        /// REPLACED Avatar XP (BS option (b), 2026-08-26). XP was counted for this daily cap and
+        /// then DISCARDED - PlayerProfile has no XP field and nothing consumed it, so every trial
+        /// clear was "granting" into a void. Materials has a real field (constructionMaterials,
+        /// 2026-08-24) and a real sink, so the reward now actually arrives.</summary>
+        public int materialsEarnedTodayUtc = 0;
 
         /// <summary>UTC day the current personal cycle began, "yyyy-MM-dd". Empty = no cycle.
         /// Replaces the old ISO-week key (LOCKED 2026-08-26): weeks began Monday, so a player who
@@ -71,7 +77,7 @@ namespace MyriadOfDragons.Empire
         public bool Cleared;
         public SoloCircuitTrial Trial;
         public int GoldGranted;
-        public int AvatarXpGranted;
+        public int MaterialsGranted;
         public bool CompletedAllThreeToday;
         public int EventMedalsGranted;
         public bool CycleBonusPaid;
@@ -87,10 +93,10 @@ namespace MyriadOfDragons.Empire
     /// boundary without touching the machine clock. It never saves - the caller persists, the same
     /// contract ShopLoyaltyService and TacticalPuzzleSlate use.
     ///
-    /// REWARD RULES (locked): 250 Gold + 10 Avatar XP per trial clear; +500 Gold +1 Event Medal for
-    /// clearing all 3 the same day; +2,500 Gold +25 Avatar XP for 7 completed circuits in a PERSONAL
+    /// REWARD RULES (locked): 250 Gold + 50 Construction Materials per trial clear; +500 Gold +1 Event Medal for
+    /// clearing all 3 the same day; +2,500 Gold +125 Materials for 7 completed circuits in a PERSONAL
     /// 7-DAY CYCLE (LOCKED 2026-08-26, replacing a Monday-aligned ISO week that made the bonus
-    /// unreachable for anyone who joined mid-week). Hard daily ceiling of 1,250 Gold / 30 Avatar XP, enforced as its own check rather than
+    /// unreachable for anyone who joined mid-week). Hard daily ceiling of 1,250 Gold / 150 Materials, enforced as its own check rather than
     /// inferred from the per-trial numbers. Nothing else is ever granted - no cards, packs, Forge
     /// Dust, Permits, Evolution materials or Market Credits - which keeps the Circuit out of the
     /// acquisition path, the same constraint the loyalty ladder carries.
@@ -98,11 +104,15 @@ namespace MyriadOfDragons.Empire
     public static class SoloCollectionCircuit
     {
         public const int GoldPerTrialClear = 250;
-        public const int AvatarXpPerTrialClear = 10;
+        public const int MaterialsPerTrialClear = 50;
         public const int GoldForAllThreeSameDay = 500;
         public const int EventMedalsForAllThreeSameDay = 1;
         public const int GoldForSevenCircuitCycle = 2500;
-        public const int AvatarXpForSevenCircuitCycle = 25;
+        /// <summary>NOT SPECIFIED by BS's ruling, which covered the per-trial conversion only.
+        /// Derived at the SAME 5x ratio as the specified 10 XP -> 50 Materials conversion, so the
+        /// cycle bonus keeps its proportion to a trial clear. Flagged rather than silently chosen -
+        /// if BS wants a different figure this is the one line to change.</summary>
+        public const int MaterialsForSevenCircuitCycle = 125;
         public const int CircuitsRequiredForCycleBonus = 7;
         public const int CycleLengthDays = 7;
 
@@ -110,7 +120,9 @@ namespace MyriadOfDragons.Empire
         /// spec caps them explicitly - "don't let stacking exceed it" is a separate requirement
         /// from the per-trial amounts happening to sum correctly today.</summary>
         public const int MaxGoldPerDay = 1250;
-        public const int MaxAvatarXpPerDay = 30;
+        /// <summary>Also derived at the same 5x ratio (30 XP -> 150 Materials), for the same
+        /// reason and with the same caveat.</summary>
+        public const int MaxMaterialsPerDay = 150;
 
         public static string UtcDayKey(DateTime nowUtc) => nowUtc.ToString("yyyy-MM-dd");
 
@@ -176,7 +188,7 @@ namespace MyriadOfDragons.Empire
                 progress.dayKeyUtc = today;
                 progress.trialsClearedTodayMask = 0;
                 progress.goldEarnedTodayUtc = 0;
-                progress.avatarXpEarnedTodayUtc = 0;
+                progress.materialsEarnedTodayUtc = 0;
             }
 
             progress.highWaterDayKeyUtc = today;
@@ -231,7 +243,7 @@ namespace MyriadOfDragons.Empire
             progress.trialsClearedTodayMask |= MaskOf(trial);
             result.Cleared = true;
 
-            GrantCapped(progress, GoldPerTrialClear, AvatarXpPerTrialClear, ref result);
+            GrantCapped(progress, GoldPerTrialClear, MaterialsPerTrialClear, ref result);
 
             if (AllThreeClearedToday(progress))
             {
@@ -246,7 +258,7 @@ namespace MyriadOfDragons.Empire
                 {
                     progress.cycleBonusClaimed = true;
                     result.CycleBonusPaid = true;
-                    GrantCapped(progress, GoldForSevenCircuitCycle, AvatarXpForSevenCircuitCycle, ref result);
+                    GrantCapped(progress, GoldForSevenCircuitCycle, MaterialsForSevenCircuitCycle, ref result);
                 }
             }
 
@@ -294,17 +306,17 @@ namespace MyriadOfDragons.Empire
         /// is clipped and simply not granted.
         /// </summary>
         private static void GrantCapped(
-            SoloCircuitProgress progress, int gold, int avatarXp, ref SoloCircuitClearResult result)
+            SoloCircuitProgress progress, int gold, int materials, ref SoloCircuitClearResult result)
         {
             int goldRoom = Math.Max(0, MaxGoldPerDay - progress.goldEarnedTodayUtc);
             int goldPaid = Math.Min(Math.Max(0, gold), goldRoom);
             progress.goldEarnedTodayUtc += goldPaid;
             result.GoldGranted += goldPaid;
 
-            int xpRoom = Math.Max(0, MaxAvatarXpPerDay - progress.avatarXpEarnedTodayUtc);
-            int xpPaid = Math.Min(Math.Max(0, avatarXp), xpRoom);
-            progress.avatarXpEarnedTodayUtc += xpPaid;
-            result.AvatarXpGranted += xpPaid;
+            int materialsRoom = Math.Max(0, MaxMaterialsPerDay - progress.materialsEarnedTodayUtc);
+            int materialsPaid = Math.Min(Math.Max(0, materials), materialsRoom);
+            progress.materialsEarnedTodayUtc += materialsPaid;
+            result.MaterialsGranted += materialsPaid;
         }
     }
 }

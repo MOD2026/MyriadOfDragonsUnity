@@ -52,7 +52,7 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsTrue(r.Cleared, r.Message);
             Assert.AreEqual(SoloCollectionCircuit.GoldPerTrialClear, r.GoldGranted);
-            Assert.AreEqual(SoloCollectionCircuit.AvatarXpPerTrialClear, r.AvatarXpGranted);
+            Assert.AreEqual(SoloCollectionCircuit.MaterialsPerTrialClear, r.MaterialsGranted);
             Assert.IsFalse(r.CompletedAllThreeToday, "One trial is not a circuit.");
         }
 
@@ -144,7 +144,7 @@ namespace MyriadOfDragons.Tests
             SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, Day1);
 
             Assert.AreEqual(SoloCollectionCircuit.MaxGoldPerDay, progress.goldEarnedTodayUtc);
-            Assert.LessOrEqual(progress.avatarXpEarnedTodayUtc, SoloCollectionCircuit.MaxAvatarXpPerDay);
+            Assert.LessOrEqual(progress.materialsEarnedTodayUtc, SoloCollectionCircuit.MaxMaterialsPerDay);
         }
 
         [Test]

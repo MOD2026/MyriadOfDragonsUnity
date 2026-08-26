@@ -29,6 +29,9 @@ namespace MyriadOfDragons.Save
         public bool Claimed;
         public int MilestonePoints;
         public int GoldGranted;
+
+        /// <summary>Construction Materials granted by this claim.</summary>
+        public int MaterialsGranted;
         public int StaminaClaimsApplied;
         public int StaminaClaimsForfeited;
         public int StaminaClaimsDeferred;
@@ -153,10 +156,10 @@ namespace MyriadOfDragons.Save
         public static readonly LoyaltyMilestone[] Milestones =
         {
             new LoyaltyMilestone(100, "1 Stamina claim (counts against the existing 4/24h cap)"),
-            new LoyaltyMilestone(250, "Weekly (7-day) VIP voucher"),
-            new LoyaltyMilestone(500, "5,000 Gold + 1 Stamina claim"),
+            new LoyaltyMilestone(250, "Weekly (7-day) VIP voucher + 50 Materials"),
+            new LoyaltyMilestone(500, "5,000 Gold + 100 Materials + 1 Stamina claim"),
             new LoyaltyMilestone(1000, "Fortnight (14-day) VIP voucher"),
-            new LoyaltyMilestone(2000, "25,000 Gold + 2 Stamina claims + VIP voucher"),
+            new LoyaltyMilestone(2000, "25,000 Gold + 250 Materials + 2 Stamina claims + VIP voucher"),
             new LoyaltyMilestone(4000, "50,000 Gold + 4 Stamina claims + VIP voucher"),
             new LoyaltyMilestone(8000, "100,000 Gold + 8 Stamina claims + VIP voucher"),
         };
@@ -177,18 +180,23 @@ namespace MyriadOfDragons.Save
         }
 
         /// <summary>
-        /// Avatar XP a milestone owes, per BS's locked table.
+        /// Construction Materials granted by a milestone.
         ///
-        /// NOT GRANTED, AND DELIBERATELY SO: there is no Avatar XP field on PlayerProfile at all -
-        /// only `avatarLevel`. Nothing anywhere stores or consumes XP, so granting it here would
-        /// write to a void and report a reward the player never receives. Exposed as a number the
-        /// caller can display or bank once a real sink exists, rather than silently dropped - which
-        /// is exactly the destroyed-entitlement pattern already found three times tonight.
-        ///
-        /// The Solo Circuit has the same gap and I built it: AvatarXpPerTrialClear is counted for
-        /// the daily cap and then discarded. Flagged for a real sink rather than patched here.
+        /// REPLACES the Avatar XP stopgap (BS option (b), 2026-08-26). XP was reported as "owed"
+        /// because PlayerProfile has no XP field and nothing consumed it - granting would have
+        /// written to a void. Materials has a real field (constructionMaterials) and a real sink,
+        /// so this grants for real instead of reporting an IOU.
         /// </summary>
-        public static int AvatarXpOwedFor(int milestonePoints) => milestonePoints == 500 ? 20 : 0;
+        public static int MaterialsRewardFor(int milestonePoints)
+        {
+            switch (milestonePoints)
+            {
+                case 250: return 50;
+                case 500: return 100;
+                case 2000: return 250;
+                default: return 0;
+            }
+        }
 
         /// <summary>Stamina claims granted by a milestone. Every one is still subject to the real
         /// 4-per-24h Shop refill cap - a milestone may never bypass it, so a grant can come back
@@ -462,6 +470,17 @@ namespace MyriadOfDragons.Save
             {
                 CurrencyManager.AddCurrency(profile, CurrencyType.Gold, gold, persist: false);
                 result.GoldGranted = gold;
+            }
+
+            // Written directly with a floor rather than through CurrencyManager: there is no
+            // CurrencyType.Materials (CurrencyDefinitions is Gold/Gems/EventMedal/GuildContribution/
+            // DragonRelic), and constructionMaterials is not a tradeable currency. This is the same
+            // grant path DailyLoginQuestsService and EmpireExpeditionClearTransaction already use.
+            int materials = MaterialsRewardFor(points);
+            if (materials > 0)
+            {
+                profile.constructionMaterials = Math.Max(0, profile.constructionMaterials) + materials;
+                result.MaterialsGranted = materials;
             }
 
             int claims = StaminaClaimsFor(points);
