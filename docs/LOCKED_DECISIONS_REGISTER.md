@@ -797,6 +797,60 @@ transitions under 120ms except the one-shot New reveal.
 Arknights, Royal Match) - no shipped title publishes pixel, timing or haptic constants. Tactile
 feedback is observably present in all; the values above are ours.
 
+## Transitions + loading - LOCKED 2026-08-27 (persistent shell; architectural)
+
+**The shell must PERSIST across screen changes.** Persistent navigation, top HUD/resource strip,
+global social drawer, and the transition/loading overlay all survive; **only the owned content region
+is destroyed and rebuilt.** This is worth the engineering cost - it removes the most visible
+consequence of procedural construction (the screen appearing to vanish before the next exists),
+preserves navigation state, and prevents duplicate shell creation. **Transition polish alone is NOT
+enough** - it hides the symptom while keeping the rebuild work and the race conditions.
+
+**Ranked model:** (1) persistent shell + content-region transition; (2) short directional slide for
+sibling destinations and feed pages; (3) short crossfade for unrelated screens; (4) instant cut only
+when the next screen is already built and under the no-feedback threshold; (5) branded loading screen
+ONLY for genuinely long waits. **Never a full-screen splash between normal destinations.**
+
+**DURATIONS:** content crossfade 180ms; directional slide 220ms; modal open 160ms; modal close 120ms;
+shell-preserving swap 160-220ms; error replacement 120ms. Ease-out entering, ease-in leaving. **Never
+exceed ~250ms for ordinary navigation** - repeat visits feel sluggish.
+
+**LOADING THRESHOLDS, measured from ACCEPTED NAVIGATION INPUT to content-ready (not from the first
+internal call):** <=120ms show nothing; 121-400ms keep shell + outgoing content, no spinner; >400ms
+themed indeterminate indicator; **>1500ms show progress, a concrete status message, or a retry
+affordance.**
+
+**LOADING ANATOMY (beyond 400ms):** central Tier-2 panel at 30-40% of the content region; a small
+animated sigil or ember-ring, **not a generic circular spinner**; T5 heading ("Opening Empire"); T3
+status line; no Tier-1 frame unless the destination is itself a hero surface; keep the dark
+background painting with a local 45-55% scrim; one subtle 700-900ms loop. Past 1.5s replace vague
+text with a concrete state ("Loading collection", "Waiting for response", "Try again").
+
+**NO-DEAD-SPACE APPLIES TO PERCEIVED CONTENT, not literal frame continuity.** Acceptable: previous
+content visible while the next builds; shell and painting present; a purposeful loading panel; a
+short crossfade mixing two complete states. **Not acceptable: a blank canvas, a vanished shell, an
+empty content region with no status after 400ms, or an indeterminate spinner with no context.**
+
+**FAILURE + INTERRUPTION.** Build failure: keep the shell, show an error panel in the content region
+with title, short explanation, Retry, and Back/Home. Data unavailable: distinguish offline vs timeout
+vs unavailable - **never show a falsely empty successful state.** Second navigation input:
+**LATEST-INTENT-WINS** - cancel the pending build, invalidate its completion callback, start the
+newest destination. Never stack screen instances; never let an old build overwrite a newer screen. An
+open modal takes dismissal precedence over navigation. **All transition completion and screen
+activation must be IDEMPOTENT** (same requirement as control activation).
+
+**CC NOTE - FROZEN-CONTRACT RISK, must be checked before this is built:** the persistent-shell
+restructure touches screen lifecycle, and `GameBootstrap.Instance`,
+`GameBootstrap.SetBattleCanvasVisible(bool)`, `BattleController.OnMatchCompleted` and the
+`MatchResult` struct are FROZEN battle<->metagame contract members. The shell work must route around
+them; if it cannot, that is a coordinated change needing an explicit owner decision, not a unilateral
+edit.
+
+**Benchmark: UNCONFIRMED for all 5 games.** One real corroboration though - **Marvel Snap's official
+patch notes explicitly acknowledge abrupt transitions, flicker and prior-screen artifacts as
+defects**, which confirms transition continuity is a genuine production concern in shipped titles,
+not polish.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
