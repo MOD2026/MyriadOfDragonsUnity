@@ -5956,3 +5956,18 @@ unconditionally, on the real `DeckBuilderReleaseGateTests` suite. Metagame-owned
 diagnosed by either CR or VS. Never actually root-caused - exactly AD's proven lane (real code-level
 root-cause with concrete fix, same shape as the Shop text-overlap/empty-box diagnosis). Paste-ready
 prompt below.
+
+## LOCKED: ZIP workaround for handing AD (Copilot) source code, replaces manual chat-paste relay (2026-08-26)
+
+Copilot's own chat interface rejects `.cs` uploads directly (common code-extension block). Real
+workaround, now standing process: zip `Assets/Scripts/UI/*.cs` and upload the archive instead of
+relaying files as fenced chat blocks (which cost real turns/tokens on files like the 1,448-line
+`HomePagePresenter.cs` tonight). Built and verified:
+```
+C:\Users\zihan\Downloads\AD_Audit_Exports\UI_Scripts_Audit.zip   (311 KB, all 55 .cs files in
+Assets/Scripts/UI/, including DeckBuilderPresenter.cs and every helper it calls)
+```
+Reusable for every future AD task, not a one-off - re-run the same `Compress-Archive` command to
+refresh it whenever source changes (owner asked to "refresh this prompt when it is ready" - the zip
+itself is the thing that needs refreshing, not a prompt; regenerate before each new AD session if
+meaningful time has passed).
