@@ -290,9 +290,39 @@ namespace MyriadOfDragons.Tests
                         continue;
                     }
 
+                    // Snapshot the canvases BEFORE pressing, so a screen that navigates by
+                    // building the next presenter itself is still observable.
+                    var before = new HashSet<string>();
+                    foreach (Canvas c in Resources.FindObjectsOfTypeAll<Canvas>())
+                    {
+                        if (c.gameObject.scene.IsValid()) before.Add(c.gameObject.name);
+                    }
+
                     target.onClick.Invoke();
 
-                    if (probe.AnyFired)
+                    // SECOND NAVIGATION STYLE, and missing it produced a false "dead button".
+                    // Empire's OpenExpeditionButton does not call an injected callback at all - it
+                    // constructs EmpireExpeditionPresenter directly and tears its own UI down. The
+                    // probe sees nothing, and reporting that as dead would have sent someone to
+                    // fix a control that works. A new canvas appearing IS the navigation.
+                    string appeared = null;
+                    foreach (Canvas c in Resources.FindObjectsOfTypeAll<Canvas>())
+                    {
+                        if (!c.gameObject.scene.IsValid()) continue;
+                        if (before.Contains(c.gameObject.name)) continue;
+                        appeared = c.gameObject.name;
+                        break;
+                    }
+
+                    if (appeared != null)
+                    {
+                        edges.Add("    {\"from\": " + Json(screen.Name) +
+                                  ", \"control\": " + Json(entry.Control) +
+                                  ", \"opensCanvas\": " + Json(appeared) + "}");
+                        dot.AppendLine("  \"" + screen.Name + "\" -> \"" + appeared +
+                                       "\" [label=\"" + entry.Control + "\"];");
+                    }
+                    else if (probe.AnyFired)
                     {
                         foreach (string callback in probe.Fired)
                         {
@@ -308,8 +338,10 @@ namespace MyriadOfDragons.Tests
                         // Pressed a real navigation control and NOTHING happened. That is a dead
                         // control - the player taps it and stays put - and it is a genuine finding,
                         // not an absent edge.
+                        // Neither a callback nor a new canvas. Now this really does mean the
+                        // player presses it and stays put.
                         warnings.Add("nav-crawl " + screen.Name + ": pressing '" + entry.Control +
-                                     "' fired no navigation callback at all - it may be dead.");
+                                     "' fired no callback AND opened no canvas - it may be dead.");
                     }
 
                     CleanupAfterScreen();
