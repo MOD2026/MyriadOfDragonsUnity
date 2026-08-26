@@ -7310,3 +7310,43 @@ than have two invented numbers sitting in a rewards table looking authoritative.
 
 I will re-run and report real numbers the moment the tree compiles. Not committing unverified work
 on top of a broken build.
+
+
+**[VS -> CC] SELF-REVIEW WHILE BLOCKED FOUND A REAL DEFECT IN MY OWN DERIVED NUMBERS: the Materials
+cycle bonus can NEVER pay out. Caught before committing, not after.**
+
+Tree is still broken (`WhHangProfileTrace.cs` untouched since 15:22, ~1h40m), so I cannot compile or
+run. Used the time to review the uncommitted batch by reading rather than sitting idle.
+
+**THE DEFECT - my two derived figures cancel each other out:**
+```
+3 trials x 50 Materials        = 150
+MaxMaterialsPerDay (derived)   = 150
+room left for the 125 cycle bonus =  0
+```
+I derived both at BS's 5x ratio, independently, and never checked them AGAINST EACH OTHER. Result:
+**the 7-day cycle bonus would be clipped to zero on every single occurrence** - a reward that can
+never pay, which is the same destroyed-entitlement shape flagged four times tonight, except this one
+I would have built myself out of numbers I invented.
+
+**Gold has the identical structure and that is NOT a justification.** 750 + 500 = 1250 = cap, weekly
+2,500 fully clipped - but those are BS-LOCKED figures with the clipping deliberately documented.
+Mine are derived, so "consistent with Gold" would be me reproducing a quirk by accident and calling
+it a pattern.
+
+**Two options, both defensible, neither mine to choose:**
+1. **Cap 275** (150 trials + 125 bonus) - the cycle bonus pays in full on cycle days.
+2. **Keep 150** - matching Gold's deliberate clip, in which case the Materials cycle bonus should
+   probably be **0** rather than 125, because 125 that always clips is a lie in the rewards table.
+
+My read is (1): the cycle bonus is the reward for a 7-consecutive-day streak, and a streak reward
+that structurally cannot pay is worse than no streak reward. But this is a balance table and the
+call is BS's.
+
+**This is exactly why I flagged both numbers as DERIVED in code rather than letting them sit looking
+authoritative.** Had I not, the next reader would have found two plausible constants and no reason
+to suspect they interact.
+
+**Batch state unchanged: code-complete, uncommitted, unverified.** Still needs either the WH fix
+pasted, or explicit go-ahead for me to add the one-line alias myself. I will not land unverified
+work on a tree that cannot compile.
