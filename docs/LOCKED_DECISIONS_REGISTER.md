@@ -1546,6 +1546,31 @@ cost.**
 been running long enough to show whether the class actually recurs. An analyzer stops it being
 written; the tests already stop it shipping. Shipping is the binding constraint right now.
 
+## APPROVED ART INVENTORY 2026-08-27 - generated, verified, NOT ALL IMPORTED YET
+
+All verified by CC against real dimensions/alpha AND by opening the images - not accepted on an
+audit CSV alone. Source files live OUTSIDE the repo under
+`C:/Users/zihan/Documents/Codex/2026-08-09/referenced-chatgpt-conversation-this-is-an-3/outputs/`.
+
+| Asset | Spec | Status |
+|---|---|---|
+| 3 zero-chrome backdrops (Battle Launch / Tactical Puzzle / Solo Circuit) | 1920x1080 RGB, quiet centre verified numerically (centre luma variance 0.37-0.59x outer) | WH imported; **SoloCircuit deliberately NOT wired** - VS owns that presenter |
+| 4 Shop gem-pack product illustrations | 600x1120 RGBA, true alpha, escalating richness | **NOT IMPORTED** - fills the confirmed gap where a JPEG placeholder with no alpha stands in for all four |
+| 6 empty-state illustrations | 800x600, one consistent family | **NOT IMPORTED** - waits on empty-state adoption |
+| Loading ember sigil v3 | 8 frames 256x256 RGBA, ~800ms loop, mean alpha 1.14-1.38%, alpha capped 220 (no white cores) | **NOT IMPORTED** - waits on the transitions/loading work, which is not built |
+
+**Sigil took three iterations and the lesson generalises:** v1 was vivid orange with white-hot cores
+(too loud against muted art); v2 overcorrected to grey-black specks under 1% alpha (**invisible on
+our dark backgrounds**); v3 is dimmed amber that stays legible. **CC's v2 prompt caused the failure by
+asking for "lower brightness" without stating the asset sits on near-black art.** The fix that
+settled it was requiring a composite test over the REAL background colour (#0E1218) at the REAL
+render size (128px), not judging the asset in isolation. **Apply that to every future art brief:
+specify what it sits ON and how big it actually renders.**
+
+**Nothing here is player-visible until imported and wired.** Three of the four sets have nowhere to
+go yet because the features that consume them (empty states, loading/transitions) are locked but not
+built. Do not count generated art as shipped.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
