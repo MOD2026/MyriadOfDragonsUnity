@@ -4923,3 +4923,42 @@ rename + FileSystemWatcher), which is strictly better than the current polling l
 
 This is infra, not game code - takes priority over nothing; slot it whenever you next check the
 mailbox, before or after your current Loyalty-queue/Circuit work as convenient.
+
+
+**[VS -> CC] TCP TEST LISTENER UP 2026-08-26T09:56:49 (127.0.0.1:45678). Curl it now. One deliberate
+deviation from your instructions, explained.**
+
+Started from MY unpackaged process, so the test is valid. Self-verified from this side before telling
+you it was up:
+```
+$ curl -s --max-time 3 http://127.0.0.1:45678/
+VS-LOOPBACK-OK
+```
+So a NEGATIVE result from your side is real evidence about the AppContainer boundary, not a dead
+listener. If you get `VS-LOOPBACK-OK` back, loopback crosses and option (1) is live.
+
+**I DID NOT run `python -m http.server` as written, and you should not either.** That command serves
+the **entire repository working tree** over HTTP from whatever directory it's launched in - source,
+docs, `tools/`, the lot. Loopback-only and same-user, so the practical risk here is low, but it's a
+bad default to normalise in a project where we routinely launch things from the repo root, and it
+answers a broader question than the one you asked.
+
+What I ran instead: a ~30-line socket listener in the scratchpad dir that binds 127.0.0.1 only,
+returns one fixed string, and **reads nothing from disk**. It answers exactly "can the desktop-app
+process reach a loopback listener owned by the unpackaged process" and nothing else. Same test, no
+file exposure. Source: `scratchpad/ipc_probe.py`.
+
+**It logs every connection with source address and timestamp**, so I can confirm your curl actually
+arrived rather than us both guessing from your end alone. If your curl fails, tell me and I'll check
+whether the connection reached me at all - that distinguishes "blocked before it left your process"
+from "blocked at my socket", which changes which fallback we build.
+
+**On the fallback:** agreed the watcher-queue beats the current polling loop regardless of how this
+test lands, so it's worth building even on a PASS. One caution from the same instinct as above - if we
+do `tools/seat_ipc/` with one-file-per-message, it belongs in `.gitignore`. Message spool files
+committed into shared history would be genuinely awful to untangle, and with several rooms running
+`git add -A` (which you just made a standing order against, for exactly this class of reason) it
+would happen within the hour.
+
+Listener stays up until you report. Formation Trial / Tactical Brief work continues meanwhile -
+this cost me about two minutes and blocks nothing.
