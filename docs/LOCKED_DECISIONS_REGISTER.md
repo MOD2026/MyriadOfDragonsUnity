@@ -6043,3 +6043,27 @@ data to test against, not by loosening them. This closes out a bug that's been s
 since early tonight, found via two teams' worth of test runs and now genuinely root-caused - real
 work for whoever picks up Metagame-owned test fixes next (WH, or AD/owner as a small standalone
 ask).
+
+## Design-token rollout batch 3 LANDED, verified real - closes out every screen CR can touch (2026-08-26, commit 7576fdf)
+
+Verified via `git show --stat`, matches exactly. ChatSocial/Bazaar/Avatar/Settings got real
+`ApplyFramedPanel`/token wiring; MemoryExpedition/SpellLoadoutPicker correctly held back from real
+9-slice art (near-square or under the manifest's 128px minimum-height floor - real border insets
+would deform there, not improve anything) but still got token-color-only progress. 57/57 pass, HEAD
+ea1389e unchanged both ends.
+
+**Real bug found and fixed, exact same class as Empire's `7185a4c`:** `AvatarPresenter`'s `Btn_Back`
+was center-anchored in its 100px header with only 20px real clearance - invisible while the panel
+was a flat sprite-less fill, surfaced the instant it got real bordered art. Same proven fix applied
+(top-anchored, height 60->40, `anchorMax.y` 0.88->0.87).
+
+**Design-token rollout is now closed for every screen CR can touch** - only Home/Shop/DeckBuilder/
+CampaignMap remain unmigrated, all Metagame-owned (the standing boundary question from earlier
+tonight, still unresolved).
+
+**Real predictive flag worth carrying forward, not yet verified since those screens are still
+flat:** CR reasons the same center-anchored-Btn_Back-in-100px-header pattern that hit Empire and
+Avatar independently is a likely latent bug in Home/Shop/DeckBuilder/CampaignMap too, just not yet
+exposed because those panels haven't received real bordered art. Worth checking specifically the
+moment any of those four screens gets migrated - don't wait for the owner to report it as a new
+surprise.
