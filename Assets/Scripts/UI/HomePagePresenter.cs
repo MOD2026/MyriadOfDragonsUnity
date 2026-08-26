@@ -435,8 +435,10 @@ public class HomePagePresenter : MonoBehaviour
         identityRoot.transform.SetParent(topHud, false);
         SetScreenRectFromTopLeftPixels(identityRoot.GetComponent<RectTransform>(), 24, 18, 704, 100);
         Image identityBg = identityRoot.GetComponent<Image>();
+        // Under 128px — token fill only (no ApplyFramedPanel), same hold as MemoryExpedition.
+        Color panel = UIFrozenTokens.ColorPanel;
         identityBg.sprite = null;
-        identityBg.color = new Color(0.08f, 0.10f, 0.14f, 0.72f);
+        identityBg.color = new Color(panel.r, panel.g, panel.b, 0.72f);
         identityBg.raycastTarget = true;
 
         Button identityButton = identityRoot.AddComponent<Button>();
@@ -591,7 +593,7 @@ public class HomePagePresenter : MonoBehaviour
         SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 176, 1800, 242);
         Image featureBg = featureRoot.GetComponent<Image>();
         featureBg.sprite = null;
-        featureBg.color = HexColor("#2C2C2C");
+        featureBg.color = UIFrozenTokens.ColorPanel;
         featureBg.raycastTarget = false;
 
         Text featureCopy = UISharedFoundation.CreateText(
@@ -609,7 +611,7 @@ public class HomePagePresenter : MonoBehaviour
         alertIconObj.transform.SetParent(featureRoot.transform, false);
         Image alertIcon = alertIconObj.GetComponent<Image>();
         alertIcon.sprite = null;
-        alertIcon.color = HexColor("#C9A227");
+        alertIcon.color = UIFrozenTokens.ColorAccentBronze;
         alertIcon.raycastTarget = false;
         SetLocalNormalisedRect(alertIcon.rectTransform, 0.01f, 0.14f, 0.07f, 0.86f);
 

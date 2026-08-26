@@ -262,7 +262,7 @@ namespace MyriadOfDragons.UI
             GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bgObj.transform.SetParent(canvasObj.transform, false);
             Image bgImg = bgObj.GetComponent<Image>();
-            bgImg.color = new Color(0.035f, 0.055f, 0.075f, 1f);
+            bgImg.color = UIFrozenTokens.ColorBackground;
             bgImg.raycastTarget = false;
             SetNormalizedRect(bgObj.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f);
 
@@ -270,7 +270,9 @@ namespace MyriadOfDragons.UI
             topBar.transform.SetParent(canvasObj.transform, false);
             Image topBarBg = topBar.GetComponent<Image>();
             topBarBg.sprite = null;
-            topBarBg.color = new Color(0.045f, 0.085f, 0.11f, 1f);
+            // 100px header — token fill only (under 128px 9-slice floor).
+            Color headerColor = UIFrozenTokens.ColorHeader;
+            topBarBg.color = new Color(headerColor.r, headerColor.g, headerColor.b, 1f);
             SetScreenRectFromTopLeftPixels(topBar.GetComponent<RectTransform>(), 0f, 0f, 1920f, 100f);
 
             Text title = CreateTextElement(topBar.transform, "Title", "DECK BUILDER", Vector2.zero, 34, TextAnchor.MiddleCenter, new Vector2(640, 64));
@@ -293,7 +295,9 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("CollectionPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(canvasObj.transform, false);
             Image panelImg = panelObj.GetComponent<Image>();
-            panelImg.color = new Color(0.055f, 0.09f, 0.115f, 1f);
+            UISharedFoundation.ApplyFramedPanel(panelImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+            panelImg.raycastTarget = false;
             SetScreenRectFromTopLeftPixels(panelObj.GetComponent<RectTransform>(), 24f, 150f, 900f, 960f);
 
             Text header = CreateTextElement(panelObj.transform, "Header", "OWNED CARDS", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(400, 54));
@@ -351,7 +355,9 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("DeckPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(canvasObj.transform, false);
             Image panelImg = panelObj.GetComponent<Image>();
-            panelImg.color = new Color(0.07f, 0.075f, 0.095f, 1f);
+            UISharedFoundation.ApplyFramedPanel(panelImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+            panelImg.raycastTarget = false;
             SetScreenRectFromTopLeftPixels(panelObj.GetComponent<RectTransform>(), 918f, 150f, 1896f, 960f);
 
             Text header = CreateTextElement(panelObj.transform, "Header", "ACTIVE DECK", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(360, 54));
@@ -415,7 +421,9 @@ namespace MyriadOfDragons.UI
         {
             GameObject railObj = new GameObject("ActionRail", typeof(RectTransform), typeof(Image));
             railObj.transform.SetParent(canvasObj.transform, false);
-            railObj.GetComponent<Image>().color = new Color(0.045f, 0.085f, 0.105f, 1f);
+            // 96px rail — token fill only (under 128px 9-slice floor).
+            Color railColor = UIFrozenTokens.ColorHeader;
+            railObj.GetComponent<Image>().color = new Color(railColor.r, railColor.g, railColor.b, 1f);
             // Bottom action rail (below Collection/Deck panels which end at y=960). The old
             // top=16/bottom=120 placed this under the header and failed release-gate overlap.
             SetScreenRectFromTopLeftPixels(railObj.GetComponent<RectTransform>(), 24f, 968f, 1896f, 1064f);

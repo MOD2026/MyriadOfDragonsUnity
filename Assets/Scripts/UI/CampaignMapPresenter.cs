@@ -2239,7 +2239,7 @@ namespace MyriadOfDragons.UI
             Image bgImg = bgObj.AddComponent<Image>();
             bgImg.raycastTarget = false; // Campaign input contract, requirement 5: decorative backdrop must never intercept clicks.
 
-            CampaignMapUiLibrary.ApplyPathBackdrop(bgImg, new Color(0.1f, 0.08f, 0.12f));
+            CampaignMapUiLibrary.ApplyPathBackdrop(bgImg, UIFrozenTokens.ColorBackground);
 
             RectTransform bgRect = bgObj.GetComponent<RectTransform>();
             bgRect.anchorMin = Vector2.zero;
@@ -2250,7 +2250,8 @@ namespace MyriadOfDragons.UI
             GameObject topBar = new GameObject("CampaignHeader");
             topBar.transform.SetParent(mapCanvasObj.transform, false);
             Image topBarBg = topBar.AddComponent<Image>();
-            topBarBg.color = new Color(0.06f, 0.06f, 0.1f, 0.9f);
+            Color headerColor = UIFrozenTokens.ColorHeader;
+            topBarBg.color = new Color(headerColor.r, headerColor.g, headerColor.b, 0.92f);
             topBarBg.raycastTarget = false; // decorative header background - the Back button below owns its own click target.
 
             RectTransform topRect = topBar.GetComponent<RectTransform>();
@@ -2268,6 +2269,7 @@ namespace MyriadOfDragons.UI
 
             Button backBtn = backBtnObj.AddComponent<Button>();
             backBtn.targetGraphic = backImg; // Campaign input contract, requirement 4: root Image + Button + assigned targetGraphic.
+            HomeV3UiLibrary.ApplyNavTileButton(backBtn, backImg);
             backBtn.onClick.AddListener(() =>
             {
                 SafeDestroy(mapCanvasObj);
@@ -2480,7 +2482,9 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("DetailPanel");
             panelObj.transform.SetParent(detailModalObj.transform, false);
             Image panelBg = panelObj.AddComponent<Image>();
-            panelBg.color = new Color(0.08f, 0.09f, 0.12f, 0.98f);
+            // Shell ModalChrome owns the ornate frame; panel fill uses frozen tokens only.
+            Color panelFill = UIFrozenTokens.ColorPanel;
+            panelBg.color = new Color(panelFill.r, panelFill.g, panelFill.b, 0.98f);
             panelBg.raycastTarget = false;
 
             RectTransform panelRect = panelObj.GetComponent<RectTransform>();
