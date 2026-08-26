@@ -7688,3 +7688,30 @@ top of `LoginWell_0`, an interactive button. Real, but the file is another seat'
 touching it - queuing as a known follow-up, not urgent tonight. **Same pattern as the DiamondOverlay
 bug is worth checking for anywhere else art has never actually rendered before** - VS's own warning,
 correct to take seriously rather than treat as a one-off.
+
+## BOTH real fronts of tonight's UI thread now landed in sequence: VFX importer fix (VS, ce8ffc6) then the full 9-slice/reorder fix (CR, 54dfcf9)
+
+**VS's importer fix landed** - `textureType 0->8`, `spriteMode 0->1` on all three VFX assets,
+matching `Empty_Slot`'s known-good values exactly, as authorized.
+
+**CR's fix landed 43 seconds later, sequentially on top of it** (confirmed via
+`git merge-base --is-ancestor` - not parallel/racing work). Real numbers in CR's own commit message:
+full suite **1794/1795**, one remaining failure named as "pre-existing, already-tracked... AvatarStrike
+flipbook" - which is the EXACT bug VS's immediately-prior commit fixed. **Honest caveat: CR's own
+suite run most likely predates VS's commit landing in the working tree** (a suite run takes longer
+than a 43-second commit gap), so 1794/1795 may not yet reflect both fixes together - not confirmed
+false, just not independently re-verified with both present. The two fixes are independent
+(importer settings vs. border-fit math) so there's no structural reason they'd conflict, but per
+tonight's own standard: don't claim a number that wasn't actually measured.
+
+**Also landed in the same commit:** the `DeckBuilderPresenter.cs` Btn_Confirm primary-CTA fix, and a
+genuinely new find - Daily Login Quests' login-well buttons were the one call site missing
+`kind: ListRow`, defaulting to `ContentPanel` and picking up a decorative diamond overlay on an
+interactive control (the exact class of bug VS predicted moments earlier: "expect more of this as
+art appears on screens that have never actually drawn it").
+
+**This is the moment both fronts report landed - telling the owner it's time to actually look**,
+per the standing agreement not to say "fixed" again until either a fresh combined-fix suite run
+confirms it or the owner's own eyes do. Recommending the owner's eyes now rather than waiting on a
+third suite run, given the fatigue expressed and that both individual fixes are already independently
+verified.
