@@ -369,6 +369,21 @@ namespace MyriadOfDragons.UI
         {
             if (target == null) return;
 
+            // Catches a FUTURE call site reintroducing the apply-before-position bug (today's 22
+            // known offenders are already fixed - see the register's "flat boxes everywhere" root
+            // cause entry). Unity's own default RectTransform size is exactly 100x100, so a rect
+            // still at that value here means the caller hasn't positioned it yet - not proof, but
+            // a strong, cheap real-time signal worth a warning rather than a silent wrong border.
+            Rect liveRect = target.rectTransform.rect;
+            if (Mathf.Approximately(liveRect.width, 100f) && Mathf.Approximately(liveRect.height, 100f))
+            {
+                Debug.LogWarning($"[UISharedFoundation] ApplyFramedPanel called on '{target.name}' " +
+                    $"while its rect is still Unity's default 100x100 - this usually means chrome " +
+                    $"is being applied before the caller finishes positioning the RectTransform, " +
+                    $"which fits the 9-slice border against the wrong size. Move this call to after " +
+                    $"final anchors/sizeDelta are set.");
+            }
+
             string path = string.IsNullOrEmpty(frameResourcePath) ? DefaultFramedPanelResourcePath(kind) : frameResourcePath;
             Sprite real = string.IsNullOrEmpty(path) ? null : Resources.Load<Sprite>(path);
             if (real != null)
@@ -387,7 +402,7 @@ namespace MyriadOfDragons.UI
             }
             else
             {
-                target.sprite = CreateRoundedPanelSprite(topColor, bottomColor, cornerRadius);
+                target.sprite = CreateOrGetRoundedPanelSprite(topColor, bottomColor, cornerRadius);
                 target.type = Image.Type.Sliced;
                 target.color = Color.white;
 
@@ -472,6 +487,30 @@ namespace MyriadOfDragons.UI
                 case FramedPanelKind.Modal: return "UI/SharedFoundation/ui_modal_dialog_v1";
                 default: return null;
             }
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> _roundedPanelSpriteCache =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        /// <summary>Cached wrapper around <see cref="CreateRoundedPanelSprite"/> - ApplyFramedPanel's
+        /// procedural fallback previously allocated a brand new Texture2D/Sprite on every single
+        /// call with no reuse, even for the exact same color/radius/size combo repeated across many
+        /// call sites and every screen rebuild. The real color+radius+size space this UI actually
+        /// uses is small and fixed, so a simple unbounded-but-small dictionary keyed on the
+        /// quantized inputs is enough - no eviction, that would be premature generality for a cache
+        /// this bounded (same reasoning already applied elsewhere tonight against inventing scope
+        /// nothing has asked for).</summary>
+        public static Sprite CreateOrGetRoundedPanelSprite(Color topColor, Color bottomColor,
+            int cornerRadius = UIFrozenTokens.RadiusPrimary, int size = 64)
+        {
+            string Quant(Color c) => $"{c.r:F3},{c.g:F3},{c.b:F3},{c.a:F3}";
+            string key = $"tr:{Quant(topColor)}|br:{Quant(bottomColor)}|r:{cornerRadius}|s:{size}";
+            if (_roundedPanelSpriteCache.TryGetValue(key, out Sprite cached) && cached != null)
+                return cached;
+
+            Sprite created = CreateRoundedPanelSprite(topColor, bottomColor, cornerRadius, size);
+            _roundedPanelSpriteCache[key] = created;
+            return created;
         }
 
         /// <summary>The exact per-pixel alpha-shaping algorithm GameBootstrap.
