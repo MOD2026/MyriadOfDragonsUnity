@@ -34,7 +34,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-26 | **Every CC turn must end with a paste-ready dispatch/action, never a bare question.** Owner does not want the conversation ending on "should I..." - close every turn by assigning the next real task to VS/CR (direct dispatch) or WH (paste-ready fenced block for the owner to relay). If there is genuinely nothing dispatchable, say so explicitly and still name the concrete blocking dependency, not an open question. | Standing rule, does not lift |
 | 2026-08-26 | **No coding room may sit idle.** At the start of every turn, after the STANDING ORDERS/PENDING DISPATCH check, verify VS/CR/WH each have a live task in flight; if any room's queue is empty, dispatch its next real item from PENDING/backlog immediately, in the same turn. Plan ahead across rooms to avoid two rooms editing the same file/system at once (check "You own"/"You must NOT edit" split and PENDING DISPATCH rows before assigning). Pre-clear any BS/ST/UI design or art dependency EARLY, before a room actually blocks on it, not reactively after the room reports blocked. | Standing rule, does not lift |
 | 2026-08-26 | **No room runs `git add -A` (or equivalent blanket-stage) on this shared tree - explicit paths only.** VS caught it real: an uncommitted `highestClaimedLoyaltyMilestone` field edit got silently swept into `dad3f05`, a commit message that had nothing to do with it, almost certainly via a blanket `git add`. Nothing was lost this time, but it could just as easily ship a half-finished edit under someone else's message or silently revert one. Applies to every room, including CC's own commits to this file. | Standing rule, does not lift |
-| 2026-08-26 | **Owner questions must be fully vetted and locked BEFORE being asked.** No decision goes to the owner until CC has already run the full verification (code-consistency check, benchmark where applicable, peer confirmation of the concrete blocker) and the question is reduced to a clean, self-contained yes/no or pick-one with the vetting shown. Never ask the owner something still being gathered, hedged, or answerable by CC/a room directly. Complements the existing decisiveness rule - this is specifically about the QUALITY BAR of what does reach the owner. | Standing rule, does not lift |
+| 2026-08-26 | **Owner questions must be fully vetted and locked BEFORE being asked.** No decision goes to the owner until CC has already run the full verification (code-consistency check, benchmark where applicable, peer confirmation of the concrete blocker) and the question is reduced to a clean, self-contained yes/no or pick-one with the vetting shown. Never ask the owner something still being gathered, hedged, or answerable by CC/a room directly. Complements the existing decisiveness rule - this is specifically about the QUALITY BAR of what does reach the owner. **Extension (owner, same day): a frozen-file field ask that HAS passed the full vetting bar (BS-locked design where applicable, real-code consistency check, mirrors an already-approved pattern, peer-confirmed concrete blocker) is an automatic YES - CC states the sign-off with the vetting shown and proceeds in the same turn, rather than waiting on the owner. Anything falling short of that full bar still goes to the owner explicitly.** | Standing rule, does not lift |
 | 2026-08-26 | **Memory-failure disclosure.** If CC's own private memory system (`~/.claude/projects/.../memory/`) appears to be failing, unavailable, or inconsistent, tell the owner immediately - it is explicitly not the system of record for project state (that is this file + seat_mailbox.md), but a failure is still worth flagging. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -4841,3 +4841,28 @@ Verified the real shapes:
 Ruling sent to VS via mailbox: build Collection Trial with rarity-band rules only; do NOT invent
 card metadata. School/faction taxonomy goes back to BS as a design question (paste-ready ask below).
 All three Circuit trials now unblocked with zero frozen-file involvement.
+
+## OWNER SIGN-OFF x2 + protocol extension locked (2026-08-26)
+
+Owner approved BOTH pending PlayerProfile field asks in one ruling, and locked a protocol extension:
+**a frozen-file field ask that has passed the FULL vetting bar (BS-locked design, real-code
+consistency check, mirrors an already-approved pattern, peer-confirmed blocker) is an automatic
+yes** - CC states the sign-off with vetting shown and proceeds same-turn. Anything short of that
+bar still goes to the owner. Recorded in STANDING ORDERS row (extension to the vetted-questions
+rule).
+
+Signed off now:
+1. `pendingLoyaltyStaminaClaims` (int, default 0) - queued Loyalty Stamina entitlement delivery
+   (BS-locked option (c), Genshin-mailbox-benchmarked). -> VS to implement.
+2. `battlePassClaimedFreeTier` + `battlePassClaimedPaidTier` (int, default 0, highest claimed tier
+   index per track, ascending-guard mirror of `highestClaimedLoyaltyMilestone`) - unblocks Battle
+   Pass Gold field + claim logic. -> CR to implement.
+
+## Battle Pass SeasonXpPerTier=1400 LANDED, verified (2026-08-26, CR, commit bfd148b)
+
+10/10 pass, HEAD 197cfac unchanged both ends. `AreTierRewardsConfigured` correctly still false
+(PremiumUnlockPrice still open) - production claims still refuse. Gold table held exactly as
+instructed pending the field sign-off (now granted, dispatching in same turn). CR's full dispatched
+chain (Guild Hall investigation -> token batches 1-2 -> Expedition wiring -> BP XP) is closed out;
+next: Battle Pass Gold implementation with the newly signed-off fields, then remaining token-rollout
+batches.

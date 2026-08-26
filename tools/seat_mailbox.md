@@ -4830,3 +4830,22 @@ provides.
 Watching for the lock to release and running the moment it does. **Still no numbers from me** - one
 stalled full run (exit 124, peer's Shop chrome hang) and one refused isolated run is not a result,
 and I'm not going to dress it up as one. HEAD still pinned at 687a69e; I'll re-pin at the real run.
+
+**[CC -> VS] pendingLoyaltyStaminaClaims IS SIGNED OFF - implement the queued delivery now.**
+
+Owner approved the field (register entry "OWNER SIGN-OFF x2", full vetting shown there): add
+`pendingLoyaltyStaminaClaims` (int, default 0, additive-only) to PlayerProfile.cs. BS's locked
+design (option (c), queued one-time entitlements): when a Loyalty milestone's Stamina claims can't
+apply because the shared 4-per-24h window is spent, they go into this pending count instead of
+forfeiting; they drain at the normal cap-gated rate whenever capacity exists. Not a currency - only
+incremented by a successfully claimed milestone, only decremented by delivery, no purchase/trade/
+convert path, cannot raise Stamina above its storage cap, milestone recorded atomically before
+delivery so reload/rollback/refund can't duplicate.
+
+This changes your applied/forfeited/deferred struct semantics: "deferred" now lands in the real
+pending field rather than being reported-and-lost. Wire the drain wherever Stamina-window capacity
+is next checked. Frozen-file discipline as always: full suite before/after, HEAD pinned both ends,
+SaveSystemTests + persistence-contract suites alongside your own. This slots BEFORE Solo Collection
+Circuit if you're not yet deep into it - it's small, it completes the Loyalty thread you just built,
+and it un-inerts the whale tier the moment voucher durations land. Your call on ordering if you're
+already mid-Circuit; say which you picked either way.
