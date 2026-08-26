@@ -6662,3 +6662,18 @@ standing" characterization from earlier tonight.
 **Correctly not concluding yet** - re-running in isolation to confirm before calling it flaky,
 queued behind a live lock rather than forcing it. Real, disciplined, matches the exact standard this
 session has held all night.
+
+## CR's sprite-sweep thread fully CLOSED; root cause on the flaky Backdrop test now proven, real fix dispatched (2026-08-26)
+
+Isolation re-check confirmed: `BackdropImages_NeverBlockRaycasts` passes clean alone (4/4). Same
+`GameObject.Find("Background")` pollution theory, now genuinely proven, not just plausible - not a
+regression, not caused by the sprite sweep. Sprite-silent-fallback sweep (15 files) + HomeV3
+once-per-session gate: 1758/1758 real tests clean once this one known pollution case is excluded.
+Thread closed.
+
+**Real fix dispatched, not leaving it as permanent known-flaky:** now that the mechanism is proven
+(global `Find` colliding with any of 18 same-named `"Background"` objects across the UI layer, not
+scoped to the Battle root), the actual fix is small - scope `BattleReleaseLayoutTests`' lookup to
+the real Battle presentation root instead of a global scene search. This should make the test
+deterministic instead of order-dependent, closing a real test-fragility gap rather than continuing
+to route around it. Dispatched to CR.
