@@ -46,8 +46,17 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-26 | VS (mailbox) | Solo Collection Circuit - Formation Trial + Tactical Brief first; stop before Collection Trial if it needs new save shape | PENDING - dispatched |
-| 2026-08-26 | VS (mailbox) | `highestClaimedLoyaltyMilestone` owner sign-off + revised reward table + voucher-duration hold | PENDING - dispatched (sign-off had been logged at a54ad97 but never delivered; gap closed) |
+| 2026-08-26 | Coding room (session identity unconfirmed as of this entry - re-verify, don't assume) | Design-token rollout across ~20 screens (the real "boxes everywhere" fix) - batched 5-6 screens/commit, Home/Empire/Shop/Collection first | PENDING - dispatched, no landed commit confirmed yet |
+| 2026-08-26 | Coding room | Materials field on PlayerProfile (owner signed off) + Empire Expedition Materials grant wiring | PENDING - dispatched, no confirmation yet |
+| 2026-08-26 | Coding room | Empire display copy - "STRUCTURE LEVEL" hybrid framing for Guild Hall/Embassy/Prison (BS's locked spec) | PENDING - dispatched, no confirmation yet |
+| 2026-08-26 | Coding room | Solo Collection Circuit - Formation Trial + Tactical Brief first; stop before Collection Trial if it needs new save shape | PENDING - dispatched |
+| 2026-08-26 | Coding room | Loyalty redemption full implementation (`highestClaimedLoyaltyMilestone` field, claim guard, Gold+Stamina+voucher grants) - owner signed off, revised whale-tier rewards locked | PENDING - dispatched, voucher durations for 2,000pt still held on BS's answer below |
+| 2026-08-26 | Coding room | Guild Hall screen overlap + Mail screen stuck/unresponsive - raw symptom only, root cause NOT yet diagnosed by the room | PENDING - dispatched, no diagnosis reported yet |
+| 2026-08-26 | BS (via owner) | Voucher-duration monotonicity break: 2,000pt gives a shorter voucher (7-day) than 1,000pt (14-day) despite double the spend - only sane fix is upgrading 2,000pt to 30-day, needs BS's explicit sign-off since it's a real value increase | PENDING - awaiting reply |
+| 2026-08-26 | BS (via owner) | Empire Expedition Stamina-cost/Gold-per-clear/daily-cap + Battle Pass tier Gold amounts - both still real `null` in code, blocks the combined economy simulation | PENDING - awaiting reply |
+| 2026-08-26 | WH (paste-ready, owner relays) | Chapter 3-18 continuity dialogue (ST's verbatim packet) - watch the existing `if(stageId=="18-30")` special case at StoryDatabase.cs:1863 before overwriting | PENDING - given to owner, unconfirmed whether pasted/landed |
+| 2026-08-26 | WH (paste-ready, owner relays) | Guild Expedition/Permit Weekly Key/Spell Loadout Picker screen wiring - real assets already sit in Assets/Resources/UI/{GuildExpeditionV1,PermitWeekKeyV1,SpellLoadoutV1}/ | PENDING - given to owner, unconfirmed whether pasted/landed |
+| 2026-08-26 | WH (paste-ready, owner relays) | VIP real entitlement implementation (BS's re-locked spec: 800/1,500/3,000 Gems, bonus Stamina claims not rate change) | PENDING - given to owner, unconfirmed whether pasted/landed |
 | 2026-08-26 | OWNER | **VIP voucher durations conflict.** CC remapped 250->weekly(7d), 1,000->fortnight(14d) to retire the unexpressible 3-day. The revised whale-tier lock sets 2,000->7d, which sits BELOW the 1,000 rung and breaks the ascending ladder. Monotone fix = upgrade 2,000 to 30-day, a real increase in what paid spend returns. Gold/Stamina halves are unaffected and are shipping now. | PENDING - awaiting owner |
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
 | 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
