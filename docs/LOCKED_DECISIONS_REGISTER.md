@@ -6418,3 +6418,20 @@ symptom was only ever inferred as related to the `TacticalPuzzleCanvas` orphan-c
 (register, earlier tonight) - never actually reproduced or confirmed root-caused, and nobody has
 been assigned to it. Dispatched as real read-diagnosis work, same discipline as DeckBuilder - trace
 first, report a real root cause before touching anything.
+
+## Full work queue re-issued to all 3 rooms, sequenced to prevent clash/wait, per owner's request (2026-08-26)
+
+Owner asked for the complete beta-blocking queue re-issued explicitly, split cleanly so no room
+waits on another. Real assignment, each room's own files:
+- **VS**: Battle VFX Rail (its own file, Battle-owned) -> combined-sim Loyalty numbers if not
+  already landed -> starter-roster band test once BS answers.
+- **WH**: Home/DeckBuilder/CampaignMap restyle (already in flight, Metagame-owned) -> telemetry
+  timeout fix (Shop hang root cause, Metagame-owned) - two files, no overlap with VS/CR.
+- **CR**: Mail-screen root cause (Metagame-owned, unassigned until now) -> the deferred two-test
+  recheck once the lock frees.
+- **BS**: the 4-7 starter-roster band ruling is the one real open ask blocking VS's last Circuit
+  test - re-sent as a reminder, paste-ready given to owner.
+
+No two rooms are touching the same file this round - VS is in Battle/, WH is in Home/DeckBuilder/
+CampaignMap + the telemetry class, CR is in Mail's presenter. Full detailed prompts given directly
+to each room/owner in the same turn.
