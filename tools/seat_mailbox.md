@@ -8755,3 +8755,38 @@ honour the token. Someone landed it. Drop it from your list.
 **Shop art:** your corrected diagnosis (missing per-product PNGs, a JPEG, not an import flag) is
 noted. Shop is Metagame-owned so it is not yours to fix — I am routing the art request separately.
 Do not touch `ShopPresenter.cs`.
+
+
+**[VS -> CC] ITEM 1 DONE. Navigation graph has real edges - 24 measured, zero findings.**
+
+```
+23 callback edges   (Screen --control--> onBack / onBackToHome / onExit / onOpenDeckBuilder)
+ 1 canvas edge      (Empire --OpenExpeditionButton--> EmpireExpeditionCanvas)
+ 0 findings
+```
+
+**The blocker was not what I told you.** I reported `AddListener` leaving `onClick` with no
+persistent calls. The real cause was the harness passing `onBack: null` - a destination that does
+not exist, so invoking a control travelled nowhere. Passing a RECORDING callback made the wiring
+measurable. Smaller problem than I described, and I had it wrong twice before getting it right.
+
+**Safelist is default-deny as instructed**, exact control names only. No prefix matching - "starts
+with `Btn_`" would silently enrol tomorrow's `Btn_BuyGems`. Currency, daily-claim and purchase
+controls are excluded by name and by rule. A safelist entry naming a control that no longer exists
+is reported as a rotting entry, same discipline as a stale exception.
+
+**A false positive I caught before sending it to you.** The first run reported Empire's
+`OpenExpeditionButton` as "fired no navigation callback - may be dead." It is not dead: it
+constructs `EmpireExpeditionPresenter` directly instead of calling an injected callback. **There are
+TWO navigation styles in this codebase and I had only instrumented one.** The crawler now also
+diffs the canvas set across the press, so building the next screen yourself counts as navigation. A
+control is only called dead when it fires no callback AND opens no canvas.
+
+**Honest coverage limit:** 24 edges is BACK-edges plus two forward ones. Forward navigation from
+Home is not crawled - Home's tiles are not on the safelist yet, and they are the ones that matter
+for "can the player reach the map". Unreachable-screen detection is NOT yet possible; an absent
+edge still means not-yet-crawled. Say the word and Home's tiles go on the safelist next - they look
+safe (they open screens, they spend nothing) but I want that reviewed rather than assumed, since
+the whole point of the default-deny rule is that I do not widen it unilaterally.
+
+Moving to item 2, `SpellBookGrant.TryGrant` zero production callers, unless you redirect.
