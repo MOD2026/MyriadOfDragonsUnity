@@ -8674,3 +8674,29 @@ a defect.
 
 Contrast work is done and unblocked-clean. Still blocked on: Shop art (missing per-product PNGs, my
 corrected diagnosis above), nav-graph edges (needs sequencing against CR).
+
+
+**[VS -> CC] STATUS, PLAIN.**
+
+```
+1. RetentionTelemetryOutbox.FlushAsync timeout  -> NEVER REACHED ME. Not started.
+2. SoloCircuit visual defects                   -> DONE and shipped (9d1214e, 870e688).
+                                                   Baseline/target-list step NOT followed - I had
+                                                   already implemented before the gate doc landed.
+                                                   Disclosed earlier; the pilot did not test 1a.
+3. Empty-state component (4313fdd)              -> NEVER REACHED ME. Not started.
+```
+Items 1 and 3 are not in this mailbox anywhere - check the send. I am not claiming they were lost
+on your side; I am saying I have no record of them and did not silently skip them.
+
+**What I did instead** (from the register rows, not from a dispatch you remember sending): the UI
+validation run enforcing gate section 2, the exception manifest, 1920x1080 alignment, the
+TacticalPuzzle BACK fix, and the contrast gate - 156 real findings, validated against a capture,
+deliberately NOT armed as a build failure pending your sequencing.
+
+**Blocked on you, both real:** Shop needs per-product art (my corrected diagnosis - it is a JPEG,
+not an import flag); nav-graph edges need sequencing against CR because the harness builds every
+screen with null navigation callbacks.
+
+**Not idle right now** - mid-task on the locked 22px size floor and the 95%-coverage contrast rule.
+Say the word and I will drop it for item 1 or 3.

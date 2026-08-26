@@ -427,16 +427,51 @@ namespace MyriadOfDragons.Tests
                     if (!text.gameObject.activeInHierarchy || string.IsNullOrEmpty(text.text)) continue;
 
                     Rect box = ScreenRect(text.rectTransform, cam);
-                    float p5 = FifthPercentileContrast(background, box, text.color, out int samples);
+                    // Global 22px floor for player-facing text. Checked before contrast because
+                    // it needs no pixels at all - a 14px label is undersized whatever it sits on.
+                    // The lock also sets 28px over UN-SCRIMMED painted art, which is deliberately
+                    // NOT implemented: detecting whether a scrim sits behind a label is a real
+                    // judgement, and guessing it would either excuse undersized text or condemn
+                    // properly scrimmed text. 22px is the part that is unambiguous.
+                    if (text.fontSize > 0 && text.fontSize < 22)
+                    {
+                        warnings.Add(screen.Name + ": text " + Q(text.name) + " is " + text.fontSize +
+                                     "px, under the global 22px floor.");
+                    }
+
+                    float p5 = FifthPercentileContrast(background, box, text.color, out int samples,
+                                                       out float worst, out float fractionMeetingFloor,
+                                                       text.fontSize >= 55 ? 4.5f : 7f);
                     if (samples < 20) continue;   // too little background to judge honestly
 
-                    float floor = text.fontSize >= 55 ? 4.5f : 7f;
+                    bool large = text.fontSize >= 55;
+                    float floor = large ? 4.5f : 7f;
+                    float absoluteFloor = large ? 3f : 4.5f;
+
                     if (p5 < floor)
                     {
                         warnings.Add(screen.Name + ": text " + Q(text.name) + " renders at " +
                                      p5.ToString("0.0", CultureInfo.InvariantCulture) + ":1 on the 5th percentile, " +
                                      "under the " + floor.ToString("0.0", CultureInfo.InvariantCulture) +
                                      ":1 floor (" + samples + " background samples, font " + text.fontSize + "px).");
+                    }
+                    else if (fractionMeetingFloor < 0.95f)
+                    {
+                        // Passes at the 5th percentile but fails the coverage rule: the lock
+                        // requires >=95% of covered pixels to meet the floor, which catches a
+                        // label that is fine almost everywhere and unreadable across one bright
+                        // patch of art.
+                        warnings.Add(screen.Name + ": text " + Q(text.name) + " meets the floor on only " +
+                                     (fractionMeetingFloor * 100f).ToString("0", CultureInfo.InvariantCulture) +
+                                     "% of covered pixels (95% required).");
+                    }
+
+                    if (worst < absoluteFloor)
+                    {
+                        warnings.Add(screen.Name + ": text " + Q(text.name) + " has a region at " +
+                                     worst.ToString("0.0", CultureInfo.InvariantCulture) + ":1, below the " +
+                                     absoluteFloor.ToString("0.0", CultureInfo.InvariantCulture) +
+                                     ":1 absolute minimum the lock permits nowhere.");
                     }
                 }
             }
@@ -612,9 +647,13 @@ namespace MyriadOfDragons.Tests
         /// against the text colour, and reliably occupies more than 5% of a label's area - so the
         /// 5th percentile lands inside the anti-aliasing every time.
         /// </summary>
-        private static float FifthPercentileContrast(Texture2D frame, Rect box, Color textColour, out int samples)
+        private static float FifthPercentileContrast(
+            Texture2D frame, Rect box, Color textColour, out int samples,
+            out float worst, out float fractionMeetingFloor, float floor)
         {
             samples = 0;
+            worst = float.MaxValue;
+            fractionMeetingFloor = 1f;
             int xMin = Mathf.Clamp(Mathf.FloorToInt(box.xMin), 0, frame.width - 1);
             int xMax = Mathf.Clamp(Mathf.CeilToInt(box.xMax), 0, frame.width - 1);
             int yMin = Mathf.Clamp(Mathf.FloorToInt(box.yMin), 0, frame.height - 1);
@@ -647,6 +686,14 @@ namespace MyriadOfDragons.Tests
             samples = contrasts.Count;
             if (samples < 20) return float.MaxValue;
 
+            int meeting = 0;
+            foreach (float c in contrasts)
+            {
+                if (c < worst) worst = c;
+                if (c >= floor) meeting++;
+            }
+
+            fractionMeetingFloor = meeting / (float)samples;
             contrasts.Sort();
             return contrasts[Mathf.Clamp(Mathf.FloorToInt(samples * 0.05f), 0, samples - 1)];
         }
