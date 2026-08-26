@@ -1040,6 +1040,50 @@ empty-state component) never reached VS at all.
 works; moving it would waste real output. **CC must read `tools/seat_mailbox.md` every turn** - it is
 VS's only channel and it has real watchers.
 
+## Memory Expedition MVP chapters - LOCKED 2026-08-27 (ST rewrite, lore now correct)
+
+ST's rewrite anchors to the REAL setting (Olympus/Boiotia, no dragons). Structure unchanged from the
+prior lock. **Ready for implementation whenever the minigame gets real logic - note it is currently
+UI shell only.**
+
+**MC1 "Memory Burned to Dust"** - survivors of the Boiotian archive fire: treaty fragments fused into
+ash, a damaged seal, commands whose origins are unreadable. Beats: establish the fire -> recover
+treaty fragments -> find illegible names/seals/authorities -> compare fragments of the same command
+-> discover the versions disagree on who issued it. Close: *"Beneath the soot, the same order
+survives in two incompatible forms. One bears the remains of an Olympus seal; the other leaves the
+authority blank."*
+
+**MC2 "Colours Without Orders"** - one account swears Olympus ordered the invasion; another describes
+Olympus colours obeying a command that never passed through Olympus authority. Beats: the accusation
+-> Thaleia's denial -> the forged writ bearing her seal -> compare against the voice-recording
+crystal -> establish Olympus authority could be copied, spoken or worn. Close: *"The crystal
+preserves the order, but the voice changes before the final word. Whoever completed the command
+remains outside the recovered record."*
+
+**MC3 "The Missing Names"** - Ash Regent records set beside the burned treaties. Beats: the title is
+transferable -> how authority passed between bearers -> where destroyed records blocked inheritance
+-> compare with the treaty and forged-command evidence -> deliberate selection, unnamed. Close:
+*"The Tree cannot name the hand that altered the record. It can prove what the fire alone cannot
+explain: orders survived, witnesses survived, and the names needed to judge them did not."*
+
+**GATES: all three require Campaign Chapter 2** - deliberately shared, because every chapter draws on
+Chapter 2 revelations (ash-as-memory + burning archive; Olympus colours without orders + forged writ
++ voice crystal; Ash Regent as transferable title). Splitting them behind earlier gates would expose
+those revelations early. Before Ch2 completes: the daily loop stays playable, the archive shows the
+track as campaign-locked with **no titles or summaries revealed**. MVP = ~15 active expedition days
+after Ch2.
+
+**PRESERVED MYSTERIES - the MVP must not spend these:** who forged the Olympus writ, who wore the
+unauthorised cracked halo, who burned the archive from within, who selected the vanished names,
+whether one faction or several, any Ash Regent bearer's identity, and the Crown Below's origin.
+
+**Still genuinely open (do NOT invent answers):** whether the Tree literally experiences memories in
+the ash or reconstructs analytically from evidence; whether it predates the archive fire or received
+the evidence later; whether the Tree itself can be deceived by forged evidence, or distinguish a
+false memory from an authentic-but-mistaken account. **MVP treatment: show evidence, impressions and
+comparisons without explaining the Tree's metaphysics. The Tree may expose contradictions but must
+never certify one account as true.**
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
