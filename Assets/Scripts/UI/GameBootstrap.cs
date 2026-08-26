@@ -5446,6 +5446,43 @@ namespace MyriadOfDragons.UI
             if (nowSelected) PopSelectedHandCard(justChosen);
         }
 
+        /// <summary>
+        /// Reports the finished battle to the Solo Circuit, so a win under today's Formation
+        /// restriction clears that trial.
+        ///
+        /// Reads the deployment log off the controller and maps it into the Circuit's own type -
+        /// BattleController deliberately does not depend on the Circuit, so the mapping lives on
+        /// this side of the boundary.
+        ///
+        /// Never throws into the match-end path: a Circuit problem must not break match results,
+        /// which is why every input is null-checked rather than assumed.
+        /// </summary>
+        private void TryClearSoloCircuitFormation(bool playerWon)
+        {
+            if (_profile == null || _battleController == null) return;
+            if (_profile.soloCircuitProgress == null) return;
+
+            var deployments = new List<MyriadOfDragons.Empire.SoloCircuitDeployment>();
+            IReadOnlyList<BattleDeploymentRecord> log = _battleController.PlayerDeployments;
+            if (log != null)
+            {
+                for (int i = 0; i < log.Count; i++)
+                {
+                    deployments.Add(new MyriadOfDragons.Empire.SoloCircuitDeployment(
+                        log[i].Lane, log[i].Tick, log[i].ResourceSpent));
+                }
+            }
+
+            MyriadOfDragons.Empire.SoloCircuitClearResult result =
+                MyriadOfDragons.Empire.SoloCircuitCompletion.ReportBattleFinished(
+                    _profile.soloCircuitProgress, deployments, playerWon, System.DateTime.UtcNow);
+
+            // Only a real clear touches disk. A refusal is the common case - most battles are not
+            // played under the day's restriction - and saving on every match end would be pure
+            // write amplification.
+            if (result.Cleared) _profile.Save();
+        }
+
         private void HandleMatchEnded(bool playerWon)
         {
             // First-time Campaign onboarding, requirement 5: captured before anything else runs
@@ -5465,6 +5502,16 @@ namespace MyriadOfDragons.UI
             // local rather than merely deferring when it gets written. HomePagePresenter's own
             // reward guard (HandleMatchCompleted's IsTutorialMatch check) already does the same
             // for gold/gems/stage-unlocks; this is that same rule applied to this call site.
+            // Solo Circuit Formation Trial. Judged HERE because this is the only place that has
+            // both the outcome and the live BattleController, and BattleController.PlayerDeployments
+            // is cleared by the next StartMatch - so the log has to be read before another match
+            // begins, not later from the save.
+            //
+            // Gated on !IsTutorialMatch for the same reason RecordMatchResult below is: the
+            // approved offline tutorial "advances no checkpoint", and paying a daily reward from it
+            // would make the Circuit farmable by replaying the tutorial.
+            if (!IsTutorialMatch) TryClearSoloCircuitFormation(playerWon);
+
             if (!IsTutorialMatch)
             {
                 // The actual "how do I get stronger and beat the Avatar" loop: winning raises

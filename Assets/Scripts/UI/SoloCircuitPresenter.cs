@@ -231,8 +231,10 @@ namespace MyriadOfDragons.UI
         ///   - Tactical Brief: needs an observed solve. Opening today's puzzle is the action; the
         ///     clear arrives via SoloCircuitCompletion.ReportPuzzleSolved when it is actually
         ///     solved.
-        ///   - Formation: needs a battle result under the day's restriction. NOT WIRED YET, and it
-        ///     refuses rather than pretending - see the status line.
+        ///   - Formation: cleared by actually WINNING a battle under the day's restriction. Wired
+        ///     at GameBootstrap.HandleMatchEnded, which is the only place holding both the outcome
+        ///     and the live deployment log. Tapping it here still does nothing on purpose - the
+        ///     screen is not where that trial is played.
         /// </summary>
         private void AttemptTrial(SoloCircuitTrial trial)
         {
@@ -251,8 +253,9 @@ namespace MyriadOfDragons.UI
                     return;   // the puzzle screen takes over; no rebuild behind it
 
                 case SoloCircuitTrial.Formation:
-                    // Deliberately does nothing. A battle fought under the day's restriction is the
-                    // only thing that can clear this, and no such signal exists yet.
+                    // Deliberately does nothing HERE. This trial is cleared by winning a real
+                    // battle under the day's restriction, reported from
+                    // GameBootstrap.HandleMatchEnded. A tap is not a completion.
                     break;
             }
 

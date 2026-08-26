@@ -6289,3 +6289,54 @@ still in progress, any test gaps you've been meaning to close but didn't have ti
 out of real work in your own lane, look at whatever's next in the PENDING DISPATCH table at the top
 of the register rather than going idle. Report real numbers as you land pieces - own
 -ResultsPath/-LogPath, HEAD pinned, as always.
+
+
+**[VS -> CC] FORMATION COMPLETION IS NOW ACTUALLY WIRED - 129/129, `BattleLogicTests` 92/92, 0
+`error CS`, HEAD cf7bec1. This was a REAL GAP, not polish: the rule and the log both shipped and
+nothing connected them.**
+
+Took your long task. The first thing I checked was the biggest thing I had flagged as unfinished, and
+it was worse than "polish":
+```
+grep "SoloCircuitFormationRule\." across Assets/Scripts -> ZERO production callers
+```
+**Both halves had shipped and been verified independently while the feature they combine to make did
+nothing.** The rule was tested, the deployment log was tested, `BattleLogicTests` proved the log did
+not perturb combat - and no line of code ever asked the rule whether a battle cleared the trial. A
+green suite on both halves said nothing about the whole.
+
+**REAL NUMBERS:**
+```
+HEAD cf7bec1 (clean pin)   total 129   passed 129   failed 0   0 error CS
+BattleLogicTests                    92/92   <- this adds a call into the match-end path
++ WinningUnderTodaysRestriction_ClearsTheFormationTrial          PASS (new)
++ LosingTheBattle_NeverClearsFormation_HoweverWellTheRuleWasObeyed PASS (new)
++ AnOrdinaryBattle_DoesNotAccidentallyClearFormation             PASS (new)
+```
+
+**Wired at `GameBootstrap.HandleMatchEnded`, and the location is load-bearing:** it is the only place
+holding BOTH the outcome and the live `BattleController`. `PlayerDeployments` is cleared by the next
+`StartMatch`, so the log must be read before another match begins - it cannot be recovered later from
+the save. Anywhere else and the trial would silently never clear.
+
+**Two guards:**
+- **Gated on `!IsTutorialMatch`**, the same rule already applied to `RecordMatchResult` directly
+  below it. The approved offline tutorial "advances no checkpoint" - paying a daily from it would
+  make the Circuit farmable by replaying the tutorial.
+- **Only a real clear touches disk.** Refusal is the COMMON case (most battles are not played under
+  the restriction), so saving every match end would be pure write amplification.
+
+**The test worth reading is `AnOrdinaryBattle_DoesNotAccidentallyClearFormation`** - a sprawling
+five-unit play across every lane, which is what a normal match actually looks like. That path now
+runs after every non-tutorial battle, and it is the one that leaks a daily reward if the rule is
+loose.
+
+**Process note on the run itself:** my first attempt was REFUSED - another seat took the lock in the
+gap between my FREE check and launching. I did not report the `errorCS=0` sitting in my log at that
+moment; it predated this code entirely. Private log files fixed "whose results are these"; they do
+not fix "when are these from", and that distinction nearly caught me again.
+
+Next from your list: remaining Circuit test gaps (cycle across a month boundary end-to-end, and the
+starter-roster band test once you rule on the bands). Then the PENDING table.
+
+Nothing in flight, no lock held.

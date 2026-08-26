@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MyriadOfDragons.Battle;
 using MyriadOfDragons.Empire;
 using NUnit.Framework;
 
@@ -81,6 +82,82 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsFalse(r.Cleared);
             StringAssert.Contains("library is empty", r.Message);
+        }
+
+        [Test]
+        public void WinningUnderTodaysRestriction_ClearsTheFormationTrial()
+        {
+            var progress = new SoloCircuitProgress();
+            string rule = SoloCircuitDailySeed.FormationRestrictionFor(
+                SoloCollectionCircuit.UtcDayKey(NowUtc));
+
+            // Build a play that actually satisfies whatever today's seed selected, rather than
+            // hardcoding one restriction - otherwise this test silently stops exercising the pass
+            // path the day the seed picks a different rule.
+            var deployments = new List<SoloCircuitDeployment>();
+            foreach (Lane lane in new[] { Lane.Front, Lane.Back, Lane.Middle })
+            {
+                var candidate = new List<SoloCircuitDeployment> { new SoloCircuitDeployment(lane, 0, 1) };
+                if (SoloCircuitFormationRule.IsSatisfied(rule, candidate))
+                {
+                    deployments = candidate;
+                    break;
+                }
+            }
+
+            Assert.IsNotEmpty(deployments, "No single-unit play satisfies today's rule: " + rule);
+
+            SoloCircuitClearResult r = SoloCircuitCompletion.ReportBattleFinished(
+                progress, deployments, isVictory: true, nowUtc: NowUtc);
+
+            Assert.IsTrue(r.Cleared, r.Message);
+            Assert.AreEqual(SoloCircuitTrial.Formation, r.Trial);
+        }
+
+        [Test]
+        public void LosingTheBattle_NeverClearsFormation_HoweverWellTheRuleWasObeyed()
+        {
+            var progress = new SoloCircuitProgress();
+            var deployments = new List<SoloCircuitDeployment> { new SoloCircuitDeployment(Lane.Front, 0, 1) };
+
+            SoloCircuitClearResult r = SoloCircuitCompletion.ReportBattleFinished(
+                progress, deployments, isVictory: false, nowUtc: NowUtc);
+
+            Assert.IsFalse(r.Cleared);
+            Assert.AreEqual(0, progress.goldEarnedTodayUtc, "A loss must grant nothing.");
+        }
+
+        [Test]
+        public void AnOrdinaryBattle_DoesNotAccidentallyClearFormation()
+        {
+            // Most battles are NOT played under the restriction. Reporting every match end must be
+            // cheap and silent, not a stream of accidental daily clears - this is the common case,
+            // and the one that would leak rewards if the rule were loose.
+            var progress = new SoloCircuitProgress();
+            string rule = SoloCircuitDailySeed.FormationRestrictionFor(
+                SoloCollectionCircuit.UtcDayKey(NowUtc));
+
+            // A sprawling 5-unit play across every lane: breaks every restriction in the pool
+            // except the widest, and is what a normal match actually looks like.
+            var sprawl = new List<SoloCircuitDeployment>
+            {
+                new SoloCircuitDeployment(Lane.Front, 0, 9),
+                new SoloCircuitDeployment(Lane.Front, 1, 9),
+                new SoloCircuitDeployment(Lane.Middle, 2, 9),
+                new SoloCircuitDeployment(Lane.Back, 3, 9),
+                new SoloCircuitDeployment(Lane.Middle, 4, 9),
+            };
+
+            if (SoloCircuitFormationRule.IsSatisfied(rule, sprawl))
+            {
+                Assert.Pass("Today's rule is permissive enough to allow a sprawling play: " + rule);
+            }
+
+            SoloCircuitClearResult r = SoloCircuitCompletion.ReportBattleFinished(
+                progress, sprawl, isVictory: true, nowUtc: NowUtc);
+
+            Assert.IsFalse(r.Cleared, "A normal win must not clear a restricted trial.");
+            StringAssert.Contains("restriction", r.Message);
         }
 
         [Test]

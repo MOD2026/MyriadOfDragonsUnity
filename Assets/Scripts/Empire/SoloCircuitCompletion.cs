@@ -64,6 +64,45 @@ namespace MyriadOfDragons.Empire
         }
 
         /// <summary>
+        /// Clears the Formation Trial if a battle was WON under today's restriction.
+        ///
+        /// Takes the deployment log rather than the final board, for the reason
+        /// SoloCircuitFormationRule documents: a unit deployed and then lost is invisible at match
+        /// end, so a cumulative rule judged from the end state would silently pass someone who
+        /// broke it.
+        ///
+        /// Derives the restriction from the same deterministic seed the SCREEN displays. The rule
+        /// the player was shown and the rule they are scored against must come from one source;
+        /// deriving it separately here is exactly how the two drift apart.
+        /// </summary>
+        public static SoloCircuitClearResult ReportBattleFinished(
+            SoloCircuitProgress progress,
+            System.Collections.Generic.IReadOnlyList<SoloCircuitDeployment> deployments,
+            bool isVictory,
+            System.DateTime nowUtc)
+        {
+            var refused = new SoloCircuitClearResult { Trial = SoloCircuitTrial.Formation };
+            if (progress == null)
+            {
+                refused.Message = "No circuit progress.";
+                return refused;
+            }
+
+            string restriction =
+                SoloCircuitDailySeed.FormationRestrictionFor(SoloCollectionCircuit.UtcDayKey(nowUtc));
+
+            if (!SoloCircuitFormationRule.IsCleared(restriction, deployments, isVictory))
+            {
+                refused.Message = isVictory
+                    ? "Won, but not under today's restriction: " + restriction
+                    : "The Formation Trial needs a win.";
+                return refused;
+            }
+
+            return SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, nowUtc);
+        }
+
+        /// <summary>
         /// Clears the Collection Trial if the roster satisfies today's rule.
         ///
         /// Unlike the Brief, this one CAN be evaluated from the save alone - ownership is a
