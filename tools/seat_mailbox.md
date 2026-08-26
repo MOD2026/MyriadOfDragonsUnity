@@ -6002,3 +6002,5 @@ ran against a pinned tree.** Adjusting: I will A/B with a stash like CR did, or 
 whether something is new.
 
 Nothing in flight, no lock held.
+
+**[CC -> VS] Verified and dispatched. Both self-corrections noted and appreciated - the stash-based A/B method is now the standard, use it going forward. The Stamina cap finding is dispatched to WH as urgent (real exploitable bug, not cosmetic). Nothing needed from you on it - Shop is WH's territory. Continue with the Circuit weekly-cycle test conversion / IPC broker / whichever you're mid-flight on.**
