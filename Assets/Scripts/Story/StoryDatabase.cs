@@ -50,6 +50,15 @@ namespace MyriadOfDragons.Story
             sequences[$"{stageId}_post"] = post;
         }
 
+        /// <summary>Replace an existing sequence's lines entirely (continuity packet). Never appends
+        /// after templated enemy/combat flavour — the caller supplies the full pre/post for that key.</summary>
+        private static void ReplaceSequenceLines(string sequenceId, string title, params DialogueLine[] lines)
+        {
+            var seq = new StorySequence(sequenceId, title);
+            seq.lines.AddRange(lines);
+            sequences[sequenceId] = seq;
+        }
+
         private static void InitializeDatabase()
         {
             // Speakers (NPC Avatars & Player)
@@ -1880,6 +1889,147 @@ namespace MyriadOfDragons.Story
                     $"{enemyName} scatter, broken.",
                     $"{title} is behind us. The silent throne still waits.");
             }
+
+            // LOCKED 2026-08-26: Chapter 3-18 continuity dialogue (ST verbatim packet).
+            // Replaces listed _pre/_post keys entirely — does not append after enemy/combat flavour.
+            // Stage title / enemy name / battle panel still supply encounter context.
+            // After 14-15 reveal, Eryx lines use a separate speaker object (same portrait path) so
+            // earlier Unknown Voice lines keep displayName "Unknown Voice" (shared-reference rename
+            // would rewrite every prior finale hook). speakerId stays unknown_voice for continuity.
+            // The existing if (stageId == "18-30") block above only authored finale dialogue; this
+            // packet replaces those lines in place — no separate ending trigger to preserve.
+            var eryx = new StorySpeaker("unknown_voice", "Eryx, the First Witness",
+                "UI/Portraits/Paladin", SpeakerPosition.Right);
+
+            ReplaceSequenceLines("3-30_post", "Stage 3-30: Cleared",
+                new DialogueLine(ione, "The dead-star road is closing. Its last echo points back through Boiotia."),
+                new DialogueLine(thaleia, "Then I hold Olympus, Rusk secures the road, and you follow the echo. We will meet again."));
+
+            ReplaceSequenceLines("4-1_pre", "Stage 4-1: Ashroad Gatehouse",
+                new DialogueLine(rusk, "The gate beyond Olympus closed, but its trail doubled back through Boiotia. The Ashfall reserve is covering something."),
+                new DialogueLine(playerSpeaker, "Then we break the reserve and find what the dead-star road came back for."));
+            ReplaceSequenceLines("4-30_post", "Stage 4-30: Cleared",
+                new DialogueLine(rusk, "The reserve is broken. Ione's last signal warned that something beyond the dead-star road already knows our route."),
+                new DialogueLine(unknownVoice, "I know every road power walks, Commander. The coast will teach you the next."));
+
+            ReplaceSequenceLines("5-15_pre", "Stage 5-15: Windward Bastion",
+                new DialogueLine(rusk, "You speak of breaking every wall now. Remember who must live beside the rubble."),
+                new DialogueLine(playerSpeaker, "I remember. We take the bastion without making its people our enemy."));
+            ReplaceSequenceLines("5-30_post", "Stage 5-30: Cleared",
+                new DialogueLine(playerSpeaker, "The sea wall is open. We climb, but we do not claim the coast behind us."),
+                new DialogueLine(unknownVoice, "Climb carefully. Heights make possession sound like duty."));
+
+            ReplaceSequenceLines("6-30_post", "Stage 6-30: Cleared",
+                new DialogueLine(rusk, "The summit road is secure. I stay here to keep liberation from becoming occupation."),
+                new DialogueLine(unknownVoice, "Leave him his roads. The gate ahead requires someone willing to enter alone."));
+
+            ReplaceSequenceLines("7-1_pre", "Stage 7-1: Beyond the Outer Gate",
+                new DialogueLine(thaleia, "I held Olympus together long enough to meet you here. Cross this gate as conqueror, and every lie about us becomes true."),
+                new DialogueLine(playerSpeaker, "Then I cross as the coalition's commander, not Olympus's replacement."));
+            ReplaceSequenceLines("7-30_pre", "Stage 7-30: Boiotia's Divine Threshold",
+                new DialogueLine(thaleia, "Beyond this threshold, every victory will be read as a claim to rule."),
+                new DialogueLine(playerSpeaker, "Then let my first claim be that no throne decides for everyone again."));
+            ReplaceSequenceLines("7-30_post", "Stage 7-30: Cleared",
+                new DialogueLine(ione, "The dead-star road remains closed, yet the voice crosses this threshold as if the gate were open."),
+                new DialogueLine(unknownVoice, "Gates obey authority, not stone. Soon you will understand which one you carry."));
+
+            ReplaceSequenceLines("8-15_pre", "Stage 8-15: Apollo's Broken Court",
+                new DialogueLine(thaleia, "Apollo's court deserves defeat. Its people do not deserve another ruler chosen by force."),
+                new DialogueLine(playerSpeaker, "We break the court's command, not everyone trapped beneath it."));
+
+            ReplaceSequenceLines("9-15_pre", "Stage 9-15: Athena's War Hall",
+                new DialogueLine(thaleia, "Athena made strategy an argument for permanent authority. Do not answer her by doing the same."),
+                new DialogueLine(playerSpeaker, "I need one opening, not her throne. Find me the mistake."));
+
+            ReplaceSequenceLines("10-15_pre", "Stage 10-15: The Empty Throne Court",
+                new DialogueLine(thaleia, "We promised to build no new throne. The empty seat ahead will make that promise feel inconvenient."),
+                new DialogueLine(playerSpeaker, "Then this is where the promise proves its worth."));
+            ReplaceSequenceLines("10-30_post", "Stage 10-30: Cleared",
+                new DialogueLine(ione, "You left the throne empty, and Thaleia saw the compact hold. But the dead-star road has opened again."),
+                new DialogueLine(unknownVoice, "Then take the abandoned storm, Commander, and pay its price."));
+
+            ReplaceSequenceLines("11-1_pre", "Stage 11-1: Stormprice Causeway",
+                new DialogueLine(ione, "The voice wants you to call the storm yours. Custody becomes possession one word at a time."),
+                new DialogueLine(playerSpeaker, "Then I will carry it until it is safe, and no longer."));
+            ReplaceSequenceLines("11-15_pre", "Stage 11-15: The Price Court",
+                new DialogueLine(ione, "You used the storm without counsel. Necessity explains the choice; it does not make the choice harmless."),
+                new DialogueLine(playerSpeaker, "Then record it plainly. I will answer for what I chose."));
+            ReplaceSequenceLines("11-30_post", "Stage 11-30: Cleared",
+                new DialogueLine(playerSpeaker, "The price is paid. The storm remains in my custody, not under my crown."),
+                new DialogueLine(ione, "Good. The voice expected you to confuse surviving its power with deserving it."));
+
+            ReplaceSequenceLines("12-1_pre", "Stage 12-1: Hostward March",
+                new DialogueLine(rusk, "These soldiers swear themselves to you, not the coalition. I have seen where that road ends."),
+                new DialogueLine(playerSpeaker, "Then they march under a shared command or they do not march with us."));
+            ReplaceSequenceLines("12-15_pre", "Stage 12-15: The Host Court",
+                new DialogueLine(rusk, "The Host Court offers obedience because debate feels dangerous during war."),
+                new DialogueLine(playerSpeaker, "Fear may shorten an order. It cannot legitimise one."));
+            ReplaceSequenceLines("12-30_post", "Stage 12-30: Cleared",
+                new DialogueLine(playerSpeaker, "I will lead the host under the coalition's mandate, and surrender command when that mandate ends."),
+                new DialogueLine(rusk, "Keep saying that where the soldiers can hear. One day they may have to hold you to it."));
+
+            ReplaceSequenceLines("13-1_pre", "Stage 13-1: Olympian Outrider Post",
+                new DialogueLine(thaleia, "Olympus offers you the authority to answer in its name. It is another throne disguised as a document."),
+                new DialogueLine(playerSpeaker, "Then Olympus will answer through witnesses, not through me alone."));
+            ReplaceSequenceLines("13-15_pre", "Stage 13-15: The Answer Court",
+                new DialogueLine(thaleia, "The Answer Court will make your decree binding before anyone hears the evidence."),
+                new DialogueLine(playerSpeaker, "Then the evidence speaks first, and no decree outruns it."));
+            ReplaceSequenceLines("13-30_post", "Stage 13-30: Cleared",
+                new DialogueLine(thaleia, "I found the voice's warning in the First Witness archive. Eryx used those exact words before his exile."),
+                new DialogueLine(ione, "The pattern agrees. We have not proven the voice is Eryx, but it wants us to reach that conclusion."));
+
+            ReplaceSequenceLines("14-1_pre", "Stage 14-1: Pantheon Ruin March",
+                new DialogueLine(unknownVoice, "The pantheon is falling. Someone must decide what rises after it."),
+                new DialogueLine(playerSpeaker, "Not someone. Those who survive it will decide together."));
+            ReplaceSequenceLines("14-15_pre", "Stage 14-15: The Pantheon Court",
+                new DialogueLine(ione, "First Witness, the archive names you. Speak without the borrowed shadow."),
+                new DialogueLine(unknownVoice, "At last. I am Eryx, and I have been preparing you to finish what Olympus could not."));
+            ReplaceSequenceLines("14-30_post", "Stage 14-30: Cleared",
+                new DialogueLine(eryx, "The pantheon failed because divided powers preserve conflict. One sovereign can end it."),
+                new DialogueLine(playerSpeaker, "One sovereign can also preserve every mistake forever. I will not accept your answer."));
+
+            ReplaceSequenceLines("15-1_pre", "Stage 15-1: Godless Causeway",
+                new DialogueLine(rusk, "Thaleia carries the lawful writ, Ione carries the proof, and I carry the names of those paying for this war."),
+                new DialogueLine(playerSpeaker, "Then we face the godless dawn together, as we should have from the start."));
+            ReplaceSequenceLines("15-15_pre", "Stage 15-15: The Godless Court",
+                new DialogueLine(thaleia, "The court wants to grant you emergency authority without an end date. That is a coronation written in smaller letters."),
+                new DialogueLine(playerSpeaker, "Without command, the coalition fractures today. I will accept only what this crisis requires."));
+            ReplaceSequenceLines("15-30_post", "Stage 15-30: Cleared",
+                new DialogueLine(playerSpeaker, "Until the godless territories are secure, final command rests with me. Record the limit and the reason."),
+                new DialogueLine(ione, "I will record both. I will also record that this is the first promise you have asked us to trust without proof."));
+
+            ReplaceSequenceLines("16-1_pre", "Stage 16-1: Hollow Crown March",
+                new DialogueLine(eryx, "The crown is hollow. Wear it, and frightened nations will obey without another battle."),
+                new DialogueLine(playerSpeaker, "If I carry it, I carry a symbol. It grants me no right beyond the mandate."));
+            ReplaceSequenceLines("16-15_pre", "Stage 16-15: The Hollow Court",
+                new DialogueLine(rusk, "The Hollow Court obeyed the crown before your order arrived. The symbol is already commanding in your place."),
+                new DialogueLine(playerSpeaker, "Then I control it until the campaign ends. I will not leave it for Eryx."));
+            ReplaceSequenceLines("16-30_post", "Stage 16-30: Cleared",
+                new DialogueLine(playerSpeaker, "The Hollow Crown comes with me. No rival will use it while the coalition remains exposed."),
+                new DialogueLine(thaleia, "That is possession speaking in the language of protection. You have crossed the line we drew together."));
+
+            ReplaceSequenceLines("17-1_pre", "Stage 17-1: Ashen Banner March",
+                new DialogueLine(rusk, "Armies are gathering beneath your crown and this banner. None waited for the coalition to call them."),
+                new DialogueLine(playerSpeaker, "Then I give them one order: protect the settlements and hold their advance."));
+            ReplaceSequenceLines("17-15_pre", "Stage 17-15: The Ashen Court",
+                new DialogueLine(rusk, "Those settlements now feed a permanent army bearing your mark. Liberation has started collecting tribute."),
+                new DialogueLine(playerSpeaker, "Stop the collections. If the army cannot survive without coercion, it does not deserve to survive."));
+            ReplaceSequenceLines("17-30_post", "Stage 17-30: Cleared",
+                new DialogueLine(ione, "Storm, host, answer, pantheon, crown, banner. Eryx has led you through every claim a sovereign needs before taking a throne."),
+                new DialogueLine(playerSpeaker, "Then I reach the Silent Throne before he completes the claim. After that, every borrowed power is returned."));
+
+            ReplaceSequenceLines("18-1_pre", "Stage 18-1: Silent Throne March",
+                new DialogueLine(eryx, "You carry the storm, command the host, wear the crown, and raise the banner. Only the seat remains."),
+                new DialogueLine(playerSpeaker, "I came to stop your design, not complete it."));
+            ReplaceSequenceLines("18-15_pre", "Stage 18-15: The Silent Court",
+                new DialogueLine(ione, "Thaleia names the broken law, Rusk names its human cost, and the pattern names you. The throne requires the commander's willing claim."),
+                new DialogueLine(eryx, "Conquest could never restore the Crown Below. The world had to ask you to build it for me."));
+            ReplaceSequenceLines("18-30_pre", "Stage 18-30: The Silent Throne",
+                new DialogueLine(eryx, "Take the throne and bind every oath before the world fractures again."),
+                new DialogueLine(playerSpeaker, "If I sit, the war ends today. If I refuse, everything we built must stand without me."));
+            ReplaceSequenceLines("18-30_post", "Stage 18-30: Cleared",
+                new DialogueLine(eryx, "Without the throne, every oath you gathered will eventually fracture."),
+                new DialogueLine(playerSpeaker, "Then we renew them together. No crown, no banner, no silent throne. Your design ends here."));
         }
 
         public static StorySequence GetSequence(string sequenceId)

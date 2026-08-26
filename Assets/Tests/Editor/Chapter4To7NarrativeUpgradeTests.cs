@@ -4,18 +4,18 @@ using NUnit.Framework;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// LOCKED Ch4-7 narrative upgrade (2026-08-25): 12 bespoke beats —
-    /// opener / midpoint / finale / post-finale hook × chapters 4–7.
-    /// Ordinary stages stay templated; this fixture only locks the required beats.
+    /// Ch4-7 beat locks, updated 2026-08-26 for the ST continuity packet.
+    /// Untouched midpoints/finales keep the earlier Ch4-7 narrative-upgrade snippets;
+    /// continuity-replaced keys assert the new verbatim lines instead.
     /// </summary>
     public class Chapter4To7NarrativeUpgradeTests
     {
         private static readonly (int chapter, string openerSnippet, string midpointSnippet, string finaleSnippet, string postHookSnippet)[] Chapters =
         {
-            (4, "already burning", "not soft", "ash ends", "coasts answer with tides"),
-            (5, "neither", "choose wrong", "sea can wait", "Heights punish"),
-            (6, "soft feet were never", "Let it watch", "take the view", "Gates open both ways"),
-            (7, "Distance was never", "remember one more", "cross what I break", "Crowns of storms"),
+            (4, "Ashfall reserve", "not soft", "ash ends", "coast will teach"),
+            (5, "neither", "live beside the rubble", "sea can wait", "Heights make possession"),
+            (6, "soft feet were never", "Let it watch", "take the view", "willing to enter alone"),
+            (7, "Cross this gate as conqueror", "remember one more", "no throne decides", "Gates obey authority"),
         };
 
         [Test]
