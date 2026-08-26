@@ -7122,3 +7122,46 @@ shipped and now doubly verified (builder + independent reviewer).
 
 Real open items remaining: the DeckBuilder UI hang (deprioritized by owner, on hold), and an AD audit
 in progress on DeckBuilder's design-token chrome (owner dispatching directly, not yet reported back).
+
+## ROOT CAUSE FOUND for the "flat boxes everywhere" UI complaint: 9-slice borders are far LARGER than the rects they render into (2026-08-26, CC, measured)
+
+**This is a global chrome bug, not a DeckBuilder one** - `ApplyNeutralActionButton` runs at ~65 call
+sites across every screen, so this affects the whole game's button chrome, which is very likely the
+real content of the owner's long-standing "boxes everywhere" complaint that the design-token rollout
+was supposed to have fixed.
+
+**Measured, not theorised:**
+```
+ui_button_secondary_normal_v1.png   1024 x 320   spriteBorder {x:160, y:64, z:160, w:64}
+ui_button_primary_normal_v1.png     1024 x 320   spriteBorder {x:160, y:64, z:160, w:64}
+ui_content_panel_v1.png             1024 x 640   spriteBorder {x:160, y:192, z:160, w:192}
+```
+A sliced Image renders its border at SOURCE PIXEL SIZE (spritePixelsToUnits 100,
+`pixelsPerUnitMultiplier` default 1). So the button art needs **320px horizontal** (160+160) and
+**128px vertical** (64+64) before any center region exists at all.
+
+`DeckBuilderPresenter.cs:455-463` builds those buttons at `new Vector2(320, 62)` - and then
+`SetNormalizedRect` shrinks them further to a fraction of the rail height. **62px tall against a
+128px vertical border requirement: the top and bottom borders overlap by ~2x.** When 9-slice borders
+exceed the rect, Unity collapses/squashes them and the result renders as a mushy flat block - which
+is exactly what the screenshot shows.
+
+**`pixelsPerUnitMultiplier` appears NOWHERE in `Assets/Scripts/UI/`** (grepped, zero hits) - nothing
+anywhere compensates for this. That is the missing piece.
+
+**Why every prior investigation missed it:** every check to date confirmed the sprite *loads*
+(`sprite != null`, `type == Sliced`, assets present, correctly imported) - all true, all passing, and
+all irrelevant. The art is applied correctly and still renders flat, because the failure is
+geometric, not a load failure. AD's two audits both looked for a missing-asset/fallback cause and its
+second pass proposed "border values are zero" - the opposite of the real problem, borders are too big.
+
+**Fix direction (not yet locked, needs a real UI call):** either set
+`Image.pixelsPerUnitMultiplier` to scale borders down to the real rect size (roughly 2-4x for these
+buttons), or re-slice the source art with proportionally smaller borders, or render the chrome at
+larger rects. Cheapest is very likely the multiplier, set inside the two `HomeV3UiLibrary` helpers +
+`ApplyFramedPanel` so all ~65 call sites get it at once with no per-site change - the same
+"fix-it-in-the-helper" shape those helpers already use.
+
+Separately confirmed real and unrelated: `DeckBuilderPresenter.cs:463` uses `ApplyNavTileButton`
+(secondary chrome) for CONFIRM/SAVE DECK, the screen's primary CTA - should be
+`ApplyPrimaryActionButton`. One-line fix, AD's one correct finding across both its audits.
