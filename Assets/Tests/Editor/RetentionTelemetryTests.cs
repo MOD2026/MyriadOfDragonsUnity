@@ -119,18 +119,29 @@ namespace MyriadOfDragons.Tests
             public readonly List<string> SentEventIdsInOrder = new List<string>();
             public int FailAtCallNumber = -1; // -1 = never fail
             public bool ThrowInsteadOfFail;
+            /// <summary>When set, SendEventAsync awaits forever (ignores the token) - reproduces
+            /// the live Cloud Code hang that does not honor CancellationToken.</summary>
+            public bool HangForeverIgnoringCancellation;
             private int _callCount;
 
-            public Task<RetentionTelemetryGatewayResult> SendEventAsync(RetentionTelemetryEvent evt, CancellationToken cancellationToken)
+            public async Task<RetentionTelemetryGatewayResult> SendEventAsync(
+                RetentionTelemetryEvent evt, CancellationToken cancellationToken)
             {
                 _callCount++;
+                if (HangForeverIgnoringCancellation)
+                {
+                    // Never complete and never observe cancellation - mirrors CallModuleEndpointAsync
+                    // which is not passed a token today.
+                    await Task.Delay(Timeout.Infinite, CancellationToken.None).ConfigureAwait(false);
+                }
+
                 if (_callCount == FailAtCallNumber)
                 {
                     if (ThrowInsteadOfFail) throw new InvalidOperationException("Simulated network failure.");
-                    return Task.FromResult(new RetentionTelemetryGatewayResult { success = false, errorCode = "SIMULATED_FAILURE" });
+                    return new RetentionTelemetryGatewayResult { success = false, errorCode = "SIMULATED_FAILURE" };
                 }
                 SentEventIdsInOrder.Add(evt.eventId);
-                return Task.FromResult(new RetentionTelemetryGatewayResult { success = true });
+                return new RetentionTelemetryGatewayResult { success = true };
             }
         }
 
@@ -214,6 +225,29 @@ namespace MyriadOfDragons.Tests
 
             Assert.DoesNotThrowAsync(async () => await outbox.FlushAsync(CancellationToken.None));
             Assert.AreEqual(1, outbox.QueuedEventsForTests.Count, "The event must stay queued after a thrown exception, not be lost.");
+        }
+
+        [Test]
+        public async Task FlushAsync_WhenGatewayHangsIgnoringCancellation_ReturnsWithinDeadline_AndLeavesEventQueued()
+        {
+            // Real hang root cause (2026-08-26): presenters fire FlushAsync(CancellationToken.None)
+            // into Cloud Code / auth with no timeout, and CallModuleEndpointAsync is not passed the
+            // token - CancelAfter alone cannot abort it. Flush must still return via WhenAny.
+            var fake = new FakeRetentionTelemetryGateway { HangForeverIgnoringCancellation = true };
+            var outbox = new RetentionTelemetryOutbox(fake, _scratchDir);
+            outbox.Enqueue(RetentionTelemetryEvents.FeatureEntry("p1", "shop_stamina"));
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            int sent = await outbox.FlushAsync(CancellationToken.None);
+            sw.Stop();
+
+            Assert.AreEqual(0, sent);
+            Assert.AreEqual(1, outbox.QueuedEventsForTests.Count,
+                "A timed-out send must leave the event queued for the next flush.");
+            Assert.Less(sw.Elapsed, RetentionTelemetryOutbox.FlushDeadline + TimeSpan.FromSeconds(3),
+                "FlushAsync must return near the flush deadline, never hang the process.");
+            Assert.GreaterOrEqual(sw.Elapsed, RetentionTelemetryOutbox.FlushDeadline - TimeSpan.FromSeconds(1),
+                "Flush should wait roughly the deadline before giving up on a hung gateway.");
         }
 
         [Test]

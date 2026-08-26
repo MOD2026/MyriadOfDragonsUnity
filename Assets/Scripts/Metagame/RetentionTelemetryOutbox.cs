@@ -34,6 +34,13 @@ namespace MyriadOfDragons.Metagame
         /// consuming device storage indefinitely.</summary>
         public const int MaxQueuedEvents = 500;
 
+        /// <summary>Hard ceiling on one FlushAsync attempt. Presenters fire-and-forget with
+        /// <c>CancellationToken.None</c>, and the live Cloud Code / auth chain has no timeout of
+        /// its own - without this, a stalled network call can hang the EditMode process (and a
+        /// player session) indefinitely. Matches the existing "best-effort, never blocks"
+        /// contract in this class header.</summary>
+        public static readonly TimeSpan FlushDeadline = TimeSpan.FromSeconds(8);
+
         private const string FileName = "retention_telemetry_outbox.json";
 
         private readonly string _filePath;
@@ -62,9 +69,10 @@ namespace MyriadOfDragons.Metagame
         }
 
         /// <summary>Attempts to send every queued event, in order, via the real gateway. Stops at
-        /// the first failure (explicit unsuccessful result or a thrown exception) and leaves that
-        /// event and everything after it queued - never partially "loses" an event by removing it
-        /// before a successful send is confirmed. Returns how many were actually sent.</summary>
+        /// the first failure (explicit unsuccessful result, thrown exception, or flush deadline)
+        /// and leaves that event and everything after it queued - never partially "loses" an event
+        /// by removing it before a successful send is confirmed. Returns how many were actually
+        /// sent. Caller cancel still propagates; deadline expiry does not.</summary>
         public async Task<int> FlushAsync(CancellationToken cancellationToken)
         {
             int sent = 0;
@@ -75,9 +83,32 @@ namespace MyriadOfDragons.Metagame
                 RetentionTelemetryGatewayResult result;
                 try
                 {
-                    result = await _gateway.SendEventAsync(next, cancellationToken).ConfigureAwait(false);
+                    using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                    {
+                        linked.CancelAfter(FlushDeadline);
+                        Task<RetentionTelemetryGatewayResult> send =
+                            _gateway.SendEventAsync(next, linked.Token);
+                        // WhenAny is required even with CancelAfter: the live Cloud Code call does
+                        // not honor the token, so CancelAfter alone cannot abort a stalled await.
+                        Task winner = await Task.WhenAny(
+                                send,
+                                Task.Delay(FlushDeadline, cancellationToken))
+                            .ConfigureAwait(false);
+                        if (winner != send)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            break;
+                        }
+
+                        result = await send.ConfigureAwait(false);
+                    }
                 }
-                catch (Exception) when (!(cancellationToken.IsCancellationRequested))
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // Deadline (or gateway cancel on the linked token only) - leave the queue.
+                    break;
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
                 {
                     // Ingestion being down (network, auth, timeout, anything) must never surface
                     // as an exception to whatever called FlushAsync - stop here, the event stays
