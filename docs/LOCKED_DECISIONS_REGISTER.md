@@ -511,6 +511,27 @@ viewport; (3) convert repeated rows/tabs/HUD/resource strips to Tier 3/4; (4) PR
 frame where it provides real containment; (5) validate at 1920x1080 and narrower landscape ratios.
 Frame quantity and hierarchy stay a REVIEW signal; only structural defects hard-fail.
 
+## OPEN UI/UX TOPICS - proactive backlog (CC sweep 2026-08-27)
+
+Not yet discussed with anyone. Listed so they stop living in conversation. Ordered by what blocks a
+room soonest.
+
+1. **Typography scale - BLOCKING.** We locked four FRAME tiers but have no TYPE hierarchy. CR is
+   about to build design tokens; frame tiers without matching type tiers produce inconsistent
+   screens. Needs: sizes at 1920x1080, weights, line-height, min legible size, and which type tier
+   pairs with which frame tier. **Sent to BS 2026-08-27.**
+2. **Empty states.** Directly tied to the owner's no-dead-space rule: no friends, empty mail, empty
+   collection, no active quests. An empty list is the single most common source of dead space and we
+   have never specified one.
+3. **Transition/loading states.** What a player sees between screens. Currently unspecified;
+   likely a hard cut, which reads as a bug on slower devices.
+4. **Press/hover/disabled feedback.** What a control does on touch. Unspecified - a button with no
+   press state reads as broken input.
+5. **Colour + contrast accessibility.** No contrast floor defined anywhere; our palette is dark and
+   desaturated, which is where contrast failures hide.
+6. **Art pipeline.** 3 zero-chrome backdrops (GameBootstrap / TacticalPuzzle / SoloCircuit) prompted
+   at 1920x1080 landscape, not yet generated or imported.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
