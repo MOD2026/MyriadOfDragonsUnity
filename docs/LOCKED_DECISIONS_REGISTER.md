@@ -4957,3 +4957,24 @@ LOCKED anchors (obsidian-citadel connection, war-banner, broken seal, authority-
 PROPOSED non-canon details (scar, tusk, armor construction, exact colors, weapon) - nothing
 presented as canon that isn't. Ready for UI. Cast correction stands: Gorn is an enemy, not grouped
 with the Ch1-3 companion trio.
+
+## OWNER PRIORITY ESCALATION: the UI still reads as "boxes" - strategy changed from per-screen patching to foundation restyle (2026-08-26)
+
+Owner's verdict: current UI is "off the scale with visible boxes/borders that no other mobile game
+will have," and the screenshot-paste-fix-repeat loop is circular with little visible progress.
+Diagnosis accepted into the record: the fixes so far replaced flat colored boxes with BORDERED
+FRAMED boxes - still boxes. Top-grossing mobile idiom has almost no visible rectangular containers
+(full-bleed art, rounded soft-shadow cards, gradients, translucency).
+
+**New 3-part strategy, replaces per-screen patching:**
+1. **Foundation restyle (CR, dispatched):** the token rollout consolidated ~14 screens onto ONE
+   shared layer (`UIFrozenTokens` + `ApplyFramedPanel`) - restyle that layer once (rounded 9-slice,
+   gradients, soft shadows, translucent fills, no hard borders) with the API surface unchanged, so
+   every migrated screen updates with zero per-screen edits. Token batch 3+ and Battle Pass Gold
+   paused in place, not cancelled. WH's fresh 14/14 layout tests are the regression net.
+2. **Screenshot contact-sheet harness (CR, same dispatch):** batch-capture all 23 procedural
+   screens to one review sheet so the owner reviews everything at a glance instead of pasting
+   screenshots one at a time - kills the round-trip loop itself.
+3. **Art-direction spec (UI/GPT, paste-ready prompt below):** one approved reference sheet defining
+   panel/button/header/list-row treatment so every future fix targets a spec, not per-screenshot
+   taste. Benchmarked against real top-grossing mobile UI conventions.
