@@ -4387,3 +4387,25 @@ redemption need (a) a new `claimedMilestoneMask` field + a cosmetic-ownership sc
 new VIP duration tier, or (b) should the reward list itself change to avoid needing any of those
 three (e.g. drop the VIP voucher tier, drop cosmetics until a cosmetic system exists)? Cheaper fix
 vs. bigger schema work - real tradeoff for BS to weigh in on.
+
+## LOCKED: Loyalty redemption - option (b), minimal schema addition (2026-08-26, BS, verified)
+
+**Verified:** one-time claimable milestone rewards with no double-claim is confirmed standard mobile
+game practice (real-shipped-game pattern, e.g. one-time dungeon-completion bundles with no time
+limit and a claim-once mechanic). The bitmask itself is an internal engineering choice, not a
+player-facing design point - no further benchmark needed there.
+
+**Revised reward list (replaces the earlier one-locked table):**
+100=1 Stamina claim (unchanged), 250=750 Gold+10 Avatar XP (was 3-day VIP voucher), 500=1,500
+Gold+20 Avatar XP (was cosmetic), 1,000=7-day VIP voucher (unchanged), 2,000=3,000 Gold+40 Avatar XP
+(was cosmetic), 4,000=30-day VIP voucher (unchanged), 8,000=2 Stamina claims+2,500 Gold+50 Avatar XP
+(was cosmetic). All Stamina claims still gated by the existing cap/rolling-24h limit; VIP vouchers
+still cannot stack or extend past their real 7/30-day durations.
+
+**One minimal, additive, frozen-file field needed:** `loyaltyClaimedMilestoneMask` (int, default 0,
+one bit per threshold). Claim flow: check bit -> validate -> grant once -> set bit -> save once.
+No cosmetic ownership schema needed, no new VIP duration tier needed - smallest safe implementation
+preserving all 7 thresholds.
+
+Real next step: owner sign-off on the field (same pattern as every other frozen-file addition this
+session), then dispatch to a coding room.
