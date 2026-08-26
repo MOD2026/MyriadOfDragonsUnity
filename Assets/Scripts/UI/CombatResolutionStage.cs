@@ -40,11 +40,18 @@ namespace MyriadOfDragons.UI
         private Image _resultIcon;
         private Image _sourceProxy;
         private readonly Image[] _queueDiamonds = new Image[3];
+        private readonly Image[] _lanePips = new Image[3];
+        private Image _strikeLayer;
         private float _activeBeatElapsed;
 
         public CombatResolutionQueue QueueForTests => _queue;
         public RectTransform RootForTests => _root;
         public string ResultTextForTests => _resultValue != null ? _resultValue.text : null;
+        public Color ResultIconColorForTests => _resultIcon != null ? _resultIcon.color : Color.clear;
+        public Vector2 ResultIconAnchorMinForTests =>
+            _resultIcon != null ? _resultIcon.rectTransform.anchorMin : Vector2.zero;
+        public bool StrikeLayerEnabledForTests => _strikeLayer != null && _strikeLayer.enabled;
+        public bool LanePipsVisibleForTests => _lanePips[0] != null && _lanePips[0].enabled;
 
         /// <summary>Faction colours. Motion direction, icon and sign must agree with these - the doc
         /// is explicit that colour alone never carries meaning.</summary>
@@ -95,6 +102,25 @@ namespace MyriadOfDragons.UI
             _resultValue.raycastTarget = false;
             _resultValue.text = string.Empty;
             Stretch(_resultValue.rectTransform, 0.44f, 0.55f, 0.98f, 0.92f);
+
+            // Lane pips: three slots, shown ONLY for lane-bearing beats. The doc asks for three
+            // slot pips on lane/defeat beats specifically; showing them on every beat would make
+            // an avatar hit look like a lane event.
+            for (int i = 0; i < _lanePips.Length; i++)
+            {
+                Image pip = CreateChild("LanePip" + i, _root);
+                float pipLeft = 0.05f + i * 0.06f;
+                Stretch(pip.rectTransform, pipLeft, 0.06f, pipLeft + 0.045f, 0.20f);
+                _lanePips[i] = pip;
+            }
+
+            // AvatarStrike uses its own exclusive flipbook - the doc forbids reusing it for any
+            // other effect, so it sits on a layer only that beat enables.
+            _strikeLayer = CreateChild("AvatarStrikeLayer", _root);
+            _strikeLayer.sprite = Resources.Load<Sprite>("VFX/avatarstrike_bespoke_sheet");
+            _strikeLayer.preserveAspect = true;
+            _strikeLayer.enabled = false;
+            Stretch(_strikeLayer.rectTransform, 0.26f, 0.35f, 0.70f, 0.95f);
 
             for (int i = 0; i < _queueDiamonds.Length; i++)
             {
@@ -177,23 +203,111 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void Present(CombatResolutionEvent beat)
         {
-            Color side = beat.Source switch
-            {
-                CombatResolutionSide.Player => PlayerEmerald,
-                CombatResolutionSide.Enemy => EnemyRed,
-                _ => NeutralCyan,
-            };
-
+            Color side = SideColor(beat.Source);
             if (_sourceProxy != null) _sourceProxy.color = side;
-            if (_resultIcon != null) _resultIcon.color = side;
+
+            // PER-TYPE COMPOSITION. Without this, every beat rendered identically and only the side
+            // colour changed - clash, spell, defeat and avatar-health were indistinguishable, which
+            // fails the design doc acceptance check "distinguishable without reading prose". Colour
+            // alone is explicitly not permitted to carry meaning, so each type differs in SHAPE as
+            // well as tint and stays readable in greyscale.
+            ApplyIconForType(beat, side);
+            ApplyLanePips(beat, side);
+
+            if (_strikeLayer != null)
+                _strikeLayer.enabled = beat.Type == CombatResolutionEventType.AvatarStrikeResolved;
 
             if (_resultValue == null) return;
 
             // Explicit sign, always. An unsigned "6" cannot be told from "-6" at a glance, and the
-            // doc requires the number to agree with the icon and direction.
+            // number must agree with the icon and motion direction.
             _resultValue.text = beat.SignedValue == 0
                 ? "0"
                 : (beat.SignedValue > 0 ? "+" : "") + beat.SignedValue;
+        }
+
+        private static Color SideColor(CombatResolutionSide source)
+        {
+            if (source == CombatResolutionSide.Player) return PlayerEmerald;
+            if (source == CombatResolutionSide.Enemy) return EnemyRed;
+            return NeutralCyan;
+        }
+
+        /// <summary>
+        /// Shapes the result icon per beat type.
+        ///
+        /// Aspect AND tint both vary, so beats stay distinguishable for a colour-blind player and in
+        /// a still screenshot - a wide bar reads differently from a narrow block regardless of hue.
+        /// </summary>
+        private void ApplyIconForType(CombatResolutionEvent beat, Color side)
+        {
+            if (_resultIcon == null) return;
+
+            switch (beat.Type)
+            {
+                case CombatResolutionEventType.ClashResolved:
+                    _resultIcon.color = side;
+                    Stretch(_resultIcon.rectTransform, 0.26f, 0.60f, 0.40f, 0.88f);
+                    break;
+                case CombatResolutionEventType.SpellResolved:
+                    _resultIcon.color = SchoolTint(beat);
+                    Stretch(_resultIcon.rectTransform, 0.27f, 0.58f, 0.39f, 0.90f);
+                    break;
+                case CombatResolutionEventType.CardDefeated:
+                    _resultIcon.color = new Color(side.r * 0.45f, side.g * 0.45f, side.b * 0.45f, 1f);
+                    Stretch(_resultIcon.rectTransform, 0.28f, 0.62f, 0.38f, 0.84f);
+                    break;
+                case CombatResolutionEventType.LaneStateChanged:
+                    _resultIcon.color = NeutralCyan;
+                    Stretch(_resultIcon.rectTransform, 0.24f, 0.66f, 0.42f, 0.80f);
+                    break;
+                default:
+                    _resultIcon.color = side;
+                    Stretch(_resultIcon.rectTransform, 0.25f, 0.55f, 0.41f, 0.92f);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// School palette for spell beats, per the doc.
+        ///
+        /// Per-school particle SPRITES do not exist - only particle_medium and particle_heavy - so
+        /// the school is expressed by tinting the shared sprite with the palette the doc states,
+        /// rather than inventing an asset naming convention nobody agreed to. Flagged to CC.
+        /// </summary>
+        private static Color SchoolTint(CombatResolutionEvent beat)
+        {
+            if (!beat.HasSchool) return NeutralCyan;
+            if (beat.School == MyriadOfDragons.Cards.CardElement.Andras)
+                return new Color(0.78f, 0.28f, 0.18f);
+            if (beat.School == MyriadOfDragons.Cards.CardElement.Ktini)
+                return new Color(0.24f, 0.55f, 0.30f);
+            return new Color(0.88f, 0.82f, 0.55f);
+        }
+
+        /// <summary>
+        /// Lights the three lane pips, extinguishing the ones the beat reports gone.
+        ///
+        /// Hidden entirely for beats with no lane. RemainingSlots is -1 when the beat says nothing
+        /// about slot state, which is why that is distinct from 0 - treating unknown as zero would
+        /// black out the pips on every ordinary clash.
+        /// </summary>
+        private void ApplyLanePips(CombatResolutionEvent beat, Color side)
+        {
+            for (int i = 0; i < _lanePips.Length; i++)
+            {
+                if (_lanePips[i] == null) continue;
+
+                if (!beat.HasLane)
+                {
+                    _lanePips[i].enabled = false;
+                    continue;
+                }
+
+                _lanePips[i].enabled = true;
+                bool lit = beat.RemainingSlots < 0 || i < beat.RemainingSlots;
+                _lanePips[i].color = lit ? side : new Color(0.20f, 0.20f, 0.24f, 1f);
+            }
         }
 
         private void RefreshQueueIndicator()

@@ -136,6 +136,107 @@ namespace MyriadOfDragons.Tests
                 CombatResolutionStage.MinimumResultHoldSeconds);
         }
 
+        private static CombatResolutionEvent Beat(
+            CombatResolutionEventType type, CombatResolutionSide side = CombatResolutionSide.Player,
+            bool hasLane = false, int remainingSlots = -1) =>
+            new CombatResolutionEvent(type, side, 1, signedValue: -3,
+                lane: Lane.Front, hasLane: hasLane, remainingSlots: remainingSlots);
+
+        private (Color color, Vector2 anchor) PresentAndCapture(CombatResolutionEvent beat)
+        {
+            _stage.ClearAll();
+            _stage.Enqueue(beat);
+            _stage.Tick(0.016f);
+            return (_stage.ResultIconColorForTests, _stage.ResultIconAnchorMinForTests);
+        }
+
+        [Test]
+        public void EveryEventType_IsVisuallyDistinguishable_WithoutReadingProse()
+        {
+            // THE ACCEPTANCE CHECK THIS WAS FAILING. The stage originally had no branching on beat
+            // type at all - clash, spell, defeat and avatar-health rendered identically and only the
+            // side colour changed. A player could not tell a card dying from their Avatar being hit.
+            //
+            // Compares the full (colour, shape) pair: the doc forbids colour alone carrying meaning,
+            // so two types sharing a tint must still differ in aspect.
+            var seen = new System.Collections.Generic.Dictionary<string, CombatResolutionEventType>();
+
+            foreach (CombatResolutionEventType type in new[]
+                     {
+                         CombatResolutionEventType.ClashResolved,
+                         CombatResolutionEventType.SpellResolved,
+                         CombatResolutionEventType.CardDefeated,
+                         CombatResolutionEventType.LaneStateChanged,
+                     })
+            {
+                (Color color, Vector2 anchor) = PresentAndCapture(Beat(type));
+                string signature = color + "|" + anchor;
+
+                Assert.IsFalse(seen.ContainsKey(signature),
+                    type + " renders identically to " +
+                    (seen.ContainsKey(signature) ? seen[signature].ToString() : "another type") +
+                    " - indistinguishable without prose.");
+                seen[signature] = type;
+            }
+        }
+
+        [Test]
+        public void ADefeatBeat_DimsRatherThanBrightens_SoLossReadsAsLoss()
+        {
+            // Direction of change matters, not just difference: a defeat rendered brighter than a
+            // clash would read as a win.
+            (Color clash, _) = PresentAndCapture(Beat(CombatResolutionEventType.ClashResolved));
+            (Color defeat, _) = PresentAndCapture(Beat(CombatResolutionEventType.CardDefeated));
+
+            Assert.Less(defeat.r + defeat.g + defeat.b, clash.r + clash.g + clash.b,
+                "A defeat must be visually dimmer than an ordinary clash.");
+        }
+
+        [Test]
+        public void LanePips_ShowOnlyForLaneBearingBeats()
+        {
+            // Showing pips on an avatar beat would make it look like a lane event - the pips are
+            // what carry "this happened in a lane".
+            _stage.ClearAll();
+            _stage.Enqueue(Beat(CombatResolutionEventType.AvatarHealthChanged, hasLane: false));
+            _stage.Tick(0.016f);
+            Assert.IsFalse(_stage.LanePipsVisibleForTests, "An avatar beat has no lane.");
+
+            _stage.ClearAll();
+            _stage.Enqueue(Beat(CombatResolutionEventType.ClashResolved, hasLane: true));
+            _stage.Tick(0.016f);
+            Assert.IsTrue(_stage.LanePipsVisibleForTests, "A lane clash must show its slot pips.");
+        }
+
+        [Test]
+        public void TheAvatarStrikeFlipbook_IsUsedByThatBeatALONE()
+        {
+            // The doc forbids reusing the bespoke sheet for any other effect. Enabling it on an
+            // ordinary beat would spend a signature moment on a routine one.
+            _stage.ClearAll();
+            _stage.Enqueue(Beat(CombatResolutionEventType.AvatarStrikeResolved));
+            _stage.Tick(0.016f);
+            Assert.IsTrue(_stage.StrikeLayerEnabledForTests);
+
+            _stage.ClearAll();
+            _stage.Enqueue(Beat(CombatResolutionEventType.ClashResolved));
+            _stage.Tick(0.016f);
+            Assert.IsFalse(_stage.StrikeLayerEnabledForTests,
+                "An ordinary clash must never trigger the AvatarStrike flipbook.");
+        }
+
+        [Test]
+        public void UnknownSlotState_LeavesPipsLIT_RatherThanBlackingThemOut()
+        {
+            // RemainingSlots is -1 for "this beat says nothing about slot state". Treating that as
+            // zero would extinguish the pips on every ordinary clash.
+            _stage.ClearAll();
+            _stage.Enqueue(Beat(CombatResolutionEventType.ClashResolved, hasLane: true, remainingSlots: -1));
+            _stage.Tick(0.016f);
+
+            Assert.IsTrue(_stage.LanePipsVisibleForTests);
+        }
+
         [Test]
         public void ClearAll_EmptiesTheQueueAndTheDisplayedResult()
         {

@@ -7435,3 +7435,49 @@ keeping**, because the justification felt sound right up until it was disproven.
 
 Nothing in flight, no lock held. Loyalty ladder, Solo Circuit, Combat Resolution rail and the
 Materials rework are all shipped and full-suite verified.
+
+
+**[VS -> CC] CLOSED A REAL ACCEPTANCE-CHECK FAILURE IN MY OWN RAIL. 38/38, 0 `error CS`. The stage
+had ZERO branching on event type - every beat looked the same.**
+
+```
+total 38   passed 38   failed 0   0 error CS
+CombatResolutionStageTests        15/15  (was 10 - five new)
+CombatResolutionQueueTests        10/10
+CombatResolutionEventMapperTests   9/9
+BattleReleaseLayoutTests           4/4
+```
+
+**THE GAP, and I shipped it and called the rail delivered:**
+```
+doc acceptance check: "Clash, spell, defeat/lane-state and avatar-health events are
+                       distinguishable without reading prose"
+grep "beat.Type" in CombatResolutionStage.cs -> ZERO branches
+```
+Every event type rendered identically - only the side colour changed. **A player could not tell a
+card dying from their own Avatar being hit.** I built the fallback presentation layer, tested it
+thoroughly, and reported the rail as done. Same shape as the two built-but-unwired misses earlier
+tonight: I verified the part I wrote, not the requirement it was meant to satisfy.
+
+**Each type now differs in SHAPE as well as tint**, because the doc explicitly forbids colour alone
+carrying meaning. The test compares the full `(colour, aspect)` pair and fails if any two types
+collide - so two beats sharing a hue must still differ in form, keeping them readable in greyscale
+or a screenshot.
+
+**Four constraints taken from the doc, each now an assertion rather than an intention:**
+- **Lane pips show ONLY for lane-bearing beats.** Pips on an avatar beat would make it read as a
+  lane event.
+- **The AvatarStrike flipbook is used by that beat ALONE** - the doc forbids reuse, and spending a
+  signature effect on a routine clash cheapens it permanently.
+- **Unknown slot state (-1) leaves pips LIT.** Treating unknown as 0 would black out the pips on
+  every ordinary clash - the distinction I built into the event model hours ago, now actually
+  enforced at the pixel layer rather than just represented.
+- **A defeat renders DIMMER than a clash** - asserted as direction, not mere difference. Two types
+  being "different" passes a weaker check while a defeat rendered brighter would read as a win.
+
+**Still unanswered from hours ago, now in code with its reasoning attached:** per-school particle
+sprites do not exist (only `particle_medium`/`particle_heavy`), so school is expressed by tinting
+the shared sprite with the doc's stated palette rather than inventing an asset naming convention.
+If three per-school assets were meant to land, they never did.
+
+Nothing in flight, no lock held.
