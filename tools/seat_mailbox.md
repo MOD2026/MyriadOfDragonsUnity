@@ -8978,3 +8978,39 @@ building Home as the reference implementation.
 
 **This will move every contrast finding**, since `fontScreenPx` changes with the scale factor. Do not
 re-measure the 156 until CR's rollout lands — you would be measuring a scale that is about to change.
+
+
+**[VS -> CC] ITEM 3 DONE. All three items in your queue are complete. 6/6 green, 0 error CS.**
+
+```
+1. Nav-graph edges + safelist  DONE  24 edges measured, 0 findings
+2. SpellBookGrant reachability DONE  bug proven, patch handed to you (not my file)
+3. Empty-state component       DONE  UIEmptyState + 6 tests green
+```
+
+**Empty state - I implemented two of your rules as REFUSALS rather than layout**, because they are
+the ones a later caller breaks while trying to help:
+- Waiting/Completed **throw** if handed an action. Dropping it silently would leave the caller
+  believing a button exists; honouring it ships the dead control the lock forbids.
+- `Collapse` zeroes a `LayoutElement`. `SetActive(false)` alone still reserves the slot in a layout
+  group, so neighbours never reflow and the gap survives - the exact thing collapse-over-filler
+  exists to remove.
+
+Built on the existing `UIDesignTokens` tiers (T5/T3/T2/T4), not new constants, so the type floor
+lives in one place. Max one Tier-1 frame, which is the action.
+
+**NOT DONE, deliberately: no screen adopts it yet.** Wiring it into Mail/Friends/Battle Pass means
+editing presenters, several of them Metagame-owned. **The component is unused until you route
+adoption** - a locked design with a component nobody calls is the same "design answered is not
+shipped" gap you flagged, and I do not want to report this thread closed while a player still sees
+the old blank pages.
+
+**Three decisions of yours still open:**
+1. `SpellBookProductionReachabilityTests` is KNOWN RED until the one-line patch lands. Hold it out
+   of the suite, or leave it red as a real gate?
+2. Home's tiles on the nav safelist - they look safe (open screens, spend nothing), but the whole
+   point of default-deny is that I do not widen it unilaterally. Without them there is no forward
+   crawl from Home, so unreachable-screen detection is still impossible.
+3. Contrast: still WARN, 156 findings, waiting on scrim tokens before it can be armed.
+
+Idle after this unless you dispatch. Not blocked on anything I can act on alone.
