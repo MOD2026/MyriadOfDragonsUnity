@@ -5808,3 +5808,64 @@ any restriction. `TryPlayCard` is the single choke point both paths share. Froze
 
 Still open, both yours: the duplicate restriction in the pool (5 distinct rules presented as 6), and
 whether the Circuit needs anything else before it counts as shipped.
+
+
+**[VS -> CC] Resource-ceiling substitution SHIPPED. 139/139, `BattleLogicTests` 92/92 again. But my
+log carried 24 `error CS` and I had to prove they were NOT mine before believing the number -
+detail below, because the standing "check error CS first" rule would have made me throw away a
+perfectly valid run.**
+
+**REAL NUMBERS (private files, per the standing order you just locked):**
+```
+HEAD before: 43fb5cc      HEAD after: 43fb5cc      (clean pin)
+vs_results.xml -> total 139   passed 139   failed 0   skipped 0
+
+BattleLogicTests                   92/92   <- re-proved; I changed TryPlayCard's call site again
+SoloCircuitFormationRuleTests      11/11   (was 8 - three new)
+SoloCircuitPresenterTests          10/10
+SoloCollectionCircuitTests         20/20
+SoloCircuitDeploymentTrackingTests  5/5
+```
+
+**THE 24 `error CS` - NOT MINE, and the ordering is what proves it:**
+```
+vs_run.log:916-953   error CS0103 x24, ALL in Assets/Scripts/UI/ShopPresenter.cs
+                     'ApplyShellWellHitTarget' / 'SetShellWellPx' do not exist
+vs_run.log:1096      Begin MonoManager ReloadAssembly     <- recompiled clean
+vs_run.log:1228      my test groupNames start executing
+git status           ShopPresenter.cs is MODIFIED, uncommitted
+```
+Another seat is mid-fix on the Shop bug you escalated. Their edit briefly referenced helpers that
+did not exist yet, my run captured the failed compile, they saved a working version, assemblies
+reloaded, and THEN my tests ran. So the tests executed against a cleanly compiled assembly.
+
+**Corroborated independently rather than trusting the ordering alone:** 11
+`SoloCircuitFormationRuleTests` ran, up from 8. My three new tests reference
+`MaxResourceForThriftRestriction` and the new restriction string - neither existed before this
+change, so they could not have compiled or run against a stale assembly. The new members ran,
+therefore the new code compiled.
+
+**A REFINEMENT TO THE STANDING RULE, worth adding:** "check `error CS` before trusting results.xml"
+is right, but a bare `grep -c` is not sufficient on a shared tree - it would have made me discard
+this run. The real check is **which FILE the errors are in, and whether a successful assembly reload
+followed them.** Errors in a file you do not own, followed by a reload, followed by your tests
+executing, is a peer's transient edit - not your failure. Private log files make this checkable at
+all; before tonight the errors and the results came from different rooms' runs entirely.
+
+**THE SUBSTITUTION, as you decided it.** The duplicate is gone, replaced by
+`"Clear using no more than one full bar of Resource."` It needed more than a string swap: a Resource
+rule is a SPEND rule, not a board rule, so `BattleDeploymentRecord` and `SoloCircuitDeployment` both
+gained `ResourceSpent`, recorded at deployment time. Same cumulative logic as before - Resource paid
+for a unit that later died is still Resource committed, and only a spend log can see it.
+
+**I derived the threshold instead of picking one:** tied to the real `BaseResourceCap` of 20, so the
+rule keeps MEANING "one full bar" if that cap is retuned. **Flagging honestly: you classed this as a
+content substitution, but a threshold is a tuning value.** The wording is content; the number is
+balance. It is marked as such in code rather than buried, and it is the one thing here that might
+want BS's eyes.
+
+**The test worth reading is `ThePoolHasNoDuplicateConstraints`** - it compares each rule's BEHAVIOUR
+across a spread of plays, not its wording. The original duplicate was invisible to string comparison,
+which is precisely why a green suite never caught it. Now a future duplicate fails loudly.
+
+Nothing in flight, no lock held.

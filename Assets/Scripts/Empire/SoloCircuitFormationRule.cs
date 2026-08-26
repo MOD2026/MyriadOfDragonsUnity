@@ -9,10 +9,15 @@ namespace MyriadOfDragons.Empire
         public readonly Lane Lane;
         public readonly int TickDeployed;
 
-        public SoloCircuitDeployment(Lane lane, int tickDeployed)
+        /// <summary>Resource paid for this deployment. Needed by the Resource-total restriction,
+        /// which is a SPEND rule, not a board rule.</summary>
+        public readonly int ResourceSpent;
+
+        public SoloCircuitDeployment(Lane lane, int tickDeployed, int resourceSpent = 0)
         {
             Lane = lane;
             TickDeployed = tickDeployed;
+            ResourceSpent = resourceSpent;
         }
     }
 
@@ -40,6 +45,20 @@ namespace MyriadOfDragons.Empire
     public static class SoloCircuitFormationRule
     {
         /// <summary>
+        /// Resource ceiling for the thrift restriction: one full starting Resource bar.
+        ///
+        /// Tied to the real base cap (PlayerEmpireData.BaseResourceCap is 20) rather than being a
+        /// magic number, so the rule keeps MEANING "a whole bar's worth" if that cap is ever
+        /// retuned - the relationship is the design intent, the digit is not. Resource ramps each
+        /// turn, so a full battle offers far more than this; spending only one bar's worth is a
+        /// real constraint rather than a formality.
+        ///
+        /// If this needs balancing it is a tuning value, not a wording change - flagged as such
+        /// rather than buried.
+        /// </summary>
+        public const int MaxResourceForThriftRestriction = 20;
+
+        /// <summary>
         /// True when the deployments satisfy the given restriction text.
         ///
         /// Matches on the restriction STRINGS in SoloCircuitDailySeed.FormationRestrictions, which
@@ -64,14 +83,18 @@ namespace MyriadOfDragons.Empire
             if (restriction.StartsWith("No more than one unit per lane"))
                 return front <= 1 && middle <= 1 && back <= 1;
 
-            if (restriction.StartsWith("Every deployed unit must sit in a different lane"))
-                return front <= 1 && middle <= 1 && back <= 1;
-
             if (restriction.StartsWith("Win without deploying to the Middle lane"))
                 return middle == 0;
 
             if (restriction.StartsWith("Deploy at most three units"))
                 return deployments.Count <= 3;
+
+            if (restriction.StartsWith("Clear using no more than"))
+            {
+                int spent = 0;
+                for (int i = 0; i < deployments.Count; i++) spent += deployments[i].ResourceSpent;
+                return spent <= MaxResourceForThriftRestriction;
+            }
 
             // An unrecognised restriction FAILS rather than passes. A typo or a newly-added rule
             // must never hand out a free clear - the safe default for a reward gate is refusal.

@@ -14,10 +14,20 @@ namespace MyriadOfDragons.Tests
     /// </summary>
     public class SoloCircuitFormationRuleTests
     {
+        /// <summary>Cheap deployments (1 Resource each), so lane-based rules are never
+        /// accidentally decided by the Resource ceiling instead of the lane they are testing.</summary>
         private static List<SoloCircuitDeployment> Deploys(params Lane[] lanes)
         {
             var list = new List<SoloCircuitDeployment>();
-            for (int i = 0; i < lanes.Length; i++) list.Add(new SoloCircuitDeployment(lanes[i], i));
+            for (int i = 0; i < lanes.Length; i++) list.Add(new SoloCircuitDeployment(lanes[i], i, 1));
+            return list;
+        }
+
+        private static List<SoloCircuitDeployment> Costing(params int[] costs)
+        {
+            var list = new List<SoloCircuitDeployment>();
+            for (int i = 0; i < costs.Length; i++)
+                list.Add(new SoloCircuitDeployment(Lane.Front, i, costs[i]));
             return list;
         }
 
@@ -67,6 +77,66 @@ namespace MyriadOfDragons.Tests
                 rule, Deploys(Lane.Front, Lane.Middle, Lane.Back)));
             Assert.IsFalse(SoloCircuitFormationRule.IsSatisfied(
                 rule, Deploys(Lane.Front, Lane.Middle, Lane.Back, Lane.Front)));
+        }
+
+        [Test]
+        public void TheResourceCeiling_CountsTotalSPENT_NotUnitsOnTheBoard()
+        {
+            // The replacement for the duplicate rule, and it is a genuinely different axis: it can
+            // be broken by ONE expensive unit while a lane rule is perfectly obeyed.
+            const string rule = "Clear using no more than one full bar of Resource.";
+            int cap = SoloCircuitFormationRule.MaxResourceForThriftRestriction;
+
+            Assert.IsTrue(SoloCircuitFormationRule.IsSatisfied(rule, Costing(cap)));
+            Assert.IsTrue(SoloCircuitFormationRule.IsSatisfied(rule, Costing(cap / 2, cap / 2)));
+            Assert.IsFalse(SoloCircuitFormationRule.IsSatisfied(rule, Costing(cap, 1)));
+        }
+
+        [Test]
+        public void TheResourceCeiling_CountsUnitsThatDied_BecauseTheResourceWasStillSpent()
+        {
+            // Same cumulative reasoning as the unit-count rule: Resource paid for a unit that later
+            // died is still Resource the player committed. Only a spend log can see it.
+            const string rule = "Clear using no more than one full bar of Resource.";
+            int cap = SoloCircuitFormationRule.MaxResourceForThriftRestriction;
+
+            Assert.IsFalse(SoloCircuitFormationRule.IsSatisfied(rule, Costing(cap - 1, cap - 1)),
+                "Two units costing nearly a bar each exceed the ceiling even if neither survives.");
+        }
+
+        [Test]
+        public void ThePoolHasNoDuplicateConstraints()
+        {
+            // The bug this replacement fixed: two differently-worded entries that evaluated
+            // identically, so the pool advertised six rules while offering five. Compares
+            // BEHAVIOUR across a spread of plays rather than comparing strings - the duplicate
+            // was invisible to string comparison and only detectable by what the rules DID.
+            var probes = new List<List<SoloCircuitDeployment>>
+            {
+                Deploys(Lane.Front),
+                Deploys(Lane.Back),
+                Deploys(Lane.Middle),
+                Deploys(Lane.Front, Lane.Front),
+                Deploys(Lane.Front, Lane.Middle, Lane.Back),
+                Deploys(Lane.Front, Lane.Middle, Lane.Back, Lane.Front),
+                Costing(SoloCircuitFormationRule.MaxResourceForThriftRestriction + 5),
+            };
+
+            var seen = new Dictionary<string, string>();
+            foreach (string rule in SoloCircuitDailySeed.FormationRestrictions)
+            {
+                string signature = string.Empty;
+                foreach (List<SoloCircuitDeployment> probe in probes)
+                    signature += SoloCircuitFormationRule.IsSatisfied(rule, probe) ? "1" : "0";
+
+                if (seen.TryGetValue(signature, out string twin))
+                {
+                    Assert.Fail("Two restrictions are the same rule in different words: '" +
+                                twin + "' and '" + rule + "'");
+                }
+
+                seen[signature] = rule;
+            }
         }
 
         [Test]

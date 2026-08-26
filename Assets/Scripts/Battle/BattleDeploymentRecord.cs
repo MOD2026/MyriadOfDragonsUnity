@@ -15,10 +15,19 @@ namespace MyriadOfDragons.Battle
         /// before any combat tick has run.</summary>
         public readonly int Tick;
 
-        public BattleDeploymentRecord(Lane lane, int tick)
+        /// <summary>Resource actually paid for this unit.
+        ///
+        /// Recorded per deployment rather than read back off the card, because a Resource-total
+        /// restriction has to count what was SPENT during this battle. A unit that died is still
+        /// Resource the player committed, and the card definition alone cannot say how many times
+        /// it was deployed.</summary>
+        public readonly int ResourceSpent;
+
+        public BattleDeploymentRecord(Lane lane, int tick, int resourceSpent)
         {
             Lane = lane;
             Tick = tick;
+            ResourceSpent = resourceSpent;
         }
     }
 }

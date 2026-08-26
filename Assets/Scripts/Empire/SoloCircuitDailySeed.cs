@@ -68,7 +68,12 @@ namespace MyriadOfDragons.Empire
             "Front lane only - no units may be deployed to the Middle or Back lane.",
             "Back lane only - no units may be deployed to the Front or Middle lane.",
             "No more than one unit per lane.",
-            "Every deployed unit must sit in a different lane.",
+            // Replaced a duplicate 2026-08-26: this slot previously read "Every deployed unit must
+            // sit in a different lane", which is the SAME CONSTRAINT as "No more than one unit per
+            // lane" above - so the pool advertised six rules while only offering five, and that one
+            // came up twice as often as any other. A Resource ceiling is genuinely distinct from
+            // the positional rules and fits the trial's "command of the available ranks" framing.
+            "Clear using no more than one full bar of Resource.",
             "Win without deploying to the Middle lane.",
             "Deploy at most three units for the whole battle.",
         };

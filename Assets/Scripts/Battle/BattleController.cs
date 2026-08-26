@@ -937,7 +937,7 @@ namespace MyriadOfDragons.Battle
             // deployed and later dies or is recalled vanishes from Lanes, so a board snapshot
             // would silently under-count and pass a player who broke a cumulative rule.
             if (side == PlayerState)
-                _playerDeployments.Add(new BattleDeploymentRecord(lane, TickCount));
+                _playerDeployments.Add(new BattleDeploymentRecord(lane, TickCount, card.ResourceCost));
 
             return true;
         }
