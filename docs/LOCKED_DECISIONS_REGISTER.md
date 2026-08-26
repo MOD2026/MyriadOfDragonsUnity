@@ -5576,3 +5576,32 @@ risk, VS surfaced it for visibility rather than treating silence as permission):
 `TryDeployReinforcement` (the real single choke point) to record deployments and hand the log to
 the Circuit at match end. This couples Battle to the Circuit's completion check, which is exactly
 why VS flagged it instead of just doing it - correct instinct, approved to proceed.
+
+## THE RESTYLE LANDED - real 9-slice art wired, color tokens relocked, panels stop being boxes (2026-08-26, CR, commit a0fb125)
+
+**Verified via `git show --stat`, matches exactly.** This is the real fix for the owner's original
+"boxes/borders no other mobile game would ship" complaint - not another color pass on the same flat
+rectangles. Color tokens (`UIFrozenTokens`) relocked against the Visual Authority Memory palette as
+authorized (deep navy base, desaturated bronze trim instead of the too-bright original, deep
+emerald, new `ColorSecondary`/`ColorAccentCyan`/`ColorAccentRed` tokens the doc calls for that had
+nothing to derive from before). Real approved 9-slice art imported into
+`Assets/Resources/UI/SharedFoundation/` with hand-authored `.meta` files matching the manifest's
+exact border values. New `FramedPanelKind` (ContentPanel/ListRow/Modal) means `ApplyFramedPanel`
+resolves real sprites automatically - **all ~14 already-migrated screens pick up real bordered art
+with zero call-site changes**, row-shaped calls correctly passed `ListRow` for the thinner real
+border metrics. Diamond ornament wired as the required separate non-stretched layer, not baked in.
+
+120/120 pass on everything this touches, HEAD a5f7afa unchanged both ends.
+
+**2 real follow-ups, not blocking, both flagged rather than silently left:**
+1. Button 9-slice sprites and the modal shape exist as real art but nothing calls them yet -
+   buttons go through a separate `HomeV3UiLibrary` skin system, modal has no `CreateModalShell`
+   call site. Real work, not urgent - wiring is a follow-up whenever a modal/button screen actually
+   needs it.
+2. **A SECOND, independent Shop-area test hang found** (`ShopPresenter.cs` ~line 776), different
+   from the known `ShopV1ChromeTests` one - surfaced during a near-full suite attempt, correctly not
+   investigated since nothing in this commit touches Shop code. Two independent hangs in the same
+   area is worth someone's attention, not urgent tonight - noting so it doesn't get lost.
+
+CR starting the contact-sheet harness next - the tool that turns "paste me screenshots" into "review
+one sheet."
