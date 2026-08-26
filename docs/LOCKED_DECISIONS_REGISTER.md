@@ -76,6 +76,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
 | 2026-08-27 | CR | UI Verification Gate is binding on the Home IA rebuild before it may be reported done - 5-step post-land run + 7-item sign-off + real interactive count under the new counting rule (Home max 8) | IN PROGRESS - sent, not yet confirmed |
 | 2026-08-27 | VS | (1) SoloCircuit visual defects run as the gate pilot - baseline capture + written target list owed to CC BEFORE implementation; (2) queued: build the runtime UI validation run enforcing the §2 hard-fail list | IN PROGRESS - sent, not yet confirmed |
+| 2026-08-27 | CR | Owner raw symptoms: (A) Battle icon on Home may duplicate the Battle nav root; (B) campaign map not findable by the owner despite CampaignMapPresenter existing - possible orphan/unreachable. Plus (C) border/box reduction pass moved IN SCOPE, sequenced immediately after the Home rebuild is gate-verified, with the benchmark refinement (replace a stripped frame with a semi-transparent grouping background, never leave content floating) | IN PROGRESS - sent, not yet confirmed |
+| 2026-08-27 | VS | Scope addition to the validator: emit the full navigation graph as a machine-readable artifact (JSON/DOT) derived from the same runtime traversal - nodes=screens, edges=real interactive controls, flagging duplicate-path and zero-path screens. CC renders the owner-facing diagram from it. | IN PROGRESS - sent, not yet confirmed |
 | 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
 
 ---
@@ -179,6 +181,32 @@ STALE until the 5-building recompute lands.
   assumption (written when construction was instant-only) was corrected in the Drive doc
   2026-08-23 but the office itself hasn't been re-reviewed against the final 2-builder/interlock
   model yet.
+
+## Border/box reduction - INDUSTRY BENCHMARK RUN 2026-08-27 (required gate satisfied)
+
+Owner asked for the border/box concept to be removed and benchmarked against industry standard.
+Real `WebSearch` benchmark run before locking, per the standing hard gate. Findings:
+
+- **Bottom-tab navigation standard is 3-5 destinations, 5 maximum.** Our locked 5-destination IA sits
+  exactly at standard. No change needed - do not reopen it.
+- **Hick's Law, correctly applied:** the evidence is that ~20 *uncategorised* items is slow, but
+  categorising those same items into ~4-5 groups recovers most of the lost time. So Home's 22
+  touchpoints are fixed by CATEGORISATION into the 5 roots + feed, **not by amputating features.**
+  Anyone proposing to hit the count by deleting functionality has misread this.
+- **On borders the standard is NOT "no borders."** It is: borders exist to give structure and visual
+  grouping, never decoration; group related elements inside ONE container rather than framing each
+  element individually; and the normal replacement for a per-element frame is a **semi-transparent
+  grouping background**, not bare floating content.
+
+**Effect on the locked ornamental-border reduction rule: it STANDS, with one addition.**
+
+> When a frame is stripped off a group, it must be replaced with a semi-transparent grouping
+> background. Do not leave the content floating and unstructured - that reads as broken, not clean.
+
+Sources: nngroup.com (Hick's Law / navigation), secuodsoft.com + dev.to (mobile bottom-nav 2025
+guidance, 3-5 tabs, 44x44 touch targets, thumb-reach bottom third), pixune.com / sunstrikestudios.com
+/ rambod.net (game UI panel + HUD border practice: structure over decoration, one container per
+group, minimal HUD on mobile).
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
