@@ -10,10 +10,10 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// DailyLoginQuests screen layout/geometry coverage - one of 16 screens with zero prior layout
-    /// regression coverage. Same method as EmpireBuildingDetailLayoutTests/TacticalPuzzleLayoutTests:
-    /// measure the BUILT hierarchy's real world rects, only flag art that draws AFTER a button it
-    /// geometrically overlaps (real depth-first paint/raycast order).
+    /// DailyLoginQuests screen layout/geometry after design-token rollout batch 2 (5c4538c). Same
+    /// method as EmpireBuildingDetailLayoutTests/TacticalPuzzleLayoutTests: measure the BUILT
+    /// hierarchy's real world rects, only flag art that draws AFTER a button it geometrically
+    /// overlaps (real depth-first paint/raycast order).
     /// </summary>
     public class DailyLoginQuestsLayoutTests
     {
