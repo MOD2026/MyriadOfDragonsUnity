@@ -42,8 +42,7 @@ The rest of those two files is yours; those members are not.
    flake" - if one fails now, it is a real regression.**
    Real remaining failure classes as measured 2026-08-26 (not a single pinned count - the tree
    moves too fast tonight for one number to stay meaningful; treat this as a living list, not a
-   score): 2 pre-existing `DeckBuilder` layout assertions (Metagame-owned, confirmed real via a proper
-   git-stash A/B, not a regression), and `ShopV1ChromeTests` hanging the whole suite roughly half
+   score): `ShopV1ChromeTests` hanging the whole suite roughly half
    the time (root cause found 2026-08-26: `RetentionTelemetryOutbox.FlushAsync` has no timeout
    anywhere in its Cloud Code call chain, fix in progress). The `MirroredAiSimulationMatrixTests`
    under active owner-directed tuning still apply, not to be retuned without an owner decision.
