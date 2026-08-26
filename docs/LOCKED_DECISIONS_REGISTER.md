@@ -4910,3 +4910,27 @@ first and the catalog assigned in one audited content pass, not incrementally.
 
 Matches the ruling already sent to VS (rarity-only, don't invent metadata) - VS needs no new
 instruction, the mailbox dispatch stands as-is.
+
+## UI's portrait prompt pack: 1 flag REAL, 1 flag FALSE ALARM - verified before acting on either (2026-08-26)
+
+UI (image-gen) delivered a grounded prompt pack for Thaleia/Rusk/Ione (called sufficiently defined,
+no objection) and correctly declined to generate art for Gorn/Eryx pending two flags. Checked both
+directly against `StoryDatabase.cs` rather than trusting the self-report:
+
+**FALSE ALARM - no real conflict:** UI read "live code reveals Eryx at 14-15" as contradicting "the
+new 18-15 instruction." It doesn't. The locked continuity plan (earlier entry, verified) always said
+identity reveal at 14-15, FULL MOTIVE at 18-15/18-30 - two different beats, not one. Confirmed in
+code: `14-15_pre` has "I am Eryx, and I have been preparing you..." (the identity reveal),
+`18-30_pre/post` has the temptation-and-refusal beats (the full motive/resolution). Both landed
+exactly where the plan specified. UI was working from partial context and flagged a gap that isn't
+there - no owner input needed, prompt pack can proceed on Eryx's story role as already locked.
+
+**REAL, needs an answer:** Gorn's physical appearance is genuinely undocumented. Confirmed: Gorn is
+a real named enemy speaker ("High Warlord Gorn"), dies early (Ch1-3: "Gorn is dead" at a Ch2 stage),
+referenced later only as a memory/voice the antagonist wears, never physically re-described.
+`UI/Portraits/Gorn` is referenced in code but **no such asset file exists** in
+`Assets/Resources/UI/Portraits/` - confirmed via directory listing, genuinely missing, not a
+placeholder-path false flag. Correction to the earlier cast-priority lock: Gorn is an ENEMY, not a
+Ch1-3 companion alongside Thaleia/Rusk/Ione - the "Priority 1" grouping conflated the two. Real next
+step: a physical description is a narrative question (ST's lane, not UI's to invent), not something
+CC should just decide. Paste-ready ST ask given to owner below.
