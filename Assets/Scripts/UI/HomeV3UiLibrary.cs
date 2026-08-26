@@ -214,8 +214,8 @@ namespace MyriadOfDragons.UI
             // Text plate sits ABOVE the pill art. ScrimLayer is always sibling 0 of its parent —
             // parenting the scrim to pillRoot put it under PillBacking, so the light art still
             // owned the samples (ResourceLabel/Value stayed under 2:1).
-            float plateW = width * 0.62f;
-            float plateH = 44f;
+            float plateW = width * 0.92f;
+            float plateH = 48f;
             var textPlate = new GameObject("ResourceTextPlate", typeof(RectTransform));
             textPlate.transform.SetParent(pillRoot.transform, false);
             RectTransform plateRect = textPlate.GetComponent<RectTransform>();
@@ -223,17 +223,17 @@ namespace MyriadOfDragons.UI
             plateRect.anchorMax = new Vector2(0f, 0f);
             plateRect.pivot = new Vector2(0.5f, 0.5f);
             plateRect.sizeDelta = new Vector2(plateW, plateH);
-            plateRect.anchoredPosition = new Vector2(width * 0.64f, 26f);
+            plateRect.anchoredPosition = new Vector2(width * 0.5f, 26f);
             UISharedFoundation.AddLocalGradientScrim(
                 textPlate.transform,
                 new Vector2(plateW * 0.5f, plateH * 0.5f),
                 new Vector2(plateW, plateH),
-                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.GradientDirection.TopToBottom, 0.98f);
             UISharedFoundation.AddLocalGradientScrim(
                 textPlate.transform,
                 new Vector2(plateW * 0.5f, plateH * 0.5f),
                 new Vector2(plateW, plateH),
-                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+                UISharedFoundation.GradientDirection.BottomToTop, 0.98f);
 
             Text labelText = UISharedFoundation.CreateText(
                 textPlate.transform, "ResourceLabel", label, UITextRole.Body, TextAnchor.MiddleLeft,
