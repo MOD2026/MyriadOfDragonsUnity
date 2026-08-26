@@ -229,6 +229,16 @@ namespace MyriadOfDragons.Tests
                 GameObject root = FindDescendant(canvas.transform, actionName);
                 UIReleaseGateTestUtility.AssertActionRoot(root, actionName);
             }
+
+            // Predictive regression lock (CR 2026-08-26): Back must stay top-anchored in the
+            // 100px CampaignHeader — center-anchoring only leaves 20px clearance and clips once
+            // bordered header/panel art lands.
+            RectTransform backRect = FindDescendant(canvas.transform, "Btn_Back")?.GetComponent<RectTransform>();
+            Assert.IsNotNull(backRect, "Setup: CampaignHeader/Btn_Back must exist.");
+            Assert.AreEqual(1f, backRect.anchorMin.y, 0.001f, "Btn_Back must be top-anchored (not vertically centered).");
+            Assert.AreEqual(1f, backRect.anchorMax.y, 0.001f, "Btn_Back must be top-anchored (not vertically centered).");
+            Assert.LessOrEqual(backRect.sizeDelta.y, 45f,
+                "Btn_Back height must leave real clearance inside the 100px header.");
         }
 
         [Test]

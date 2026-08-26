@@ -2274,12 +2274,16 @@ namespace MyriadOfDragons.UI
                 onBackToHomeAction?.Invoke();
             });
 
+            // Top-anchored, not vertically centered - same latent overlap class already fixed on
+            // Empire (7185a4c) and Avatar: a center-anchored 60px button in a 100px header only
+            // leaves 20px clearance, invisible while the panel below is a flat fill, then clips
+            // the moment real bordered header/panel art lands (CR predictive flag 2026-08-26).
             RectTransform backRect = backBtnObj.GetComponent<RectTransform>();
-            backRect.anchorMin = new Vector2(0, 0.5f);
-            backRect.anchorMax = new Vector2(0, 0.5f);
-            backRect.pivot = new Vector2(0, 0.5f);
-            backRect.anchoredPosition = new Vector2(30, 0);
-            backRect.sizeDelta = new Vector2(160, 60);
+            backRect.anchorMin = new Vector2(0f, 1f);
+            backRect.anchorMax = new Vector2(0f, 1f);
+            backRect.pivot = new Vector2(0f, 1f);
+            backRect.anchoredPosition = new Vector2(30f, -5f);
+            backRect.sizeDelta = new Vector2(160f, 40f);
 
             CreateTextElement(backBtnObj.transform, "Text", "< BACK", Vector2.zero, 24, TextAnchor.MiddleCenter);
 
