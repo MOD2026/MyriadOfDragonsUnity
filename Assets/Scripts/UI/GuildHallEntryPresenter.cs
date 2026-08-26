@@ -30,7 +30,7 @@ namespace MyriadOfDragons.UI
         private void BuildUI()
         {
             TeardownUI();
-            
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;

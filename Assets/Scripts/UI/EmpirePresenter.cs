@@ -45,6 +45,8 @@ namespace MyriadOfDragons.UI
 
         public void OpenBuildingDetailForTests(EmpireBuildingKind kind) => OpenBuildingDetail(kind);
 
+        public void OpenGuildHallEntryForTests() => OpenGuildHallEntry();
+
         private void OpenExpedition()
         {
             TeardownUI();
@@ -544,6 +546,13 @@ namespace MyriadOfDragons.UI
                 else DestroyImmediate(existingDetail);
             }
 
+            // Guild Hall is a full-screen replacement, not an overlay (unlike TacticalPuzzle/
+            // BuildingDetail) - the Empire canvas must be hidden while it's open, same pattern as
+            // HomePagePresenter.OpenMetagameShellPresenter. Without this, EmpireCanvas stayed
+            // active underneath GuildHallEntryCanvas: both fully interactive, both visibly
+            // rendering at once (real bug, confirmed via owner screenshot).
+            if (_canvasObj != null) _canvasObj.SetActive(false);
+
             GuildHallEntryPresenter entry = gameObject.GetComponent<GuildHallEntryPresenter>();
             if (entry == null) entry = gameObject.AddComponent<GuildHallEntryPresenter>();
 
@@ -551,6 +560,7 @@ namespace MyriadOfDragons.UI
             {
                 if (Application.isPlaying) Destroy(entry);
                 else DestroyImmediate(entry);
+                if (_canvasObj != null) _canvasObj.SetActive(true);
             });
         }
 

@@ -1923,7 +1923,8 @@ namespace MyriadOfDragons.UI
                 "EmpireCanvas", "EmpireExpeditionCanvas", "BattlePassCanvas", "DailyLoginQuestsCanvas",
                 "EmpireBuildingDetailCanvas", "BazaarCanvas", "GuildHallEntryCanvas", "GuildExpeditionCanvas",
                 "ChatSocialCanvas", "MemoryExpeditionCanvas", "MailInboxCanvas", "FriendsCanvas",
-                "VipSubscriptionCanvas", "PermitWeekKeyCanvas", "SpellLoadoutPickerCanvas" })
+                "VipSubscriptionCanvas", "PermitWeekKeyCanvas", "SpellLoadoutPickerCanvas",
+                "TacticalPuzzleCanvas" })
             {
                 GameObject stale;
                 int guard = 0;
@@ -2475,22 +2476,24 @@ namespace MyriadOfDragons.UI
             float[] enemyXs = { 115f, 405f, 695f };
             for (int i = 0; i < 3; i++)
             {
+                // Chrome paints all 3 enemy wells as one baked image — unused slots stay visible.
+                // Fill empty wells with an em dash so ornate frames are not blank boxes.
+                string enemyLine = i == 0 ? stage.enemyName : "—";
                 GameObject well = CreateWellText(
                     panelObj.transform,
                     i == 0 ? "Enemy" : $"EnemyWell_{i}",
-                    i == 0 ? stage.enemyName : string.Empty,
+                    enemyLine,
                     16,
                     TextAnchor.MiddleCenter);
                 CampaignMapUiLibrary.SetModalWell(well.GetComponent<RectTransform>(), enemyXs[i], 680f, 280f, 225f);
-                well.SetActive(i == 0);
             }
 
             string[] rewardLines =
             {
-                stage.goldReward > 0 ? $"{stage.goldReward} Gold" : string.Empty,
-                stage.gemReward > 0 ? $"{stage.gemReward} Gems" : string.Empty,
-                string.Empty,
-                string.Empty,
+                stage.goldReward > 0 ? $"{stage.goldReward} Gold" : "—",
+                stage.gemReward > 0 ? $"{stage.gemReward} Gems" : "—",
+                "—",
+                "—",
             };
             float[] rewardXs = { 105f, 325f, 545f, 765f };
             for (int i = 0; i < 4; i++)
@@ -2502,7 +2505,6 @@ namespace MyriadOfDragons.UI
                     16,
                     TextAnchor.MiddleCenter);
                 CampaignMapUiLibrary.SetModalWell(well.GetComponent<RectTransform>(), rewardXs[i], 930f, 210f, 205f);
-                well.SetActive(!string.IsNullOrEmpty(rewardLines[i]));
             }
 
             GameObject chromeObj = new GameObject("ModalChrome", typeof(RectTransform), typeof(Image));
