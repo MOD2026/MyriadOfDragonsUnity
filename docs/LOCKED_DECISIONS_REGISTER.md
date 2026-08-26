@@ -4489,3 +4489,21 @@ and is therefore an owner call, not an arithmetic correction.
 **Until resolved:** the Gold and Stamina halves of every rung ship normally; the voucher grant sits
 behind an explicit held-pending-duration-lock gate. No duration may be picked to unblock work.
 Cosmetic deferral now applies to milestone **500 only** — 2,000/4,000/8,000 are no longer cosmetics.
+
+## Real process failure: sign-off logged but never delivered to VS - caught and fixed (2026-08-26)
+
+**Real gap, mine:** I logged the owner's `highestClaimedLoyaltyMilestone` sign-off in the register
+(a54ad97) but never actually verified it reached VS via the mailbox - VS sat blocked on a decision
+that had already been made, purely because logging =/= delivering. Another session caught this and
+delivered it directly (d526eb4). Same class of dropped-handoff bug flagged early this session -
+should have been caught by now, wasn't.
+
+**Real voucher-duration monotonicity break found, verified:** the locked ladder now reads
+250pt=7-day, 1,000pt=14-day, 2,000pt=7-day, 4,000pt=30-day, 8,000pt=30-day. 2,000 points requires
+MORE lifetime spend than 1,000 (20,000 vs 10,000 Gems) but returns a SHORTER voucher (7-day vs
+14-day) - a real, confirmed non-ascending step in an otherwise-ascending ladder.
+
+**Only one sane fix, not yet authorized:** upgrade 2,000pt's voucher to 30-day (matching 4,000/
+8,000). Downgrading 1,000pt isn't an option (already locked, already being built). This is a real
+value increase to what a 20,000-Gem spender gets, not a cosmetic cleanup - needs explicit owner
+confirmation before VS wires it, per the same discipline as every other reward-value change tonight.
