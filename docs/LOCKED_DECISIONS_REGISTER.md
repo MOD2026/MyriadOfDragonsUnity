@@ -6619,3 +6619,25 @@ process note either way: two sessions writing to the same coordination file can 
 are behaving correctly: worth a quick `git log` check before assuming who authored something,
 exactly the discipline this session already applies to peer-identity claims elsewhere. No actual
 harm - the dedup itself was correct regardless of attribution, and the content was identical.
+
+## WH's purchase-path trace: real synchronous I/O found, but honestly reasoned OUT as the actual hang site (2026-08-26)
+
+**Real, disciplined, code-only work exactly as scoped - no code changes made.** Verified the key
+citations directly: `ShopPresenter.cs`'s success path genuinely calls `SaveSystem.Save(player)`
+synchronously (confirmed at the real call site), and `SaveSystem.Save` genuinely does raw synchronous
+disk I/O with no timeout (`File.WriteAllText`/`File.Replace`/`File.Delete`/`File.Move`, all
+confirmed real). `ShopV1ChromeTests.TearDown`'s `Directory.Delete` on the scratch save dir also
+confirmed real.
+
+**Real discipline worth crediting: WH found a genuine synchronous I/O site but did NOT stop there
+and declare victory.** Cross-referenced the actual stall log - the last line before the hang was
+`"Purchased {item.title}"`, which only runs AFTER `Save` returns. **That means I/O had already
+completed in the observed hang** - the suspect isn't inside `SaveSystem.Save` itself, it's something
+after it (TearDown's directory delete, or EditMode process-state contamination from earlier tests -
+matches "clean alone, stalls deep in a continuous run"). Also correctly notes `SaveSystem.cs` is
+frozen regardless, so even if it WERE the cause, fixing it needs explicit owner coordination, not a
+unilateral edit.
+
+**Real, cheap next confirm proposed, greenlit:** one Unity process, two filters (a FlushAsync-
+emitting class + `ShopV1ChromeTests` together) vs `ShopV1ChromeTests` alone - checks cross-test
+contamination without another full-suite run, fits well inside the 15-20min cap. Go ahead.
