@@ -1365,6 +1365,52 @@ formula mapped through anchors/pivots. Both agree when implemented correctly.
 **Ordering rule: global overflow audit passes -> then per-screen checks. Do not promote a screen
 until the full suite passes for every target device profile.**
 
+## AD AUDIT - UISharedFoundation.cs, 2026-08-27. FLAT-BOXES ROOT CAUSE FOUND.
+
+First file of the owner-ordered UI audit. **CC verified finding 1 in the real file before dispatching.**
+
+**FINDING 1 (HIGH) - `UISharedFoundation.cs:433`. This is very likely the root cause of the owner's
+long-standing "boxes everywhere / flat chrome" complaint.**
+```
+if (tier.HasValue) FitSlicedBorderToRect(target);
+```
+The authored-art path (line 417) ALWAYS calls `FitSlicedBorderToRect`. The procedural fallback
+(429-433) calls it ONLY when a tier was passed. **So the untiered procedural fallback - the common
+case whenever authored art is missing - is assigned `Image.Type.Sliced` and never has its border
+fitted, so the 9-slice collapses and the panel renders FLAT.** Identical to the collapse already
+fixed on the authored path; the fallback was never given the same treatment. Fix: call it
+unconditionally for any `Image.Type.Sliced` assignment. Lines 151 and 227 also set `Sliced` and need
+the same check.
+
+**FINDING 2 (HIGH) - inconsistent silent asset fallbacks.** A warn-once gate exists for framed
+panels (`_warnedFramedPanelPathsMissing`) but NOT for `CreateFullscreenBackground`, `CreateButton`,
+`CreateHeaderShell` and other `Resources.Load<Sprite>` sites - they fall back to flat colour with no
+signal at all. **Tests pass because the code ran; the player sees flat colour.** This is the exact
+mechanism behind 1799 green tests coexisting with every sprite failing. Standardise one
+`WarnOnceMissingSprite(path, context)` at every load site with a fallback, and **make missing art on
+CRITICAL paths (primary CTA, nav skins) a TEST FAILURE, not a warning.**
+
+**FINDING 3 (MEDIUM)** - `ApplyFramedPanel` warns when the rect is still Unity's default 100x100 but
+does not enforce. Call-site discipline has already failed repeatedly. Add an EditMode test that
+builds every screen and asserts the warning never fires - converts a human-discipline dependency into
+a mechanical one.
+
+**FINDING 4 (LOW)** - `FitSlicedBorderToRect` clamps `pixelsPerUnitMultiplier` to a ceiling of 4. A
+rect small enough to saturate that clamp still renders wrong. Flag on saturation: it means the art
+needs re-slicing or the layout is wrong, and silently accepting 4 hides it.
+
+**Also re-confirmed:** the `IsEdgeAnchoredForHud` anchor heuristic is broken (full-stretch elements
+match both branches). CR's explicit-classification decision stands.
+
+**Open question CC raised with CR, unanswered:** does fixing 433 change screens that currently look
+acceptable? If any screen was tuned by eye against a collapsed border, correcting it will shift that
+layout. Better known before it lands across 24 screens than discovered in captures after.
+
+**Audit logistics:** AD has NO repo access - every file must be pasted. It refuses to invent line
+numbers without the full file, which is the right behaviour. Remaining order: HomePagePresenter
+(1892, 400-line chunks), ShopPresenter (933), CampaignMapPresenter (2682, 500-line chunks),
+GameBootstrap (7158, 500-line chunks), then ~20 remaining presenters.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
