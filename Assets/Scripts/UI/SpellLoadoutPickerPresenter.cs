@@ -171,27 +171,15 @@ namespace MyriadOfDragons.UI
                 Image schoolImg = cell.transform.Find("SchoolIcon")?.GetComponent<Image>();
                 if (schoolImg != null) schoolImg.enabled = false;
 
-                float cellW = (0.92f * 1920f) / Mathf.Max(1, _requiredSlots);
-                float cellH = 0.10f * 1080f * 0.8f;
-                float labelPlateW = cellW * 0.55f;
-                float labelPlateH = cellH * 0.45f;
                 GameObject labelPlate = new GameObject("EffectLabelPlate", typeof(RectTransform));
                 labelPlate.transform.SetParent(cell.transform, false);
-                RectTransform labelPlateRect = labelPlate.GetComponent<RectTransform>();
-                labelPlateRect.anchorMin = labelPlateRect.anchorMax = new Vector2(0f, 0f);
-                labelPlateRect.pivot = new Vector2(0.5f, 0.5f);
-                labelPlateRect.sizeDelta = new Vector2(labelPlateW, labelPlateH);
-                labelPlateRect.anchoredPosition = new Vector2(cellW * 0.68f, cellH * 0.75f);
+                SetNorm(labelPlate.GetComponent<RectTransform>(), 0.40f, 0.50f, 0.98f, 0.98f);
                 UISharedFoundation.AddLocalGradientScrim(
-                    labelPlate.transform,
-                    new Vector2(labelPlateW * 0.5f, labelPlateH * 0.5f),
-                    new Vector2(labelPlateW, labelPlateH),
-                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                    labelPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.98f);
                 UISharedFoundation.AddLocalGradientScrim(
-                    labelPlate.transform,
-                    new Vector2(labelPlateW * 0.5f, labelPlateH * 0.5f),
-                    new Vector2(labelPlateW, labelPlateH),
-                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+                    labelPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.98f);
                 Text header = UISharedFoundation.CreateText(labelPlate.transform, "EffectLabel", $"SLOT {i + 1}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(200f, 24f));
