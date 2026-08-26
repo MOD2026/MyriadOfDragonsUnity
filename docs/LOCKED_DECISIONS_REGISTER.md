@@ -6326,3 +6326,19 @@ fixture fix - every one verified real, no incident. That real track record is th
 authorizing the restyle itself to proceed on Home/Shop/DeckBuilder/CampaignMap now, same standing-
 order pattern as the earlier one-time CampaignMapPresenter canvas-cleanup exceptions. Dispatching to
 WH/CR.
+
+## Battle screen top rail: real design REVERSAL, not a bug - owner wants animation space, not readable text (2026-08-26)
+
+**Real finding, verified against code.** The top rail (`_activityLogText`, `RefreshActivityLog()` in
+`GameBootstrap.cs:5943`) is a genuine text combat feed, built via `CombatFeedFormatter.BuildFeedLines`
+off the real `CombatLedger`/`SpellCastLog` - "latest up to 6 lines, newest first," matching the
+Battle screen mockup which shows a phase-status line there even pre-combat. **This was NOT
+accidental** - the code's own comment cites a specific prior owner request (2026-08-22): "combat
+after Formation feels like autopilot, I can't tell what happened each tick." This feature exists
+because the owner asked for exactly this readability.
+
+**Owner now wants the opposite: that rail space reserved for animation/VFX generation, not text
+players are expected to read** ("no1 will read that"). Genuine design reversal, not catching
+something that was always wrong - worth being honest about rather than treating it as an
+undiscovered bug. Dispatching the code side to VS (Battle/Combat is its lane) and a UI-generation
+request for the redesigned top area to the owner, paste-ready below.
