@@ -6219,3 +6219,13 @@ naming the actual source). CR caught it immediately and correctly refused to act
 content rather than guessing at context it didn't have - right instinct, this could easily have
 gone the other way (CR silently absorbing instructions meant for someone else). Corrected same-turn:
 told CR to disregard, delivered the real reply to VS's actual mailbox channel.
+
+## WH dispatched: predictive Btn_Back overlap check on Home/Shop/DeckBuilder/CampaignMap (2026-08-26)
+
+Real, unblocked task, not the Shop hang (CR already has real narrowing progress there - dispatching
+WH onto the same hang risks the exact parallel-collision already seen on DeckBuilder). CR's own
+predictive flag from the design-token rollout: the same center-anchored-`Btn_Back`-in-~100px-header
+overlap bug hit Empire (`7185a4c`) and Avatar (`7576fdf`) independently once each got real bordered
+art - both were invisible while flat, both surfaced immediately on migration. WH has already crossed
+the Metagame-ownership boundary repeatedly tonight (VIP/Friends, Home telemetry, Home layout fix),
+so it can check this now rather than wait for the full restyle to expose it as a surprise later.
