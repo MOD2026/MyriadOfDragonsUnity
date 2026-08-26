@@ -1464,6 +1464,37 @@ newline is a real asset-pipeline failure mode in this project's history.
 `CampaignMapPresenter` - navigation wiring, input flows, bespoke logic. Everything else is covered
 mechanically.
 
+## Empty-state COPY - LOCKED 2026-08-27 (ST, verified against the locked rules)
+
+| State | Title | Body | Action |
+|---|---|---|---|
+| No Friends | No Allies Yet | Your roster is quiet; add another commander when you are ready. | Add Friends |
+| No Mail | Inbox Clear | No messages await; your inbox is current. | **NO ACTION** |
+| No Guild | No Guild Yet | Browse the guild rolls when you are ready to choose an alliance. | Browse Guilds |
+| Empty Collection Filter | No Matches | Your collection is unchanged; no cards match the current filter. | Clear Filter |
+| All Quests Claimed | Orders Complete | Every available quest is complete; new orders arrive at the next refresh. | **NO ACTION** |
+| Battle Pass Not Started | Between Seasons | No campaign is active; the next season will appear here when announced. | **NO ACTION** |
+
+**Verified against the locks before accepting:** Mail carries a status line and no action (never a
+disabled button); "Orders Complete" conveys refresh timing rather than absence; the filter copy says
+"your collection is unchanged" so it does not imply the player lacks progress when the emptiness is
+their own filter; titles are TITLE CASE per the all-caps rule (no all-caps beyond ~14 chars); and the
+six share one voice without being one template with nouns swapped - which is what stops a new player
+seeing five identical broken-looking screens.
+
+**ST ALSO RECOMMENDS AN IA CHANGE - NOT auto-approved, needs verification first:** hide the Battle
+Pass screen entirely when no season exists and none is announced, revealing its navigation entry only
+when a season becomes real. Reasoning is sound and matches the locked hide-vs-show-empty rule -
+"showing an inert progression screen advertises unavailable content."
+
+**But this touches the locked IA** (Battle Pass lives under the Quests/Events destination), and CC has
+not verified whether a season is ever actually absent in practice. **If seasons are always live, the
+empty state is unreachable and hiding it is dead work.** Verify before building either.
+
+Also locked: the pre-join Guild state belongs on the **Guild entry screen**, not inside the hidden
+Guild Hall interior - consistent with the existing decision to hide the interior before a player can
+join.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
