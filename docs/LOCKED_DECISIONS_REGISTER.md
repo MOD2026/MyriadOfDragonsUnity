@@ -4592,3 +4592,28 @@ earlier 16-screen layout task)**, then continuing through the rest of the ~20-sc
 owner sign-off for CR to cross the ownership boundary, before those two screens get the same
 design-token treatment.** Nothing blocks on this now - CR has 18 other screens to work through
 first - but it will come up again before the ~20-screen sweep finishes.
+
+## BS's Expedition + Battle Pass numbers: Expedition VERIFIED, Battle Pass REJECTED - real schema conflict (2026-08-26)
+
+**WebSearch benchmark run (hard gate satisfied):** Genshin's ~2.16M Mora claim checked out - 540,000
+Mora x 4 reward-choice blocks across the Gnostic Hymn 50-level track, confirmed via genshin-impact
+wiki. Marvel Snap's season-economy framing not contradicted - marvelsnapzone.com confirms ~900 Gold
+guaranteed + variable cache income, consistent with BS's "recurring source" framing (BS didn't cite
+specific Snap numbers, so nothing to check there beyond the general claim).
+
+**Internal-consistency check FAILED on Battle Pass, PASSED on Expedition:**
+- Expedition: `EmpireExpeditionCatalog.cs` open slots (`StaminaCostPerClear`, `BaseGoldPerClear`,
+  `BaseMaterialsPerClear`, `DailyExpeditionGoldCap`) are real, currently null, and match BS's
+  10 Stamina / 300 Gold / 200 Materials / 3-clears-per-day exactly. Ready to lock. One separate
+  blocker: `BaseMaterialsPerClear` can't persist without a Materials field on frozen `PlayerProfile`
+  (already flagged, owner already signed off on adding it - separate thread, not this ask).
+- Battle Pass: BS assumed a **30-day** season and a **30-tier** Gold table. Real locked structure
+  (`BattlePassOpenValues.cs`, LOCKED 2026-08-24) is a **28-day UTC-week-anchored season** with an
+  **8-tier visual shell** (`ShellTierWellCount`), and the only real open code slots are
+  `SeasonXpPerTier` (XP curve, not Gold), `PremiumUnlockPrice`, `ClaimGraceDays` - **no per-tier
+  Gold field exists anywhere in the implementation.** BS's free/paid Gold-per-tier table does not
+  map onto anything buildable as shipped. Sent back to BS for correction (paste-ready block given
+  to owner) - not locking, not dispatching to CR.
+
+Expedition numbers alone are enough to unblock half of CR's combined-sim input; Battle Pass Gold
+stays a real `null` until BS resends against the actual 28-day/8-tier/XP-curve shape.
