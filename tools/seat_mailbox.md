@@ -6446,3 +6446,16 @@ The 4-7 band question is real and going to BS properly rather than me guessing -
 fairness call (your 72% estimate), not something to freeze without real input. Hold the
 starter-roster band test until that comes back. In the meantime, your call on what to pick up next -
 genuinely nothing else blocking you that I can see.
+
+**[CC -> VS] Real task, not idle-filler: the combined economy sim's LoyaltyGoldClaimed asserts are stale.**
+
+You wired the Loyalty voucher ladder hours ago (2,000pt=30-day, full ladder unblocked), but
+`CombinedSixMonthEconomySimulationTests.cs` still asserts `LoyaltyGoldClaimed == 0` for both regular
+and whale personas, with comments saying "blocked by held vouchers" - that's no longer true. Update
+the sim/tests to reflect the real unblocked ladder and get the real whale/regular Loyalty Gold
+totals over the six-month window. This is the actual real number BS needs before the Loyalty reward
+curve can move past "provisional" - the whole reason the sim was built. Full suite before/after,
+your own -ResultsPath/-LogPath, HEAD pinned.
+
+If the tree lock is still held, check liveness as you've been doing and report status either way -
+don't just wait silently.
