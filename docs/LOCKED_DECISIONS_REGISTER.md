@@ -6885,3 +6885,16 @@ simulation to accidentally surface it again.
 
 **Still open, unchanged:** milestone 500's cosmetic-ownership gap - the one real remaining blocker
 on the whale Gold tier, BS ask already sent.
+
+## CORRECTION: milestone-500 BS ask was never actually sent - no paste-ready prompt existed anywhere in this file (2026-08-26)
+
+Two prior entries (lines ~6793-6794, ~6886) both said "BS ask already sent" / "paste-ready ask
+below" - grepped the whole file for the actual prompt text, found nothing. Logged as sent, never
+delivered - the same "logging != delivering" class already caught once tonight
+(`highestClaimedLoyaltyMilestone` sign-off). Real prompt drafted and given to the owner now.
+
+**Real state going in:** milestone 500's reward is still a cosmetic with no ownership model on
+`PlayerProfile`. The three other cosmetic tiers on this exact ladder (2,000/4,000/8,000) already
+had this same problem and BS already resolved it the cheap way - replaced the cosmetic with Gold/
+Stamina/voucher value instead of building a cosmetic-inventory schema (see the "revised whale-tier
+Loyalty rewards" lock). 500 is the only tier that never got the same treatment.
