@@ -5210,3 +5210,25 @@ adopted - reasoned contrast, not decoration.
 **Both fields now real:** `PremiumUnlockPrice=800`, `ClaimGraceDays=7` in `BattlePassOpenValues.cs`.
 Combined with the earlier Gold table + XP + claimed-tier fields, `AreTierRewardsConfigured` can now
 go fully true once CR wires all four - nothing else blocks Battle Pass. Dispatching to CR.
+
+## Guild Hall REAL FIX LANDED, verified - popup convention restored, boundary tension resolved at its real cause (2026-08-26, CR, commit 7185a4c)
+
+Verified via `git show --stat`, matches report exactly. Reverted dcf9610's wrong full-screen-swap
+assumption; Guild Hall is a popup over Empire again (matches WH's
+`MetagameNavigationSpineTests.OpenAndCloseGuildHallEntry`, same convention as
+BuildingDetail/TacticalPuzzle - screen underneath stays active and findable). Real fix: an
+always-opaque Dimmer layer behind Guild Hall's art, same pattern as
+`EmpireBuildingDetailPresenter`'s own Dimmer - guarantees full coverage regardless of
+`ApplyFullscreenShell`'s `preserveAspect` letterboxing, which was the actual original bug.
+
+**Boundary tension resolved at its real cause, not split-the-difference:** `EmpireLayoutTests` and
+`MetagameWorkingAreaLayoutTests` wanted mutually exclusive `anchorMax.y` values on Empire's
+construction panel because a vertically-centered `Btn_Back` was eating clearance both tests needed.
+Fixed the actual cause - top-anchored `Btn_Back` with trimmed height (60->40px) - rather than
+picking a number that would've satisfied neither test's real intent. Good instinct, worth noting:
+choosing a compromise value here would have been a fake fix that passed both tests for the wrong
+reason.
+
+43/43 pass, HEAD b6ca180 unchanged both ends. **Guild Hall thread now genuinely closed** (was
+PARTIAL, then found actively wrong, now real). CR moving to Battle Pass wiring - room not idle, no
+dispatch needed.
