@@ -83,7 +83,9 @@ namespace MyriadOfDragons.Tests
             // a clean pass over the smaller set.
             foreach (UiScreenEntry screen in UiScreenRegistry.Screens)
             {
-                Capture(shots, screen.Name, () => screen.Build(NewHost));
+                // Capture does not care where a control leads, so it hands over a throwaway probe.
+                var ignored = new UiNavigationProbe();
+                Capture(shots, screen.Name, () => screen.Build(NewHost, ignored));
             }
 
             Assert.Greater(shots.Count, 0, "No screens captured at all - harness itself is broken.");

@@ -92,6 +92,7 @@ namespace MyriadOfDragons.Tests
             var warnings = new List<string>();
             List<UiGateException> exceptions = UiGateExceptionManifest.Load(findings);
             var graphNodes = new List<string>();
+            var graphEdges = new List<string>();
             var dot = new StringBuilder();
             dot.AppendLine("digraph MyriadNavigation {");
             dot.AppendLine("  rankdir=LR;");
@@ -104,7 +105,7 @@ namespace MyriadOfDragons.Tests
                 GameObject canvasObj = null;
                 try
                 {
-                    canvasObj = screen.Build(NewHost);
+                    canvasObj = screen.Build(NewHost, new UiNavigationProbe());
                 }
                 catch (Exception e)
                 {
@@ -132,8 +133,10 @@ namespace MyriadOfDragons.Tests
                 CleanupAfterScreen();
             }
 
+            CrawlNavigation(graphEdges, dot, warnings);
+
             dot.AppendLine("}");
-            WriteGraphArtifacts(graphNodes, dot.ToString());
+            WriteGraphArtifacts(graphNodes, graphEdges, dot.ToString());
 
             // Checked AFTER the traversal so "matched" reflects measured geometry, not intent.
             UiGateExceptionManifest.ReportUnmatched(exceptions, findings);
@@ -238,6 +241,80 @@ namespace MyriadOfDragons.Tests
             rt.Release();
             UnityEngine.Object.DestroyImmediate(rt);
             return cam;
+        }
+
+        /// <summary>
+        /// Presses each safelisted control and records which navigation callback it fired.
+        ///
+        /// ONE FRESH SCREEN PER CONTROL. A control may tear its own screen down, and a second press
+        /// against a destroyed hierarchy measures nothing - so each is crawled from a clean build
+        /// rather than reusing one instance. Slower, and the only way the readings mean anything.
+        ///
+        /// Controls not on the safelist are NEVER pressed. That is not caution for its own sake:
+        /// pressing a BUY or a daily-claim here would spend real currency in the save under test,
+        /// and a new button must default to not-invoked (CC, 2026-08-27).
+        /// </summary>
+        private void CrawlNavigation(List<string> edges, StringBuilder dot, List<string> warnings)
+        {
+            foreach (UiScreenEntry screen in UiScreenRegistry.Screens)
+            {
+                foreach (UiNavigationSafelist.Entry entry in UiNavigationSafelist.Entries)
+                {
+                    if (entry.Screen != screen.Name) continue;
+
+                    var probe = new UiNavigationProbe();
+                    GameObject canvasObj = null;
+                    try { canvasObj = screen.Build(NewHost, probe); }
+                    catch (Exception e)
+                    {
+                        warnings.Add("nav-crawl " + screen.Name + ": build failed - " + e.Message);
+                        CleanupAfterScreen();
+                        continue;
+                    }
+
+                    if (canvasObj == null) { CleanupAfterScreen(); continue; }
+
+                    Button target = null;
+                    foreach (Button b in canvasObj.GetComponentsInChildren<Button>(true))
+                    {
+                        if (b.name == entry.Control) { target = b; break; }
+                    }
+
+                    if (target == null)
+                    {
+                        // A safelist entry naming a control that no longer exists is a rotting
+                        // entry, exactly like a stale exception - report it rather than skip it.
+                        warnings.Add("nav-safelist " + screen.Name + ": no control named '" +
+                                     entry.Control + "' on this screen - the entry is stale.");
+                        CleanupAfterScreen();
+                        continue;
+                    }
+
+                    target.onClick.Invoke();
+
+                    if (probe.AnyFired)
+                    {
+                        foreach (string callback in probe.Fired)
+                        {
+                            edges.Add("    {\"from\": " + Json(screen.Name) +
+                                      ", \"control\": " + Json(entry.Control) +
+                                      ", \"firesCallback\": " + Json(callback) + "}");
+                            dot.AppendLine("  \"" + screen.Name + "\" -> \"" + callback +
+                                           "\" [label=\"" + entry.Control + "\"];");
+                        }
+                    }
+                    else
+                    {
+                        // Pressed a real navigation control and NOTHING happened. That is a dead
+                        // control - the player taps it and stays put - and it is a genuine finding,
+                        // not an absent edge.
+                        warnings.Add("nav-crawl " + screen.Name + ": pressing '" + entry.Control +
+                                     "' fired no navigation callback at all - it may be dead.");
+                    }
+
+                    CleanupAfterScreen();
+                }
+            }
         }
 
         private void CleanupAfterScreen()
@@ -530,7 +607,7 @@ namespace MyriadOfDragons.Tests
         /// <summary>Writes the navigation graph beside the contact sheet, so the owner-facing
         /// diagram and the reviewed screenshots come out of the same run and cannot describe
         /// different versions of the UI.</summary>
-        private static void WriteGraphArtifacts(List<string> nodes, string dot)
+        private static void WriteGraphArtifacts(List<string> nodes, List<string> edges, string dot)
         {
             string outDir = Path.Combine(Path.GetTempPath(), "MyriadOfDragonsContactSheetOutput");
             Directory.CreateDirectory(outDir);
@@ -538,11 +615,13 @@ namespace MyriadOfDragons.Tests
             var json = new StringBuilder();
             json.AppendLine("{");
             json.AppendLine("  \"generatedBy\": \"UiValidationRunTests\",");
-            json.AppendLine("  \"edgeResolution\": \"UNRESOLVED - controls are wired via AddListener, so onClick carries no persistent calls and a destination cannot be read statically. Nodes and controls below are real; the absence of edges is a limitation of this run, NOT evidence that these screens have no navigation.\",");
+            json.AppendLine("  \"edgeResolution\": \"MEASURED, PARTIAL. Each edge below was produced by actually invoking a safelisted control and observing which navigation callback fired. Coverage is limited BY DESIGN: UiNavigationSafelist defaults to deny, so controls that spend currency or consume a daily action are never invoked and their edges are absent. An absent edge means not-yet-crawled, NEVER proven-unreachable.\",");
             json.AppendLine("  \"nodes\": [");
             json.AppendLine(string.Join(",\n", nodes));
             json.AppendLine("  ],");
-            json.AppendLine("  \"edges\": []");
+            json.AppendLine("  \"edges\": [");
+            json.AppendLine(string.Join(",\n", edges));
+            json.AppendLine("  ]");
             json.AppendLine("}");
 
             File.WriteAllText(Path.Combine(outDir, "navigation_graph.json"), json.ToString());
