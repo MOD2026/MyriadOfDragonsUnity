@@ -63,3 +63,9 @@ bisect was right, the inference from it was wrong.
 
 *(New entries append below. Newest at the bottom, oldest at top, same convention as
 `seat_mailbox.md`.)*
+
+## 2026-08-26 — VS loyalty blockers resolved / Solo Collection Circuit re-dispatched
+- VS reported 5728af3 (loyalty earn rule + ladder, 32/32) with 3 redemption blockers. Verified: commit real, tac_w1_m02 closed at 9c54dd2 (6/6) — stale PENDING row retired.
+- CC answers: (a) 3-day voucher retired, ladder remaps to weekly/fortnight/monthly — no new `vipPlanId` value; (b) cosmetic milestones 500/2,000/8,000 deferred as unclaimable-pending-inventory, no currency substitution; (c) `highestClaimedLoyaltyMilestone` frozen-file field ESCALATED to owner, redemption stays false meanwhile.
+- Ran the required industry benchmark (Marvel Snap spend track: seasonal reset, ~$200 full track). Two gaps registered: 8,000-point top rung is a trophy tier, and the ladder has no repeatable tail.
+- Re-dispatched to VS: Solo Collection Circuit — Formation Trial + Tactical Brief first, stop before Collection Trial if it needs new save shape.

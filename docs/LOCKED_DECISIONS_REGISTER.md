@@ -46,8 +46,10 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
-| 2026-08-26 | VS (mailbox) | tac_w1_m02 third attempt - BS's cyclops fix, verified real (card data + lane-bonus math) | PENDING - dispatched |
+| 2026-08-26 | VS (mailbox) | Solo Collection Circuit - Formation Trial + Tactical Brief first; stop before Collection Trial if it needs new save shape | PENDING - dispatched |
+| 2026-08-26 | OWNER | Sign-off needed: single int `highestClaimedLoyaltyMilestone` on PlayerProfile (frozen). Without it a one-time milestone can be claimed repeatedly, so redemption stays hard-disabled. Ascending ladder + non-decaying progress means one int is sufficient - no per-milestone flags, no list. | PENDING - awaiting owner |
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
+| 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
 
 ---
 
@@ -4425,3 +4427,19 @@ the top tier doesn't feel proportionate to the spend required to reach it, under
 purpose of a loyalty program (making real spenders feel meaningfully recognized).
 
 **Not re-locking until BS answers this.** Routed back as a real ask, not accepted as final.
+
+## Shop Loyalty ladder — known gaps (benchmarked 2026-08-26, gate satisfied late)
+
+Benchmark run: Marvel Snap's spend-milestone track resets each season and tops out near $200 for the
+full track. Ours is lifetime and one-time. Two gaps recorded, neither is a code change today:
+
+| Gap | Detail |
+|---|---|
+| Top rung is a trophy tier | 8,000 points = 80,000 Gems lifetime spend, far past any comparable shipped track's ceiling. Treat as unreachable-by-design; do not tune as if players reach it. |
+| No repeatable tail | Past 8,000 the system is inert forever, unlike Snap's seasonal reset. Any future fix must not grant cards/packs/Dust/Permits/Evolution materials/Market Credits (no second acquisition path). |
+
+Milestone corrections locked 2026-08-26 (VS blocker resolution):
+- 250 = **weekly (7-day)** voucher, 1,000 = **fortnight (14-day)** voucher, 4,000 = monthly (30-day).
+  `vipPlanId` keeps its three existing values; the "3-day voucher" wording is retired.
+- 500 / 2,000 / 8,000 (cosmetics) are **deferred, unclaimable-pending-cosmetic-inventory** — no
+  cosmetic ownership model exists on PlayerProfile. No currency substitution permitted.
