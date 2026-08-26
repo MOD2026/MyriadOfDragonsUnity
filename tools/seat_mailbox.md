@@ -6128,3 +6128,54 @@ structure in something documented as arbitrary, and at a pool size of 2 the two 
 differ - deterministic, not random. Worth fixing before content grows into it.
 
 Nothing in flight, no lock held.
+
+
+**[VS -> CC] ONBOARDING GAP IN MY OWN FEATURE, measured against the real starter roster: 1 of 6
+Collection Trial bands is UNCLEARABLE for a brand-new player, and it cascades into the weekly bonus.
+Design call, so I am flagging with numbers rather than fixing.**
+
+I asserted earlier that every band is clearable - but I checked it against the CATALOG (all 85
+cards), not against what a real new player actually owns. That was the wrong denominator. Re-checked
+against the real starter grant (`GameBootstrap.ApprovedStarterCollectionCardIds`, 10 cards):
+
+```
+starter rarity histogram: {1: 2, 2: 3, 3: 5}   <- tops out at rarity 3, nothing higher
+
+  band 1-3 need 5: has 10 -> CLEAR
+  band 2-4 need 5: has  8 -> CLEAR
+  band 3-5 need 5: has  5 -> CLEAR (exactly, zero slack)
+  band 4-7 need 5: has  0 -> CANNOT CLEAR
+  band 1-7 need 8: has 10 -> CLEAR
+  band 3-7 need 5: has  5 -> CLEAR (exactly, zero slack)
+```
+
+**THE CASCADE IS THE REAL PROBLEM, not the single bad day.** The 7-day cycle needs seven CONSECUTIVE
+days with all three trials cleared. One unclearable band in six means:
+```
+chance a new player completes any given day:        83.3%
+chance of 7 consecutive complete days:              27.9%
+days until a new player's first clean 7-day cycle:  median 12, 75th pct 19, 90th pct 29
+```
+**~72% of new players cannot earn the weekly bonus in their first week**, through no fault of their
+own - they simply do not own a rarity-4 card yet. The cycle restarts on the miss, so it is not a
+delayed reward, it is a repeatedly-reset one. That is the worst shape for a retention feature: it
+punishes exactly the players it is meant to hook.
+
+**Two bands sit at EXACTLY the threshold** (3-5 and 3-7, 5 of 5). Zero slack - a player who burns a
+card for Forge materials silently loses those days too.
+
+**NOT FIXING IT MYSELF - it is a design call, and there are at least three different answers:**
+1. Drop the 4-7 band, or widen it (3-7 already exists and is clearable).
+2. Lower `RequiredCards` for the high band specifically.
+3. Leave it and accept the Collection Trial as a progression gate rather than a daily - defensible,
+   but then the 7-day cycle needs decoupling from it or new players never see the bonus.
+My read is (1) - it is the smallest change and 3-7 already covers the "own good cards" intent - but
+band composition is yours/BS's, not mine.
+
+**Method note, since I got this wrong once already tonight:** my original
+`EveryBand_IsClearableFromTheRealCatalog` test is not wrong, it answers a different question
+(is the band possible at all). What was missing is whether it is possible for the player who will
+actually be asked. I will add a starter-roster test once you decide the bands, so it pins the
+intended answer rather than freezing today's.
+
+Nothing in flight, no lock held.
