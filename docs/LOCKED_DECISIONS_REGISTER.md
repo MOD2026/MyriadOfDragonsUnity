@@ -6192,3 +6192,18 @@ checked out - every finding gets checked, every time, this session included.
 Shop hang (dispatched separately, not yet reported) or the Metagame-owned Btn_Back predictive check
 (CR's own flag, still blocked on the ownership boundary) - named both as real remaining items rather
 than silently dropping them.
+
+## Shop hang: real narrowing progress, CR checked for WH collision before continuing (2026-08-26)
+
+CR isolated `ShopV1ChromeTests` alone - clean, 9/9, no stall, ruling out a standalone bug in that
+class. Real conclusion: the hang is cross-class state/pollution leak that only surfaces during
+near-full/full-suite runs (matches all 3 observed stall points tonight - different lines, same area,
+consistent with symptom-site not origin-site). Correctly flagged the coordination question before
+sinking 30-60 more minutes into an expensive bisect, given WH was also dispatched on this.
+
+**Checked: no signal from WH on this thread** - its last report (Home fix, DeckBuilder re-verify,
+SoloCircuit layout) never mentioned the hang, so it hasn't engaged yet. Told CR to continue rather
+than have both stall waiting on each other - real, narrowing progress in hand beats idling on an
+uncertain coordination check. Will tell WH to stand down from this specific thread if it reports
+independent progress later, to avoid the exact parallel-collision pattern already seen once tonight
+on DeckBuilder.
