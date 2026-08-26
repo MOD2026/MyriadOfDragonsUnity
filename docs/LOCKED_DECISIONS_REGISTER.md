@@ -7766,3 +7766,22 @@ rather than silently absorbed.
 **State as of this entry: every coding-side thread from tonight's UI investigation is either shipped
 and verified, or has a real next step in flight.** The only thing missing is the owner's own eyes,
 which are blocked on a login issue outside anyone's control.
+
+## CR: 316 script metas fixed (uncommitted), and a possible SECOND, different hang location surfaced
+
+**Script-meta fix genuinely verified inert before applying** - real evidence (zero parse errors across
+the already-completed clean 1795-test run) rather than assumed from CLAUDE.md #7's "likely not."
+Also correctly identified this is a DIFFERENT defect shape than the SharedFoundation bug - these end
+on a real scalar (`guid: xxxx`), which YAML doesn't require a trailing newline for; fixed anyway for
+consistency, confirmed via `git diff` that GUID content itself is byte-identical. Pure hygiene, no
+behavior change expected. Uncommitted, pending its own verification run.
+
+**Real, possibly new finding while verifying:** that run stalled (exit 124), but the hang-profile
+trace shows it was NOT the known `ShopV1ChromeTests` hang - that suite's own `TearDown.exit` logged
+clean, `SlicedBorderFitTests` ran fully too. The stall happened later, around
+`SocialFoundationTests`/`SocialIdentityBootstrapTests` - a different location than WH's documented
+Shop investigation. CR correctly did not chase this itself (out of scope, and a live batch lock -
+PID 63700, 23:42:23 - blocked a clean retry anyway) - flagged it and moved on. **Real open question
+for whoever picks this up next: is this a second genuine intermittent hang, or the same underlying
+class (something between-fixture, per WH's Shop finding) surfacing at a different point in suite
+order?** Worth connecting to WH's narrowed investigation rather than treated as fully separate.
