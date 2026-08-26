@@ -6260,3 +6260,25 @@ This is a real standing assumption every room has been citing all night to wave 
 failures without anyone having verified it - exactly the same rigor VS applied to its own three
 self-corrections tonight, now pointed at an inherited claim instead of its own work. Good use of
 blocked time, not busywork.
+
+## Shop hang bisection: real negative result, calling it off for tonight (2026-08-26)
+
+CR's near-full class list (including `ShopV1ChromeTests`, the exact original hang class) completed
+clean - 1845 passed, 0 errors, no stall. Does NOT reproduce at this scale. Real, honest conclusion:
+the 3 stall points tonight moved every time (3 different `ShopPresenter.cs` lines across 3
+occurrences) - a pattern more consistent with resource/timing pressure from sheer test volume than
+a single findable buggy test. Further bisection may not converge at all if it's genuinely
+non-deterministic.
+
+**Two unrelated failures surfaced in the same run but correctly NOT attributed** -
+`BattleReleaseLayoutTests.BackdropImages_NeverBlockRaycasts` (already known intermittent tonight)
+and `Chapter2CampaignContentTests.Stage2_3_IsWinnable...` - HEAD drifted mid-run (`9f4b30a` ->
+`ad91f40`, other seats committing), so CR correctly declined to report them as confirmed off a
+moving-HEAD run rather than claim false precision.
+
+**Decision: calling off further bisection tonight, real diminishing returns.** Expensive
+(20-25+ min per run), doesn't reliably reproduce even at near-full scale, and the shifting stall
+points suggest it may not converge to a single root cause via this method at all. Not closing the
+thread - flagging as a genuine known intermittent issue for whenever there's bandwidth for a
+different investigative approach (e.g. profiling rather than bisecting), not spending more of
+tonight's real time chasing it.
