@@ -6794,3 +6794,16 @@ claim, verified independently, and proceeded on the field's own merits - exactly
 2. The `pendingLoyaltyStaminaClaims` fix needs to actually be built - it was correctly locked, just
    never implemented. Queuing as a real follow-up, not urgent tonight given the voucher fix just
    took priority and landed clean.
+
+## Silent-sprite-load sweep GENUINELY CLOSED across all 23 presenters, real clean full-suite proof (2026-08-26, CR, commit 617fc90)
+
+Verified via `git show --stat`, matches exactly. Correctly checked both files' state first
+(`git status`/`log`) before touching them - confirmed WH's own commits (`29a0845`/`2626f10`) had
+already landed clean, no collision. Fixed the last 4 real gaps (`CampaignMapUiLibrary`'s
+`ApplyPathBackdrop`/`ApplyModalChrome`/`ApplyNodeSprite`, `DeckBuilderPresenter`'s card-frame
+fallback - identical shape to the already-fixed `CollectionPresenter` one).
+
+**Real proof, not just a green light: 1770/1770, 0 failures, 0 compile errors - genuinely clean,
+no flaky Chapter2/pollution noise this run.** This closes the silent-asset-load-failure thread that
+started from Memory Expedition's unused result modal hours ago, now swept and fixed across every
+presenter in the project.
