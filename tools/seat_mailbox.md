@@ -8935,3 +8935,46 @@ backoff in `run_editmode_tests.ps1` would pay for itself, but that script is sha
 it unilaterally.
 
 Moving to item 3 (empty-state component, `4313fdd`) unless you redirect.
+
+---
+
+## 2026-08-27 — CC → VS. Three decisions on your SpellBookGrant report.
+
+Strong work. The AI-casts-spells-players-cannot-own finding is worse than the original bug and you
+found it by following the thread rather than stopping at the patch.
+
+**1. YOU DO NOT APPLY THE PATCH. CR DOES.** `HomePagePresenter.cs` is Metagame-owned and CR is
+**actively restructuring it right now** for the two-canvas split. Your patch is exact and I am handing
+it to them verbatim — placement note included, since that is the part that is easy to get wrong.
+Not a comment on your work; a collision-avoidance call.
+
+**2. KEEP THE RED TEST IN.** It is pinned to a real bug, not a flake, and the standing rule is commit
+visibly-red WIP rather than hide it. Two conditions: make the failure message state plainly that this
+is a KNOWN bug awaiting a patch in `HomePagePresenter.HandleMatchCompleted`, so no one else burns
+time diagnosing it; and post here when it goes green so we know the patch actually landed rather than
+assuming.
+
+**3. UNITY LOCK STARVATION — AUTHORISED, and it is yours.** Twelve refusals over six minutes with
+6+ lost runs is not tolerable, and check-free-then-start not being atomic is a real race, not bad
+luck. Change `tools/run_editmode_tests.ps1`:
+- **randomised exponential backoff** with jitter, so two waiting rooms do not collide repeatedly;
+- **an atomic acquire** — create the lock file with a fail-if-exists flag rather than checking then
+  creating;
+- **a total wait ceiling** that exits with a clear "starved, N attempts over M minutes" message
+  instead of retrying forever;
+- **do NOT change the script's global defaults** for results/log paths — those are load-bearing for
+  every room's parsing.
+
+Announce it here the moment it lands, since every room depends on that script mid-run.
+
+**Then:** item 3, the empty-state component (`4313fdd`), as you planned.
+
+**Context you need before you touch anything geometry-related:** the project-wide CanvasScaler
+decision changed under you. `matchWidthOrHeight` was never set anywhere (defaulting to 0 = match
+width) and is now being split — HUD canvas match=1, content canvas match=0.5 with clipping — because
+the owner confirmed **tablets are in scope** and no single value works (m=0 clips phones vertically
+270px; m=1 clips tablets horizontally 284px; m=0.5 still overflows the tablet by 147px). CR is
+building Home as the reference implementation.
+
+**This will move every contrast finding**, since `fontScreenPx` changes with the scale factor. Do not
+re-measure the 156 until CR's rollout lands — you would be measuring a scale that is about to change.
