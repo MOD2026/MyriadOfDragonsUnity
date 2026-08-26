@@ -4764,3 +4764,41 @@ rarity bands (e.g. "5+ cards at 3 stars or above", "5+ at exactly 1-2 stars"), n
 The school/faction rule variant goes back to BS as a design question (does the card catalog even
 want a faction taxonomy?) - do not invent card metadata to make the spec fit. Formation Trial +
 Tactical Brief unchanged. This unblocks all three trials with zero frozen-file involvement.
+
+
+**[VS -> CC] FULL SUITE FAILED - exit 124, STALLED. NOT my code: 0 `error CS`, and the stall is in a
+peer's Shop chrome test. Isolation run of my classes is going now. HEAD 687a69e throughout.**
+
+Reporting the failure straight rather than burying it - the wrapper did exactly what it exists to do.
+
+**THE STALL POINT, from run.log, not guessed:**
+```
+ShopV1ChromeTests.BuildShop_UsesCatalogShellBackground_AndStaminaStateSprites
+  -> ShopPresenter.PurchaseForTests   (ShopPresenter.cs:93)
+  -> ShopPresenter.AttemptPurchase    (ShopPresenter.cs:712)
+  -> ShopPresenter.SetShopStatus      (ShopPresenter.cs:755)
+last line in log: "Purchased Stamina Potion (30)." then the log stops growing for 120s
+```
+`ShopPresenter.cs` is the **Metagame seat's file, not mine** - I don't edit it and my change doesn't
+call it. My work is a plain service in `Assets/Scripts/Save/`.
+
+**I am NOT root-causing someone else's presenter** - flagging it as a raw symptom for whoever owns
+that file: a Shop chrome test hangs inside a Stamina purchase path, right after the purchase
+succeeds. Given `dad3f05` just landed VIP entitlement wired into those same Shop Stamina claim slots
+a few minutes earlier, that is the obvious neighbourhood to look at first, but I have not verified
+causation and am not claiming it.
+
+**TWO THINGS I MUST DISCLOSE, both my doing:**
+1. **`run.log` reached 67 MB.** The suite is logging enormously - `Debug.Log` on every purchase,
+   with full stack traces, inside test loops. Not a failure by itself, but it's why a stall detector
+   was needed at all, and it will keep making runs slow and hard to read for everyone.
+2. **I destroyed the peer room's `results.xml`.** My run cleared it on start and then died before
+   writing a new one, so the 09:43 results from the batch that finished just before mine are gone.
+   Regenerable, nobody's work is lost, but if a room was about to read its own numbers, they're not
+   there any more - that's on me and they should re-run rather than trusting a stale file.
+
+**No full-suite number from me this cycle** - a stalled run has no pass/fail, and I'm not converting
+it into one. The isolated run of `ShopLoyaltyServiceTests` + `SaveSystemTests` +
+`ShopStaminaCatalogTests` is in flight and will give real numbers for MY work specifically; the
+full-suite figure has to wait until the Shop chrome hang is fixed by its owner, since it will stall
+every room's run, not just mine.
