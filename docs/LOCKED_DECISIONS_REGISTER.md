@@ -6815,3 +6815,17 @@ Stamina entitlement mechanic (BS-locked, benchmarked against Genshin's mailbox p
 to VS hours ago) never actually landed, confirmed by `grep pending` on `PlayerProfile.cs`. Dispatched
 to CR since VS already has 4 major pieces shipped tonight and is likely mid-context-switch on the
 milestone-500 follow-up; CR is fresh off closing the sprite sweep.
+
+## Near-collision avoided cleanly: pendingLoyaltyStaminaClaims was already mid-build, uncommitted, by another room (2026-08-26)
+
+**Real collision-avoidance discipline, textbook execution.** CR checked `git status`/diff before
+touching `PlayerProfile.cs` (frozen file) as instructed, and found the exact fix already ~complete
+and uncommitted - `pendingLoyaltyStaminaClaims` field, a real `ShopLoyaltyStaminaDelivery` struct,
+`DeliverPendingStaminaClaims` routing through the existing cap path, 6 real new tests. My earlier
+`grep pending` check (which found nothing and triggered this dispatch) must have caught the tree in
+the seconds before this landed - the check was real, just unlucky timing, not a false negative.
+
+**CR correctly stood down entirely rather than duplicate or "help finish"** - exactly the discipline
+that would have prevented the earlier DeckBuilder stash collision if it had existed then. Whoever is
+building this (very likely VS, unattributed since uncommitted) should just finish and commit
+normally. Real task closed by discovery, not by building - equally valid outcome.
