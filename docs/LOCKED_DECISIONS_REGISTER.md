@@ -6409,3 +6409,12 @@ events, never determine results or delay simulation; explicitly says "do not res
 text log as a visual fallback" even when assets are missing (proxy+icon+number instead); explicitly
 never labels defeat states with runtime terms that may not exist ("do not label this 'lane death'
 unless that exact runtime term exists"). Dispatching to VS as the real implementation spec.
+
+## CR dispatched: real Mail-screen root cause investigation while polling on lock (2026-08-26)
+
+CR was correctly deferring the two-test recheck (lock held by a live peer run) rather than colliding
+- but genuinely idle otherwise. Real, unassigned work exists: the Mail screen's stuck/unresponsive
+symptom was only ever inferred as related to the `TacticalPuzzleCanvas` orphan-canvas bug class
+(register, earlier tonight) - never actually reproduced or confirmed root-caused, and nobody has
+been assigned to it. Dispatched as real read-diagnosis work, same discipline as DeckBuilder - trace
+first, report a real root cause before touching anything.
