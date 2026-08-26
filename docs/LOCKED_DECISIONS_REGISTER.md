@@ -105,7 +105,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 | Stamina | Shop refill only, no free regen | 30/60/120/240 Gems, max 4 purchases/rolling 24h | Yes | Shop V2 + `OWNER_REVIEW_LOG.md` enforcement fix |
 | Ascension Permits | Weekly claim + 10 chapter-finale grants | **4/week, hoard 8** | Never | `OWNER_REVIEW_LOG.md` Permit correction (was 8/16, corrected 2026-08-23) |
 | Forge Credit / Dust / Sacrifice Credits | Card burn only | Per-recipe caps (20%/10%/none) | Never | Card Burn packet, `CollectionBurnRules.cs` |
-| Event Medals | Approved event participation only | No live source yet | Never | `MOS_OPEN_ITEMS_RECONCILIATION_2026-08-23.md` |
+| Event Medals | **CORRECTED 2026-08-27: Daily Login mints 1/day UNGATED (a real leak, see audit below); Memory Expedition path correctly gated** | Never | `MOS_OPEN_ITEMS_RECONCILIATION_2026-08-23.md` |
 | Market Credits (Bazaar) | Voluntary sale only + one-time Genesis auction | 40,000 gross Genesis ceiling | Never (no Gold/Gems bridge) | `BAZAAR_PHASE1_CC_ACCEPT_2026-08-23.md` |
 | Construction Materials | Campaign faucet (own, separate from Gold) | Regular stage / finale rates TBD-locked in Empire v2 | **Under active revision** — see below | `EMPIRE_SCHEMA_LOCK_2026-08-22.md` §2 (amended) |
 | Guild Contribution | Donations/helps/Expedition bands | Dormant, no live source | Never | `Guild_Competition_Rewards_v1.md` |
@@ -1109,6 +1109,59 @@ Accepted; shadows stay support-only under the contrast lock anyway.
 
 **Gate still NOT armed** until the sub-2:1 cases are fixed. Order unchanged: tokens (done) ->
 21 unreadable fixed -> VS flips to hard fail.
+
+## CC ERROR, CORRECTED 2026-08-27: Event Medals ARE minted in production
+
+**CC asserted twice, and LOCKED, that Event Medals have no live source and nothing is minted. That
+is FALSE.** Found by WH, not by CC, while doing a fix CC had scoped too narrowly.
+
+**`Assets/Scripts/Season/DailyLoginQuestsService.cs:209`:**
+```
+CurrencyManager.AddCurrency(profile, CurrencyType.EventMedal, LoginEventMedals, persist: false);
+```
+`LoginEventMedals = 1`, inside `GrantLoginRewards`, reached in production via
+`DailyLoginQuestsPresenter.cs:42` -> `DailyLoginQuestsService.ClaimLogin(SaveManager.SaveData, ...)`.
+**Every daily login mints 1 Event Medal into `profile.eventMedals` and always has.**
+
+**So there are TWO Event Medal sources, not zero:**
+1. `DailyLoginQuestsService` - **UNGATED, live, minting daily.** Violates the dormant lock.
+2. `MemoryExpeditionService.cs:81` - correctly gated behind `EventLedgerActive => false`.
+
+**Consequences of CC's error:**
+- The Currencies table row "Event Medals - no live source yet" is WRONG. Corrected here.
+- The Event Medals dormant lock was written on a false premise and its "nothing is minted, so the
+  SoloCircuit case is only a display lie" reasoning is void. It was a real leak, not a display bug.
+- CC sent BS a prompt asserting "no live source", i.e. **a prompt built on an unverified premise -
+  the exact failure the prompt-premise rule was locked to prevent, committed by CC one day after
+  locking that rule.**
+- Players have been accruing an unspendable currency with no sink, for as long as daily login has
+  shipped. Balance impact when Event Medals do activate: **every existing account carries a hidden
+  stockpile.**
+
+**REQUIRED FIX (dispatched):** apply the same `EventLedgerActive` gate to the Daily Login path.
+**Open question CC must NOT guess:** what to do with medals already minted into live saves - zero
+them on migration, or grandfather them. That is an owner/BS call, not a coding-seat call.
+
+**Why the audit missed it:** CC grepped `EventMedalsGranted` (a result-struct field) and concluded
+nothing reached `profile.eventMedals`. It never grepped the actual mutation site
+(`AddCurrency(..., EventMedal, ...)`). **Grep the WRITE, not the report field.**
+
+### Full production currency-write audit (run 2026-08-27, all non-test `AddCurrency` sites)
+
+| Site | Currency | Gated? |
+|---|---|---|
+| `EmpireExpeditionClearTransaction` | Gold | n/a |
+| `MemoryExpeditionService` | Gold | n/a |
+| `MemoryExpeditionService` | **EventMedal** | **YES - `EventLedgerActive => false`** |
+| `ShopLoyaltyService` | Gold | n/a |
+| `BattlePassOpenValues` | Gold | n/a |
+| `DailyLoginQuestsService` | Gold (login + quest) | n/a |
+| `DailyLoginQuestsService` | **EventMedal** | **NO - THE LEAK** |
+| `ShopPresenter` | Gold | n/a |
+| `CombinedSixMonthEconomySimulation` | Gold/Gems | simulation only, not player-facing |
+
+**No other ungated currency writes found.** Gems have no production faucet outside the simulation -
+consistent with the IAP-only design. Event Medals were the only leak.
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
