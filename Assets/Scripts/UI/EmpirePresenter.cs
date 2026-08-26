@@ -800,7 +800,8 @@ namespace MyriadOfDragons.UI
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
             UISharedFoundation.ApplyFramedPanel(rowBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = true;
             Button rowButton = row.GetComponent<Button>();
             rowButton.targetGraphic = rowBg;

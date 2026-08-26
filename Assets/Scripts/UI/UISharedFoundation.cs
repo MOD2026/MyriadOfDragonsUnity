@@ -23,50 +23,54 @@ namespace MyriadOfDragons.UI
         public const int TypeBodySize = 16;
         public const int TypeCaptionSize = 12;
 
-        // Real color tokens (LOCKED 2026-08-26, register: docs/INDUSTRY_STANDARD_GAP_DIAGNOSIS_
-        // 2026-08-26.md §4). Before this, no shared color-token set existed at all - every screen
-        // independently authored its own near-identical charcoal/navy/bronze/emerald literal
-        // (13+ near-duplicate raw values found, none sharing a source). Each token below is
-        // DERIVED from the actual most-common existing literal across presenters, not invented -
-        // see each one's own doc comment for the real citation. This pass only builds the token
-        // set + the border/frame primitive below; migrating existing screens onto these is a
-        // separate, later task.
+        // Real color tokens - RELOCKED 2026-08-26 against
+        // Myriad_of_Dragons_Visual_Authority_Memory.md's "Materials and palette" section (the
+        // Shared_UI_Foundation reference doc, CC-authorized relock). Superseded the first-pass
+        // 2026-08-26 consolidation (register: docs/INDUSTRY_STANDARD_GAP_DIAGNOSIS_2026-08-26.md
+        // §4), which was explicitly a stopgap ("migrating existing screens onto these is a
+        // separate, later task") derived from the OLD flat-box screens' own literals, never
+        // claimed as final art direction. The Visual Authority Memory doc is now the real
+        // authority - it explicitly rejects "bright gold on every edge" and "flat coloured
+        // rectangles", which the old ColorAccentBronze/panel treatment read closer to than not.
 
-        /// <summary>Full-screen shell background. Matches the (0.08, 0.09, 0.1x) literal already
-        /// used as the fullscreen-shell fallback in BattlePassPresenter.cs:59,
-        /// BazaarPresenter.cs:78, ChatSocialPresenter.cs:71, CollectionPresenter.cs:90,
-        /// DailyLoginQuestsPresenter.cs:72 and FriendsPresenter.cs:71 - 6 of 23 screens
-        /// independently converged on essentially this same value with no shared source.</summary>
-        public static readonly Color ColorBackground = new Color(0.08f, 0.09f, 0.12f);
+        /// <summary>Base surface: "blue-black, charcoal stone, blackened iron and deep navy."</summary>
+        public static readonly Color ColorBackground = new Color(0.06f, 0.07f, 0.1f);
 
-        /// <summary>Secondary surface sitting on top of ColorBackground (cards, panels, modals).
-        /// Matches the (0.12, 0.14, 0.2) literal already used in AvatarPresenter.cs:113,
-        /// CollectionPresenter.cs:195 and CampaignMapUiLibrary.cs:87's own modal-chrome
-        /// fallback.</summary>
-        public static readonly Color ColorPanel = new Color(0.12f, 0.14f, 0.2f);
+        /// <summary>Secondary surface on top of ColorBackground (cards, panels, modals): "dark
+        /// charcoal/navy inset surface with mild vertical tonal variation" - a touch lighter than
+        /// ColorBackground, not a separate hue.</summary>
+        public static readonly Color ColorPanel = new Color(0.1f, 0.11f, 0.15f);
 
-        /// <summary>Header/top-bar band, darker than ColorPanel. Matches the (0.06, 0.06, 0.1)
-        /// literal already used identically in AvatarPresenter.cs:52,
-        /// CampaignMapPresenter.cs:2232 and EmpirePresenter.cs:86's own top bars.</summary>
-        public static readonly Color ColorHeader = new Color(0.06f, 0.06f, 0.1f);
+        /// <summary>Header/top-bar band, darker than ColorPanel - blends into ColorBackground per
+        /// the doc's "avoid a solid full-width web-style header bar" guidance.</summary>
+        public static readonly Color ColorHeader = new Color(0.045f, 0.05f, 0.075f);
 
-        /// <summary>Warm gold/bronze accent - GameBootstrap.cs:221's own AccentBorderColor
-        /// verbatim, the ONE place in ~23 screens with a genuine border treatment already
-        /// shipping (its battle-screen buttons). Reused, not reinvented.</summary>
-        public static readonly Color ColorAccentBronze = new Color(0.85f, 0.72f, 0.4f, 0.5f);
+        /// <summary>Structural trim: "aged bronze and restrained desaturated gold - not bright
+        /// yellow ornament everywhere." Deliberately duller/darker than the prior token, which was
+        /// GameBootstrap.cs's battle-screen accent - a real shipped value, but a brighter, more
+        /// saturated gold than this doc's own "not bright yellow" rule calls for.</summary>
+        public static readonly Color ColorAccentBronze = new Color(0.62f, 0.52f, 0.34f, 0.6f);
 
-        /// <summary>Forest-emerald accent for primary/positive actions (confirm, continue,
-        /// recommend). Matches the (0.16-0.2, 0.4-0.45, 0.28-0.32) literal already used near-
-        /// identically across BazaarPresenter.cs:197, CollectionPresenter.cs:309,
-        /// DailyLoginQuestsPresenter.cs:220, EmpireBuildingDetailPresenter.cs:186,
-        /// PackOpenOverlayPresenter.cs:87, SpellLoadoutPickerPresenter.cs:270 and
-        /// TacticalPuzzlePresenter.cs:535 - 7 of 23 screens.</summary>
-        public static readonly Color ColorAccentEmerald = new Color(0.18f, 0.4f, 0.28f);
+        /// <summary>Secondary surface/button core: "navy/blackened-metal core with bronze trim -
+        /// clearly subordinate without appearing disabled." New token - no prior screen had a real
+        /// secondary treatment distinct from ColorPanel to derive this from.</summary>
+        public static readonly Color ColorSecondary = new Color(0.13f, 0.16f, 0.23f);
 
-        /// <summary>Primary readable text on a dark surface (cream/parchment). Matches the single
-        /// most common text-color literal found across presenters (12 occurrences of exactly this
-        /// value, e.g. ChatSocialPresenter.cs, FriendsPresenter.cs, VipSubscriptionPresenter.cs).</summary>
-        public static readonly Color ColorTextPrimary = new Color(0.9f, 0.88f, 0.75f);
+        /// <summary>Primary positive/action accent: "deep emerald with luminous green edge
+        /// energy."</summary>
+        public static readonly Color ColorAccentEmerald = new Color(0.14f, 0.36f, 0.24f);
+
+        /// <summary>Information/resource accent: "controlled astral cyan/teal." New token - no
+        /// prior screen had a shared cyan value to derive this from; used sparingly per the doc's
+        /// "cyan/green/red only where functionally meaningful."</summary>
+        public static readonly Color ColorAccentCyan = new Color(0.32f, 0.7f, 0.74f);
+
+        /// <summary>Enemy/danger accent: "dried-blood red and ember red." New token, same
+        /// reasoning as ColorAccentCyan.</summary>
+        public static readonly Color ColorAccentRed = new Color(0.55f, 0.16f, 0.14f);
+
+        /// <summary>Primary readable text on a dark surface: "warm ivory."</summary>
+        public static readonly Color ColorTextPrimary = new Color(0.92f, 0.9f, 0.8f);
     }
 
     public enum UITextRole
@@ -278,16 +282,24 @@ namespace MyriadOfDragons.UI
         /// change), falls back to the procedural gradient sprite when no art exists yet. Either
         /// way every caller gets a REAL rounded/framed look today, not a flat rectangle.</summary>
         public static void ApplyFramedPanel(Image target, string frameResourcePath, Color topColor, Color bottomColor,
-            int cornerRadius = UIFrozenTokens.RadiusPrimary)
+            int cornerRadius = UIFrozenTokens.RadiusPrimary, FramedPanelKind kind = FramedPanelKind.ContentPanel)
         {
             if (target == null) return;
 
-            Sprite real = string.IsNullOrEmpty(frameResourcePath) ? null : Resources.Load<Sprite>(frameResourcePath);
+            string path = string.IsNullOrEmpty(frameResourcePath) ? DefaultFramedPanelResourcePath(kind) : frameResourcePath;
+            Sprite real = string.IsNullOrEmpty(path) ? null : Resources.Load<Sprite>(path);
             if (real != null)
             {
                 target.sprite = real;
                 target.type = Image.Type.Sliced;
                 target.color = Color.white;
+
+                // Manifest rule (UNITY_9SLICE_IMPORT_MANIFEST.md): the diamond ornament is a
+                // separate, non-stretched child layer, never baked into the sliced panel - 9-slice
+                // stretches the bottom-middle band horizontally, which would stretch/displace a
+                // baked-in diamond at any width other than the source.
+                if (kind == FramedPanelKind.ContentPanel)
+                    AddContentPanelDiamondOverlay(target.transform);
             }
             else
             {
@@ -297,18 +309,69 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        private const string ContentPanelDiamondResourcePath = "UI/SharedFoundation/ui_content_panel_diamond_overlay_v1";
+
+        private static void AddContentPanelDiamondOverlay(Transform panelTransform)
+        {
+            if (panelTransform.Find("DiamondOverlay") != null) return; // idempotent on rebuild
+            Sprite diamond = Resources.Load<Sprite>(ContentPanelDiamondResourcePath);
+            if (diamond == null) return;
+
+            GameObject overlay = new GameObject("DiamondOverlay", typeof(RectTransform), typeof(Image));
+            overlay.transform.SetParent(panelTransform, false);
+            Image img = overlay.GetComponent<Image>();
+            img.sprite = diamond;
+            img.type = Image.Type.Simple;
+            img.preserveAspect = true;
+            img.raycastTarget = false;
+
+            RectTransform rect = overlay.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(58f, 38.5f); // native 116x77, halved for a sane default UI scale
+        }
+
         /// <summary>Builds a new panel GameObject with <see cref="ApplyFramedPanel"/> already
         /// applied - the convenience most call sites want ("give me a real bordered panel"),
         /// matching the existing CreateModalShell/CreateCardPrimitive style.</summary>
         public static RectTransform CreateFramedPanel(Transform parent, string name, Vector2 size,
-            string frameResourcePath, Color topColor, Color bottomColor, int cornerRadius = UIFrozenTokens.RadiusPrimary)
+            string frameResourcePath, Color topColor, Color bottomColor, int cornerRadius = UIFrozenTokens.RadiusPrimary,
+            FramedPanelKind kind = FramedPanelKind.ContentPanel)
         {
             GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
             go.transform.SetParent(parent, false);
             RectTransform rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
-            ApplyFramedPanel(go.GetComponent<Image>(), frameResourcePath, topColor, bottomColor, cornerRadius);
+            ApplyFramedPanel(go.GetComponent<Image>(), frameResourcePath, topColor, bottomColor, cornerRadius, kind);
             return rect;
+        }
+
+        /// <summary>Which real 9-slice art family a framed panel should use by default when no
+        /// explicit frameResourcePath is given. Matches the 4 shapes in the approved
+        /// NineSlice_Production_Kit V1 (UNITY_9SLICE_IMPORT_MANIFEST.md) - each has different
+        /// border insets (a list row's are much thinner than a content panel's), so one shape
+        /// can't stand in for another without visibly wrong proportions.</summary>
+        public enum FramedPanelKind
+        {
+            ContentPanel,
+            ListRow,
+            Modal,
+        }
+
+        /// <summary>Real art paths for the approved 9-slice kit (2026-08-26). Returns null for a
+        /// kind with no real asset yet, which ApplyFramedPanel treats as "fall back to
+        /// procedural" - never silently substitutes a differently-shaped sprite.</summary>
+        public static string DefaultFramedPanelResourcePath(FramedPanelKind kind)
+        {
+            switch (kind)
+            {
+                case FramedPanelKind.ContentPanel: return "UI/SharedFoundation/ui_content_panel_v1";
+                case FramedPanelKind.ListRow: return "UI/SharedFoundation/ui_list_row_v1";
+                case FramedPanelKind.Modal: return "UI/SharedFoundation/ui_modal_dialog_v1";
+                default: return null;
+            }
         }
 
         /// <summary>The exact per-pixel alpha-shaping algorithm GameBootstrap.

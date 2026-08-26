@@ -31,16 +31,20 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void ColorTokens_MatchTheRealCitedValues_NotInvented()
         {
-            // Regression lock against the exact literals cited in the audit (each token's own
-            // doc comment names the real file:line source) - if one of these ever drifts, it
-            // means someone changed the token without updating the citation, which is exactly
+            // Regression lock, RELOCKED 2026-08-26 against Myriad_of_Dragons_Visual_Authority_
+            // Memory.md's "Materials and palette" section (CC-authorized relock, superseding the
+            // first-pass consolidation this test originally locked) - if one of these ever drifts,
+            // it means someone changed the token without updating the citation, which is exactly
             // the kind of silent drift the token set exists to prevent.
-            Assert.AreEqual(new Color(0.08f, 0.09f, 0.12f), UIFrozenTokens.ColorBackground);
-            Assert.AreEqual(new Color(0.12f, 0.14f, 0.2f), UIFrozenTokens.ColorPanel);
-            Assert.AreEqual(new Color(0.06f, 0.06f, 0.1f), UIFrozenTokens.ColorHeader);
-            Assert.AreEqual(new Color(0.85f, 0.72f, 0.4f, 0.5f), UIFrozenTokens.ColorAccentBronze);
-            Assert.AreEqual(new Color(0.18f, 0.4f, 0.28f), UIFrozenTokens.ColorAccentEmerald);
-            Assert.AreEqual(new Color(0.9f, 0.88f, 0.75f), UIFrozenTokens.ColorTextPrimary);
+            Assert.AreEqual(new Color(0.06f, 0.07f, 0.1f), UIFrozenTokens.ColorBackground);
+            Assert.AreEqual(new Color(0.1f, 0.11f, 0.15f), UIFrozenTokens.ColorPanel);
+            Assert.AreEqual(new Color(0.045f, 0.05f, 0.075f), UIFrozenTokens.ColorHeader);
+            Assert.AreEqual(new Color(0.62f, 0.52f, 0.34f, 0.6f), UIFrozenTokens.ColorAccentBronze);
+            Assert.AreEqual(new Color(0.13f, 0.16f, 0.23f), UIFrozenTokens.ColorSecondary);
+            Assert.AreEqual(new Color(0.14f, 0.36f, 0.24f), UIFrozenTokens.ColorAccentEmerald);
+            Assert.AreEqual(new Color(0.32f, 0.7f, 0.74f), UIFrozenTokens.ColorAccentCyan);
+            Assert.AreEqual(new Color(0.55f, 0.16f, 0.14f), UIFrozenTokens.ColorAccentRed);
+            Assert.AreEqual(new Color(0.92f, 0.9f, 0.8f), UIFrozenTokens.ColorTextPrimary);
         }
 
         [Test]
@@ -51,7 +55,8 @@ namespace MyriadOfDragons.Tests
             var tokens = new[]
             {
                 UIFrozenTokens.ColorBackground, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                UIFrozenTokens.ColorAccentBronze, UIFrozenTokens.ColorAccentEmerald, UIFrozenTokens.ColorTextPrimary,
+                UIFrozenTokens.ColorAccentBronze, UIFrozenTokens.ColorSecondary, UIFrozenTokens.ColorAccentEmerald,
+                UIFrozenTokens.ColorAccentCyan, UIFrozenTokens.ColorAccentRed, UIFrozenTokens.ColorTextPrimary,
             };
             for (int i = 0; i < tokens.Length; i++)
                 for (int j = i + 1; j < tokens.Length; j++)

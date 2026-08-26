@@ -181,7 +181,8 @@ namespace MyriadOfDragons.UI
             GameObject statusBar = new GameObject("StreakStatusBar", typeof(RectTransform), typeof(Image));
             statusBar.transform.SetParent(panel.transform, false);
             UISharedFoundation.ApplyFramedPanel(statusBar.GetComponent<Image>(), null,
-                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground);
+                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
             statusBar.GetComponent<Image>().raycastTarget = false;
             SetNorm(statusBar.GetComponent<RectTransform>(), 0.06f, 0.06f, 0.94f, 0.22f);
 
@@ -214,7 +215,8 @@ namespace MyriadOfDragons.UI
                 GameObject row = new GameObject($"QuestRow_{i}", typeof(RectTransform), typeof(Image));
                 row.transform.SetParent(panel.transform, false);
                 UISharedFoundation.ApplyFramedPanel(row.GetComponent<Image>(), null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 row.GetComponent<Image>().raycastTarget = false;
                 SetNorm(row.GetComponent<RectTransform>(), 0.04f, top - rowH, 0.96f, top);
 

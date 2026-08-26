@@ -105,7 +105,8 @@ namespace MyriadOfDragons.UI
                 well.transform.SetParent(list.transform, false);
                 Image img = well.GetComponent<Image>();
                 UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SetStatus(MailInboxOpenValues.TrySelectMessage(row).Message));

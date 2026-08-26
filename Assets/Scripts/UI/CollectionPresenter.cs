@@ -177,7 +177,8 @@ namespace MyriadOfDragons.UI
 
             Image controlsImg = controlsObj.GetComponent<Image>();
             UISharedFoundation.ApplyFramedPanel(controlsImg, null,
-                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground);
+                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
 
             RectTransform controlsRect = controlsObj.GetComponent<RectTransform>();
             controlsRect.anchorMin = new Vector2(0.5f, 1f);
