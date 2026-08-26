@@ -1878,6 +1878,44 @@ error as AD's earlier save-layer audit - correct arithmetic, wrong model of the 
 unique-per-call ids a persisted receipt list would store an ever-growing set of ids that are never
 looked up. Fix the caller first; revisit persistence only if a stable purchase-intent id exists.
 
+## Pack/Burn/Evolution - REASONED OUT WITH AD AND SETTLED 2026-08-27
+
+Owner asked CC to argue it out rather than close unilaterally. Done. **AD agreed on all three
+corrections and supplied one caveat CC had missed.**
+
+**1. Dedupe is inert - AGREED.** The lookup only matches an id the caller passes, and the production
+caller mints a fresh GUID per tap, so it never hits. **Persisting GUIDs generated per-tap buys
+nothing.** Fix belongs at the CALLER: supply a stable purchase-intent id (the platform transaction
+id, or one created once when "Buy" is pressed and reused across retries). If the caller cannot
+change, **delete the dead cache rather than leave code that looks like protection.**
+
+**2. Double-tap is a double PURCHASE, not a duplication exploit - AGREED.** Gems and cards mutate
+together before `saveFn`, the snapshot covers both, and pity advances correctly across two sequential
+opens. A player pays twice and receives twice. Real-money refund/trust problem, not an economy hole.
+
+**3. CC's single-threaded claim - MOSTLY right, with a real caveat CC missed.** Under the current UI
+model two taps are sequential and cannot interleave, so per-profile locks would guard an impossible
+failure. **BUT: IAP SDK callbacks can fire on BACKGROUND threads**, and async continuations or
+coroutines inside a purchase flow can introduce reentrancy. **The right fix is at the entry point -
+marshal IAP callbacks to the main thread - not locks inside the service.** Worth knowing before real
+IAP is wired, because that is exactly when this stops being theoretical.
+
+**4. The exception hole IS the worst finding - AGREED, and CC was right to rank it first.**
+`TryOpenPack`, `TryBurnCopy` and `TryEvolve` restore the snapshot only when `saveFn` returns FALSE,
+never when it THROWS. Burn/Evolve decrement `copyCount` BEFORE calling `saveFn`, so a throw leaves the
+copy consumed in memory and any later save persists the loss. **Permanent, irrecoverable card loss
+with no payout.**
+
+**Important mitigating fact AD supplied: `SaveSystem.Save` already catches everything and returns
+false**, so the default path cannot currently throw. The exposure is that these APIs accept an
+ARBITRARY `saveFn` - used by tests, and available to any future caller. **So it is a latent hazard,
+not an active one**, which is why it stays behind the combat trigger fix (active in every match)
+rather than jumping the queue.
+
+**Fix: wrap the save call so the snapshot is restored on BOTH a false return AND a thrown exception.**
+Either that, or wrap any passed `saveFn` in a non-throwing adapter and document that `saveFn` must
+never throw. Add a test that simulates `saveFn` throwing.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
