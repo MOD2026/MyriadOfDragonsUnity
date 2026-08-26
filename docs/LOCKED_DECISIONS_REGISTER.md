@@ -4634,3 +4634,30 @@ unchanged before/after.
 CR moving to batch 2 (5-6 more screens, still skipping Home/Shop/DeckBuilder/Story per the
 ownership boundary), Empire Expedition Gold/Stamina/cap wiring queued after that - room not idle,
 no dispatch needed.
+
+## Owner manually re-confirmed identity to all three rooms directly (2026-08-26)
+
+Session-name churn resolved at the source - owner told each room who they are directly, rather than
+CC re-verifying every turn. Standing identity-verification discipline stays in force for future
+churn (session names will drift again), but no outstanding identity question right now.
+
+## BS's Battle Pass correction pass: Gold table + 8-tier mapping LOCKED, XP curve REJECTED - real field-shape mismatch (2026-08-26)
+
+**Internal-consistency check:** Gold table arithmetic correct (free 500/1,000/1,500/2,000/2,000/
+2,500/2,500/3,000 = 15,000; paid double = 30,000; both match the stated totals). Six-month math
+correct: 183 days / 28-day season = 6.54 seasons, 6 complete + partial 7th correctly held as
+unclaimable until earned. Maps onto the real 8-tier shell as-is, no shell expansion - correction
+accepted on both points.
+
+**REJECTED: the XP curve does not fit the real field.** `BattlePassOpenValues.cs:36` -
+`SeasonXpPerTier` is a single nullable `int` (one flat XP-per-tier value), not an array/curve. BS
+proposed 7 different cumulative thresholds (1,000/2,200/3,600/5,200/7,000/9,000/11,200) - same class
+of schema mismatch as the rejected 30-tier table, just one level down. Sent back for either (a) a
+single flat XP-per-tier number that fits the real scalar field, or (b) an explicit scoped ask to
+expand the field to a curve array, separate from this lock.
+
+**LOCKING now:** Free/paid Gold-per-tier table (500-3,000 / 1,000-6,000 escalating across 8 tiers,
+totals 15,000/30,000 per season) and the six-month combined totals (F2P 483,450 / paid-pass 663,450
+repeatable Gold against the 1,779,550 Empire sink = 27.2%/37.3%). XP curve stays unlocked, blocks
+nothing else - CR can wire the Gold table now, `AreTierRewardsConfigured` just won't flip true until
+`SeasonXpPerTier` (or its replacement) is also locked.
