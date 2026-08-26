@@ -10,13 +10,8 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// GuildExpedition screen layout/geometry coverage - one of 16 screens with zero prior layout
-    /// regression coverage. This screen has NO approved art yet (confirmed separately), but its
-    /// buttons/panels have real rects regardless - this catches a real overlap regression once art
-    /// lands later, rather than waiting for art to exist before any coverage does. Same method as
-    /// EmpireBuildingDetailLayoutTests/TacticalPuzzleLayoutTests: measure the BUILT hierarchy's
-    /// real world rects, only flag art that draws AFTER a button it geometrically overlaps (real
-    /// depth-first paint/raycast order).
+    /// GuildExpedition screen layout/geometry — paint-order overlap guard (same method as
+    /// EmpireBuildingDetailLayoutTests / TacticalPuzzleLayoutTests). Art pack wired 2026-08-26.
     /// </summary>
     public class GuildExpeditionLayoutTests
     {

@@ -142,6 +142,9 @@ namespace MyriadOfDragons.Tests
             presenter.Initialize(onBack: null);
 
             Assert.NotNull(presenter.CanvasObjectForTests);
+            Assert.IsTrue(SpellLoadoutUiLibrary.HasSpellLoadoutV1Pack);
+            Assert.AreEqual(SpellLoadoutUiLibrary.ScreenShellName,
+                presenter.CanvasObjectForTests.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.AreEqual(4, presenter.RequiredSlotsForTests);
             Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("EffectColumns/Column_LaneDamage"));
             Assert.NotNull(presenter.CanvasObjectForTests.transform.Find("ConfirmBar/Btn_ConfirmLoadout"));

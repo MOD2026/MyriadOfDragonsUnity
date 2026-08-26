@@ -51,6 +51,25 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void Presenter_BuildsArtShell_AndStageIcons()
+        {
+            var go = new GameObject("GuildExpeditionArtHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<GuildExpeditionPresenter>();
+            presenter.Initialize(onBack: null, gateway: new FakeGuildExpeditionGateway());
+
+            GameObject canvas = presenter.CanvasObjectForTests;
+            Assert.IsTrue(GuildExpeditionUiLibrary.HasGuildExpeditionV1Pack);
+            Assert.AreEqual(GuildExpeditionUiLibrary.ScreenShellName,
+                canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
+            Assert.IsNotNull(canvas.transform.Find("ExpeditionPanel/ObjectiveGrid/Objective_0/StageIcon")
+                ?.GetComponent<Image>()?.sprite);
+            Assert.AreEqual(GuildExpeditionUiLibrary.StageAvailableName,
+                canvas.transform.Find("ExpeditionPanel/ObjectiveGrid/Objective_0/StageIcon")
+                    ?.GetComponent<Image>()?.sprite?.name);
+        }
+
+        [Test]
         public async Task Presenter_GatewayActions_UseInjectedGateway()
         {
             var go = new GameObject("GuildExpeditionHarness");

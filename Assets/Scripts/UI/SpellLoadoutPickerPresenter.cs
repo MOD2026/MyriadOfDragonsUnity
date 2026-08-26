@@ -61,12 +61,18 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 14;
 
+            Color shellFallback = new Color(0.07f, 0.08f, 0.11f, 1f);
+            GameObject backing = new GameObject("BackgroundBacking", typeof(RectTransform), typeof(Image));
+            backing.transform.SetParent(_canvasObj.transform, false);
+            UISharedFoundation.StretchFull(backing.GetComponent<RectTransform>());
+            Image backingImg = backing.GetComponent<Image>();
+            backingImg.color = new Color(shellFallback.r, shellFallback.g, shellFallback.b, 1f);
+            backingImg.raycastTarget = false;
+
             GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bg.transform.SetParent(_canvasObj.transform, false);
             UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
-            Image bgImg = bg.GetComponent<Image>();
-            bgImg.color = new Color(0.07f, 0.08f, 0.11f, 1f);
-            bgImg.raycastTarget = false;
+            SpellLoadoutUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback);
 
             BuildHeader(avatarLevel);
             BuildSlotSummary();
@@ -144,21 +150,29 @@ namespace MyriadOfDragons.UI
             {
                 GameObject cell = new GameObject($"Slot_{i}", typeof(RectTransform), typeof(Image));
                 cell.transform.SetParent(strip.transform, false);
-                cell.GetComponent<Image>().color = new Color(0.12f, 0.16f, 0.2f, 0.9f);
+                cell.GetComponent<Image>().color = new Color(0.12f, 0.16f, 0.2f, 0.55f);
                 cell.GetComponent<Image>().raycastTarget = false;
                 SetNorm(cell.GetComponent<RectTransform>(), i * w + 0.01f, 0.1f, (i + 1) * w - 0.01f, 0.9f);
+
+                // School icon — filled from the selected spell's SpellSchool on refresh.
+                SpellLoadoutUiLibrary.ApplySchoolIcon(cell.transform, "SchoolIcon", SpellSchool.Andras,
+                    0.08f, 0.35f, 0.40f, 0.92f);
+                Image schoolImg = cell.transform.Find("SchoolIcon")?.GetComponent<Image>();
+                if (schoolImg != null) schoolImg.enabled = false;
 
                 Text header = UISharedFoundation.CreateText(cell.transform, "EffectLabel", $"SLOT {i + 1}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.75f, 0.7f, 0.55f), true,
                     new Vector2(200f, 24f));
                 header.fontSize = 13;
-                SetNorm(header.rectTransform, 0.05f, 0.55f, 0.95f, 0.95f);
+                header.raycastTarget = false;
+                SetNorm(header.rectTransform, 0.42f, 0.55f, 0.95f, 0.95f);
 
                 Text pick = UISharedFoundation.CreateText(cell.transform, "PickLabel", "(empty)",
                     UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true,
                     new Vector2(220f, 28f));
                 pick.fontSize = 16;
-                SetNorm(pick.rectTransform, 0.05f, 0.05f, 0.95f, 0.55f);
+                pick.raycastTarget = false;
+                SetNorm(pick.rectTransform, 0.42f, 0.05f, 0.95f, 0.55f);
                 _slotLabels.Add(pick);
             }
 
@@ -226,16 +240,20 @@ namespace MyriadOfDragons.UI
                     Image img = btn.GetComponent<Image>();
                     bool selected = _slotSelection.TryGetValue(effect, out string cur) && cur == spellId;
                     HomeV3UiLibrary.ApplyNeutralActionButton(btn.GetComponent<Button>(), img,
-                        selected ? new Color(0.28f, 0.42f, 0.28f) : new Color(0.16f, 0.2f, 0.26f, 0.92f));
+                        selected ? new Color(0.28f, 0.42f, 0.28f) : new Color(0.16f, 0.2f, 0.26f, 0.72f));
                     btn.GetComponent<Button>().onClick.AddListener(() => SelectSpell(spellId));
                     SetNorm(btn.GetComponent<RectTransform>(), 0.02f, 0.88f - (s + 1) * rowH + 0.01f,
                         0.98f, 0.88f - s * rowH - 0.01f);
+
+                    SpellLoadoutUiLibrary.ApplySchoolIcon(btn.transform, "SchoolIcon", spell.School,
+                        0.04f, 0.18f, 0.28f, 0.82f);
 
                     string label = $"{spell.Name}\nE{spell.EnergyCost} · Mag {spell.Magnitude}";
                     Text t = UISharedFoundation.CreateText(btn.transform, "Label", label,
                         UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 56f));
                     t.fontSize = 13;
-                    SetNorm(t.rectTransform, 0.04f, 0.08f, 0.96f, 0.92f);
+                    t.raycastTarget = false;
+                    SetNorm(t.rectTransform, 0.30f, 0.08f, 0.96f, 0.92f);
                 }
             }
         }
@@ -343,10 +361,23 @@ namespace MyriadOfDragons.UI
             {
                 Text label = _slotLabels[i];
                 if (label == null) continue;
+                Transform slot = label.transform.parent;
+                Image schoolImg = slot != null ? slot.Find("SchoolIcon")?.GetComponent<Image>() : null;
+
                 if (i < ordered.Count && byId.TryGetValue(ordered[i].id, out AvatarSpell spell))
+                {
                     label.text = $"{SpellLoadoutSelection.EffectSlotLabel(ordered[i].effect)}\n{spell.Name}";
+                    if (schoolImg != null)
+                    {
+                        schoolImg.enabled = true;
+                        schoolImg.sprite = SpellLoadoutUiLibrary.LoadSchool(spell.School);
+                    }
+                }
                 else
+                {
                     label.text = "(empty)";
+                    if (schoolImg != null) schoolImg.enabled = false;
+                }
             }
         }
 

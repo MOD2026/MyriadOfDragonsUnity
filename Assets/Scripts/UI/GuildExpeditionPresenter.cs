@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MyriadOfDragons.Empire;
@@ -44,6 +45,8 @@ namespace MyriadOfDragons.UI
         private string _selectedObjectiveId;
         private int _selectedMilestone = 100;
         private bool _busy;
+        private readonly HashSet<string> _completedObjectives = new HashSet<string>();
+        private Transform _objectiveGrid;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
@@ -77,12 +80,18 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 41;
 
+            Color shellFallback = new Color(0.07f, 0.09f, 0.11f, 1f);
+            GameObject backing = new GameObject("BackgroundBacking", typeof(RectTransform), typeof(Image));
+            backing.transform.SetParent(_canvasObj.transform, false);
+            UISharedFoundation.StretchFull(backing.GetComponent<RectTransform>());
+            Image backingImg = backing.GetComponent<Image>();
+            backingImg.color = new Color(shellFallback.r, shellFallback.g, shellFallback.b, 1f);
+            backingImg.raycastTarget = false;
+
             GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bg.transform.SetParent(_canvasObj.transform, false);
             UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
-            Image bgImg = bg.GetComponent<Image>();
-            bgImg.color = new Color(0.07f, 0.09f, 0.11f, 1f);
-            bgImg.raycastTarget = false;
+            GuildExpeditionUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback);
 
             BuildHeader();
             BuildBody();
@@ -138,6 +147,7 @@ namespace MyriadOfDragons.UI
 
             GameObject objGrid = new GameObject("ObjectiveGrid", typeof(RectTransform));
             objGrid.transform.SetParent(panel.transform, false);
+            _objectiveGrid = objGrid.transform;
             SetNorm(objGrid.GetComponent<RectTransform>(), 0.02f, 0.28f, 0.62f, 0.76f);
             int cols = 3;
             int rows = 4;
@@ -152,21 +162,26 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"Objective_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(objGrid.transform, false);
                 Image img = well.GetComponent<Image>();
-                HomeV3UiLibrary.ApplyNeutralActionButton(well.GetComponent<Button>(), img, new Color(0.16f, 0.22f, 0.28f, 0.85f));
+                HomeV3UiLibrary.ApplyNeutralActionButton(well.GetComponent<Button>(), img, new Color(0.16f, 0.22f, 0.28f, 0.55f));
                 well.GetComponent<Button>().onClick.AddListener(() =>
                 {
                     _selectedObjectiveId = ScaffoldObjectiveIds[idx];
                     RefreshDetails();
+                    RefreshObjectiveStageIcons();
                     SetStatus($"Objective: {_selectedObjectiveId}");
                 });
                 SetNorm(well.GetComponent<RectTransform>(),
                     col * cw + 0.01f, 1f - (row + 1) * rh + 0.02f,
                     (col + 1) * cw - 0.01f, 1f - row * rh - 0.02f);
+                GuildExpeditionUiLibrary.ApplyStageIcon(well.transform, "StageIcon",
+                    GuildExpeditionUiLibrary.StageState.Available, 0.08f, 0.28f, 0.92f, 0.92f);
                 Text label = UISharedFoundation.CreateText(well.transform, "Label", ShortId(id),
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
                 label.fontSize = 14;
-                SetNorm(label.rectTransform, 0.04f, 0.1f, 0.96f, 0.9f);
+                label.raycastTarget = false;
+                SetNorm(label.rectTransform, 0.04f, 0.04f, 0.96f, 0.28f);
             }
+            RefreshObjectiveStageIcons();
 
             GameObject mileStrip = new GameObject("MilestoneStrip", typeof(RectTransform));
             mileStrip.transform.SetParent(panel.transform, false);
@@ -258,7 +273,11 @@ namespace MyriadOfDragons.UI
                 }
 
                 if (result.success)
+                {
+                    _completedObjectives.Add(objectiveId);
+                    RefreshObjectiveStageIcons();
                     SetStatus($"Scored +{result.pointsAwarded} (total {result.totalPoints})");
+                }
                 else
                     SetStatus($"Submit failed: {result.errorCode ?? "unknown"}");
                 SetDetails(
@@ -310,6 +329,22 @@ namespace MyriadOfDragons.UI
             finally
             {
                 EndBusy();
+            }
+        }
+
+        private void RefreshObjectiveStageIcons()
+        {
+            if (_objectiveGrid == null) return;
+            for (int i = 0; i < ScaffoldObjectiveIds.Length; i++)
+            {
+                Transform well = _objectiveGrid.Find($"Objective_{i}");
+                Image icon = well != null ? well.Find("StageIcon")?.GetComponent<Image>() : null;
+                if (icon == null) continue;
+                string id = ScaffoldObjectiveIds[i];
+                GuildExpeditionUiLibrary.StageState state = _completedObjectives.Contains(id)
+                    ? GuildExpeditionUiLibrary.StageState.Completed
+                    : GuildExpeditionUiLibrary.StageState.Available;
+                icon.sprite = GuildExpeditionUiLibrary.LoadStageState(state);
             }
         }
 

@@ -43,6 +43,21 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void Presenter_BuildsArtShell_AndStateIcon()
+        {
+            var go = new GameObject("PermitWeekKeyArtHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<PermitWeekKeyPresenter>();
+            presenter.Initialize(onBack: null, gateway: new FakePermitWeekKeyGateway());
+
+            GameObject canvas = presenter.CanvasObjectForTests;
+            Assert.IsTrue(PermitWeekKeyUiLibrary.HasPermitWeekKeyV1Pack);
+            Assert.AreEqual(PermitWeekKeyUiLibrary.ScreenShellName,
+                canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
+            Assert.IsNotNull(canvas.transform.Find("PermitPanel/PermitStateIcon")?.GetComponent<Image>()?.sprite);
+        }
+
+        [Test]
         public async Task Presenter_StatusAndClaim_UseInjectedGateway()
         {
             var go = new GameObject("PermitWeekKeyHarness");

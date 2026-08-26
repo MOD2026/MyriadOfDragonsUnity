@@ -22,6 +22,7 @@ namespace MyriadOfDragons.UI
         private Action _onBack;
         private Text _statusText;
         private Text _detailsText;
+        private Image _permitStateIcon;
         private IPermitWeekKeyGateway _gateway;
         private CancellationTokenSource _cts;
         private string _activityId = DefaultActivityId;
@@ -53,12 +54,18 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 13;
 
+            Color shellFallback = new Color(0.08f, 0.10f, 0.12f, 1f);
+            GameObject backing = new GameObject("BackgroundBacking", typeof(RectTransform), typeof(Image));
+            backing.transform.SetParent(_canvasObj.transform, false);
+            UISharedFoundation.StretchFull(backing.GetComponent<RectTransform>());
+            Image backingImg = backing.GetComponent<Image>();
+            backingImg.color = new Color(shellFallback.r, shellFallback.g, shellFallback.b, 1f);
+            backingImg.raycastTarget = false;
+
             GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bg.transform.SetParent(_canvasObj.transform, false);
             UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
-            Image bgImg = bg.GetComponent<Image>();
-            bgImg.color = new Color(0.08f, 0.10f, 0.12f, 1f);
-            bgImg.raycastTarget = false;
+            PermitWeekKeyUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback);
 
             BuildHeader();
             BuildBody();
@@ -111,7 +118,16 @@ namespace MyriadOfDragons.UI
             Text activity = UISharedFoundation.CreateText(panel.transform, "ActivityId",
                 $"activityId: {_activityId}",
                 UITextRole.Body, TextAnchor.MiddleLeft, new Color(0.85f, 0.82f, 0.7f), true, new Vector2(900f, 40f));
-            SetNorm(activity.rectTransform, 0.05f, 0.82f, 0.95f, 0.95f);
+            SetNorm(activity.rectTransform, 0.05f, 0.82f, 0.78f, 0.95f);
+
+            GameObject stateGo = new GameObject("PermitStateIcon", typeof(RectTransform), typeof(Image));
+            stateGo.transform.SetParent(panel.transform, false);
+            _permitStateIcon = stateGo.GetComponent<Image>();
+            _permitStateIcon.sprite = PermitWeekKeyUiLibrary.LoadPermitState(PermitWeekKeyUiLibrary.PermitState.Unavailable);
+            _permitStateIcon.preserveAspect = true;
+            _permitStateIcon.raycastTarget = false;
+            _permitStateIcon.color = Color.white;
+            SetNorm(_permitStateIcon.rectTransform, 0.80f, 0.72f, 0.95f, 0.95f);
 
             _detailsText = UISharedFoundation.CreateText(panel.transform, "Details",
                 "Server-authoritative weekly Ascension Permit status. Local CollectionAscensionPermits is not used here.",
@@ -146,17 +162,22 @@ namespace MyriadOfDragons.UI
                 PermitStatusResult result = await _gateway.GetStatusAsync(_activityId, Token).ConfigureAwait(true);
                 if (result == null)
                 {
+                    SetPermitStateIcon(PermitWeekKeyUiLibrary.PermitState.Unavailable);
                     SetStatus("Status: null response.");
                     return new PermitStatusResult { errorCode = "NULL_RESPONSE" };
                 }
 
                 if (!string.IsNullOrEmpty(result.errorCode))
                 {
+                    SetPermitStateIcon(PermitWeekKeyUiLibrary.PermitState.Unavailable);
                     SetStatus($"Status error: {result.errorCode}");
                     SetDetails($"GetPermitStatus errorCode={result.errorCode}");
                 }
                 else
                 {
+                    SetPermitStateIcon(result.claimedThisWeek
+                        ? PermitWeekKeyUiLibrary.PermitState.Claimed
+                        : PermitWeekKeyUiLibrary.PermitState.Available);
                     SetStatus(
                         $"Balance {result.balance}/{result.hoardCap} · week {result.currentWeekKey} · " +
                         (result.claimedThisWeek ? "claimed" : "unclaimed"));
@@ -198,10 +219,12 @@ namespace MyriadOfDragons.UI
                 }
                 else if (result.alreadyClaimed)
                 {
+                    SetPermitStateIcon(PermitWeekKeyUiLibrary.PermitState.Claimed);
                     SetStatus($"Already claimed {result.weekKey}. Balance {result.balance}");
                 }
                 else if (result.success)
                 {
+                    SetPermitStateIcon(PermitWeekKeyUiLibrary.PermitState.Claimed);
                     SetStatus($"Granted {result.granted}. Balance {result.balance} ({result.weekKey})");
                 }
                 else
@@ -238,6 +261,13 @@ namespace MyriadOfDragons.UI
 
         private CancellationToken Token =>
             _cts != null ? _cts.Token : CancellationToken.None;
+
+        private void SetPermitStateIcon(PermitWeekKeyUiLibrary.PermitState state)
+        {
+            if (_permitStateIcon == null) return;
+            Sprite sprite = PermitWeekKeyUiLibrary.LoadPermitState(state);
+            if (sprite != null) _permitStateIcon.sprite = sprite;
+        }
 
         private void SetStatus(string message)
         {
