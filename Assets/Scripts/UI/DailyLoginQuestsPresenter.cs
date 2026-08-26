@@ -186,19 +186,30 @@ namespace MyriadOfDragons.UI
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                     kind: UISharedFoundation.FramedPanelKind.ListRow);
 
-                // Login panel 0.44×0.80 of canvas; streak nodes 0.92×0.48 of panel; 6 wells.
                 float nodeW = (0.44f * 1920f) * 0.92f / Mathf.Max(1, DailyLoginQuestsOpenValues.ShellLoginWellCount);
                 float nodeH = (0.80f * 1080f) * 0.48f * 0.8f;
+                float dayPlateH = nodeH * 0.28f;
+                GameObject dayPlate = new GameObject("DayIndexPlate", typeof(RectTransform));
+                dayPlate.transform.SetParent(node.transform, false);
+                RectTransform dayPlateRect = dayPlate.GetComponent<RectTransform>();
+                dayPlateRect.anchorMin = dayPlateRect.anchorMax = new Vector2(0f, 0f);
+                dayPlateRect.pivot = new Vector2(0.5f, 0.5f);
+                dayPlateRect.sizeDelta = new Vector2(nodeW * 0.9f, dayPlateH);
+                dayPlateRect.anchoredPosition = new Vector2(nodeW * 0.5f, nodeH * 0.84f);
                 UISharedFoundation.AddSemiTransparentScrimPanel(
-                    node.transform,
-                    new Vector2(nodeW * 0.5f, nodeH * 0.84f),
-                    new Vector2(nodeW * 0.9f, nodeH * 0.28f),
-                    UIDesignTokens.FrameTier.Tier2Section);
-                Text dayLabel = UISharedFoundation.CreateText(node.transform, "DayIndex", $"Day {i + 1}",
+                    dayPlate.transform,
+                    new Vector2(nodeW * 0.45f, dayPlateH * 0.5f),
+                    new Vector2(nodeW * 0.9f, dayPlateH),
+                    UIDesignTokens.FrameTier.Tier1Hero);
+                Text dayLabel = UISharedFoundation.CreateText(dayPlate.transform, "DayIndex", $"Day {i + 1}",
                     UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true,
                     new Vector2(60f, 22f));
                 UISharedFoundation.ApplyTextShadow(dayLabel);
-                SetNorm(dayLabel.rectTransform, 0.05f, 0.7f, 0.95f, 0.98f);
+                RectTransform dayLabelRect = dayLabel.rectTransform;
+                dayLabelRect.anchorMin = Vector2.zero;
+                dayLabelRect.anchorMax = Vector2.one;
+                dayLabelRect.offsetMin = Vector2.zero;
+                dayLabelRect.offsetMax = Vector2.zero;
 
                 int gold = DailyLoginQuestsService.LoginGoldBase + i * DailyLoginQuestsService.LoginGoldPerTier;
                 _loginRewardTexts[i] = UISharedFoundation.CreateText(node.transform, "RewardAmount",
