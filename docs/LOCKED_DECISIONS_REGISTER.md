@@ -5673,3 +5673,37 @@ still needs either the Metagame seat active or explicit owner sign-off for CR to
 next step for CR in the meantime: wire the button/modal 9-slice art (imported, unused) into
 whichever screens it DOES own that use buttons, so that real art isn't sitting idle while the
 boundary question waits.
+
+## Owner-provided screenshots: Home confirms known flat state, Shop shows a NEW real bug - raw symptom relayed, not diagnosed (2026-08-26)
+
+Owner sent two real in-Editor screenshots. Home matches the already-known state exactly (flat nav
+row, flat hero tiles) - not a new finding, just visual confirmation of the Home/Shop boundary
+question already resurfaced above.
+
+**Shop is a real, different, previously-unflagged bug - relaying the raw symptom per standing
+discipline, not diagnosing root cause:** the screen genuinely has SOME real ornate bordered art
+already wired (header, item-pack cards, currency pills all show real gold-filigree framing) - so
+this isn't the same "no art at all" class as Home. But layered on top of that real art: multiple
+completely empty bordered boxes with no content (two black bars near the top, an empty box beside
+Back, empty boxes under each pack's BUY button), empty circles where item/potion icons should render
+on the right-hand Stamina Potion list, and garbled/overlapping text on every Stamina Potion row
+where the description text and the "BUY (N Gems)" button label draw on top of each other.
+
+**Real complication: `ShopPresenter.cs` is Metagame-owned**, same boundary blocking the Home
+restyle - CR can observe/flag but the same ownership question applies to any fix. Given CR already
+independently found an unrelated Shop-area test hang tonight (two now, if this is a third distinct
+issue), Shop as a whole may need the Metagame seat active rather than continued CR workarounds.
+Raw symptom handed to CR as-is.
+
+## OWNER ESCALATION: Shop has been broken a long time, top priority now, outside help authorized if rooms can't resolve it (2026-08-26)
+
+Owner has been trying to get Shop fixed for a long time; this is now the real top priority,
+overriding other in-flight work. **Reprioritizing WH to Shop immediately** - WH already crossed the
+Metagame ownership boundary tonight (VIP/Friends fix), has real precedent to touch `ShopPresenter.cs`
+directly rather than just flag-and-wait like CR must. Portrait/telemetry/combined-sim work pauses in
+place, not cancelled.
+
+**Outside-AI help authorized in parallel, per the owner's explicit instruction** ("if u cant do it.
+seek help") - preparing a paste-ready diagnostic prompt as backup so it's ready the moment WH's pass
+doesn't fully resolve it, rather than round-tripping later. Both tracks run together, not
+sequentially - not waiting on WH to fail first before preparing the fallback.
