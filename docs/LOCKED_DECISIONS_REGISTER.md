@@ -6985,3 +6985,54 @@ field (which WOULD auto-approve under the existing extension), it implies a real
 question: does Avatar progression get an actual XP/level-up system, or should the 3 rungs currently
 promising Avatar XP (250/500/2,000pt) be re-specced to grant something that already exists? Real BS
 ask, paste-ready below, not yet sent.
+
+## LOCKED: option (b), Avatar XP removed everywhere - Materials replaces it (2026-08-26, BS, verified)
+
+**Verified real:** `avatarLevel` does advance directly from match wins already (no XP gate exists to
+bypass), confirmed no live system reads Avatar XP anywhere in `Assets/Scripts/`. Adding a field now
+would be a real frozen-file migration + undesigned leveling curve + UI + reset rules for zero
+established purpose - correctly rejected as unnecessary scope.
+
+**Revised rewards:** 250=750 Gold+50 Materials, 500=5,000 Gold+1 Stamina claim+100 Materials,
+2,000=25,000 Gold+2 Stamina claims+30-day VIP voucher+250 Materials. Circuit's `10 Avatar XP`/trial
+becomes `50 Materials`/trial, Gold/Event Medals unchanged.
+
+**F2P/whale diagnostic run (standing check, unprompted):** Materials at 50/100/250 is small next to
+free F2P Expedition Materials (200/clear, 3 clears/day cap = 600/day) — 2,000pt's 250 Materials is
+under half a single free day's grind. NOT flagging this as the earlier disproportionate-top-tier
+failure, though: unlike that case, Materials here is an ADDITIVE bonus riding on an already-verified-
+proportionate primary reward (2,000pt's real weight is the 25,000 Gold [~20 F2P days] + 2 Stamina
+claims + 30-day voucher, all separately benchmarked and locked already) - Materials is flavor/sink-
+variety on top, not the tier's sole payout the way the earlier 2,500-Gold case was. No correction
+needed.
+
+**Dispatching to VS** (has the `AvatarXpOwedFor()` stopgap already built, in the best position to
+redirect it cleanly): remove all Avatar XP grants/reads, add the Materials grants above, retarget
+`AvatarXpOwedFor()` to the new Material reward definition (or remove it if no longer needed), update
+milestone-500 and the Circuit's trial-clear reward. No PlayerProfile field needed - `constructionMaterials`
+already exists (2026-08-24).
+
+## Real coordination failure, mine: WH has no live session at all - "WH" dispatches this window went to VS instead, and the killed Unity process was very likely VS's own legitimate run
+
+**Owner correction, direct:** `myriadofdragonsunity-b3` is VS, not WH. WH has never had a live
+session reachable via `SendMessage` or `ListAgents` - it is Cursor, and EVERY piece of WH work
+requires the owner to manually paste it in. I misread `ListAgents`' 3-peer listing as "VS, CR, and a
+third live coding room (WH)" and, having confirmed 2a as CR, assumed b3 was WH "by elimination" -
+wrong elimination, there is no third live room to eliminate down to.
+
+**Real consequence:** I sent b3 (actually VS) a `ShopV1ChromeTests` profiling task, a `.unity_batch.lock`
+coordination duty, and two identity-confirmation pings that didn't apply to it - all addressed to a
+seat it isn't. Separately, I found an active `.unity_batch.lock` (PID 38588, started 15:16:47) and,
+believing it was an unconfirmed WH batch running without the required announcement, force-killed it
+on the owner's explicit instruction. Given b3=VS and VS's own real task queue included "full EditMode
+suite run" as its very next assigned step, **the process I killed was very likely VS's own legitimate
+test run, not an unauthorized one.** CR's own near-simultaneous run (dispatched right after, HEAD
+`390ad66`) also died the same way and initially reasoned this as an external Unity-instance crash;
+corrected directly with CR once the timestamp correlation surfaced. Whether the kill actually hit
+VS's process specifically, or a genuine race between VS and CR both hitting the shared batch wrapper,
+is not fully resolved - flagging honestly rather than asserting either as certain.
+
+**Real fix going forward:** WH's task (`ShopV1ChromeTests` profiling, cap lifted for the step-away
+window) needs to go out as a paste-ready fenced block for the owner to relay manually - never assumed
+delivered until the owner confirms it was pasted, per the existing standing note on WH's structural
+delivery gap. No further direct dispatches to b3/2a framed as "WH" tasks.
