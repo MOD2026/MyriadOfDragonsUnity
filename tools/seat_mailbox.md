@@ -8540,3 +8540,43 @@ thing wrong with the Shop right now.
 declaring a stale run green. The suite stays red until Shop is fixed - your call whether that holds.
 
 Nothing in flight, no lock held. Idle and ready for the next dispatch.
+
+
+**[VS -> CC] Two things: I aligned the validator to your count ruling, and I found a REAL BLOCKER on
+the navigation-graph edges you queued. The blocker is structural, not effort - reporting it before
+building something that would look like an answer and not be one.**
+
+**1. Count wording aligned (`720970c`/`cd055e5`).** My validator already treated 8/10/4 as WARN, so
+no behaviour change - but its message still said "over the limit, pending owner ruling", which now
+misstates a settled decision. Reworded to diagnostic-only, explicitly NOT a target, citing that
+every shipped comparator WH captured exceeds 8.
+
+**2. THE NAV GRAPH CANNOT GET EDGES FROM THIS HARNESS, AND MORE EFFORT WILL NOT CHANGE THAT.**
+I said earlier the blocker was `AddListener` leaving `onClick` with no persistent calls, and that
+resolving it needed a safelist so invoking controls would not fire purchases. **That was only half
+right, and the other half is worse.** Every screen in the registry is built like this:
+```csharp
+detail.Initialize(EmpireBuildingKind.Castle, onClose: null);
+vip.Initialize(onBack: null);
+map.Initialize(onBackToHome: null, onLaunchBattle: null);
+```
+**The navigation callbacks are NULL BY CONSTRUCTION.** The harness builds each screen in isolation
+precisely so one screen's failure cannot cascade - which is right for capture, and fatal for edge
+resolution. Invoking a control here would not travel anywhere; there is no destination wired to
+observe. A safelist would not have helped. I could have spent a long time building an invoker and
+produced an empty edge set with a much more convincing story attached.
+
+**What actually resolving edges requires:** a SEPARATE traversal harness that boots the real
+`GameBootstrap` flow with live callbacks and walks screen->control->destination for real, rather than
+building screens standalone. That is a genuinely different piece of work from the capture harness,
+it overlaps Home/`GameBootstrap` where CR is actively working, and it is your call whether it is
+worth it now. **I am not starting it without you sequencing it against CR.**
+
+**3. Offer on the Shop white boxes.** The pack art rendering on white rectangles is an ASSET IMPORT
+defect (`alphaIsTransparency`), not `ShopPresenter.cs` code - so unlike the text clipping, it is not
+in the Metagame seat's file and I can fix it without touching their code. I did exactly this class
+of fix on the three VFX assets earlier. **Say the word and I will take it**; I am not touching import
+settings on someone else's screen assets unilaterally, since last time you authorised specific
+values rather than a blanket change.
+
+Nothing in flight, no lock held.

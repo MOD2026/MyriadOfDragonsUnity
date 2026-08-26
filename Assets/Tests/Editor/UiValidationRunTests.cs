@@ -367,11 +367,13 @@ namespace MyriadOfDragons.Tests
             int limit = UiScreenRegistry.ActionLimitFor(screen.Surface);
             if (interactive.Count > limit)
             {
-                // WARN, not fail - section 4e, pending the owner ruling on their own locked
-                // number. Deliberately still measured: when the owner does rule, the data to rule
-                // on is already collected.
-                warnings.Add(screen.Name + ": " + interactive.Count + " visible interactive controls, over the " +
-                             screen.Surface + " limit of " + limit + " (WARN pending owner ruling, section 4e).");
+                // DIAGNOSTIC ONLY - the ruling landed (720970c/cd055e5). WH pulled real counts
+                // from shipped comparators and every one exceeds 8, so the raw-count cap is
+                // dropped as a design TARGET entirely; the binding rule is attention hierarchy
+                // (one primary CTA, <=3 equal secondaries, dock must not out-shout it). This
+                // number stays because it is useful to see, NOT because crossing it is a defect.
+                warnings.Add(screen.Name + ": " + interactive.Count + " visible interactive controls (reference " +
+                             screen.Surface + " count " + limit + ") - diagnostic only, not a target.");
             }
 
             // --- section 4c: no player may be trapped in an overlay ------------------------
