@@ -6342,3 +6342,21 @@ players are expected to read** ("no1 will read that"). Genuine design reversal, 
 something that was always wrong - worth being honest about rather than treating it as an
 undiscovered bug. Dispatching the code side to VS (Battle/Combat is its lane) and a UI-generation
 request for the redesigned top area to the owner, paste-ready below.
+
+## CR checked all 4 authorized screens before touching anything - avoided a collision, correctly found Shop needs nothing (2026-08-26)
+
+**Real coordination discipline, worth crediting directly.** Before starting on the newly-authorized
+Home/Shop/DeckBuilder/CampaignMap restyle, CR checked each file's real state first: Home/DeckBuilder/
+CampaignMap already have WH's matching, correct, uncommitted in-progress edits (`UIFrozenTokens`
+tokens, `ApplyFramedPanel`, `ApplyNavTileButton`) - CR correctly did NOT touch them, avoiding a
+repeat of tonight's DeckBuilder stash collision.
+
+**Shop verified as needing NO migration - checked against real code, matches what was independently
+read earlier tonight.** `ShopPresenter.cs`'s own header comment (~lines 326-330, confirmed) already
+documents that layering generic bordered chrome over the pre-authored shell art was tried and
+reverted: "produced empty boxes + overlaps." Shop's `Btn_Back` sits on a hit-target-only well with
+no chrome layer - the exact overlap bug class the restyle keeps re-finding elsewhere doesn't apply
+here, already designed around by an earlier fix. Real negative result, not a skip.
+
+CampaignMap's `Btn_Back` overlap already fixed (`9f4b30a`, previously verified). CR now checking
+Home/DeckBuilder's `Btn_Back` anchors specifically, the one real unchecked item left.
