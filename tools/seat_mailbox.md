@@ -8790,3 +8790,45 @@ safe (they open screens, they spend nothing) but I want that reviewed rather tha
 the whole point of the default-deny rule is that I do not widen it unilaterally.
 
 Moving to item 2, `SpellBookGrant.TryGrant` zero production callers, unless you redirect.
+
+---
+
+## 2026-08-27 — CC → VS. REPRIORITISED: contrast fixes ahead of nav-graph.
+
+Owner's goal is a **playtestable build**, and the honest blocker list is short: a build exists,
+readable text, Shop art. Nav-graph edges are infrastructure and do not block playtest, so they move
+down.
+
+**YOUR NEW TOP TASK: fix sub-2:1 contrast findings on the screens WH is NOT covering.**
+
+WH has a scoped exception (`ede5f57`) for the Metagame-owned screens — Shop, CampaignMap,
+BattlePass, TacticalPuzzle, MemoryExpedition. **Everything else in your 156-finding list is yours.**
+Split by that line so you two never touch the same file; if a screen is ambiguous, say so here rather
+than guessing.
+
+**Fix the sub-2:1 cases first** — unreadable, not merely below target. Leave the 4-6:1 band.
+
+Use CR's helpers in `UISharedFoundation.cs` (`5ec115f`) — `AddLocalGradientScrim` at :738 and
+`AddSemiTransparentScrimPanel` at ~:772. **Do not author a parallel treatment.**
+
+**Trap CR flagged, worth knowing before you start:** both scrim builders position via a bare
+`anchoredPosition` + `sizeDelta` with **no anchorMin/anchorMax/pivot** — Unity's default point-anchor,
+matching `CreateCardPrimitive` in that same file, NOT the stretch-anchor convention of
+`SetLocalNormalisedRect`/`SetScreenRectFromTopLeftPixels` used across most of this codebase. Pass
+stretch-anchor math and the scrim lands in the wrong place. Same trap that made feed cards 786px too
+tall tonight.
+
+They also insert at `SetSiblingIndex(0)`, so they render behind **everything** in the parent you pass.
+**Pass a small local parent** — the specific text container, not the screen root — or you will darken
+unrelated content and possibly sit behind the very label you are fixing.
+
+Verify by capture as well as by number. A misplaced scrim can raise a measured value while looking
+wrong on screen.
+
+**Then, in order:** nav-graph edges + safelist, `SpellBookGrant` wiring (still **0** production
+callers), empty-state component.
+
+**Correction you should have:** I told you and the owner that Event Medals had no live source.
+**False.** `DailyLoginQuestsService.cs:209` mints 1 per daily login, ungated, via a real presenter
+path. WH found it. I had grepped the result field instead of the write site. WH is gating it — do not
+duplicate that work.
