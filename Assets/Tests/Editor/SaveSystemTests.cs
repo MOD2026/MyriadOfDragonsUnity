@@ -92,6 +92,8 @@ namespace MyriadOfDragons.Tests
                 vipStartedUtcTicks = 1000,
                 vipExpiresUtcTicks = 2000,
                 vipClaimsConsumed = 2,
+                battlePassClaimedFreeTier = 3,
+                battlePassClaimedPaidTier = 1,
             };
             written.hasSeenIntro = true;
             written.seenChapters.Add("prologue");
@@ -124,6 +126,8 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(1000, read.vipStartedUtcTicks);
             Assert.AreEqual(2000, read.vipExpiresUtcTicks);
             Assert.AreEqual(2, read.vipClaimsConsumed);
+            Assert.AreEqual(3, read.battlePassClaimedFreeTier);
+            Assert.AreEqual(1, read.battlePassClaimedPaidTier);
             Assert.IsTrue(read.hasSeenIntro);
             CollectionAssert.AreEqual(new[] { "prologue", "chapter_two" }, read.seenChapters);
             CollectionAssert.AreEqual(new[] { "dragon_007" }, read.activeDeckCardIds);

@@ -1,5 +1,7 @@
 using System;
+using MyriadOfDragons.Data;
 using MyriadOfDragons.Metagame;
+using MyriadOfDragons.Save;
 using MyriadOfDragons.Season;
 using UnityEngine;
 using UnityEngine.UI;
@@ -40,7 +42,10 @@ namespace MyriadOfDragons.UI
         /// EditMode test entry go through.</summary>
         private BattlePassClaimResult AttemptClaim(int tierIndex, bool premiumTrack)
         {
-            BattlePassClaimResult result = BattlePassOpenValues.TryClaimTier(tierIndex, premiumTrack);
+            PlayerProfile profile = SaveSystem.CurrentProfile ?? SaveManager.SaveData;
+            BattlePassClaimResult result = BattlePassOpenValues.TryClaimTier(profile, tierIndex, premiumTrack);
+            if (result.Status == BattlePassClaimStatus.Applied)
+                SaveSystem.Save(profile);
             SetStatus(result.Message);
 
             if (_telemetryOutbox != null && result.Status == BattlePassClaimStatus.Applied)
