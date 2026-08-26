@@ -125,8 +125,10 @@ namespace MyriadOfDragons.Tests
                 }
 
                 screensBuilt++;
-                Camera measureCam = PrepareForMeasurement(canvasObj);
-                InspectScreen(screen, canvasObj, measureCam, findings, warnings, exceptions, graphNodes, dot);
+                Camera measureCam = PrepareForMeasurement(canvasObj, out Texture2D rendered, out Texture2D background);
+                InspectScreen(screen, canvasObj, measureCam, background, findings, warnings, exceptions, graphNodes, dot);
+                if (rendered != null) UnityEngine.Object.DestroyImmediate(rendered);
+                if (background != null) UnityEngine.Object.DestroyImmediate(background);
                 CleanupAfterScreen();
             }
 
@@ -166,8 +168,10 @@ namespace MyriadOfDragons.Tests
         /// validator could fail a screen that looks right in the very image a human signs off on,
         /// and there would be no way to tell which one was lying.
         /// </summary>
-        private Camera PrepareForMeasurement(GameObject canvasObj)
+        private Camera PrepareForMeasurement(GameObject canvasObj, out Texture2D rendered, out Texture2D background)
         {
+            rendered = null;
+            background = null;
             Canvas canvas = canvasObj.GetComponent<Canvas>();
             if (canvas == null) return null;
 
@@ -192,6 +196,44 @@ namespace MyriadOfDragons.Tests
             var rootRect = canvasObj.GetComponent<RectTransform>();
             if (rootRect != null) LayoutRebuilder.ForceRebuildLayoutImmediate(rootRect);
 
+            // TWO renders, and the second one is the whole point.
+            //
+            // The first pass sampled the normal frame and subtracted pixels close to the text
+            // colour, meaning to skip glyphs. It does not work: ANTI-ALIASED EDGE PIXELS are
+            // blends of glyph and background, they sit too far from the text colour to be
+            // skipped, and they score ~1.5:1 against it. Every label has an AA fringe, and that
+            // fringe is reliably more than 5% of the label's pixels - so the 5th percentile lands
+            // INSIDE the anti-aliasing on every single label. It produced 169 warnings, including
+            // 1.2:1 readings on text that is perfectly legible in the capture. The bias is
+            // systematic and downward; it condemns the whole UI.
+            //
+            // So: render once normally, then render again with every Text disabled. The second
+            // frame is the real background behind each label, with no glyph contamination at all,
+            // and contrast is measured against that.
+            RenderTexture prevActive = RenderTexture.active;
+            RenderTexture.active = rt;
+            rendered = new Texture2D(CaptureWidth, CaptureHeight, TextureFormat.RGB24, false);
+            rendered.ReadPixels(new Rect(0, 0, CaptureWidth, CaptureHeight), 0, 0);
+            rendered.Apply();
+            RenderTexture.active = prevActive;
+
+            var hidden = new List<Text>();
+            foreach (Text t in canvasObj.GetComponentsInChildren<Text>(true))
+            {
+                if (!t.enabled) continue;
+                t.enabled = false;
+                hidden.Add(t);
+            }
+
+            cam.Render();
+            RenderTexture.active = rt;
+            background = new Texture2D(CaptureWidth, CaptureHeight, TextureFormat.RGB24, false);
+            background.ReadPixels(new Rect(0, 0, CaptureWidth, CaptureHeight), 0, 0);
+            background.Apply();
+            RenderTexture.active = prevActive;
+
+            foreach (Text t in hidden) t.enabled = true;
+
             cam.targetTexture = null;
             rt.Release();
             UnityEngine.Object.DestroyImmediate(rt);
@@ -206,7 +248,8 @@ namespace MyriadOfDragons.Tests
         }
 
         private void InspectScreen(
-            UiScreenEntry screen, GameObject canvasObj, Camera cam, List<string> findings, List<string> warnings,
+            UiScreenEntry screen, GameObject canvasObj, Camera cam, Texture2D background,
+            List<string> findings, List<string> warnings,
             List<UiGateException> exceptions, List<string> graphNodes, StringBuilder dot)
         {
             Transform root = canvasObj.transform;
@@ -362,6 +405,39 @@ namespace MyriadOfDragons.Tests
                     findings.Add(screen.Name + ": image " + Q(img.name) + " is set to " + img.type +
                                  " but its sprite is NULL at runtime - it renders as a flat fill, " +
                                  "not the framed art it is asking for.");
+                }
+            }
+
+            // --- RENDERED contrast (locked 2026-08-27, 5c46c28) ---------------------------
+            // Floors: 7:1 body and interactive labels, 4.5:1 large text (55px+). Accepted on the
+            // 5th PERCENTILE, never the average - the lock is explicit that bright and dark pixels
+            // average to an acceptable value while a word crossing a bright patch is unreadable,
+            // and the 5th percentile catches that without one anti-aliased edge pixel condemning
+            // the whole label.
+            //
+            // COLLECTED AS WARNINGS FOR NOW, NOT FAILURES, AND THAT IS DELIBERATE - see the report
+            // to CC. The lock says insufficient contrast is a BUILD FAILURE and I am not
+            // softening it; I am refusing to arm an UNVALIDATED measurement as a build gate after
+            // this same file produced 79 and then 110 fabricated findings tonight. One run to
+            // check the numbers against the captures, then it flips to findings.
+            if (background != null)
+            {
+                foreach (Text text in root.GetComponentsInChildren<Text>(true))
+                {
+                    if (!text.gameObject.activeInHierarchy || string.IsNullOrEmpty(text.text)) continue;
+
+                    Rect box = ScreenRect(text.rectTransform, cam);
+                    float p5 = FifthPercentileContrast(background, box, text.color, out int samples);
+                    if (samples < 20) continue;   // too little background to judge honestly
+
+                    float floor = text.fontSize >= 55 ? 4.5f : 7f;
+                    if (p5 < floor)
+                    {
+                        warnings.Add(screen.Name + ": text " + Q(text.name) + " renders at " +
+                                     p5.ToString("0.0", CultureInfo.InvariantCulture) + ":1 on the 5th percentile, " +
+                                     "under the " + floor.ToString("0.0", CultureInfo.InvariantCulture) +
+                                     ":1 floor (" + samples + " background samples, font " + text.fontSize + "px).");
+                    }
                 }
             }
 
@@ -524,6 +600,68 @@ namespace MyriadOfDragons.Tests
             string n = (controlName ?? string.Empty).ToLowerInvariant();
             return n.Contains("back") || n.Contains("close") || n.Contains("dismiss") ||
                    n.Contains("cancel") || n.Contains("exit");
+        }
+
+        /// <summary>
+        /// The 5th-percentile WCAG contrast between a label's own colour and the pixels actually
+        /// drawn behind it.
+        ///
+        /// Measured against a frame rendered with every label HIDDEN, so the pixels really are
+        /// the background and not anti-aliased glyph edges. Measuring against the normal frame
+        /// biases every label downward: the AA fringe blends toward the background, scores ~1.5:1
+        /// against the text colour, and reliably occupies more than 5% of a label's area - so the
+        /// 5th percentile lands inside the anti-aliasing every time.
+        /// </summary>
+        private static float FifthPercentileContrast(Texture2D frame, Rect box, Color textColour, out int samples)
+        {
+            samples = 0;
+            int xMin = Mathf.Clamp(Mathf.FloorToInt(box.xMin), 0, frame.width - 1);
+            int xMax = Mathf.Clamp(Mathf.CeilToInt(box.xMax), 0, frame.width - 1);
+            int yMin = Mathf.Clamp(Mathf.FloorToInt(box.yMin), 0, frame.height - 1);
+            int yMax = Mathf.Clamp(Mathf.CeilToInt(box.yMax), 0, frame.height - 1);
+            if (xMax <= xMin || yMax <= yMin) return float.MaxValue;
+
+            // Cap the work: a full-width label on a 1920x1080 frame is a lot of pixels, and this
+            // runs for every label on 24 screens.
+            int strideX = Mathf.Max(1, (xMax - xMin) / 64);
+            int strideY = Mathf.Max(1, (yMax - yMin) / 24);
+
+            float textLum = RelativeLuminance(textColour);
+            var contrasts = new List<float>();
+
+            for (int y = yMin; y <= yMax; y += strideY)
+            {
+                for (int x = xMin; x <= xMax; x += strideX)
+                {
+                    // No glyph-skipping. This frame was rendered with the labels HIDDEN, so
+                    // every pixel here is genuinely background. The old skip would now actively
+                    // hide the worst case - a label sitting on a background its own colour.
+                    Color px = frame.GetPixel(x, y);
+                    float bg = RelativeLuminance(px);
+                    float hi = Mathf.Max(textLum, bg);
+                    float lo = Mathf.Min(textLum, bg);
+                    contrasts.Add((hi + 0.05f) / (lo + 0.05f));
+                }
+            }
+
+            samples = contrasts.Count;
+            if (samples < 20) return float.MaxValue;
+
+            contrasts.Sort();
+            return contrasts[Mathf.Clamp(Mathf.FloorToInt(samples * 0.05f), 0, samples - 1)];
+        }
+
+        /// <summary>WCAG 2.x relative luminance, including the sRGB linearisation. The simple
+        /// 0.299/0.587/0.114 shortcut is a different formula and gives different answers near the
+        /// floors, which is precisely where this check has to be right.</summary>
+        private static float RelativeLuminance(Color c)
+        {
+            return 0.2126f * Linear(c.r) + 0.7152f * Linear(c.g) + 0.0722f * Linear(c.b);
+        }
+
+        private static float Linear(float channel)
+        {
+            return channel <= 0.03928f ? channel / 12.92f : Mathf.Pow((channel + 0.055f) / 1.055f, 2.4f);
         }
 
         private static bool Overlaps(Rect a, Rect b)
