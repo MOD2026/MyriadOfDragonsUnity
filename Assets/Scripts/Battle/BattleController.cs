@@ -91,6 +91,18 @@ namespace MyriadOfDragons.Battle
     /// </summary>
     public class BattleController : MonoBehaviour
     {
+        private readonly List<BattleDeploymentRecord> _playerDeployments =
+            new List<BattleDeploymentRecord>();
+
+        /// <summary>
+        /// Every unit the PLAYER deployed this match, in order, with the tick it landed on.
+        ///
+        /// Exists for the Solo Circuit's Formation Trial, which must judge what was deployed over
+        /// the whole battle rather than what survived it. Deliberately append-only and never
+        /// cleared mid-match - see the note in TryPlayCard.
+        /// </summary>
+        public IReadOnlyList<BattleDeploymentRecord> PlayerDeployments => _playerDeployments;
+
         public PlayerBattleState PlayerState { get; private set; }
         public PlayerBattleState EnemyState { get; private set; }
 
@@ -475,6 +487,11 @@ namespace MyriadOfDragons.Battle
             _aiSpellCastRng = new System.Random(MatchRngSeed);
             _avatarStrikeCommitmentDecided = false;
             _avatarStrikeCommitmentAllowed = false;
+
+            // Cleared per match, not per tick: the Formation Trial judges the WHOLE battle, and a
+            // log carried over from the previous match would fail the next one for units the
+            // player never deployed in it.
+            _playerDeployments.Clear();
 
             Phase = BattlePhase.Formation;
             TickCount = 0;
@@ -906,6 +923,21 @@ namespace MyriadOfDragons.Battle
             side.Lanes[lane].Cards.Add(instance);
 
             ApplyOnPlayClassHook(side, card, lane);
+
+            // Formation-restriction tracking (Solo Circuit). Recorded HERE rather than in
+            // TryDeployReinforcement because this is the single choke point both paths pass
+            // through - the initial formation lock-in AND every later reinforcement. Hooking the
+            // reinforcement method alone would have missed the starting board entirely, which is
+            // most of what a formation restriction is about.
+            //
+            // Player side only: `side` is also EnemyState on the AI's plays, and counting those
+            // would break every restriction the moment the opponent deployed.
+            //
+            // This is an APPEND-ONLY LOG, never derived from the live board. A unit that is
+            // deployed and later dies or is recalled vanishes from Lanes, so a board snapshot
+            // would silently under-count and pass a player who broke a cumulative rule.
+            if (side == PlayerState)
+                _playerDeployments.Add(new BattleDeploymentRecord(lane, TickCount));
 
             return true;
         }

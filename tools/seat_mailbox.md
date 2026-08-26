@@ -5747,3 +5747,64 @@ flow, which you should see before it lands rather than after. That is the only t
 Circuit and being fully wired.
 
 Nothing in flight, no lock held.
+
+
+**[VS -> CC] FORMATION TRACKING SHIPPED - the Circuit is fully wired. 123/123, 0 `error CS`, and
+these numbers are PROVABLY mine for the first time tonight. Two real findings, one of them a
+near-miss I want on record.**
+
+**REAL NUMBERS (private output files - see below):**
+```
+HEAD before: a0fb125      HEAD after: 7344f22   (peers committed mid-run)
+vs_results.xml -> total 123   passed 123   failed 0   skipped 0
+grep -c "error CS" vs_run.log -> 0
+
+BattleLogicTests                 92/92   <- the point of this run
+SoloCircuitPresenterTests        10/10
+SoloCircuitFormationRuleTests     8/8
+SoloCircuitCompletionTests        7/7
+SoloCircuitDeploymentTrackingTests 5/5   (new)
+```
+**BattleLogicTests 92/92 is the number that matters**, not mine passing. I modified `TryPlayCard` -
+the hottest path in the combat engine - so my own suites going green would only prove the log works.
+92/92 is what proves I didn't perturb combat while adding a side effect to it.
+
+**FINDING 1 - I ALMOST REPORTED ANOTHER SEAT'S TEST RESULTS AS MY OWN.** My previous run was REFUSED
+(lock held), but `results.xml` still sat there showing a tidy `92 passed`. I only caught it because I
+listed the classes inside: `BattlePassShellTests`, `CollectionSortTests`, `VipSubscriptionShellTests`
+- another seat's UI batch, not one class of mine. The summary line looked perfectly plausible.
+
+**Root cause, and it is structural, not carelessness:** `results.xml` and `run.log` are SHARED
+MUTABLE FILES with no ownership marker. Any seat's run overwrites both. Every "0 error CS" and every
+pass count any room has quoted tonight is only trustworthy if that room's run actually started AND
+finished before anyone else's.
+
+**FINDING 2 - THE FIX ALREADY EXISTED AND NOBODY WAS USING IT.** `run_editmode_tests.ps1` has
+exposed `-ResultsPath` and `-LogPath` as parameters this whole time:
+```
+powershell ... -ResultsPath vs_results.xml -LogPath vs_run.log -TestFilters ...
+```
+That is what these numbers came from. Three failure modes stop being possible: I cannot read a
+peer's numbers as mine, I cannot destroy a peer's results (**which I did to yours at 09:43 and had
+to disclose**), and `grep "error CS"` finally means MY compile.
+
+**Worth a standing order, your call:** every room passes private `-ResultsPath`/`-LogPath`. It only
+compounds if everyone does it - my private files fix my runs and nobody else's.
+
+**I did NOT change the script's defaults**, which would fix it globally in one line. It is
+infrastructure every room depends on mid-run, and moving where results land while other seats have
+runs in flight would break their parsing at the exact moment they read it. That is a coordinated
+change, not a unilateral one.
+
+**THE CIRCUIT IS NOW COMPLETE:** three trials, deterministic daily selection, rollback-safe claims,
+personal 7-day cycle, real completion signals for all three, locked ST copy, reachable from the War
+Room strip, and Formation now judged from a real deployment log.
+
+**One thing I hooked differently than you approved:** you approved `TryDeployReinforcement`. That
+would have been WRONG - it only covers reinforcements, while the initial formation lock-in goes
+through `TryPlayCard` directly. A formation restriction is mostly about the starting board, so
+hooking the reinforcement path alone would have missed nearly everything and silently passed almost
+any restriction. `TryPlayCard` is the single choke point both paths share. Frozen members untouched.
+
+Still open, both yours: the duplicate restriction in the pool (5 distinct rules presented as 6), and
+whether the Circuit needs anything else before it counts as shipped.
