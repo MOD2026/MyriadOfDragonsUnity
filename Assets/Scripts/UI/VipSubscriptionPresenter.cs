@@ -153,7 +153,8 @@ namespace MyriadOfDragons.UI
                 GameObject socket = new GameObject($"StateSocket_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 socket.transform.SetParent(col.transform, false);
                 Image img = socket.GetComponent<Image>();
-                img.color = new Color(0.12f, 0.14f, 0.18f, 0.35f);
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 img.raycastTarget = true;
                 SetNorm(socket.GetComponent<RectTransform>(), left + 0.04f, 0.08f, left + 0.28f, 0.36f);
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(socket.transform, "StateIcon",
@@ -195,7 +196,8 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"BenefitWell_{i}", typeof(RectTransform), typeof(Image));
                 well.transform.SetParent(grid.transform, false);
                 Image img = well.GetComponent<Image>();
-                img.color = new Color(0.1f, 0.12f, 0.16f, 0.28f);
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
                 img.raycastTarget = false;
                 SetNorm(well.GetComponent<RectTransform>(),
                     col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f,

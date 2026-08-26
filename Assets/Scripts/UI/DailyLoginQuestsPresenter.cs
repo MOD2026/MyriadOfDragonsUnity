@@ -159,7 +159,8 @@ namespace MyriadOfDragons.UI
                 GameObject node = new GameObject($"LoginWell_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 node.transform.SetParent(nodes.transform, false);
                 Image img = node.GetComponent<Image>();
-                img.color = new Color(0.14f, 0.22f, 0.2f, 0.4f);
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 Button btn = node.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => Apply(DailyLoginQuestsOpenValues.TryClaimLogin(day)));
@@ -179,7 +180,8 @@ namespace MyriadOfDragons.UI
 
             GameObject statusBar = new GameObject("StreakStatusBar", typeof(RectTransform), typeof(Image));
             statusBar.transform.SetParent(panel.transform, false);
-            statusBar.GetComponent<Image>().color = new Color(0.12f, 0.18f, 0.22f, 0.55f);
+            UISharedFoundation.ApplyFramedPanel(statusBar.GetComponent<Image>(), null,
+                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground);
             statusBar.GetComponent<Image>().raycastTarget = false;
             SetNorm(statusBar.GetComponent<RectTransform>(), 0.06f, 0.06f, 0.94f, 0.22f);
 
@@ -211,7 +213,8 @@ namespace MyriadOfDragons.UI
                 float top = 0.84f - i * (rowH + 0.03f);
                 GameObject row = new GameObject($"QuestRow_{i}", typeof(RectTransform), typeof(Image));
                 row.transform.SetParent(panel.transform, false);
-                row.GetComponent<Image>().color = new Color(0.08f, 0.1f, 0.12f, 0.35f);
+                UISharedFoundation.ApplyFramedPanel(row.GetComponent<Image>(), null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
                 row.GetComponent<Image>().raycastTarget = false;
                 SetNorm(row.GetComponent<RectTransform>(), 0.04f, top - rowH, 0.96f, top);
 

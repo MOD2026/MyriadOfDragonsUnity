@@ -166,7 +166,8 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"FriendRow_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(list.transform, false);
                 Image img = well.GetComponent<Image>();
-                img.color = new Color(0.1f, 0.12f, 0.16f, 0.28f);
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SelectFriendRow(row));

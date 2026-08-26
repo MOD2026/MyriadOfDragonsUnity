@@ -171,7 +171,8 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"TierWell_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(row.transform, false);
                 Image img = well.GetComponent<Image>();
-                img.color = new Color(0.12f, 0.16f, 0.14f, 0.35f);
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => AttemptClaim(tier, capturedPremium));
