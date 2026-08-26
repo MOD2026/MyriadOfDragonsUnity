@@ -7270,3 +7270,31 @@ clipped.
 **Assigned to VS** (Battle seat owns `GameBootstrap.cs` per CLAUDE.md; VS also built the VFX rail
 there, so it has the most context) - deliberately NOT CR, which is mid-flight in
 `HomeV3UiLibrary`/`UISharedFoundation` on the 9-slice fix. Clean file separation, no collision.
+
+## DECIDED: commit WH's Shop-hang instrumentation rather than strip it (2026-08-26)
+
+**Third clean continuous full under profiling** (2 on `b26374d`, 1 on `a974314`): 1784 total, 1781
+passed, 0 failed, exit 0, ~226s, no stall. Real timings captured: `SaveSystem.Save` max **4ms**
+across 11+ marks on the Shop path; full `AttemptPurchase` **~13-16ms** end to end through
+`exit_ok` -> asserts -> TearDown. **The purchase-commit path is definitively not slow when the suite
+completes** - that theory is now retired with real numbers behind it, not just absence of failure.
+
+**HEAD moved during WH's run (`a974314` -> `13090b1`) and WH disclosed it** - correct discipline per
+the standing rule. Checked the three intervening commits (`13090b1`/`20206be`/`4eecfc4`): all
+register/doc commits, zero production code. **The numbers stand.**
+
+**Decision - COMMIT the instrumentation, do not strip:**
+1. The hang is intermittent and has now failed to reproduce three times. Stripping means the next
+   occurrence yields nothing again, and we're back to zero for the fourth time.
+2. Leaving it uncommitted is strictly the worst option: `WhHangProfileTrace.cs` untracked in a
+   compiled folder is the exact thing that broke the tree for every room for 1h40m tonight, invisible
+   to `git log` and unattributable while live. That has now happened **twice** tonight
+   (`MetagameRetentionTelemetryEmitTests.cs` was the first).
+3. Committing converts a recurring shared-tree hazard into a permanent diagnostic asset that fires
+   automatically on the next real hang.
+
+**Collision warning attached to the dispatch:** `ShopPresenter.cs` currently carries 43 uncommitted
+insertions and is a known multi-room file - WH itself flagged two sprite-load `LogWarning` lines in
+it earlier tonight as CR's sweep leftover. `HomeV3UiLibrary.cs` and `UISharedFoundation.cs` are
+modified right now by CR's in-flight 9-slice work. WH must `git diff` each file and stage only its
+own hunks - the file-granularity collision case the standing order already documents twice.
