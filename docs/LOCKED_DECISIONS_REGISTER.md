@@ -7954,3 +7954,59 @@ already in flight with CR. CR builds the nav shell against current helpers; the 
 applies project-wide across all 25 screens as its own sweep. Reason: mixing a structural nav rebuild
 with a 42-site visual-system change in one pass makes both harder to verify and impossible to
 attribute if something regresses - exactly the discipline tonight's own multi-fix confusion taught.
+
+## ROOT CAUSE OF THE TAIL-CHASING, found by developer-hat audit (2026-08-27, CC, owner-requested)
+
+Owner: *"if this is not taken seriously, we will be spending hours going round and round chasing our
+tail which is what we are doing now."* Correct. Real structural cause, with numbers:
+
+**1. The test suite is structurally blind to what a player sees.**
+```
+218 EditMode test files
+  4  assert a sprite actually loaded (non-null)          <- 1.8%
+ 33  assert geometry/overlap
+  7  PlayMode test files
+  0  PlayMode tests that check ANY visual                <- zero
+```
+1799 tests pass green while every sprite fails to load, 42 borders collapse, and Home carries 3x the
+Hick's-Law touchpoint ceiling. **None of tonight's UI defects were findable by the test suite.** That
+is why every single one had to be found by the owner's eyes, one pasted screenshot at a time - the
+slowest possible loop, and the exact loop the owner is complaining about.
+
+**2. THE TOOL TO FIX THIS ALREADY EXISTS, RAN LAST NIGHT, AND NOBODY LOOKED AT THE OUTPUT.**
+`Assets/Tests/Editor/ScreenContactSheetGenerator.cs` - CC-authorized, captures **24 presenter
+screens** to individual PNGs plus a tiled `_ContactSheet.png`, works around the ScreenSpaceOverlay
+capture constraint properly, runs in EditMode with no Play Mode needed. Its own doc comment states
+the purpose verbatim: *"so screens don't have to be pasted one at a time."*
+**Output confirmed present at `%TEMP%\MyriadOfDragonsContactSheetOutput\`, timestamped 2026-08-26
+23:57** - 24 real PNGs plus a 14MB contact sheet, generated hours ago, never read by anyone. The
+owner spent the entire night pasting screenshots by hand while this sat on disk.
+
+**3. Reading one of those PNGs immediately surfaced real bugs no test caught** - `SoloCircuit.png`:
+BACK button overlapping header text; every trial title ("ORDER THE RANKS" / "MUSTER THE RANKS" /
+"READ THE FIELD") has its description text rendering ON TOP of the title; zero chrome (one of the 3
+known zero-chrome screens). Found in seconds by looking, invisible to 1799 passing tests.
+
+**4. CC's own recurring error, now named:** I have repeatedly asserted UI facts from `grep` that the
+rendered output contradicts. Concrete instance this session: I reported "EmpireBuildingDetail has NO
+back button" (grep for `Btn_Back`/`"< BACK"`), BS then built a whole navigation-dead-end ruling on
+that. The actual screen has **two** exits - `Btn_Return` "RETURN TO EMPIRE" and `Btn_Close` "X"
+(`EmpireBuildingDetailPresenter.cs:78-79`), both plainly visible in the captured PNG. **A grep for a
+naming convention is not an observation of behaviour.** Same failure family as the meshType
+retraction, the truncated-metas discovery, and the flat-boxes misdiagnosis: reading a stored value
+and inferring reality instead of measuring reality.
+
+**THE FIX, and it is cheap:** run `ScreenContactSheetGenerator` as a routine step - before dispatching
+any UI task, after any UI change lands, and any time a room claims a screen "looks right." It costs
+one EditMode test run and replaces the entire paste-a-screenshot-and-wait loop. Everything else about
+tonight's UI work was downstream of not doing this.
+
+**Memory audit (owner-requested, honest result):** the private memory files are **intact, not
+failing** - 15 files present, `MEMORY.md` valid, nothing corrupted. Newest write is 2026-08-25, which
+is *correct by design*: CLAUDE.md explicitly forbids using private memory for project state (that
+belongs in this register). So memory is not the problem. **What the owner is actually perceiving is
+real, but it is context degradation inside one very long conversation**, evidenced by concrete
+errors: claiming a verdict table existed when only a summary line did (CR caught it), saying "no word
+from you" about screenshots already supplied, misattributing commits, and 4 stale dispatches. The
+register is the working system of record and is intact - which is precisely why starting a fresh chat
+is safe whenever the owner wants: nothing load-bearing lives in conversation memory.
