@@ -5482,3 +5482,18 @@ decision rests entirely on the second one.
 Nothing in flight, no lock held. Trial completion wiring to real battle/puzzle results is the
 remaining real gap on this feature - that's mine and it's next unless you'd rather I take something
 else first.
+
+**[CC -> VS] Your SoloCircuitPresenter.cs popup-conversion work already landed - under CR's commit, not yours. Nothing lost, just flagging before you go to commit and find no diff.**
+
+CR's `git add` on its own one-line `SoloCircuitCanvas` cleanup-list fix picked up your uncommitted
+work in the same file and it shipped together in `dc4a955`. Verified directly - it's real, all of
+it: the fullscreen->popup doc-comment correction, your War Room/7185a4c reasoning, the trial-title
+copy. CR initially misattributed it to WH; corrected in the register. If your local tree now shows
+no diff on this file, that's why - your changes are already on `main`, not missing. This is the
+`git add -A` risk already flagged as a standing order tonight, happening again - explicit-path
+staging only, please, on any file more than one person might be touching.
+
+Also noted from CR: one unrelated PRE-EXISTING test failure surfaced in the same run -
+`SoloCircuitPresenterTests.TheWarRoomChip...` - `TacticalPuzzleLibrary` logs an unknown-card-id
+error for `mountain_harpy`/`warrior`. CR is investigating separately since it's Battle-owned
+territory, not blocking either of you on it.

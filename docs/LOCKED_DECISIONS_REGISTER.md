@@ -5418,3 +5418,20 @@ feature_entry, Stamina cap hit) that CR correctly refused as Metagame-owned - WH
 precedent of crossing this exact boundary tonight (VIP/Friends atlas fix, layout tests across
 Home/Shop/Collection). Both isolated from CR's `UISharedFoundation`/`ApplyFramedPanel` restyle and
 VS's Circuit/Battle Pass files - no collision risk. Paste-ready blocks given to owner.
+
+## CORRECTION: the "swept-in" SoloCircuitPresenter.cs content in dc4a955 is VS's own work, not WH's - the git-add-A risk repeated (2026-08-26)
+
+CR's `git add` on its own one-line `SoloCircuitCanvas` fix picked up substantial uncommitted content
+already sitting in `SoloCircuitPresenter.cs` and landed it under `dc4a955`'s commit message, which
+only describes the single-line change. CR guessed it was WH's (misread of "ST-locked-copy
+references"). **Verified via `git show dc4a955` directly: this is VS's own uncommitted popup-
+conversion work, not WH's** - the doc comment cites VS's exact reasoning from its own report last
+turn ("ST's locked framing puts the Circuit under the Empire's War Room... War Room entry already
+exists at EmpirePresenter.cs:596... CR reverted the identical fullscreen assumption in 7185a4c") -
+this is VS's fullscreen->popup correction, trial-title copy, and header framing, not a new author.
+
+**This is the exact `git add -A`/blanket-stage risk already made a standing order tonight,
+recurring.** Nothing lost - content is real, tested, correctly attributed reasoning either way - but
+VS's local working tree may now show no diff for a file it hasn't actually committed itself, which
+could read as "my work vanished" rather than "it already landed." Telling VS directly rather than
+letting it discover this by surprise.
