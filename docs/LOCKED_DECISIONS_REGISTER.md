@@ -7570,3 +7570,36 @@ mismatch) are now addressed in source, pending verification.
 22:55:04). Full suite plus four targeted classes (`SlicedBorderFitTests`, `UISharedFoundationTests`,
 `EmpireLayoutTests`, `DeckBuilderReleaseGateTests`) queued to catch any regression across ~22
 mechanical edits. Real numbers pending - nothing claimed as done until that run reports.
+
+## AD's audit: real diagnosis, one recommendation ALREADY DISPROVEN by CR, two genuinely new adoptable findings (2026-08-26)
+
+**AD confirmed the root cause correctly** by direct code read (matches CR's own finding exactly:
+`ApplyFramedPanel` assigns sprite/type immediately with no layout deferral). Good, honest audit -
+explicitly said it couldn't find `AvatarPresenter.cs` or `FitSlicedBorderToRect` rather than
+fabricating either, and asked for the missing file instead of guessing.
+
+**AD's primary recommendation - a deferred-applier MonoBehaviour using
+`OnRectTransformDimensionsChange`/`Canvas.willRenderCanvases` - is exactly the approach CR already
+built, tested, and DISPROVEN with real evidence** (this register, "watcher approach is disproven and
+removed" entry, above): the callback does not fire synchronously in EditMode even with
+`Canvas.ForceUpdateCanvases()` forced. This also conflicts with CLAUDE.md #6 (EditMode cannot run
+`Update()`/coroutines; MonoBehaviours supply timing only, real logic must be plain and testable) - a
+render-loop-dependent applier is inherently harder to assert against in the test suite this project
+relies on for every change. **Why AD didn't know:** it was working from whatever file snapshot the
+owner pasted it, which evidently predates `FitSlicedBorderToRect` entirely - AD said so honestly
+("I did not find a function named FitSlicedBorderToRect... please attach it") rather than inventing
+one. Not repeating the deferred-applier path; CR's mechanical reorder is the verified-viable fix for
+this specific codebase's constraints, even though AD's reasoning for why it's structurally cleaner in
+general is sound.
+
+**Two real, adoptable findings, genuinely new tonight:**
+1. `CreateRoundedPanelSprite` allocates a fresh `Texture2D` + `Sprite` on every call with zero
+   caching - verified directly (no `Dictionary`/cache anywhere near it). Real GC/memory-churn risk
+   wherever the procedural fallback fires repeatedly (every panel rebuild). AD's cache-key pattern
+   (`CreateOrGetRoundedPanelSprite`, dictionary keyed on color+radius+size) is straightforward and
+   low-risk.
+2. A debug assertion in `ApplyFramedPanel` warning when the target rect is still ~100x100 at apply
+   time - cheap, catches any FUTURE call site that reintroduces the apply-before-position bug, which
+   the mechanical reorder alone can't prevent for code written after tonight.
+
+**Queued for CR after verification lands** - not blocking, not urgent tonight, real follow-up work.
