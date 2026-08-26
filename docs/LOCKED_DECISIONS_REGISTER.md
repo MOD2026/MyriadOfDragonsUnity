@@ -1495,6 +1495,57 @@ Also locked: the pre-join Guild state belongs on the **Guild entry screen**, not
 Guild Hall interior - consistent with the existing decision to hide the interior before a player can
 join.
 
+## Roslyn analyzer spec - LOCKED but DEFERRED 2026-08-27 (CC decision)
+
+Full analyzer design received and recorded. **Not being built yet - see the deferral reasoning at the
+bottom, which is the actual decision here.**
+
+**R2 (ERROR, `UI001`)** - `image.type = Image.Type.Sliced` must be accompanied by
+`FitSlicedBorderToRect(image)` or an explicit `pixelsPerUnitMultiplier` assignment. Resolve the
+left-hand symbol via `SemanticModel.GetSymbolInfo` and compare its `ITypeSymbol` against
+`compilation.GetTypeByMetadataName("UnityEngine.UI.Image")` - symbol resolution, never name matching.
+Search the same method first, then **one** call frame deep (config `CallDepthLimit`, default 1;
+deeper multiplies false positives). Helpers can opt out of inspection with an
+`[AppliesBorderFit]` attribute.
+
+**R2b (WARN, `UI002`)** - `Sliced` assigned to a sprite whose border is `Vector4.zero` does nothing
+useful and signals the wrong sprite or wrong Image.Type. **Skip entirely when the sprite is loaded
+dynamically** and the border cannot be known at compile time - no false positives.
+
+**R1 (WARN, `UI010`, ERROR for critical paths)** - a `Resources.Load` whose null branch runs a
+fallback must log or call `WarnOnceMissingSprite(path)`. **Critical categories come from a config
+file** (`UIAnalyzerConfig.json`, glob patterns read via `AdditionalFiles`) rather than a hardcoded
+list that goes stale.
+
+**R3 (WARN, `UI020`)** - `sizeDelta` assigned without the method setting anchors or using
+`SetSizeWithCurrentAnchors`.
+
+### The important caveat - why an auto-fix is NOT safe here
+
+**A codefix that inserts `FitSlicedBorderToRect` immediately after the assignment can be WRONG.** The
+fit must run after the rect's real size is set; inserted right after the sprite assignment it fits
+against Unity's stale 100x100 default and produces a different wrong answer. We learned this
+independently tonight - CR placed the foundation fixes after `sizeDelta`/`EnforceMinTouchTarget` for
+exactly this reason. Any bulk fix must skip ambiguous sites (convenience builders like
+`CreateFramedPanel` where the caller sets anchors later) and flag them for human review instead.
+
+### DEFERRAL - CC decision, with reasoning
+
+**The analyzer is prevention infrastructure. It fixes nothing a player can see.** Current state:
+9 locked designs with 3 built, 21 unreadable labels on screen, and **nobody has ever produced a
+player build.** Building a Roslyn analyzer project now would be gold-plating tooling while the game
+remains unrunnable by a playtester.
+
+**What we take NOW instead - the runtime equivalents, already dispatched:** EditMode T1 asserts a
+sliced Image whose border exceeds its rect actually has a non-1 multiplier (catches the same class,
+proves the RENDERED effect rather than the call); T2 fails on missing critical assets; T3 sweeps
+`sizeDelta` on stretched axes. **Those cover the same three rules at test time for a fraction of the
+cost.**
+
+**Revisit the analyzer when:** a build exists, the 21 sub-2:1 labels are fixed, and the tests have
+been running long enough to show whether the class actually recurs. An analyzer stops it being
+written; the tests already stop it shipping. Shipping is the binding constraint right now.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
