@@ -25,7 +25,6 @@ because nothing at turn-start surfaced it.
 | 2026-08-26 | Chapter production HELD at 18 - **owner explicitly confirmed, not just unanswered**: too much UI is still broken (borders/boxes not matching mockups) to justify more content before more polish. Do NOT re-ask this as if undecided. | Owner explicitly lifts it |
 | 2026-08-26 | **UI-fixing is the current top priority across all rooms** - owner flagged real frustration at slow visible progress on border/box/mockup-mismatch bugs. CC should proactively hunt for this bug class (reachable screen + real approved art + Load() never called) via read-only diagnosis and batch-dispatch findings, not wait for one-off reports. | Owner signals priority has shifted |
 | 2026-08-25 | WH batch size ~50% up from single-atom tasks; owner is LIVE (15-30 min deliverable band) | Owner signals stepping away (then batch freely) |
-| 2026-08-26 | **WH's Unity runs capped at 15-20 minutes per task while the owner is actively present** - a long WH run holds `.unity_batch.lock`, blocking every other room's own runs. Owner will explicitly say when stepping away, which lifts this back to free-batching. Applies to WH specifically (its Unity batch runs are the long-holding ones); does not change VS/CR's own run discipline. | Owner signals stepping away, or explicitly lifts it |
 | 2026-08-25 | Frozen-file edits (PlayerProfile.cs etc.) need a vetted, locked field list BEFORE the edit - per-case, never blanket | Standing rule, does not lift |
 | 2026-08-25 | Empire Defense: design-only, behind evidence gate - no build/art/story dispatch | Memory Expedition live + gate criteria met (10+ wks) |
 | 2026-08-25 | Windstep ablation conclusions pre-0fdd193 are VOID (two stacked confounds: enemyTier spellbook bug, then gate-probability bug) - only 0fdd193's numbers are real | Permanent |
@@ -6584,3 +6583,27 @@ step on the second hang - trace `AttemptPurchase` through `CurrencyManager`/`Sav
 anything that could block synchronously (disk write with no timeout, lock/Monitor, unresolved
 callback). Report a real suspect with line references before running anything long, matching the
 new 15-20min discipline.
+
+## CORRECTION: duplicate standing-order row found and removed - a stale ex-CC session logged the same WH cap independently (2026-08-26)
+
+CR relayed an owner-forwarded WH status report and flagged a real duplicate: the 15-20min WH cap got
+logged TWICE, once by this session (`ae36a6d`) and once by commit `453c69d` from a different session
+- almost certainly "Old room," the previous CC session that confirmed standing down from
+coordination earlier tonight but is apparently still committing to this file. Deduped, kept the
+later/more detailed row, removed mine as the redundant one. **Real coordination concern, not just
+a cosmetic dupe:** if a session that said it stood down is still active and independently reaching
+the same conclusions as me, that's a real risk of drift (it could just as easily reach a DIFFERENT
+conclusion on something ambiguous and create an actual conflict, not just a harmless duplicate).
+Flagging, not chasing further tonight - the content itself was correct both times, no harm done.
+
+**Real VFX rail progress verified, VS is not idle:** `19d1e63` (Combat Resolution mapper, resolved
+battle records -> presentation beats - correctly VERIFIED the player/enemy side convention against
+`ResolveTurn`'s real signature rather than assuming, since getting it backward would silently point
+every animation at the wrong player while all the numbers stayed correct) and `560d2ba` (replaces
+the scrolling text log with the real VFX stage - found and fixed a real preemptive bug: one
+raycastable child in the stage tree would have swallowed taps meant for the spell rail sitting
+directly beneath it, caught via a real tree-walk test before it shipped, not after a report).
+
+**CR's own full-suite verification run is in flight** (sprite-warning sweep + HomeV3 once-per-session
+gate, own `-ResultsPath`/`-LogPath`, HEAD pinned `453c69d`) - will report real numbers when it
+finishes.
