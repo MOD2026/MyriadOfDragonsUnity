@@ -6829,3 +6829,29 @@ the seconds before this landed - the check was real, just unlucky timing, not a 
 that would have prevented the earlier DeckBuilder stash collision if it had existed then. Whoever is
 building this (very likely VS, unattributed since uncommitted) should just finish and commit
 normally. Real task closed by discovery, not by building - equally valid outcome.
+
+## WH's log review: real, honest, well-reasoned NO on the Background/hang link - hypothesis correctly disproven, not stretched (2026-08-26)
+
+**Real evidence, not vibes.** WH pulled the actual continuous-run log timeline: WH's own continuous
+full/near-full runs stalled `exit 124` three separate times tonight, ALL before `12f3e48` landed,
+consistently dying mid-`ShopV1ChromeTests` purchase (`SetShopStatus:829`) - exactly the same
+signature every time. **No post-fix WH continuous run exists to compare against.**
+
+**The real methodological catch, correctly caught:** CR's own continuous runs "completed" both
+before AND after the fix (2/2 before, 1/1 after) - but CR's runs were never reliably hanging in the
+first place, so "CR ran clean after 12f3e48" never actually tested the Shop hang at all. Comparing
+across different rooms' runs as if they were the same experiment would have been a real
+methodology error - WH caught it instead of taking the easy "looks fixed" read.
+
+**Correct conclusion:** the Background-collision fix explains the Backdrop flake (a real, separate
+bug, now closed) but does NOT explain a process that stops logging mid-Shop-purchase - different
+mechanism, `GameObject.Find` isn't even in that code path. **Not disproven as related by coincidence
+- disproven by actually checking**, which is the whole point of doing this instead of assuming.
+
+**Real status: the Shop hang remains genuinely unresolved.** Given tonight's earlier decision to
+call off expensive blind bisection, and this session's overall state is now very clean (1770/1770
+achievable, every other real thread closed) - not dispatching further hang-chasing right now. Real,
+known, intermittent, root-caused as "somewhere after Shop's purchase-commit path, not in
+telemetry, not in the Background-collision pattern" - genuine open item for whenever there's
+bandwidth for a fresh angle (real profiling, not more bisection), not urgent enough to keep burning
+tonight's remaining time on.
