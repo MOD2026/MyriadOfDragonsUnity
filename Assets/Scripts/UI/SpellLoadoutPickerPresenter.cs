@@ -168,21 +168,33 @@ namespace MyriadOfDragons.UI
                 Image schoolImg = cell.transform.Find("SchoolIcon")?.GetComponent<Image>();
                 if (schoolImg != null) schoolImg.enabled = false;
 
-                Text header = UISharedFoundation.CreateText(cell.transform, "EffectLabel", $"SLOT {i + 1}",
+                float cellW = (0.92f * 1920f) / Mathf.Max(1, _requiredSlots);
+                float cellH = 0.10f * 1080f * 0.8f;
+                float labelPlateW = cellW * 0.55f;
+                float labelPlateH = cellH * 0.45f;
+                GameObject labelPlate = new GameObject("EffectLabelPlate", typeof(RectTransform));
+                labelPlate.transform.SetParent(cell.transform, false);
+                RectTransform labelPlateRect = labelPlate.GetComponent<RectTransform>();
+                labelPlateRect.anchorMin = labelPlateRect.anchorMax = new Vector2(0f, 0f);
+                labelPlateRect.pivot = new Vector2(0.5f, 0.5f);
+                labelPlateRect.sizeDelta = new Vector2(labelPlateW, labelPlateH);
+                labelPlateRect.anchoredPosition = new Vector2(cellW * 0.68f, cellH * 0.75f);
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    labelPlate.transform,
+                    new Vector2(labelPlateW * 0.5f, labelPlateH * 0.5f),
+                    new Vector2(labelPlateW, labelPlateH),
+                    UIDesignTokens.FrameTier.Tier1Hero);
+                Text header = UISharedFoundation.CreateText(labelPlate.transform, "EffectLabel", $"SLOT {i + 1}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(200f, 24f));
                 header.fontSize = 13;
                 header.raycastTarget = false;
                 UISharedFoundation.ApplyTextShadow(header);
-                SetNorm(header.rectTransform, 0.42f, 0.55f, 0.95f, 0.95f);
-                // Slot cells ~ (0.92*1920)/N x 86; plate the label half only.
-                float cellW = (0.92f * 1920f) / Mathf.Max(1, _requiredSlots);
-                float cellH = 0.10f * 1080f * 0.8f;
-                UISharedFoundation.AddSemiTransparentScrimPanel(
-                    cell.transform,
-                    new Vector2(cellW * 0.68f, cellH * 0.75f),
-                    new Vector2(cellW * 0.55f, cellH * 0.45f),
-                    UIDesignTokens.FrameTier.Tier2Section);
+                RectTransform headerRect = header.rectTransform;
+                headerRect.anchorMin = Vector2.zero;
+                headerRect.anchorMax = Vector2.one;
+                headerRect.offsetMin = Vector2.zero;
+                headerRect.offsetMax = Vector2.zero;
 
                 Text pick = UISharedFoundation.CreateText(cell.transform, "PickLabel", "(empty)",
                     UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true,
