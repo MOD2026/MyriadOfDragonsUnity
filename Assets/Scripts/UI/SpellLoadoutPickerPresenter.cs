@@ -138,9 +138,12 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.ApplyTextShadow(_statusText);
             SetNorm(_statusText.rectTransform, 0.70f, 0.1f, 0.98f, 0.9f);
             // Header strip ~1920x108; plate only the status column.
-            UISharedFoundation.AddSemiTransparentScrimPanel(
+            UISharedFoundation.AddLocalGradientScrim(
                 topBar.transform, new Vector2(1920f * 0.84f, 54f), new Vector2(480f, 72f),
-                UIDesignTokens.FrameTier.Tier2Section);
+                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            UISharedFoundation.AddLocalGradientScrim(
+                topBar.transform, new Vector2(1920f * 0.84f, 54f), new Vector2(480f, 72f),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
         }
 
         private void BuildSlotSummary()
@@ -179,11 +182,16 @@ namespace MyriadOfDragons.UI
                 labelPlateRect.pivot = new Vector2(0.5f, 0.5f);
                 labelPlateRect.sizeDelta = new Vector2(labelPlateW, labelPlateH);
                 labelPlateRect.anchoredPosition = new Vector2(cellW * 0.68f, cellH * 0.75f);
-                UISharedFoundation.AddSemiTransparentScrimPanel(
+                UISharedFoundation.AddLocalGradientScrim(
                     labelPlate.transform,
                     new Vector2(labelPlateW * 0.5f, labelPlateH * 0.5f),
                     new Vector2(labelPlateW, labelPlateH),
-                    UIDesignTokens.FrameTier.Tier1Hero);
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    labelPlate.transform,
+                    new Vector2(labelPlateW * 0.5f, labelPlateH * 0.5f),
+                    new Vector2(labelPlateW, labelPlateH),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
                 Text header = UISharedFoundation.CreateText(labelPlate.transform, "EffectLabel", $"SLOT {i + 1}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(200f, 24f));
@@ -260,11 +268,16 @@ namespace MyriadOfDragons.UI
                 SetNorm(effectHeader.rectTransform, 0.02f, 0.88f, 0.98f, 0.98f);
                 float colW = (0.94f * 1920f) / Mathf.Max(1, colsThisRow);
                 float colH = rows == 1 ? 0.60f * 1080f : 0.28f * 1080f;
-                UISharedFoundation.AddSemiTransparentScrimPanel(
+                UISharedFoundation.AddLocalGradientScrim(
                     colGo.transform,
                     new Vector2(colW * 0.5f, colH * 0.93f),
                     new Vector2(colW * 0.96f, colH * 0.12f),
-                    UIDesignTokens.FrameTier.Tier2Section);
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    colGo.transform,
+                    new Vector2(colW * 0.5f, colH * 0.93f),
+                    new Vector2(colW * 0.96f, colH * 0.12f),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
 
                 List<AvatarSpell> spells = SpellLoadoutSelection.SpellsForEffect(_pool, effect);
                 float rowH = 0.86f / Mathf.Max(spells.Count, 1);
