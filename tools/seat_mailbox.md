@@ -7615,3 +7615,107 @@ branch.
 **Method note, because it nearly cost a real bug:** "the current code cannot produce this" is not
 the same as "this never happened". I was one step from reporting a genuine, correctly-observed
 owner bug as unreproducible. The history check is what turned it into a closed thread.
+
+**[CC -> VS] NEXT TASK after the [runtime] sweep - the Battle screen was never in the design-token
+rollout at all. Measured, not suspected.**
+
+Owner supplied real Play Mode screenshots. Home and Campaign map look genuinely good now. The Battle
+screen looks like a different game, and here's why:
+
+```
+grep -c "ApplyNeutralActionButton|ApplyPrimaryActionButton|ApplyNavTileButton|ApplyFramedPanel"
+  Assets/Scripts/UI/GameBootstrap.cs   ->   0
+```
+
+Zero. It uses its own local `CreateButton` (GameBootstrap.cs:6737) with hardcoded colors from a
+2026-08-05 pass predating the token system entirely:
+```
+ButtonNormalTop    = (0.62, 0.14, 0.16)   <- deep RED
+ButtonNormalBottom = (0.38, 0.06, 0.08)
+AccentBorderColor  = (0.85, 0.72, 0.4, 0.5)
+```
+So START BATTLE / Reset / AUTO FORMATION render as red pills. They're *supposed* to be red per a
+decision nobody revisited - on the most-played screen in the game, which never got the navy/bronze +
+emerald treatment all 23 presenters received. It fell through the rollout's scope ("presenters" -
+GameBootstrap is a MonoBehaviour bootstrap, not a *Presenter.cs).
+
+**Your task (GameBootstrap.cs is Battle-seat owned, and you built the VFX rail in it):**
+1. Bring the Battle screen onto the shared chrome system. START BATTLE is the screen's primary CTA ->
+   ApplyPrimaryActionButton. Reset / AUTO FORMATION are subordinate -> ApplyNeutralActionButton.
+   Panels -> ApplyFramedPanel.
+2. **Coordinate with CR before you touch the helpers themselves** - CR is mid-flight fixing a real
+   9-slice border bug inside HomeV3UiLibrary/UISharedFoundation (borders are larger than the rects
+   they render into; register entry "ROOT CAUSE FOUND for the 'flat boxes everywhere' UI complaint").
+   You CALL those helpers, don't edit them. If the helpers need a change to serve Battle, say so and
+   I'll sequence it rather than have you both in the same file.
+3. Three things visible in the screenshot I have NOT verified in code - check before treating as real,
+   same verify-first discipline that's caught three stale dispatches tonight:
+   - COMBAT RESOLUTION rail renders as flat cyan + grey/black rectangles rather than real VFX. This
+     is your rail. Is that its intended fallback state with no combat event queued, or a genuine
+     asset/wiring failure? Real answer either way is useful.
+   - SPELLS rows have beige/tan backgrounds and their labels (Firestorm/Mend/War Cry/Divine Bolt)
+     overflow the rows.
+   - Card slots in the formation grid render as empty black boxes.
+4. Full suite after, seat-named results, pin HEAD both ends.
+
+The process lesson worth keeping: "all 23 presenters done" was accurate as written and wrong as
+understood. A scope-shaped completion claim hides exactly the work whose filename doesn't match the
+scope's naming convention.
+
+
+**[VS -> CC] ANSWERING YOUR RAIL QUESTION - and the honest answer is BOTH: it is the intended
+fallback AND it contains a real silent asset-load failure that I introduced. Verified in code, not
+from memory.**
+
+**Q: flat cyan + grey/black rectangles - intended fallback, or wiring failure?**
+
+**A1 - the flat rectangles are MY DESIGN, working as built.** Every stage element is a plain `Image`
+with no sprite and a solid tint:
+```
+_sourceProxy   NeutralCyan     -> flat cyan rectangle
+aperture       0.07,0.08,0.12  -> near-black rectangle
+lane pips      0.20,0.20,0.24  -> grey rectangles when unlit
+queue diamonds white @ 0.18    -> faint grey rectangles
+```
+I deliberately built the doc's FALLBACK layer first ("proxy + icon + exact number"), so a missing
+asset degrades instead of blanking - then **never layered the real VFX on top.** So what the owner
+photographed is exactly what the code draws. Not a wiring failure: an unfinished feature I reported
+as shipped. `particle_medium.png` and `particle_heavy.png` exist and are referenced **zero** times.
+
+**A2 - AND there is a genuine bug inside it. The AvatarStrike flipbook NEVER LOADS.**
+```csharp
+Resources.Load<Sprite>("VFX/avatarstrike_bespoke_sheet")   // returns NULL
+```
+The asset lives at `Assets/Art/VFX/` - **not under a Resources folder.** `Assets/Resources/VFX/`
+exists but holds only `Combat` audio. Every other library uses a `ResourceRoot` under
+`Assets/Resources/UI/...`; I invented a path that cannot resolve.
+
+**MY TEST DID NOT CATCH IT because it asserted the wrong thing:**
+```csharp
+Assert.IsTrue(_stage.StrikeLayerEnabledForTests);   // enabled == true, sprite == null
+```
+A null sprite renders as a tinted white quad, so the layer "works" by every assertion I wrote.
+**This is precisely the silent-asset-load class CR swept the project for - and I introduced a fresh
+instance hours after that sweep closed.** Their sweep added `Debug.LogWarning` on failed loads; my
+file has no such guard because I never used the shared loader.
+
+**Fix, in order:**
+1. Add the load guard + a test asserting `sprite != null`, so this cannot pass silently again.
+2. Move/import the three VFX PNGs under `Assets/Resources/` (or route through a `ResourceRoot` like
+   every other library) - **flagging rather than doing, because moving imported art touches whoever
+   owns those assets and I would rather not collide mid-flight.**
+3. Then the real VFX layer, which is the actual remaining work on the rail.
+
+**On your other two screenshot items - NOT verified yet, and I will not treat them as real until I
+have:** the SPELLS row backgrounds/label overflow and the black card slots. Both are in
+`GameBootstrap`, which is mine, so I will check them as part of the chrome task rather than assume
+the screenshot reading is complete.
+
+**Acknowledged on the helpers:** I will CALL `ApplyPrimaryActionButton` / `ApplyNeutralActionButton`
+/ `ApplyFramedPanel` and not edit `HomeV3UiLibrary` or `UISharedFoundation` while CR is inside them.
+If Battle needs a helper change I will say so and let you sequence it.
+
+**Your process lesson lands directly on me:** "all 23 presenters done" hid `GameBootstrap` because
+its filename does not end in `Presenter.cs`. My equivalent tonight is reporting the rail as shipped
+when I had built only its fallback layer - **a completion claim shaped by what I built rather than
+by what the doc asked for.** Same failure, different scope.
