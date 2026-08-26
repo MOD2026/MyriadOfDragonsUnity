@@ -289,6 +289,83 @@ namespace MyriadOfDragons.Tests
                 "A rolled-back day must not add to the streak.");
         }
 
+        [Test]
+        public void TheCycleStartDate_IsRecorded_AndOnlyMovesWhenACycleActuallyRESTARTS()
+        {
+            // cycleStartDayKeyUtc is PERSISTED state that no test asserted until now - it could
+            // have been stale, empty, or advancing every day and the whole suite would still pass.
+            // It is the field a "day 3 of 7" UI would read, so a wrong value is player-visible.
+            var progress = Fresh();
+            DateTime day = WeekStartMonday;
+
+            ClearWholeCircuit(progress, day);
+            string firstStart = progress.cycleStartDayKeyUtc;
+            Assert.AreEqual(SoloCollectionCircuit.UtcDayKey(day), firstStart,
+                "The first completed Circuit opens the cycle on that day.");
+
+            // Continuing the streak must NOT move the start date.
+            day = day.AddDays(1);
+            ClearWholeCircuit(progress, day);
+            Assert.AreEqual(firstStart, progress.cycleStartDayKeyUtc,
+                "A continued cycle keeps its original start date.");
+            Assert.AreEqual(2, progress.circuitDaysInCycle);
+
+            // Breaking the streak must move it.
+            day = day.AddDays(2);   // skip a day
+            ClearWholeCircuit(progress, day);
+            Assert.AreEqual(SoloCollectionCircuit.UtcDayKey(day), progress.cycleStartDayKeyUtc,
+                "A broken streak starts a new cycle on the day it restarts.");
+        }
+
+        [Test]
+        public void TheLastCircuitDay_TracksTheMostRecentCompletion_NotTheMostRecentVISIT()
+        {
+            // Also previously unasserted. It is what the streak check compares against, so if it
+            // advanced on a partial day the next day would look non-consecutive and reset the cycle.
+            var progress = Fresh();
+            DateTime day = WeekStartMonday;
+            ClearWholeCircuit(progress, day);
+            Assert.AreEqual(SoloCollectionCircuit.UtcDayKey(day), progress.lastCircuitDayKeyUtc);
+
+            // A day where only SOME trials are cleared must not advance it.
+            DateTime partial = day.AddDays(1);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, partial);
+            Assert.AreEqual(SoloCollectionCircuit.UtcDayKey(day), progress.lastCircuitDayKeyUtc,
+                "A partial day is not a completed Circuit and must not move the marker.");
+        }
+
+        [Test]
+        public void AFullCycle_SurvivesAYearBoundary()
+        {
+            // The month boundary is covered by IsNextCalendarDay's unit test, but no test ever ran
+            // a WHOLE cycle across one - and the year rollover is the harder case, since the day
+            // key's leading characters change too ("2026-12-31" -> "2027-01-01"). String-adjacency
+            // logic breaks exactly here.
+            var progress = Fresh();
+            DateTime day = new DateTime(2026, 12, 28, 12, 0, 0, DateTimeKind.Utc);
+            bool paid = false;
+
+            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForCycleBonus; i++)
+            {
+                paid |= ClearWholeCircuit(progress, day).CycleBonusPaid;
+                day = day.AddDays(1);
+            }
+
+            Assert.IsTrue(paid, "A 7-day cycle spanning 2026-12-31 into 2027 must still pay out.");
+            Assert.AreEqual(SoloCollectionCircuit.CircuitsRequiredForCycleBonus,
+                progress.circuitDaysInCycle,
+                "Every day across the boundary must have counted.");
+        }
+
+        /// <summary>Clears all three trials for one day and returns the final result, so the
+        /// multi-day tests read as days rather than as nine RecordClear calls.</summary>
+        private static SoloCircuitClearResult ClearWholeCircuit(SoloCircuitProgress progress, DateTime day)
+        {
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
+            return SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, day);
+        }
+
         // --- Deterministic daily selection ---
 
         [Test]

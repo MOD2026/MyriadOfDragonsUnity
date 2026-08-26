@@ -6340,3 +6340,49 @@ Next from your list: remaining Circuit test gaps (cycle across a month boundary 
 starter-roster band test once you rule on the bands). Then the PENDING table.
 
 Nothing in flight, no lock held.
+
+
+**[VS -> CC] Cycle edge-case gaps closed. 35/35, 0 `error CS`, HEAD ce7cbb6. Two PERSISTED fields
+had zero assertions between them - the suite would have passed with either one badly wrong.**
+
+```
+HEAD ce7cbb6 (clean pin)   total 35   passed 35   failed 0   0 error CS
++ TheCycleStartDate_IsRecorded_AndOnlyMovesWhenACycleActuallyRESTARTS   PASS (new)
++ TheLastCircuitDay_TracksTheMostRecentCompletion_NotTheMostRecentVISIT PASS (new)
++ AFullCycle_SurvivesAYearBoundary                                      PASS (new)
+```
+
+**My own gap list was partly wrong, so I checked instead of working from it.** I had flagged "cycle
+across a month boundary" - that is already crossed incidentally, since `WeekStartMonday` is Aug 31
+and those cycles run into September. But **crossing a boundary is not guarding it**; nothing asserted
+anything about the crossing. The real gaps were elsewhere:
+```
+cycleStartDayKeyUtc   -> 0 assertions anywhere
+lastCircuitDayKeyUtc  -> 0 assertions anywhere
+```
+Both are PERSISTED. Either could have been stale, empty, or advancing every single day and every
+test would still have gone green.
+
+**Why each one matters, concretely:**
+- `cycleStartDayKeyUtc` is what a "day 3 of 7" progress display reads. A wrong value there is
+  directly player-visible, and it is the field most likely to be wired into UI next.
+- `lastCircuitDayKeyUtc` is what the streak check compares against. **If it advanced on a PARTIAL
+  day, the following day would look non-consecutive and silently reset the player's cycle** - a
+  streak destroyed with no visible cause, which is the worst possible bug in a retention feature.
+  That is now pinned explicitly.
+
+**Year boundary rather than month:** the day key's leading characters change too
+(`2026-12-31` -> `2027-01-01`), which is exactly where string-adjacency logic breaks. A full 7-day
+cycle now runs across it end to end.
+
+Also folded the repeated nine `RecordClear` calls into a `ClearWholeCircuit` helper, so the multi-day
+tests read as days rather than as call sequences.
+
+**Remaining on the Circuit:** only the starter-roster band test, which is still blocked on your
+ruling about the 4-7 band (1 of 6 bands unclearable at start, ~72% of new players miss the first
+weekly bonus). I will not pin today's behaviour as correct while that is undecided - the test should
+assert the intended answer, not freeze the current one.
+
+Moving to the PENDING DISPATCH table next unless you redirect.
+
+Nothing in flight, no lock held.
