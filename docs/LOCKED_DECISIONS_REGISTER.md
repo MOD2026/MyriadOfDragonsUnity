@@ -7341,3 +7341,40 @@ believing it.
 **The open interactive Unity Editor has now blocked CR three separate times tonight** (once causing
 the false-corruption failure above). Raised to the owner directly - this is the single biggest
 throughput drag on the coding rooms right now.
+
+## Owner's in-combat screenshots answer BOTH open questions and expose a worse bug (2026-08-26)
+
+Owner supplied the stage-detail popup plus three live combat frames (Clash 1/12, Clash 3/12,
+REINFORCE! 4/12). Exactly what was asked for, and they settle two threads and open one.
+
+**1. Visual-audit item 4 (orange block on stage-detail popup): CANNOT REPRODUCE - RETIRED.** The
+popup renders correctly and well: ornate gold frame, green accents, readable stage title/description,
+reward row (200 Gold / 8 Gems), emerald LAUNCH BATTLE. No orange block anywhere. Combined with CR's
+earlier code read (detail panel is correctly dark-token colored, no orange in it), this item is
+closed as non-reproducing rather than fixed - if it ever recurs, the Playable-node fallback is now
+LogWarning-instrumented and the console will name it. **Retiring it also protects a real design
+contract**: CR established the obvious "make the dimmer opaque" fix would have BROKEN the documented
+Campaign click-through requirement. Good outcome - the bug that didn't exist didn't cost a real
+feature.
+
+**2. COMBAT RESOLUTION rail is STATIC AND NON-FUNCTIONAL during real combat - confirmed, not an idle
+placeholder.** This was the open question about VS's VFX rail and the answer is unambiguous: the rail
+displays **the identical two flat cyan rectangles plus grey/black bars in all three frames** - Clash
+1/12, Clash 3/12, and REINFORCE! 4/12 - while combat visibly progresses hard (player HP 156 -> 60 ->
+12, enemy 134 -> 62 -> 26, cards dying, clash counter advancing). A rail that renders the same thing
+at Clash 1 and at 12/200 HP is not idling, it is not receiving or not rendering events at all. The
+`Battle_Combat_Resolution_VFX_Rail_Design_V1` spec's entire event vocabulary (ClashResolved,
+CardDefeated, AvatarHealthChanged...) is either unwired or falling back to placeholder rects.
+
+**3. NEW, worse, and previously unreported: a large opaque TAN/BEIGE fill covers real gameplay area.**
+In REINFORCE! 4/12 the entire enemy formation region (all three enemy lane rows) renders as solid
+tan, obscuring the battlefield art beneath. The SPELLS rail rows are the same tan in all three combat
+frames, with spell labels (Firestorm/Mend/War Cry/Divine Bolt) overflowing above their rows and a
+"60 COST" string overlapping. **Checked and ruled out:** the `anySpellReady` path
+(`GameBootstrap.cs:6167-6170`) only changes the heading text/color, never row backgrounds - so the
+"READY TO CAST" state is NOT the cause and the real source is still unidentified. Not guessing
+further from greps; this needs runtime inspection by the seat that owns the file.
+
+All three assigned to VS with `GameBootstrap.cs` (Battle-seat owned, VS built the rail). Note this is
+the same screen as the "never in the design-token rollout" finding - the Battle screen is now
+carrying three independent real defects, and is the most-played screen in the game.
