@@ -97,10 +97,25 @@ namespace MyriadOfDragons.UI
             CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = referenceResolution;
+            scaler.matchWidthOrHeight = MatchWidthOrHeight;
 
             EnsureEventSystem();
             return canvas;
         }
+
+        /// <summary>Locked project-wide (CC 6939cfc, 2026-08-27): match=1 (height). Landscape-
+        /// only game (CLAUDE.md: "LANDSCAPE 1920x1080, never portrait") - real landscape phones
+        /// run wider than 16:9 (19.5:9 to 21:9 is common), and match=1 guarantees the full 1080
+        /// reference height is always visible, trading extra horizontal space on wide devices
+        /// instead of vertical clipping/overlap. Was 0 (match width, Unity's own default) before
+        /// this - a real, measured upstream cause of overlap bugs fixed one screen at a time
+        /// tonight (a 1920x1440 canvas.rect was measured under match=0 with a 4:3 render surface
+        /// against the 16:9 reference; feed-card content built from literal 1920x1080 pixel math
+        /// was wrong relative to that ACTUAL rendered size). Known, accepted, tracked-separately
+        /// risk: on a device NARROWER than 16:9 (e.g. a 16:10 tablet), match=1 crops width instead
+        /// - phones are the primary target and sit wider, so this is correct for them; tablets
+        /// get their own pass if they enter scope.</summary>
+        public const float MatchWidthOrHeight = 1f;
 
         public static Image CreateFullscreenBackground(Transform parent, string spritePath, Color fallback)
         {
@@ -739,8 +754,7 @@ namespace MyriadOfDragons.UI
             GradientDirection direction, float opacity = 0.62f, Color? tint = null)
         {
             GameObject go = new GameObject("GradientScrim", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            go.transform.SetSiblingIndex(0);
+            go.transform.SetParent(GetOrCreateScrimContainer(parent), false);
 
             Image img = go.GetComponent<Image>();
             img.sprite = CreateOrGetGradientSprite(tint ?? Color.black, opacity, direction);
@@ -748,8 +762,21 @@ namespace MyriadOfDragons.UI
             img.raycastTarget = false;
 
             RectTransform rect = go.GetComponent<RectTransform>();
+            // Explicit POINT anchor (both axes collapsed to one point) - not relying on Unity's
+            // implicit default. This makes sizeDelta UNAMBIGUOUSLY ABSOLUTE regardless of what the
+            // parent/container does: when anchorMin==anchorMax on an axis, the stretch contribution
+            // to that axis is exactly zero by definition, so rect size = sizeDelta, full stop.
+            // Defect found by external audit (CC, 82b5e90): the previous version left anchors
+            // unset and depended on Unity's default, which on a stretch-anchored parent makes
+            // sizeDelta ADDITIVE - the identical bug class that made HomeFeed's cards 786px too
+            // tall (content.sizeDelta.y on a stretched axis), caught before any of the 15 screens
+            // needing scrims used this.
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(0f, 0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = size;
             rect.anchoredPosition = anchoredPosition;
+            AssertSizeDeltaSafe(rect, "AddLocalGradientScrim");
             return img;
         }
 
@@ -761,8 +788,7 @@ namespace MyriadOfDragons.UI
             UIDesignTokens.FrameTier tier, Color? tint = null)
         {
             GameObject go = new GameObject("ScrimPanel", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            go.transform.SetSiblingIndex(0);
+            go.transform.SetParent(GetOrCreateScrimContainer(parent), false);
 
             Image img = go.GetComponent<Image>();
             Color baseColor = tint ?? new Color(0.03f, 0.035f, 0.05f);
@@ -770,9 +796,67 @@ namespace MyriadOfDragons.UI
             img.raycastTarget = false;
 
             RectTransform rect = go.GetComponent<RectTransform>();
+            // See AddLocalGradientScrim's identical comment - explicit point anchor, absolute
+            // sizeDelta, no dependency on Unity's implicit default.
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(0f, 0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = size;
             rect.anchoredPosition = anchoredPosition;
+            AssertSizeDeltaSafe(rect, "AddSemiTransparentScrimPanel");
             return img;
+        }
+
+        private const string ScrimContainerName = "ScrimLayer";
+
+        /// <summary>Finds or creates a dedicated first-child container to hold scrims, rather than
+        /// reordering <paramref name="parent"/>'s own existing children on every call (defect
+        /// found by external audit, CC 82b5e90: repeatedly calling SetSiblingIndex(0) on the
+        /// parent directly can leave a LATER scrim behind an EARLIER one, or behind unrelated
+        /// content the caller never intended to affect, depending on what else lives in that
+        /// parent). The container is inserted as sibling 0 exactly once; every scrim added after
+        /// that lives inside it, always behind everything else <paramref name="parent"/> contains.</summary>
+        private static Transform GetOrCreateScrimContainer(Transform parent)
+        {
+            Transform existing = parent.Find(ScrimContainerName);
+            if (existing != null) return existing;
+
+            GameObject go = new GameObject(ScrimContainerName, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            go.transform.SetSiblingIndex(0);
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.zero;
+            return go.transform;
+        }
+
+        /// <summary>General guard (register/CC 82b5e90 - "please add it as a general guard, not
+        /// just for scrims"): catches the exact bug shape that made HomeFeed's feed cards 786px
+        /// too tall - a non-zero sizeDelta component on an axis where the rect's OWN anchorMin/
+        /// anchorMax differ (a stretched axis), which makes that sizeDelta component an ADDITIVE
+        /// delta on top of the stretched size rather than an absolute size. Call this after
+        /// setting sizeDelta on any rect built from literal pixel math, rather than through the
+        /// SetLocalNormalisedRect/SetScreenRectFromTopLeftPixels/StretchFull conventions that
+        /// already handle this correctly.</summary>
+        public static void AssertSizeDeltaSafe(RectTransform rect, string context)
+        {
+            if (rect == null) return;
+            bool xStretched = !Mathf.Approximately(rect.anchorMin.x, rect.anchorMax.x);
+            bool yStretched = !Mathf.Approximately(rect.anchorMin.y, rect.anchorMax.y);
+            bool xUnsafe = xStretched && !Mathf.Approximately(rect.sizeDelta.x, 0f);
+            bool yUnsafe = yStretched && !Mathf.Approximately(rect.sizeDelta.y, 0f);
+            if (xUnsafe || yUnsafe)
+            {
+                Debug.LogWarning($"[UISharedFoundation] AssertSizeDeltaSafe: '{context}' sets a non-zero " +
+                    $"sizeDelta ({rect.sizeDelta}) on a STRETCH-anchored axis (anchorMin={rect.anchorMin}, " +
+                    $"anchorMax={rect.anchorMax}) - sizeDelta is an ADDITIVE delta on a stretched axis, " +
+                    $"not an absolute size (the exact bug that made HomeFeed's cards 786px too tall). " +
+                    $"This is very likely wrong - either zero the stretched axis's sizeDelta component " +
+                    $"or stop stretching that axis.");
+            }
         }
 
         /// <summary>Shadow tokens (register: default black 70% opacity, 2px down/right offset;
