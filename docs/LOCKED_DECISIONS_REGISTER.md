@@ -5514,3 +5514,28 @@ the monotonicity break is a real internal-consistency finding, but no WebSearch 
 run against comparable shipped VIP/subscription-adjacent voucher systems, which the standing gate
 requires before anything gets presented as ready to lock. Should not have been resurfaced as a bare
 yes/no. Routing to BS properly instead - paste-ready ask given to owner.
+
+## LOCKED: 2,000-point Loyalty milestone = 30-day VIP voucher - voucher ladder fully unblocked (2026-08-26, BS, verified)
+
+**Internal-consistency check:** days-per-10,000-Gems math verified independently - 1,000pt=14,
+2,000pt=15, 4,000pt=7.5, 8,000pt=3.75, all correct. 2,000pt genuinely gives near-proportional value
+to 1,000pt's rate (double spend, just over double duration) before the curve deliberately plateaus -
+not hand-waved, the actual arithmetic supports "reasonable step."
+
+**WebSearch benchmark run:** Genshin's Blessing of the Welkin Moon confirmed real as a fixed 30-day
+product ($4.99, 90 Primogems/day for 30 days) - repeat purchases stack up to 180 days total, but the
+base entitlement unit is genuinely fixed at 30, not a duration that scales per-purchase-tier.
+Matches BS's point: shipped games use 30 days as a natural ceiling unit rather than an unbounded
+linear duration curve. Citation real, not fabricated.
+
+**Decision locked:** 2,000-point milestone's VIP voucher = 30 days (was held). Full ladder now reads
+250=7-day, 1,000=14-day, 2,000=30-day, 4,000=30-day, 8,000=30-day - monotone ascending, no more
+non-decreasing-value gap. Same constraints as every other voucher tonight: one-time claimable,
+cannot stack with an active subscription, cannot bank past its duration, grants no cards/combat
+stats/construction or timer skips, Stamina claims still subject to the shared cap.
+
+**Real consequence, unblocked:** the entire Gold whale tier (250pts and up) was inert because
+strictly-ascending claims meant the held 250pt rung blocked everything behind it - both the 250pt
+and 2,000pt durations are now real, so the whole ladder is claimable end to end. Dispatching to VS
+(built the claim-guard/refusal logic, has the context) to wire both durations and remove the
+held-pending-duration-lock gate.
