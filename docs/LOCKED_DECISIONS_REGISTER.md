@@ -5549,3 +5549,30 @@ contended) - same "isolation run first" pattern this project already leans on. A
 combined six-month economy simulation behind it (unblocked earlier this session, nothing else
 ahead of it) so WH has a second real task lined up rather than going idle again once the first
 lands.
+
+## Solo Circuit: real completion-integrity bug caught and fixed, Formation deployment-tracking coupling APPROVED (2026-08-26, VS, commit 16aeca6)
+
+**Real bug closed, verified via `git show --stat`:** `AttemptTrial` called `RecordClear` directly -
+tapping a trial screen paid 250 Gold + 10 Avatar XP with no actual completion check. Collection now
+verifies real ownership, Tactical Brief requires an observed solve of the day's actual puzzle,
+Formation correctly refuses outright until a real battle-result signal exists rather than faking one.
+
+**VS self-answered its own design question with a real fact-check rather than asking me to guess -
+verified correct:** `MatchResult` (frozen struct, `BattleController.cs:41`) genuinely carries no
+lane/deployment data - confirmed directly, `IsVictory`/`TicksTaken`/health fields only. So the
+formation restriction cannot be judged from the frozen match result and must be observed live via
+`PlayerBattleState.Lanes` (real, public) instead - correctly ruled out the expensive/wrong option
+before proposing anything.
+
+**Real catch worth crediting - snapshot-vs-cumulative distinction:** restrictions like "at most 3
+units, ever" or "no more than 1 per lane" are invisible on a final-board snapshot if a unit died or
+was recalled mid-battle - judging from end-state would silently PASS a real rule violation.
+`SoloCircuitFormationRule` now takes a deployment LOG, not a snapshot. Also correctly defaults an
+unrecognized restriction string to FAILURE, not a free pass - a typo in the rule pool becoming a
+silent free daily clear for everyone would have been a real, quiet economy leak.
+
+**Coupling decision - APPROVED, decided directly (VS's own file, frozen members untouched, low
+risk, VS surfaced it for visibility rather than treating silence as permission):** hook
+`TryDeployReinforcement` (the real single choke point) to record deployments and hand the log to
+the Circuit at match end. This couples Battle to the Circuit's completion check, which is exactly
+why VS flagged it instead of just doing it - correct instinct, approved to proceed.
