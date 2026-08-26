@@ -4990,3 +4990,21 @@ portraits, not re-requesting this one. No canon anchors violated. Accepted - rea
 (import into `Assets/Resources/UI/Portraits/`, wire `gorn`'s `StorySpeaker` portrait path) is a
 coding-room task, not yet dispatched (UI restyle is the current top priority per the owner's
 escalation above; this queues behind it).
+
+## Memory Expedition deliverable audit: UI+art REAL and shipped, storyline NEVER DISPATCHED (2026-08-26)
+
+Owner asked CC to verify whether Memory Expedition's full deliverable set exists, having seen no
+UI/art/story evidence. Checked directly, not taken on faith either direction:
+- **UI real and shipped:** `MemoryExpeditionPresenter.cs` (295 lines) - HUD, round tracker, tile
+  grid, claim bar, all wired to `MemoryExpeditionService`/`MemoryExpedition`. Player-reachable via a
+  real "MEMORY" button on Home (`HomePagePresenter.cs:859`), not a design doc with no UI (the exact
+  "design answered != shipped" failure mode this session already guards against, checked and clean
+  here).
+- **Art real and imported:** `Assets/Resources/UI/MemoryExpeditionV1/` has 3 real approved assets
+  (result modal, route-choice shell, route-emblems atlas).
+- **Storyline: genuinely never dispatched.** Every UI string is purely mechanical - "MEMORY
+  EXPEDITION", "CLAIM REWARDS", round/status counters. Nothing ties it to the "Tree of Knowledge"
+  framing the minigame was named for - no route names, no flavor text, no narrative reason for the
+  player to engage. This half of the deliverable set was real work skipped, not a false alarm.
+
+Paste-ready ST ask given to owner below to close the real gap.
