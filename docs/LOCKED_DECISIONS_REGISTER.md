@@ -7657,3 +7657,34 @@ earlier tonight.
 real progress on the exact three items reported broken (tan rows, spell overflow, VFX asset load),
 but per tonight's own hard-earned discipline: not calling this "fixed" until it's confirmed, either
 by test numbers or by the owner's own eyes.
+
+## VS's VFX fix didn't work, and the real cause is a THIRD instance of tonight's core lesson (2026-08-26)
+
+**The "wrong folder" diagnosis was real but incomplete.** VS moved the three VFX sprites under
+`Assets/Resources/` as planned - the test still failed. Rather than assume a cache issue (the
+disciplined move after tonight's other false leads), VS checked the importer directly:
+```
+avatarstrike_bespoke_sheet   textureType=0  spriteMode=0   <- imported as a plain TEXTURE
+particle_heavy                textureType=0  spriteMode=0
+particle_medium                textureType=0  spriteMode=0
+Empty_Slot (works)            textureType=8  spriteMode=1   <- imported as a SPRITE
+```
+`Resources.Load<Sprite>` returns null for anything imported as a plain Texture, regardless of folder.
+**Third instance tonight of the exact same lesson** (meshType retraction, then the truncated metas,
+now this): a `.meta`'s stored setting tells you intent; only the loaded asset tells you what Unity
+actually built. VS named the pattern itself rather than just fixing the instance.
+
+**VS correctly refused to hand-edit the importer YAML without asking** - applying the same standard
+to its own files that it insisted on for CR's SharedFoundation set. **Authorizing the edit**: this is
+a two-value change (`textureType: 8`, `spriteMode: 1`) matching a known-good reference
+(`Empty_Slot`'s real values) on assets nothing else in the codebase references - the same class of
+safe, mechanical `.meta` edit already done successfully tonight on the SharedFoundation truncation
+fix. No design judgment involved, no risk to anything else. Go ahead.
+
+**Real, separate finding surfaced by the fix actually working:** `DailyLoginQuests_NeverDrawsArtOnTopOfAnInteractiveControl`
+newly fails - `DiamondOverlay` (from `UISharedFoundation`, now rendering since sprites load) lands on
+top of `LoginWell_0`, an interactive button. Real, but the file is another seat's uncommitted WIP
+(`DailyLoginQuestsPresenter.cs`/`DailyLoginQuestsUiLibrary.cs` both show modified, not VS's). Not
+touching it - queuing as a known follow-up, not urgent tonight. **Same pattern as the DiamondOverlay
+bug is worth checking for anywhere else art has never actually rendered before** - VS's own warning,
+correct to take seriously rather than treat as a one-off.
