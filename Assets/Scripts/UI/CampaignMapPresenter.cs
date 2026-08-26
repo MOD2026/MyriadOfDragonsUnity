@@ -2316,30 +2316,32 @@ namespace MyriadOfDragons.UI
             List<CampaignStageData> visibleStages = GetMvpWindowStages(displayChapter, SaveSystem.CurrentProfile);
 
             CreateHeaderStackText(topBar.transform, "TitleText", GetChapterTitle(displayChapter),
-                0.62f, 0.98f, 28, FontStyle.Bold);
+                topInsetPx: 2f, plateHeightPx: 36f, fontSize: 28, fontStyle: FontStyle.Bold);
             CreateHeaderStackText(topBar.transform, "ProgressHint",
                 BuildMvpProgressHint(displayChapter, SaveSystem.CurrentProfile, visibleStages),
-                0.34f, 0.60f, 18, FontStyle.Normal);
+                topInsetPx: 40f, plateHeightPx: 28f, fontSize: 18, fontStyle: FontStyle.Normal);
 
             // Campaign launch feedback contract, requirement 1: a persistent status surface
             // (Stamina: current/max + the per-attempt entry cost), reused for requirement 2's
             // blocked-launch messages so there is exactly one status surface on this screen, not
             // a new one per concern. Bottom band of the header bar only.
-            // Plate host keeps the scrim local to this status band (header is 100px tall @ 1920).
+            // Absolute plate (not stretch) so scrim sizeDelta matches the real rect the validator
+            // samples - stretch+assumed-px left StatusText/ProgressHint under 2:1 after pass 1.
+            const float statusPlateW = 1229f;
+            const float statusPlateH = 28f;
             GameObject statusPlate = new GameObject("StatusTextPlate", typeof(RectTransform));
             statusPlate.transform.SetParent(topBar.transform, false);
             RectTransform statusPlateRect = statusPlate.GetComponent<RectTransform>();
-            statusPlateRect.anchorMin = new Vector2(0.18f, 0.04f);
-            statusPlateRect.anchorMax = new Vector2(0.82f, 0.30f);
-            statusPlateRect.offsetMin = Vector2.zero;
-            statusPlateRect.offsetMax = Vector2.zero;
-            const float statusPlateW = 0.64f * 1920f;
-            const float statusPlateH = 0.26f * 100f;
+            statusPlateRect.anchorMin = new Vector2(0.5f, 1f);
+            statusPlateRect.anchorMax = new Vector2(0.5f, 1f);
+            statusPlateRect.pivot = new Vector2(0.5f, 1f);
+            statusPlateRect.sizeDelta = new Vector2(statusPlateW, statusPlateH);
+            statusPlateRect.anchoredPosition = new Vector2(0f, -70f);
             UISharedFoundation.AddSemiTransparentScrimPanel(
                 statusPlate.transform,
                 new Vector2(statusPlateW * 0.5f, statusPlateH * 0.5f),
                 new Vector2(statusPlateW, statusPlateH),
-                UIDesignTokens.FrameTier.Tier2Section);
+                UIDesignTokens.FrameTier.Tier1Hero);
 
             GameObject statusObj = new GameObject("StatusText");
             statusObj.transform.SetParent(statusPlate.transform, false);
@@ -2663,23 +2665,23 @@ namespace MyriadOfDragons.UI
         }
 
         private static void CreateHeaderStackText(Transform parent, string objectName, string content,
-            float anchorMinY, float anchorMaxY, int fontSize, FontStyle fontStyle)
+            float topInsetPx, float plateHeightPx, int fontSize, FontStyle fontStyle)
         {
-            // Local plate so scrim stays behind this label band only (header = 100px @ 1920 wide).
+            // Absolute plate under the header top edge so scrim sizeDelta == real sampled rect.
+            const float plateW = 1229f;
             GameObject plate = new GameObject(objectName + "Plate", typeof(RectTransform));
             plate.transform.SetParent(parent, false);
             RectTransform plateRect = plate.GetComponent<RectTransform>();
-            plateRect.anchorMin = new Vector2(0.18f, anchorMinY);
-            plateRect.anchorMax = new Vector2(0.82f, anchorMaxY);
-            plateRect.offsetMin = Vector2.zero;
-            plateRect.offsetMax = Vector2.zero;
-            float plateW = 0.64f * 1920f;
-            float plateH = Mathf.Max(8f, (anchorMaxY - anchorMinY) * 100f);
+            plateRect.anchorMin = new Vector2(0.5f, 1f);
+            plateRect.anchorMax = new Vector2(0.5f, 1f);
+            plateRect.pivot = new Vector2(0.5f, 1f);
+            plateRect.sizeDelta = new Vector2(plateW, plateHeightPx);
+            plateRect.anchoredPosition = new Vector2(0f, -topInsetPx);
             UISharedFoundation.AddSemiTransparentScrimPanel(
                 plate.transform,
-                new Vector2(plateW * 0.5f, plateH * 0.5f),
-                new Vector2(plateW, plateH),
-                UIDesignTokens.FrameTier.Tier2Section);
+                new Vector2(plateW * 0.5f, plateHeightPx * 0.5f),
+                new Vector2(plateW, plateHeightPx),
+                UIDesignTokens.FrameTier.Tier1Hero);
 
             GameObject textObj = new GameObject(objectName);
             textObj.transform.SetParent(plate.transform, false);
