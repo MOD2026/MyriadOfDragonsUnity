@@ -1698,6 +1698,42 @@ effects (a currency or item grant), which is exactly where idempotency-by-luck b
 3. **`ExecutePlayerTrade` remains the one BLOCKER-class defect** in this area - AD agrees. Dormant
    only because nothing calls it.
 
+## OPEN DESIGN HOLE 2026-08-27: HUD canvas at match=1 crops off-screen on tablets
+
+**The canvas overflow audit is live and RED - 28 findings across 26 scalers. It is not a false alarm
+and not a regression. It found a hole in the two-canvas plan CC approved.**
+
+**The arithmetic (encoded in the test, CC-verified):** a 1920x1080 reference at **match=1** on a
+2560x1600 tablet scales by 1.481 and renders **2844px wide into a 2560px screen - 284px of
+horizontal overflow.**
+
+**Why this matters more than the earlier "accepted residual risk" note:** match=1 is what the **HUD
+canvas** uses, and the HUD is **edge-anchored chrome**. A control anchored to the canvas's right edge
+sits at 2844px - **284px past the physical screen**. On a 16:10 tablet the right end of the top bar
+and the bottom dock render **off-screen**, including the top-right region the owner has separately
+asked to be reworked.
+
+**The two-canvas split does NOT solve this.** It protects CONTENT (match=0.5 + clipping). It does
+nothing for the HUD, because match=1 is precisely what causes the horizontal overflow.
+
+**CC's error, stated plainly:** the tablet crop was accepted as residual risk while tablets were out
+of scope. The owner then confirmed **tablets ARE in scope**, and CC moved to two canvases without
+revisiting that acceptance. The audit caught what CC did not.
+
+**DO NOT attempt to fix this by changing match values.** Every single value fails somewhere - that is
+what forced two canvases in the first place. Likely answer: **HUD elements anchor to `Screen.safeArea`
+rather than to the canvas edge**, so they stay inside the visible region however far the canvas
+extends past it. **Not yet verified with real arithmetic - do not build against it.**
+
+**Test stays RED**, same principle as the SpellBookGrant reachability test: pinned to a real
+unresolved problem, and a red test naming a genuine gap beats a green suite hiding it.
+
+**Awaiting from CR before anything is built:** (1) confirm an edge-anchored HUD element really does
+render off-screen at those numbers; (2) how many of the 28 findings are HUD-class vs content-class -
+one hole or several; (3) **Home already has the split and BOTH its canvases appear in the findings -
+is the split incomplete, or does the split itself still overflow?** If the reference implementation
+does not pass, the pattern is wrong and **the other 23 screens must not be built against it.**
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
