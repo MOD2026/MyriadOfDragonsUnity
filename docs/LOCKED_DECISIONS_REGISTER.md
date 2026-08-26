@@ -445,6 +445,27 @@ assets, unusable hit targets, actionable-vs-actionable overlap, clipped primary 
 navigation, text actually clipped or colliding with a protected control). Warn/review = total
 tappable count, ornament count, spacing, hierarchy, notification density.
 
+## Competitor home-screen counts - REAL DATA 2026-08-27 (WH, from captured screens)
+
+BS could not confirm these; WH pulled them from real gameuidatabase captures. Saved to
+`docs/competitor_ui_refs/home/` + `COUNTS.md`. **This is the benchmark the owner asked for.**
+
+| Game | Persistent nav | Actionable excl. dock | Hard frames | Primary CTA |
+|---|---:|---:|---|---|
+| Marvel Snap (1785) | 5 | **10-14** | 7-12 heavy | PLAY, bottom-centre, heavier cradle |
+| Clash Royale (1299) | 5 | **16-18** | heavy 3D/beveled | Battle (yellow) |
+| Hearthstone (628) | 0 dock (~6 bottom-anchored) | **9-11** | nested wood/metal | Play, top of mode stack |
+
+**CONCLUSION: a cap of 8 is NOT what shipped games do.** Every comparator's default home exceeds it.
+Cap-8 was an app-design number borrowed into a game. **The raw-count cap is DROPPED as a design
+target entirely** - count stays diagnostic-only in the validator. The binding rule is the attention
+hierarchy already locked (one primary CTA, <=3 equal secondaries, rest tertiary, dock must not
+out-shout the CTA). Note all three comparators pair a HIGH control count with ONE unmistakable CTA -
+which is exactly why hierarchy is the right gate and count is not.
+
+Also note: all three use heavy framing liberally. Our ornamental-border reduction rule is about
+UNDIFFERENTIATED framing, not frame count - do not cite these numbers to justify stripping frames.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
