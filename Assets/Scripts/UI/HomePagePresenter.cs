@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using MyriadOfDragons.UI;
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Battle;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.Story;
 using MyriadOfDragons.Empire;
@@ -29,6 +30,15 @@ public class HomePagePresenter : MonoBehaviour
 
     // Current Active Stage Track
     private CampaignStageData currentActiveStage;
+
+    private RetentionTelemetryOutbox _telemetryOutbox;
+
+    /// <summary>Exposed for tests: inject a fake-gateway outbox so Home feature_entry / Campaign
+    /// win-loss emits are observable without Unity Cloud Code.</summary>
+    public RetentionTelemetryOutbox TelemetryOutboxForTests => _telemetryOutbox;
+
+    public void BindTelemetryOutboxForTests(RetentionTelemetryOutbox outbox) =>
+        _telemetryOutbox = outbox;
 
     void Start()
     {
@@ -79,6 +89,10 @@ public class HomePagePresenter : MonoBehaviour
     /// <summary>Exposed for tests: read-only access to the canvas BuildHomePageUIForTests()
     /// just built, so a test can inspect it without a broader production accessor.</summary>
     public GameObject HomeCanvasObjectForTests => homeCanvasObj;
+
+    /// <summary>Exposed for tests: drives the real HandleMatchCompleted reward/telemetry path
+    /// without a full BattleController resolution (same pattern as SetActiveStageForTests).</summary>
+    public void NotifyMatchCompletedForTests(MatchResult result) => HandleMatchCompleted(result);
 
     /// <summary>Exposed for tests: sets currentActiveStage exactly as OpenStoryCampaign's own
     /// onLaunchBattle callback does when a real Story stage tile is tapped - the only way an
@@ -258,12 +272,26 @@ public class HomePagePresenter : MonoBehaviour
             return;
         }
 
+        PlayerProfile profile = SaveManager.SaveData;
+
+        // Retention telemetry: Campaign win/loss (and first-clear reward claim) — emit before the
+        // defeat early-return so losses are visible; normal (non-campaign) matches skip.
+        if (currentActiveStage != null)
+        {
+            bool firstClear = result.IsVictory
+                && profile != null
+                && profile.claimedStageRewardIds != null
+                && !profile.claimedStageRewardIds.Contains(currentActiveStage.stageId);
+            EnsureTelemetryOutbox();
+            CampaignMapPresenter.EmitCampaignMatchTelemetry(
+                _telemetryOutbox, currentActiveStage.stageId, result.IsVictory, firstClear);
+        }
+
         // Stage defeat grants and unlocks nothing (Chapter 1 progression contract #3) - already
         // true by construction below (only the IsVictory branch ever mutates the profile), made
         // explicit here so a reader does not have to infer it from an absent else-branch.
         if (!result.IsVictory) return;
 
-        PlayerProfile profile = SaveManager.SaveData;
         if (profile == null) return;
 
         if (currentActiveStage == null)
@@ -613,8 +641,8 @@ public class HomePagePresenter : MonoBehaviour
             CreateHeroTile(label, heroTileSprite, iconFallbackSprite, left, tileTop, right, tileBottom, action, navStage.transform);
         }
 
-        Place(0, "Campaign", null, "home_icon_story_v3", OpenStoryCampaign);
-        Place(1, "Empire", null, null, OpenEmpire);
+        Place(0, "Campaign", "home_tile_campaign_hero_v3", "home_icon_story_v3", OpenStoryCampaign);
+        Place(1, "Empire", "home_tile_empire_hero_v3", null, OpenEmpire);
         Place(2, "Avatar", null, null, () => OpenAvatar(returnToEmpireOnBack: false));
         Place(3, "Cards", "home_tile_cards_hero_v3", "home_icon_cards_v3", OpenCollection);
         Place(4, "Shop", "home_tile_shop_hero_v3", "home_icon_shop_v3", OpenShop);
@@ -752,8 +780,29 @@ public class HomePagePresenter : MonoBehaviour
         else DestroyImmediate(obj);
     }
 
+    private void EnsureTelemetryOutbox()
+    {
+        if (_telemetryOutbox == null)
+            _telemetryOutbox = new RetentionTelemetryOutbox(new UnityCloudCodeRetentionTelemetryGateway());
+    }
+
+    /// <summary>Home dock feature_entry — real retention-telemetry emit (register: remaining
+    /// Metagame-owned call sites). Enqueue never blocks/throws.</summary>
+    private void EmitFeatureEntry(string mode)
+    {
+        if (string.IsNullOrEmpty(mode)) return;
+        EnsureTelemetryOutbox();
+        string playerId = RetentionTelemetryPlayerId.CurrentOrEmpty();
+        _telemetryOutbox.Enqueue(RetentionTelemetryEvents.FeatureEntry(playerId, mode));
+        _ = _telemetryOutbox.FlushAsync(System.Threading.CancellationToken.None);
+    }
+
+    /// <summary>Exposed for tests: same FeatureEntry emit Open* paths use.</summary>
+    public void EmitFeatureEntryForTests(string mode) => EmitFeatureEntry(mode);
+
     private void OpenEmpire()
     {
+        EmitFeatureEntry("empire");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
 
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
@@ -778,6 +827,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenAvatar(bool returnToEmpireOnBack = false)
     {
+        EmitFeatureEntry("avatar");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
@@ -881,6 +931,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenBazaar()
     {
+        EmitFeatureEntry("bazaar");
         OpenMetagameShellPresenter<BazaarPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -891,6 +942,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenChatSocial()
     {
+        EmitFeatureEntry("chat_social");
         OpenMetagameShellPresenter<ChatSocialPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -901,6 +953,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenMailInbox()
     {
+        EmitFeatureEntry("mail_inbox");
         OpenMetagameShellPresenter<MailInboxPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -911,6 +964,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenFriends()
     {
+        EmitFeatureEntry("friends");
         OpenMetagameShellPresenter<FriendsPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -921,6 +975,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenMemoryExpedition()
     {
+        EmitFeatureEntry("memory_expedition");
         OpenMetagameShellPresenter<MemoryExpeditionPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -931,6 +986,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenVipSubscription()
     {
+        EmitFeatureEntry("vip_subscription");
         OpenMetagameShellPresenter<VipSubscriptionPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -941,6 +997,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenPermitWeekKey()
     {
+        EmitFeatureEntry("permit_week_key");
         OpenMetagameShellPresenter<PermitWeekKeyPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -951,6 +1008,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenSpellLoadoutPicker()
     {
+        EmitFeatureEntry("spell_loadout");
         OpenMetagameShellPresenter<SpellLoadoutPickerPresenter>(pass => pass.Initialize(() =>
         {
             if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
@@ -977,6 +1035,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenSettings()
     {
+        EmitFeatureEntry("settings");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
@@ -1000,6 +1059,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenBattlePass()
     {
+        EmitFeatureEntry("battle_pass");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
@@ -1016,6 +1076,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenDailyLoginQuests()
     {
+        EmitFeatureEntry("daily_login");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
@@ -1032,6 +1093,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenStoryCampaign()
     {
+        EmitFeatureEntry("campaign");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
@@ -1184,6 +1246,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenDeckBuilder(string entryStatusMessage = null, bool returnToCollectionOnBack = false)
     {
+        EmitFeatureEntry("deck_builder");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
@@ -1219,6 +1282,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenCollection()
     {
+        EmitFeatureEntry("collection");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 
@@ -1245,6 +1309,7 @@ public class HomePagePresenter : MonoBehaviour
 
     private void OpenShop()
     {
+        EmitFeatureEntry("shop");
         if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         CampaignMapPresenter.CleanupStaleMetagameCanvases();
 

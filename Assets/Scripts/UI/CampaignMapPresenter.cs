@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using MyriadOfDragons.Economy;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.Story;
 
@@ -1883,6 +1884,25 @@ namespace MyriadOfDragons.UI
             this.onLaunchBattleAction = onLaunchBattle;
             RefreshStageUnlockStatus();
             BuildCampaignMapUI();
+        }
+
+        /// <summary>Real retention-telemetry emit for Campaign stage win/loss (register: remaining
+        /// Metagame-owned call sites). Lives here so Campaign owns the event shape; Home's
+        /// HandleMatchCompleted is the sole settlement trigger and calls this. Enqueue never
+        /// blocks/throws (RetentionTelemetryOutbox contract).</summary>
+        public static void EmitCampaignMatchTelemetry(RetentionTelemetryOutbox outbox, string stageId,
+            bool isVictory, bool firstClearRewardClaimed)
+        {
+            if (outbox == null || string.IsNullOrEmpty(stageId)) return;
+            string playerId = RetentionTelemetryPlayerId.CurrentOrEmpty();
+            outbox.Enqueue(RetentionTelemetryEvents.ModeRunCompleted(
+                playerId, "campaign", stageId, isVictory ? "success" : "failure"));
+            if (isVictory && firstClearRewardClaimed)
+            {
+                outbox.Enqueue(RetentionTelemetryEvents.ModeRewardClaimed(
+                    playerId, "campaign", stageId, "claimed"));
+            }
+            _ = outbox.FlushAsync(System.Threading.CancellationToken.None);
         }
 
         /// <summary>
