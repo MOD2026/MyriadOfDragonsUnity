@@ -1623,6 +1623,46 @@ hand-edited file. Needs a real read of `SpellOwnershipSync` and `CollectionSchem
 FROZEN files and need owner sign-off. Not proposing them yet - the trade bug is dormant and the save
 layer is in better shape than AD assumed.**
 
+## FIRST PLAYER BUILD - 2026-08-27. The project is runnable outside the editor.
+
+**Milestone.** Every prior proof in this project was EditMode. This is the first time the game has
+existed as something a person could run.
+
+- **Android APK: built, 641 MB.** No device available to install it.
+- **Windows standalone: built, BOOTS TO HOME, Campaign 1-1 launch log-confirmed.**
+
+**BLOCKER for distribution, flagged not fixed: 641 MB exceeds Google Play's 150 MB APK cap.**
+Anything larger needs an AAB with Play Asset Delivery. **We cannot hand this to playtesters over the
+air as-is.** Asked WH for the largest size contributor and whether an AAB target is available in this
+Unity install - shape of the problem first, no optimisation work authorised yet.
+
+## Contrast measurement DISCREPANCY - remediation ON HOLD 2026-08-27
+
+Two scans disagree by 7x in the band that matters:
+
+| Source | Total findings | Under 2:1 |
+|---|---:|---:|
+| VS validator | 156 | **21** |
+| WH scan | not reported | **142** |
+
+**Remediation is NOT authorised until these reconcile.** Fixing 142 items off a possibly-wrong
+measurement is how a night gets wasted, and we have already had one phantom-findings incident in
+this exact check (13 findings were pure anti-aliasing artifact until VS caught it).
+
+Three candidate explanations, in CC's order of likelihood:
+1. **The CanvasScaler change.** `matchWidthOrHeight` moving off Unity's implicit 0 shifts
+   `scaleFactor`, which shifts `fontScreenPx`, which decides whether a label is judged against 7:1 or
+   the looser 4.5:1 large-text floor. **More labels judged strictly = more findings.** Leading theory.
+2. **Different screen coverage** - WH's list includes SpellLoadoutPicker, VipSubscription and
+   DailyLoginQuests, which do not appear in the earlier run.
+3. **Different sampling method.** VS's accepts on the 5th percentile with glyph pixels excluded via a
+   second render pass with all `Text` disabled. A scan that does not exclude anti-aliased glyph edges
+   reports far more failures - the exact artifact already caught once.
+
+**Tie-breaker rule: VS's validator numbers win, WH's become a cross-check.** VS's has been debugged
+against a REAL capture - CampaignMap's BACK button confirmed invisible at 1.1-1.5:1 by opening the
+PNG, not just by measuring.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
