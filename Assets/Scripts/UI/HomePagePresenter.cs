@@ -678,6 +678,13 @@ public class HomePagePresenter : MonoBehaviour
         LayoutElement le = cardObj.GetComponent<LayoutElement>();
         le.preferredWidth = width;
         le.preferredHeight = height;
+        // The HorizontalLayoutGroup only resolves this rect on its next layout pass, so at
+        // creation time it's still Unity's 100x100 default - set it explicitly to the known
+        // target size first so ApplyFramedPanel's 9-slice border fits against the real size,
+        // not the stale default (apply-before-position, same pattern documented on
+        // UISharedFoundation.ApplyFramedPanel). The layout group overwrites this again once it
+        // runs; setting it early is free and harmless.
+        cardObj.GetComponent<RectTransform>().sizeDelta = new Vector2(width, height);
 
         Image cardBg = cardObj.GetComponent<Image>();
         UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
@@ -743,6 +750,10 @@ public class HomePagePresenter : MonoBehaviour
         LayoutElement le = cardObj.GetComponent<LayoutElement>();
         le.preferredWidth = width;
         le.preferredHeight = height;
+        // See BuildWeeklyPermitFeedCard's identical comment - sets the pre-layout rect to the
+        // known target size so ApplyFramedPanel's border-fit isn't computed against Unity's
+        // 100x100 default.
+        cardObj.GetComponent<RectTransform>().sizeDelta = new Vector2(width, height);
 
         Image cardBg = cardObj.GetComponent<Image>();
         UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
