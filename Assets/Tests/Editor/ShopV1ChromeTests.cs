@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
@@ -20,24 +21,35 @@ namespace MyriadOfDragons.Tests
         [SetUp]
         public void SetUp()
         {
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.SetUp.enter");
             _scratchSaveDir = Path.Combine(Path.GetTempPath(),
                 "MyriadOfDragonsShopV1Chrome_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
+            WhHangProfileTrace.Mark($"ShopV1ChromeTests.SetUp.exit scratch={_scratchSaveDir}");
         }
 
         [TearDown]
         public void TearDown()
         {
+            var sw = Stopwatch.StartNew();
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.TearDown.enter");
             if (_shopGo != null) Object.DestroyImmediate(_shopGo);
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.TearDown.after_Destroy_shopGo", sw.ElapsedMilliseconds);
+            sw.Restart();
             if (_shopCanvas != null) Object.DestroyImmediate(_shopCanvas);
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.TearDown.after_Destroy_shopCanvas", sw.ElapsedMilliseconds);
             _shopGo = null;
             _shopCanvas = null;
             SaveSystem.ClearRootDirectoryOverride();
             SaveSystem.ResetCurrentProfileForTests();
+            sw.Restart();
+            WhHangProfileTrace.Mark($"ShopV1ChromeTests.TearDown.before_Directory.Delete path={_scratchSaveDir}");
             if (_scratchSaveDir != null && Directory.Exists(_scratchSaveDir))
                 Directory.Delete(_scratchSaveDir, recursive: true);
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.TearDown.after_Directory.Delete", sw.ElapsedMilliseconds);
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.TearDown.exit");
         }
 
         [Test]
@@ -76,8 +88,12 @@ namespace MyriadOfDragons.Tests
                     ?.GetComponent<Image>()?.sprite,
                 "Tier 2 must start on locked stamina sprite.");
 
+            var buySw = Stopwatch.StartNew();
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.before_PurchaseForTests_tier30");
             Assert.IsTrue(shop.PurchaseForTests(ShopStaminaCatalog.SkuIdForGemCost(30)));
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.after_PurchaseForTests_tier30", buySw.ElapsedMilliseconds);
 
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.before_post_purchase_asserts");
             Assert.AreEqual(
                 ShopV1UiLibrary.LoadStaminaTierSprite(2, unlocked: true),
                 _shopCanvas.transform.Find($"ShopGrid/ShopCard_{ShopStaminaCatalog.SkuIdForGemCost(60)}")
@@ -88,6 +104,7 @@ namespace MyriadOfDragons.Tests
                 _shopCanvas.transform.Find($"ShopGrid/ShopCard_{ShopStaminaCatalog.SkuIdForGemCost(30)}")
                     ?.GetComponent<Image>()?.sprite,
                 "After buying tier 1, tier 1 must swap to locked sprite (no longer the next step).");
+            WhHangProfileTrace.Mark("ShopV1ChromeTests.after_post_purchase_asserts");
         }
 
         [Test]

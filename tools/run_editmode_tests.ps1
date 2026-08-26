@@ -122,6 +122,42 @@ function Invoke-SingleRun {
     if (-not $proc.HasExited) {
         $reason = if ((Get-Date) -ge $deadline) { "exceeded $TimeoutMinutes minute timeout" } else { "log stalled for over $StallCheckSeconds seconds" }
         Write-Host "TIMEOUT/STALL: Unity EditMode run $reason - killing process tree (PID $($proc.Id))."
+
+        # Hang-profile dump BEFORE kill (WH 2026-08-26): durable last markers + thread snapshot.
+        $dumpDir = Join-Path $ProjectPath "wh_hang_profile_dump"
+        New-Item -ItemType Directory -Force -Path $dumpDir | Out-Null
+        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $dumpPrefix = Join-Path $dumpDir "stall_$stamp"
+        try {
+            if (Test-Path $logFull) {
+                Get-Content $logFull -Tail 80 | Set-Content -Path ($dumpPrefix + "_log_tail.txt") -Encoding utf8
+            }
+            $tracePath = Join-Path $ProjectPath "wh_hang_profile_trace.txt"
+            if (Test-Path $tracePath) {
+                Copy-Item $tracePath ($dumpPrefix + "_trace.txt") -Force
+                Write-Host "Hang profile trace copied to $($dumpPrefix)_trace.txt"
+                Get-Content $tracePath -Tail 40 | ForEach-Object { Write-Host "TRACE $_" }
+            } else {
+                Write-Host "No wh_hang_profile_trace.txt present at stall (instrumentation may not have reached Shop yet)."
+            }
+            $u = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+            if ($u) {
+                $threadInfo = $u.Threads | Select-Object Id, ThreadState, WaitReason, StartTime
+                $threadInfo | Format-Table -AutoSize | Out-String | Set-Content -Path ($dumpPrefix + "_threads.txt") -Encoding utf8
+                "ProcessId=$($u.Id) Threads=$($u.Threads.Count) WorkingSetMB=$([math]::Round($u.WorkingSet64/1MB,1)) CPU=$($u.CPU)" |
+                    Set-Content -Path ($dumpPrefix + "_proc.txt") -Encoding utf8
+                Write-Host "Unity threads at stall: $($u.Threads.Count) (see $($dumpPrefix)_threads.txt)"
+            }
+            $procdump = Get-Command procdump.exe -ErrorAction SilentlyContinue
+            if ($procdump) {
+                Write-Host "procdump found - writing minidump..."
+                & procdump.exe -accepteula -mm $proc.Id ($dumpPrefix + ".dmp") 2>&1 | Out-Host
+            }
+        }
+        catch {
+            Write-Host "Hang profile dump failed: $($_.Exception.Message)"
+        }
+
         Get-CimInstance Win32_Process -Filter "ParentProcessId=$($proc.Id)" -ErrorAction SilentlyContinue |
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue

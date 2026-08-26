@@ -2,10 +2,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Economy;
 using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
+using Debug = UnityEngine.Debug;
 
 namespace MyriadOfDragons.UI
 {
@@ -702,17 +704,22 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void AttemptPurchase(ShopItemData item)
         {
+            var totalSw = Stopwatch.StartNew();
+            WhHangProfileTrace.Mark($"AttemptPurchase.enter id={item?.id}");
+
             // Insufficient currency changes nothing - checked, and returned on, before any
             // profile mutation or reward attempt.
             if (item.goldCost > 0 && CurrencyManager.GetBalance(player, CurrencyType.Gold) < item.goldCost)
             {
                 SetShopStatus($"Not enough Gold for {item.title}.");
+                WhHangProfileTrace.Mark("AttemptPurchase.exit_insufficient_gold", totalSw.ElapsedMilliseconds);
                 return;
             }
 
             if (item.gemCost > 0 && CurrencyManager.GetBalance(player, CurrencyType.Gems) < item.gemCost)
             {
                 SetShopStatus($"Not enough Gems for {item.title}.");
+                WhHangProfileTrace.Mark("AttemptPurchase.exit_insufficient_gems", totalSw.ElapsedMilliseconds);
                 return;
             }
 
@@ -724,8 +731,14 @@ namespace MyriadOfDragons.UI
                     SetShopStatus(ladderError ?? "Stamina refill not available.");
                     // Daily 4/24h cap only — wrong-tier ladder blocks are not daily_cap_reached.
                     if (!ShopStaminaCatalog.TryGetNextGemCost(player, now, out _, out _))
+                    {
+                        var emitSw = Stopwatch.StartNew();
+                        WhHangProfileTrace.Mark("AttemptPurchase.before_EmitStaminaDailyCapReached");
                         EmitStaminaDailyCapReached();
+                        WhHangProfileTrace.Mark("AttemptPurchase.after_EmitStaminaDailyCapReached", emitSw.ElapsedMilliseconds);
+                    }
                     RefreshStaminaBuyButtons();
+                    WhHangProfileTrace.Mark("AttemptPurchase.exit_ladder_block", totalSw.ElapsedMilliseconds);
                     return;
                 }
             }
@@ -735,19 +748,34 @@ namespace MyriadOfDragons.UI
             // exhausted (TryGrantNextUnownedCard returns false, having touched nothing) must not
             // spend the player's Gold/Gems for nothing. Existing non-card items (Gold Vault,
             // Energy Potion) always return true and are unaffected by this ordering change.
+            var fulfillSw = Stopwatch.StartNew();
+            WhHangProfileTrace.Mark("AttemptPurchase.before_onPurchase");
             bool fulfilled = item.onPurchase != null && item.onPurchase.Invoke(player);
+            WhHangProfileTrace.Mark($"AttemptPurchase.after_onPurchase fulfilled={fulfilled}", fulfillSw.ElapsedMilliseconds);
             if (!fulfilled)
             {
                 SetShopStatus($"{item.title}: could not be fulfilled — no currency spent.");
                 RefreshStaminaBuyButtons();
+                WhHangProfileTrace.Mark("AttemptPurchase.exit_unfulfilled", totalSw.ElapsedMilliseconds);
                 return;
             }
 
             if (!item.walletCommittedByCallback)
             {
+                var spendSw = Stopwatch.StartNew();
+                WhHangProfileTrace.Mark("AttemptPurchase.before_SpendCurrency");
                 if (item.goldCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gold, item.goldCost, persist: false);
                 if (item.gemCost > 0) CurrencyManager.SpendCurrency(player, CurrencyType.Gems, item.gemCost, persist: false);
+                WhHangProfileTrace.Mark("AttemptPurchase.after_SpendCurrency", spendSw.ElapsedMilliseconds);
+
+                var saveSw = Stopwatch.StartNew();
+                WhHangProfileTrace.Mark($"AttemptPurchase.before_SaveSystem.Save path={SaveSystem.SavePath}");
                 MyriadOfDragons.Save.SaveSystem.Save(player);
+                WhHangProfileTrace.Mark("AttemptPurchase.after_SaveSystem.Save", saveSw.ElapsedMilliseconds);
+            }
+            else
+            {
+                WhHangProfileTrace.Mark("AttemptPurchase.skip_wallet_commit walletCommittedByCallback=true");
             }
 
             if (_pendingPackReceipt != null && _pendingPackReceipt.Success && canvasObj != null)
@@ -755,6 +783,8 @@ namespace MyriadOfDragons.UI
                 PackReceiptResult receipt = _pendingPackReceipt;
                 _pendingPackReceipt = null;
                 RefreshPityDisplay();
+                var overlaySw = Stopwatch.StartNew();
+                WhHangProfileTrace.Mark("AttemptPurchase.before_PackOpenOverlay");
                 PackOpenOverlayPresenter.Show(
                     canvasObj.transform,
                     receipt,
@@ -767,15 +797,26 @@ namespace MyriadOfDragons.UI
                             onOpenCollectionAction.Invoke();
                         },
                     ownershipProfile: player);
+                WhHangProfileTrace.Mark("AttemptPurchase.after_PackOpenOverlay", overlaySw.ElapsedMilliseconds);
                 SetShopStatus($"Opened {item.title}.");
             }
             else
             {
                 _pendingPackReceipt = null;
+                WhHangProfileTrace.Mark("AttemptPurchase.before_SetShopStatus_Purchased");
                 SetShopStatus($"Purchased {item.title}.");
+                WhHangProfileTrace.Mark("AttemptPurchase.after_SetShopStatus_Purchased");
+                var refreshSw = Stopwatch.StartNew();
+                WhHangProfileTrace.Mark("AttemptPurchase.before_RefreshResourceDisplay");
                 RefreshResourceDisplay();
+                WhHangProfileTrace.Mark("AttemptPurchase.after_RefreshResourceDisplay", refreshSw.ElapsedMilliseconds);
+                refreshSw.Restart();
+                WhHangProfileTrace.Mark("AttemptPurchase.before_RefreshStaminaBuyButtons");
                 RefreshStaminaBuyButtons();
+                WhHangProfileTrace.Mark("AttemptPurchase.after_RefreshStaminaBuyButtons", refreshSw.ElapsedMilliseconds);
             }
+
+            WhHangProfileTrace.Mark("AttemptPurchase.exit_ok", totalSw.ElapsedMilliseconds);
         }
 
         /// <summary>Real retention-telemetry emit for Shop Stamina 4/24h cap (register: remaining
