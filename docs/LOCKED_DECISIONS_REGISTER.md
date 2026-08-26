@@ -1222,6 +1222,54 @@ bool isLargeText = isBold ? fontScreenPx >= 18.66f : fontScreenPx >= 24f;
 
 **Specs must state SCREEN pixels or physical mm, never canvas pixels, plus the conversion rule.**
 
+## matchWidthOrHeight = 1 (MATCH HEIGHT) - AUTHORISED 2026-08-27, project-wide
+
+**Decision: set `matchWidthOrHeight = 1` on every CanvasScaler.** Currently never set anywhere - zero
+occurrences across `Assets/Scripts/` - so every canvas silently used Unity's default `0` = match
+WIDTH.
+
+**Two independent sources agree.** AD derived it from arithmetic; CR corroborated with a real
+measurement it had already taken for another bug: `canvasRect.rect = (1920, 1440)` on a canvas whose
+`referenceResolution` was 1920x1080. **1920x1440 is exactly 4:3** - the actual render surface aspect
+bleeding through against a 16:9 reference. Under match=0 that exposed MORE vertical canvas than the
+reference (1440 vs 1080), which is why CR's literal-pixel math (`viewportHeight = 962-176 = 786`)
+came out wrong. **The feed-card 786px bug was a SYMPTOM of this upstream cause**, fixed at the
+symptom level at the time without the connection being made.
+
+**Why match=1 and not 0.5:** landscape mobile is overwhelmingly WIDER than 16:9 (19.5:9 to 21:9 is
+the common range). match=1 **guarantees the full 1080 reference height is always visible**, so
+surplus space appears horizontally - a far smaller UX problem than vertical clipping of edge-anchored
+chrome. **m=0.5 guarantees nothing** - it merely reduces vertical overflow rather than eliminating it.
+
+**CC pushback, raised and resolved:** at m=1 on a 2560x1600 (16:10) tablet, scaleFactor = 1.4815, so
+canvas width renders at 1920 x 1.4815 = **2844 screen px against a 2560 screen** - horizontal crop.
+Real, but it only affects devices **NARROWER than 16:9**. Phones are the primary target and are all
+wider. **ACCEPTED RESIDUAL RISK: 16:10 / 4:3 tablets in landscape will crop horizontally.** Tracked
+as a separate check, NOT a blocker. If tablets enter scope, this needs its own pass - do not discover
+it later and treat it as a new bug.
+
+**RE-VERIFICATION ORDER after the change (it moves every screen at once):**
+1. Top/bottom edge-anchored HUDs and bars - highest risk, and the elements that keep colliding.
+2. Every `sizeDelta` set on a stretch-anchored axis - use CR's new `AssertSizeDeltaSafe` guard to find
+   them.
+3. Font-size thresholds and the whole contrast validator - `fontScreenPx` changes, so every
+   large-text decision and all 156 findings must be re-measured.
+4. GridLayoutGroup / ContentSizeFitter lists - cell sizes and spacing shift.
+5. Scrims and overlays sized in absolute canvas pixels.
+6. Hard-coded pixel math in presenters (manual offsets, manual centring).
+7. EditMode tests asserting exact pixel positions - **expect failures; they are not regressions, they
+   are the old wrong scale being corrected.** Update expectations rather than reverting.
+
+**Effect on the type floors, now unblocked:** at match=1 a 1920x1080 target has scaleFactor exactly
+1.0, so a 22px canvas glyph is 22 screen px - **below WCAG's 24px large-text threshold.** Raise the
+absolute floor **22 -> 24px**; 30-32px stays the safer interactive minimum on high-DPI phones.
+
+**Scrim helpers already fixed by CR before any screen used them:** explicit point anchor
+(`anchorMin == anchorMax == (0,0)`, pivot 0.5/0.5) so `sizeDelta` is provably absolute without
+relying on Unity's implicit default; a general `AssertSizeDeltaSafe` guard that warns on non-zero
+sizeDelta against a stretched axis; and a dedicated `GetOrCreateScrimContainer` replacing per-call
+`SetSiblingIndex(0)`, so scrims no longer reorder a parent's real content.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
