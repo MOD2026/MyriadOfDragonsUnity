@@ -579,6 +579,58 @@ and UI varies by device/mode. BS correctly refused to estimate. Qualitative patt
 of them: a dominant display/CTA surface with compact restrained utility text, hierarchy from scale
 and contrast rather than many type sizes.
 
+## Empty states - LOCKED 2026-08-27 (the no-dead-space answer for empty lists)
+
+**An empty state is a PLAY-STATE, not an error message.** It answers: what is absent, why, and what
+can I do next / when will this matter. It may use art direction, preview or countdown. It must NEVER
+invent fake activity, fake rewards, or decorative filler unrelated to the feature.
+
+**Four categories, they behave differently:** *Actionable* (Friends, Guild, Collection filter),
+*Waiting* (Mail, Battle Pass pre-season), *Locked* (Guild access, Shop section), *Completed*
+(Quests all claimed).
+
+**ONE reusable landscape component**, responsive region, not fixed pixels:
+
+| Element | % of region | Token |
+|---|---:|---|
+| Illustration / truthful preview | 30-40% | Tier2 Section or Tier4 Surface |
+| Title | 8-12% | T5 55px semibold |
+| Explanation / status | 10-15% | T3 35px regular |
+| Primary action (only if useful) | 10-14% | Tier1 Hero, T4/T6 label |
+| Optional secondary | 6-10% | Tier3 Utility, T4 |
+| Remainder | 20-30% | art, contextual preview, or COLLAPSED - never blank |
+
+Max ONE Tier-1 frame (the action/hero) and ONE Tier-2 (preview/group). Do not frame every child.
+
+**Filling a wide landscape region - RANKED, and #1 agrees with no-dead-space rather than fighting
+it:** (1) **collapse and reflow** when there is no useful preview - removing the region is better
+than pretending empty space is content; (2) truthful preview of what will appear (example friend
+row, mail card format, reward silhouette); (3) extend background art, only when it reinforces the
+feature's identity; (4) aspirational/locked example, only when the unlock condition is
+understandable. **Never a fake claimable reward or fabricated player activity.** Landscape width is
+a reason for columns and reflow, NOT for more decoration.
+
+**NOT every empty state gets an action. A disabled button is not a solution.** Friends -> Add
+Friends. Guild -> Browse/Create. Collection filter -> Clear Filter. Shop locked -> View Unlock
+Requirement. Battle Pass pre-season -> Season Preview / Remind Me. **Mail with no mail -> NO action**,
+just "No messages" + last-sync status. **Quests all claimed -> "All caught up" + next reset time, no
+disabled button.** Chat -> Start Chat only if a valid recipient exists.
+
+**NEW PLAYER (critical - a fresh account hits Friends, Mail, Guild, Collection filters and Battle
+Pass empty simultaneously, which is the first impression of the whole game):** never five large
+"nothing here" heroes. Repeated empties SHARE one visual language; no five separate hero
+illustrations. Keep Mail and Battle Pass compact. The first session must read as "the game is waiting
+for progression," not "systems are broken."
+
+**HIDE vs SHOW-EMPTY.** Show empty: Friends, Mail, Chat (stable social destinations), Collection
+filters, Battle Pass when a season is scheduled, Shop sections expected to exist. **Hide/defer:**
+Guild Hall's full interior before guild access, shop categories not yet on the unlock path, and any
+screen reachable only via a control with no valid action. The root destination stays visible with a
+concise locked/availability card - **the player must never enter a large blank page.**
+
+**Benchmark: UNCONFIRMED for all 8 games** - no version-stamped empty-state capture is verifiable.
+BS correctly refused to invent comparators and noted the conclusion does not depend on them.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
