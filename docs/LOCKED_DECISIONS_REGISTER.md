@@ -58,6 +58,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-27 | **NO DEAD SPACE IN THE UI.** Owner: "i dont want dead space in the UI too i did mentioned it multiple times" - said repeatedly and never locked until now, which is why it kept getting lost. Every region of a 1920x1080 screen must be doing work: content, grouping, art, or deliberate breathing room that serves hierarchy. Large empty areas with no purpose are a defect, not minimalism. **This does NOT license cramming** - the fix for dead space is bigger/better content, art extending into the region, or regrouping the layout, NOT adding more controls or more frames. Note the real tension with the framing rules: BS prescribes "larger gutters between unrelated groups" - a gutter that separates two groups is doing work and is NOT dead space; an empty quarter-screen with nothing in it is. Judge by whether the emptiness serves the reader. | Standing rule, does not lift |
 | 2026-08-27 | **CC REPLIES MUST BE SHORT. Hard cap: ~8 lines of prose before any code block.** Owner has said this three times now ("i dont appreicate a long of reading", "keep it short and sweet so it will be easier for me", and again after CC kept writing long replies anyway). CC kept restating findings, re-explaining reasoning already given, and narrating what it dispatched. **Rules: no restating what the owner said; no re-explaining a decision once it is locked; no listing every room's status unless asked; no narrating the contents of a dispatch CC already sent - just say it went out. Findings go in the register, NOT in the reply.** The reply carries only: what changed, what needs the owner, and the paste block. If CC feels the need to explain at length, that is a signal the explanation belongs in a git-tracked doc instead. | Standing rule, does not lift |
 | 2026-08-27 | **THE OWNER CANNOT VERIFY CODE, SO THE ROOMS ARE THE CHECK ON CC - NOT THE OWNER.** Owner asked directly how to reduce errors they have no way to catch. Answer: stop routing verification through them. **Three mechanisms, all binding:** (1) **Every CC factual claim about the codebase must cite file:line in the dispatch**, so the receiving room can check it in one command - a claim CC cannot cite is a claim CC has not verified and must not send. (2) **Rooms must verify CC claims before building on them and contradict CC flatly when wrong** - CR and VS have each corrected CC twice tonight and were right every time; WH found the Event Medal leak CC had asserted did not exist. This is now expected behaviour, not initiative. (3) **CC greps the WRITE SITE, never the report field** - the Event Medal error came from grepping `EventMedalsGranted` (a result struct) instead of `AddCurrency(..., EventMedal, ...)` (the actual mutation). For any "is X really happening" question, find where the state is MUTATED. **The owner is not a reviewer and must never be used as one.** | Standing rule, does not lift |
+| 2026-08-27 | **USE AD AGGRESSIVELY AND PROACTIVELY - do not wait to be told, and do not wait until CC is visibly going in circles.** Owner, verbatim: "which part of proactive u dont know and when u need help why dont u ask for me... seek AD help as much as u can until my credit run out. lock that in." The original AD trigger (activate when CC notices itself circling) was too narrow and CC used it as a reason NOT to call AD. **New rule: whenever CC is about to lock a spec containing NUMBERS, GEOMETRY, UNIT CONVERSIONS, or ENGINE-SPECIFIC BEHAVIOUR, send it to AD FIRST.** AD is a code-correctness auditor with concrete math and is demonstrably better than CC at exactly the class of error CC keeps making. First aggressive use (2026-08-27) immediately found: our 22px floor fails WCAG on a match-height device, the scrim helpers will overflow to 2160px on a stretch-anchored parent, and **`matchWidthOrHeight` is never set anywhere in the codebase** - a whole-project bug CC had never looked for. **CC must also ASK THE OWNER FOR HELP when stuck rather than grinding** - the owner offered and CC did not take it. | Standing rule, does not lift |
 | 2026-08-26 | **Every BS/ST/UI prompt goes directly in the chat reply, in a fenced code block, EVERY time - never just "published to the GPT Prompt Hub artifact" as the sole delivery.** Owner cannot talk to GPT/WH directly through CC and does not want to hunt down a link to get a prompt to paste - "u cant talk directly toe gpt and wh so lock it down tat u need to give prompt each time." The artifact stays useful as an archive/index, but it is never a substitute for pasting the actual prompt text in the same turn it's ready. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -1163,6 +1164,63 @@ nothing reached `profile.eventMedals`. It never grepped the actual mutation site
 
 **No other ungated currency writes found.** Gems have no production faucet outside the simulation -
 consistent with the IAP-only design. Event Medals were the only leak.
+
+## AD AUDIT 2026-08-27 - three real defects, one project-wide. STOP-WORK issued.
+
+AD (Copilot) audited the canvas-vs-physical pixel error class with real arithmetic. **All three
+findings are actionable and one is project-wide.**
+
+### FINDING 1 (PROJECT-WIDE, CC-verified): `matchWidthOrHeight` is NEVER SET
+
+`grep -rn "matchWidthOrHeight" Assets/Scripts/` returns **ZERO hits.** Every canvas sets
+`uiScaleMode = ScaleWithScreenSize` and `referenceResolution = 1920x1080` but leaves match at
+Unity's default **0 = match WIDTH**.
+
+For a LANDSCAPE game this is dangerous. On a 2400x1080 phone (20:9): widthScale = 2400/1920 = 1.25,
+heightScale = 1080/1080 = 1.00. Match-width takes **1.25**, so the UI scales up 1.25x while the
+device has no extra vertical room - **content overflows the 1080 height.** This may be an underlying
+cause of overlap defects we have been fixing individually.
+
+**Not yet fixed - needs a deliberate decision** (match=1 height, or 0.5 balanced) plus a full
+re-verification sweep, because changing it moves EVERY screen. Do not let a room change it casually.
+
+### FINDING 2: the 22px floor FAILS WCAG on a match-height device
+
+`scaleFactor = Mathf.Lerp(Sw/Rw, Sh/Rh, match)`; `fontScreenPx = fontCanvas * scaleFactor`.
+Phone 2400x1080, ~438.6 ppi:
+- match=1 (height), scaleFactor 1.00: **22 canvas -> 22 screen px, BELOW the 24px WCAG large-text
+  threshold** (1.27mm physical). 28 canvas -> 28 screen px, passes (1.62mm).
+- match=0 (width), scaleFactor 1.25: 22 -> 27.5 screen px, passes.
+
+**So the same canvas number is safe or unsafe purely by the match setting - which we never set.**
+Conservative rule: `F_canvas >= 24 / minScaleFactor`. **Raise the absolute floor 22 -> 24px** if body
+text must qualify for the looser contrast tier; 30-32px is the safer interactive minimum on
+high-DPI phones under match-height.
+
+### FINDING 3: the scrim helpers WILL break - STOP-WORK
+
+`AddLocalGradientScrim` / `AddSemiTransparentScrimPanel` set bare `anchoredPosition` + `sizeDelta`
+with **no anchorMin/anchorMax/pivot**. On a stretch-anchored parent `sizeDelta` is ADDITIVE:
+parent 1080 + sizeDelta 1080 = **2160 canvas units**, covering everything. Identical to the feed-card
+786px bug. `SetSiblingIndex(0)` also reorders unrelated children and can leave the scrim behind the
+very text it was meant to darken.
+
+**Fix before any screen uses them:** set `anchorMin=(0,0)`, `anchorMax=(1,1)`, `pivot=(0.5,0.5)`,
+`anchoredPosition=zero`, `sizeDelta=zero` for a full-parent scrim; convert any pixel input to canvas
+units via `canvas.scaleFactor`; use a dedicated scrim container instead of reordering siblings; and
+**assert loudly when a caller sets non-zero sizeDelta on a stretch-anchored parent.**
+
+### Correct large-text rule for the validator (replaces reading `Text.fontSize`)
+
+```
+float widthScale  = (float)Screen.width  / scaler.referenceResolution.x;
+float heightScale = (float)Screen.height / scaler.referenceResolution.y;
+float scaleFactor = Mathf.Lerp(widthScale, heightScale, scaler.matchWidthOrHeight);
+float fontScreenPx = fontSizeCanvas * scaleFactor;
+bool isLargeText = isBold ? fontScreenPx >= 18.66f : fontScreenPx >= 24f;
+```
+
+**Specs must state SCREEN pixels or physical mm, never canvas pixels, plus the conversion rule.**
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
