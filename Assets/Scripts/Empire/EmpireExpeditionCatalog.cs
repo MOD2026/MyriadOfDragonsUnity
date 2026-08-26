@@ -31,28 +31,31 @@ namespace MyriadOfDragons.Empire
     }
 
     /// <summary>
-    /// Numbers still open per LOCKED_DECISIONS_REGISTER.md Empire Expedition section.
-    /// Locked structure that IS implemented elsewhere: +10% Gold guild bonus (display/query
-    /// hook), fail-closed if guild service unavailable, bonus cannot raise the daily Gold cap,
-    /// Gold+Materials paid on clear via one authoritative transaction, Stamina-gated.
+    /// Clear rewards (Stamina cost, Gold, Materials, daily Gold cap) LOCKED 2026-08-26 per
+    /// LOCKED_DECISIONS_REGISTER.md; daily attempt cap / unlock condition / rotation cadence
+    /// remain open. Locked structure that IS implemented elsewhere: +10% Gold guild bonus
+    /// (display/query hook), fail-closed if guild service unavailable, bonus cannot raise the
+    /// daily Gold cap, Gold+Materials paid on clear via one authoritative transaction,
+    /// Stamina-gated.
     /// </summary>
     public static class EmpireExpeditionOpenValues
     {
         public const string RegisterCitation =
             "docs/LOCKED_DECISIONS_REGISTER.md — Empire Expedition (LOCKED 2026-08-24, structure only)";
 
-        /// <summary>OPEN — Stamina cost per clear. Null means not locked; clear transaction must refuse.</summary>
-        public static readonly int? StaminaCostPerClear = null;
+        /// <summary>LOCKED 2026-08-26 (BS, verified against this file's real open slots).</summary>
+        public static readonly int? StaminaCostPerClear = 10;
 
-        /// <summary>OPEN — base Gold granted on a clear (before guild bonus).</summary>
-        public static readonly int? BaseGoldPerClear = null;
+        /// <summary>LOCKED 2026-08-26 — base Gold granted on a clear (before guild bonus).</summary>
+        public static readonly int? BaseGoldPerClear = 300;
 
-        /// <summary>OPEN — Construction Materials granted on a clear. Persist path also blocked
-        /// until PlayerProfile gains a Materials balance field (frozen — escalate).</summary>
-        public static readonly int? BaseMaterialsPerClear = null;
+        /// <summary>LOCKED 2026-08-26 — Construction Materials granted on a clear.
+        /// PlayerProfile.constructionMaterials already exists (2026-08-24) and
+        /// EmpireExpeditionClearTransaction already persists to it - no frozen-file blocker.</summary>
+        public static readonly int? BaseMaterialsPerClear = 200;
 
-        /// <summary>OPEN — daily Expedition Gold cap (bonus cannot raise this).</summary>
-        public static readonly int? DailyExpeditionGoldCap = null;
+        /// <summary>LOCKED 2026-08-26 — daily Expedition Gold cap (3 clears x 300; bonus cannot raise this).</summary>
+        public static readonly int? DailyExpeditionGoldCap = 900;
 
         /// <summary>OPEN — max clears / attempts per UTC day.</summary>
         public static readonly int? DailyAttemptCap = null;
@@ -73,8 +76,8 @@ namespace MyriadOfDragons.Empire
             && DailyExpeditionGoldCap.HasValue;
 
         public static string StatusNote =>
-            "Empire Expedition structure is locked; Stamina cost/clear, tier rewards, daily attempts, " +
-            "unlock condition, and rotation cadence are still OPEN — " + RegisterCitation;
+            "Empire Expedition structure and clear rewards (Stamina/Gold/Materials/daily Gold cap) " +
+            "are locked; daily attempts, unlock condition, and rotation cadence are still OPEN — " + RegisterCitation;
     }
 
     /// <summary>Static Expedition stage list — not Campaign stages. Rotation filtering is a no-op

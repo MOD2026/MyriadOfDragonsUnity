@@ -59,27 +59,31 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void OpenValues_RemainUnset_UntilOwnerLocks()
+        public void OpenValues_ClearRewards_AreLocked_DailyAttemptCapStaysOpen()
         {
-            Assert.IsNull(EmpireExpeditionOpenValues.StaminaCostPerClear);
-            Assert.IsNull(EmpireExpeditionOpenValues.BaseGoldPerClear);
-            Assert.IsNull(EmpireExpeditionOpenValues.BaseMaterialsPerClear);
-            Assert.IsNull(EmpireExpeditionOpenValues.DailyExpeditionGoldCap);
+            // Clear rewards LOCKED 2026-08-26 (BS, verified against this file's real open slots -
+            // see EmpireExpeditionCatalog.cs). Daily attempt cap / unlock condition / rotation
+            // cadence remain the genuinely still-open items.
+            Assert.AreEqual(10, EmpireExpeditionOpenValues.StaminaCostPerClear);
+            Assert.AreEqual(300, EmpireExpeditionOpenValues.BaseGoldPerClear);
+            Assert.AreEqual(200, EmpireExpeditionOpenValues.BaseMaterialsPerClear);
+            Assert.AreEqual(900, EmpireExpeditionOpenValues.DailyExpeditionGoldCap);
             Assert.IsNull(EmpireExpeditionOpenValues.DailyAttemptCap);
-            Assert.IsFalse(EmpireExpeditionOpenValues.AreClearRewardsConfigured);
+            Assert.IsTrue(EmpireExpeditionOpenValues.AreClearRewardsConfigured);
             Assert.AreEqual(0.10f, EmpireExpeditionOpenValues.GuildGoldBonusFraction);
         }
 
         [Test]
-        public void ProductionClear_RefusesWhileOpenValuesUnset()
+        public void ProductionClear_AppliesWithLockedRewards()
         {
             var profile = new PlayerProfile { stamina = 100, gold = 0 };
             EmpireExpeditionClearResult result = EmpireExpeditionClearTransaction.TryApplyClear(
-                profile, "exp-1", UnavailableGuildExpeditionBonusQuery.Instance);
+                profile, "exp-1", UnavailableGuildExpeditionBonusQuery.Instance, persist: false);
 
-            Assert.AreEqual(EmpireExpeditionClearStatus.OpenValuesNotLocked, result.Status);
-            Assert.AreEqual(100, profile.stamina);
-            Assert.AreEqual(0, profile.gold);
+            Assert.AreEqual(EmpireExpeditionClearStatus.Applied, result.Status);
+            Assert.AreEqual(90, profile.stamina);
+            Assert.AreEqual(300, profile.gold);
+            Assert.AreEqual(200, profile.constructionMaterials);
         }
 
         [Test]
@@ -160,8 +164,9 @@ namespace MyriadOfDragons.Tests
             StringAssert.Contains("OPEN", presenter.StatusTextForTests.ToUpperInvariant());
             StringAssert.Contains("fail closed", presenter.GuildBonusTextForTests.ToLowerInvariant());
 
-            EmpireExpeditionClearResult refused = presenter.SimulateClearForTests("exp-1");
-            Assert.AreEqual(EmpireExpeditionClearStatus.OpenValuesNotLocked, refused.Status);
+            EmpireExpeditionClearResult applied = presenter.SimulateClearForTests("exp-1");
+            Assert.AreEqual(EmpireExpeditionClearStatus.Applied, applied.Status,
+                "Clear rewards are locked now (2026-08-26) - a real clear applies.");
         }
 
         [Test]
@@ -237,8 +242,12 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void RefusedClear_OpenValuesNotLocked_NeverEmitsTelemetry()
+        public void RefusedClear_InsufficientStamina_NeverEmitsTelemetry()
         {
+            // Was OpenValuesNotLocked - no longer reachable via production defaults now that
+            // clear rewards are locked (2026-08-26). Insufficient stamina is the real refusal
+            // this now exercises; the invariant under test (a refusal is never reported to
+            // analytics as a real completion or cap event) is unchanged.
             var go = new GameObject("EmpireExpeditionTelemetryRefuseHarness");
             _spawned.Add(go);
             var presenter = go.AddComponent<EmpireExpeditionPresenter>();
@@ -247,10 +256,12 @@ namespace MyriadOfDragons.Tests
             var outbox = new RetentionTelemetryOutbox(fakeGateway, telemetryScratchDir);
             presenter.Initialize(onBack: null, telemetryOutbox: outbox);
 
-            EmpireExpeditionClearResult refused = presenter.SimulateClearForTests("exp-1");
-            Assert.AreEqual(EmpireExpeditionClearStatus.OpenValuesNotLocked, refused.Status, "Setup: real production clear must still refuse.");
+            EmpireExpeditionClearResult refused = presenter.SimulateClearWithConfiguredAmountsForTests(
+                "exp-1", staminaCost: 999999, baseGold: 50, baseMaterials: 0, dailyGoldCap: 500);
+            Assert.AreEqual(EmpireExpeditionClearStatus.InsufficientStamina, refused.Status,
+                "Setup: real production clear must refuse with an unaffordable stamina cost.");
 
-            Assert.AreEqual(0, fakeGateway.SentEvents.Count, "An OpenValuesNotLocked refusal is not a real completion or cap event - must not emit telemetry.");
+            Assert.AreEqual(0, fakeGateway.SentEvents.Count, "An InsufficientStamina refusal is not a real completion or cap event - must not emit telemetry.");
 
             if (Directory.Exists(telemetryScratchDir)) Directory.Delete(telemetryScratchDir, recursive: true);
         }
