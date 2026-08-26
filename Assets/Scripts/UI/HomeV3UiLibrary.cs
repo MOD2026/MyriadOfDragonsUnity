@@ -96,6 +96,54 @@ namespace MyriadOfDragons.UI
         public static void ApplyNavTileButton(Button button, Image targetGraphic) =>
             ApplyNeutralActionButton(button, targetGraphic);
 
+        /// <summary>Primary/positive-action chrome (confirm, claim, buy, subscribe) - "emerald or
+        /// context-colour energy core, gold/bronze fixed end caps, ivory label, strong pressed-
+        /// depth change" per Visual Authority Memory. Deliberately a separate function from
+        /// ApplyNeutralActionButton rather than a parameter on it: which buttons are actually
+        /// primary CTAs vs subordinate actions is a real per-call-site judgment (the doc itself
+        /// says "not every button"), not something safe to default site-wide the way the
+        /// secondary-art pickup was. Falls back to the same flat-emerald behavior
+        /// ApplyNeutralActionButton used before real art existed if the real art isn't found.</summary>
+        public static void ApplyPrimaryActionButton(Button button, Image targetGraphic)
+        {
+            if (button == null || targetGraphic == null) return;
+
+            Sprite normal = Resources.Load<Sprite>("UI/SharedFoundation/ui_button_primary_normal_v1");
+            Sprite pressed = Resources.Load<Sprite>("UI/SharedFoundation/ui_button_primary_pressed_v1");
+            if (normal != null && pressed != null)
+            {
+                targetGraphic.sprite = normal;
+                targetGraphic.type = Image.Type.Sliced;
+                targetGraphic.color = Color.white;
+                button.targetGraphic = targetGraphic;
+                button.transition = Selectable.Transition.SpriteSwap;
+                button.spriteState = new SpriteState
+                {
+                    highlightedSprite = normal,
+                    pressedSprite = pressed,
+                    selectedSprite = normal,
+                    disabledSprite = normal,
+                };
+                return;
+            }
+
+            targetGraphic.type = Image.Type.Simple;
+            targetGraphic.sprite = null;
+            targetGraphic.color = new Color(0.14f, 0.36f, 0.24f, 1f);
+            button.targetGraphic = targetGraphic;
+            button.transition = Selectable.Transition.ColorTint;
+            button.colors = new ColorBlock
+            {
+                normalColor = Color.white,
+                highlightedColor = new Color(0.85f, 0.95f, 0.9f, 1f),
+                pressedColor = new Color(0.7f, 0.9f, 0.8f, 1f),
+                selectedColor = Color.white,
+                disabledColor = new Color(0.45f, 0.48f, 0.5f, 0.7f),
+                colorMultiplier = 1f,
+                fadeDuration = 0.08f,
+            };
+        }
+
         public static Sprite LoadCardFrameForRarity(int rarity)
         {
             string name = rarity >= 6 ? "Legendary_Card_Frame"

@@ -132,7 +132,7 @@ namespace MyriadOfDragons.UI
             GameObject claim = new GameObject("Btn_ClaimAttachment", typeof(RectTransform), typeof(Image), typeof(Button));
             claim.transform.SetParent(detail.transform, false);
             Image cImg = claim.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNeutralActionButton(claim.GetComponent<Button>(), cImg, new Color(0.25f, 0.35f, 0.28f));
+            HomeV3UiLibrary.ApplyPrimaryActionButton(claim.GetComponent<Button>(), cImg);
             claim.GetComponent<Button>().onClick.AddListener(() => SetStatus(MailInboxOpenValues.TryClaimAttachment().Message));
             SetNorm(claim.GetComponent<RectTransform>(), 0.55f, 0.04f, 0.96f, 0.18f);
             UISharedFoundation.CreateText(claim.transform, "Text", "CLAIM", UITextRole.Body,

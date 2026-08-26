@@ -252,7 +252,7 @@ namespace MyriadOfDragons.UI
             SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.00f, 0.68f, 0.05f);
 
             _empireCollectButtonRoot = CreateActionButton(empireRoot.transform, "CollectConstructionButton",
-                "COLLECT UPGRADE", 0.71f, 0.04f, 0.97f, 0.20f, OnCollectConstruction);
+                "COLLECT UPGRADE", 0.71f, 0.04f, 0.97f, 0.20f, OnCollectConstruction, primary: true);
         }
 
         private void RefreshPanel()
@@ -821,14 +821,22 @@ namespace MyriadOfDragons.UI
         }
 
         private static GameObject CreateActionButton(Transform parent, string name, string label,
-            float left, float bottom, float right, float top, UnityEngine.Events.UnityAction onClick)
+            float left, float bottom, float right, float top, UnityEngine.Events.UnityAction onClick,
+            bool primary = false)
         {
             GameObject buttonRoot = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             buttonRoot.transform.SetParent(parent, false);
             Image bg = buttonRoot.GetComponent<Image>();
-            bg.color = HexColor("#1A3A4A");
             Button button = buttonRoot.GetComponent<Button>();
-            HomeV3UiLibrary.ApplyNavTileButton(button, bg);
+            if (primary)
+            {
+                HomeV3UiLibrary.ApplyPrimaryActionButton(button, bg);
+            }
+            else
+            {
+                bg.color = HexColor("#1A3A4A");
+                HomeV3UiLibrary.ApplyNavTileButton(button, bg);
+            }
             button.onClick.AddListener(onClick);
             SetNormalizedRect(buttonRoot.GetComponent<RectTransform>(), left, bottom, right, top);
 

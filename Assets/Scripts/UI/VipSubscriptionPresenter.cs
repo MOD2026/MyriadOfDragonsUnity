@@ -233,7 +233,7 @@ namespace MyriadOfDragons.UI
             GameObject subscribe = new GameObject("Btn_Subscribe", typeof(RectTransform), typeof(Image), typeof(Button));
             subscribe.transform.SetParent(bar.transform, false);
             Image sImg = subscribe.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNeutralActionButton(subscribe.GetComponent<Button>(), sImg, new Color(0.28f, 0.36f, 0.22f));
+            HomeV3UiLibrary.ApplyPrimaryActionButton(subscribe.GetComponent<Button>(), sImg);
             subscribe.GetComponent<Button>().onClick.AddListener(() =>
             {
                 VipSubscriptionActionResult result = VipSubscriptionOpenValues.TrySubscribe(VipPlanKind.Weekly);

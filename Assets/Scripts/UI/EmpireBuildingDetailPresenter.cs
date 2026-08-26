@@ -182,8 +182,7 @@ namespace MyriadOfDragons.UI
             _upgradeButtonRoot = new GameObject("Btn_Upgrade", typeof(RectTransform), typeof(Image), typeof(Button));
             _upgradeButtonRoot.transform.SetParent(panel, false);
             Image upImg = _upgradeButtonRoot.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNeutralActionButton(_upgradeButtonRoot.GetComponent<Button>(), upImg,
-                new Color(0.16f, 0.42f, 0.28f));
+            HomeV3UiLibrary.ApplyPrimaryActionButton(_upgradeButtonRoot.GetComponent<Button>(), upImg);
             _upgradeButtonRoot.GetComponent<Button>().onClick.AddListener(() => OnUpgradePressed());
             SetNorm(_upgradeButtonRoot.GetComponent<RectTransform>(), 0.28f, 0.06f, 0.72f, 0.18f);
             UISharedFoundation.CreateText(_upgradeButtonRoot.transform, "Text", "UPGRADE", UITextRole.Display,

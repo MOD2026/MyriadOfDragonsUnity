@@ -203,8 +203,7 @@ namespace MyriadOfDragons.UI
             GameObject unlock = new GameObject("Btn_UnlockPremium", typeof(RectTransform), typeof(Image), typeof(Button));
             unlock.transform.SetParent(bar.transform, false);
             Image img = unlock.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNeutralActionButton(unlock.GetComponent<Button>(), img,
-                new Color(0.16f, 0.38f, 0.28f));
+            HomeV3UiLibrary.ApplyPrimaryActionButton(unlock.GetComponent<Button>(), img);
             unlock.GetComponent<Button>().onClick.AddListener(() =>
             {
                 BattlePassClaimResult result = BattlePassOpenValues.TryUnlockPremium();

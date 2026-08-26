@@ -211,16 +211,18 @@ namespace MyriadOfDragons.UI
             CreateActionButton(panel.transform, "Btn_SubmitObjective", "SUBMIT OBJECTIVE", 0.35f, 0.04f, 0.65f, 0.22f,
                 () => _ = SubmitObjectiveAsync(_selectedObjectiveId));
             CreateActionButton(panel.transform, "Btn_ClaimMilestone", "CLAIM MILESTONE", 0.68f, 0.04f, 0.98f, 0.22f,
-                () => _ = ClaimMilestoneAsync(_selectedMilestone));
+                () => _ = ClaimMilestoneAsync(_selectedMilestone), primary: true);
         }
 
         private void CreateActionButton(Transform parent, string name, string label,
-            float left, float bottom, float right, float top, UnityEngine.Events.UnityAction onClick)
+            float left, float bottom, float right, float top, UnityEngine.Events.UnityAction onClick,
+            bool primary = false)
         {
             GameObject btn = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             btn.transform.SetParent(parent, false);
             Image img = btn.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNeutralActionButton(btn.GetComponent<Button>(), img, new Color(0.2f, 0.36f, 0.28f));
+            if (primary) HomeV3UiLibrary.ApplyPrimaryActionButton(btn.GetComponent<Button>(), img);
+            else HomeV3UiLibrary.ApplyNeutralActionButton(btn.GetComponent<Button>(), img, new Color(0.2f, 0.36f, 0.28f));
             btn.GetComponent<Button>().onClick.AddListener(onClick);
             SetNorm(btn.GetComponent<RectTransform>(), left, bottom, right, top);
             UISharedFoundation.CreateText(btn.transform, "Text", label, UITextRole.Body,

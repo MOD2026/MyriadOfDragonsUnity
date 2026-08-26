@@ -256,7 +256,7 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("ModalPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(overlay.transform, false);
             Image panel = panelObj.GetComponent<Image>();
-            panel.color = panelColor;
+            ApplyFramedPanel(panel, null, panelColor, panelColor, kind: FramedPanelKind.Modal);
 
             RectTransform panelRect = panelObj.GetComponent<RectTransform>();
             panelRect.anchorMin = panelAnchorMin;

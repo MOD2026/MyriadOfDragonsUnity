@@ -239,8 +239,7 @@ namespace MyriadOfDragons.UI
                 GameObject claim = new GameObject("Btn_Claim", typeof(RectTransform), typeof(Image), typeof(Button));
                 claim.transform.SetParent(row.transform, false);
                 Image claimImg = claim.GetComponent<Image>();
-                HomeV3UiLibrary.ApplyNeutralActionButton(claim.GetComponent<Button>(), claimImg,
-                    new Color(0.16f, 0.4f, 0.28f));
+                HomeV3UiLibrary.ApplyPrimaryActionButton(claim.GetComponent<Button>(), claimImg);
                 claim.GetComponent<Button>().onClick.AddListener(() =>
                     Apply(DailyLoginQuestsOpenValues.TryClaimQuest(quest)));
                 SetNorm(claim.GetComponent<RectTransform>(), 0.72f, 0.18f, 0.96f, 0.82f);
