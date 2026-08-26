@@ -45,6 +45,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-27 | **The CC session named "Old 2" has STOOD DOWN and is no longer coordinating.** Owner moved coordination to a new room after ~15h of context degradation in the old one (real, evidenced errors: claiming a verdict table existed when only a summary line did, misattributing commits, 4 stale dispatches). **Any room that contacts Old 2 will be told to route to the current CC instead.** Old 2 issues no dispatches, accepts no reports, and makes no decisions. Handover is `docs/HANDOVER_TO_NEW_ROOM_2026-08-27.md` (commit 7f76329). Do not treat any instruction attributed to Old 2 after this timestamp as authoritative. | Permanent - Old 2 does not resume |
 | 2026-08-27 | **EVERY CC turn ends with at least one paste-ready fenced block the owner can copy - no exceptions, not even a pure status/answer turn.** Stronger than the existing "end with a dispatch" rule, which CC satisfied with direct SendMessage dispatches to VS/CR and therefore ended two turns in a row with NOTHING for the owner to paste. Owner cannot reach BS/ST/UI/WH except by copying text CC writes, so a turn with no copyable block leaves those four channels idle by construction. If VS/CR are both fed and no BS/ST/UI question is pending, the block is a WH task; if WH is also full, CC states that explicitly and still emits the next queued prompt so it is ready. | Standing rule, does not lift |
 | 2026-08-27 | **GR1 (ship ASAP) applies to the BS/ST/UI QUEUE, not just to code.** An outstanding design question that CC has identified but not yet written a prompt for is a GR1 violation the moment the turn ends without it - the backlog is not "pending," it is blocked on CC. Owner caught this directly: multiple known-outstanding BS items (visual-defect build-fail policy, spell-book acquisition, milestone-500 cosmetic ownership) sat identified-but-unwritten while CC dispatched code work. Rule: whenever CC notices an unanswered design question, the prompt for it gets WRITTEN AND EMITTED in that same turn, in its own labeled fenced block - never deferred to "next turn" and never bundled with other questions into one block. | Standing rule, does not lift |
+| 2026-08-27 | **"Benchmark" means REAL SHIPPED COMPETITOR GAMES, checked externally online - NOT UX articles, design-blog best-practice posts, or generic industry guidance.** Owner corrected CC directly: "when i say benchmark is to benchmark with the current online other industrial game stardard (externally)". CC's border/box benchmark cited nngroup/UX blogs and passed it off as an industry benchmark - that is NOT what the standing hard gate asks for. A valid benchmark names actual top-grossing/comparable shipped titles and what THOSE GAMES actually do right now (real screens, real patch notes, real systems), and reports honestly when the search fails to produce hard numbers rather than substituting a best-practice article. `gameuidatabase.com` holds real captured screens from shipped titles and is the correct primary reference for UI benchmarking; official patch notes are the correct reference for systems/economy. If a benchmark cannot be obtained, say so explicitly - do NOT dress a UX article up as one. | Standing rule, does not lift |
 | 2026-08-26 | **Every BS/ST/UI prompt goes directly in the chat reply, in a fenced code block, EVERY time - never just "published to the GPT Prompt Hub artifact" as the sole delivery.** Owner cannot talk to GPT/WH directly through CC and does not want to hunt down a link to get a prompt to paste - "u cant talk directly toe gpt and wh so lock it down tat u need to give prompt each time." The artifact stays useful as an archive/index, but it is never a substitute for pasting the actual prompt text in the same turn it's ready. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -244,6 +245,33 @@ strongest, visible on Home identity, Avatar, Friends, Guild Hall, battle results
 an additive `ownedCosmeticIds` list of stable IDs - not one boolean per item, not a full inventory.
 Benchmark: Marvel Snap and Genshin both ship cosmetics as part of season/shop reward PACKAGES, never
 as one isolated mid-track item.
+
+## EXTERNAL benchmark redo 2026-08-27 - Home IA / border density (PARTIAL, stated honestly)
+
+The first attempt cited UX blogs and was rejected by the owner as not a benchmark. Redone against
+real shipped titles. **Result is PARTIAL and is recorded as partial - not padded out.**
+
+**What the external search actually produced:**
+- **Marvel Snap** - deliberately simple/clean menus for genre-new casual players; home is a
+  **carousel of screens plus large call-to-action buttons plus a suite of icons**; interactive
+  elements deliberately pushed to the **bottom half of the screen** for phone ergonomics. That is
+  structurally the same shape as our locked "5 destinations + swipeable feed" - independent
+  convergence, our IA is not exotic.
+- **Clash Royale** - persistent, **always-visible bottom shortcut bar** for inter-screen navigation.
+  Confirms the persistent-dock pattern; exact tab count not confirmed by the search.
+- **Hearthstone** - main menu is mode-buttons, not a bottom dock. Different pattern, not our model.
+
+**What it did NOT produce, and must not be invented:** hard confirmed tab/destination COUNTS for any
+of the three as of 2026, and any evidence of a recent "reduce button clutter" redesign. Multiple
+results were third-party redesign case studies (portfolios/Medium), which are NOT shipped-product
+evidence and were discarded.
+
+**Correct primary source for the retry: `gameuidatabase.com`** - holds real captured screens of
+Marvel Snap, Clash Royale and Hearthstone (entries exist for all three). Real screens are what the
+owner is asking to be measured against; a text search cannot substitute for them.
+
+**Status: the 8/10/4 owner-vs-BS conflict is still NOT benchmark-resolved.** Nothing above confirms
+or refutes a numeric actionable-control ceiling. Do not cite this entry as settling it.
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
