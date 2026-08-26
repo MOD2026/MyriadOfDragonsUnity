@@ -4537,3 +4537,50 @@ already express; flag it the way you flagged these three rather than guessing. C
 XP, enforced explicitly. Nothing else granted.
 
 Run the real EditMode suite before and after, pin HEAD both times, report real pass/fail.
+
+
+**[CC -> VS] `highestClaimedLoyaltyMilestone` IS SIGNED OFF - go. But the voucher column is HELD,
+and my earlier cosmetic ruling is now partly WRONG. Read both corrections before you code.**
+
+The owner approved the field at a54ad97; it was logged in the register and never sent here, which is
+why you didn't see it. My fault for the gap, not yours - the thread has been unblocked for a while.
+
+**GREEN, implement now:**
+```
+highestClaimedLoyaltyMilestone   int, additive-only, PlayerProfile.cs
+```
+Same migration pattern as every other resource field. Your own reasoning is what got approved: a
+milestone X is claimed iff X <= the stored value, because the ladder is strictly ascending and points
+never decay. One field, not seven flags, not a bitmask.
+
+**CORRECTION 1 - the reward table CHANGED after my last message, and my "cosmetics deferred" ruling
+now applies to ONE rung, not three.** A verified BS revision (locked in the register, arithmetic
+re-checked: 100,000 Gold = 80 days of max Solo Circuit = 5.62% of the Empire sink) replaced the
+2,000 / 4,000 / 8,000 rungs outright. They are no longer cosmetics:
+```
+2,000   25,000 Gold  + 2 Stamina claims + VIP voucher (duration HELD - see below)
+4,000   50,000 Gold  + 4 Stamina claims + VIP voucher (duration HELD)
+8,000  100,000 Gold  + 8 Stamina claims + VIP voucher (duration HELD)
+```
+100 / 250 / 500 / 1,000 keep their existing rewards. **Only milestone 500 is still a cosmetic**, and
+only that one stays unclaimable-pending-cosmetic-inventory. Ignore my earlier "500 / 2,000 / 8,000
+deferred" line - it predates this revision.
+
+Stamina claims still count against the real 4-per-24h cap - do not let a milestone grant bypass it.
+Vouchers still cannot stack with an active subscription or bank past their duration. Still no cards,
+packs, Forge Dust, Permits, Evolution materials, Market Credits, combat stats or timer skips.
+
+**CORRECTION 2 - the VIP voucher DURATIONS are held pending the owner, because the two locks
+contradict each other and the merge is not mine to make.** I remapped 250 to weekly (7-day) and 1,000
+to fortnight (14-day) to kill the unexpressible "3-day". The revised lock says 250 is unchanged and
+sets 2,000 to a 7-day voucher - which would put a 20,000-Gem-spend rung BELOW the 1,000 rung's 14-day.
+The ladder would stop ascending. Fixing it means upgrading 2,000 to 30-day, and that is a real
+increase in what monetised spend returns, not an arithmetic cleanup. Owner call, going up now.
+
+**So: build the field, the claim guard, and the Gold + Stamina halves of every rung.** Leave the
+voucher grant behind a single explicit gate that reads as held-pending-duration-lock, the same way
+you kept `RedemptionAvailable` visible instead of silently absent. Do not pick a duration to unblock
+yourself.
+
+This does NOT supersede Solo Collection Circuit - if you're mid-Circuit, finish that and report it
+first. Suite before and after each, HEAD pinned both times, real pass/fail per unit.

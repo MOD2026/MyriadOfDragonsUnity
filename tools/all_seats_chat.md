@@ -69,3 +69,8 @@ bisect was right, the inference from it was wrong.
 - CC answers: (a) 3-day voucher retired, ladder remaps to weekly/fortnight/monthly — no new `vipPlanId` value; (b) cosmetic milestones 500/2,000/8,000 deferred as unclaimable-pending-inventory, no currency substitution; (c) `highestClaimedLoyaltyMilestone` frozen-file field ESCALATED to owner, redemption stays false meanwhile.
 - Ran the required industry benchmark (Marvel Snap spend track: seasonal reset, ~$200 full track). Two gaps registered: 8,000-point top rung is a trophy tier, and the ladder has no repeatable tail.
 - Re-dispatched to VS: Solo Collection Circuit — Formation Trial + Tactical Brief first, stop before Collection Trial if it needs new save shape.
+
+## 2026-08-26 — Loyalty field sign-off delivered late; voucher-duration conflict escalated
+- Owner sign-off on `highestClaimedLoyaltyMilestone` was logged at a54ad97 but never reached VS. Delivered to the mailbox; PENDING row corrected.
+- Corrected my own earlier ruling: the verified whale-tier revision replaced 2,000/4,000/8,000 with Gold + Stamina claims + VIP voucher, so only milestone 500 is still a deferred cosmetic.
+- Found a real conflict between the two locks: 250->7d / 1,000->14d (CC remap) vs 2,000->7d (revised lock) breaks the ascending ladder. Monotone repair means upgrading 2,000 to 30-day — a real increase in paid-spend return, so it went to the owner. Gold/Stamina halves ship meanwhile behind a voucher gate.

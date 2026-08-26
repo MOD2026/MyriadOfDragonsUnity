@@ -47,7 +47,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 | Sent | To | What | Status |
 |---|---|---|---|
 | 2026-08-26 | VS (mailbox) | Solo Collection Circuit - Formation Trial + Tactical Brief first; stop before Collection Trial if it needs new save shape | PENDING - dispatched |
-| 2026-08-26 | OWNER | Sign-off needed: single int `highestClaimedLoyaltyMilestone` on PlayerProfile (frozen). Without it a one-time milestone can be claimed repeatedly, so redemption stays hard-disabled. Ascending ladder + non-decaying progress means one int is sufficient - no per-milestone flags, no list. | PENDING - awaiting owner |
+| 2026-08-26 | VS (mailbox) | `highestClaimedLoyaltyMilestone` owner sign-off + revised reward table + voucher-duration hold | PENDING - dispatched (sign-off had been logged at a54ad97 but never delivered; gap closed) |
+| 2026-08-26 | OWNER | **VIP voucher durations conflict.** CC remapped 250->weekly(7d), 1,000->fortnight(14d) to retire the unexpressible 3-day. The revised whale-tier lock sets 2,000->7d, which sits BELOW the 1,000 rung and breaks the ascending ladder. Monotone fix = upgrade 2,000 to 30-day, a real increase in what paid spend returns. Gold/Stamina halves are unaffected and are shipping now. | PENDING - awaiting owner |
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
 | 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
 
@@ -4473,3 +4474,18 @@ confirmed: revised whale-tier rewards verified real (100,000 Gold = 80 days Circ
 the Empire sink), voucher durations verified matching the real 7/14/30-day VIP vocabulary, single-int
 persistence approach verified as correct reasoning (strictly ascending ladder, no decay). Real Shop
 Loyalty redemption thread now fully unblocked - implementation may proceed.
+
+## Loyalty voucher durations — OPEN CONFLICT (2026-08-26)
+
+Two locks in this file disagree and must not both be implemented:
+- CC remap (blocker resolution): 250 = weekly (7d), 1,000 = fortnight (14d), 4,000 = monthly (30d).
+  Retires the "3-day voucher", which `vipPlanId` (weekly|fortnight|monthly) cannot express.
+- Revised whale-tier lock: "100/250/500/1,000 unchanged" + 2,000 = 7-day.
+
+Together these put a 7-day reward at 2,000 points above a 14-day reward at 1,000 — the ladder stops
+ascending. The only monotone repair is 2,000 -> 30-day, which increases what monetised spend returns
+and is therefore an owner call, not an arithmetic correction.
+
+**Until resolved:** the Gold and Stamina halves of every rung ship normally; the voucher grant sits
+behind an explicit held-pending-duration-lock gate. No duration may be picked to unblock work.
+Cosmetic deferral now applies to milestone **500 only** — 2,000/4,000/8,000 are no longer cosmetics.
