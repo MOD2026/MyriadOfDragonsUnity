@@ -631,6 +631,64 @@ concise locked/availability card - **the player must never enter a large blank p
 **Benchmark: UNCONFIRMED for all 8 games** - no version-stamped empty-state capture is verifiable.
 BS correctly refused to invent comparators and noted the conclusion does not depend on them.
 
+## Contrast + scrims - LOCKED 2026-08-27 (new HARD FAIL in the UI gate)
+
+Forced by the three approved dark backdrops. **BS argues contrast targets UP, not down: the game
+context (small text, textured moving art, ~6in screen, often poor lighting) justifies STRICTER than
+WCAG, not looser.**
+
+**FLOORS:** body copy + interactive labels **7:1**; large text (T5 55px+) **4.5:1**; **primary CTA
+text 7:1 regardless of size**; decorative/disabled text unguaranteed but may never carry required
+information.
+
+**MEASUREMENT - against the RENDERED FRAME, never the source image.** Per text object: identify the
+glyph mask + bounding rect; sample background pixels in that rect EXCLUDING glyph pixels; compute
+WCAG relative luminance per sample; **accept on the 5th-PERCENTILE contrast, not the average**;
+require >=95% of covered pixels to meet the floor; permit NO sampled region below 4.5:1 (body/
+interactive) or 3:1 (large). Average is unsafe - bright and dark pixels average to an acceptable
+value while a word crossing a bright patch is unreadable. The 5th percentile catches that without one
+anti-aliased edge pixel failing everything. Run against default, notification-heavy, open-modal, and
+any animated background frame in the capture harness.
+
+**SCRIMS, ranked, as tokens:**
+1. **Local gradient scrim (preferred over art)** - black-to-transparent, 55-70% opacity behind the
+   text block, falling to 0% over 160-240px. Hero titles, story text, primary CTAs. Tier 2; may
+   support a Tier 1 CTA.
+2. **Semi-transparent panel (preferred for dense/interactive copy)** - black/navy at **60% for
+   Tier 3, 80% Tier 2, 95% Tier 1**. Tooltips, descriptions, reward summaries, controls.
+3. **Radial darkening** - centre 45-60%, feathered to 0% over 120-200px. Single focal block only;
+   avoid for long lists, edges stay unreadable.
+4. **Shadow/outline - SUPPORT ONLY, never the primary fix.** It cannot overcome a bright patch.
+
+**Keep every scrim LOCAL to the text region. A full-screen dark wash solves contrast and ruins the
+approved painting.**
+
+**Shadow tokens:** default black #000000, 70% opacity, offset 2px down/2px right, blur 4px. Hero/
+display: 80% opacity, offset 3px, blur 6px. 1px outline only for small labels where a scrim is
+impossible, 60-70% opacity, black or deep navy. **No thick glow outlines on every label - that
+recreates the undifferentiated-noise problem we just fixed in the border system.**
+
+**AMBER COLLISION - real risk: our accent amber matches the ember particles in the art.** Interactive
+amber must NEVER rely on hue alone; it needs at least two more signals: a stable geometric container
+or underline, consistently stronger value/brightness than background embers, a focus/pressed state,
+a label or icon with alignment distinct from scenery, optionally a subtle availability pulse (never
+continuous animation). **Reserve the brightest amber and the cleanest amber-to-cream gradient for
+interactive states. Background embers stay softer, less saturated, lower contrast, and must never
+form button-like rectangles.**
+
+**SIZE/WEIGHT ON DARK ART:** global 22px floor holds, but 22px is **metadata only, and only with a
+scrim or flat surface**. **Over un-scrimmed painted art, 28px minimum for ALL player-facing text.**
+Minimum weight 500 at 22-28px; weight 400 acceptable only at 35px+ with verified contrast; primary
+CTA labels 600-700. Reason: thin light glyphs bloom and lose edge definition against texture.
+
+**GATE CHANGE: insufficient RENDERED contrast is a BUILD FAILURE (structural), not a warning.**
+Artwork tone and aesthetic quality remain human review.
+
+**Benchmark: UNCONFIRMED numeric values for all 5 dark-themed games checked** (Hearthstone, Diablo
+Immortal, Raid Shadow Legends, Arknights, Marvel Snap) - no shipped title publishes contrast tokens.
+Observable shared pattern: dark framing plus LOCALISED panels/overlays and high-contrast labels over
+textured art - which is exactly the local-scrim approach locked above.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
