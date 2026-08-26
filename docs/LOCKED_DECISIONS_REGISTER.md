@@ -5486,3 +5486,25 @@ directly in `Assets/Tests/Editor/`. Added as a standing order below.
 session), hit the compile error VS reported, and is fixing it now for a clean before/after run - not
 idle, not a mystery anymore. VS and CR are both currently blocked on the `.unity_batch.lock` WH's run
 holds; this resolves the same moment WH's suite finishes, not a separate blocker to chase.
+
+## GPT backlog check: 1 real item newly unblocked, 1 still genuinely open, 1 real owner decision surfaced again (2026-08-26)
+
+**Newly unblocked, ready to dispatch to a coding room (not GPT's):** the combined six-month economy
+simulation was blocked on Expedition + Battle Pass Gold numbers being real `null`s - both are now
+fully locked (Expedition: 10/300/200/900; Battle Pass: Gold table + XP=1400 + price=800 + grace=7).
+Nothing left blocking it. Queuing as VS/CR's next real task once the current suite-lock contention
+clears - not urgent enough to interrupt either room's in-flight work for.
+
+**Still genuinely open, BS's own honest flag, not yet re-asked:** the Loyalty points-per-Gem reward
+curve is explicitly marked provisional - BS's own second-pass admission that no reliable cross-game
+"points per Gem" benchmark exists (games hide this behind IAP bundles), and it needs a real
+F2P/regular-spender/whale 6-month simulation before permanent lock. This is exactly what the newly-
+unblocked combined sim will produce as a side effect - real next step is to run the sim first, then
+bring BS the real simulated numbers rather than asking BS to re-guess without them.
+
+**Real owner decision, still sitting unresolved since early tonight:** the 2,000-point Loyalty
+voucher upgrade (7-day -> 30-day) has never been explicitly confirmed. This is not a GPT task -
+already fully vetted (only one mathematically sane fix identified, real consequence confirmed by
+VS's own test: the entire Gold whale tier, 250pts and up, is currently unreachable because claims
+are strictly ascending and the held 250pt rung blocks everything behind it). Resurfacing as a clean
+yes/no since it's been open long enough to be actively costing a shipped feature its value.
