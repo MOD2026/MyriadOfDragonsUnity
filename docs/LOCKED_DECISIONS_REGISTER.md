@@ -4547,3 +4547,48 @@ applies (VS: Loyalty field/claim-guard + Gold/Stamina halves, voucher duration s
 Hall/Mail bug diagnosis + design-token rollout, top priority). Neither room was idle - both already
 had real PENDING work, this was a resume/reverify, not a new task. PENDING DISPATCH unchanged; will
 update once either replies with proof of identity + landed work.
+
+## CR identity re-confirmed (`myriadofdragonsunity-2a`); Guild Hall overlap FIXED, verified real (2026-08-26)
+
+Commit dcf9610 checked directly (`git show`) - matches CR's report exactly, not self-report-only.
+Root cause: `EmpirePresenter.OpenGuildHallEntry()` never hid Empire's own canvas before opening
+`GuildHallEntryPresenter`, and `GuildHallEntryPresenter.BuildUI()` never called the standard
+`CleanupStaleMetagameCanvases()` every sibling screen has - both canvases stayed active/interactive
+together, matching the owner's screenshot. Both gaps fixed. Bonus finding during the full-presenter
+audit: `TacticalPuzzleCanvas` (sortingOrder 45) was missing from the cleanup master list entirely -
+added to the list (not a self-cleanup call, since it's an intentional Empire overlay, same pattern as
+`EmpireBuildingDetailPresenter`). 3 new real transition tests (open A, open B, assert A's canvas
+actually gone), 35/35 pass, HEAD 0b4ef72 unchanged before/after.
+
+**Mail freeze NOT claimed fixed** - CR explicitly separated this from the Guild Hall fix. Mail's own
+cleanup already protects it by name; the TacticalPuzzle-orphan path is a plausible same-shape
+candidate but inferred from code, not reproduced - needs a real Play Mode repro CR can't drive
+remotely. Correctly reported as open, not silently folded into the "fixed" claim.
+
+**CR now starting design-token rollout** (was dispatched earlier, not yet begun before this
+confirmation) - 5-6 screens/commit, Home/Empire/Shop/Collection first, reporting each commit as it
+lands rather than batching silently.
+
+PENDING DISPATCH: Guild Hall/Mail row - **PARTIAL, not closed** (a peer session correctly caught my
+overstatement here and downgraded it independently, see below). Code for the canvas-overlap fix is
+real and verified (dcf9610), but the commit's own message says the Mail-screen cause is inferred
+from code, not reproduced in Play Mode - a landed fix isn't a confirmed fix per standing discipline.
+Design-token rollout row unchanged (now actively in progress, still no landed commit).
+
+**Reconciliation note:** a peer session is independently working this same register tonight
+(commits 0b4ef72/f806b49/0061fdf) - it deduped a voucher-conflict row I'd have otherwise
+double-logged and correctly marked this Guild Hall row PARTIAL. Two sessions coordinating the same
+file concurrently is a real risk (silent overwrite) - watch for it, diff before large edits.
+
+## Design-token rollout hits an ownership boundary: Home + Shop are Metagame-owned, CR correctly held it (2026-08-26)
+
+CR flagged, unprompted, before starting: 2 of the 4 priority-first screens (Home, Shop) are on CR's
+own CLAUDE.md "must NOT edit" list (`HomePagePresenter.cs`, `ShopPresenter.cs` - Metagame seat's).
+Same boundary CR held on the retention-telemetry task earlier tonight. Correct, not blocking -
+**CR proceeding with batch 1 = Empire (CR's own) + Collection (unowned, free territory, same as the
+earlier 16-screen layout task)**, then continuing through the rest of the ~20-screen list.
+
+**Real open item for the owner: Home + Shop need either the Metagame seat spun up, or explicit
+owner sign-off for CR to cross the ownership boundary, before those two screens get the same
+design-token treatment.** Nothing blocks on this now - CR has 18 other screens to work through
+first - but it will come up again before the ~20-screen sweep finishes.
