@@ -6390,3 +6390,22 @@ hang now root-caused to the telemetry timeout gap already dispatched to WH). Fra
 rather than a fixed score, since VS's own honest caveat stands: HEAD moved 3 times during the
 measurement (peers committing), so this is "did not fail across 4 trees and 4 full-suite runs
 tonight," not an unconditional guarantee they can never flake.
+
+## LOCKED: Battle Combat Resolution VFX Rail Design V1 - implementation-ready, real assets confirmed (2026-08-26, UI)
+
+Real, thorough replacement for the text combat-log rail, addressing the owner's design reversal
+directly. **Verified before locking: all 6 named audio cues
+(`combat.commit`/`combat.impact`/`combat.cast`/`combat.resolve.soft`/
+`avatarstrike.release.impact`/`avatarstrike.release.stinger`) are real files already sitting in
+`Assets/Art/Audio/` since the start of this session** - the design is grounded in real assets, not
+invented cue names. Exact pixel geometry given (stage at x1478-1882/y150-620, replacing only the
+text-log region, spell rail and primary action untouched), full event contract
+(`ClashResolved`/`SpellResolved`/`CardDefeated`/`LaneStateChanged`/`AvatarHealthChanged`/
+`AvatarStrikeResolved`) built from the existing combat ledger rather than recalculating anything in
+UI, explicit queue/timing/accessibility/fallback rules, and a real acceptance checklist.
+
+**Real discipline in the doc itself, worth noting:** explicitly scoped to visualize already-resolved
+events, never determine results or delay simulation; explicitly says "do not restore the scrolling
+text log as a visual fallback" even when assets are missing (proxy+icon+number instead); explicitly
+never labels defeat states with runtime terms that may not exist ("do not label this 'lane death'
+unless that exact runtime term exists"). Dispatching to VS as the real implementation spec.

@@ -6530,3 +6530,22 @@ treating that rail as a readable log, make it a real animation/VFX surface inste
 combat-tick information preserved somewhere less prominent (a collapsed/tap-to-expand log, a smaller
 corner readout) rather than removed outright, that's a real design call worth flagging back to the
 owner rather than guessing. Report your read before building anything irreversible.
+
+**[CC -> VS] Real implementation-ready spec for the Battle top-rail redesign, verified against real assets - go ahead and build this.**
+
+Full design doc: C:\Users\zihan\Documents\Codex\2026-08-09\referenced-chatgpt-conversation-this-is-an-3\outputs\Battle_Screen_Landscape_Replacement\Battle_Combat_Resolution_VFX_Rail_Design_V1.md
+
+Verified before dispatching: all 6 named audio cues (combat.commit/combat.impact/combat.cast/
+combat.resolve.soft/avatarstrike.release.impact/avatarstrike.release.stinger) are real .opus files
+already in Assets/Art/Audio/ - this design was built against real assets, not invented names.
+
+Summary: replaces ONLY the scrolling text combat-log region (x1478-1882, y150-620 at 1920x1080) with
+a passive Combat Resolution Stage - visualizes already-resolved events (clash, spell cast, card
+defeat/lane clear, avatar damage/healing, AvatarStrike signature beat), never recalculates combat or
+delays simulation. Spell rail and primary action region are unchanged. Full event contract given
+(ClashResolved/SpellResolved/CardDefeated/LaneStateChanged/AvatarHealthChanged/AvatarStrikeResolved),
+built from the existing combat ledger. Explicit rule: if an asset is missing, fall back to
+proxy+icon+number, never restore the old text log. Real acceptance checklist at the end of the doc.
+
+This replaces the earlier open-ended dispatch ("stop treating that rail as a log") - the design is
+now concrete enough to build directly. Full suite before/after, your own -ResultsPath/-LogPath.
