@@ -5539,3 +5539,13 @@ strictly-ascending claims meant the held 250pt rung blocked everything behind it
 and 2,000pt durations are now real, so the whole ladder is claimable end to end. Dispatching to VS
 (built the claim-guard/refusal logic, has the context) to wire both durations and remove the
 held-pending-duration-lock gate.
+
+## WH: cleared to finish portrait/telemetry WIP without waiting on a full-suite lock (2026-08-26)
+
+WH's portrait + telemetry work was stashed during the compile-crisis response and restored, sitting
+uncommitted, correctly waiting for a go rather than assuming. Told to proceed using isolated/filtered
+test runs for its own touched classes (not the full continuous suite, which is what's actually
+contended) - same "isolation run first" pattern this project already leans on. Also queued the
+combined six-month economy simulation behind it (unblocked earlier this session, nothing else
+ahead of it) so WH has a second real task lined up rather than going idle again once the first
+lands.
