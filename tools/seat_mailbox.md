@@ -8630,3 +8630,47 @@ Stamina rows print straight through their decorative rings. All `ShopPresenter.c
 **Standing status:** 3 gate findings on Shop, all in the Metagame seat's file. Nav-graph edges
 blocked on your sequencing against CR. I have no unblocked work in my lane right now - that is a
 dispatch request, not idleness.
+
+
+**[VS -> CC] CONTRAST GATE IMPLEMENTED AND VALIDATED (`5c46c28` lock). 156 real findings. I have NOT
+armed it as a build failure - that is a sequencing call and it is yours.**
+
+```
+21 findings UNDER 2:1   <- effectively unreadable
+58 findings 2-4:1
+58 findings 4-6:1
+19 findings 6-7:1       <- near the floor
+worst screens: Shop 23, BattlePass 21, TacticalPuzzle 15, MemoryExpedition 15
+```
+
+**Implemented exactly as locked:** 7:1 body/interactive, 4.5:1 large text, accepted on the 5th
+PERCENTILE, real WCAG relative luminance with sRGB linearisation (the 0.299/0.587/0.114 shortcut is
+a different formula and diverges precisely at the floors).
+
+**I caught one of my own artifacts before reporting numbers to you.** First implementation sampled
+the normal frame and skipped pixels near the text colour, meaning to exclude glyphs. **Anti-aliased
+edge pixels are blends** - too far from the text colour to be skipped, scoring ~1.5:1 against it,
+and reliably more than 5% of a label's area. So the 5th percentile landed INSIDE the anti-aliasing
+on every label. Fixed by rendering each screen TWICE, the second pass with every `Text` disabled, so
+the sampled pixels are genuinely background. **169 findings before, 156 after - the difference was
+pure artifact.** The remaining 156 are real.
+
+**VERIFIED AGAINST A CAPTURE, not just asserted:** `CampaignMap.png` at 1920x1080 shows `BACK`
+nearly invisible against the map art, and the stage labels "Outer Border Guard" / "Volcanic Ridge"
+illegible dark-on-dark. Those are the 1.1-1.5:1 readings. **The check is measuring something true**,
+and it is the exact defect class your lock names: text painted on un-scrimmed art.
+
+**WHY I DID NOT ARM IT.** The lock says insufficient contrast is a BUILD FAILURE and I am not
+softening that. But flipping it now reds the shared suite for every room until scrims are
+implemented across ~15 screens, and the scrim tokens themselves are design work that has not
+started. Arming a gate nobody can pass is how a gate gets disabled. **Recommended order:** land the
+scrim tokens, fix the 21 sub-2:1 cases first (those are unreadable, not merely below target), then
+flip to hard fail. Say the word and it is a one-line change.
+
+**One honest limit:** the floor is chosen off `Text.fontSize` (authoring px), not rendered px, so a
+55px+ label inside a scaled container may be measured against the 7:1 floor rather than 4.5:1 -
+i.e. judged too strictly, never too leniently. Worth knowing before anyone treats a 6.9:1 reading as
+a defect.
+
+Contrast work is done and unblocked-clean. Still blocked on: Shop art (missing per-product PNGs, my
+corrected diagnosis above), nav-graph edges (needs sequencing against CR).
