@@ -4947,3 +4947,13 @@ match the report exactly.
 
 Clean negative result - real, not a rubber stamp (dedicated Collection coverage was actually
 missing and got built, not just re-asserted). WH now idle, dispatching next.
+
+## LOCKED: Gorn portrait brief - verified, textual anchors real, creative details correctly flagged as proposed (2026-08-26, ST)
+
+Every cited textual fact checked directly against code, all real: "obsidian gates" verbatim at
+`CampaignMapPresenter.cs:156`, "quarry gangs feed Gorn's old war machine" verbatim at line 160,
+Stronghold Citadel/Volcanic Ridge/broken seal/war-banner all confirmed. ST correctly separated
+LOCKED anchors (obsidian-citadel connection, war-banner, broken seal, authority-survives-death) from
+PROPOSED non-canon details (scar, tusk, armor construction, exact colors, weapon) - nothing
+presented as canon that isn't. Ready for UI. Cast correction stands: Gorn is an enemy, not grouped
+with the Ch1-3 companion trio.
