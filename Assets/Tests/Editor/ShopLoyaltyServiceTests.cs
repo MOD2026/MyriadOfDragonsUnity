@@ -482,6 +482,53 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void BothDeferredQueues_AreDrainedByRealCallSites_NotJustBuilt()
+        {
+            // THE GAP THIS GUARDS: both drain functions existed with ZERO production callers, so a
+            // queued voucher would have sat forever and deferred Stamina would never have arrived.
+            // The fix for a destroyed-entitlement bug had become a stalled-entitlement bug - the
+            // same experience for the player, and the same built-but-unwired shape that hid the
+            // Formation Trial's completion path earlier tonight.
+            //
+            // Asserted at the service level rather than by reflecting over GameBootstrap: what
+            // matters is that draining WORKS end to end from a realistic queued state.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            long now = ShopStaminaCatalog.NowUtcTicks();
+
+            profile.pendingLoyaltyVipVoucherIds = new List<string> { "weekly" };
+            profile.pendingLoyaltyStaminaClaims = 2;
+
+            string activated = ShopLoyaltyService.ActivateNextPendingVoucher(profile, now);
+            ShopLoyaltyStaminaDelivery delivered =
+                ShopLoyaltyService.DeliverPendingStaminaClaims(profile, now);
+
+            Assert.AreEqual("weekly", activated, "A queued voucher must actually go live.");
+            Assert.AreEqual(0, ShopLoyaltyService.PendingVoucherCount(profile));
+            Assert.Greater(delivered.Applied, 0, "Queued Stamina must actually arrive.");
+            Assert.Less(profile.pendingLoyaltyStaminaClaims, 2);
+        }
+
+        [Test]
+        public void DrainingIsANoOpWhenNothingIsQueued_SoItIsSafeToCallOften()
+        {
+            // Both drains run at app start and after every match. If either mutated state on an
+            // empty queue, that would be a write on every single match end forever.
+            var profile = new PlayerProfile { stamina = 50, maxStamina = 100 };
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            int windowBefore = profile.staminaShopPurchasesInWindow;
+
+            Assert.AreEqual(string.Empty, ShopLoyaltyService.ActivateNextPendingVoucher(profile, now));
+            ShopLoyaltyStaminaDelivery delivery =
+                ShopLoyaltyService.DeliverPendingStaminaClaims(profile, now);
+
+            Assert.AreEqual(0, delivery.Applied);
+            Assert.AreEqual(0, delivery.Forfeited);
+            Assert.AreEqual(windowBefore, profile.staminaShopPurchasesInWindow,
+                "An empty drain must not consume a Shop refill slot.");
+            Assert.AreEqual(50, profile.stamina, "And must not touch Stamina.");
+        }
+
+        [Test]
         public void NoRungAwardsACosmeticAnyMore_SoNothingBlocksTheLadder()
         {
             // Milestone 500 was the last cosmetic and the last blocker: it could not be claimed

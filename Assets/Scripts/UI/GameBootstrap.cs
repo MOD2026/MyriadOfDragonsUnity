@@ -1009,6 +1009,10 @@ namespace MyriadOfDragons.UI
 
             GrantApprovedStarterCardsIfMissing();
 
+            // Real time has passed since the app was last open - a subscription may have
+            // lapsed and the Stamina window may have reopened.
+            DrainPendingLoyaltyEntitlements();
+
             var playerDeck = new List<Card>
             {
                 _cardDatabase.GetCard("warrior"),
@@ -5482,6 +5486,36 @@ namespace MyriadOfDragons.UI
         /// Never throws into the match-end path: a Circuit problem must not break match results,
         /// which is why every input is null-checked rather than assumed.
         /// </summary>
+        /// <summary>
+        /// Delivers Loyalty entitlements that were queued because a cap or an active subscription
+        /// blocked them at the moment they were earned.
+        ///
+        /// WHY THIS EXISTS AT ALL: both queues were built and NOTHING CALLED THEM. A queued voucher
+        /// would have sat forever and a deferred Stamina claim would never have arrived - the fix
+        /// for a destroyed-entitlement bug had quietly become a stalled-entitlement bug, which is
+        /// the same failure the player experiences. Built-but-unwired is the exact gap that already
+        /// hid the Formation Trial's completion path tonight.
+        ///
+        /// Called wherever real time may have passed - app start and match end. Both drains are
+        /// cheap no-ops when nothing is due, and both refuse to exceed their own caps, so calling
+        /// them often is safe.
+        /// </summary>
+        private void DrainPendingLoyaltyEntitlements()
+        {
+            if (_profile == null) return;
+
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            string activated = ShopLoyaltyService.ActivateNextPendingVoucher(_profile, now);
+            ShopLoyaltyStaminaDelivery stamina =
+                ShopLoyaltyService.DeliverPendingStaminaClaims(_profile, now);
+
+            // Only persist when something actually moved. A no-op drain on every match end would be
+            // pure write amplification, the same reason TryClearSoloCircuitFormation only saves on
+            // a real clear.
+            if (!string.IsNullOrEmpty(activated) || stamina.Applied > 0 || stamina.Forfeited > 0)
+                _profile.Save();
+        }
+
         private void TryClearSoloCircuitFormation(bool playerWon)
         {
             if (_profile == null || _battleController == null) return;
@@ -5536,6 +5570,9 @@ namespace MyriadOfDragons.UI
             // approved offline tutorial "advances no checkpoint", and paying a daily reward from it
             // would make the Circuit farmable by replaying the tutorial.
             if (!IsTutorialMatch) TryClearSoloCircuitFormation(playerWon);
+
+            // A match is real elapsed time; the Stamina window may have rolled over.
+            DrainPendingLoyaltyEntitlements();
 
             if (!IsTutorialMatch)
             {
