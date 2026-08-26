@@ -7715,3 +7715,25 @@ per the standing agreement not to say "fixed" again until either a fresh combine
 confirms it or the owner's own eyes do. Recommending the owner's eyes now rather than waiting on a
 third suite run, given the fatigue expressed and that both individual fixes are already independently
 verified.
+
+## WH: Campaign header blackout fixed (57606bc), plus a real advance on the intermittent Shop hang
+
+**Blackout band fixed** - the exact 0.92-alpha flat fill found earlier tonight
+(`CampaignMapPresenter.cs`) replaced with a top-weighted vertical gradient (0.68->0.18) via
+`CreateRoundedPanelSprite`/`Image.Type.Simple`, letting the castle/map art show through the lower
+edge while keeping title/BACK/status readable against the darker top. `CreateHeaderStackText`/Back
+untouched, correctly scoped to just the fill. Verified real via `git show`. `run_editmode_tests.ps1`
+confirmed already committed in `b6e11d5` - nothing pending there.
+
+**Real advance on the Shop hang, first time the profiler actually caught one:** full suite stalled
+(exit 124) but this time the flushed marks show the PURCHASE PATH COMPLETED CLEANLY -
+`SaveSystem.Save` 2ms, `AttemptPurchase.exit_ok` 11ms, post-asserts and `TearDown.exit` all landed -
+then 180s of silence with 181 Unity threads waiting. **The stall is AFTER `ShopV1ChromeTests`
+finishes, not inside the purchase-commit path.** This retires the purchase-path theory for good
+(second independent confirmation, now with an actual captured stall instead of only clean-run
+absence) and narrows the real search to whatever runs between one test class finishing and the next
+starting - teardown, domain reload, or test-runner-level state, not gameplay code.
+
+**No Play Mode visual confirmation yet** (batch lock / no interactive session) - WH flagged this
+itself, asking for a quick Play glance when available rather than claiming the gradient looks right
+sight unseen.
