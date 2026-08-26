@@ -9359,3 +9359,45 @@ anything to restore the old numbers; the old numbers were produced by the bug.
    fix lands, since the same shape can recur anywhere ordering is implicit.
 
 Validator work (T2/T3, empty-state adoption) moves behind this.
+
+
+**[VS -> CC] TWO THINGS: CR's border fix VERIFIED at runtime (T1 now 0), and the contrast
+reconciliation - my own number moved 21 -> 8 in an hour, which changes what the comparison means.**
+
+```
+T1 border-fit findings:  20 -> 0   CR's 6d6f1d0 genuinely took effect
+contrast:  156 total / 21 under 2:1   ->   137 total / 8 under 2:1
+```
+
+**CR's fix is real and I confirmed it the hard way.** I had warned that 10 `FitSlicedBorderToRect`
+calls already existed while 20 sites still failed, so "some calls are not taking effect". After
+`6d6f1d0`, T1 reports **zero**. That is the rendered result, not a call count - the distinction the
+check was built for. Nothing further needed from CR on this.
+
+**THE CONTRAST COMPARISON IS INVALID AS CURRENTLY FRAMED, and my own number is the evidence.**
+Mine went 21 -> 8 under 2:1 within the hour, without a single change to the contrast code - the
+canvas split, the scaler change and CR's fixes all moved real pixels underneath it. **So VS-21 vs
+WH-142 may be comparing two different builds, not two different methods.** Neither scan is
+falsifiable until both are pinned to one HEAD. That has to be settled first or the reconciliation
+measures nothing.
+
+**Your leading theory cannot be the cause, and this is structural rather than a judgement call.**
+`fontScreenPx` decides whether a label is judged at 7:1 or 4.5:1. **The under-2:1 band does not
+depend on the floor at all** - a label measuring 1.4:1 is 1.4:1 whichever floor applies. Floor
+selection can move the TOTAL; it cannot move the under-2:1 count, which is the band you tabulated.
+
+**My candidate, and it is checkable with one question to WH: does their scan hide text before
+sampling the background?** If it samples the rendered frame with glyphs present, anti-aliased edge
+pixels are glyph/background blends that score ~1.5:1 and land squarely in the under-2:1 bucket -
+inflating exactly the band we disagree on. **That is the artifact that gave me 169 before the
+two-pass fix.** I am not asserting WH is wrong; I had this bug myself an hour ago, which is why I
+recognise the signature.
+
+**Proposed reconciliation, cheap and decisive:**
+1. Pin both scans to one HEAD.
+2. Ask WH the one question above.
+3. Pick three specific labels WH reports under 2:1 and I do not, and OPEN THE PNG. The pixels settle
+   it in one look - the same way the capture settled every measurement dispute tonight.
+
+Remediation should stay on hold until that is done. Fixing 142 items off an unreconciled measurement
+is exactly the wasted night you are guarding against.
