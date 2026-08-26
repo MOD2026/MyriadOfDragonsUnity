@@ -115,14 +115,15 @@ namespace MyriadOfDragons.UI
             GameObject panel = new GameObject("AvatarBody", typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(_canvasObj.transform, false);
             Image panelBg = panel.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(panelBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             panelBg.raycastTarget = false;
             RectTransform panelRect = panel.GetComponent<RectTransform>();
             panelRect.anchorMin = new Vector2(0.03f, 0.04f);
             panelRect.anchorMax = new Vector2(0.97f, 0.87f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(panelBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             Text nameText = UISharedFoundation.CreateText(panel.transform, "AvatarName", name.ToUpperInvariant(),
                 UITextRole.Display, TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(700f, 48f));

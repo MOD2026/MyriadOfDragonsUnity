@@ -123,6 +123,10 @@ namespace MyriadOfDragons.UI
                     artImg.raycastTarget = false;
                     SetNorm(artImg.rectTransform, 0.64f, 0.20f, 0.97f, 0.49f);
                 }
+                else
+                {
+                    Debug.LogWarning($"[EmpireBuildingDetail] Failed to load building art sprite '{artPath}'.");
+                }
             }
 
             Text name = UISharedFoundation.CreateText(panel, "BuildingName",

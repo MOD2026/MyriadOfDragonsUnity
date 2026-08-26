@@ -146,9 +146,6 @@ namespace MyriadOfDragons.UI
                 GameObject row = new GameObject($"Channel_{channels[i]}", typeof(RectTransform), typeof(Image), typeof(Button));
                 row.transform.SetParent(rail.transform, false);
                 Image img = row.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 Button btn = row.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() =>
@@ -158,6 +155,10 @@ namespace MyriadOfDragons.UI
                     _ = RefreshHistoryAsync();
                 });
                 SetNorm(row.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.02f, 0.95f, 1f - i * h - 0.02f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 UISharedFoundation.CreateText(row.transform, "Label", channels[i], UITextRole.Caption,
                     TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 28f));
             }

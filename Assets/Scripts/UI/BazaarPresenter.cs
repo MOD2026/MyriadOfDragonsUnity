@@ -169,13 +169,14 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"ListingWell_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(grid.transform, false);
                 Image img = well.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SelectListingWell(slot));
                 SetNorm(well.GetComponent<RectTransform>(), col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f, (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 Text t = UISharedFoundation.CreateText(well.transform, "Placeholder",
                     "Empty",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(160f, 40f));

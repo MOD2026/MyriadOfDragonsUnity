@@ -36,6 +36,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[VipSubscription] Failed to load shell sprite '{ScreenShellName}'.");
             }
             target.raycastTarget = false;
         }

@@ -31,6 +31,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[ChatSocial] Failed to load shell sprite '{ShellName}'.");
             }
             target.raycastTarget = false;
         }

@@ -31,6 +31,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[BattlePass] Failed to load shell sprite '{DualTrackShellName}'.");
             }
         }
     }

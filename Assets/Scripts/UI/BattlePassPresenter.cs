@@ -176,12 +176,13 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"TierWell_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(row.transform, false);
                 Image img = well.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => AttemptClaim(tier, capturedPremium));
                 SetNorm(well.GetComponent<RectTransform>(), left, 0.08f, left + wellWidth * 0.92f, 0.92f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
                 Text headerN = UISharedFoundation.CreateText(well.transform, "TierIndex", $"T{i + 1}", UITextRole.Caption,
                     TextAnchor.UpperCenter, new Color(0.8f, 0.85f, 0.7f), true, new Vector2(80f, 24f));

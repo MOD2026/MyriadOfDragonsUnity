@@ -31,6 +31,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[MemoryExpedition] Failed to load shell sprite '{RouteChoiceShellName}'.");
             }
             target.raycastTarget = false;
         }

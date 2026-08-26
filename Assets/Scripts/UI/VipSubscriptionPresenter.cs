@@ -153,10 +153,11 @@ namespace MyriadOfDragons.UI
                 GameObject socket = new GameObject($"StateSocket_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 socket.transform.SetParent(col.transform, false);
                 Image img = socket.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 img.raycastTarget = true;
                 SetNorm(socket.GetComponent<RectTransform>(), left + 0.04f, 0.08f, left + 0.28f, 0.36f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(socket.transform, "StateIcon",
                     VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.08f, 0.08f, 0.92f, 0.92f);
                 UISharedFoundation.CreateText(socket.transform, "PlanPrice", planLabels[i],
@@ -196,12 +197,13 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"BenefitWell_{i}", typeof(RectTransform), typeof(Image));
                 well.transform.SetParent(grid.transform, false);
                 Image img = well.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
                 img.raycastTarget = false;
                 SetNorm(well.GetComponent<RectTransform>(),
                     col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f,
                     (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(well.transform, "BenefitIcon",
                     VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.18f, 0.38f, 0.82f, 0.92f);
                 Text label = UISharedFoundation.CreateText(well.transform, "Label",

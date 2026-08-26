@@ -166,13 +166,14 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"FriendRow_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(list.transform, false);
                 Image img = well.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SelectFriendRow(row));
                 SetNorm(well.GetComponent<RectTransform>(), 0.02f, 1f - (i + 1) * h + 0.02f, 0.98f, 1f - i * h - 0.02f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 // Default empty-row glyph; RefreshFriendsAsync swaps to relationship state cells.
                 FriendsUiLibrary.ApplyAtlasIcon(well.transform, "RelIcon",
                     FriendsUiLibrary.LoadRelationshipCell(FriendsUiLibrary.RelOffline),

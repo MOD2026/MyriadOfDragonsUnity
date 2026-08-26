@@ -479,6 +479,7 @@ namespace MyriadOfDragons.UI
             {
                 iconImg.sprite = null;
                 iconImg.color = new Color(0.2f, 0.55f, 0.65f, 0.9f);
+                Debug.LogWarning("[Shop] Failed to load stamina icon sprite 'UI/Icons/icon_stamina'.");
             }
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(iconObj.GetComponent<RectTransform>(), ShopV1UiLibrary.StaminaIconWell);
 
@@ -549,6 +550,7 @@ namespace MyriadOfDragons.UI
             {
                 artImg.sprite = null;
                 artImg.color = new Color(0.15f, 0.18f, 0.22f, 0.35f);
+                Debug.LogWarning($"[Shop] Failed to load product art for '{item.id}' and both fallback sprites.");
             }
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(artObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ProductArtWell);
 

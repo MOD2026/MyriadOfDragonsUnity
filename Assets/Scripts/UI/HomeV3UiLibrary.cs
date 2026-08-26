@@ -13,6 +13,12 @@ namespace MyriadOfDragons.UI
         public const string ResourceRoot = "UI/HomeV3/";
         public const string FramesRoot = "UI/Frames/";
 
+        // These two button-chrome helpers run at 65+ call sites across every screen build - a
+        // per-call-site LogWarning would flood the console on a real missing-pack regression
+        // instead of surfacing it. Warn once per condition per session (CC decision, 2026-08-26).
+        private static bool _warnedSecondaryButtonArtMissing;
+        private static bool _warnedPrimaryButtonArtMissing;
+
         public static Sprite Load(string fileNameWithoutExtension)
         {
             if (string.IsNullOrEmpty(fileNameWithoutExtension)) return null;
@@ -66,7 +72,19 @@ namespace MyriadOfDragons.UI
                         selectedSprite = normal,
                         disabledSprite = normal,
                     };
+                    // Root cause of "flat boxes everywhere" (register 2026-08-26, commit
+                    // c13d8a0/5724836): requires the caller to have already positioned
+                    // targetGraphic's rect - see UISharedFoundation.FitSlicedBorderToRect.
+                    UISharedFoundation.FitSlicedBorderToRect(targetGraphic);
                     return;
+                }
+
+                if (!_warnedSecondaryButtonArtMissing)
+                {
+                    _warnedSecondaryButtonArtMissing = true;
+                    Debug.LogWarning("[HomeV3] Failed to load secondary button chrome " +
+                        "('ui_button_secondary_normal_v1'/'_pressed_v1') - falling back to flat color " +
+                        "for every neutral-action button this session (warned once, not per call site).");
                 }
 
                 targetGraphic.type = Image.Type.Simple;
@@ -124,7 +142,16 @@ namespace MyriadOfDragons.UI
                     selectedSprite = normal,
                     disabledSprite = normal,
                 };
+                UISharedFoundation.FitSlicedBorderToRect(targetGraphic);
                 return;
+            }
+
+            if (!_warnedPrimaryButtonArtMissing)
+            {
+                _warnedPrimaryButtonArtMissing = true;
+                Debug.LogWarning("[HomeV3] Failed to load primary button chrome " +
+                    "('ui_button_primary_normal_v1'/'_pressed_v1') - falling back to flat emerald " +
+                    "for every primary-action button this session (warned once, not per call site).");
             }
 
             targetGraphic.type = Image.Type.Simple;

@@ -31,6 +31,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[MailInbox] Failed to load shell sprite '{InboxShellName}'.");
             }
             target.raycastTarget = false;
         }

@@ -256,7 +256,6 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("ModalPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(overlay.transform, false);
             Image panel = panelObj.GetComponent<Image>();
-            ApplyFramedPanel(panel, null, panelColor, panelColor, kind: FramedPanelKind.Modal);
 
             RectTransform panelRect = panelObj.GetComponent<RectTransform>();
             panelRect.anchorMin = panelAnchorMin;
@@ -264,8 +263,92 @@ namespace MyriadOfDragons.UI
             panelRect.pivot = panelPivot;
             panelRect.anchoredPosition = panelAnchoredPos;
             panelRect.sizeDelta = panelSize;
+
+            // Applied AFTER final positioning - ApplyFramedPanel's border-fit math reads the
+            // rect's live size at call time (see FitSlicedBorderToRect).
+            ApplyFramedPanel(panel, null, panelColor, panelColor, kind: FramedPanelKind.Modal);
             return panelRect;
         }
+
+        /// <summary>
+        /// Root cause of the "flat boxes everywhere" complaint (register 2026-08-26,
+        /// "ROOT CAUSE FOUND for the 'flat boxes everywhere' UI complaint", commit c13d8a0):
+        /// a Sliced Image's border thickness is a FIXED size in canvas-reference units, driven by
+        /// the sprite's own border (in source pixels) at spritePixelsToUnits=100. When a caller's
+        /// rect is smaller than the sum of the two opposing border edges on an axis, Unity has no
+        /// room left for the stretchable center band and the border strips overlap/collapse -
+        /// this renders as a flat, mushy, unstyled-looking block even though the sprite loaded
+        /// correctly, is Sliced, and every load-time check passes (the failure is geometric, not a
+        /// load failure - measured example: ui_button_secondary_normal_v1's 64+64=128px vertical
+        /// border vs DeckBuilder's ~62px-tall rail buttons, roughly 2x over).
+        ///
+        /// Fix: Image.pixelsPerUnitMultiplier scales the RENDERED border size down (a multiplier
+        /// of 2 halves it) without touching the sprite asset or the caller's rect. Computed HERE,
+        /// per-instance, from the image's own live rect vs its sprite's own border - not a fixed
+        /// global constant - because call sites span tiny nav buttons to full content panels, and
+        /// a constant large enough to fix the smallest would over-shrink borders on everything
+        /// that already has room (borders always render at their full authored size, multiplier=1,
+        /// whenever the rect is big enough - only shrinks when it would otherwise collapse).
+        ///
+        /// Deliberately compares border pixels straight against RectTransform.rect (reference-
+        /// resolution units), with NO CanvasScaler.scaleFactor factored in. Every screen here uses
+        /// CanvasScaler.ScaleMode.ScaleWithScreenSize with referencePixelsPerUnit left at its
+        /// default (100, never overridden anywhere in this project), matching every one of these
+        /// sprites' own spritePixelsToUnits=100 - so border-in-source-pixels already lands 1:1 in
+        /// the same reference-unit space RectTransform.rect reports. scaleFactor is a single
+        /// uniform transform applied to the WHOLE canvas hierarchy (rect geometry and sliced-
+        /// border sizing both happen upstream of it, in the same local space) when converting that
+        /// hierarchy to physical screen pixels - multiplying it in here would make the correction
+        /// vary by the player's device resolution, which the "boxes everywhere" bug itself does
+        /// not (it is a fixed, design-time relationship between an authored rect and an authored
+        /// border, reproducible at any device resolution since ScaleWithScreenSize is exactly the
+        /// mechanism that keeps reference-unit geometry consistent across devices).
+        ///
+        /// Requires the caller's RectTransform to already have its FINAL anchors/sizeDelta set
+        /// before this runs - it reads the rect once, synchronously, and does not watch for later
+        /// changes (a resize-watcher approach was tried and disproven, see the removed-code note
+        /// above). Every call site in this project sets final positioning before applying chrome
+        /// except one, which was reordered instead (EmpirePresenter.cs's BuildConstructionPanel).
+        /// If rect size is genuinely still zero when this runs, it's a no-op (multiplier stays at
+        /// Unity's own default of 1) rather than guessing from stale geometry.
+        /// </summary>
+        public static void FitSlicedBorderToRect(Image image)
+        {
+            if (image == null || image.sprite == null || image.type != Image.Type.Sliced) return;
+
+            RectTransform rect = image.rectTransform;
+            float rectWidth = rect.rect.width;
+            float rectHeight = rect.rect.height;
+            if (rectWidth <= 0f || rectHeight <= 0f) return;
+
+            Vector4 border = image.sprite.border; // (left, bottom, right, top), source pixels
+            float borderWidthSum = border.x + border.z;
+            float borderHeightSum = border.y + border.w;
+
+            // A few px of real stretchable center left over, even when borders are shrunk to fit -
+            // otherwise a rect exactly equal to the border sum still renders as two abutting edges
+            // with no visible center at all, which looks identical to the original collapse bug.
+            const float MinCenterPx = 6f;
+
+            float neededForWidth = borderWidthSum / Mathf.Max(1f, rectWidth - MinCenterPx);
+            float neededForHeight = borderHeightSum / Mathf.Max(1f, rectHeight - MinCenterPx);
+
+            // Never below 1 (never enlarge past the art's authored size) and clamped at 4 as a
+            // sanity ceiling - a rect needing more than 4x shrink is almost certainly a real
+            // layout bug elsewhere (an element far too small for this art), not something this
+            // fix should silently paper over into an illegibly thin border.
+            image.pixelsPerUnitMultiplier = Mathf.Clamp(Mathf.Max(1f, neededForWidth, neededForHeight), 1f, 4f);
+        }
+
+        // An earlier version of this fix tried a resize-watcher (OnRectTransformDimensionsChange)
+        // so a caller applying chrome before finishing positioning (e.g. EmpirePresenter.cs:207)
+        // would still end up correct with zero per-call-site changes. Tested directly
+        // (SlicedBorderFitTests.cs) and DISPROVEN: the message did not fire synchronously in
+        // EditMode even after an explicit Canvas.ForceUpdateCanvases() pump - real evidence, not
+        // assumption. Removed rather than shipped as unverified complexity. The actual fix for
+        // that one known bad-order call site is simpler and fully verified: EmpirePresenter.cs
+        // was reordered to apply chrome AFTER positioning, same as every other call site already
+        // does. FitSlicedBorderToRect below is the one real entry point everything calls.
 
         /// <summary>Real border/frame primitive (LOCKED 2026-08-26, register: docs/
         /// INDUSTRY_STANDARD_GAP_DIAGNOSIS_2026-08-26.md §4) - generalizes the ONLY two real
@@ -293,6 +376,7 @@ namespace MyriadOfDragons.UI
                 target.sprite = real;
                 target.type = Image.Type.Sliced;
                 target.color = Color.white;
+                FitSlicedBorderToRect(target);
 
                 // Manifest rule (UNITY_9SLICE_IMPORT_MANIFEST.md): the diamond ornament is a
                 // separate, non-stretched child layer, never baked into the sliced panel - 9-slice
@@ -306,8 +390,24 @@ namespace MyriadOfDragons.UI
                 target.sprite = CreateRoundedPanelSprite(topColor, bottomColor, cornerRadius);
                 target.type = Image.Type.Sliced;
                 target.color = Color.white;
+
+                // Only warn when there WAS a real path to try and it genuinely failed to load -
+                // DefaultFramedPanelResourcePath legitimately returns null for a kind with no art
+                // authored yet, and that's not a bug. ~24+ call sites share this fallback, so this
+                // is warn-ONCE-per-path (not per call site) - same reasoning as HomeV3UiLibrary's
+                // _warnedSecondaryButtonArtMissing/_warnedPrimaryButtonArtMissing gate.
+                if (!string.IsNullOrEmpty(path) && _warnedFramedPanelPathsMissing.Add(path))
+                {
+                    Debug.LogWarning($"[UISharedFoundation] Failed to load framed panel sprite " +
+                        $"'{path}' - falling back to the procedural rounded panel for every " +
+                        $"ApplyFramedPanel/CreateFramedPanel call using this path this session " +
+                        $"(warned once, not per call site).");
+                }
             }
         }
+
+        private static readonly System.Collections.Generic.HashSet<string> _warnedFramedPanelPathsMissing =
+            new System.Collections.Generic.HashSet<string>();
 
         private const string ContentPanelDiamondResourcePath = "UI/SharedFoundation/ui_content_panel_diamond_overlay_v1";
 

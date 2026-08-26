@@ -31,6 +31,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[GuildHall] Failed to load shell sprite '{FlatEntryPopupName}'.");
             }
             target.raycastTarget = false;
         }

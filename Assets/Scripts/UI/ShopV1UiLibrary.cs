@@ -69,6 +69,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = new Color(0.12f, 0.14f, 0.18f, 0.9f);
+                Debug.LogWarning($"[Shop] Failed to load gem pack tile sprite '{GemPackTileName}'.");
             }
 
             target.raycastTarget = false;
@@ -110,6 +111,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[Shop] Failed to load shell sprite '{spriteName}'.");
             }
         }
 
@@ -130,6 +132,7 @@ namespace MyriadOfDragons.UI
                 target.color = unlocked
                     ? new Color(0.16f, 0.28f, 0.2f, 0.95f)
                     : new Color(0.18f, 0.18f, 0.2f, 0.9f);
+                Debug.LogWarning($"[Shop] Failed to load stamina tier {tierIndex1Based} ({(unlocked ? "unlocked" : "locked")}) sprite.");
             }
         }
     }

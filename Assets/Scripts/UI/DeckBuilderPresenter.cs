@@ -295,10 +295,11 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("CollectionPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(canvasObj.transform, false);
             Image panelImg = panelObj.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(panelImg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             panelImg.raycastTarget = false;
             SetScreenRectFromTopLeftPixels(panelObj.GetComponent<RectTransform>(), 24f, 150f, 900f, 960f);
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(panelImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             Text header = CreateTextElement(panelObj.transform, "Header", "OWNED CARDS", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(400, 54));
             header.color = new Color(0.57f, 0.91f, 0.9f);
@@ -355,10 +356,11 @@ namespace MyriadOfDragons.UI
             GameObject panelObj = new GameObject("DeckPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(canvasObj.transform, false);
             Image panelImg = panelObj.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(panelImg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             panelImg.raycastTarget = false;
             SetScreenRectFromTopLeftPixels(panelObj.GetComponent<RectTransform>(), 918f, 150f, 1896f, 960f);
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(panelImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             Text header = CreateTextElement(panelObj.transform, "Header", "ACTIVE DECK", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(360, 54));
             header.color = new Color(0.94f, 0.75f, 0.4f);
@@ -460,7 +462,9 @@ namespace MyriadOfDragons.UI
 
             confirmDeckButton = CreateButton(railObj.transform, "Btn_Confirm", "CONFIRM / SAVE DECK", new Vector2(0, 0), new Vector2(320, 62), new Color(0.66f, 0.43f, 0.14f)).GetComponent<Button>();
             SetNormalizedRect(confirmDeckButton.GetComponent<RectTransform>(), 0.80f, 0.18f, 0.98f, 0.82f);
-            HomeV3UiLibrary.ApplyNavTileButton(confirmDeckButton, confirmDeckButton.GetComponent<Image>());
+            // Primary CTA on this screen (the actual save action), not a subordinate nav button -
+            // was incorrectly using the secondary chrome.
+            HomeV3UiLibrary.ApplyPrimaryActionButton(confirmDeckButton, confirmDeckButton.GetComponent<Image>());
             confirmDeckButton.onClick.AddListener(ConfirmDeck);
         }
 

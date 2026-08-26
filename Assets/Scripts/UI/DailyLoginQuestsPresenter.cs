@@ -159,12 +159,20 @@ namespace MyriadOfDragons.UI
                 GameObject node = new GameObject($"LoginWell_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 node.transform.SetParent(nodes.transform, false);
                 Image img = node.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 Button btn = node.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => Apply(DailyLoginQuestsOpenValues.TryClaimLogin(day)));
                 SetNorm(node.GetComponent<RectTransform>(), i * well + 0.01f, 0.1f, (i + 1) * well - 0.01f, 0.9f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                // ListRow, not the default ContentPanel - a real pre-existing oversight, only
+                // just exposed once real art started loading (register 2026-08-26, 5724836): the
+                // default ContentPanel kind adds a decorative DiamondOverlay child, appropriate
+                // for a real content panel but not for this interactive login-claim button - every
+                // other row/well ApplyFramedPanel call site in this project already passes
+                // ListRow, this was the one that got missed.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
 
                 Text dayLabel = UISharedFoundation.CreateText(node.transform, "DayIndex", $"Day {i + 1}",
                     UITextRole.Caption, TextAnchor.UpperCenter, new Color(0.85f, 0.9f, 0.8f), true,
@@ -180,11 +188,12 @@ namespace MyriadOfDragons.UI
 
             GameObject statusBar = new GameObject("StreakStatusBar", typeof(RectTransform), typeof(Image));
             statusBar.transform.SetParent(panel.transform, false);
+            statusBar.GetComponent<Image>().raycastTarget = false;
+            SetNorm(statusBar.GetComponent<RectTransform>(), 0.06f, 0.06f, 0.94f, 0.22f);
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
             UISharedFoundation.ApplyFramedPanel(statusBar.GetComponent<Image>(), null,
                 UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground,
                 kind: UISharedFoundation.FramedPanelKind.ListRow);
-            statusBar.GetComponent<Image>().raycastTarget = false;
-            SetNorm(statusBar.GetComponent<RectTransform>(), 0.06f, 0.06f, 0.94f, 0.22f);
 
             _statusText = UISharedFoundation.CreateText(statusBar.transform, "StreakStatus",
                 DailyLoginQuestsOpenValues.StreakPausedCopy, UITextRole.Title, TextAnchor.MiddleCenter,
@@ -214,11 +223,12 @@ namespace MyriadOfDragons.UI
                 float top = 0.84f - i * (rowH + 0.03f);
                 GameObject row = new GameObject($"QuestRow_{i}", typeof(RectTransform), typeof(Image));
                 row.transform.SetParent(panel.transform, false);
+                row.GetComponent<Image>().raycastTarget = false;
+                SetNorm(row.GetComponent<RectTransform>(), 0.04f, top - rowH, 0.96f, top);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
                 UISharedFoundation.ApplyFramedPanel(row.GetComponent<Image>(), null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
                     kind: UISharedFoundation.FramedPanelKind.ListRow);
-                row.GetComponent<Image>().raycastTarget = false;
-                SetNorm(row.GetComponent<RectTransform>(), 0.04f, top - rowH, 0.96f, top);
 
                 _questCopyTexts[i] = UISharedFoundation.CreateText(row.transform, "QuestCopy",
                     $"Quest {i + 1}", UITextRole.Body, TextAnchor.MiddleLeft,

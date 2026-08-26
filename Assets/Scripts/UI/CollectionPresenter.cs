@@ -176,9 +176,6 @@ namespace MyriadOfDragons.UI
             controlsObj.transform.SetParent(_canvasObj.transform, false);
 
             Image controlsImg = controlsObj.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(controlsImg, null,
-                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground,
-                kind: UISharedFoundation.FramedPanelKind.ListRow);
 
             RectTransform controlsRect = controlsObj.GetComponent<RectTransform>();
             controlsRect.anchorMin = new Vector2(0.5f, 1f);
@@ -186,6 +183,11 @@ namespace MyriadOfDragons.UI
             controlsRect.pivot = new Vector2(0.5f, 1f);
             controlsRect.anchoredPosition = new Vector2(0f, -120f);
             controlsRect.sizeDelta = new Vector2(1780f, 90f);
+
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(controlsImg, null,
+                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
 
             _searchInput = CreateSearchField(controlsObj.transform, new Vector2(-520f, 0f), new Vector2(720f, 60f));
             _searchInput.onValueChanged.AddListener(_ => ApplySearchFilterSortAndRender());
@@ -198,14 +200,16 @@ namespace MyriadOfDragons.UI
         {
             GameObject panelObj = new GameObject("GridPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(_canvasObj.transform, false);
-            UISharedFoundation.ApplyFramedPanel(panelObj.GetComponent<Image>(), null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             RectTransform panelRect = panelObj.GetComponent<RectTransform>();
             panelRect.anchorMin = new Vector2(0f, 0f);
             panelRect.anchorMax = new Vector2(0.72f, 1f);
             panelRect.offsetMin = new Vector2(20f, 130f);
             panelRect.offsetMax = new Vector2(-10f, -220f);
+
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(panelObj.GetComponent<Image>(), null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             GameObject scrollObj = new GameObject("CollectionScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
             scrollObj.transform.SetParent(panelObj.transform, false);
@@ -268,14 +272,16 @@ namespace MyriadOfDragons.UI
         {
             _detailPanel = new GameObject("DetailPanel", typeof(RectTransform), typeof(Image));
             _detailPanel.transform.SetParent(_canvasObj.transform, false);
-            UISharedFoundation.ApplyFramedPanel(_detailPanel.GetComponent<Image>(), null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
             RectTransform detailRect = _detailPanel.GetComponent<RectTransform>();
             detailRect.anchorMin = new Vector2(0.73f, 0f);
             detailRect.anchorMax = new Vector2(1f, 1f);
             detailRect.offsetMin = new Vector2(10f, 130f);
             detailRect.offsetMax = new Vector2(-20f, -220f);
+
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(_detailPanel.GetComponent<Image>(), null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
             _detailTitleText = CreateTextElement(_detailPanel.transform, "DetailTitle", "Select a card", new Vector2(0f, 250f), 28, TextAnchor.MiddleCenter, new Vector2(420f, 70f));
 
@@ -480,6 +486,7 @@ namespace MyriadOfDragons.UI
             else
             {
                 baseImg.color = new Color(0.19f, 0.23f, 0.32f, 1f);
+                Debug.LogWarning($"[Collection] Failed to load rarity {rarity} card frame sprite.");
             }
             baseImg.raycastTarget = false;
             RectTransform baseRect = baseObj.GetComponent<RectTransform>();

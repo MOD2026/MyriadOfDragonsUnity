@@ -204,8 +204,6 @@ namespace MyriadOfDragons.UI
             GameObject empireRoot = new GameObject("EmpireConstructionRoot", typeof(RectTransform), typeof(Image));
             empireRoot.transform.SetParent(_canvasObj.transform, false);
             Image empireBg = empireRoot.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(empireBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             empireBg.raycastTarget = false;
             RectTransform empireRect = empireRoot.GetComponent<RectTransform>();
             // Fill the working area under the 100px header (y≈0.907–1.0). The old 0.12–0.82 band
@@ -219,6 +217,13 @@ namespace MyriadOfDragons.UI
             empireRect.anchorMax = new Vector2(0.97f, 0.87f);
             empireRect.offsetMin = Vector2.zero;
             empireRect.offsetMax = Vector2.zero;
+
+            // Applied AFTER final positioning, not before: ApplyFramedPanel's 9-slice border-fit
+            // math (UISharedFoundation.FitSlicedBorderToRect) reads the rect's live size at call
+            // time - applying it while empireRoot was still at Unity's default 100x100 would have
+            // fit the border against that stale size instead of this panel's real final one.
+            UISharedFoundation.ApplyFramedPanel(empireBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             Text subtitle = UISharedFoundation.CreateText(empireRoot.transform, "EmpireSubtitle",
                 "Castle · Barracks · Gate", UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"),
@@ -749,6 +754,10 @@ namespace MyriadOfDragons.UI
                 art.raycastTarget = false;
                 SetNormalizedRect(art.rectTransform, 0.10f, 0.42f, 0.90f, 0.96f);
             }
+            else if (!string.IsNullOrEmpty(artPath))
+            {
+                Debug.LogWarning($"[Empire] Failed to load structure art sprite '{artPath}'.");
+            }
 
             // FONT SIZES FIT THE BAND, not the other way round. Adding the building thumbnail
             // (e208114) correctly took most of this tile's height, which left the two text bands
@@ -799,15 +808,16 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image), typeof(Button));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(rowBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = true;
             Button rowButton = row.GetComponent<Button>();
             rowButton.targetGraphic = rowBg;
             EmpireBuildingKind captured = kind;
             rowButton.onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(row.GetComponent<RectTransform>(), 0.03f, bottom, 0.97f, top);
+            // Applied AFTER final positioning - see BuildConstructionPanel's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
 
             Text rowText = UISharedFoundation.CreateText(row.transform, "RowSummary", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 80f));

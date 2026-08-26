@@ -31,6 +31,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[Bazaar] Failed to load shell sprite '{CatalogShellName}'.");
             }
             target.raycastTarget = false;
         }

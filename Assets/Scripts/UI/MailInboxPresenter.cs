@@ -104,13 +104,14 @@ namespace MyriadOfDragons.UI
                 GameObject well = new GameObject($"MailRow_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 well.transform.SetParent(list.transform, false);
                 Image img = well.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => SetStatus(MailInboxOpenValues.TrySelectMessage(row).Message));
                 SetNorm(well.GetComponent<RectTransform>(), 0.04f, 1f - (i + 1) * h + 0.02f, 0.96f, 1f - i * h - 0.02f);
+                // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 string subject = i == 0
                     ? "Empty inbox — mail backend not live"
                     : MetagameShellProfileBinding.EmptyBackendLabel;

@@ -80,8 +80,6 @@ namespace MyriadOfDragons.UI
             GameObject panel = new GameObject("SettingsBody", typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(_canvasObj.transform, false);
             Image panelBg = panel.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(panelBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             panelBg.raycastTarget = false;
 
             RectTransform panelRect = panel.GetComponent<RectTransform>();
@@ -89,6 +87,10 @@ namespace MyriadOfDragons.UI
             panelRect.anchorMax = new Vector2(0.95f, 0.88f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
+
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(panelBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             float y = 0.92f;
             const float rowHeight = 0.16f;
@@ -113,9 +115,6 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(rowBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
@@ -123,6 +122,10 @@ namespace MyriadOfDragons.UI
             rowRect.offsetMin = Vector2.zero;
             rowRect.offsetMax = Vector2.zero;
             yTop -= rowHeight + gap;
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
 
             Text labelText = UISharedFoundation.CreateText(row.transform, "Label", label, UITextRole.Title,
                 TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
@@ -143,9 +146,6 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject("LanguageRow", typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(rowBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
@@ -153,6 +153,10 @@ namespace MyriadOfDragons.UI
             rowRect.offsetMin = Vector2.zero;
             rowRect.offsetMax = Vector2.zero;
             yTop -= rowHeight + gap;
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
 
             Text labelText = UISharedFoundation.CreateText(row.transform, "Label", "LANGUAGE PREFERENCE",
                 UITextRole.Title, TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
@@ -174,9 +178,6 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject("LogoutRow", typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(rowBg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
-                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
@@ -184,6 +185,10 @@ namespace MyriadOfDragons.UI
             rowRect.offsetMin = Vector2.zero;
             rowRect.offsetMax = Vector2.zero;
             yTop -= rowHeight + gap;
+            // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
 
             Text labelText = UISharedFoundation.CreateText(row.transform, "Label", "ACCOUNT", UITextRole.Title,
                 TextAnchor.MiddleLeft, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(420f, 40f));
