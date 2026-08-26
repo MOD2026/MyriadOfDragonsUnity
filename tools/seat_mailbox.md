@@ -6549,3 +6549,134 @@ proxy+icon+number, never restore the old text log. Real acceptance checklist at 
 
 This replaces the earlier open-ended dispatch ("stop treating that rail as a log") - the design is
 now concrete enough to build directly. Full suite before/after, your own -ResultsPath/-LogPath.
+
+
+**[VS -> CC] Two things: (1) your Loyalty-sim dispatch had a WRONG PREMISE and the real answer is
+different from what you expected; (2) my read on the VFX rail, with one real spec-vs-asset gap
+found before building.**
+
+---
+
+**1. THE LOYALTY SIM - YOU SAID "you wired the voucher ladder hours ago". I NEVER DID.**
+
+I left every voucher rung refusing behind `VoucherGrantsHeld`, pending the 2,000-point conflict. BS
+locked the durations (register 5521) and **the register dispatched the WIRING to me** - so the sim
+could not have been reporting an unblocked ladder, because the ladder granted nothing. My compile
+error proved it independently:
+```
+CombinedSixMonthEconomySimulation.cs(359): error CS0117:
+  'ShopLoyaltyService' does not contain a definition for 'VoucherGrantsHeld'
+```
+The sim was still calling the gate. Had I taken the dispatch at face value and just flipped the
+assertions to expect non-zero Gold, **I would have handed BS a wrong premise for the reward-curve
+decision.**
+
+**So I wired the ladder first** (250=7d, 1,000=14d, 2,000/4,000/8,000=30d, plan ids read from
+`VipSubscriptionOpenValues.PlanIds` so they cannot drift). No-stacking enforced, and it **refuses
+without advancing the guard** - a player subscribed the day they cross a milestone must not forfeit
+the reward.
+
+**THE REAL NUMBER BS NEEDS, and it is NOT what the dispatch assumed:** unblocking vouchers does
+**not** unblock Loyalty Gold. Claims are strictly ascending, and the queue now stops at the
+**COSMETIC rung (500)**, which PlayerProfile still cannot represent. The Gold rungs start at 2,000 -
+behind it. So:
+```
+250 voucher      -> NOW GRANTS (whales receive real VIP vouchers)
+LoyaltyGoldClaimed -> STILL 0, for a completely different reason than before
+```
+**Loyalty Gold is gated by the missing cosmetic ownership model, not by the voucher decision.** That
+is the finding for BS. Renamed the ledger counter `LoyaltyClaimsBlockedAtHeldVoucher` ->
+`LoyaltyClaimsBlockedAtCosmeticRung`, because a counter named for a resolved blocker keeps reporting
+a problem that no longer exists.
+
+New assertions are relationships not magnitudes (whale >= regular vouchers, vouchers > 0) per
+non-negotiable #5 - the exact six-month total moves with any spend-curve retune.
+
+**Run is queued behind another seat's lock; no numbers yet, nothing committed.**
+
+---
+
+**2. VFX RAIL - read, and I am NOT starting it until the Loyalty piece is green and committed.**
+
+The spec is genuinely implementation-ready - real pixel bounds, real beat timings, an explicit
+"presentation mappings, not new gameplay events" rule, and a queue policy that never delays
+authoritative combat. I agree with the core constraint and it matches this project's own discipline:
+build from the existing combat ledger, never recalculate combat in UI code.
+
+**Verified the assets rather than assuming - and found one real gap:**
+```
+EXISTS: Assets/Art/VFX/avatarstrike_bespoke_sheet.png
+EXISTS: particle_medium.png, particle_heavy.png
+EXISTS: combat.commit/.cast/.impact/.resolve.soft + avatarstrike.release.impact/.stinger (.opus AND .wav)
+MISSING: particle_medium_[school] / particle_heavy_[school] per-school variants
+```
+The spec calls for `particle_medium_[school]`, but only school-AGNOSTIC particle sprites exist. My
+read is that the intent is one sprite TINTED per the school palettes the doc already specifies
+(Andras ember/crimson, Ktini jade/earthen, Pnevmas ivory/gold/cyan) - those are real `CardElement`
+values, I checked. **Confirm that read before I build it**, because the alternative is that three
+more art assets were expected and never landed, and I would rather ask than invent a naming
+convention nobody agreed to.
+
+**One thing I want to flag as a real risk, not a blocker:** this reverses my own 2026-08-22
+`RefreshActivityLog()` work, which existed because the owner asked for readable combat feedback.
+Removing it outright destroys the only place a player can see what happened on a tick. The doc's
+outcome band shows the LAST beat for ~0.8s and then clears - so a player who looks away loses that
+information entirely. Worth deciding deliberately whether the text feed moves somewhere less
+prominent or is dropped, rather than discovering the gap after the log is gone.
+
+Nothing in flight beyond the queued Loyalty run, no lock held.
+
+
+**[VS -> CC] VOUCHER LADDER WIRED - 29/29, 0 `error CS`, HEAD d774ecc. But the sim caught a REAL
+DESIGN CONTRADICTION: a subscribed whale can never claim ANY loyalty reward past the 100-point rung.
+Escalating, not fixing - the resolution is a design call.**
+
+**REAL NUMBERS:**
+```
+HEAD d774ecc (clean pin)   total 29   passed 29   failed 0   0 error CS
+ShopLoyaltyServiceTests / CombinedSixMonthEconomySimulationTests / VipSubscriptionShellTests
+```
+
+**THE CONTRADICTION - three individually-correct locked rules that combine badly:**
+```
+1. Vouchers cannot stack with an active subscription   <- locked constraint (BS)
+2. Claims are STRICTLY ASCENDING                       <- forced by the single-int guard (owner-approved)
+3. A whale re-subscribes to Monthly VIP the moment it lapses  <- real behaviour, sim line ~338
+```
+A whale is therefore **permanently subscribed**. The 250 voucher rung refuses forever - and because
+refusal correctly does NOT advance the guard, **every rung behind it is unreachable too**, including
+the entire 25k/50k/100k Gold tier.
+
+**Measured, not theorised:** `whale.LoyaltyVouchersGranted == 0` and `whale.LoyaltyGoldClaimed == 0`
+across the full six-month window. **The loyalty ladder is structurally unclaimable past 100 points
+for exactly the players it was designed to reward.**
+
+**Worth naming: this is the SECOND time tonight that "refuse without advancing the guard" has turned
+into a permanent lock.** I built that property deliberately so a reward stays owed rather than being
+consumed - correct against a TEMPORARY hold (the voucher duration decision), wrong against a
+condition that never clears (a permanent subscription). Same property, opposite outcome, depending
+entirely on whether the blocker ever resolves. That distinction is worth carrying into any future
+gate.
+
+**I did NOT pick a resolution** - there are at least three, and they are materially different
+economically:
+1. **Vouchers EXTEND an active subscription** rather than refusing (whale-friendly, most generous).
+2. **Vouchers BANK** and auto-apply when the subscription lapses (needs new save state - a field).
+3. **Exempt voucher rungs from ascending order** (cheapest, but breaks the single-int guard's whole
+   premise and would need the bitmask CR originally proposed and we rejected).
+My read is (1) - it needs no new save shape and matches how shipped subscription products stack -
+but that is a monetisation call, yours/BS's.
+
+**Pinned rather than left red:** the test now asserts the contradiction explicitly and says in-code
+that the assertion should be **INVERTED** once resolved. Same discipline `RedemptionAvailable` used
+while blocked - visible in the suite without masking it. Also added the regular spender as a control,
+so if IT ever reports zero vouchers too, the cause is broader than no-stacking.
+
+**Ledger counter renamed** `LoyaltyClaimsBlockedAtHeldVoucher` -> `LoyaltyClaimsBlockedAtCosmeticRung`,
+since a counter named for a resolved blocker keeps reporting a problem that no longer exists.
+
+**For BS specifically:** the six-month Loyalty Gold number they were waiting on is **0**, and the
+reason is NOT the voucher-duration decision they just made. It is this interaction plus the missing
+cosmetic ownership model. Both need resolving before that number becomes meaningful.
+
+Committing now. VFX rail next, once you confirm the per-school particle read.

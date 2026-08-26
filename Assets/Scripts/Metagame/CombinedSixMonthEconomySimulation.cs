@@ -40,7 +40,16 @@ namespace MyriadOfDragons.Metagame
             public int LoyaltyPointsEarned;
             public int LoyaltyGoldClaimed;
             public int LoyaltyStaminaClaimsApplied;
-            public int LoyaltyClaimsBlockedAtHeldVoucher;
+
+            /// <summary>VIP vouchers actually granted by loyalty milestones over the window.
+            /// Zero before 2026-08-26, when every voucher rung refused.</summary>
+            public int LoyaltyVouchersGranted;
+
+            /// <summary>Times the ascending claim queue stopped at the cosmetic rung (500), which
+            /// PlayerProfile still cannot represent. Renamed from LoyaltyClaimsBlockedAtHeldVoucher
+            /// - the voucher hold is resolved, and keeping the old name would have kept reporting a
+            /// blocker that no longer exists.</summary>
+            public int LoyaltyClaimsBlockedAtCosmeticRung;
 
             public int VipGemsSpent;
             public int VipStaminaClaimsApplied;
@@ -356,14 +365,19 @@ namespace MyriadOfDragons.Metagame
                 ShopLoyaltyClaimResult claim = ShopLoyaltyService.ClaimNext(profile, nowTicks);
                 if (!claim.Claimed)
                 {
-                    if (ShopLoyaltyService.VoucherGrantsHeld(next) ||
-                        ShopLoyaltyService.CosmeticGrantsUnsupported(next))
-                        ledger.LoyaltyClaimsBlockedAtHeldVoucher++;
+                    // The voucher hold is GONE (durations locked 2026-08-26), so the only rung that
+                    // can still block the ascending queue is the cosmetic one - PlayerProfile has
+                    // no cosmetic ownership model. Counting a voucher refusal here would now
+                    // over-report blockage and silently understate Loyalty Gold, which is the exact
+                    // number this simulation exists to produce.
+                    if (ShopLoyaltyService.CosmeticGrantsUnsupported(next))
+                        ledger.LoyaltyClaimsBlockedAtCosmeticRung++;
                     return;
                 }
 
                 ledger.LoyaltyGoldClaimed += claim.GoldGranted;
                 ledger.LoyaltyStaminaClaimsApplied += claim.StaminaClaimsApplied;
+                if (!string.IsNullOrEmpty(claim.VoucherPlanGranted)) ledger.LoyaltyVouchersGranted++;
             }
         }
     }

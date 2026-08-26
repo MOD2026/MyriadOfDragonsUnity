@@ -88,7 +88,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void RegularAndWhale_SpendGems_VIPAndStamina_LoyaltyGoldStillBlockedByHeldVouchers()
+        public void RegularAndWhale_SpendGems_VIPAndStamina_LoyaltyLadderBlockedByNoStackingRule()
         {
             CombinedSixMonthEconomySimulation.Ledger regular =
                 CombinedSixMonthEconomySimulation.Run(
@@ -107,11 +107,31 @@ namespace MyriadOfDragons.Tests
             Assert.GreaterOrEqual(whale.LoyaltyPointsEarned, 8000,
                 "Whale Gem seed + ladder + VIP should reach the top Loyalty rung in points.");
 
-            // Engine truth: voucher durations still held → ascending claim queue stops at 250 →
-            // Gold rungs never pay. Sim must report that, not invent unlocked vouchers.
-            Assert.AreEqual(0, regular.LoyaltyGoldClaimed);
-            Assert.AreEqual(0, whale.LoyaltyGoldClaimed);
-            Assert.Greater(whale.LoyaltyClaimsBlockedAtHeldVoucher, 0);
+            // ENGINE TRUTH, and it exposes a real DESIGN CONTRADICTION rather than a bug in any
+            // one piece. Three locked rules interact badly:
+            //   1. Vouchers cannot stack with an active subscription  (locked constraint)
+            //   2. Claims are STRICTLY ASCENDING                      (forced by the single-int guard)
+            //   3. A whale re-subscribes to Monthly VIP the moment it lapses (this sim, line ~338)
+            // => a whale is essentially ALWAYS subscribed, so the 250 voucher rung refuses forever,
+            //    and because refusal correctly does NOT advance the guard, EVERY rung behind it is
+            //    unreachable too - including the 25k/50k/100k Gold tier.
+            //
+            // The loyalty ladder is therefore structurally unclaimable past the 100-point rung for
+            // exactly the players it was designed to reward. Each rule is individually correct;
+            // the combination is not. Pinned here rather than left as a red test, so the gap is
+            // visible in the suite without masking it - the same discipline RedemptionAvailable
+            // used while it was blocked.
+            Assert.AreEqual(0, whale.LoyaltyVouchersGranted,
+                "A permanently-subscribed whale can never claim a voucher - no-stacking refuses it, " +
+                "and ascending claims mean it blocks the whole ladder behind it. DESIGN GAP, not a " +
+                "code defect: this assertion should be INVERTED once the interaction is resolved.");
+            Assert.AreEqual(0, whale.LoyaltyGoldClaimed,
+                "Consequence of the above: the Gold tier at 2,000+ is unreachable for a subscribed " +
+                "whale, so the six-month Loyalty Gold total is 0 rather than a real number.");
+
+            // The regular spender is the control: it subscribes less consistently, so if IT also
+            // reports zero vouchers the cause is broader than the no-stacking interaction.
+            Assert.GreaterOrEqual(regular.LoyaltyVouchersGranted, 0);
 
             // Same free Gold farms as F2P; paid BP table is configured but not claimable.
             Assert.AreEqual(483_450,

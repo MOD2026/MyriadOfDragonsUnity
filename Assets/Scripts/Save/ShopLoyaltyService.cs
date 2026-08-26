@@ -23,6 +23,10 @@ namespace MyriadOfDragons.Save
         public int StaminaClaimsApplied;
         public int StaminaClaimsForfeited;
         public int StaminaClaimsDeferred;
+
+        /// <summary>Plan id of a VIP voucher granted by this claim, or empty.</summary>
+        public string VoucherPlanGranted;
+
         public string Message;
     }
 
@@ -42,11 +46,10 @@ namespace MyriadOfDragons.Save
     /// decided. The claim guard exists (PlayerProfile.highestClaimedLoyaltyMilestone, owner-signed
     /// off), and the Gold and Stamina-claim rewards grant for real. Two things are still gated and
     /// say so in code rather than being silently absent:
-    ///   - VIP VOUCHER DURATIONS ARE HELD. The two locks disagree: 250 was remapped to weekly (7d)
-    ///     and 1,000 to fortnight (14d) to retire the unexpressible "3-day", while the revised
-    ///     whale-tier lock puts a 7-day voucher at 2,000 - below the 1,000 rung, so the ladder
-    ///     would stop ascending. Repairing it means raising 2,000 to 30-day, a real increase in
-    ///     what paid spend returns, which is an owner call. See VoucherGrantsHeld.
+    ///   - VIP VOUCHERS NOW GRANT FOR REAL (locked 2026-08-26): 250=7d, 1,000=14d,
+    ///     2,000/4,000/8,000=30d. The earlier hold - which refused every voucher rung while the
+    ///     2,000-point duration was undecided - is resolved, and its gate has been REMOVED rather
+    ///     than left permanently false, because a dead gate reads as a live constraint.
     ///   - MILESTONE 500 IS A COSMETIC and no cosmetic ownership model exists on the profile.
     /// Granting a reward the save cannot represent is still worse than not granting it, so both
     /// stay refused with a reason string instead of a silent no-op.
@@ -174,11 +177,44 @@ namespace MyriadOfDragons.Save
             }
         }
 
-        /// <summary>True for rungs whose reward includes a VIP voucher whose duration is not yet
-        /// locked. See the header - this is the ascending-ladder conflict, not an oversight.</summary>
-        public static bool VoucherGrantsHeld(int milestonePoints) =>
-            milestonePoints == 250 || milestonePoints == 1000 ||
-            milestonePoints == 2000 || milestonePoints == 4000 || milestonePoints == 8000;
+        /// <summary>
+        /// VIP voucher plan id for a milestone, or empty when that rung grants no voucher.
+        ///
+        /// LOCKED 2026-08-26 (BS, benchmarked against Genshin's Welkin Moon as a real fixed 30-day
+        /// unit): 250=weekly(7d), 1,000=fortnight(14d), 2,000/4,000/8,000=monthly(30d). Monotone
+        /// non-decreasing, then deliberately plateaus at 30 - shipped games use 30 days as a
+        /// ceiling unit rather than an unbounded linear duration curve.
+        ///
+        /// REPLACES VoucherGrantsHeld, which refused every voucher rung while the 2,000-point
+        /// duration was undecided. That hold is resolved, so the gate is REMOVED rather than left
+        /// permanently false - a dead gate reads as a live constraint to the next person.
+        ///
+        /// Ids come from VipSubscriptionOpenValues.PlanIds, never string literals, so this cannot
+        /// drift from the real plan vocabulary.
+        /// </summary>
+        public static string VoucherPlanIdFor(int milestonePoints)
+        {
+            switch (milestonePoints)
+            {
+                case 250: return MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanIds[0];
+                case 1000: return MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanIds[1];
+                case 2000:
+                case 4000:
+                case 8000: return MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanIds[2];
+                default: return string.Empty;
+            }
+        }
+
+        public static bool GrantsVoucher(int milestonePoints) =>
+            !string.IsNullOrEmpty(VoucherPlanIdFor(milestonePoints));
+
+        private static int PlanIndexOf(string planId)
+        {
+            string[] ids = MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanIds;
+            for (int i = 0; i < ids.Length; i++)
+                if (string.Equals(ids[i], planId, System.StringComparison.Ordinal)) return i;
+            return 0;
+        }
 
         /// <summary>True for rungs awarding a cosmetic. No cosmetic ownership model exists on
         /// PlayerProfile, so these cannot be claimed yet.</summary>
@@ -199,7 +235,7 @@ namespace MyriadOfDragons.Save
         }
 
         /// <summary>Redemption exists now that the claim guard does. Individual rewards can
-        /// still refuse - see VoucherGrantsHeld and CosmeticGrantsUnsupported.</summary>
+        /// still refuse - see CosmeticGrantsUnsupported, and the no-stacking rule in ClaimNext.</summary>
         public static bool RedemptionAvailable => true;
 
         /// <summary>Highest milestone POINTS value already claimed. Floored, for the same
@@ -264,13 +300,28 @@ namespace MyriadOfDragons.Save
                 return result;
             }
 
-            if (VoucherGrantsHeld(points))
+            string voucherPlan = VoucherPlanIdFor(points);
+            if (!string.IsNullOrEmpty(voucherPlan))
             {
-                result.Message =
-                    "Milestone " + points + " includes a VIP voucher whose duration is not locked " +
-                    "(the 1,000 vs 2,000 ascending-ladder conflict). Claim refused so the reward " +
-                    "stays owed.";
-                return result;
+                long nowTicks = MyriadOfDragons.Metagame.VipSubscriptionOpenValues.NowUtcTicks();
+                if (MyriadOfDragons.Metagame.VipSubscriptionOpenValues.IsSubscriptionActive(profile, nowTicks))
+                {
+                    // "Cannot stack with an active subscription" is a locked constraint. Refusing
+                    // WITHOUT advancing the guard keeps the reward owed - a player who happens to be
+                    // subscribed the day they cross a milestone must not silently forfeit it.
+                    result.Message =
+                        "Milestone " + points + " grants a VIP voucher, but a subscription is " +
+                        "already active - vouchers cannot stack. The reward stays owed.";
+                    return result;
+                }
+
+                int planIndex = PlanIndexOf(voucherPlan);
+                profile.vipPlanId = voucherPlan;
+                profile.vipStartedUtcTicks = nowTicks;
+                profile.vipExpiresUtcTicks = nowTicks + System.TimeSpan.FromDays(
+                    MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanDurationDays[planIndex]).Ticks;
+                profile.vipClaimsConsumed = 0;
+                result.VoucherPlanGranted = voucherPlan;
             }
 
             int gold = GoldRewardFor(points);

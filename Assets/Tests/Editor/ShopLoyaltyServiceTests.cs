@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MyriadOfDragons.Save;
 using NUnit.Framework;
 
@@ -245,24 +246,71 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void AHeldVoucherRung_RefusesWithoutConsumingTheClaim()
+        public void AVoucherRung_NowGRANTSTheVipPlan_AndConsumesTheClaim()
         {
-            // The 250 rung's voucher duration is not locked (250 was remapped to weekly while the
-            // revised whale-tier lock puts a 7-day voucher at 2,000, which would sit BELOW the
-            // 1,000 rung's fortnight and stop the ladder ascending). Refusing is correct - but it
-            // must NOT advance the guard, or the player pays for the indecision by losing the
-            // reward permanently.
+            // REPLACES the old held-voucher test. The 2,000-point duration is locked, so refusing
+            // is no longer correct behaviour - this asserts the reward the player is actually owed.
             var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
             ShopLoyaltyService.Accrue(profile, 250);
             long now = ShopStaminaCatalog.NowUtcTicks();
 
-            ShopLoyaltyService.ClaimNext(profile, now);            // consumes the 100 rung
-            ShopLoyaltyClaimResult held = ShopLoyaltyService.ClaimNext(profile, now);
+            ShopLoyaltyService.ClaimNext(profile, now);              // 100 rung
+            ShopLoyaltyClaimResult voucher = ShopLoyaltyService.ClaimNext(profile, now);
 
-            Assert.IsFalse(held.Claimed, "A voucher with no locked duration must not be granted.");
-            Assert.AreEqual(250, held.MilestonePoints);
+            Assert.IsTrue(voucher.Claimed, voucher.Message);
+            Assert.AreEqual(250, voucher.MilestonePoints);
+            Assert.AreEqual("weekly", voucher.VoucherPlanGranted, "250 grants the 7-day plan.");
+            Assert.AreEqual("weekly", profile.vipPlanId, "The plan must land on the profile.");
+            Assert.Greater(profile.vipExpiresUtcTicks, profile.vipStartedUtcTicks,
+                "A granted voucher must have a real expiry ahead of its start.");
+        }
+
+        [Test]
+        public void TheVoucherLadder_IsMonotoneNonDecreasing_AndPlateausAt30Days()
+        {
+            // The whole reason the 2,000 rung was held: a higher rung paying a SHORTER voucher than
+            // a lower one. Pins the locked shape so the ladder cannot silently regress into that.
+            int[] rungs = { 250, 1000, 2000, 4000, 8000 };
+            int previousDays = 0;
+            foreach (int rung in rungs)
+            {
+                string plan = ShopLoyaltyService.VoucherPlanIdFor(rung);
+                Assert.IsNotEmpty(plan, "Rung " + rung + " must grant a voucher.");
+
+                int index = System.Array.IndexOf(
+                    MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanIds, plan);
+                int days = MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanDurationDays[index];
+
+                Assert.GreaterOrEqual(days, previousDays,
+                    "Rung " + rung + " pays " + days + " days, less than the rung below it (" +
+                    previousDays + ") - that is the non-ascending gap the hold existed to fix.");
+                previousDays = days;
+            }
+
+            Assert.AreEqual(30, previousDays, "The ladder plateaus at a 30-day ceiling.");
+        }
+
+        [Test]
+        public void AVoucherRung_RefusesWhileASubscriptionIsActive_WithoutBurningTheReward()
+        {
+            // Locked constraint: vouchers cannot stack. The important half is that refusing must
+            // NOT advance the guard - a player who happens to be subscribed the day they cross a
+            // milestone would otherwise silently forfeit it forever.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            ShopLoyaltyService.Accrue(profile, 250);
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            ShopLoyaltyService.ClaimNext(profile, now);              // 100 rung
+
+            profile.vipPlanId = "monthly";
+            profile.vipStartedUtcTicks = now;
+            profile.vipExpiresUtcTicks = now + System.TimeSpan.FromDays(30).Ticks;
+
+            ShopLoyaltyClaimResult blocked = ShopLoyaltyService.ClaimNext(profile, now);
+
+            Assert.IsFalse(blocked.Claimed);
             Assert.AreEqual(100, profile.highestClaimedLoyaltyMilestone,
-                "The guard must stay where it was, so the 250 reward is still owed later.");
+                "The guard must not advance - the voucher is still owed once the plan lapses.");
+            Assert.AreEqual("monthly", profile.vipPlanId, "The active plan must be untouched.");
         }
 
         [Test]
@@ -277,25 +325,38 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void TheGoldRungs_AreCurrentlyUNREACHABLE_BecauseHeldRungsBlockTheQueue()
+        public void TheGoldRungs_ARE_NowReachable_TheLadderClaimsEndToEnd()
         {
-            // Worth pinning loudly rather than discovering in QA: claims are strictly ascending and
-            // 250 refuses, so a player sitting on 2,000 points cannot reach the 25,000 Gold reward
-            // at all. The code is correct; the ladder is order-blocked. This test should START
-            // FAILING the moment the voucher durations are locked - that is the signal to unhold
-            // them, not a regression.
+            // THE INVERSE of the test this replaces. That one asserted the Gold tier was
+            // unreachable because the held 250 rung blocked the strictly-ascending queue, and it
+            // was written to START FAILING the moment the durations locked. That signal fired -
+            // so this now pins what the player can actually claim.
             var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
             ShopLoyaltyService.Accrue(profile, 2000);
             long now = ShopStaminaCatalog.NowUtcTicks();
+            int goldBefore = profile.gold;
 
-            ShopLoyaltyService.ClaimNext(profile, now);            // 100, succeeds
-            ShopLoyaltyClaimResult blocked = ShopLoyaltyService.ClaimNext(profile, now);
+            // Walk the whole ladder the way a real player would - lowest unclaimed rung first.
+            // 500 is the cosmetic rung and still refuses, so the walk stops there rather than
+            // pretending the whole ladder is open.
+            var claimed = new List<int>();
+            for (int i = 0; i < 6; i++)
+            {
+                ShopLoyaltyClaimResult r = ShopLoyaltyService.ClaimNext(profile, now);
+                if (!r.Claimed) break;
+                claimed.Add(r.MilestonePoints);
+            }
 
-            Assert.IsFalse(blocked.Claimed);
-            Assert.AreEqual(250, blocked.MilestonePoints,
-                "The queue stops at the first held rung, well short of any Gold reward.");
-            Assert.AreEqual(0, profile.gold - 1000,
-                "No Gold may be granted while the queue is blocked (1000 is the profile default).");
+            CollectionAssert.Contains(claimed, 250, "The 250 voucher rung must now claim.");
+            Assert.Greater(profile.vipExpiresUtcTicks, 0,
+                "Walking the ladder must have granted a real VIP voucher.");
+            Assert.AreEqual(goldBefore, profile.gold,
+                "No Gold yet - 500 is a cosmetic rung and still blocks the queue below 2,000.");
+
+            // The remaining blocker is the cosmetic rung, NOT a voucher. That is a different and
+            // still-open gap (no cosmetic ownership model), and naming it here keeps the two from
+            // being confused when someone reads a red test later.
+            Assert.IsTrue(ShopLoyaltyService.CosmeticGrantsUnsupported(500));
         }
 
         [Test]
