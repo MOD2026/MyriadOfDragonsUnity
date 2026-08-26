@@ -33,12 +33,21 @@ The rest of those two files is yours; those members are not.
 2. **Grep all of `Assets/` (including `Assets/Tests/`) for usages before changing any public member.**
 3. **Run the EditMode suite before AND after any battle-logic change.** Unity must be fully closed
    first; never add `-quit`; check the log for `error CS` before trusting the results file.
-   Real baseline as of 2026-08-25, measured in one continuous run pinned to HEAD `a44a118`:
-   **1069/1081**. Remaining 12 = 6 flaky `Chapter*FullDepth` unlock tests (the failing stage moves
-   every run) + 2 `MirroredAiSimulationMatrixTests` assertions under active owner-directed tuning
-   (not to be retuned without an owner decision) + 4 UI/rendering. The earlier **718/762** and
-   **81/81** figures are superseded: they predate the metagame systems, Ch8–10, and the
-   2026-08-25 `CardDatabase` test-pollution fix, which alone turned ~49 false failures green.
+   The 2026-08-25 baseline's "6 flaky `Chapter*FullDepth` unlock tests" claim is **SUPERSEDED,
+   confirmed wrong by real measurement on 2026-08-26**: 3 filtered runs targeting exactly those
+   tests scored 198/198 with zero failures, cross-checked against 4 separate full-suite runs the
+   same night (across 4 different HEADs, since this tree moves fast) that also showed zero
+   `Chapter*FullDepth` failures. Those tests are not flaky - the baseline note was never updated
+   after whatever fixed them. **Do not wave through a `Chapter*FullDepth` failure as "the known
+   flake" - if one fails now, it is a real regression.**
+   Real remaining failure classes as measured 2026-08-26 (not a single pinned count - the tree
+   moves too fast tonight for one number to stay meaningful; treat this as a living list, not a
+   score): `BackdropImages_NeverBlockRaycasts` (genuinely intermittent, passes some runs), 2
+   pre-existing `DeckBuilder` layout assertions (Metagame-owned, confirmed real via a proper
+   git-stash A/B, not a regression), and `ShopV1ChromeTests` hanging the whole suite roughly half
+   the time (root cause found 2026-08-26: `RetentionTelemetryOutbox.FlushAsync` has no timeout
+   anywhere in its Cloud Code call chain, fix in progress). The `MirroredAiSimulationMatrixTests`
+   under active owner-directed tuning still apply, not to be retuned without an owner decision.
    Always pin HEAD immediately before AND after a run and quote it with the numbers — several
    sessions share this one working tree and it moves every ~20 minutes, so an unpinned figure
    goes stale fast. Report real numbers, never "should pass".

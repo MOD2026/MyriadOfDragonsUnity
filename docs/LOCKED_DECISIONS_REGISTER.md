@@ -6369,3 +6369,24 @@ specific overlap risk beyond what's already handled** - real, thorough check, co
 a clean result rather than manufactured findings. WH's in-flight token pass covers the real
 remaining restyle work on Home/DeckBuilder/CampaignMap; Shop needs nothing. CR standing by, correctly
 not inventing scope on a boundary that's now genuinely covered.
+
+## CORRECTED CLAUDE.md: the "6 flaky Chapter*FullDepth" baseline claim was stale, real measurement disproves it (2026-08-26)
+
+**VS measured a claim every room has been citing all night to wave through failures, rather than
+trusting it.** 3 filtered runs targeting exactly `Chapter*FullDepth` scored 198/198, zero failures.
+Cross-checked against 4 separate full-suite runs the same night (across 4 different HEADs, since
+the tree moves fast) - also zero `Chapter*FullDepth` failures in any of them. **The "6 flaky chapter
+unlock tests" line in CLAUDE.md's own non-negotiable #3 was wrong** - those tests were presumably
+fixed at some point and the baseline note never followed. Real harm, not cosmetic: the stale line
+told every room to expect and wave through chapter-test failures as "the known flake," which means
+a real regression there would have gone unnoticed.
+
+**VS correctly did NOT edit `CLAUDE.md` itself** - a shared instruction file every room loads,
+changing it unilaterally is exactly the kind of act that should go through CC. Corrected directly in
+`CLAUDE.md` non-negotiable #3: retired the false "6 flaky Chapter*FullDepth" line, replaced with the
+real measured failure classes as of tonight (`BackdropImages_NeverBlockRaycasts` genuinely
+intermittent, 2 pre-existing DeckBuilder assertions confirmed real via A/B, `ShopV1ChromeTests`'
+hang now root-caused to the telemetry timeout gap already dispatched to WH). Framed as a living list
+rather than a fixed score, since VS's own honest caveat stands: HEAD moved 3 times during the
+measurement (peers committing), so this is "did not fail across 4 trees and 4 full-suite runs
+tonight," not an unconditional guarantee they can never flake.
