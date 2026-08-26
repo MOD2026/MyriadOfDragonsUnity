@@ -5114,3 +5114,31 @@ cycle or duplicate a completed day - same rollback-invalidates discipline as the
 **Implementation note, low friction:** fits inside the already-approved `soloCircuitProgress` nested
 field (cycle-start date + cycle-completed-day count are two more members of the same object, not a
 new frozen-file ask) - VS can build this without a second sign-off round.
+
+## CORRECTION: dcf9610's Guild Hall fix was WRONG - self-caught by CR before it shipped further, real re-diagnosis in progress (2026-08-26)
+
+**Downgrading dcf9610 again** - not PARTIAL-but-directionally-right as last logged, actually built
+on a wrong assumption. CR's own near-full suite run (triggered by wanting a clean state before
+committing Battle Pass Gold - caught this BECAUSE it checked rather than assumed) found
+`MetagameNavigationSpineTests.OpenAndCloseGuildHallEntry` failing: Guild Hall is supposed to be a
+POPUP over Empire (same convention as BuildingDetail/TacticalPuzzle), not a full-screen replacement.
+dcf9610's `SetActive(false)` hide + blanket cleanup call was built on the wrong mental model and
+now actively breaks the real convention.
+
+**Real root cause, re-diagnosed:** `GuildHallUiLibrary.ApplyFullscreenShell` sets
+`preserveAspect = true` on its art sprite, which can letterbox - Empire's canvas bleeding through
+the letterbox gaps was the actual overlap mechanism, not a missing hide/cleanup call. BuildingDetail
+avoids this with a separate always-opaque dim-backdrop layer under its art panel; Guild Hall's
+single art-as-backdrop layer has no such guarantee. Fix in progress: revert the hide/cleanup, add a
+proper opaque backdrop layer matching BuildingDetail's real pattern.
+
+**Second related regression found in the same run:** the earlier Empire construction-panel boundary
+fix (0.88->0.82, from the same dcf9610 commit) over-corrected -
+`MetagameWorkingAreaLayoutTests.Empire_ConstructionRoot_FillsBelowHeader...` now flags a gap.
+Re-tuning both together with real numbers, not committing Battle Pass Gold (unrelated files) until
+the suite is honestly clean.
+
+**Worth naming directly: this is exactly the discipline this session keeps asking for** - CR ran the
+full suite unprompted before landing unrelated work, caught its own earlier mistake instead of
+letting a wrong "fixed" status stand, and reported it before it could be mistaken for done. No
+register correction needed beyond this entry - CR is already re-fixing it.
