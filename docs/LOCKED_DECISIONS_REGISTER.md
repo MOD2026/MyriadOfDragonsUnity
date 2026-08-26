@@ -7227,3 +7227,46 @@ survive, small modals/list rows/compact previews would not. Enumeration pass ass
 **Side effect worth keeping:** changing `pixelsPerUnitMultiplier` changes the Image's reported
 native/preferred size, so it must be set before layout rebuild (or force one after) or LayoutGroup-
 driven screens will jitter.
+
+## THE BATTLE SCREEN WAS NEVER IN THE DESIGN-TOKEN ROLLOUT AT ALL - "all 23 presenters done" is technically true and materially misleading (2026-08-26, CC, measured from owner screenshots)
+
+Owner supplied three real Play Mode screenshots (Home, Campaign map, Battle/Formation). Home and
+Campaign map look genuinely good - Campaign map's header stack visibly confirms CR's item-3
+retirement was correct. **The Battle screen is a different game visually**, and the reason is
+concrete:
+
+```
+grep -c "ApplyNeutralActionButton|ApplyPrimaryActionButton|ApplyNavTileButton|ApplyFramedPanel"
+  Assets/Scripts/UI/GameBootstrap.cs   ->   0
+```
+
+**Zero.** The entire Battle screen uses its own local `CreateButton` (`GameBootstrap.cs:6737`) with
+hardcoded colors from a 2026-08-05 pass that predates the whole token system:
+```
+AccentBorderColor  = (0.85, 0.72, 0.4, 0.5)   gold rim
+ButtonNormalTop    = (0.62, 0.14, 0.16)       <- deep RED
+ButtonNormalBottom = (0.38, 0.06, 0.08)
+```
+That is why START BATTLE, Reset and AUTO FORMATION render as red pills in the owner's screenshot -
+they are *supposed* to be red, by a design decision nobody revisited, on a screen that never got the
+navy/bronze secondary + emerald primary treatment every other screen received.
+
+**How the miss happened, and it is a process lesson not a coding one:** the rollout's scope was
+"presenters," and `GameBootstrap.cs` is a MonoBehaviour bootstrap, not a `*Presenter.cs`. It fell
+through a scope definition, not through carelessness - and then "all 23 presenters done" was logged
+and believed, including by me, while the single most-played screen in the game was untouched.
+**A scope-shaped completion claim hides exactly the work that falls outside the scope's naming
+convention.** Same family as tonight's three stale-baseline catches: the claim was accurate as
+written and wrong as understood.
+
+**Also visible in the same screenshot, flagged but NOT yet verified in code** (do not treat as
+findings until someone reads the source): the COMBAT RESOLUTION rail renders as flat cyan and
+grey/black rectangles rather than real VFX (likely the fallback/placeholder state of VS's rail); the
+SPELLS rows have beige/tan backgrounds that look wrong against every other panel and whose labels
+(Firestorm/Mend/War Cry/Divine Bolt) overflow their rows; Home's tutorial banner has a small
+tan/beige box that looks like a missing sprite; Campaign map's "1-2 Volcanic Ridge" node label is
+clipped.
+
+**Assigned to VS** (Battle seat owns `GameBootstrap.cs` per CLAUDE.md; VS also built the VFX rail
+there, so it has the most context) - deliberately NOT CR, which is mid-flight in
+`HomeV3UiLibrary`/`UISharedFoundation` on the 9-slice fix. Clean file separation, no collision.
