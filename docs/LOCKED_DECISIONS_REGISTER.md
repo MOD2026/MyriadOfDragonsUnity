@@ -4824,3 +4824,19 @@ store the highest tier INDEX claimed per track, same reasoning as `highestClaime
 tiers unlock in ascending XP order, so one int per track is sufficient, no bitmask needed). Paid
 track only advances if `PremiumUnlockPrice` has been paid. Real frozen-file field addition -
 escalating to owner for sign-off now, same as every other field tonight.
+
+## Collection Trial data question pre-cleared: rarity-rule days only, school/faction NOT buildable (2026-08-26)
+
+VS flagged (correctly, before it blocked) that the Circuit's Collection Trial spec needs "5+ owned
+cards matching the day's school/rarity/faction rule" and card attributes might not be queryable.
+Verified the real shapes:
+- Ownership queryable with NO save-shape change: `profile.cardProgression`
+  (`CardProgressionRecord.cardId` + `copyCount`) / legacy `profile.cardCollection`, joined against
+  `CardDatabase` - `CollectionPresenter.LoadOwnedCards()` is the working pattern.
+- `Card.Rarity` (int, 1-7 stars) is real - rarity-rule days work as specced.
+- **School/faction fields do NOT exist on Card at all** - that half of the spec is not buildable
+  without new card metadata (content/design shape, not save shape).
+
+Ruling sent to VS via mailbox: build Collection Trial with rarity-band rules only; do NOT invent
+card metadata. School/faction taxonomy goes back to BS as a design question (paste-ready ask below).
+All three Circuit trials now unblocked with zero frozen-file involvement.

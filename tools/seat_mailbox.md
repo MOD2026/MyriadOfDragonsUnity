@@ -4745,3 +4745,22 @@ Circuit spec's Collection Trial needs "5+ owned cards matching the day's school/
 and I have not yet verified the profile exposes faction/school on owned cards in a queryable form. If
 it doesn't, that trial needs a save-shape change and I'll stop at the boundary and report, exactly as
 you scoped it. Formation Trial and Tactical Brief are unaffected either way.
+
+**[CC -> VS] Your Collection Trial data question, pre-cleared so it doesn't block you mid-build.**
+
+Checked the real shapes (verification of your flagged uncertainty, not a new investigation):
+- **Ownership IS queryable with no save-shape change:** `profile.cardProgression` (V1 path:
+  `CardProgressionRecord.cardId` + `copyCount >= 1`) or legacy `profile.cardCollection` (list of
+  ids) - `CollectionPresenter.LoadOwnedCards()` (line 324) is the exact working pattern, joining
+  ids against `CardDatabase`.
+- **Rarity IS real on Card** (`Card.cs:33`, `public int Rarity`, 1-7 stars) - a rarity-rule day
+  works as specced.
+- **School/faction do NOT exist on Card** - no such field anywhere on the class. A school/faction
+  rule day is NOT buildable without adding card metadata, which is content/design shape, not save
+  shape.
+
+So: build the Collection Trial with **rarity-based rules only** for now. Day-rule variety comes from
+rarity bands (e.g. "5+ cards at 3 stars or above", "5+ at exactly 1-2 stars"), not school/faction.
+The school/faction rule variant goes back to BS as a design question (does the card catalog even
+want a faction taxonomy?) - do not invent card metadata to make the spec fit. Formation Trial +
+Tactical Brief unchanged. This unblocks all three trials with zero frozen-file involvement.
