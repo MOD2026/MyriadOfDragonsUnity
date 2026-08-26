@@ -5274,3 +5274,53 @@ nesting a daily behind Empire would bury it an extra tap. Dispatching HomePagePr
    rather than editing a file outside its lane - dispatching to CR (currently in this file's area).
 2. Trial completion is not wired to real battle/puzzle results yet - screen is reachable but doesn't
    judge success. Real remaining work, assigned to VS (built the screen, has the context).
+
+## CORRECTION + DECISION: CampaignMapPresenter.cs ownership boundary missed on 7185a4c, one-time authorized exception granted for both additions (2026-08-26)
+
+**My own miss, not just CR's:** verified and logged 7185a4c as a clean fix earlier without catching
+that it added `"TacticalPuzzleCanvas"` to `CampaignMapPresenter.cs`'s cleanup master list -
+Metagame-owned, on CR's own "must NOT edit" list. CR caught this independently while about to repeat
+it for `SoloCircuitCanvas`, stopped, reverted the uncommitted edit, and asked rather than deciding
+unilaterally on a file it isn't supposed to touch - exactly right.
+
+**Decision (process/ownership call, not a design judgment - decided directly, not escalated):**
+1. `TacticalPuzzleCanvas` (already shipped in 7185a4c, load-bearing for the Mail-freeze mitigation) -
+   **not reverting.** Reopening a real, tested orphan-canvas gap to satisfy file-ownership process
+   after the fact is the wrong tradeoff. Retroactively authorized as a one-time exception: single-
+   line, purely-additive string-array entry, no logic/behavior change beyond what's already tested.
+2. `SoloCircuitCanvas` (not yet made) - **CR may add it now**, same authorization, same reasoning.
+   Both are the narrowest possible edit to a file whose real owner (Metagame seat) isn't active in
+   this session tonight.
+
+**Not a blanket license** - this authorization covers exactly these two additive lines, once. Any
+future edit to Metagame-owned files still needs the same flag-first discipline CR just demonstrated.
+
+## Battle Pass Gold FULLY WIRED end-to-end, free track live - verified (2026-08-26, CR, commits bfd148b/afa7d56/f4028f2)
+
+36/36 pass on the final combined check, HEAD 9deffa0 unchanged both ends. Verified `f4028f2` and
+`afa7d56` directly via `git show`, both real, match the report. Free track (Gold grants, ascending
+claim guard) is genuinely live and claimable now.
+
+**Real bookkeeping gap found and closed while verifying, no functional issue:** the two claimed-tier
+fields had landed via VS's `53d5aae` (a different commit than CR's own) in the shared tree, and
+`BattlePassPresenter.cs`'s real wiring + `SaveSystemTests.cs` persistence coverage were sitting
+uncommitted since the Guild Hall detour - reconciled, nothing lost, just provenance noted honestly
+rather than silently claimed as CR's own work.
+
+**Real remaining gap: premium unlock doesn't work end-to-end.** All 4 locked numbers are wired
+(XP=1400, Gold table, price=800, grace=7), but `TryUnlockPremium` and every paid-track claim
+genuinely refuse - no `PlayerProfile` field exists to persist an unlocked state. Free track only.
+
+**AUTO-APPROVED under the extended sign-off protocol** (simpler than the already-approved
+ascending-guard int fields, peer-confirmed concrete blocker - `TryUnlockPremium` cannot function
+without it): new `PlayerProfile` field `battlePassPremiumUnlocked` (bool, default false, additive).
+CR to add and wire - full suite before/after, HEAD pinned, explicit-path staging only.
+
+## Solo Collection Circuit: Collection Trial + soloCircuitProgress field LANDED, verified (2026-08-26, VS, commit 53d5aae)
+
+Verified via `git show --stat`, matches. Circuit is now fully built (all 3 trials) on rarity bands
+only, per the earlier no-taxonomy lock. Deliberately wide bands/low thresholds - VS's own reasoning:
+a narrow band reads fine in a spec but is unclearable for most real rosters, silently costing the
+player a daily circuit - pinned by a real test rather than asserted. Solo Circuit thread is now
+functionally complete pending the Home entry-point wiring (dispatched above) and trial-completion
+wiring (also dispatched, VS's own next task).
