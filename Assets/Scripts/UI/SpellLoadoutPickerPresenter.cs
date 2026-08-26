@@ -174,6 +174,13 @@ namespace MyriadOfDragons.UI
                 GameObject labelPlate = new GameObject("EffectLabelPlate", typeof(RectTransform));
                 labelPlate.transform.SetParent(cell.transform, false);
                 SetNorm(labelPlate.GetComponent<RectTransform>(), 0.40f, 0.50f, 0.98f, 0.98f);
+                Image labelFill = labelPlate.AddComponent<Image>();
+                labelFill.sprite = UISharedFoundation.CreateRoundedPanelSprite(
+                    new Color(0.03f, 0.035f, 0.05f, 0.95f),
+                    new Color(0.03f, 0.035f, 0.05f, 0.95f), cornerRadius: 1);
+                labelFill.type = Image.Type.Simple;
+                labelFill.color = Color.white;
+                labelFill.raycastTarget = false;
                 UISharedFoundation.AddLocalGradientScrim(
                     labelPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
                     UISharedFoundation.GradientDirection.TopToBottom, 0.98f);
