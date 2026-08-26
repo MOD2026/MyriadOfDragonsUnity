@@ -660,7 +660,13 @@ public class HomePagePresenter : MonoBehaviour
         // functionality, not resurrected UI, just relocated into the feed).
         BuildWeeklyPermitFeedCard(contentObj.transform, viewportWidth, viewportHeight);
 
-        contentRect.sizeDelta = new Vector2(viewportWidth * (cards.Count + 1), viewportHeight);
+        // Content is vertically STRETCHED (anchorMin.y=0, anchorMax.y=1), so sizeDelta.y is an
+        // ADDITIVE delta on top of the fully-stretched parent height, not an absolute height -
+        // a real bug caught here via direct geometry measurement: setting it to viewportHeight
+        // made the row 786px taller than its own viewport (1048 + 786 = 1834, measured), pushing
+        // every feed card up into the TopHud row. Only the X axis (unstretched) needs an
+        // absolute total scroll width; Y must stay 0 so content matches the viewport's height.
+        contentRect.sizeDelta = new Vector2(viewportWidth * (cards.Count + 1), 0f);
     }
 
     private Text _weeklyPermitStatusText;
@@ -1054,6 +1060,7 @@ public class HomePagePresenter : MonoBehaviour
     private void OpenSocialDrawer()
     {
         EmitFeatureEntry("social_drawer");
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
         if (_socialDrawerObj != null) SafeDestroy(_socialDrawerObj);
 
         _socialDrawerObj = new GameObject("SocialDrawer", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -1138,6 +1145,7 @@ public class HomePagePresenter : MonoBehaviour
         SafeDestroy(gameObject.GetComponent<FriendsPresenter>());
         if (_socialDrawerObj != null) SafeDestroy(_socialDrawerObj);
         _socialDrawerObj = null;
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
         RefreshTopHUD();
     }
 
