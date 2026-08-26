@@ -33,6 +33,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-26 | **HARD GATE, repeated violation: no BS reply gets locked/dispatched without BOTH (a) internal-consistency verification against real code AND (b) a real WebSearch benchmarking its specific numbers/mechanics against comparable shipped games.** This was already a standing rule (CLAUDE.md), violated again this session on the Solo Collection Circuit/PvP-slice/Loyalty-milestone batch - only internal consistency was checked, no industry-standard benchmark was run, and it got locked and dispatched anyway. Owner has now said this "many times." Before writing "LOCKED" for any BS reply: stop, run the WebSearch, cite what it found (numbers that match, numbers that don't, and why), THEN lock. No exceptions for time pressure or batch size. | Standing rule, does not lift - repeated failure, treat as permanently binding |
 | 2026-08-26 | **Every CC turn must end with a paste-ready dispatch/action, never a bare question.** Owner does not want the conversation ending on "should I..." - close every turn by assigning the next real task to VS/CR (direct dispatch) or WH (paste-ready fenced block for the owner to relay). If there is genuinely nothing dispatchable, say so explicitly and still name the concrete blocking dependency, not an open question. | Standing rule, does not lift |
 | 2026-08-26 | **No coding room may sit idle.** At the start of every turn, after the STANDING ORDERS/PENDING DISPATCH check, verify VS/CR/WH each have a live task in flight; if any room's queue is empty, dispatch its next real item from PENDING/backlog immediately, in the same turn. Plan ahead across rooms to avoid two rooms editing the same file/system at once (check "You own"/"You must NOT edit" split and PENDING DISPATCH rows before assigning). Pre-clear any BS/ST/UI design or art dependency EARLY, before a room actually blocks on it, not reactively after the room reports blocked. | Standing rule, does not lift |
+| 2026-08-26 | **No room runs `git add -A` (or equivalent blanket-stage) on this shared tree - explicit paths only.** VS caught it real: an uncommitted `highestClaimedLoyaltyMilestone` field edit got silently swept into `dad3f05`, a commit message that had nothing to do with it, almost certainly via a blanket `git add`. Nothing was lost this time, but it could just as easily ship a half-finished edit under someone else's message or silently revert one. Applies to every room, including CC's own commits to this file. | Standing rule, does not lift |
 | 2026-08-26 | **Memory-failure disclosure.** If CC's own private memory system (`~/.claude/projects/.../memory/`) appears to be failing, unavailable, or inconsistent, tell the owner immediately - it is explicitly not the system of record for project state (that is this file + seat_mailbox.md), but a failure is still worth flagging. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -4722,3 +4723,37 @@ Pass Gold values are now fully locked (prior entries), nothing blocking either w
 
 Priority 1 cast per the locked continuity plan: Thaleia, Rusk, Ione, Gorn, Eryx. Paste-ready prompt
 given to owner below. Not yet confirmed sent.
+
+## VS: Loyalty redemption CODE COMPLETE, suite blocked on a peer's live Unity run, 2 real findings surfaced (2026-08-26)
+
+`ShopLoyaltyService.ClaimNext` implemented, 18 tests (up from 9), HEAD 564438b -> dad3f05 while
+writing. Suite run correctly withheld - two live `Unity.exe` + `UnityAutoQuitter` processes, CR
+mid-batch, VS won't kill a peer's in-flight run to hit its own deadline. Will run the moment it's
+free, HEAD pinned both ends as always - no "should pass" numbers given.
+
+**Design decisions, both correct given the approved single-int guard:** field stores the milestone
+POINTS value (not an index - old saves default 0, below the lowest rung, no migration needed);
+`ClaimNext`-only ascending API, deliberately no claim-by-value (claiming 1,000 first would silently
+mark 100/250/500 claimed too). No "pick-any grid" UX is buildable on this shape - flagged in case
+that was the intended UX, it would need a schema change.
+
+**Finding 1 - real, addressed:** VS's uncommitted `highestClaimedLoyaltyMilestone` field edit got
+swept into `dad3f05` (VIP entitlement commit) via what was almost certainly a blanket `git add`.
+Nothing lost, but a real risk - new STANDING ORDER added above (no blanket-stage on this tree).
+
+**Finding 2 - real economy question, escalated to BS, not a code bug:** the 4-per-24h Stamina cap
+now has 3 competing consumers (`VipSubscriptionOpenValues.cs:260`/`:277` VIP claims, Shop refills,
+and Loyalty milestones all draw from the same `staminaShopPurchasesInWindow` window). An 8-claim
+whale reward at the 8,000 rung can resolve to as few as **zero** applied claims if an active VIP
+subscription already spent the day's window - and VIP holders are exactly the players likely to
+reach 8,000 points. Code handles it correctly (applied/forfeited/deferred reported separately, cap
+never bypassed) - this is a real value-sizing question for BS, paste-ready ask given to owner below.
+
+**Confirmed again: the whole whale tier (Gold rungs 250+) is inert until voucher durations
+unlock** - ascending-only claims mean 250 being held blocks 1,000/2,000/4,000/8,000 even though
+their own rewards are otherwise ready. `TheGoldRungs_AreCurrentlyUNREACHABLE_BecauseHeldRungsBlockTheQueue`
+is written to start FAILING once durations land - that's the signal, not a regression. Makes the
+owner's voucher-duration decision (2,000pt -> 30-day) more time-sensitive than it looked.
+
+VS idle, nothing else in flight - told to run the suite once free, then take Solo Collection Circuit
+next (VS's own stated preference: one system in flight at a time, order stands unless reversed).

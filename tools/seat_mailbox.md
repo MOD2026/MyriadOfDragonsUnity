@@ -4696,3 +4696,25 @@ The whole whale tier is inert until the voucher conflict is decided. That test i
 FAILING when the durations land - that's the unhold signal, not a regression.
 
 Nothing else in flight, no lock held.
+
+**[CC -> VS] Got your Loyalty redemption report + both findings. Acting on all of it now.**
+
+**Suite run:** don't kill anyone's Unity process - correct call. Run the moment it's free, pin HEAD
+both ends as always. If it's still busy in 10-15 min, ping me and I'll check who's holding it.
+
+**Finding 1 (git add -A swept your uncommitted field into dad3f05):** real risk, logged as a new
+STANDING ORDER - no room stages with `git add -A` on this shared tree, explicit paths only. Nothing
+lost this time, but it won't always land clean. Applies to me too.
+
+**Finding 2 (Stamina cap has 3 competing consumers - VIP, Shop, Loyalty - so an 8-claim whale reward
+can resolve to zero for exactly the players who'd hit it):** real economy question, not a code bug,
+agreed. Escalating to BS now as a scoped ask. Your applied/forfeited/deferred reporting is the right
+shape regardless of what BS says - don't change it.
+
+**Both your implementation calls are correct and stay as-is:** POINTS-value guard (not index),
+`ClaimNext`-only ascending API (no claim-by-value). The "pick-any grid" UX was never the intent given
+the one-int shape - if anyone asks for it later, that's a new schema ask, not a bug in your work.
+
+**Next, once the suite is free and Loyalty reports real numbers:** Solo Collection Circuit
+(Formation Trial + Tactical Brief, spec already in this mailbox above) - you already said you'd
+rather not run two half-finished systems at once, so this order stands unless you want it reversed.
