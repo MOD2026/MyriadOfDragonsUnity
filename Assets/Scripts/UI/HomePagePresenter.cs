@@ -688,7 +688,8 @@ public class HomePagePresenter : MonoBehaviour
         cardObj.GetComponent<RectTransform>().sizeDelta = new Vector2(width, height);
 
         Image cardBg = cardObj.GetComponent<Image>();
-        UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+        UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
+            tier: UIDesignTokens.FrameTier.Tier1Hero);
         cardBg.raycastTarget = false;
 
         Text title = UISharedFoundation.CreateText(cardObj.transform, "Title", "WEEKLY PERMIT", UITextRole.Display,
@@ -760,7 +761,8 @@ public class HomePagePresenter : MonoBehaviour
         cardObj.GetComponent<RectTransform>().sizeDelta = new Vector2(width, height);
 
         Image cardBg = cardObj.GetComponent<Image>();
-        UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+        UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
+            tier: UIDesignTokens.FrameTier.Tier1Hero);
         cardBg.raycastTarget = false;
 
         Text title = UISharedFoundation.CreateText(cardObj.transform, "Title", card.Title, UITextRole.Display,

@@ -364,8 +364,16 @@ namespace MyriadOfDragons.UI
         /// art exists, someone drops a file at the path and this picks it up with no code
         /// change), falls back to the procedural gradient sprite when no art exists yet. Either
         /// way every caller gets a REAL rounded/framed look today, not a flat rectangle.</summary>
+        /// <param name="tier">Optional frame-tier classification (register: "Framing - LOCKED
+        /// 2026-08-27"). Null (the default, every existing call site) keeps the exact prior
+        /// behavior - real art if one exists, else the flat gradient fallback. When given, the
+        /// PROCEDURAL fallback becomes the tier-aware bordered sprite (border thickness + fill
+        /// alpha per tier) instead of the flat gradient - real authored art still wins first for
+        /// any kind that has one, unchanged. <paramref name="borderColor"/> defaults to the
+        /// project's structural-trim token when omitted.</param>
         public static void ApplyFramedPanel(Image target, string frameResourcePath, Color topColor, Color bottomColor,
-            int cornerRadius = UIFrozenTokens.RadiusPrimary, FramedPanelKind kind = FramedPanelKind.ContentPanel)
+            int cornerRadius = UIFrozenTokens.RadiusPrimary, FramedPanelKind kind = FramedPanelKind.ContentPanel,
+            UIDesignTokens.FrameTier? tier = null, Color? borderColor = null)
         {
             if (target == null) return;
 
@@ -402,9 +410,12 @@ namespace MyriadOfDragons.UI
             }
             else
             {
-                target.sprite = CreateOrGetRoundedPanelSprite(topColor, bottomColor, cornerRadius);
+                target.sprite = tier.HasValue
+                    ? CreateOrGetTieredFrameSprite(tier.Value, topColor, borderColor ?? UIFrozenTokens.ColorAccentBronze, cornerRadius)
+                    : CreateOrGetRoundedPanelSprite(topColor, bottomColor, cornerRadius);
                 target.type = Image.Type.Sliced;
                 target.color = Color.white;
+                if (tier.HasValue) FitSlicedBorderToRect(target);
 
                 // Only warn when there WAS a real path to try and it genuinely failed to load -
                 // DefaultFramedPanelResourcePath legitimately returns null for a kind with no art
@@ -552,6 +563,230 @@ namespace MyriadOfDragons.UI
             tex.Apply();
             var border = new Vector4(cornerRadius, cornerRadius, cornerRadius, cornerRadius);
             return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> _tieredFrameSpriteCache =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        /// <summary>Border stroke + fill alpha for each of the four locked frame tiers (register:
+        /// "Framing - LOCKED 2026-08-27: four tiers + weighted ratio"). Values are in the
+        /// generator's own texture-px space, scaled to the real rect the same way every other
+        /// sliced sprite here is (FitSlicedBorderToRect) - not a literal screen-px guarantee.
+        /// CC's call (2026-08-27): build this procedurally rather than commission four tiers of
+        /// bordered art - fewer assets that can silently fail to load, and it matches how the rest
+        /// of this project is built (no prefabs/scenes, everything generated). Tier 1 keeps real
+        /// authored art as its first choice wherever one exists (ApplyFramedPanel's normal
+        /// real-sprite-first behavior, unchanged) - this generator is what Tier 1 falls back to
+        /// when no art exists yet, and what Tiers 2-4 use directly since they were never meant to
+        /// carry ornate authored art.</summary>
+        private struct FrameTierSpec
+        {
+            public float BorderThicknessPx;
+            public float FillAlpha;
+            public bool InnerGlow;
+        }
+
+        private static FrameTierSpec SpecFor(UIDesignTokens.FrameTier tier)
+        {
+            switch (tier)
+            {
+                case UIDesignTokens.FrameTier.Tier1Hero:
+                    return new FrameTierSpec { BorderThicknessPx = 5f, FillAlpha = UIDesignTokens.FillAlpha(tier), InnerGlow = true };
+                case UIDesignTokens.FrameTier.Tier2Section:
+                    return new FrameTierSpec { BorderThicknessPx = 3f, FillAlpha = UIDesignTokens.FillAlpha(tier), InnerGlow = false };
+                case UIDesignTokens.FrameTier.Tier3Utility:
+                    return new FrameTierSpec { BorderThicknessPx = 1.5f, FillAlpha = UIDesignTokens.FillAlpha(tier), InnerGlow = false };
+                case UIDesignTokens.FrameTier.Tier4Surface:
+                default:
+                    return new FrameTierSpec { BorderThicknessPx = 0f, FillAlpha = UIDesignTokens.FillAlpha(tier), InnerGlow = false };
+            }
+        }
+
+        public static Sprite CreateOrGetTieredFrameSprite(UIDesignTokens.FrameTier tier, Color fillColor, Color borderColor,
+            int cornerRadius = UIFrozenTokens.RadiusPrimary, int size = 96)
+        {
+            string Quant(Color c) => $"{c.r:F3},{c.g:F3},{c.b:F3},{c.a:F3}";
+            string key = $"tier:{tier}|fill:{Quant(fillColor)}|border:{Quant(borderColor)}|r:{cornerRadius}|s:{size}";
+            if (_tieredFrameSpriteCache.TryGetValue(key, out Sprite cached) && cached != null)
+                return cached;
+
+            Sprite created = CreateTieredFrameSprite(tier, fillColor, borderColor, cornerRadius, size);
+            _tieredFrameSpriteCache[key] = created;
+            return created;
+        }
+
+        /// <summary>Same rounded-corner soft-edge technique as <see cref="CreateRoundedPanelSprite"/>,
+        /// extended with an actual border STROKE (a ring of <c>borderColor</c> a fixed distance
+        /// from the edge, not just a tinted fill) and an optional inner glow band just inside it -
+        /// Tier 1's "inner glow, strong shadow" without needing authored art. Tier 4 (0px border)
+        /// degrades to a plain tinted rounded fill, matching its own "no border - spacing/tint/
+        /// divider only" definition.</summary>
+        public static Sprite CreateTieredFrameSprite(UIDesignTokens.FrameTier tier, Color fillColor, Color borderColor,
+            int cornerRadius = UIFrozenTokens.RadiusPrimary, int size = 96)
+        {
+            FrameTierSpec spec = SpecFor(tier);
+            Color fill = new Color(fillColor.r, fillColor.g, fillColor.b, fillColor.a * spec.FillAlpha);
+            float borderPx = spec.BorderThicknessPx;
+
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    // Distance from this pixel to the nearest edge of the rounded-rect boundary
+                    // (negative outside the shape, positive inside) - reused for both the corner
+                    // soft-edge alpha AND for deciding border-vs-fill-vs-glow banding.
+                    float cx = x < cornerRadius ? cornerRadius : (x >= size - cornerRadius ? size - cornerRadius - 1 : x);
+                    float cy = y < cornerRadius ? cornerRadius : (y >= size - cornerRadius ? size - cornerRadius - 1 : y);
+                    bool nearCorner = (x < cornerRadius || x >= size - cornerRadius) && (y < cornerRadius || y >= size - cornerRadius);
+                    float distToOuterEdge;
+                    if (nearCorner)
+                    {
+                        float dist = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                        distToOuterEdge = cornerRadius - dist;
+                    }
+                    else
+                    {
+                        distToOuterEdge = Mathf.Min(x, size - 1 - x, y, size - 1 - y);
+                    }
+
+                    float shapeAlpha = Mathf.Clamp01(distToOuterEdge + 1.5f); // 1.5px anti-alias band
+                    Color pixel;
+                    if (borderPx > 0f && distToOuterEdge < borderPx)
+                    {
+                        pixel = borderColor;
+                    }
+                    else if (spec.InnerGlow && distToOuterEdge < borderPx + 4f)
+                    {
+                        // A soft brighten just inside the border, fading back to the plain fill.
+                        float glowT = Mathf.Clamp01((distToOuterEdge - borderPx) / 4f);
+                        pixel = Color.Lerp(Color.Lerp(fill, Color.white, 0.18f), fill, glowT);
+                    }
+                    else
+                    {
+                        pixel = fill;
+                    }
+
+                    tex.SetPixel(x, y, new Color(pixel.r, pixel.g, pixel.b, pixel.a * shapeAlpha));
+                }
+            }
+
+            tex.Apply();
+            var border = new Vector4(cornerRadius, cornerRadius, cornerRadius, cornerRadius);
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
+        }
+
+        public enum GradientDirection { TopToBottom, BottomToTop, LeftToRight, RightToLeft }
+
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> _gradientSpriteCache =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        public static Sprite CreateOrGetGradientSprite(Color baseColor, float opacity, GradientDirection direction)
+        {
+            string key = $"{baseColor.r:F3},{baseColor.g:F3},{baseColor.b:F3}|op:{opacity:F3}|dir:{direction}";
+            if (_gradientSpriteCache.TryGetValue(key, out Sprite cached) && cached != null)
+                return cached;
+
+            Sprite created = CreateGradientSprite(baseColor, opacity, direction);
+            _gradientSpriteCache[key] = created;
+            return created;
+        }
+
+        /// <summary>Plain (non-sliced) linear alpha ramp from <c>opacity</c> at the named edge to
+        /// 0 at the opposite edge. The caller controls the real falloff DISTANCE simply by how
+        /// tall/wide they size the Image's RectTransform (register: "falling to 0% over 160-
+        /// 240px") - this texture just encodes the ramp shape, not a fixed pixel distance.</summary>
+        public static Sprite CreateGradientSprite(Color baseColor, float opacity, GradientDirection direction)
+        {
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float t;
+                    switch (direction)
+                    {
+                        case GradientDirection.TopToBottom: t = 1f - (float)y / (size - 1); break;
+                        case GradientDirection.BottomToTop: t = (float)y / (size - 1); break;
+                        case GradientDirection.LeftToRight: t = 1f - (float)x / (size - 1); break;
+                        default: t = (float)x / (size - 1); break;
+                    }
+
+                    tex.SetPixel(x, y, new Color(baseColor.r, baseColor.g, baseColor.b, Mathf.Clamp01(opacity) * t));
+                }
+            }
+
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        /// <summary>Scrim rank 1 (register: "Contrast + scrims - LOCKED 2026-08-27" - preferred
+        /// over art): a local black-to-transparent gradient sized and positioned to sit behind a
+        /// text block. Inserted as <paramref name="parent"/>'s FIRST sibling so it always renders
+        /// behind whatever else that parent already contains, regardless of call order relative to
+        /// the text it protects.</summary>
+        public static Image AddLocalGradientScrim(Transform parent, Vector2 anchoredPosition, Vector2 size,
+            GradientDirection direction, float opacity = 0.62f, Color? tint = null)
+        {
+            GameObject go = new GameObject("GradientScrim", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            go.transform.SetSiblingIndex(0);
+
+            Image img = go.GetComponent<Image>();
+            img.sprite = CreateOrGetGradientSprite(tint ?? Color.black, opacity, direction);
+            img.type = Image.Type.Simple;
+            img.raycastTarget = false;
+
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.sizeDelta = size;
+            rect.anchoredPosition = anchoredPosition;
+            return img;
+        }
+
+        /// <summary>Scrim rank 2 (register: preferred for dense/interactive copy): a flat black/
+        /// navy panel at the tier's locked opacity (60% Tier3, 80% Tier2, 95% Tier1 -
+        /// <see cref="UIDesignTokens.ScrimPanelOpacity"/>). Same first-sibling insertion as
+        /// <see cref="AddLocalGradientScrim"/>, for the same reason.</summary>
+        public static Image AddSemiTransparentScrimPanel(Transform parent, Vector2 anchoredPosition, Vector2 size,
+            UIDesignTokens.FrameTier tier, Color? tint = null)
+        {
+            GameObject go = new GameObject("ScrimPanel", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            go.transform.SetSiblingIndex(0);
+
+            Image img = go.GetComponent<Image>();
+            Color baseColor = tint ?? new Color(0.03f, 0.035f, 0.05f);
+            img.color = new Color(baseColor.r, baseColor.g, baseColor.b, UIDesignTokens.ScrimPanelOpacity(tier));
+            img.raycastTarget = false;
+
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.sizeDelta = size;
+            rect.anchoredPosition = anchoredPosition;
+            return img;
+        }
+
+        /// <summary>Shadow tokens (register: default black 70% opacity, 2px down/right offset;
+        /// hero/display 80% opacity, 3px offset). Support-only per the lock - never the primary
+        /// contrast fix, use a scrim first. Unity's built-in legacy-UI Shadow component has no
+        /// blur-radius control (offset + colour only) - an honest engine limitation, not a spec
+        /// simplification; the locked 4-6px blur figure isn't reproducible with this component.</summary>
+        public static void ApplyTextShadow(Text text, bool hero = false)
+        {
+            if (text == null) return;
+            Shadow shadow = text.gameObject.GetComponent<Shadow>();
+            if (shadow == null) shadow = text.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = hero ? new Color(0f, 0f, 0f, 0.8f) : new Color(0f, 0f, 0f, 0.7f);
+            shadow.effectDistance = hero ? new Vector2(3f, -3f) : new Vector2(2f, -2f);
         }
 
         public static RectTransform CreateCardPrimitive(Transform parent, string name, Vector2 size, Color background)
