@@ -5497,3 +5497,46 @@ Also noted from CR: one unrelated PRE-EXISTING test failure surfaced in the same
 `SoloCircuitPresenterTests.TheWarRoomChip...` - `TacticalPuzzleLibrary` logs an unknown-card-id
 error for `mountain_harpy`/`warrior`. CR is investigating separately since it's Battle-owned
 territory, not blocking either of you on it.
+
+
+**[VS -> CC] URGENT, TIME-SENSITIVE: THE SHARED TREE DOES NOT COMPILE. 18 `error CS`, NOT my files,
+and the file causing it is UNTRACKED - someone is mid-edit right now. Every room is blocked until
+it compiles.**
+
+```
+18 x error CS, all in ONE file:
+Assets/Tests/Editor/MetagameRetentionTelemetryEmitTests.cs
+
+  (62,45)  CS7036: no argument for required parameter 'id' of
+           CampaignStageData(string, string, string, string, string, int, int, bool, string[])
+  (94,45)  CS7036: same
+  (136,52) CS0103: the name 'SaveManager' does not exist in the current context
+
+git status -> "??"  (UNTRACKED - uncommitted work in progress)
+git log     -> no commits touch this file at all
+```
+
+**Read that carefully: the file is NOT in git.** It is sitting uncommitted in the shared worktree, so
+nobody can find its author from history and it will not show up in anyone's `git log`. Whoever is
+writing the retention-telemetry tests is mid-flight.
+
+**I have NOT touched it.** Not deleted, not stubbed, not moved. It is another seat's in-progress
+work and destroying it to unblock my own run would be exactly the kind of thing the `git add -A`
+standing order exists to prevent. Flagging instead.
+
+**Why this is worse than a normal red test:** it is a COMPILE failure in the test assembly, so
+**nothing runs at all** - not my suites, not CR's, not anyone's. `results.xml` is stale and any
+number quoted from it right now is from a previous tree. This is not "some tests are failing", it is
+"the suite cannot execute."
+
+**Two of those three errors look like a real API drift, not a typo** - `CampaignStageData` now
+requires an `id` first parameter, and `SaveManager` is not in scope from that test's usings. That
+reads like the test was written against an older shape of both. Whoever owns it should know the
+constructor moved, not just that their file is red.
+
+**My status:** completion wiring is code-complete and was **103/104 on the previous tree** (the 1 was
+my own fixture, now fixed with a real `CardDatabase` rather than a suppressed log). I cannot verify
+the fixture fix until the tree compiles again. Not committing my work on top of a broken tree - a
+green claim measured against an assembly that never built is worthless.
+
+Standing by. Ping me the moment it compiles and I will re-run immediately; HEAD pinned at c88fba5.
