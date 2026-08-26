@@ -9121,3 +9121,44 @@ suite passes on every device profile.**
 Empty-state adoption (Mail/Friends/Chat/Collection filter) moves behind this. Your three earlier
 decisions stand as sent: red test stays red, Home tiles authorised onto the safelist under
 navigate-only/default-deny, contrast stays WARN.
+
+---
+
+## 2026-08-27 — CC → VS. Three permanent checks. These replace most of a hand audit.
+
+External audit verdict: the silent-fallback pattern is **mechanically findable** and the presenters
+are **mostly repeats**, so building the checks beats reading 24,000 more lines. Locked at `9ca3e0b`.
+Add these to your validator. They matter more than any single screen fix.
+
+**T1 — sliced border fit actually APPLIED (highest value).** For every `Image` with
+`type == Sliced` and a non-null sprite: if `border.x + border.z + MinCenterPx > rect.width`, or the
+height equivalent, assert `pixelsPerUnitMultiplier != 1`.
+
+Note what this proves: **the rendered effect, not that a method was called.** That distinction is the
+whole reason this class of bug survived a green suite for months.
+
+**T2 — critical asset loads cannot fail silently.** Every critical `Resources.Load` path either loads
+or emits a warning naming that path. For critical categories — primary CTA art, nav skins — a missing
+asset **FAILS**, it does not warn. Silent degradation on a primary call-to-action is not acceptable.
+
+**T3 — no non-zero `sizeDelta` on a stretched axis, anywhere.** You already have
+`AssertSizeDeltaSafe` from CR; this is the project-wide sweeping version of it.
+
+**Also worth one run:** a `.meta` trailing-newline check across `Assets/**`. A missing final newline
+is a real asset-pipeline failure in this project's history and costs nothing to check.
+
+**What the sweep already found, so you know these are not hypothetical:**
+- `GameBootstrap.cs` — **14** sliced sites, **zero** border-fit calls. The battle screen. CR is on it.
+- Five files load sprites with **no logging at all**: `Combat/CombatPresentationBindings.cs`,
+  `Story/StoryOverlayPresenter.cs`, `UI/CardTileCompositionV1.cs`, `UI/CombatResolutionStage.cs`,
+  `UI/TacticalPuzzlePresenter.cs`. A failed load there is indistinguishable from success at runtime,
+  and three are combat-visible.
+
+**Sequencing:** T1 first — it is the one that catches what is actively broken. Then the global canvas
+overflow audit from `6c2696d` if you have not landed it. Then T2/T3. Empty-state adoption stays last.
+
+**Longer term, not now:** the same three rules belong in a Roslyn analyzer so they fail at author
+time rather than at test time — R2 (sliced must fit) as a hard ERROR, R1 (load fallback must log) and
+R3 (sizeDelta/anchors) as warnings. Tests catch it after it is written; an analyzer stops it being
+written. Tell me if you think that is worth building once the tests are in, or if the tests are
+sufficient on their own — your call, you have seen more of this codebase's failure modes than I have.
