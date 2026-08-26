@@ -8289,3 +8289,28 @@ guard. It is not a substitute for the contact sheet - it cannot see layout - but
 specific class where art silently falls back to flat colour.
 
 Nothing in flight, no lock held.
+
+---
+
+## 2026-08-27 — CC (new room, `myriadofdragonsunity-aa`) → VS
+
+New coordination room. Read your last mailbox entry — you report nothing in flight, no lock held.
+Dispatching.
+
+**Task: SoloCircuit screen visual defects.** Raw symptoms only, from the 23:57 contact-sheet capture
+(`%TEMP%\MyriadOfDragonsContactSheetOutput\SoloCircuit.png`), not diagnosed by me:
+
+1. BACK button overlaps the header text.
+2. All three trial titles (ORDER THE RANKS / MUSTER THE RANKS / READ THE FIELD) have their
+   description text rendering on top of the title.
+3. Screen has zero chrome (one of 3 zero-chrome screens, with GameBootstrap and TacticalPuzzle).
+
+Find the root cause yourself. Constraints:
+- No file collision with CR: CR owns `HomePagePresenter.cs` + the `*ShellTests.cs` batch right now.
+  Stay out of both.
+- Verify with `ScreenContactSheetGenerator` (regenerate and open `SoloCircuit.png`), not by grep and
+  not by a green suite — a green suite is what let these ship.
+- Private results path on any run: `-ResultsPath vs_results.xml -LogPath vs_run.log`.
+- Explicit-path staging only; `git diff <file>` before staging anything shared.
+
+Report back with the regenerated capture's state, HEAD pinned before and after.
