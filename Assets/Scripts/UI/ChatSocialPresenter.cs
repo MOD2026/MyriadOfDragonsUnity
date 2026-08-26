@@ -146,7 +146,9 @@ namespace MyriadOfDragons.UI
                 GameObject row = new GameObject($"Channel_{channels[i]}", typeof(RectTransform), typeof(Image), typeof(Button));
                 row.transform.SetParent(rail.transform, false);
                 Image img = row.GetComponent<Image>();
-                img.color = new Color(0.12f, 0.14f, 0.18f, 0.4f);
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
                 Button btn = row.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() =>

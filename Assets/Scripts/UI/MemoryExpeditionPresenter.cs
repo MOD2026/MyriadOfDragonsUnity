@@ -159,7 +159,11 @@ namespace MyriadOfDragons.UI
                     GameObject tile = new GameObject($"Tile_{tileIndex}", typeof(RectTransform), typeof(Image), typeof(Button));
                     tile.transform.SetParent(grid.transform, false);
                     Image img = tile.GetComponent<Image>();
-                    img.color = new Color(0.12f, 0.15f, 0.2f, 0.95f);
+                    // Not ApplyFramedPanel: this is a near-square memory-match tile, not a wide
+                    // row - the real ListRow/ContentPanel art's border insets are proportioned
+                    // for a wide/thin or large shape and would deform below the manifest's own
+                    // minimum-rect floors at this tile's real size. Token color only.
+                    img.color = UIFrozenTokens.ColorPanel;
                     Button btn = tile.GetComponent<Button>();
                     btn.targetGraphic = img;
                     int captured = tileIndex;

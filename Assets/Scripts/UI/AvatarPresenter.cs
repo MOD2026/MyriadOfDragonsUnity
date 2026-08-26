@@ -68,14 +68,19 @@ namespace MyriadOfDragons.UI
                 TeardownUI();
                 _onBackToHome?.Invoke();
             });
+            // Top-anchored, not vertically centered - same real overlap bug already fixed on
+            // Empire (7185a4c/EmpirePresenter.cs) once the panel below got a real bordered
+            // sprite: a center-anchored 60px-tall button in a 100px header only left 20px
+            // clearance, which the flat-color panel never exposed since EmpireLayoutTests'
+            // overlap check only flags Images with a real sprite.
             RectTransform backRect = backBtn.GetComponent<RectTransform>();
-            backRect.anchorMin = new Vector2(0f, 0.5f);
-            backRect.anchorMax = new Vector2(0f, 0.5f);
-            backRect.pivot = new Vector2(0f, 0.5f);
-            backRect.anchoredPosition = new Vector2(30f, 0f);
-            backRect.sizeDelta = new Vector2(160f, 60f);
+            backRect.anchorMin = new Vector2(0f, 1f);
+            backRect.anchorMax = new Vector2(0f, 1f);
+            backRect.pivot = new Vector2(0f, 1f);
+            backRect.anchoredPosition = new Vector2(30f, -5f);
+            backRect.sizeDelta = new Vector2(160f, 40f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter,
-                Color.white, true, new Vector2(140f, 50f));
+                Color.white, true, new Vector2(140f, 34f));
 
             UISharedFoundation.CreateText(topBar.transform, "Title", "AVATAR", UITextRole.Display, TextAnchor.MiddleCenter,
                 new Color(0.95f, 0.92f, 0.82f), true, new Vector2(800f, 60f)).fontSize = 32;
@@ -110,11 +115,12 @@ namespace MyriadOfDragons.UI
             GameObject panel = new GameObject("AvatarBody", typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(_canvasObj.transform, false);
             Image panelBg = panel.GetComponent<Image>();
-            panelBg.color = new Color(0.12f, 0.14f, 0.19f, 0.94f);
+            UISharedFoundation.ApplyFramedPanel(panelBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             panelBg.raycastTarget = false;
             RectTransform panelRect = panel.GetComponent<RectTransform>();
             panelRect.anchorMin = new Vector2(0.03f, 0.04f);
-            panelRect.anchorMax = new Vector2(0.97f, 0.88f);
+            panelRect.anchorMax = new Vector2(0.97f, 0.87f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
 

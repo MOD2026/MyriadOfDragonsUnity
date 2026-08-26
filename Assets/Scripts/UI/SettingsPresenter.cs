@@ -80,7 +80,8 @@ namespace MyriadOfDragons.UI
             GameObject panel = new GameObject("SettingsBody", typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(_canvasObj.transform, false);
             Image panelBg = panel.GetComponent<Image>();
-            panelBg.color = new Color(0.12f, 0.14f, 0.19f, 0.94f);
+            UISharedFoundation.ApplyFramedPanel(panelBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             panelBg.raycastTarget = false;
 
             RectTransform panelRect = panel.GetComponent<RectTransform>();
@@ -112,7 +113,9 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            rowBg.color = new Color(0.10f, 0.12f, 0.16f, 0.9f);
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
@@ -140,7 +143,9 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject("LanguageRow", typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            rowBg.color = new Color(0.10f, 0.12f, 0.16f, 0.9f);
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);
@@ -169,7 +174,9 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject("LogoutRow", typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            rowBg.color = new Color(0.10f, 0.12f, 0.16f, 0.9f);
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+                kind: UISharedFoundation.FramedPanelKind.ListRow);
             rowBg.raycastTarget = false;
             RectTransform rowRect = row.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.04f, yTop - rowHeight);

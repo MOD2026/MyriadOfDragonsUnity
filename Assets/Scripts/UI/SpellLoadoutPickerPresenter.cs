@@ -150,7 +150,10 @@ namespace MyriadOfDragons.UI
             {
                 GameObject cell = new GameObject($"Slot_{i}", typeof(RectTransform), typeof(Image));
                 cell.transform.SetParent(strip.transform, false);
-                cell.GetComponent<Image>().color = new Color(0.12f, 0.16f, 0.2f, 0.55f);
+                // Token color only, not ApplyFramedPanel: this strip's cells sit right at/under
+                // the real ListRow art's minimum-height floor (128px) per the manifest - real
+                // art would risk deforming rather than reading as an improvement.
+                cell.GetComponent<Image>().color = UIFrozenTokens.ColorPanel;
                 cell.GetComponent<Image>().raycastTarget = false;
                 SetNorm(cell.GetComponent<RectTransform>(), i * w + 0.01f, 0.1f, (i + 1) * w - 0.01f, 0.9f);
 
