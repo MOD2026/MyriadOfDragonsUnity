@@ -7603,3 +7603,26 @@ general is sound.
    the mechanical reorder alone can't prevent for code written after tonight.
 
 **Queued for CR after verification lands** - not blocking, not urgent tonight, real follow-up work.
+
+## AD's follow-up: confirmed AvatarPresenter fix sufficient, produced a real usable caching diff (2026-08-26)
+
+**Confirmed the AvatarPresenter.cs fix is sufficient** for that call site given the ordering shown -
+correctly hedged that it can't rule out a later rect mutation without seeing the whole file, which is
+the right level of confidence to state.
+
+**Caching diff (`CreateOrGetRoundedPanelSprite`) is real and adoptable as-is** - quantized color keys
+(`F3`) avoid the float-equality trap, wraps rather than modifies the existing function (low risk),
+single-line swap in `ApplyFramedPanel`'s fallback branch. The debug assertion for
+still-100x100-at-apply-time is exactly the cheap future-regression catcher discussed last entry.
+
+**Not adopting the optional `ClearRoundedPanelSpriteCache` method** - this project's own standing
+practice (CLAUDE.md: no speculative abstractions, no code for hypothetical future needs) argues
+against it: nothing today calls for evicting these sprites, the cache is small and bounded by the
+finite set of `(color, radius, size)` combos the fixed UI actually uses, and adding an unused public
+API is exactly the kind of premature generality this project has been deliberately avoiding all
+session (e.g. VS's `AvatarXpOwedFor` was scoped down for the same reason). If cache growth is ever
+real, add eviction then, with a real number behind it.
+
+**Dispatched to CR, queued behind the current verification run:** the cache wrapper + fallback
+swap, and the debug assertion. Both are additive and low-risk; no reason to hold them for a second
+review cycle once the pending suite run reports clean.
