@@ -22,7 +22,6 @@ because nothing at turn-start surfaced it.
 
 | Since | Constraint | Lifted when |
 |---|---|---|
-| 2026-08-26 | **ALL CODING ROOMS STOPPED - owner instruction, "all code room stop."** VS/CR/WH all told to halt immediately: commit whatever's in a clean/safe state, leave mid-edit work uncommitted and report what's in progress, do not start anything new. No dispatch to any coding room until the owner explicitly lifts this. | Owner explicitly lifts it |
 | 2026-08-26 | Chapter production HELD at 18 - **owner explicitly confirmed, not just unanswered**: too much UI is still broken (borders/boxes not matching mockups) to justify more content before more polish. Do NOT re-ask this as if undecided. | Owner explicitly lifts it |
 | 2026-08-26 | **UI-fixing is the current top priority across all rooms** - owner flagged real frustration at slow visible progress on border/box/mockup-mismatch bugs. CC should proactively hunt for this bug class (reachable screen + real approved art + Load() never called) via read-only diagnosis and batch-dispatch findings, not wait for one-off reports. | Owner signals priority has shifted |
 | 2026-08-25 | WH batch size ~50% up from single-atom tasks; owner is LIVE (15-30 min deliverable band) | Owner signals stepping away (then batch freely) |
