@@ -6360,3 +6360,12 @@ here, already designed around by an earlier fix. Real negative result, not a ski
 
 CampaignMap's `Btn_Back` overlap already fixed (`9f4b30a`, previously verified). CR now checking
 Home/DeckBuilder's `Btn_Back` anchors specifically, the one real unchecked item left.
+
+**Final result, all 4 screens checked - real clean negative, not a skip:** Home has no back button
+at all (root screen, pattern doesn't apply). DeckBuilder's back button lives in the bottom
+ActionRail (`Btn_Back_Rail`), not the header - different layout, pattern doesn't apply. CampaignMap
+already fixed. Shop already designed around it. **None of the 4 authorized screens have this
+specific overlap risk beyond what's already handled** - real, thorough check, correctly reported as
+a clean result rather than manufactured findings. WH's in-flight token pass covers the real
+remaining restyle work on Home/DeckBuilder/CampaignMap; Shop needs nothing. CR standing by, correctly
+not inventing scope on a boundary that's now genuinely covered.
