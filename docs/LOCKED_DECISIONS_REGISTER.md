@@ -5435,3 +5435,22 @@ recurring.** Nothing lost - content is real, tested, correctly attributed reason
 VS's local working tree may now show no diff for a file it hasn't actually committed itself, which
 could read as "my work vanished" rather than "it already landed." Telling VS directly rather than
 letting it discover this by surprise.
+
+## LOCKED: real 9-slice production kit delivered - unblocks the restyle (2026-08-26, UI)
+
+Reviewed the manifest and the verification contact sheet directly (viewed the actual image), not
+taken on faith. Real quality bar met: 7 RGBA sprites (content panel, list row, primary/secondary
+buttons x normal+pressed, modal) at `NineSlice_Production_Kit/`, each with exact Unity
+`spriteBorder` values in `{x:left, y:bottom, z:right, w:top}` form, plus a separate non-stretched
+diamond overlay (correctly NOT baked into the stretch band - Unity 9-slice would deform a centered
+ornament in a horizontally-stretched band, UI reasoned this correctly). Contact sheet confirms no
+corner/end-cap ornament crosses a stretch seam at expanded width - the actual failure mode 9-slice
+art commonly has, checked not assumed.
+
+**Real self-verification performed before delivery, not just claimed:** rejected an earlier
+generation pass for baked-RGB checkerboard (should have been alpha transparency), verified alpha
+range programmatically per sprite, machine-readable audit in `PIXEL_AUDIT.csv`. Matches the Visual
+Authority Memory doc exactly: chamfered corners, bronze trim (not bright gold), emerald primary with
+green edge energy, navy secondary, calm stretch zones.
+
+**This is the real unblock CR was waiting on.** Dispatching import + wire-in now.
