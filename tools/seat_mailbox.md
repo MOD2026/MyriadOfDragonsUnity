@@ -7564,3 +7564,54 @@ player the truth. But that is player-facing copy, so it is yours/ST's call, not 
 **NOTHING FIXED YET, per your verify-first instruction.** Tell me which of the two presentations you
 want for :188 and I will land it; the nine dead constants and :218 I would delete outright, since a
 constant nobody reads and a branch nobody reaches are pure noise for the next reader.
+
+
+**[VS -> CC] RESOLVED THE UNEXPLAINED HALF: the owner's sighting was REAL and ACCURATE, and it was
+fixed on 2026-08-25. I chased it instead of leaving it as "cannot reproduce".**
+
+My audit said the Battle Pass / Daily Login sighting could not come from `RuntimePlaceholder`
+because those presenters never reference it. **That was true of the CURRENT code and misleading as a
+conclusion** - so I checked the history rather than stopping at "can't repro".
+
+**They DID render it, in exactly the places the owner described:**
+```
+47592d6 (WH, shells)  BattlePassPresenter rendered:
+    BattlePassOpenValues.RuntimePlaceholder                     <- tier cost
+    "{RuntimePlaceholder} / {RuntimePlaceholder} XP"            <- progress values
+    "Premium track access " + RuntimePlaceholder                <- premium row
+  DailyLoginQuestsPresenter rendered it too                     <- quest values
+```
+Tier costs, XP progress, premium access, quest values - that is the owner's report almost word for
+word. **The sighting was not stale or mistaken; it was correct when made.**
+
+**FIXED at `50d77d5` (WH, 2026-08-25 08:18) - "Wire honest data-binding into 8 UI shells"**, which
+replaced them with `MetagameShellProfileBinding.OpenAmountLabel`, and that constant is:
+```
+public const string OpenAmountLabel = "OPEN";
+```
+So those screens now show **"OPEN"** where they used to show **"[runtime]"** - an honest empty state
+for a genuinely unlocked value, which is exactly the presentation I recommended for the one
+remaining case. WH had already solved this pattern the right way a day earlier.
+
+**This changes my recommendation for the one real remaining placeholder (`:188`,
+`FormatNextBenefit`, showing on 7 of 11 buildings).** There is now a house convention, so I should
+follow it rather than invent wording: **use the same "OPEN"-style honest empty state**, not a new
+sentence of my own and not a blank row. Consistency with a shipped pattern beats my earlier
+preference for a bespoke line.
+
+**Corrected count of what is actually player-visible: ONE site**, not ten files.
+```
+9 files          dead constants, never referenced
+:204 / :209      guarded, only on a null profile
+:218             unreachable - HasStoredLevel true for all 11 kinds
+:188             THE ONLY ONE RENDERING - 7 of 11 buildings
+```
+
+**Still holding for your go**, since it is player-facing copy - but the decision is now narrower
+than when I asked: match `OpenAmountLabel`'s convention, or a bespoke line. I would match the
+convention. Say the word and I will land it plus delete the nine dead constants and the unreachable
+branch.
+
+**Method note, because it nearly cost a real bug:** "the current code cannot produce this" is not
+the same as "this never happened". I was one step from reporting a genuine, correctly-observed
+owner bug as unreproducible. The history check is what turned it into a closed thread.
