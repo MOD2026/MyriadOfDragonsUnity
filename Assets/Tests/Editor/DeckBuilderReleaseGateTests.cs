@@ -1,5 +1,9 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using MyriadOfDragons.Cards;
+using MyriadOfDragons.Data;
+using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -10,10 +14,44 @@ namespace MyriadOfDragons.Tests
     public class DeckBuilderReleaseGateTests
     {
         private GameObject _spawned;
+        private string _scratchSaveDir;
 
         [SetUp]
         public void Setup()
         {
+            // Real bug found 2026-08-26 (CR, diagnosed while verifying an unrelated change):
+            // this fixture never isolated save state or granted any owned cards, so
+            // DeckBuilderPresenter.LoadOwnedCollectionCards() correctly read an empty
+            // profile.cardCollection - zero card roots and a correctly-non-interactable
+            // Recommended Deck button were the presenter working exactly as designed against
+            // the (empty) state this fixture actually provided, not a presenter bug. Mirrors
+            // the already-working DeckBuilderCollectionOwnershipTests.SpawnPresenterWithDatabase
+            // pattern: real SaveSystem isolation, a real CardDatabase, real owned card ids.
+            _scratchSaveDir = Path.Combine(Path.GetTempPath(),
+                "MyriadOfDragonsDeckBuilderReleaseGate_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_scratchSaveDir);
+            SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
+            SaveSystem.ResetCurrentProfileForTests();
+
+            var databaseGo = new GameObject("DeckBuilderReleaseGate_CardDatabase");
+            CardDatabase database = databaseGo.AddComponent<CardDatabase>();
+            database.Initialize();
+            database = CardDatabase.Instance; // Initialize() may destroy this local instance if a duplicate was already live - always resolve to the survivor.
+            List<string> realCardIds = database.AllCards.Select(c => c.Id).Take(25).ToList();
+            Assert.GreaterOrEqual(realCardIds.Count, 10, "Setup: expected at least 10 real cards.");
+
+            PlayerProfile profile = SaveManager.SaveData;
+            profile.cardCollection = new List<string>(realCardIds);
+
+            // A confirmable deck needs a FULL active deck too, not just ownership - CanConfirmDeck()
+            // requires activeDeck.Count == deckSizeLimit. Mirrors DeckBuilderCollectionOwnershipTests'
+            // own resolution of the real slot count via profile.Empire.DeckSlotCount.
+            profile.ApplyDataToEmpire();
+            int deckSizeLimit = profile.Empire.DeckSlotCount;
+            Assert.LessOrEqual(deckSizeLimit, realCardIds.Count,
+                "Setup: need at least as many real cards as deck slots.");
+            profile.activeDeckCardIds = new List<string>(realCardIds.Take(deckSizeLimit));
+
             _spawned = new GameObject("DeckBuilderReleaseGateHarness");
         }
 
@@ -23,6 +61,19 @@ namespace MyriadOfDragons.Tests
             if (_spawned != null)
             {
                 Object.DestroyImmediate(_spawned);
+            }
+
+            GameObject database = GameObject.Find("DeckBuilderReleaseGate_CardDatabase");
+            if (database != null)
+            {
+                Object.DestroyImmediate(database);
+            }
+
+            SaveSystem.ClearRootDirectoryOverride();
+            SaveSystem.ResetCurrentProfileForTests();
+            if (_scratchSaveDir != null && Directory.Exists(_scratchSaveDir))
+            {
+                Directory.Delete(_scratchSaveDir, recursive: true);
             }
         }
 
