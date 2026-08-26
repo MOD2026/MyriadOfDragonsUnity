@@ -65,6 +65,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = fallback;
+                Debug.LogWarning($"[CampaignMap] Failed to load path backdrop sprite '{PathBackdropName}'.");
             }
 
             target.raycastTarget = false;
@@ -85,6 +86,7 @@ namespace MyriadOfDragons.UI
             {
                 target.sprite = null;
                 target.color = new Color(0.12f, 0.14f, 0.2f, 0.95f);
+                Debug.LogWarning($"[CampaignMap] Failed to load modal chrome sprite '{ModalChromeName}'.");
             }
 
             target.raycastTarget = false;
@@ -109,6 +111,7 @@ namespace MyriadOfDragons.UI
                     : state == CampaignStageNodeVisualState.Playable
                         ? new Color(0.85f, 0.65f, 0.2f, 1f)
                         : new Color(0.3f, 0.3f, 0.35f, 0.85f);
+                Debug.LogWarning($"[CampaignMap] Failed to load {state} node sprite.");
             }
         }
 

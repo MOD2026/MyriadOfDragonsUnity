@@ -792,6 +792,7 @@ namespace MyriadOfDragons.UI
             {
                 baseImage.sprite = null;
                 baseImage.color = new Color(0.08f, 0.10f, 0.14f, 0.95f);
+                Debug.LogWarning($"[DeckBuilder] Failed to load rarity {rarity} card frame sprite.");
             }
             baseImage.raycastTarget = false;
             SetLocalNormalisedRect(baseImage.rectTransform, 0f, 0f, 1f, 1f);
