@@ -1368,6 +1368,7 @@ namespace MyriadOfDragons.UI
             skipRect.pivot = new Vector2(1f, 1f);
             skipRect.sizeDelta = new Vector2(140f, 56f);
             skipRect.anchoredPosition = new Vector2(-24f, -24f);
+            FitButtonChrome(skipButton);
             skipButton.GetComponentInChildren<Text>().fontSize = 18;
 
             // Distinct from "Skip" above (which only skips *this cinematic* and continues into
@@ -1380,6 +1381,7 @@ namespace MyriadOfDragons.UI
             skipTutorialRect.pivot = new Vector2(1f, 1f);
             skipTutorialRect.sizeDelta = new Vector2(190f, 56f);
             skipTutorialRect.anchoredPosition = new Vector2(-24f, -88f);
+            FitButtonChrome(skipTutorialButton);
             Text skipTutorialLabel = skipTutorialButton.GetComponentInChildren<Text>();
             skipTutorialLabel.fontSize = 18;
             skipTutorialLabel.fontStyle = FontStyle.Bold;
@@ -2847,6 +2849,10 @@ namespace MyriadOfDragons.UI
             icon.sprite = CreateRoundedGradientSprite(accentColor, accentColor, 24, 13);
             icon.type = Image.Type.Sliced;
             icon.raycastTarget = false;
+            // rect already sized (sizeDelta set above) before this point - real regression found
+            // by external audit (CC, 2026-08-27): no FitSlicedBorderToRect call anywhere in this
+            // file's 14 Image.Type.Sliced sites.
+            UISharedFoundation.FitSlicedBorderToRect(icon);
 
             Text nameText = CreateText(labelBox, lane.ToString().ToUpperInvariant(), 19, GoldTextColor, font);
             nameText.fontStyle = FontStyle.Bold;
@@ -3037,10 +3043,12 @@ namespace MyriadOfDragons.UI
             Image playerHealthBar = CreateBar(playerCluster, HealthBarEmptyColor, PlayerHealthBarFillColor, font, 20,
                 out _playerHealthFill, out _playerAvatarText, "Health_Empty");
             AnchorBand(playerHealthBar.rectTransform, 0.56f, 0.86f, 0.34f, 0.02f);
+            UISharedFoundation.FitSlicedBorderToRect(playerHealthBar);
 
             Image playerResourceBar = CreateBar(playerCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 20,
                 out _resourceFill, out _resourceText, "Mana_Fill");
             AnchorBand(playerResourceBar.rectTransform, 0.30f, 0.54f, 0.34f, 0.02f);
+            UISharedFoundation.FitSlicedBorderToRect(playerResourceBar);
 
             _handCountText = CreateText(playerCluster, "", 18, GoldTextColor, font);
             AnchorBand(_handCountText.rectTransform, 0.08f, 0.28f, 0.34f, 0.02f);
@@ -3066,10 +3074,12 @@ namespace MyriadOfDragons.UI
             Image enemyHealthBar = CreateBar(enemyCluster, HealthBarEmptyColor, HealthBarFillColor, font, 20,
                 out _enemyHealthFill, out _enemyAvatarText, "Health_Empty");
             AnchorBand(enemyHealthBar.rectTransform, 0.56f, 0.86f, 0.34f, 0.02f);
+            UISharedFoundation.FitSlicedBorderToRect(enemyHealthBar);
 
             Image enemyResourceBar = CreateBar(enemyCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 20,
                 out _enemyResourceFill, out _enemyResourceText, "Mana_Fill");
             AnchorBand(enemyResourceBar.rectTransform, 0.14f, 0.44f, 0.34f, 0.02f);
+            UISharedFoundation.FitSlicedBorderToRect(enemyResourceBar);
         }
 
         /// <summary>A background+fill bar with a bold centered text label on top, for HP/Resource -
@@ -3524,6 +3534,7 @@ namespace MyriadOfDragons.UI
             // ~24 call sites). Reset is subordinate to START BATTLE, so it takes the neutral skin.
             HomeV3UiLibrary.ApplyNeutralActionButton(
                 _resetLineupButton, _resetLineupButton.GetComponent<Image>());
+            FitButtonChrome(_resetLineupButton); // also fits CreateButton's own "Fill" child
 
             // Release feature: this control is Auto Formation now, not "Recommended" - same
             // Button/GameObject/slot (no new control created), relabeled and repointed to
@@ -3543,6 +3554,7 @@ namespace MyriadOfDragons.UI
             // Also subordinate: AUTO FORMATION is a convenience, not the screen's CTA.
             HomeV3UiLibrary.ApplyNeutralActionButton(
                 _recommendedLineupButton, _recommendedLineupButton.GetComponent<Image>());
+            FitButtonChrome(_recommendedLineupButton); // also fits CreateButton's own "Fill" child
 
             // Centered, not left-packed - a short hand (e.g. the tutorial's 3 cards) used to leave
             // a wide empty gap to its right when packed against the left edge ("giant empty
@@ -3620,6 +3632,7 @@ namespace MyriadOfDragons.UI
             // tan slabs while the 23 restyled presenters do not.
             HomeV3UiLibrary.ApplyPrimaryActionButton(
                 _primaryActionButton, _primaryActionButton.GetComponent<Image>());
+            FitButtonChrome(_primaryActionButton); // also fits CreateButton's own "Fill" child
 
             _primaryActionLabel = _primaryActionButton.GetComponentInChildren<Text>();
             _primaryActionLabel.fontSize = 30;
@@ -3636,6 +3649,7 @@ namespace MyriadOfDragons.UI
             continueRect.pivot = new Vector2(0.5f, 0.5f);
             continueRect.sizeDelta = new Vector2(440f, 130f);
             continueRect.anchoredPosition = Vector2.zero;
+            FitButtonChrome(_tutorialContinueButton);
 
             _tutorialContinueLabel = _tutorialContinueButton.GetComponentInChildren<Text>();
             _tutorialContinueLabel.fontSize = 30;
@@ -3845,6 +3859,7 @@ namespace MyriadOfDragons.UI
             panel.anchorMax = new Vector2(0.92f, 0.52f);
             panel.offsetMin = Vector2.zero;
             panel.offsetMax = Vector2.zero;
+            UISharedFoundation.FitSlicedBorderToRect(panel.GetComponent<Image>());
 
             var portraitGo = new GameObject("NarrativePortrait", typeof(RectTransform));
             portraitGo.transform.SetParent(panel, false);
@@ -3871,9 +3886,11 @@ namespace MyriadOfDragons.UI
 
             Button next = CreateButton(panel, "Next", font, AdvanceNarrative);
             AnchorBand(next.GetComponent<RectTransform>(), 0.04f, 0.18f, 0.58f, 0.22f);
+            FitButtonChrome(next);
 
             Button skip = CreateButton(panel, "Skip", font, CloseNarrative);
             AnchorBand(skip.GetComponent<RectTransform>(), 0.04f, 0.18f, 0.80f, 0.04f);
+            FitButtonChrome(skip);
 
             _tutorialOverlay.SetActive(false);
         }
@@ -3914,6 +3931,7 @@ namespace MyriadOfDragons.UI
             skipRect.pivot = new Vector2(1f, 1f);
             skipRect.sizeDelta = new Vector2(190f, 56f);
             skipRect.anchoredPosition = new Vector2(-24f, -24f);
+            FitButtonChrome(_tutorialSkipButton);
             Text skipLabel = _tutorialSkipButton.GetComponentInChildren<Text>();
             skipLabel.fontSize = 18;
             skipLabel.fontStyle = FontStyle.Bold;
@@ -3972,6 +3990,7 @@ namespace MyriadOfDragons.UI
                 new Color(0.04f, 0.04f, 0.06f, 0.97f), new Color(0.04f, 0.04f, 0.06f, 0.97f));
             _tutorialGuidePanelRect.offsetMin = Vector2.zero;
             _tutorialGuidePanelRect.offsetMax = Vector2.zero;
+            UISharedFoundation.FitSlicedBorderToRect(_tutorialGuidePanelRect.GetComponent<Image>());
 
             // A solid, opaque fill behind the ornate frame sprite CreateRoundedPanel prefers -
             // that frame has transparent corners/edges by design (see its own comment), which is
@@ -4345,6 +4364,7 @@ namespace MyriadOfDragons.UI
             panel.anchorMax = new Vector2(0.94f, 0.86f);
             panel.offsetMin = Vector2.zero;
             panel.offsetMax = Vector2.zero;
+            UISharedFoundation.FitSlicedBorderToRect(panel.GetComponent<Image>());
             panel.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;
 
             _lanePickerTitle = CreateText(panel, "", 22, GoldTextColor, font);
@@ -4383,6 +4403,7 @@ namespace MyriadOfDragons.UI
 
             Button done = CreateButton(panel, "Done", font, CloseLanePicker);
             AnchorBand(done.GetComponent<RectTransform>(), 0.02f, 0.11f, 0.35f, 0.35f);
+            FitButtonChrome(done);
 
             _lanePickerOverlay.SetActive(false);
         }
@@ -4514,6 +4535,7 @@ namespace MyriadOfDragons.UI
             panel.anchorMax = new Vector2(0.67f, 0.94f);
             panel.offsetMin = Vector2.zero;
             panel.offsetMax = Vector2.zero;
+            UISharedFoundation.FitSlicedBorderToRect(panel.GetComponent<Image>());
             // A raycast-blocking Button (not just an Image) so a tap on the panel is consumed
             // here rather than falling through to the dim background's close handler beneath it.
             panel.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;
@@ -4574,9 +4596,11 @@ namespace MyriadOfDragons.UI
             _cardDetailActionButton = CreateButton(panel, "", font, OnCardDetailActionPressed);
             _cardDetailActionLabel = _cardDetailActionButton.GetComponentInChildren<Text>();
             AnchorBand(_cardDetailActionButton.GetComponent<RectTransform>(), 0.095f, 0.165f, 0.22f, 0.22f);
+            FitButtonChrome(_cardDetailActionButton);
 
             Button closeButton = CreateButton(panel, "Close", font, CloseCardDetail);
             AnchorBand(closeButton.GetComponent<RectTransform>(), 0.02f, 0.085f, 0.34f, 0.34f);
+            FitButtonChrome(closeButton);
 
             _cardDetailOverlay.SetActive(false);
         }
@@ -4612,6 +4636,7 @@ namespace MyriadOfDragons.UI
             panel.anchorMax = new Vector2(0.85f, 0.70f);
             panel.offsetMin = Vector2.zero;
             panel.offsetMax = Vector2.zero;
+            UISharedFoundation.FitSlicedBorderToRect(panel.GetComponent<Image>());
 
             // V3 visual-review fix, 2026-08-16: this overlay is anchored against the full 1920x1080
             // canvas (not one of V3's new smaller regions), so its panel is already large - only
@@ -4634,6 +4659,7 @@ namespace MyriadOfDragons.UI
             _playAgainLabel.fontSize = 22;
             HomeV3UiLibrary.ApplyPrimaryActionButton(
                 _playAgainButton, _playAgainButton.GetComponent<Image>());
+            FitButtonChrome(_playAgainButton); // also fits CreateButton's own "Fill" child
 
             _returnToCityButton = CreateButton(panel, "Return to City", font, OnReturnToCityPressed);
             AnchorBand(_returnToCityButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.05f, 0.53f);
@@ -4641,6 +4667,7 @@ namespace MyriadOfDragons.UI
             _returnToCityLabel.fontSize = 22;
             HomeV3UiLibrary.ApplyNeutralActionButton(
                 _returnToCityButton, _returnToCityButton.GetComponent<Image>());
+            FitButtonChrome(_returnToCityButton); // also fits CreateButton's own "Fill" child
 
             _resultOverlay.SetActive(false);
         }
@@ -5418,6 +5445,7 @@ namespace MyriadOfDragons.UI
                 new Color(0.02f, 0.02f, 0.04f, 0.96f), cornerRadius: 14);
             tooltipBg.type = Image.Type.Sliced;
             tooltipBg.raycastTarget = false;
+            UISharedFoundation.FitSlicedBorderToRect(tooltipBg);
 
             _spellTooltipText = CreateText(_spellTooltip.transform, "", 14, Color.white, font);
             _spellTooltipText.raycastTarget = false;
@@ -6348,6 +6376,7 @@ namespace MyriadOfDragons.UI
             // Empty_Slot.png's own baked artwork, not a color tint. Made explicit so there is no
             // ambiguity left in code about whether a tint is being applied here.
             image.color = Color.white;
+            UISharedFoundation.FitSlicedBorderToRect(image);
         }
 
         /// <summary>
@@ -6482,6 +6511,9 @@ namespace MyriadOfDragons.UI
             Sprite rarityFrame = GetRarityFrameSprite(card.Rarity);
             _cardDetailArtFrame.sprite = rarityFrame;
             _cardDetailArtFrame.enabled = rarityFrame != null;
+            // Sprite assigned dynamically per-card here, not at construction (where the rect is
+            // already positioned) - fit belongs here, after the real sprite is actually known.
+            if (rarityFrame != null) UISharedFoundation.FitSlicedBorderToRect(_cardDetailArtFrame);
 
             _cardDetailClassTag.text = $"{card.Element} - {card.Class}";
             _cardDetailName.text = card.DisplayName;
@@ -6838,6 +6870,19 @@ namespace MyriadOfDragons.UI
             return button;
         }
 
+        /// <summary>Fits both of CreateButton's two stacked sliced sprites (the rim on the button
+        /// itself, the inset "Fill" child) to their REAL final size - CreateButton never sizes its
+        /// own rect (every caller does that afterward), so the fit can only happen here, called by
+        /// each caller once it has finished positioning the returned Button. Real regression found
+        /// by external audit (CC, 2026-08-27): neither sprite had a fit call anywhere before this.</summary>
+        private static void FitButtonChrome(Button button)
+        {
+            if (button == null) return;
+            UISharedFoundation.FitSlicedBorderToRect(button.GetComponent<Image>());
+            Transform fillT = button.transform.Find("Fill");
+            if (fillT != null) UISharedFoundation.FitSlicedBorderToRect(fillT.GetComponent<Image>());
+        }
+
         /// <summary>A hand card: rarity frame behind, art inset within its border, name/cost
         /// text below. Always interactable - see RefreshHand.</summary>
         private Button CreateCardButton(Transform parent, Card card, Font font, bool affordable, bool isSelected)
@@ -6868,8 +6913,16 @@ namespace MyriadOfDragons.UI
             // silently reintroduce it. 196 stays the cap when the row is tall enough.
             float handRowHeight = (HandPanelMax.y - HandPanelMin.y) * CanvasHeight - (HandRowVerticalInset * 2f);
             float cardHeight = Mathf.Min(196f, handRowHeight);
-            SetPreferredWidth(go, cardHeight * GetRarityFrameAspect(card.Rarity));
+            float cardWidth = cardHeight * GetRarityFrameAspect(card.Rarity);
+            SetPreferredWidth(go, cardWidth);
             SetPreferredHeight(go, cardHeight);
+            // LayoutElement's preferred size above only takes effect on the row's NEXT deferred
+            // layout pass - real regression found by external audit (CC, 2026-08-27): fitting a
+            // sliced border against the rect's size at THIS point (still Unity's stale default)
+            // would compute the wrong multiplier, same class as the feed-card sizeDelta bug this
+            // session already fixed once. Pre-setting sizeDelta to the already-known target size
+            // makes the fit correct immediately; the layout pass overwrites it again harmlessly.
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(cardWidth, cardHeight);
 
             var bg = go.AddComponent<Image>();
             Sprite rarityFrame = GetRarityFrameSprite(card.Rarity);
@@ -6892,6 +6945,7 @@ namespace MyriadOfDragons.UI
                 bg.type = Image.Type.Sliced;
             }
             if (isSelected) bg.color = SelectedColor;
+            UISharedFoundation.FitSlicedBorderToRect(bg);
 
             var button = go.AddComponent<Button>();
             button.transition = Selectable.Transition.None;
@@ -7032,6 +7086,9 @@ namespace MyriadOfDragons.UI
                 bg.type = Image.Type.Sliced;
             }
             bg.raycastTarget = false;
+            // go's rect is already sized (CreateBoardCardTile sets sizeDelta directly, not via a
+            // deferred LayoutElement) - safe to fit immediately.
+            UISharedFoundation.FitSlicedBorderToRect(bg);
 
             // V4 hard requirement: never crop-to-fill card illustrations. Preserve-aspect fit
             // instead (see CreateFittedArt) - letterboxes rather than cropping or squashing.
@@ -7082,6 +7139,9 @@ namespace MyriadOfDragons.UI
             chip.rectTransform.anchorMax = anchorMax;
             chip.rectTransform.offsetMin = Vector2.zero;
             chip.rectTransform.offsetMax = Vector2.zero;
+            // Both real callers (hand card, mini/board card) already have their own rect fully
+            // sized (not deferred to a layout pass) by the time they call this.
+            UISharedFoundation.FitSlicedBorderToRect(chip);
 
             Text label = CreateText(chip.transform, value, 12, Color.white, font);
             label.fontStyle = FontStyle.Bold;
