@@ -418,6 +418,33 @@ exists.
   and can never be spent.** Dispatched as a raw symptom; fix is to apply Memory Expedition's
   `EventLedgerActive` gate here too.
 
+## Actionable-control limits - LOCKED 2026-08-27: attention hierarchy, not raw count
+
+BS returned **UNCONFIRMED for all 8 comparator games** (Marvel Snap, Clash Royale, Arknights,
+Genshin, Hearthstone, AFK Journey, Summoners War, Royal Match) - correctly refusing to estimate.
+Reason is methodological: those home screens shift with live events, progression, notifications,
+platform and A/B tests, so a real count needs a timestamped capture from a current build on a fresh
+account with a declared counting convention. WH is pulling exactly that from gameuidatabase.com
+captures; that path stays open.
+
+**LOCKED: 8/10/4 stays a WARNING, never a build failure.** Raw count does not prove a defect -
+twelve tiny shortcuts plus one unmistakable CTA is fine; six equal-weight tiles is confusing with
+fewer controls.
+
+**The real rule, replacing raw count as the design gate - ATTENTION HIERARCHY:**
+- at most **ONE primary CTA** per screen;
+- at most **THREE secondary actions** of equal visual prominence;
+- everything else must be visibly **tertiary** (small icon, badge, or inside a drawer);
+- the five persistent root destinations stay visible but **must not compete visually with the
+  primary CTA**.
+
+So 22 controls is not automatically a failure - but 22 *equally prominent* controls is a redesign.
+
+**Two separate automated measures, do not merge them:** hard-fail = structural only (missing runtime
+assets, unusable hit targets, actionable-vs-actionable overlap, clipped primary controls, unreachable
+navigation, text actually clipped or colliding with a protected control). Warn/review = total
+tappable count, ornament count, spacing, hierarchy, notification density.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
