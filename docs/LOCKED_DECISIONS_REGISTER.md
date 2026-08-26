@@ -7626,3 +7626,34 @@ real, add eviction then, with a real number behind it.
 **Dispatched to CR, queued behind the current verification run:** the cache wrapper + fallback
 swap, and the debug assertion. Both are additive and low-risk; no reason to hold them for a second
 review cycle once the pending suite run reports clean.
+
+## RE-CORRECTION: "Claude Opus 5 (1M context)" IS a real co-author on VS's commits, not a model-switch artifact - the earlier "false alarm" entry was wrong (2026-08-26)
+
+Commit `2eac120` ("Bring the Battle screen onto shared chrome") lands with the identical
+co-author tag as `3e2894c`/`16ab86f`, and its content is unmistakably VS's Battle-chrome task
+(START BATTLE primary, Reset/AUTO FORMATION neutral, spell-label overflow, VFX asset path) reported
+via mailbox in real time as it happened. The earlier register entry ("CORRECTION: fourth session
+was a false alarm... it was CC's own /model switch") was itself wrong - the owner's explanation
+didn't match what actually landed. **Correcting my own correction rather than leaving a wrong entry
+standing**: this tag is how VS's own environment co-authors, not a rogue session and not CC. No
+practical consequence either way (no collision occurred, CR was never actually blocked by it), but
+the register should say what's true, not what was asserted and unverified.
+
+## VS: Battle screen chrome SHIPPED, real root cause of the tan slabs found (2026-08-26, commit 2eac120)
+
+**The flat tan slabs in the owner's screenshots are explained, not guessed at:** `GameBootstrap.cs`'s
+local `CreateButton` filled both the rim AND the fill with the same `AccentBorderColor` - zero
+contrast between border and body, rendering as one flat tan block. Replaced with the shared skins:
+START BATTLE -> `ApplyPrimaryActionButton`, Reset/AUTO FORMATION -> `ApplyNeutralActionButton`, each
+applied AFTER anchors are final per the now-locked rule across all ~24 `ApplyFramedPanel` sites.
+
+**Two other real fixes in the same commit:** spell labels were `HorizontalWrapMode.Overflow`
+(explicitly permits spilling past the row - the exact overflow seen in the screenshots), now
+Wrap+Truncate. The three VFX sprites (including the AvatarStrike sheet) were outside any `Resources`
+folder - moved under `Assets/Resources/` with their metas, closing VS's own self-found bug from
+earlier tonight.
+
+**Not yet verified with a suite run or a real screenshot** - commit lands, numbers pending. This is
+real progress on the exact three items reported broken (tan rows, spell overflow, VFX asset load),
+but per tonight's own hard-earned discipline: not calling this "fixed" until it's confirmed, either
+by test numbers or by the owner's own eyes.
