@@ -6015,3 +6015,31 @@ Empire collect) - subordinate actions (refresh/consume/submit/back) correctly le
 real before trusting the Stamina-cap correction rather than taking it on faith - good discipline.
 CR now on the DeckBuilder bug (Metagame-owned - correctly read-diagnosing rather than editing
 directly, will hand back a real root cause + proposed fix).
+
+## DeckBuilder "bug" root-caused: it's a missing test fixture, not a presenter defect (2026-08-26, CR)
+
+**Verified directly, both citations exact:** `DeckBuilderReleaseGateTests.cs`'s `[SetUp]` genuinely
+does nothing but spawn a bare `GameObject("DeckBuilderReleaseGateHarness")` - no profile/save state
+at all. `DeckBuilderPresenter.cs:602` confirmed: `recommendedDeckButton.interactable =
+ownedCollectionCards.Count > 0` - real, exactly as cited.
+
+**Real root cause:** a genuinely fresh `PlayerProfile` has an empty `cardCollection` by default
+(only `activeDeckCardIds` has starter values, not ownership) - starter cards only land via the
+tutorial's async grant flow, which this test never runs. So the test genuinely runs against zero
+owned cards: zero card roots render (correct behavior for zero-card state) and the Recommended
+button correctly evaluates non-interactable (correct behavior, same reason). **Both "failures" are
+the presenter doing exactly what it's supposed to do against the empty state the test actually
+hands it - not a real bug in `DeckBuilderPresenter.cs`.**
+
+**Real, verifiable proof, not just assertion:** cited a working sibling test for the SAME presenter
+(`DeckBuilderCollectionOwnershipTests.cs`) that already does this correctly - real `[SetUp]`/
+`[TearDown]` with scratch save dir + profile reset, and explicitly seeds `profile.cardCollection`
+with real card ids before building the presenter. That's the established, already-proven pattern.
+
+**Real fix identified, not yet applied (correctly, file is Metagame-owned):** add the same
+`[SetUp]`/`[TearDown]` pair to `DeckBuilderReleaseGateTests.cs`, seed `cardCollection` with real
+`CardDatabase` ids matching the sibling test's pattern. Fixes the assertions by giving them real
+data to test against, not by loosening them. This closes out a bug that's been sitting unattributed
+since early tonight, found via two teams' worth of test runs and now genuinely root-caused - real
+work for whoever picks up Metagame-owned test fixes next (WH, or AD/owner as a small standalone
+ask).
