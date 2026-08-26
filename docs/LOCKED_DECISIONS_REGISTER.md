@@ -5407,3 +5407,14 @@ PlayMode-only, out of this EditMode sweep's scope, not silently skipped without 
 started from the Empire Btn_Back overlap discovery - the systematic sweep found exactly one more
 real gap (Settings) and zero more real bugs, which is itself useful signal that the design-token
 rollout's overlap class was contained to what's already been fixed, not still lurking elsewhere.
+
+## WH dispatched 2 real ready tasks - GR1/no-idle discipline, no conflict with CR (restyle) or VS (Circuit/Battle Pass) (2026-08-26)
+
+WH was genuinely idle after the layout-audit sweep closed. Two real backlog items found rather than
+manufactured: (1) integrate the 5 accepted Priority 1 portraits (Gorn + Thaleia/Rusk/Ione/Eryx) -
+import into `Assets/Resources/UI/Portraits/`, wire each `StorySpeaker` portrait path in
+`StoryDatabase.cs`; (2) the 3 remaining retention-telemetry emit call sites (Campaign win/loss, Home
+feature_entry, Stamina cap hit) that CR correctly refused as Metagame-owned - WH already has the
+precedent of crossing this exact boundary tonight (VIP/Friends atlas fix, layout tests across
+Home/Shop/Collection). Both isolated from CR's `UISharedFoundation`/`ApplyFramedPanel` restyle and
+VS's Circuit/Battle Pass files - no collision risk. Paste-ready blocks given to owner.
