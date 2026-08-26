@@ -43,20 +43,23 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void OpenValues_SeasonXpLocked_PremiumPriceStillOpen()
+        public void OpenValues_AllNumbersLocked_ButPremiumUnlockHasNoBackingFieldYet()
         {
-            // SeasonXpPerTier LOCKED 2026-08-26 (BS, flat 1400/tier). PremiumUnlockPrice (Gem
-            // price) is a separate, still-open item - AreTierRewardsConfigured requires both,
-            // so it correctly stays false until that one locks too.
+            // All 4 numbers LOCKED 2026-08-26 (BS): SeasonXpPerTier=1400, PremiumUnlockPrice=800,
+            // ClaimGraceDays=7, plus the free/paid Gold tables. AreTierRewardsConfigured is true
+            // now, but that only means the NUMBERS exist - premium unlock itself still can't
+            // persist (no PlayerProfile field), so paid-track claims and UnlockPremiumForTests
+            // still genuinely refuse (see PaidTrackClaim_AlwaysRefuses... below).
             Assert.AreEqual(28, BattlePassOpenValues.SeasonLengthDays);
             Assert.AreEqual("28-DAY SEASON", BattlePassOpenValues.SeasonLengthCopy);
             Assert.AreEqual(1400, BattlePassOpenValues.SeasonXpPerTier);
-            Assert.IsNull(BattlePassOpenValues.PremiumUnlockPrice);
-            Assert.IsFalse(BattlePassOpenValues.AreTierRewardsConfigured);
+            Assert.AreEqual(800, BattlePassOpenValues.PremiumUnlockPrice);
+            Assert.AreEqual(7, BattlePassOpenValues.ClaimGraceDays);
+            Assert.IsTrue(BattlePassOpenValues.AreTierRewardsConfigured);
         }
 
         [Test]
-        public void Presenter_BuildsDualTrackShell_AndClaimsRefuseWhileOpen()
+        public void Presenter_BuildsDualTrackShell_FreeClaimsApply_PremiumStillRefuses()
         {
             var go = new GameObject("BattlePassHarness");
             _spawned.Add(go);
@@ -82,10 +85,16 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(MetagameShellProfileBinding.PassTierProgressLine(),
                 canvas.transform.Find("SeasonXpRow/XpValues")?.GetComponent<Text>()?.text);
 
+            // Gold table LOCKED 2026-08-26 - a free-track claim now genuinely applies.
             BattlePassClaimResult claim = presenter.ClaimTierForTests(0, premiumTrack: false);
-            Assert.AreEqual(BattlePassClaimStatus.OpenValuesNotLocked, claim.Status);
+            Assert.AreEqual(BattlePassClaimStatus.Applied, claim.Status);
+            Assert.AreEqual(BattlePassOpenValues.FreeTierGold[0], claim.GoldGranted);
+            // Price is locked, but there's no PlayerProfile field to persist an unlock yet -
+            // unlock and every paid-track claim still genuinely refuse.
             BattlePassClaimResult unlock = presenter.UnlockPremiumForTests();
-            Assert.AreEqual(BattlePassClaimStatus.OpenValuesNotLocked, unlock.Status);
+            Assert.AreEqual(BattlePassClaimStatus.PremiumLocked, unlock.Status);
+            BattlePassClaimResult paidClaim = presenter.ClaimTierForTests(0, premiumTrack: true);
+            Assert.AreEqual(BattlePassClaimStatus.PremiumLocked, paidClaim.Status);
         }
 
         [Test]
@@ -114,15 +123,15 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void RefusedClaim_OpenValuesNotLocked_NeverEmitsTelemetry()
+        public void RefusedClaim_PremiumLocked_NeverEmitsTelemetry()
         {
             // Real retention-telemetry wiring check (register: "Retention telemetry architecture
             // - LOCKED" / dispatch "wire the actual emit calls into real gameplay call sites").
-            // Unlike Daily Login/Empire Expedition, BattlePassOpenValues.AreTierRewardsConfigured
-            // is still false (see OpenValues_StayUnset_AndSeasonLengthIsLocked28Days above) with
-            // no test-only override - a real "Applied" claim genuinely cannot happen yet, so this
-            // is the one real behavior currently reachable: a refused claim must never be reported
-            // to analytics as a real reward claim.
+            // Free-track claims apply for real now that the Gold table is locked, so the refusal
+            // this test exercises moved to the paid track, which still genuinely refuses
+            // (no PlayerProfile field to persist an unlock, even though the price is locked) -
+            // the invariant under test (a refusal is never
+            // reported to analytics as a real reward claim) is unchanged.
             var go = new GameObject("BattlePassTelemetryHarness");
             _spawned.Add(go);
             var presenter = go.AddComponent<BattlePassPresenter>();
@@ -131,12 +140,81 @@ namespace MyriadOfDragons.Tests
             var outbox = new RetentionTelemetryOutbox(fakeGateway, telemetryScratchDir);
             presenter.Initialize(onBackToHome: null, telemetryOutbox: outbox);
 
-            BattlePassClaimResult claim = presenter.ClaimTierForTests(0, premiumTrack: false);
-            Assert.AreEqual(BattlePassClaimStatus.OpenValuesNotLocked, claim.Status, "Setup: real production claim must still refuse.");
+            BattlePassClaimResult claim = presenter.ClaimTierForTests(0, premiumTrack: true);
+            Assert.AreEqual(BattlePassClaimStatus.PremiumLocked, claim.Status, "Setup: real production paid-track claim must still refuse.");
 
-            Assert.AreEqual(0, fakeGateway.SentEvents.Count, "An OpenValuesNotLocked refusal is not a real claim - must not emit telemetry.");
+            Assert.AreEqual(0, fakeGateway.SentEvents.Count, "A PremiumLocked refusal is not a real claim - must not emit telemetry.");
 
             if (Directory.Exists(telemetryScratchDir)) Directory.Delete(telemetryScratchDir, recursive: true);
+        }
+
+        [Test]
+        public void RealFreeClaim_EmitsAModeRewardClaimedTelemetryEvent()
+        {
+            var go = new GameObject("BattlePassTelemetryRealClaimHarness");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<BattlePassPresenter>();
+            var fakeGateway = new FakeRetentionTelemetryGateway();
+            var telemetryScratchDir = Path.Combine(Path.GetTempPath(), "MoDBattlePassTelemetryReal_" + System.Guid.NewGuid().ToString("N"));
+            var outbox = new RetentionTelemetryOutbox(fakeGateway, telemetryScratchDir);
+            presenter.Initialize(onBackToHome: null, telemetryOutbox: outbox);
+
+            BattlePassClaimResult claim = presenter.ClaimTierForTests(0, premiumTrack: false);
+            Assert.AreEqual(BattlePassClaimStatus.Applied, claim.Status, "Setup: expected a real successful free-track claim.");
+
+            Assert.AreEqual(1, fakeGateway.SentEvents.Count, "A real successful claim must emit exactly one telemetry event.");
+            Assert.AreEqual(RetentionTelemetryEvents.EventTypeModeRewardClaimed, fakeGateway.SentEvents[0].eventType);
+            Assert.AreEqual("battle_pass", fakeGateway.SentEvents[0].mode);
+
+            if (Directory.Exists(telemetryScratchDir)) Directory.Delete(telemetryScratchDir, recursive: true);
+        }
+
+        [Test]
+        public void GoldTable_PaidTrackIsExactlyDoubleFreeTrack_TotalsMatchLockedFigures()
+        {
+            Assert.AreEqual(BattlePassOpenValues.ShellTierWellCount, BattlePassOpenValues.FreeTierGold.Length);
+            Assert.AreEqual(BattlePassOpenValues.ShellTierWellCount, BattlePassOpenValues.PaidTierGold.Length);
+            int freeTotal = 0, paidTotal = 0;
+            for (int i = 0; i < BattlePassOpenValues.ShellTierWellCount; i++)
+            {
+                Assert.AreEqual(BattlePassOpenValues.FreeTierGold[i] * 2, BattlePassOpenValues.PaidTierGold[i],
+                    $"Tier {i} paid amount must be exactly double free.");
+                freeTotal += BattlePassOpenValues.FreeTierGold[i];
+                paidTotal += BattlePassOpenValues.PaidTierGold[i];
+            }
+            Assert.AreEqual(15000, freeTotal);
+            Assert.AreEqual(30000, paidTotal);
+        }
+
+        [Test]
+        public void FreeTierClaims_MustBeAscending_SkippingOrReclaimingRefuses()
+        {
+            var profile = new PlayerProfile { gold = 0 };
+
+            BattlePassClaimResult skipAhead = BattlePassOpenValues.TryClaimTier(profile, 1, premiumTrack: false);
+            Assert.AreEqual(BattlePassClaimStatus.NotNextTierInOrder, skipAhead.Status,
+                "Tier 1 is not claimable before tier 0.");
+            Assert.AreEqual(0, profile.gold);
+
+            BattlePassClaimResult first = BattlePassOpenValues.TryClaimTier(profile, 0, premiumTrack: false);
+            Assert.AreEqual(BattlePassClaimStatus.Applied, first.Status);
+            Assert.AreEqual(BattlePassOpenValues.FreeTierGold[0], profile.gold);
+            Assert.AreEqual(1, profile.battlePassClaimedFreeTier);
+
+            BattlePassClaimResult reclaim = BattlePassOpenValues.TryClaimTier(profile, 0, premiumTrack: false);
+            Assert.AreEqual(BattlePassClaimStatus.NotNextTierInOrder, reclaim.Status,
+                "Tier 0 was already claimed - reclaiming must refuse, not double-grant.");
+            Assert.AreEqual(BattlePassOpenValues.FreeTierGold[0], profile.gold, "A refused reclaim must not grant Gold again.");
+        }
+
+        [Test]
+        public void PaidTrackClaim_AlwaysRefuses_PremiumCanNeverBeUnlockedYet()
+        {
+            var profile = new PlayerProfile { gold = 0 };
+            BattlePassClaimResult result = BattlePassOpenValues.TryClaimTier(profile, 0, premiumTrack: true);
+            Assert.AreEqual(BattlePassClaimStatus.PremiumLocked, result.Status);
+            Assert.AreEqual(0, profile.gold);
+            Assert.AreEqual(0, profile.battlePassClaimedPaidTier);
         }
     }
 }
