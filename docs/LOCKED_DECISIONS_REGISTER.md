@@ -8010,3 +8010,36 @@ errors: claiming a verdict table existed when only a summary line did (CR caught
 from you" about screenshots already supplied, misattributing commits, and 4 stale dispatches. The
 register is the working system of record and is intact - which is precisely why starting a fresh chat
 is safe whenever the owner wants: nothing load-bearing lives in conversation memory.
+
+## Home IA rebuild BUILT (2026-08-27, CR) - core structure landed, verification pending
+
+Built against the locked spec, no invented navigation - every destination routes to a real existing
+entry point:
+- **Kept:** identity header (now tap->Avatar, absorbing the cut Avatar tile's function), resource
+  strip, settings gear.
+- **NEW 5-destination bottom bar:** Home / Battle / Quests / Collection / Empire.
+- **NEW swipeable feed:** real horizontal `ScrollRect`, one full-viewport card per page, one dominant
+  action each - Welcome/tutorial (gated), Campaign, Quests/Events, Empire.
+- **NEW global Social drawer:** Chat/Mail/Friends as three tabs swapping the real existing presenters
+  in place, reached from a header button - correctly NOT a sixth destination, exactly as locked.
+- **NEW Quests/Events + Collection hubs:** thin tab-strip launchers opening the real existing
+  presenter per tab (Quests = Daily Login/Battle Pass/Memory/Circuit/Guild/merged Permit;
+  Collection = Cards/Shop/Bazaar/VIP). Deliberately launchers, not deep visual merges - lower risk,
+  reversible, and doesn't rewrite five screens at once.
+- **Dead code removed cleanly:** old 6-tile grid, `CreateHeroTile`, the scattered
+  SPELLS/PASS/LOGIN/BAZAAR/CHAT/MAIL/FRIENDS/MEMORY/VIP header buttons, `WeeklyPermitStrip`'s UI -
+  with the real claim LOGIC preserved and rewired into the merged Permit tab.
+
+**Real judgment call, verified sound:** new-player gating uses `profile.totalMatches == 0`
+(`PlayerProfile.cs:471`, incremented at `:595`) rather than adding an install-date field to a frozen
+file. Correct restraint - the closest real existing signal, no frozen-file change for a cosmetic gate.
+
+**Expected fallout, being measured not guessed:** ~17 test files assert the old button
+names/structure (`Btn_Bazaar`, `Btn_Chat`, `WeeklyPermitStrip`) which are gone by design. CR running
+the full suite for real numbers before claiming done. **Instruction given: update those assertions to
+the new reality, do not weaken or delete them** - a test that asserted Bazaar was reachable should
+now assert it's reachable via Collection, not be removed.
+
+**Contact-sheet harness relayed to CR as the verification path** - this is the first real use of the
+tool found in the root-cause audit above, and the intended replacement for the paste-a-screenshot
+loop.
