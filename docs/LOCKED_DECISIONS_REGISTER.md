@@ -4464,3 +4464,12 @@ a milestone X is claimed iff X <= the stored highest-claimed value. One field, n
 **The ONLY thing still needed from the owner: sign off on this one field** (`highestClaimedLoyaltyMilestone`,
 int, additive, frozen PlayerProfile.cs) - same pattern as every other frozen-file addition tonight.
 Everything else in this thread is resolved.
+
+## OWNER SIGN-OFF: highestClaimedLoyaltyMilestone field (2026-08-26)
+
+Owner approved adding `highestClaimedLoyaltyMilestone` (int, additive-only, same migration pattern
+as every other resource field) to PlayerProfile.cs, conditional on everything being verified first -
+confirmed: revised whale-tier rewards verified real (100,000 Gold = 80 days Circuit grind = 5.62% of
+the Empire sink), voucher durations verified matching the real 7/14/30-day VIP vocabulary, single-int
+persistence approach verified as correct reasoning (strictly ascending ladder, no decay). Real Shop
+Loyalty redemption thread now fully unblocked - implementation may proceed.
