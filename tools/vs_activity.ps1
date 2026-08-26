@@ -54,6 +54,8 @@ $lastLogSize = -1
 $lastResultsWrite = $null
 $lastBeat = Get-Date
 $growthSince = $null
+$lastEditScan = (Get-Date).AddSeconds(-5)
+$lastCommit = ''
 
 if (Test-Path $ResultsPath) { $lastResultsWrite = (Get-Item $ResultsPath).LastWriteTime }
 
@@ -142,12 +144,35 @@ while ($true) {
         }
     }
 
+    # ---- REAL edit activity: which source files VS actually touched ----------------
+    # Added because the old wording said "between tasks or editing files" - a GUESS. The
+    # watcher could not see editing at all; it only knew no test was running, and implied
+    # more than it could prove. File mtimes are real evidence; a wedged room cannot produce
+    # them.
+    foreach ($dir in @('Assets/Scripts', 'Assets/Tests', 'tools', 'docs')) {
+        if (-not (Test-Path $dir)) { continue }
+        Get-ChildItem $dir -Recurse -File -Include *.cs, *.ps1, *.md -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -gt $lastEditScan } |
+            ForEach-Object {
+                Say ("VS edited  " + $_.FullName.Replace((Get-Location).Path + '', '')) 'Green'
+                $script:changed = $true
+            }
+    }
+    $lastEditScan = $now
+
+    # ---- real commits: the strongest proof a piece of work actually landed ----------
+    $head = & git log -1 --oneline 2>$null
+    if ($head -and $head -ne $lastCommit) {
+        if ($lastCommit -ne '') { Say ("COMMITTED  " + $head) 'Cyan'; $changed = $true }
+        $lastCommit = $head
+    }
+
     # ---- heartbeat: silence must never be ambiguous ----
     if ($HeartbeatSeconds -gt 0 -and -not $changed -and ($now - $lastBeat).TotalSeconds -ge $HeartbeatSeconds) {
         $msg = switch ($lastState) {
             'busy' { 'still waiting - a Unity run is in progress.' }
             'stale' { 'still blocked by a leftover lock.' }
-            default { 'nothing running. VS is between tasks or editing files.' }
+            default { 'no Unity test running. (This line cannot tell whether VS is thinking.)' }
         }
         Say ("(heartbeat) " + $msg) 'DarkGray'
         $lastBeat = $now
