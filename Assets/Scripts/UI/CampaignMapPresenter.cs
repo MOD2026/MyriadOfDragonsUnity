@@ -2230,6 +2230,7 @@ namespace MyriadOfDragons.UI
             CanvasScaler scaler = mapCanvasObj.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = UISharedFoundation.MatchWidthOrHeight;
 
             mapCanvasObj.AddComponent<GraphicRaycaster>();
 
