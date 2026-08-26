@@ -4361,3 +4361,29 @@ from each room.**
   mailbox.
 - Every BS reply needs both internal-consistency AND a real WebSearch industry-standard benchmark
   before it's locked - this was missed once this session and explicitly corrected.
+
+## MORNING CORRECTION: Loyalty earn-side landed overnight, redemption has 3 new real blockers (2026-08-26)
+
+**Correcting last night's status** ("Loyalty field + earn-side wiring - dispatched, no confirmation
+yet") - it landed before I logged off, verified now: commits a6c86b4 (shopMilestoneProgress field +
+earn rule, 59/59) and 5728af3 (milestone ladder table, 32/32). Real, careful work - VS/CR ran the
+full frozen-file test discipline (SaveSystemTests/ReleaseProfilePersistenceContractTests/Shop suites/
+CollectionSchemaMigration alongside its own).
+
+**Redemption is correctly NOT built - 3 concrete new blockers found, needs a real decision:**
+1. Milestones are one-time but nothing on the profile records which have already been claimed - a
+   claim could repeat indefinitely without a claimed-set field.
+2. 3 of the 7 milestone rewards are cosmetics, but there is NO cosmetic ownership model anywhere in
+   the save schema.
+3. "3-day VIP voucher" (the 250pt reward) isn't expressible in VIP's existing weekly/fortnight/
+   monthly duration vocabulary - it's a fourth, shorter duration nobody defined.
+
+Also real and worth noting: VS caught and fixed ITS OWN stale doc/test headers that still said
+"no such table exists" after the spec landed - same self-correction discipline flagged elsewhere
+this session.
+
+**Real next ask, not yet sent - this is genuinely BS's call, not a coding gap:** does Loyalty
+redemption need (a) a new `claimedMilestoneMask` field + a cosmetic-ownership schema + a genuine
+new VIP duration tier, or (b) should the reward list itself change to avoid needing any of those
+three (e.g. drop the VIP voucher tier, drop cosmetics until a cosmetic system exists)? Cheaper fix
+vs. bigger schema work - real tradeoff for BS to weigh in on.
