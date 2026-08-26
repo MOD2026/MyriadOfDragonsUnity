@@ -5707,3 +5707,38 @@ place, not cancelled.
 seek help") - preparing a paste-ready diagnostic prompt as backup so it's ready the moment WH's pass
 doesn't fully resolve it, rather than round-tripping later. Both tracks run together, not
 sequentially - not waiting on WH to fail first before preparing the fallback.
+
+## Shop bug: TEXT-OVERLAP root cause confirmed via outside AI (Copilot) with real math; EMPTY-BOX root cause found self-documented in the codebase (2026-08-26)
+
+**Text overlap - confirmed via real geometry, not guessed.** Owner ran the code excerpt through
+Copilot, which walked the actual anchor math: Desc text (center-anchored, 80px box, offset -8)
+spans [-48,+32] relative to card center; the Buy button (bottom-anchored, 48px, offset 10) spans
+[-65,-17]; PriceText inside the button is ALSO center-anchored at a fixed 280x80 box, larger than
+the 48px button itself. Real overlap: ~31px between Desc and the button before font rendering. Root
+cause: `CreateTextElement`'s fixed `sizeDelta = new Vector2(280, 80)` with Unity's default
+center-center anchor, applied uniformly to both large description text AND small button labels,
+never adjusted per-context. Fix options given (resize text boxes to match their actual content,
+switch title/desc to top-anchored rather than center-anchored, shrink the button-label box to match
+the button). Real, checkable, not speculative.
+
+**Empty-box root cause found directly in the codebase - it's already self-documented as a known
+trap the newer code violates.** `ShopPresenter.cs`'s own comment on `ApplyShellWellHitTarget`
+(line 623-626): *"Must NOT call HomeV3UiLibrary.ApplyNavTileButton — that path assigns
+ui_button_secondary_* when sprite is null and paints a second empty bordered box on top of the
+already-drawn Shop V1 art."* `CreateGemPackShopCardTile` correctly obeys this (its own comment:
+*"never ApplyNavTileButton (injects a second empty bordered box from ui_button_secondary_*)"*) -
+but **`CreateStaminaShopCardTile`'s Buy button calls `HomeV3UiLibrary.ApplyNavTileButton` directly**
+(line 509), the exact mistake the rest of the file was written to avoid. Strong, well-supported
+explanation for the empty bordered boxes on the Stamina Potion side specifically - the header code
+(also correctly uses `ApplyShellWellHitTarget`) stayed clean; the one method that doesn't follow its
+own file's documented rule is the one producing the symptom.
+
+**Real dispatch, both fixes concrete and small:**
+1. Text overlap: resize/re-anchor `CreateStaminaShopCardTile`'s Title/Desc/PriceText per Copilot's
+   options - likely top-anchoring Title/Desc and shrinking PriceText's box to match its 48px button.
+2. Empty boxes: swap `CreateStaminaShopCardTile`'s Buy button from `HomeV3UiLibrary.ApplyNavTileButton`
+   to `ApplyShellWellHitTarget`, matching the pattern the gem-pack tiles and header already use
+   correctly in this same file.
+
+Both are localized to `CreateStaminaShopCardTile` - the header and gem-pack code were already
+correct. Dispatching to WH as the concrete fix, since it's already mid-flight on this screen.
