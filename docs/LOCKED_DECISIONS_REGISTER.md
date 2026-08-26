@@ -5971,3 +5971,33 @@ Reusable for every future AD task, not a one-off - re-run the same `Compress-Arc
 refresh it whenever source changes (owner asked to "refresh this prompt when it is ready" - the zip
 itself is the thing that needs refreshing, not a prompt; regenerate before each new AD session if
 meaningful time has passed).
+
+## CORRECTION: the "urgent" Stamina cap bug was a false alarm - a broken TEST, not a real enforcement leak (2026-08-26)
+
+**VS self-corrected a third time tonight, same root cause one level deeper, disclosed unprompted.**
+The dispatched-as-urgent finding ("purchase succeeds when the cap is already hit") traced to
+`PurchaseForTests` returning whether the SKU was FOUND, not whether the purchase actually succeeded
+- unconditionally `true` for any valid item, cap or no cap. The assertion could never have passed
+for a real SKU; it was never measuring cap enforcement at all. **The cap logic itself was never
+broken.** VS's own reasoning ("the fix only touched presenter/UI-library files, never cap logic, so
+the failure must be real") was true and irrelevant - the failure was never in the cap logic to begin
+with.
+
+**Real lesson, worth keeping:** VS's own diagnosis - "I keep treating a signal as evidence without
+verifying what the signal measures." The stash-based A/B method (already standard from the earlier
+two corrections) would NOT have caught this one - A/B correctly shows a failure is real/pre-existing,
+but says nothing about whether the assertion means what it claims. The check that would have caught
+it: read what the assertion actually measures before believing what it implies about the product.
+
+**WH's fix (`b5d82ec`), verified real, closes BOTH regressions from the Shop rework in one commit:**
+hardened the Stamina-cap assertion to check real state (Gems unspent, Stamina not granted, the
+shared window counter not incremented) instead of the meaningless bool - a genuine improvement, the
+old test would have stayed green through an actual future enforcement break. Also restored Shop's
+`HeaderBar/Btn_Back` under a full-screen host so `MetagameNavigationSpine` can resolve it, closing
+the second real regression from the same rework.
+
+**No consequence to anything else** - VS's Loyalty/VIP Stamina-claim code was always safe (it defers
+to a cap that was never actually leaking). WH's urgent-priority time was spent on a test defect, not
+game-breaking work - not WH's error, the urgency call was based on VS's (since-corrected) claim.
+Honest, undramatic correction - logged so the false alarm doesn't linger as fact anywhere in this
+file.
