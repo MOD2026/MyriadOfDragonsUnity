@@ -224,11 +224,16 @@ namespace MyriadOfDragons.UI
             plateRect.pivot = new Vector2(0.5f, 0.5f);
             plateRect.sizeDelta = new Vector2(plateW, plateH);
             plateRect.anchoredPosition = new Vector2(width * 0.64f, 26f);
-            UISharedFoundation.AddSemiTransparentScrimPanel(
+            UISharedFoundation.AddLocalGradientScrim(
                 textPlate.transform,
                 new Vector2(plateW * 0.5f, plateH * 0.5f),
                 new Vector2(plateW, plateH),
-                UIDesignTokens.FrameTier.Tier1Hero);
+                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            UISharedFoundation.AddLocalGradientScrim(
+                textPlate.transform,
+                new Vector2(plateW * 0.5f, plateH * 0.5f),
+                new Vector2(plateW, plateH),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
 
             Text labelText = UISharedFoundation.CreateText(
                 textPlate.transform, "ResourceLabel", label, UITextRole.Body, TextAnchor.MiddleLeft,
