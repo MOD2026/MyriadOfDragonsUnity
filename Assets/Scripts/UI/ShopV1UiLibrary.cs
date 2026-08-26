@@ -28,6 +28,20 @@ namespace MyriadOfDragons.UI
         public static readonly Vector4 PityWell = new Vector4(0.524f, 0.710f, 0.336f, 0.103f);
         public static readonly Vector4 BuyActionWell = new Vector4(0.141f, 0.843f, 0.718f, 0.101f);
 
+        /// <summary>Measured on shop_stamina_tier*_v1 (467×257) — left icon circle, center copy,
+        /// right BUY plate. Top-left normalised (x, y, w, h).</summary>
+        public static readonly Vector4 StaminaIconWell = new Vector4(0.094f, 0.265f, 0.201f, 0.362f);
+        public static readonly Vector4 StaminaCopyWell = new Vector4(0.310f, 0.280f, 0.320f, 0.420f);
+        public static readonly Vector4 StaminaBuyWell = new Vector4(0.653f, 0.311f, 0.244f, 0.292f);
+
+        /// <summary>Catalog shell header wells (1920×1080 top-left pixels) — shell art already
+        /// draws the frames; runtime only fills text/hit-targets inside them.</summary>
+        public static readonly Vector4 ShellBackWellPx = new Vector4(20f, 30f, 230f, 90f);
+        public static readonly Vector4 ShellTitleWellPx = new Vector4(465f, 30f, 520f, 90f);
+        public static readonly Vector4 ShellGoldPillWellPx = new Vector4(1050f, 30f, 210f, 90f);
+        public static readonly Vector4 ShellGemsPillWellPx = new Vector4(1269f, 30f, 225f, 90f);
+        public static readonly Vector4 ShellStaminaPillWellPx = new Vector4(1504f, 30f, 350f, 90f);
+
         public static bool HasGemPackTile => Load(GemPackTileName) != null;
 
         public static bool HasShopV1Pack =>

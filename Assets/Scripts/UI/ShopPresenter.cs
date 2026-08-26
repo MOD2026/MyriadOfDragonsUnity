@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Economy;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 
 namespace MyriadOfDragons.UI
@@ -64,12 +65,18 @@ namespace MyriadOfDragons.UI
 
         private List<ShopItemData> shopItems;
         private PackReceiptResult _pendingPackReceipt;
+        private RetentionTelemetryOutbox _telemetryOutbox;
 
-        public void Initialize(PlayerProfile profile, System.Action onBackToHome, System.Action onOpenCollection = null)
+        /// <summary>Exposed for tests: inject fake-gateway outbox for Stamina-cap emit checks.</summary>
+        public RetentionTelemetryOutbox TelemetryOutboxForTests => _telemetryOutbox;
+
+        public void Initialize(PlayerProfile profile, System.Action onBackToHome, System.Action onOpenCollection = null,
+            RetentionTelemetryOutbox telemetryOutbox = null)
         {
             this.player = profile;
             this.onBackToHomeAction = onBackToHome;
             this.onOpenCollectionAction = onOpenCollection;
+            _telemetryOutbox = telemetryOutbox ?? new RetentionTelemetryOutbox(new UnityCloudCodeRetentionTelemetryGateway());
 
             if (player != null)
                 ShopStaminaCatalog.NormalizeLadderFields(player);
@@ -316,65 +323,27 @@ namespace MyriadOfDragons.UI
             bgImg.raycastTarget = false;
             UISharedFoundation.StretchFull(bgObj.GetComponent<RectTransform>());
 
-            // 3. Top Header Bar (transparent over shell header wells)
-            GameObject topBar = new GameObject("HeaderBar", typeof(RectTransform), typeof(Image));
-            topBar.transform.SetParent(canvasObj.transform, false);
-            Image topBarBg = topBar.GetComponent<Image>();
-            topBarBg.color = new Color(0f, 0f, 0f, 0f);
-            topBarBg.raycastTarget = false;
-
-            RectTransform topRect = topBar.GetComponent<RectTransform>();
-            topRect.anchorMin = new Vector2(0, 1);
-            topRect.anchorMax = Vector2.one;
-            topRect.pivot = new Vector2(0.5f, 1f);
-            topRect.sizeDelta = new Vector2(0, 110);
-
-            // Back Button
+            // 3. Header fills — shell art already draws the ornate wells; do NOT layer a second
+            // bordered button chrome (ApplyNavTileButton) or floating CreateTextElement with
+            // default center anchors on top of those wells (that produced empty boxes + overlaps).
             GameObject backBtnObj = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
-            backBtnObj.transform.SetParent(topBar.transform, false);
+            backBtnObj.transform.SetParent(canvasObj.transform, false);
             Image backImg = backBtnObj.GetComponent<Image>();
-            backImg.color = new Color(0.3f, 0.2f, 0.2f, 0.85f);
+            ApplyShellWellHitTarget(backBtnObj.GetComponent<Button>(), backImg);
+            SetShellWellPx(backBtnObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ShellBackWellPx);
+            CreateWellText(backBtnObj.transform, "Text", "< BACK", 24, TextAnchor.MiddleCenter);
+            backBtnObj.GetComponent<Button>().onClick.AddListener(() => onBackToHomeAction?.Invoke());
 
-            Button backBtn = backBtnObj.GetComponent<Button>();
-            HomeV3UiLibrary.ApplyNavTileButton(backBtn, backImg);
-            backBtn.onClick.AddListener(() =>
-            {
-                onBackToHomeAction?.Invoke();
-            });
+            GameObject titleObj = CreateWellText(canvasObj.transform, "Title", "SHOP & SUPPLIES", 32, TextAnchor.MiddleCenter);
+            SetShellWellPx(titleObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ShellTitleWellPx);
+            titleObj.GetComponent<Text>().fontStyle = FontStyle.Bold;
 
-            RectTransform backRect = backBtnObj.GetComponent<RectTransform>();
-            backRect.anchorMin = new Vector2(0, 0.5f);
-            backRect.anchorMax = new Vector2(0, 0.5f);
-            backRect.pivot = new Vector2(0, 0.5f);
-            backRect.anchoredPosition = new Vector2(30, 0);
-            backRect.sizeDelta = new Vector2(160, 60);
-
-            CreateTextElement(backBtnObj.transform, "Text", "< BACK", Vector2.zero, 24, TextAnchor.MiddleCenter);
-
-            // Header Title
-            CreateTextElement(topBar.transform, "Title", "SHOP & SUPPLIES", new Vector2(-250, 0), 32, TextAnchor.MiddleCenter);
-
-            // Resource Displays Group
-            GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-            resourceGroup.transform.SetParent(topBar.transform, false);
-            RectTransform resRect = resourceGroup.GetComponent<RectTransform>();
-            resRect.anchorMin = new Vector2(1, 0.5f);
-            resRect.anchorMax = new Vector2(1, 0.5f);
-            resRect.pivot = new Vector2(1, 0.5f);
-            resRect.anchoredPosition = new Vector2(-30, 0);
-            resRect.sizeDelta = new Vector2(600, 60);
-
-            HorizontalLayoutGroup hlg = resourceGroup.GetComponent<HorizontalLayoutGroup>();
-            hlg.childAlignment = TextAnchor.MiddleRight;
-            hlg.spacing = 15;
-            hlg.childControlWidth = false;
-
-            goldText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gold_pill_v3",
-                "Gold", $"{player.gold}", 185f);
-            gemsText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_gems_pill_v3",
-                "Gems", $"{player.gems}", 185f);
-            energyText = HomeV3UiLibrary.CreateResourcePill(resourceGroup.transform, "home_resource_energy_pill_v3",
-                "Stamina", $"{player.stamina}/{player.maxStamina}", 200f);
+            goldText = PlaceHeaderResourcePill(canvasObj.transform, "GoldPill", "home_resource_gold_pill_v3",
+                "Gold", $"{player.gold}", ShopV1UiLibrary.ShellGoldPillWellPx);
+            gemsText = PlaceHeaderResourcePill(canvasObj.transform, "GemsPill", "home_resource_gems_pill_v3",
+                "Gems", $"{player.gems}", ShopV1UiLibrary.ShellGemsPillWellPx);
+            energyText = PlaceHeaderResourcePill(canvasObj.transform, "StaminaPill", "home_resource_energy_pill_v3",
+                "Stamina", $"{player.stamina}/{player.maxStamina}", ShopV1UiLibrary.ShellStaminaPillWellPx);
 
             GameObject statusObj = CreateTextElement(canvasObj.transform, "ShopStatus", "Tap BUY on a supply to purchase.",
                 new Vector2(0, -480), 20, TextAnchor.MiddleCenter);
@@ -481,29 +450,53 @@ namespace MyriadOfDragons.UI
 
             SetScreenRectFromTopLeftPixels(cardObj.GetComponent<RectTransform>(), leftPx, topPx, rightPx, bottomPx);
 
-            CreateTextElement(cardObj.transform, "Title", item.title, new Vector2(0, 28f), 20, TextAnchor.MiddleCenter);
-            CreateTextElement(cardObj.transform, "Desc", item.description, new Vector2(0, -8f), 14, TextAnchor.MiddleCenter);
+            // Icon circle well — art is an empty medallion; assign the real stamina potion sprite.
+            GameObject iconObj = new GameObject("StaminaIcon", typeof(RectTransform), typeof(Image));
+            iconObj.transform.SetParent(cardObj.transform, false);
+            Image iconImg = iconObj.GetComponent<Image>();
+            iconImg.raycastTarget = false;
+            iconImg.preserveAspect = true;
+            iconImg.type = Image.Type.Simple;
+            Sprite staminaIcon = Resources.Load<Sprite>("UI/Icons/icon_stamina");
+            if (staminaIcon != null)
+            {
+                iconImg.sprite = staminaIcon;
+                iconImg.color = Color.white;
+            }
+            else
+            {
+                iconImg.sprite = null;
+                iconImg.color = new Color(0.2f, 0.55f, 0.65f, 0.9f);
+            }
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(iconObj.GetComponent<RectTransform>(), ShopV1UiLibrary.StaminaIconWell);
 
+            // Center copy well — short title + grant line only (never the long ladder blurb that
+            // used to share CreateTextElement's center anchor with the BUY label).
+            string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
+            GameObject copyObj = CreateWellText(
+                cardObj.transform,
+                "Copy",
+                $"Stamina Potion\n+{ShopStaminaCatalog.StaminaGrantPerPotion}  ·  {priceLabel}",
+                18,
+                TextAnchor.MiddleLeft);
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(copyObj.GetComponent<RectTransform>(), ShopV1UiLibrary.StaminaCopyWell);
+            Text copyText = copyObj.GetComponent<Text>();
+            copyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            copyText.verticalOverflow = VerticalWrapMode.Truncate;
+            copyText.resizeTextForBestFit = true;
+            copyText.resizeTextMinSize = 12;
+            copyText.resizeTextMaxSize = 20;
+
+            // Right BUY plate — hit target only; chrome is already in the tier sprite. Never call
+            // ApplyNavTileButton here (it injects ui_button_secondary_* and draws a second empty box).
             GameObject buyBtnObj = new GameObject("Btn_Buy", typeof(RectTransform), typeof(Image), typeof(Button));
             buyBtnObj.transform.SetParent(cardObj.transform, false);
             buyBtnObj.transform.localScale = Vector3.one;
-
             Image buyImg = buyBtnObj.GetComponent<Image>();
-            buyImg.color = item.goldCost > 0 ? new Color(0.85f, 0.65f, 0.15f, 0.92f) : new Color(0.55f, 0.25f, 0.85f, 0.92f);
-
-            RectTransform buyRect = buyBtnObj.GetComponent<RectTransform>();
-            buyRect.anchorMin = new Vector2(0.5f, 0f);
-            buyRect.anchorMax = new Vector2(0.5f, 0f);
-            buyRect.pivot = new Vector2(0.5f, 0f);
-            buyRect.anchoredPosition = new Vector2(0, 10f);
-            buyRect.sizeDelta = new Vector2(200f, 48f);
-
-            Button buyBtn = buyBtnObj.GetComponent<Button>();
-            HomeV3UiLibrary.ApplyNavTileButton(buyBtn, buyImg);
-            buyBtn.onClick.AddListener(() => AttemptPurchase(item));
-
-            string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
-            CreateTextElement(buyBtnObj.transform, "PriceText", $"BUY ({priceLabel})", Vector2.zero, 18, TextAnchor.MiddleCenter);
+            ApplyShellWellHitTarget(buyBtnObj.GetComponent<Button>(), buyImg);
+            ShopV1UiLibrary.SetNormalizedWellFromTopLeft(buyBtnObj.GetComponent<RectTransform>(), ShopV1UiLibrary.StaminaBuyWell);
+            CreateWellText(buyBtnObj.transform, "PriceText", "BUY", 20, TextAnchor.MiddleCenter);
+            buyBtnObj.GetComponent<Button>().onClick.AddListener(() => AttemptPurchase(item));
         }
 
         /// <summary>
@@ -531,6 +524,10 @@ namespace MyriadOfDragons.UI
             artImg.preserveAspect = true;
             artImg.type = Image.Type.Simple;
             Sprite productArt = Resources.Load<Sprite>($"UI/ShopV1/product_art_{item.id}");
+            if (productArt == null)
+                productArt = Resources.Load<Sprite>("UI/Icons/dragon_eggs");
+            if (productArt == null)
+                productArt = Resources.Load<Sprite>("UI/HomeV3/home_icon_shop_v3");
             if (productArt != null)
             {
                 artImg.sprite = productArt;
@@ -589,14 +586,14 @@ namespace MyriadOfDragons.UI
             buyBtnObj.transform.SetParent(cardObj.transform, false);
             buyBtnObj.transform.localScale = Vector3.one;
             Image buyImg = buyBtnObj.GetComponent<Image>();
-            buyImg.color = new Color(1f, 1f, 1f, 0.01f);
+            // Gem-pack frame already draws the BUY plate — never ApplyNavTileButton (injects a
+            // second empty bordered box from ui_button_secondary_*).
+            ApplyShellWellHitTarget(buyBtnObj.GetComponent<Button>(), buyImg);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(buyBtnObj.GetComponent<RectTransform>(), ShopV1UiLibrary.BuyActionWell);
 
             CreateWellText(buyBtnObj.transform, "PriceText", "BUY", 22, TextAnchor.MiddleCenter);
 
-            Button buyBtn = buyBtnObj.GetComponent<Button>();
-            HomeV3UiLibrary.ApplyNavTileButton(buyBtn, buyImg);
-            buyBtn.onClick.AddListener(() => AttemptPurchase(item));
+            buyBtnObj.GetComponent<Button>().onClick.AddListener(() => AttemptPurchase(item));
         }
 
         private GameObject CreateWellText(Transform parent, string objectName, string content, int fontSize, TextAnchor alignment)
@@ -621,6 +618,59 @@ namespace MyriadOfDragons.UI
             rect.offsetMax = Vector2.zero;
 
             return textObj;
+        }
+
+        /// <summary>Invisible hit-target over shell/tile chrome. Must NOT call
+        /// <see cref="HomeV3UiLibrary.ApplyNavTileButton"/> — that path assigns
+        /// ui_button_secondary_* when sprite is null and paints a second empty bordered box on
+        /// top of the already-drawn Shop V1 art.</summary>
+        private static void ApplyShellWellHitTarget(Button button, Image targetGraphic)
+        {
+            if (button == null || targetGraphic == null) return;
+            targetGraphic.sprite = null;
+            targetGraphic.color = new Color(1f, 1f, 1f, 0.01f);
+            targetGraphic.type = Image.Type.Simple;
+            button.targetGraphic = targetGraphic;
+            button.transition = Selectable.Transition.ColorTint;
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 0.35f);
+            colors.pressedColor = new Color(0.85f, 0.85f, 0.85f, 0.5f);
+            colors.selectedColor = colors.normalColor;
+            colors.disabledColor = new Color(1f, 1f, 1f, 0.01f);
+            button.colors = colors;
+        }
+
+        private static void SetShellWellPx(RectTransform rect, Vector4 leftTopWidthHeight)
+        {
+            if (rect == null) return;
+            float left = leftTopWidthHeight.x;
+            float top = leftTopWidthHeight.y;
+            float right = left + leftTopWidthHeight.z;
+            float bottom = top + leftTopWidthHeight.w;
+            rect.anchorMin = new Vector2(left / 1920f, 1f - bottom / 1080f);
+            rect.anchorMax = new Vector2(right / 1920f, 1f - top / 1080f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private static Text PlaceHeaderResourcePill(Transform parent, string name, string pillSprite,
+            string label, string value, Vector4 wellPx)
+        {
+            GameObject host = new GameObject(name, typeof(RectTransform));
+            host.transform.SetParent(parent, false);
+            SetShellWellPx(host.GetComponent<RectTransform>(), wellPx);
+            Text valueText = HomeV3UiLibrary.CreateResourcePill(host.transform, pillSprite, label, value, wellPx.z);
+            RectTransform pillRect = valueText != null ? valueText.transform.parent as RectTransform : null;
+            if (pillRect != null)
+            {
+                pillRect.anchorMin = Vector2.zero;
+                pillRect.anchorMax = Vector2.one;
+                pillRect.offsetMin = Vector2.zero;
+                pillRect.offsetMax = Vector2.zero;
+                pillRect.sizeDelta = Vector2.zero;
+            }
+            return valueText;
         }
 
         private static void SetScreenRectFromTopLeftPixels(RectTransform rect, float left, float top, float right, float bottom)
@@ -662,6 +712,9 @@ namespace MyriadOfDragons.UI
                 if (!ShopStaminaCatalog.IsGemCostAllowedNow(player, item.gemCost, now, out string ladderError))
                 {
                     SetShopStatus(ladderError ?? "Stamina refill not available.");
+                    // Daily 4/24h cap only — wrong-tier ladder blocks are not daily_cap_reached.
+                    if (!ShopStaminaCatalog.TryGetNextGemCost(player, now, out _, out _))
+                        EmitStaminaDailyCapReached();
                     RefreshStaminaBuyButtons();
                     return;
                 }
@@ -713,6 +766,17 @@ namespace MyriadOfDragons.UI
                 RefreshResourceDisplay();
                 RefreshStaminaBuyButtons();
             }
+        }
+
+        /// <summary>Real retention-telemetry emit for Shop Stamina 4/24h cap (register: remaining
+        /// Metagame-owned call sites). Same Enqueue+FlushAsync shape as EmpireExpeditionPresenter.</summary>
+        private void EmitStaminaDailyCapReached()
+        {
+            if (_telemetryOutbox == null) return;
+            string playerId = RetentionTelemetryPlayerId.CurrentOrEmpty();
+            _telemetryOutbox.Enqueue(RetentionTelemetryEvents.DailyCapReached(
+                playerId, "shop_stamina", "DailyStaminaRefillCapReached"));
+            _ = _telemetryOutbox.FlushAsync(System.Threading.CancellationToken.None);
         }
 
         private static bool IsStaminaLadderSku(string itemId)
