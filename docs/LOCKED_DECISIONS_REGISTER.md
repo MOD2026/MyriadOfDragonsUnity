@@ -7298,3 +7298,46 @@ insertions and is a known multi-room file - WH itself flagged two sprite-load `L
 it earlier tonight as CR's sweep leftover. `HomeV3UiLibrary.cs` and `UISharedFoundation.cs` are
 modified right now by CR's in-flight 9-slice work. WH must `git diff` each file and stage only its
 own hunks - the file-granularity collision case the standing order already documents twice.
+
+## 9-slice fix: scaleFactor question SETTLED, a real pre-positioning edge case found, and a NEW risk class identified (2026-08-26, CR)
+
+**scaleFactor question settled - CR's reasoning, and it's right:** no scaleFactor term belongs.
+`CanvasScaler.ScaleWithScreenSize` applies its factor as one uniform post-transform over the whole
+hierarchy; `RectTransform.rect` and the sliced-border math both happen upstream of it in the same
+reference-unit space. With `referencePixelsPerUnit` never overridden (100) and every measured
+sprite at `spritePixelsToUnits: 100`, border-source-pixels compare 1:1 against `rect.width/height`
+directly. AD's version would have made the correction resolution-dependent, which the bug is not -
+it's a fixed design-time relationship. **My flag was correct and CR's derivation is better than my
+reasoning for it.** Reasoning documented in-code, not just in this file.
+
+**Implementation:** `UISharedFoundation.FitSlicedBorderToRect` (pure, per-instance, computes the
+multiplier from live rect vs `sprite.border`, floors a 6px real center band, clamps [1,4]) +
+`EnsureFitsOnResize`, wired into `ApplyFramedPanel`'s real-sprite branch. Verified present (8 refs).
+
+**Real edge case found while wiring, citation verified directly:** `EmpirePresenter.cs:207` calls
+`ApplyFramedPanel` BEFORE the rect is positioned (`empireRect` is set at 210+), so at apply time the
+RectTransform is still Unity's default 100x100 - an apply-time-only calculation would have silently
+computed against stale geometry there and produced a wrong multiplier. CR added a thin
+`OnRectTransformDimensionsChange` watcher (timing-only shim, real logic stays in the plain testable
+method per CLAUDE.md #6) so a later reposition recomputes. Zero per-call-site changes. **This is a
+class of bug that only shows up when someone actually wires the thing rather than reasoning about
+it** - neither my measurement nor AD's analysis would have surfaced it.
+
+**Tests written to the right standard:** `SlicedBorderFitTests.cs` asserts the exact arithmetic
+(128/56 on the real measured DeckBuilder case, not merely `> 1`) AND that the resize watcher
+genuinely fires. Same "assert the real number, not the absence of a crash" discipline VS applied to
+the Materials cycle bonus.
+
+**NEW RISK CLASS, worth watching for recurrence:** CR's first test run failed all 6 on
+`Resources.Load` returning null, with Unity's log showing all 8 SharedFoundation `.meta` files as
+unparseable YAML with invalid GUIDs at that exact moment. CR re-read all 8 immediately after - every
+one valid and correct. **Transient, not real corruption**: almost certainly a live interactive Editor
+reimporting those exact assets while a batch process read them. This is distinct from the
+already-known exclusive-lock conflict - it's a batch-read racing an interactive-write, and it
+produces a *plausible-looking false failure* (missing assets) rather than a clean refusal to start.
+Anyone seeing "SharedFoundation sprites suddenly missing" should re-read the .meta files before
+believing it.
+
+**The open interactive Unity Editor has now blocked CR three separate times tonight** (once causing
+the false-corruption failure above). Raised to the owner directly - this is the single biggest
+throughput drag on the coding rooms right now.
