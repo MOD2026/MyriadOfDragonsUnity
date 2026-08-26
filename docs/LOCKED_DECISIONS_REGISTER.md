@@ -5008,3 +5008,26 @@ UI/art/story evidence. Checked directly, not taken on faith either direction:
   player to engage. This half of the deliverable set was real work skipped, not a false alarm.
 
 Paste-ready ST ask given to owner below to close the real gap.
+
+## LOCKED: Memory Expedition narrative copy (2026-08-26, ST, verified) + REAL CODE BUG FOUND: result modal art imported but never wired
+
+**ST's copy verified and locked:** opening line, 3 round names (Fallen Leaves / Living Boughs / Deep
+Roots), clean-clear and partial-clear result lines. ST's claim that this "fits the existing root,
+crystal, teal-memory visual language" checked directly against
+`memory_expedition_result_modal_v2_rgba.png` (viewed the actual file) - accurate, real gold
+filigree/vine/root motifs with teal crystal accents, not an assumed match.
+
+**Real root cause of the owner's "text box holder" complaint, found while verifying:** it is not a
+missing asset. `Assets/Resources/UI/MemoryExpeditionV1/memory_expedition_result_modal_v2_rgba.png`
+and `memory_expedition_route_emblems_atlas_v2_rgba.png` are both real, imported, approved art -
+**and never referenced anywhere in code.** `MemoryExpeditionUiLibrary.cs` only wires the background
+shell (`ApplyFullscreenShell`); `MemoryExpeditionPresenter.cs` shows round results as a small plain
+caption (`_statusText`, "StatusLine", `UITextRole.Caption`) in the header, never the real modal.
+Same underlying failure class as the design-token boxes, one level up - approved art existing in
+`Resources/` doesn't make it into the built screen without an explicit wire-up, and nobody checked.
+
+**Real fix, dispatching to CR (queued behind current UI-restyle priority, small and additive - not
+blocking it):** on round-complete (clean or partial clear), show the real result modal image
+(`MemoryExpeditionUiLibrary` needs an `ApplyResultModal` twin to the existing
+`ApplyFullscreenShell`) with ST's locked result line inside it, instead of updating `_statusText`.
+Round names go on the HUD/round tracker. No new asset needed - just wiring what's already there.
