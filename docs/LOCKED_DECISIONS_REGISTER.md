@@ -1916,6 +1916,37 @@ rather than jumping the queue.
 Either that, or wrap any passed `saveFn` in a non-throwing adapter and document that `saveFn` must
 never throw. Add a test that simulates `saveFn` throwing.
 
+## Overnight progress log - 2026-08-27 03:00 onward
+
+**LANDED:**
+- `31213b6` (WH) - under-2:1 contrast fixed with local scrims on the Metagame screens.
+- `d76bd77` (VS) - **combat trigger fairness fix SHIPPED.** `LaneBattleResolver.cs` reworked to
+  resolve both sides' triggers simultaneously, plus a new 142-line `TriggerOrderFairnessTests.cs`.
+  **The player's hidden first-mover advantage is gone.** Still want the before/after
+  `BalanceSimulationTests` numbers when VS reports.
+- **Unity batch-lock starvation fixed** (CR's work) - `Try-AcquireUnityBatchLock` live in
+  `tools/run_editmode_tests.ps1`, 132 lines: atomic `File.Open(CreateNew)` acquire, randomised
+  exponential backoff with jitter, 10-minute ceiling with a "starved after N attempts" message,
+  stale-lock reclaim inside the retry loop, and the interactive-Editor check moved to AFTER acquire
+  to close a second race.
+
+**ATTRIBUTION FAILURE, third tonight:** CR's lock fix was swept into VS's `d76bd77` commit by blanket
+staging. Content intact, credit wrong. **This is exactly what the explicit-path staging rule exists
+to prevent, and it has now happened three times in one night** - the rule is clearly not sticking
+through compaction. Worth restating at the top of any future overnight queue rather than assuming it
+carries.
+
+**STILL OPEN - the Shop crowding gate.** CR's session compacted before capturing Shop at 1728x1080,
+so it was never taken. **The 23-screen canvas rollout remains HALTED.** Re-dispatched to CR with the
+decision rule delegated: Shop clean at 1728 = gate closed and rollout unhalted by CR's own call;
+Shop crowded = stop, and the fix becomes proportional sizing rather than fixed pixels.
+
+**Home at 1728 was captured and is CLEAN** - no crowding, no touching siblings. But CR correctly
+flagged it as weak evidence: Home's heaviest element is a single full-bleed card with generous
+margins and a 5-button bar with real 8px gaps, so it absorbs ~10% compression easily. **Shop is the
+genuine stress case** - four fixed-width pack cards (235/236/237/218 units) in a row plus four
+640x150 stamina rows.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
