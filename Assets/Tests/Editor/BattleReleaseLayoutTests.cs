@@ -100,6 +100,81 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void Battle_NeverDrawsArtOnTopOfAnInteractiveControl()
+        {
+            // THE GAP THIS CLOSES: 10+ screens carry this guard and Battle never did - and Battle
+            // is the screen I just made render real art for the first time, by wiring START BATTLE
+            // and Reset/AUTO FORMATION onto the shared chrome skins.
+            //
+            // The failure mode is not theoretical: DailyLoginQuests started failing its own copy of
+            // this test the moment the sprite-load fix landed, because DiamondOverlay only began
+            // rendering then and landed on a button. Art that never drew cannot overlap anything;
+            // art that suddenly draws can. Battle had no guard at the exact moment it gained art.
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_BattleArtOverControlBootstrap");
+            Transform root = bootstrap.transform;
+
+            GameObject canvasGo = null;
+            foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                if (candidate.name == "Canvas") { canvasGo = candidate; break; }
+            }
+
+            Assert.IsNotNull(canvasGo, "Setup: expected the Battle canvas to exist after Initialize.");
+            Transform canvas = canvasGo.transform;
+
+            Transform[] drawOrder = canvas.GetComponentsInChildren<Transform>(true);
+            var indexOf = new System.Collections.Generic.Dictionary<Transform, int>();
+            for (int i = 0; i < drawOrder.Length; i++) indexOf[drawOrder[i]] = i;
+
+            var collisions = new System.Collections.Generic.List<string>();
+            foreach (Button button in canvas.GetComponentsInChildren<Button>(true))
+            {
+                if (!button.gameObject.activeInHierarchy) continue;
+                Rect btn = BattleWorldRect(button.GetComponent<RectTransform>());
+                if (btn.width <= 0f || btn.height <= 0f) continue;
+                int buttonIndex = indexOf[button.transform];
+
+                foreach (Image img in canvas.GetComponentsInChildren<Image>(true))
+                {
+                    // Only real ART can steal a tap visually - a null-sprite Image is a plain fill,
+                    // and the whole point is that art which never rendered cannot overlap anything.
+                    if (img.sprite == null || !img.gameObject.activeInHierarchy) continue;
+                    if (img.GetComponent<Button>() != null) continue;
+                    if (img.transform.IsChildOf(button.transform)) continue;
+                    if (indexOf[img.transform] <= buttonIndex) continue;
+
+                    Rect art = BattleWorldRect(img.rectTransform);
+                    if (art.width <= 0f || art.height <= 0f) continue;
+                    if (art.Overlaps(btn))
+                    {
+                        collisions.Add("'" + img.name + "' " + art + " overlaps '" + button.name +
+                                       "' " + btn + " and draws AFTER it");
+                    }
+                }
+            }
+
+            CollectionAssert.IsEmpty(collisions,
+                "Art draws on top of an interactive control, so a tap would land on art instead of " +
+                "the button: " + string.Join("  |  ", collisions));
+        }
+
+        private static Rect BattleWorldRect(RectTransform rt)
+        {
+            var c = new Vector3[4];
+            rt.GetWorldCorners(c);
+            float xMin = c[0].x, xMax = c[0].x, yMin = c[0].y, yMax = c[0].y;
+            for (int i = 1; i < 4; i++)
+            {
+                if (c[i].x < xMin) xMin = c[i].x;
+                if (c[i].x > xMax) xMax = c[i].x;
+                if (c[i].y < yMin) yMin = c[i].y;
+                if (c[i].y > yMax) yMax = c[i].y;
+            }
+
+            return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
+        }
+
+        [Test]
         public void SingleBattlePresentationRoot_OwnsEveryNamedRegion()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_RootOwnershipBootstrap");

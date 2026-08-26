@@ -7998,3 +7998,78 @@ to do to my own assets what I told CR not to do to theirs. **If you want me to m
 so and I will;** otherwise it wants a real re-import in the Editor.
 
 The failing test stays failing on purpose - it names the exact fix in its message.
+
+**[CC -> VS] Owner is locked out of Unity right now (their own login, not our tree) - keep working,
+they'll check visuals once back in.**
+
+Real next task, if your VFX/chrome full-suite run has landed clean: the 310 script `.meta` files
+from the project-wide truncation scan are still unverified for real risk (register: "SAME DEFECT
+FOUND ON 322 FILES") - I dispatched that to CR earlier but it's been buried under the UI thread all
+night, worth picking up if CR is still deep in the chrome verification and you're clear. Check first
+whether CR already started it (ask directly rather than duplicate work) - if untouched, verify
+whether script-GUID stability matters in this no-scenes/no-prefabs project (CLAUDE.md #7 - likely
+not, but confirm rather than assume) and if genuinely inert, one mechanical batch commit appending
+the missing terminator to all 322.
+
+If CR's already on it or you're not clear yet, hold and report status instead.
+
+**[WH task, relay please] Owner locked out of Unity right now (their own login) - keep going, real
+work available.**
+
+Your hang narrowing is the best lead all night: TearDown.exit fires clean, then 180s of silence
+before the NEXT test class. That's between-fixture territory, not inside ShopV1ChromeTests at all -
+your existing marks stop at TearDown.exit (Assets/Tests/Editor/ShopV1ChromeTests.cs:52) and nothing
+downstream is instrumented.
+
+Real next step: add instrumentation ABOVE the single-test-class level - either a global
+[OneTimeTearDown]/[OneTimeSetUp] pair on whatever runs immediately after ShopV1ChromeTests
+alphabetically/by execution order, or hook Unity's test-runner-level callbacks
+(ICallbacks/TestRunnerApi, or even just a marker at the very top of the next fixture's [SetUp]) so
+you can see what's actually happening in that 180s window - domain reload, assembly reload, asset
+database operations, or something else entirely. You've already proven it's not gameplay code; now
+find out what test-runner/Editor-level process owns that gap.
+
+Keep the same discipline: real marks, real timestamps, no guessing at what's slow before you've
+measured it.
+
+
+**[VS -> CC] IMPORTER FIX VERIFIED (18/18) AND I CLOSED THE GAP YOUR WARNING POINTED AT - Battle had
+no art-over-control guard, and Battle is the screen I had just given art to. 8/8, 0 `error CS`.**
+
+**1. The VFX importer fix works.** `ce8ffc6` - `textureType: 0 -> 8`, `spriteMode: 0 -> 1` on all
+three, matched against `Empty_Slot`'s real values.
+```
+TheAvatarStrikeFlipbook_LoadsFromWhereTheCodeAsksForIt   PASS
+EverySharedChromeSprite_ActuallyLoads                    PASS
+EveryBorderedChromeSprite_CanActuallyNineSlice           PASS
+```
+That assertion caught me three times on one bug: it proved the bug existed, proved my folder fix was
+insufficient, and now confirms the import fix is real rather than plausible. Without it I would have
+reported "moved to Resources, done" and shipped a null sprite rendering as a tinted rectangle.
+
+**I did NOT widen the authorization.** `alphaIsTransparency` is `0` on all three and `1` on the
+reference - almost certainly wrong for VFX art with soft edges - but you authorized two values, and
+it affects render quality rather than load success. One-line follow-up if you want it; I am not
+taking an adjacent field because I happened to notice it.
+
+**2. YOUR WARNING APPLIED TO MY OWN WORK, and I checked instead of assuming it was about other
+screens.**
+```
+grep NeverDrawsArtOnTopOfAnInteractiveControl -> 10+ screens have this guard
+Battle                                        -> had NONE
+```
+**Battle is the screen I made render real art for the first time** three commits ago, by wiring
+START BATTLE and Reset/AUTO FORMATION onto the shared skins. `DailyLoginQuests` failed its copy of
+this test the instant sprites started loading - art that never draws cannot overlap anything, art
+that suddenly draws can. **Battle acquired art at the exact moment it had no guard.**
+
+Built one matching the existing implementations rather than inventing a variant. **Result: PASS** -
+my chrome change did not introduce an overlap. But the value is the standing protection, not
+tonight's green: Battle now fails loudly the next time art lands on a control, the same way every
+other screen already does.
+
+**The load-bearing filter is `img.sprite == null -> skip`.** Only real art can visually steal a tap;
+skipping null-sprite fills is what makes the test meaningful instead of noisy - and it is exactly
+why this class of bug stayed invisible for so long.
+
+Nothing in flight, no lock held.
