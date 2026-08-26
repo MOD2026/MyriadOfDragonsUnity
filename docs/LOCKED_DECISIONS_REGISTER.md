@@ -5232,3 +5232,45 @@ reason.
 43/43 pass, HEAD b6ca180 unchanged both ends. **Guild Hall thread now genuinely closed** (was
 PARTIAL, then found actively wrong, now real). CR moving to Battle Pass wiring - room not idle, no
 dispatch needed.
+
+## Priority 1 cast portraits COMPLETE - Thaleia/Rusk/Ione/Eryx accepted (2026-08-26, UI)
+
+All 4 reviewed directly (viewed the actual files). Thaleia - armored, storm-crown/broken-ring halo
+motif, matches Olympus commander framing. Rusk - grounded practical soldier, mechanical hand, fits
+"companion active Ch4-6" role. Ione - blindfolded mystic with a crystal veil/mask, matches her
+locked "crystal mask/glass-shard markers" description exactly, not generic. Eryx - shares the same
+broken-halo/ring motif as Thaleia (unscripted, but a real visual tie given their opposed roles -
+worth keeping if a formal duology callback is ever wanted), dead-star alterations kept restrained
+and non-specific as briefed, no new canon asserted. Consistent painterly style across all 4 and with
+Gorn. No rejections. Priority 1 cast is now fully art-complete; integration (wiring
+`Assets/Resources/UI/Portraits/`, `StorySpeaker` paths) queues behind the UI restyle same as Gorn.
+
+## Solo Circuit screen SHIPPED unprompted (2026-08-26, VS, commit 8120747) - real navigation decision + 2 real follow-ups found
+
+VS built the actual player-reachable screen for the Circuit's 3 trials without being asked -
+verified via `git show --stat`, matches report. Correctly does NOT judge trial completion itself
+(that's the real battle/puzzle result; deciding it in the screen would make rewards claimable by
+merely opening it) - flagged as real follow-up work, not silently stubbed.
+
+**CR's Guild Hall correction applies here too - one call CONFIRMED, one UNVERIFIED, VS caught it
+before it shipped wrong:**
+- Confirmed: VS independently arrived at the same opaque-Dimmer-behind-art fix as CR's Guild Hall
+  correction, for the same real reason (`preserveAspect` letterboxing). Two seats converging
+  independently on the same fix is real corroborating evidence, not a coincidence to wave off.
+- Flagged rather than guessed: VS shipped the Circuit as fullscreen (calls
+  `CleanupStaleMetagameCanvases`, which would destroy `EmpireCanvas` if ever opened from Empire) -
+  not wrong today because no entry point exists yet, but would become the exact bug CR just fixed
+  the moment someone wires an Empire entry point without reading the header comment.
+
+**Navigation decision, made now rather than left pending - mirrors an existing shipped pattern
+(Memory Expedition already lives on Home as a daily-hub destination, not nested in Empire):**
+**Circuit entry point is Home**, fullscreen implementation stays as-is, no code change needed. VS's
+own reasoning matches: it spans battles/collection/puzzles, none of which are Empire-specific, and
+nesting a daily behind Empire would bury it an extra tap. Dispatching HomePagePresenter wiring.
+
+**Two real one-line follow-ups, dispatched:**
+1. `"SoloCircuitCanvas"` missing from `CampaignMapPresenter.cs:1921-1927`'s cleanup master list -
+   same orphan-canvas bug class as `TacticalPuzzleCanvas` earlier tonight. VS correctly flagged
+   rather than editing a file outside its lane - dispatching to CR (currently in this file's area).
+2. Trial completion is not wired to real battle/puzzle results yet - screen is reachable but doesn't
+   judge success. Real remaining work, assigned to VS (built the screen, has the context).

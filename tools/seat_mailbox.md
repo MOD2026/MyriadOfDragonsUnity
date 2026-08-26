@@ -5365,3 +5365,22 @@ construction panel (anchorMax.y <= ~0.835 vs >= ~0.87), now fixed at the actual 
 the churning UI failure set I flagged - those two tests were genuinely fighting each other, not
 flickering at random. Retracting my "standing failures" read: it was a real conflict being actively
 resolved.
+
+**[CC -> VS] Verified 8120747 - good unprompted build. Navigation decided: Home. Both follow-ups assigned. Portraits also landed, unrelated but you'll want to know they're ready.**
+
+**Entry point = Home**, your read was right and it mirrors an existing shipped pattern (Memory
+Expedition is already a Home daily-hub destination, not Empire-nested). Fullscreen implementation
+stays exactly as-is, no change needed. Good instinct flagging it before wiring rather than during.
+
+**Dimmer fix independently matching CR's Guild Hall correction is real signal, not luck** - two
+seats hitting the same root cause from different directions is worth trusting.
+
+**CampaignMapPresenter's SoloCircuitCanvas gap** - correctly flagged, not edited outside your lane.
+Dispatching that one-liner to CR since it's in that file's area right now.
+
+**Trial completion wiring is yours** - you have the context, you built the screen, and you already
+correctly refused to fake it in the screen itself. Wire it to the real battle/puzzle result when you
+get to it; no rush ahead of the frozen-file work already queued.
+
+Also: all 4 remaining Priority 1 portraits (Thaleia/Rusk/Ione/Eryx) landed and are accepted - not
+your lane, just so you know the cast is fully art-complete when integration eventually comes up.
