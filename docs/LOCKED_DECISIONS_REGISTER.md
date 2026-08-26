@@ -55,6 +55,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-27 | **THE GAME IS LANDSCAPE 1920x1080. NOT PORTRAIT.** Verified in code: `HomeLayoutRegressionTests.cs:56` sets `canvasRect.sizeDelta = new Vector2(1920f, 1080f)` and the canonical test is `Home_Canonical16x9_...`. **CC wrote "portrait mobile" into multiple BS/UI prompts this session** and the UI seat caught it on the backdrop prompt. Consequence: any earlier BS answer that leaned on portrait ergonomics (thumb-reach, bottom-third placement, bottom-nav dock guidance) is SUSPECT and must be re-checked before being cited as settled. The attention-hierarchy lock and the competitor COUNTS are unaffected (counts are orientation-independent). | Standing rule, does not lift |
 | 2026-08-27 | **EVERY factual claim CC puts into a BS/ST/UI prompt must be verified first - a wrong premise in a prompt poisons the answer AND everything locked from it.** Direct consequence of the portrait/landscape error above: CC asserted the orientation in prompt after prompt without ever checking a single file, and the wrong premise propagated into locked design guidance. Before sending any prompt: verify orientation, resolution, currency names, system names, file/class names, and any "we already have X / we do not have X" claim. Cheap to check, expensive to get wrong. | Standing rule, does not lift |
 | 2026-08-27 | **CC MUST BE PROACTIVE - the owner should not have to watch CC or prompt it for the next step.** Owner: "i dont like it whereby i need to keep eye on u and to prompt u things to do. i do ahve limit computering power and blind spot. is it possible that u help me out by reducing my blind spot and proactiving giving me task or prompt before i asked?" **Every turn CC runs a blind-spot sweep BEFORE replying:** (1) is any room idle or blocked; (2) is anything locked-but-never-built (design answered != shipped); (3) is any owner-visible defect known and undispatched; (4) does any in-flight work rest on an unverified premise; (5) is any art/asset dependency going to block a room soon - pre-clear it EARLY, not when the room reports blocked. CC then dispatches or emits prompts for what it found, unasked. The owner should be approving and steering, never reminding. | Standing rule, does not lift |
+| 2026-08-27 | **NO DEAD SPACE IN THE UI.** Owner: "i dont want dead space in the UI too i did mentioned it multiple times" - said repeatedly and never locked until now, which is why it kept getting lost. Every region of a 1920x1080 screen must be doing work: content, grouping, art, or deliberate breathing room that serves hierarchy. Large empty areas with no purpose are a defect, not minimalism. **This does NOT license cramming** - the fix for dead space is bigger/better content, art extending into the region, or regrouping the layout, NOT adding more controls or more frames. Note the real tension with the framing rules: BS prescribes "larger gutters between unrelated groups" - a gutter that separates two groups is doing work and is NOT dead space; an empty quarter-screen with nothing in it is. Judge by whether the emptiness serves the reader. | Standing rule, does not lift |
 | 2026-08-26 | **Every BS/ST/UI prompt goes directly in the chat reply, in a fenced code block, EVERY time - never just "published to the GPT Prompt Hub artifact" as the sole delivery.** Owner cannot talk to GPT/WH directly through CC and does not want to hunt down a link to get a prompt to paste - "u cant talk directly toe gpt and wh so lock it down tat u need to give prompt each time." The artifact stays useful as an archive/index, but it is never a substitute for pasting the actual prompt text in the same turn it's ready. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -468,6 +469,47 @@ which is exactly why hierarchy is the right gate and count is not.
 
 Also note: all three use heavy framing liberally. Our ornamental-border reduction rule is about
 UNDIFFERENTIATED framing, not frame count - do not cite these numbers to justify stripping frames.
+
+## Framing - LOCKED 2026-08-27: four tiers + weighted ratio, replacing "max 3 heavy frames"
+
+BS resolved the contradiction between our reduction rule and real shipped games. **Our theory was
+right: the defect is UNDIFFERENTIATED visual weight, not frame COUNT.** Marvel Snap uses many panels
+but most are shallow/translucent/low-contrast - only the play CTA, season card, and selected
+destination are emphasised. Clash Royale gets hierarchy from scale/colour/animation/position, not
+from every panel shouting. Hearthstone nests *semantically* - one strong board environment with
+controls subordinate inside it, not a stack of unrelated boxes.
+
+**FOUR FRAME TIERS (implement as design tokens):**
+
+| Tier | Border | Fill/shadow | Use |
+|---|---|---|---|
+| 1 Hero | 3-4px, high-contrast ornament, inner glow, strong shadow | 90-100% fill | ONE primary CTA, hero/featured, result/reward root |
+| 2 Section | 2px, restrained ornament, medium shadow | 70-85% fill | Major tabs, mode selectors, important grouped panels |
+| 3 Utility | 1px or accent line, no ornament, minimal shadow | 35-60% translucent | Rows, resource groups, secondary controls, list sections |
+| 4 Surface | No border - spacing/tint/divider only | 10-35% translucent | HUD, repeated rows, tab bodies, background grouping |
+
+**"MAX 3 HEAVY FRAMES" IS DEAD. Replaced by a weighted ratio:** max ONE Tier-1 in the active
+viewport; max THREE Tier-2; Tier 3/4 may repeat freely provided spacing and contrast separate them;
+never more than two visually competing Tier-1-equivalent areas. This is why Snap runs 7-12 frames
+without collapsing.
+
+**NESTING IS ALLOWED when it communicates containment** (screen root -> card; board -> hand zone;
+modal root -> confirmation card). Wrong when siblings each get an ornate frame, when nested frames
+have equal contrast, or when nesting communicates no ownership. **Test: if removing the parent frame
+makes the child's relationship unclear, the nesting is justified. If parent and child merely
+duplicate the same rectangle, remove one.**
+
+**LANDSCAPE 1920x1080 changes ARRANGEMENT, not frame budget:** horizontal grouping bands and
+columns; stronger left-to-right section boundaries; larger gutters between unrelated groups; one
+dominant CTA in the lower-centre/lower-right action zone; HUD/resource strip as Tier 4, never boxed
+modules; hero region as one clear column or central band. **Do not add heavy frames just because
+there is more width** - wide layouts group via alignment, spacing and background tint.
+
+**THE BORDER PASS CHANGES SHAPE: do NOT blanket-strip borders across ~20 screens.** Instead:
+(1) reclassify every existing frame as Tier 1-4; (2) enforce max one Tier-1 + three Tier-2 per
+viewport; (3) convert repeated rows/tabs/HUD/resource strips to Tier 3/4; (4) PRESERVE a parent
+frame where it provides real containment; (5) validate at 1920x1080 and narrower landscape ratios.
+Frame quantity and hierarchy stay a REVIEW signal; only structural defects hard-fail.
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
