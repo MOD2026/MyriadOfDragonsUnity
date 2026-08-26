@@ -5872,3 +5872,29 @@ Real fix, small, dispatching: add a crest Image child to `identityRoot`, add an 
 `BuildHomeFeaturePanel` with the tutorial copy's rect shifted to `0.09-0.72` (from
 `0.04-0.72`) to reserve icon space per Copilot's own math, and add `Debug.LogWarning` on both hero-
 tile and Avatar-tile sprite-load failures.
+
+## Home audit FINAL: Copilot self-corrected the crest finding, verified accurate - only 2 real tickets, not 4 (2026-08-26)
+
+**Crest downgraded from confirmed-bug to unproven-divergence, and this is correct.** Can't assert a
+mockup element is "missing" from a screen explicitly deferred from the restyle - absence of proof it
+was ever meant to exist yet. Removing it from the dispatched fix batch below; not fixing it tonight.
+
+**`CreateHeaderTextButton` future-risk finding verified real:** confirmed directly - it genuinely
+never calls `SetLocalNormalisedRect` after `CreateText`, leaving the label at default center anchor
+with a fixed 120x40 box. Computed the real button dimensions from their actual pixel coords (e.g.
+Btn_Bazaar 135x68, Btn_SpellLoadout 136x72) - both exceed 120x40 in both dimensions, so this is
+genuinely NOT live-broken today, correctly classified as future-risk rather than a current bug.
+
+**Final Home ticket count: 2 real, not 4.**
+1. Tutorial alert badge - real, high confidence, mockup composition element with zero code presence.
+2. Silent sprite-load failures across the board (hero tiles, resource pills, header buttons, Avatar
+   icon) - the single highest-value carry-forward item, same failure family as Shop.
+
+Everything else (crest, 4-vs-6 cards, tile proportions, header-button anchor risk) correctly
+NOT filed as bugs tonight. No geometry overlaps found or filed - Home's disciplined
+`SetLocalNormalisedRect` usage after nearly every `CreateText` call genuinely prevents the Shop-style
+overlap class.
+
+**Dispatch corrected:** crest fix withdrawn. WH fixes only the tutorial icon + adds
+`Debug.LogWarning` on every silent sprite-load fallback named above (hero tiles, resource pills,
+settings gear, Avatar icon) - real, small, matches tonight's established pattern.
