@@ -5353,3 +5353,41 @@ another single flat reference sheet.
 
 **Contact-sheet harness approved to start now, independent of the art blocker** - it screenshots
 whatever ships today and gets more useful as real art lands, no reason to wait.
+
+## CORRECTION: my own "Home" entry-point decision was wrong - Solo Circuit is Empire's War Room, a popup, not a Home fullscreen destination (2026-08-26)
+
+**Reversing my own earlier call.** I locked ST's Solo Circuit copy myself and missed that its own
+framing line - "The Empire's War Room sets three daily trials..." - was a real navigational
+statement, not just flavor text. VS caught this without a direct reply from me, by connecting three
+pieces of real evidence rather than guessing: (1) ST's locked copy institutionally ties the Circuit
+to the Empire's War Room, (2) a real "War Room" entry already exists on Empire
+(`EmpirePresenter.cs:596`, verified verbatim - opens Tactical Puzzle "as an overlay, leaving the
+Empire canvas underneath"), (3) CR's `7185a4c` already established the exact convention this
+implies: things opened over Empire are popups that leave `EmpireCanvas` alive, not fullscreen swaps.
+
+**My "Home, fullscreen, no change needed" ruling from earlier this session is WRONG and superseded.**
+Correct shape: Solo Circuit is a popup reached via Empire's War Room, same convention as
+BuildingDetail/GuildHallEntry/TacticalPuzzle. VS self-corrected before this reached a compiler or a
+QA pass - removed the `CleanupStaleMetagameCanvases` call that would have destroyed `EmpireCanvas`
+the moment a War Room entry point was wired (the exact bug class CR already fixed once, this would
+have been the third instance), and pinned the convention with a named test
+(`TheScreenIsAPopup_AndLeavesTheScreenBeneathItAlive`) rather than trusting inference to hold a
+third time. Real code confirmed present in the tree (`SoloCircuitPresenter.cs`,
+`SoloCircuitPresenterTests.cs`), uncommitted, full suite running against 9deffa0.
+
+**ST's locked copy applied for real, not just referenced:** "COMMAND CIRCUIT" title, the War Room
+framing line, all three trial titles (Order the Ranks / Muster the Ranks / Read the Field), and
+clean/partial result lines chosen from real trial-completion state - confirmed present in
+`SoloCircuitPresenter.cs`. Rule text kept separate from flavor text, generated from the same seed
+that scores the trial, so copy structurally cannot drift from what's actually judged - a second test
+pins the wording against this register directly, so a future copy edit here without a matching code
+edit fails loudly instead of silently drifting.
+
+**2 real self-caught bugs before compile, worth noting as more of the same discipline:**
+`UITextRole.Heading` doesn't exist (real value is `Title`), and a test-generation step had escaped a
+literal newline into a C# string literal. Both fixed before they became someone else's problem.
+
+**Stale register lines corrected:** "Circuit UI not yet dispatched" and "Collection Trial itself
+isn't built yet" (from the earlier narrative-framing lock entry) are both now false - Collection
+Trial landed in `53d5aae`, and the Circuit UI is what this entry describes. Register text updated by
+this entry rather than silently left wrong for the next reader.

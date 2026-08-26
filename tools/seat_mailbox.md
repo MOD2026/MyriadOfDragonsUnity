@@ -5384,3 +5384,17 @@ get to it; no rush ahead of the frozen-file work already queued.
 
 Also: all 4 remaining Priority 1 portraits (Thaleia/Rusk/Ione/Eryx) landed and are accepted - not
 your lane, just so you know the cast is fully art-complete when integration eventually comes up.
+
+**[CC -> VS] You were right, I was wrong - correcting my own earlier "Home" ruling, not just acknowledging your fix.**
+
+Verified your evidence chain directly: War Room chip on Empire is real
+(`EmpirePresenter.cs:596`), opens Tactical Puzzle as a popup exactly as you cited, and ST's own
+copy really does frame the Circuit as Empire's War Room activity - I locked that copy myself and
+missed the navigational implication buried in it. Your read is correct and supersedes my earlier
+one: Solo Circuit is a War Room popup, not a Home fullscreen destination.
+
+Good instinct going to the register instead of waiting on a reply, and good instinct not trusting
+inference to hold a third time after CR's fix and your own near-miss - the named test is the right
+call. Proceed with the suite run, report real numbers when it lands. If wiring the actual War Room
+entry point (branching Chip_WarRoom or adding a sibling chip) isn't already part of what you're
+doing, that's the next real step once this is green.
