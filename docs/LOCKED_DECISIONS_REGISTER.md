@@ -5833,3 +5833,42 @@ cross-screen spine test.
 Both confirmed real test names in the actual codebase (`MetagameNavigationSpineTests.cs`), not
 fabricated. Dispatching to WH (owns `cd29a4f`, already in this file's territory) as urgent - this
 is a real exploitable economy bug, not cosmetic.
+
+## Home audit round 2 verified: 4 real bugs (Priority 1-4), 6 correctly ruled out, 1 citation correction (2026-08-26)
+
+**All 10 findings checked against the full file (already in context) - accurate work.** Real bugs,
+verified:
+1. Crest/emblem missing - `identityRoot` only ever gets `sprite = null`, no crest Image created at
+   all. Genuine gap, not a restyle issue - a real mockup element with zero code presence.
+2. Tutorial alert-icon missing - `BuildHomeFeaturePanel` creates only featureRoot/featureCopy/
+   StartTutorialButton, no icon object anywhere. Real.
+3. Silent hero-tile sprite failures - `CreateHeroTile` falls back to a flat placeholder color with
+   zero logging when `HomeV3UiLibrary.Load` returns null. Same bug family as the Memory
+   Expedition/Shop findings tonight.
+4. Avatar tile's hardcoded single-path icon load (`Resources.Load<Sprite>("UI/Icons/player profile
+   frame")`, no fallback, no logging) - real fragility, not yet visibly broken but one bad path away
+   from a silently empty tile.
+
+**Correctly ruled out, verified:** 4-vs-6 nav cards (real product expansion, not a defect), tile
+proportion drift from mockup (intentional layout redesign), tile label text overlap (does NOT occur
+- `SetLocalNormalisedRect` genuinely overrides the dangerous default-center anchor before render,
+confirmed by direct code read), resource pills (genuinely wired to real HomeV3 art via
+`CreateResourcePill`/`HomeV3UiLibrary.Load`, not a placeholder).
+
+**One citation correction:** Bug 2's evidence cites `HomeV3UiLibrary.TryApplyHeaderFrame` as the
+cause of Home's flat banner - already established earlier tonight that Home never calls this method
+at all (only Avatar/Empire do). Home's banner is flat because `identityRoot`'s `Image` is hardcoded
+directly to `sprite = null` in `BuildHomePageUI()` - same visible symptom, different actual code
+path. Matters for the fix: there's no existing frame-loader to wire up for Home, a crest would need
+a new child Image added directly to `identityRoot`.
+
+**Logistics note sent to owner:** Copilot asked for `CreateResourcePill`/`BuildSettingsEntryButton`/
+`BuildSeasonEntryButtons`/`BuildSocialShellEntryButtons`/`SetLocalNormalisedRect` as "the next
+chunk" - all five were already included across the two pastes already given (the full 1,448-line
+file was sent in two parts). Nothing new to extract; Copilot needs to be told to re-check what it
+already has.
+
+Real fix, small, dispatching: add a crest Image child to `identityRoot`, add an alert-icon Image to
+`BuildHomeFeaturePanel` with the tutorial copy's rect shifted to `0.09-0.72` (from
+`0.04-0.72`) to reserve icon space per Copilot's own math, and add `Debug.LogWarning` on both hero-
+tile and Avatar-tile sprite-load failures.
