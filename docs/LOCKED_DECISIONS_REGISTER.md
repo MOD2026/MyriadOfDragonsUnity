@@ -1084,6 +1084,32 @@ false memory from an authentic-but-mistaken account. **MVP treatment: show evide
 comparisons without explaining the Tree's metaphysics. The Tree may expose contradictions but must
 never certify one account as true.**
 
+## SCOPED OWNERSHIP EXCEPTION - contrast remediation on Metagame-owned screens (CC, 2026-08-27)
+
+**Problem:** CR built the scrim/shadow tokens (`5ec115f`) but the 5 worst contrast screens - Shop,
+CampaignMap, BattlePass, TacticalPuzzle, MemoryExpedition - are outside CR's lane. 21 findings are
+UNDER 2:1, i.e. text a player genuinely cannot read. The fix exists and nobody may apply it. CR
+correctly refused to cross the boundary unasked.
+
+**GRANTED, narrowly:** WH may edit the Metagame-owned presenters **for contrast remediation only** -
+inserting the locked scrim builders, adjusting text colour/shadow, and nothing else. This mirrors the
+prior one-time `CampaignMapPresenter.cs` exceptions already recorded in this register.
+
+**HARD LIMITS on the exception:**
+- Presentation only. **No logic, no layout restructure, no copy changes, no navigation, no economy.**
+- Use CR's existing scrim/shadow helpers. **Do not author a parallel treatment.**
+- Scrims insert as the parent's FIRST SIBLING so they render behind existing content - the worst
+  screens are already built, so a scrim must slot in behind rather than force a rebuild.
+- `git diff` every file before staging; these are high-traffic shared files.
+- Fix the **21 sub-2:1 cases first** - unreadable, not merely below target. The 4-6:1 band waits.
+
+**Known engine limit, disclosed by CR, not a shortcut:** Unity's built-in `Shadow` component has no
+blur radius - offset and colour only - so the locked 4-6px shadow blur is not reproducible with it.
+Accepted; shadows stay support-only under the contrast lock anyway.
+
+**Gate still NOT armed** until the sub-2:1 cases are fixed. Order unchanged: tokens (done) ->
+21 unreadable fixed -> VS flips to hard fail.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
