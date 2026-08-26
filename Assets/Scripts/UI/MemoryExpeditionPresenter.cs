@@ -105,8 +105,15 @@ namespace MyriadOfDragons.UI
 
             Text wallet = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
                 MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
-                new Color(0.8f, 0.85f, 0.7f), true, new Vector2(420f, 28f));
+                Color.white, true, new Vector2(420f, 28f));
+            UISharedFoundation.ApplyTextShadow(wallet);
             SetNorm(wallet.rectTransform, 0.16f, 0.12f, 0.48f, 0.88f);
+            UISharedFoundation.AddLocalGradientScrim(
+                topBar.transform, new Vector2(1920f * 0.32f, 40f), new Vector2(520f, 64f),
+                UISharedFoundation.GradientDirection.TopToBottom, 0.9f);
+            UISharedFoundation.AddLocalGradientScrim(
+                topBar.transform, new Vector2(1920f * 0.32f, 40f), new Vector2(520f, 64f),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.9f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", string.Empty,
                 UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
@@ -170,10 +177,17 @@ namespace MyriadOfDragons.UI
                     btn.onClick.AddListener(() => TapTile(captured));
                     SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, bottom + 0.01f, right - 0.01f, top - 0.01f);
 
+                    UISharedFoundation.AddLocalGradientScrim(
+                        tile.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                        UISharedFoundation.GradientDirection.TopToBottom, 0.85f);
+                    UISharedFoundation.AddLocalGradientScrim(
+                        tile.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                        UISharedFoundation.GradientDirection.BottomToTop, 0.85f);
                     Text label = UISharedFoundation.CreateText(tile.transform, "Face", "?",
-                        UITextRole.Title, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                        UITextRole.Title, TextAnchor.MiddleCenter, Color.white, true,
                         new Vector2(80f, 80f));
                     label.fontSize = 28;
+                    UISharedFoundation.ApplyTextShadow(label);
                     SetNorm(label.rectTransform, 0.1f, 0.1f, 0.9f, 0.9f);
                     _tileLabels.Add(label);
                 }
