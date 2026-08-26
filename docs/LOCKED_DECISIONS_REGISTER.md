@@ -6208,3 +6208,14 @@ than have both stall waiting on each other - real, narrowing progress in hand be
 uncertain coordination check. Will tell WH to stand down from this specific thread if it reports
 independent progress later, to avoid the exact parallel-collision pattern already seen once tonight
 on DeckBuilder.
+
+## Real channel-discipline error, caught by CR and corrected same-turn (2026-08-26)
+
+**My own mistake.** VS's report (PENDING DISPATCH cleanup, 4-7 band question) arrived via the
+mailbox, but my reply went via `SendMessage` to CR (`myriadofdragonsunity-2a`) instead of back into
+the mailbox for VS - exactly the channel-routing failure this session's own standing discipline
+warns against (two names churning, two channels, reply-to-whoever's-freshest-in-mind instead of
+naming the actual source). CR caught it immediately and correctly refused to act on unfamiliar
+content rather than guessing at context it didn't have - right instinct, this could easily have
+gone the other way (CR silently absorbing instructions meant for someone else). Corrected same-turn:
+told CR to disregard, delivered the real reply to VS's actual mailbox channel.
