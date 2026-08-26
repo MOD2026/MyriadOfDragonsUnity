@@ -1663,6 +1663,40 @@ Three candidate explanations, in CC's order of likelihood:
 against a REAL capture - CampaignMap's BACK button confirmed invisible at 1.1-1.5:1 by opening the
 PNG, not just by measuring.
 
+## Migration idempotency - RESOLVED 2026-08-27. No schema change needed.
+
+AD read the real files this time. **Both load-path migrations ARE genuinely idempotent.** The
+"corrupting saves on every load" risk is closed.
+
+- **`SpellOwnershipSync.SynchronizeEligibleSpellOwnership`** - the `!ownedSpellIds.Contains(id)`
+  guard prevents duplicates, and auto-equip only fires when `equippedSpellIds.Count == 0`. Second run
+  on the same inputs is a true no-op.
+- **`CollectionSchemaMigration.Apply`** - guarded by
+  `if (profile.collectionSchemaVersion >= CurrentCollectionSchemaVersion) return;` and it sets the
+  version at the END. It also CLEARS `cardProgression` before rebuilding from the untouched legacy
+  `cardCollection`, so a crash mid-migration re-runs safely rather than appending.
+- **Order is correct and required.** `Normalize` must run first - both downstream routines depend on
+  its non-null lists and clamped numerics. Running either before it would throw or produce wrong
+  results.
+
+**`AppliedMigrations` tracking is NOT needed and is not being proposed.** Both are already safe -
+Collection has its own explicit version check. **This avoids a frozen-file schema change and the
+owner sign-off it would have required.** Worth adding only if a FUTURE migration has one-time side
+effects (a currency or item grant), which is exactly where idempotency-by-luck breaks.
+
+### Real residual risks found while verifying
+
+1. **ID string comparison is exact.** `Contains` uses stored string equality with no `Trim` or case
+   normalization, so `"SpellA"` and `"spella"` are distinct - logical duplicates or missed matches.
+   Cheap fix: normalize on both add and compare.
+2. **`CardDatabase` presence changes migration behaviour - ANOTHER test-passes-runtime-differs case.**
+   `DefaultIsKnownCardId` accepts any non-empty id when `CardDatabase.Instance == null`, which is the
+   EditMode condition. **So tests accept ids that the real runtime would quarantine.** This is the
+   same failure family as every other bug tonight: the test environment is structurally more
+   permissive than production. Needs a migration test run against a mocked `CardDatabase`.
+3. **`ExecutePlayerTrade` remains the one BLOCKER-class defect** in this area - AD agrees. Dormant
+   only because nothing calls it.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
