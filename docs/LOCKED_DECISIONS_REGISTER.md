@@ -6315,3 +6315,14 @@ stalled Cloud Code call can never hang the calling process indefinitely - analyt
 already "best-effort, never blocks gameplay" per this file's own header comment, a timeout is
 consistent with that contract, not a new one. Dispatching to WH (owns the telemetry wiring) as the
 real next step - this is now a concrete fix to try, not another blind bisection.
+
+## DECISION: Home/Shop/DeckBuilder/CampaignMap ownership boundary authorized to open, real UI priority escalation from owner (2026-08-26)
+
+Owner escalated the UI-image thread again as urgent. This boundary has sat unresolved all night,
+blocking the real restyle rollout's last 4 screens. **Deciding directly rather than leaving it
+blocked further:** WH has crossed this exact boundary repeatedly and carefully tonight already -
+VIP/Friends fix, Home telemetry wiring, the Home layout/AlertIcon fix, and the DeckBuilder test-
+fixture fix - every one verified real, no incident. That real track record is the basis for
+authorizing the restyle itself to proceed on Home/Shop/DeckBuilder/CampaignMap now, same standing-
+order pattern as the earlier one-time CampaignMapPresenter canvas-cleanup exceptions. Dispatching to
+WH/CR.
