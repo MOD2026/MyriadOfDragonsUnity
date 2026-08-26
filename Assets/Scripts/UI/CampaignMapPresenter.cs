@@ -2250,8 +2250,17 @@ namespace MyriadOfDragons.UI
             GameObject topBar = new GameObject("CampaignHeader");
             topBar.transform.SetParent(mapCanvasObj.transform, false);
             Image topBarBg = topBar.AddComponent<Image>();
+            // Soften over map art: flat 0.92 ColorHeader was a near-opaque blackout band.
+            // Vertical fade keeps contrast in the title/BACK/status band (top) while the lower
+            // edge lets castle/mountain art show through. Image.Type.Simple so the gradient is
+            // not destroyed by 9-slice middle-stretch.
             Color headerColor = UIFrozenTokens.ColorHeader;
-            topBarBg.color = new Color(headerColor.r, headerColor.g, headerColor.b, 0.92f);
+            topBarBg.sprite = UISharedFoundation.CreateRoundedPanelSprite(
+                new Color(headerColor.r, headerColor.g, headerColor.b, 0.68f),
+                new Color(headerColor.r, headerColor.g, headerColor.b, 0.18f),
+                cornerRadius: 1);
+            topBarBg.type = Image.Type.Simple;
+            topBarBg.color = Color.white;
             topBarBg.raycastTarget = false; // decorative header background - the Back button below owns its own click target.
 
             RectTransform topRect = topBar.GetComponent<RectTransform>();
