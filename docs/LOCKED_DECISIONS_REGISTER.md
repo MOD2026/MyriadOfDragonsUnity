@@ -6517,3 +6517,14 @@ this reasoning explicitly at lock time (unlike the Loyalty redemption entry, whi
 "no further benchmark needed" with reasoning) - a real gap in *process discipline*, not necessarily
 in the underlying decision. Standing gate refinement worth considering: BS locks that are pure copy/
 wording should say so explicitly rather than silently omitting the benchmark section.
+
+## CR dispatched: project-wide silent-asset-load-failure sweep (2026-08-26)
+
+Real, unclaimed work - AD's Home audit explicitly named this pattern as "the single biggest audit
+item to carry forward to other presenters": a `Resources.Load`/sprite reference that fails silently
+(falls back to a flat placeholder color with zero logging) is the exact bug class already found and
+fixed multiple times tonight (Memory Expedition's unused modal, Home's hero-tile/resource-pill/
+settings-gear loads, Shop's stamina-tier chrome). Nobody has swept the REST of the project's ~23
+presenters for the same pattern yet. Dispatched to CR - own files (whichever presenters it isn't
+already excluded from), no overlap with VS (Battle/) or WH (Home/DeckBuilder/CampaignMap/telemetry,
+already covered).
