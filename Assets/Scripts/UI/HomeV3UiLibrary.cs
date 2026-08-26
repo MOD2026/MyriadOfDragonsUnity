@@ -224,6 +224,13 @@ namespace MyriadOfDragons.UI
             plateRect.pivot = new Vector2(0.5f, 0.5f);
             plateRect.sizeDelta = new Vector2(plateW, plateH);
             plateRect.anchoredPosition = new Vector2(width * 0.5f, 26f);
+            Image plateFill = textPlate.AddComponent<Image>();
+            plateFill.sprite = UISharedFoundation.CreateRoundedPanelSprite(
+                new Color(0.03f, 0.035f, 0.05f, 0.95f),
+                new Color(0.03f, 0.035f, 0.05f, 0.95f), cornerRadius: 1);
+            plateFill.type = Image.Type.Simple;
+            plateFill.color = Color.white;
+            plateFill.raycastTarget = false;
             UISharedFoundation.AddLocalGradientScrim(
                 textPlate.transform,
                 new Vector2(plateW * 0.5f, plateH * 0.5f),
