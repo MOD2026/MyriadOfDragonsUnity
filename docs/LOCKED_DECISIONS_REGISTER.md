@@ -6476,3 +6476,44 @@ Two-test recheck also closed: both `BackdropImages_NeverBlockRaycasts` and
 bisection run, not real regressions.
 
 CR now genuinely idle - both queued items closed, nothing next assigned yet.
+
+## FULL AUDIT: every BS lock tonight checked against the standing hard gate (2026-08-26)
+
+Owner asked for a full re-audit of every BS reply this session. Checked all 12 `LOCKED ... BS`
+entries for both internal-consistency verification AND a real WebSearch benchmark. Result: 9 clean,
+1 real gap fixed retroactively, 2 flagged with honest caveats rather than silently passed.
+
+**9 clean - both halves present, already verified at lock time:** VIP whale-spend negative check,
+Solo Circuit weekly-bonus personal-cycle fix, Battle Pass XP=1400, Battle Pass Gold table, the
+3-consumer Stamina cap queued-entitlement mechanic, no-taxonomy decision, Battle Pass
+price/grace, 2,000pt voucher=30-day, Collection Trial eligibility-aware rotation.
+
+**1 real gap, fixed now:** the VIP/Subscription entitlement spec (`4067`) had a real internal-
+consistency check (`ShopStaminaCatalog` numbers confirmed) but **no WebSearch benchmark was ever run
+for the actual pricing (800/1,500/3,000 Gems, 7/14/30-day durations) anywhere in this file.** Ran it
+retroactively: comparable subscription-style entitlements (Raid Shadow Legends gem pricing ~$0.025/
+gem, other games' VIP memberships) sit in the $15-20/month range for daily-grant subscriptions.
+Cannot fully quantify against MOD's own numbers - **MOD still has no established Gem-to-USD
+conversion rate**, an already-known limitation from the earlier Battle Pass price lock. Directionally
+consistent (MOD's Monthly tier at 3,000 Gems is ~4x the Weekly tier's 800, a reasonable escalation
+shape matching how tiered subscriptions scale elsewhere) but not a precise validation. Logging
+honestly rather than claiming false precision - the pricing stands as previously locked, now with
+the benchmark it was missing.
+
+**1 flagged, not re-litigated - already self-identified as the origin violation:** the Solo
+Collection Circuit/PvP-slice/Loyalty-milestone batch (`4181`) is the exact case the standing hard
+gate's own text already cites as the violation that created the rule ("only internal consistency
+was checked, no industry-standard benchmark was run"). Largely superseded since - Loyalty's reward
+curve, voucher durations, and the weekly bonus mechanic all got real benchmarks in later corrective
+entries. The Solo Circuit's own base per-trial/per-day Gold amounts (250/1,250) and the PvP
+minimum-slice structure were never independently benchmarked against comparable games' daily-quest
+sizing - real gap, lower priority than a fresh economic decision since these numbers are already
+live and working, flagging for whenever there's bandwidth rather than treating as urgent.
+
+**1 flagged as likely-exempt, not silently passed:** the Empire building display copy lock (`3881`)
+has no benchmark language - but it's pure UI text/wording, not a balance number or mechanic, so a
+"comparable shipped games" benchmark may not meaningfully apply. Worth noting the entry never stated
+this reasoning explicitly at lock time (unlike the Loyalty redemption entry, which explicitly said
+"no further benchmark needed" with reasoning) - a real gap in *process discipline*, not necessarily
+in the underlying decision. Standing gate refinement worth considering: BS locks that are pure copy/
+wording should say so explicitly rather than silently omitting the benchmark section.
