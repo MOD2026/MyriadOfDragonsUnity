@@ -474,7 +474,8 @@ public class HomePagePresenter : MonoBehaviour
             identityRoot.transform, "PlayerLevelRole",
             $"Avatar L{avatarLevel} · Cap {liveCap} · Start HP {liveStartHp}",
             MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(420f, 20f));
-        avatarIdentityText.fontSize = 16;
+        // Type-scale hard floor (register: "22px absolute minimum for any player-facing text").
+        UIDesignTokens.Apply(avatarIdentityText, UIDesignTokens.TypeTier.T1Micro);
         avatarIdentityText.raycastTarget = false;
         SetLocalNormalisedRect(avatarIdentityText.rectTransform, 0.06f, 0.0f, 0.95f, 0.45f);
 
@@ -699,7 +700,9 @@ public class HomePagePresenter : MonoBehaviour
 
         _weeklyPermitStatusText = UISharedFoundation.CreateText(cardObj.transform, "WeeklyPermitStatus", string.Empty,
             UITextRole.Body, TextAnchor.UpperLeft, HexColor("#B8A68F"), true, new Vector2(1400f, 200f));
-        _weeklyPermitStatusText.fontSize = 20;
+        // Type-scale hard floor: body/status copy needs >=28px (register: "28px minimum for
+        // body copy and interactive labels").
+        UIDesignTokens.Apply(_weeklyPermitStatusText, UIDesignTokens.TypeTier.T2Utility);
         _weeklyPermitStatusText.horizontalOverflow = HorizontalWrapMode.Wrap;
         _weeklyPermitStatusText.raycastTarget = false;
         SetLocalNormalisedRect(_weeklyPermitStatusText.rectTransform, 0.06f, 0.28f, 0.94f, 0.7f);
@@ -714,7 +717,8 @@ public class HomePagePresenter : MonoBehaviour
         SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.06f, 0.08f, 0.4f, 0.22f);
         Text claimLabel = UISharedFoundation.CreateText(claimBtnObj.transform, "Label", "CLAIM", UITextRole.Body,
             TextAnchor.MiddleCenter, Color.white, true, new Vector2(260f, 40f));
-        claimLabel.fontSize = 20;
+        // Interactive-label hard floor: >=28px (register: same line as body copy).
+        UIDesignTokens.Apply(claimLabel, UIDesignTokens.TypeTier.T2Utility);
         claimLabel.fontStyle = FontStyle.Bold;
         claimLabel.raycastTarget = false;
 
@@ -729,7 +733,7 @@ public class HomePagePresenter : MonoBehaviour
         SetLocalNormalisedRect(serverBtnObj.GetComponent<RectTransform>(), 0.44f, 0.08f, 0.7f, 0.22f);
         Text serverLabel = UISharedFoundation.CreateText(serverBtnObj.transform, "Label", "OTHER BONUS", UITextRole.Body,
             TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
-        serverLabel.fontSize = 18;
+        UIDesignTokens.Apply(serverLabel, UIDesignTokens.TypeTier.T2Utility);
         serverLabel.fontStyle = FontStyle.Bold;
         serverLabel.raycastTarget = false;
     }
@@ -768,7 +772,9 @@ public class HomePagePresenter : MonoBehaviour
 
         Text body = UISharedFoundation.CreateText(cardObj.transform, "Body", card.Body, UITextRole.Body,
             TextAnchor.UpperLeft, HexColor("#B8A68F"), true, new Vector2(1400f, 200f));
-        body.fontSize = 20;
+        // Type-scale hard floor: body copy >=28px. T3Body (35px) matches its exact documented
+        // use ("descriptions, instructional copy") in the locked type table.
+        UIDesignTokens.Apply(body, UIDesignTokens.TypeTier.T3Body);
         body.horizontalOverflow = HorizontalWrapMode.Wrap;
         body.raycastTarget = false;
         SetLocalNormalisedRect(body.rectTransform, 0.06f, 0.28f, 0.94f, 0.7f);
@@ -784,7 +790,8 @@ public class HomePagePresenter : MonoBehaviour
 
         Text actionLabel = UISharedFoundation.CreateText(actionBtn.transform, "Label", card.ActionLabel, UITextRole.Body,
             TextAnchor.MiddleCenter, Color.white, true, new Vector2(260f, 40f));
-        actionLabel.fontSize = 20;
+        // Interactive-label hard floor: >=28px - this is the screen's one primary CTA.
+        UIDesignTokens.Apply(actionLabel, UIDesignTokens.TypeTier.T2Utility);
         actionLabel.fontStyle = FontStyle.Bold;
         actionLabel.raycastTarget = false;
     }
@@ -835,9 +842,17 @@ public class HomePagePresenter : MonoBehaviour
         HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(0.11f, 0.14f, 0.19f, 0.9f));
         btn.onClick.AddListener(action);
 
+        // Label box scales with the REAL button width (was a hardcoded 160px regardless of the
+        // caller's actual button size) - at the T2Utility (28px) type floor, a fixed 160px box
+        // wrapped longer labels like "COLLECTION" mid-word inside buttons that were actually
+        // ~370px wide. 24px side padding, floor of 100px for the narrowest callers.
+        float labelWidth = Mathf.Max(100f, (rightPx - leftPx) - 24f);
         Text text = UISharedFoundation.CreateText(btnObj.transform, "Label", label, UITextRole.Body,
-            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(160f, 32f));
-        text.fontSize = 16;
+            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(labelWidth, 36f));
+        // Interactive-label hard floor (>=28px, not just the 22px absolute floor - these are
+        // Button labels): shared by DestinationBar, both tab hubs, and the Social drawer's tab
+        // strip - all of them build their buttons through this one method.
+        UIDesignTokens.Apply(text, UIDesignTokens.TypeTier.T2Utility);
         text.fontStyle = FontStyle.Bold;
         text.raycastTarget = false;
     }
@@ -1046,15 +1061,18 @@ public class HomePagePresenter : MonoBehaviour
     {
         GameObject btnObj = new GameObject("Btn_SocialDrawer", typeof(RectTransform), typeof(Image), typeof(Button));
         btnObj.transform.SetParent(parent, false);
-        SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), 1656, 18, 1772, 90);
+        // Widened left edge (was 1656, 116px wide) - the T2Utility (28px) type floor no longer
+        // fits "SOCIAL" on one line in the old width, wrapping it mid-word ("SOCIA/L"). ResourceRow
+        // ends at 1328, so this has 328px of real clearance to grow into before touching it.
+        SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), 1580, 18, 1772, 90);
         Image img = btnObj.GetComponent<Image>();
         Button btn = btnObj.GetComponent<Button>();
         HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(0.16f, 0.22f, 0.2f, 0.92f));
         btn.onClick.AddListener(OpenSocialDrawer);
 
         Text label = UISharedFoundation.CreateText(btnObj.transform, "Label", "SOCIAL", UITextRole.Caption,
-            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(100f, 32f));
-        label.fontSize = 16;
+            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(180f, 36f));
+        UIDesignTokens.Apply(label, UIDesignTokens.TypeTier.T2Utility);
         label.fontStyle = FontStyle.Bold;
         label.raycastTarget = false;
     }
@@ -1111,7 +1129,7 @@ public class HomePagePresenter : MonoBehaviour
         closeBtn.onClick.AddListener(CloseSocialDrawer);
         Text closeLabel = UISharedFoundation.CreateText(closeBtnObj.transform, "Label", "CLOSE", UITextRole.Body,
             TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(100f, 32f));
-        closeLabel.fontSize = 16;
+        UIDesignTokens.Apply(closeLabel, UIDesignTokens.TypeTier.T2Utility);
         closeLabel.fontStyle = FontStyle.Bold;
         closeLabel.raycastTarget = false;
 
