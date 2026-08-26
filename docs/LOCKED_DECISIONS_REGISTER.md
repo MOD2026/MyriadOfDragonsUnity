@@ -5324,3 +5324,32 @@ a narrow band reads fine in a spec but is unclearable for most real rosters, sil
 player a daily circuit - pinned by a real test rather than asserted. Solo Circuit thread is now
 functionally complete pending the Home entry-point wiring (dispatched above) and trial-completion
 wiring (also dispatched, VS's own next task).
+
+## CR correctly BLOCKED the restyle rather than faking it - real 9-slice art request needed, color-token relock authorized (2026-08-26)
+
+**Both of CR's citations verified real, not paraphrased loosely:** `Visual_Authority_Memory.md:99`
+genuinely lists "Generic flat coloured rectangles and procedural panels" under "Rejected drift
+patterns," and `:93` genuinely requires "verified border metadata" before `Image.Type.Sliced` is
+allowed. `UISharedFoundation.cs:9` genuinely says "must not drift." CR correctly refused to extend
+`ApplyFramedPanel` with a fake procedural version of what the reference doc explicitly rejects, and
+correctly refused to unilaterally relock a file marked frozen against drift - exactly the discipline
+this session has been asking every room for, on the first restyle attempt.
+
+**Color-token relock: decided directly (process call, not new design), AUTHORIZED.** Read
+`UISharedFoundation.cs`'s own history: the current LOCKED tokens were explicitly a first-pass
+consolidation of 13+ near-duplicate literals already scattered across the OLD flat-box screens
+("migrating existing screens onto these is a separate, later task" - never claimed as a final art
+direction). The Visual Authority Memory doc is now the deliberate, owner-approved art authority, and
+its palette genuinely differs in a real way, not cosmetically - e.g. it explicitly rejects "bright
+gold on every edge" while the current `ColorAccentBronze` (0.85, 0.72, 0.4) reads closer to bright
+gold than the doc's "aged bronze/restrained desaturated gold." Relocking to match is the correct
+next step given the old tokens were never meant to be final. CR may update `UISharedFoundation.cs`'s
+color tokens to match the Visual Authority Memory doc's palette section exactly.
+
+**Real 9-slice art needed - paste-ready UI request given to owner below**, covering exactly CR's 5
+listed elements (Content Panel, List Row, Primary/Secondary buttons with pressed states, Modal),
+each requiring real transparent PNGs with defined border insets for Unity's Sliced import - not
+another single flat reference sheet.
+
+**Contact-sheet harness approved to start now, independent of the art blocker** - it screenshots
+whatever ships today and gets more useful as real art lands, no reason to wait.
