@@ -5773,3 +5773,26 @@ button is non-interactable, unconditionally.
 `ApplyFramedPanel`/equivalent for primary CTAs, and identifying which buttons deserve primary vs.
 secondary treatment is real per-call-site judgment, not a blanket swap. Queued as the next real
 piece of the restyle thread.
+
+## Copilot's Home audit, round 1 (HomeV3UiLibrary.cs only): 1 real minor finding, correctly scoped as low-severity - not actually a Home bug (2026-08-26)
+
+**Verified: `TryApplyHeaderFrame` is a real dead stub** (`HomeV3UiLibrary.cs:26-32` - sets
+sprite=null, returns false unconditionally, never loads anything despite its name). Copilot
+correctly classified it as likely intentional-simplification-not-bug given Home's restyle hasn't
+landed yet.
+
+**Correction to scope: this method is never called by `HomePagePresenter.cs` at all** - grepped the
+whole codebase, only two real call sites exist: `AvatarPresenter.cs:51` and `EmpirePresenter.cs:87`,
+both correctly falling back to a clean flat `ColorHeader` fill when it returns false (verified the
+Empire call site directly - no visual bug, just a header that never gets ornate frame art). So this
+is a real, minor, low-priority Avatar/Empire finding, not a Home finding - Copilot's audit was
+honest about not having HomePagePresenter.cs yet, correctly caveated its own confidence, this just
+narrows where the finding actually applies.
+
+**Resource-pill silent-fallback finding (Finding 5) is real and worth a small fix eventually:**
+missing sprite lookups fall back to a flat color with no logging - matches the exact bug class
+already found on Memory Expedition/Shop tonight (approved art existing but nothing flags when it
+fails to load). Low priority, not urgent.
+
+Home's Phase 2-7 audit is still blocked on `HomePagePresenter.cs` reaching Copilot - owner directed
+to paste it directly rather than continue relaying ~1,450 lines through chat.
