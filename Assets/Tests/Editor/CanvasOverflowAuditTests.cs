@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
+using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -21,12 +24,51 @@ namespace MyriadOfDragons.Tests
     /// If the rendered size exceeds the screen on either axis, content near that edge is pushed
     /// off-display no matter how correct its anchors are.
     ///
-    /// Deliberately NOT a Unity-dependent test. It is pure arithmetic over the real scaler settings,
-    /// so it runs fast, needs no rendered frame, and cannot be defeated by a screen failing to
-    /// build - the three ways a check like this normally ends up quietly skipped.
+    /// The arithmetic needs no rendered frame, but it DOES need the scalers to exist - and they
+    /// only exist once a presenter has built one. The first version of this file swept a scene
+    /// nothing had built into and found zero canvases; because an empty sweep is written to FAIL
+    /// rather than pass, it reported its own vacuity instead of a false green. That is the check
+    /// working, and it is the reason the screens are built below.
     /// </summary>
     public class CanvasOverflowAuditTests
     {
+        private readonly List<UnityEngine.Object> _spawned = new List<UnityEngine.Object>();
+        private string _scratchSaveDir;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MyriadOverflow_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_scratchSaveDir);
+            SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
+            SaveSystem.ResetCurrentProfileForTests();
+            SaveSystem.Save(new PlayerProfile
+            {
+                gold = 50_000, gems = 5_000, stamina = 100, maxStamina = 100,
+                constructionMaterials = 50_000, avatarLevel = 10,
+            });
+            SaveSystem.ResetCurrentProfileForTests();
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+            foreach (UnityEngine.Object o in _spawned) if (o != null) UnityEngine.Object.DestroyImmediate(o);
+            _spawned.Clear();
+            SaveSystem.ClearRootDirectoryOverride();
+            SaveSystem.ResetCurrentProfileForTests();
+            if (Directory.Exists(_scratchSaveDir)) Directory.Delete(_scratchSaveDir, true);
+        }
+
+        private GameObject NewHost(string name)
+        {
+            var go = new GameObject(name);
+            _spawned.Add(go);
+            return go;
+        }
+
         /// <summary>Device profiles the audit runs against. The tablet is NOT optional - tablets
         /// are confirmed in scope, and a match value that fits every phone can still crop a tablet,
         /// which is precisely the residual risk the two-canvas decision was weighed against.</summary>
@@ -52,8 +94,39 @@ namespace MyriadOfDragons.Tests
         {
             var findings = new List<string>();
             var audited = new List<string>();
+            var seen = new HashSet<string>();
 
-            foreach (CanvasScaler scaler in Resources.FindObjectsOfTypeAll<CanvasScaler>())
+            // Built from the SAME registry the capture harness and the validator walk, so a screen
+            // can never be added to the project and silently miss this audit.
+            foreach (UiScreenEntry screen in UiScreenRegistry.Screens)
+            {
+                GameObject canvasObj = null;
+                try { canvasObj = screen.Build(NewHost, new UiNavigationProbe()); }
+                catch (Exception e) { findings.Add(screen.Name + ": failed to build - " + e.Message); }
+
+                if (canvasObj != null) AuditScalersUnder(canvasObj, screen.Name, seen, audited, findings);
+
+                CampaignMapPresenter.CleanupStaleMetagameCanvases();
+                foreach (UnityEngine.Object o in _spawned) if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                _spawned.Clear();
+            }
+
+            // An empty sweep is NOT a pass. If no scaler was found, this test proves nothing and
+            // must say so - a silently vacuous audit is worse than none, because it reports green.
+            Assert.IsNotEmpty(audited,
+                "No ScaleWithScreenSize canvas was found to audit. That is not a pass - it means " +
+                "the sweep found nothing to measure and the check is vacuous.");
+
+            Assert.IsEmpty(findings,
+                "Canvas overflow (" + findings.Count + " across " + audited.Count + " scalers):\n  - " +
+                string.Join("\n  - ", findings));
+        }
+
+        private void AuditScalersUnder(
+            GameObject canvasObj, string screenName, HashSet<string> seen,
+            List<string> audited, List<string> findings)
+        {
+            foreach (CanvasScaler scaler in canvasObj.GetComponentsInChildren<CanvasScaler>(true))
             {
                 if (scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize) continue;
 
@@ -61,7 +134,11 @@ namespace MyriadOfDragons.Tests
                 float refH = scaler.referenceResolution.y;
                 if (refW <= 0f || refH <= 0f) continue;
 
-                audited.Add(scaler.name);
+                // One report per distinct configuration. The same canvas rebuilt for 24 screens
+                // would otherwise produce 24 identical findings and bury anything unique.
+                string key = screenName + "/" + scaler.name + "/" + refW + "x" + refH + "/" + scaler.matchWidthOrHeight;
+                if (!seen.Add(key)) continue;
+                audited.Add(key);
 
                 foreach ((string device, float screenW, float screenH) in DeviceProfiles)
                 {
@@ -75,7 +152,7 @@ namespace MyriadOfDragons.Tests
 
                     if (renderedW > screenW + Slack)
                     {
-                        findings.Add(scaler.name + " on " + device + ": renders " +
+                        findings.Add(screenName + " " + scaler.name + " on " + device + ": renders " +
                                      Mathf.RoundToInt(renderedW) + "px wide into a " +
                                      Mathf.RoundToInt(screenW) + "px screen (overflowX " +
                                      Mathf.RoundToInt(renderedW - screenW) + "px, match=" +
@@ -84,7 +161,7 @@ namespace MyriadOfDragons.Tests
 
                     if (renderedH > screenH + Slack)
                     {
-                        findings.Add(scaler.name + " on " + device + ": renders " +
+                        findings.Add(screenName + " " + scaler.name + " on " + device + ": renders " +
                                      Mathf.RoundToInt(renderedH) + "px tall into a " +
                                      Mathf.RoundToInt(screenH) + "px screen (overflowY " +
                                      Mathf.RoundToInt(renderedH - screenH) + "px, match=" +
@@ -93,16 +170,6 @@ namespace MyriadOfDragons.Tests
                 }
             }
 
-            // An empty sweep is NOT a pass. If no scaler was found, this test proves nothing and
-            // must say so - a silently vacuous audit is worse than none, because it reports green.
-            Assert.IsNotEmpty(audited,
-                "No ScaleWithScreenSize canvas was found to audit. That is not a pass - it means " +
-                "the sweep found nothing to measure and the check is vacuous. Build a screen first, " +
-                "or point this at the real scaler configuration.");
-
-            Assert.IsEmpty(findings,
-                "Canvas overflow (" + findings.Count + " across " + audited.Count + " scalers):\n  - " +
-                string.Join("\n  - ", findings));
         }
 
         [Test]
