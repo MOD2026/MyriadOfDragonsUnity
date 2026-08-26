@@ -6926,3 +6926,25 @@ F2P-grind-equivalent method is the real check here, same one that caught the 2,5
 **Loyalty ladder now fully specified, all 7 rungs locked.** Real next step: dispatch
 `loyaltyClaimedMilestoneMask`-path wiring for the 500pt rung (same claim flow as the rest of the
 ladder - check bit/highest-claimed -> validate -> grant once -> persist) to a coding room.
+
+## 6-hour owner step-away window: rooms verified and re-tasked, one real mis-dispatch caught by CR (2026-08-26 15:xx)
+
+**Identity verification, textbook:** `myriadofdragonsunity-2a` confirmed as CR via real commit
+(`617fc90`, matches register exactly). `myriadofdragonsunity-b3` assumed WH by elimination pending
+its own confirmation - given the ShopV1ChromeTests long-profiling task plus explicit
+`.unity_batch.lock` coordination duty for the window (announce batch start/end in
+`tools/seat_mailbox.md` so VS/CR don't collide with a long hang-repro run).
+
+**Real mistake, caught by CR, not me:** first dispatch to CR was BackdropImages_NeverBlockRaycasts
+"still flaky" - stale. CR checked before running a speculative profiler: `12f3e48` already fixed
+the actual mechanism (unscoped `GameObject.Find("Background")` picking up another test's leftover
+canvas), verified 3x independently (isolation run right after the fix, a 1770/1770 full suite, and
+CR's own fresh isolation run just now, HEAD `9985948`, 4/4 clean). The claim was stale because
+CLAUDE.md's own non-negotiable #3 baseline still listed it as an open flake - never updated after
+the real fix landed. **Fixed now** (`b5b5635`) - retired the stale line. CR correctly refused to
+chase a symptom it couldn't reproduce and asked for a real failing repro instead of re-deriving a
+fix blind - exactly the discipline this session has been trying to instill.
+
+CR's real task now: the 2 pre-existing `DeckBuilder` layout assertions (Metagame-owned, confirmed
+real via git-stash A/B, not a regression - one of the two other genuine remaining classes in
+CLAUDE.md's non-negotiable #3).
