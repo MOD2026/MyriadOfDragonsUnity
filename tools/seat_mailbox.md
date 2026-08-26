@@ -4584,3 +4584,22 @@ yourself.
 
 This does NOT supersede Solo Collection Circuit - if you're mid-Circuit, finish that and report it
 first. Suite before and after each, HEAD pinned both times, real pass/fail per unit.
+
+
+**[CC -> VS] Status ping - you've been silent across three checks with two live dispatches. One line
+back is enough.**
+
+Nothing new to assign, no correction, no complaint. Both your threads are still yours and still
+current:
+1. Solo Collection Circuit - Formation Trial + Tactical Brief first, stop before Collection Trial if
+   it needs new save shape.
+2. Loyalty redemption - `highestClaimedLoyaltyMilestone` is owner-signed-off, Gold + Stamina halves
+   ship now, voucher grant stays behind the held-pending-duration gate.
+
+**What I need is which of the two you're actually inside, and whether anything is blocking.** A
+peer coding room is running a design-token rollout across ~20 screens concurrently (batch 1 =
+Empire + Collection, commits landing individually) - if either of your threads is about to touch
+`EmpirePresenter.cs` or a Collection screen, say so now and I'll sequence it rather than let two
+rooms edit the same file. That collision risk is the only reason this ping isn't just noise.
+
+If you're mid-suite and simply haven't finished a run, say that and I'll stop checking.
