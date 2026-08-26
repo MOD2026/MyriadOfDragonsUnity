@@ -211,35 +211,47 @@ namespace MyriadOfDragons.UI
             backingRect.offsetMax = Vector2.zero;
             backingImage.raycastTarget = false;
 
-            // Local plate over the text half of the pill only - leaves the left art unread darkened.
+            // Text plate sits ABOVE the pill art. ScrimLayer is always sibling 0 of its parent —
+            // parenting the scrim to pillRoot put it under PillBacking, so the light art still
+            // owned the samples (ResourceLabel/Value stayed under 2:1).
+            float plateW = width * 0.62f;
+            float plateH = 44f;
+            var textPlate = new GameObject("ResourceTextPlate", typeof(RectTransform));
+            textPlate.transform.SetParent(pillRoot.transform, false);
+            RectTransform plateRect = textPlate.GetComponent<RectTransform>();
+            plateRect.anchorMin = new Vector2(0f, 0f);
+            plateRect.anchorMax = new Vector2(0f, 0f);
+            plateRect.pivot = new Vector2(0.5f, 0.5f);
+            plateRect.sizeDelta = new Vector2(plateW, plateH);
+            plateRect.anchoredPosition = new Vector2(width * 0.64f, 26f);
             UISharedFoundation.AddSemiTransparentScrimPanel(
-                pillRoot.transform,
-                new Vector2(width * 0.62f, 26f),
-                new Vector2(width * 0.58f, 44f),
-                UIDesignTokens.FrameTier.Tier2Section);
+                textPlate.transform,
+                new Vector2(plateW * 0.5f, plateH * 0.5f),
+                new Vector2(plateW, plateH),
+                UIDesignTokens.FrameTier.Tier1Hero);
 
             Text labelText = UISharedFoundation.CreateText(
-                pillRoot.transform, "ResourceLabel", label, UITextRole.Body, TextAnchor.MiddleLeft,
+                textPlate.transform, "ResourceLabel", label, UITextRole.Body, TextAnchor.MiddleLeft,
                 Color.white, true, new Vector2(80f, 30f));
             labelText.fontSize = 16;
             labelText.raycastTarget = false;
             UISharedFoundation.ApplyTextShadow(labelText);
             RectTransform labelRect = labelText.rectTransform;
-            labelRect.anchorMin = new Vector2(0.27f, 0.2f);
-            labelRect.anchorMax = new Vector2(0.55f, 0.8f);
+            labelRect.anchorMin = new Vector2(0.02f, 0.1f);
+            labelRect.anchorMax = new Vector2(0.48f, 0.9f);
             labelRect.offsetMin = Vector2.zero;
             labelRect.offsetMax = Vector2.zero;
 
             Text valueText = UISharedFoundation.CreateText(
-                pillRoot.transform, "ResourceValue", value, UITextRole.Display, TextAnchor.MiddleRight,
+                textPlate.transform, "ResourceValue", value, UITextRole.Display, TextAnchor.MiddleRight,
                 Color.white, true, new Vector2(100f, 30f));
             valueText.fontSize = 22;
             valueText.fontStyle = FontStyle.Bold;
             valueText.raycastTarget = false;
             UISharedFoundation.ApplyTextShadow(valueText);
             RectTransform valueRect = valueText.rectTransform;
-            valueRect.anchorMin = new Vector2(0.55f, 0.2f);
-            valueRect.anchorMax = new Vector2(0.91f, 0.8f);
+            valueRect.anchorMin = new Vector2(0.48f, 0.1f);
+            valueRect.anchorMax = new Vector2(0.98f, 0.9f);
             valueRect.offsetMin = Vector2.zero;
             valueRect.offsetMax = Vector2.zero;
 
