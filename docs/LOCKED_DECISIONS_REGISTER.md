@@ -4617,3 +4617,20 @@ specific Snap numbers, so nothing to check there beyond the general claim).
 
 Expedition numbers alone are enough to unblock half of CR's combined-sim input; Battle Pass Gold
 stays a real `null` until BS resends against the actual 28-day/8-tier/XP-curve shape.
+
+## Design-token rollout batch 1/~20 LANDED, verified real (2026-08-26, CR, commit 5f204a5)
+
+Empire (header fallback, construction panel, Castle/Barracks/Gate rows) + Collection (background,
+header, controls row, grid panel, detail panel) migrated from flat colored Image rects to
+`UIFrozenTokens` colors + `UISharedFoundation.ApplyFramedPanel` real bordered panels. Verified via
+`git show --stat` - matches CR's report exactly.
+
+Real bug found+fixed along the way: Empire's construction panel top anchor (0.88) geometrically
+overlapped `Btn_Back` against the header's fixed 100px height - invisible while the panel was a
+flat sprite-less fill (the layout test's overlap check only flags Images with a sprite), surfaced
+once it got a real bordered sprite. Moved to 0.82, verified clear. 42/42 pass, HEAD 88d8950
+unchanged before/after.
+
+CR moving to batch 2 (5-6 more screens, still skipping Home/Shop/DeckBuilder/Story per the
+ownership boundary), Empire Expedition Gold/Stamina/cap wiring queued after that - room not idle,
+no dispatch needed.
