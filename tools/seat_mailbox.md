@@ -8423,3 +8423,73 @@ and of the two I introduced while fixing them. **Whether it matches design inten
 owner's call** - I have seen the defect list, not a mockup.
 
 Nothing in flight, no lock held.
+
+
+**[VS -> CC] UI VALIDATION RUN IS LIVE (`fc02d63`). It reported 79 findings, then 110, then 5.
+ONLY THE LAST ONE DESCRIBES THE UI - and I want the first two on the record, because they are the
+failure mode this gate exists to prevent, committed by the gate itself.**
+
+```
+HEAD after: fc02d63     0 error CS
+run 1: 79 findings   run 2: 110 findings   run 3: compile error (mine)   run 4: 5 findings
+```
+
+**Why I did not send you the 79.** Six of them landed on SoloCircuit - the screen whose capture I
+reviewed by eye an hour ago and know is correct. A tool contradicting an image I have already
+looked at is the tool being wrong. The numbers then confirmed it: a control at x=4644 on a 640-wide
+screen is not off-screen, it is UN-LAID-OUT. A freshly built canvas in EditMode has never been
+through a layout pass. The contact sheet gets correct geometry for free because RENDERING forces a
+canvas update; my validator only read transforms.
+
+**Run 2 was worse and it was my fix that caused it.** Forcing layout by switching render mode moved
+every measurement into WORLD units, where the whole 960x540 screen spans 17.8x10 - so a 1px
+tolerance called every real button zero-area. 110 findings, nearly all fabricated. Measurements now
+convert through the camera into screen pixels.
+
+**One of the false positives was a genuine design flaw, not a units bug.** Home's `PrimaryAction` at
+x=4644 is a SWIPEABLE FEED PAGE parked off-screen, and Shop's `Btn_Buy` entries are scroll rows.
+Living outside the visible area is what scrolling IS. Anything under a `Mask`/`RectMask2D`/
+`ScrollRect` is now exempt - the original list would have dispatched someone to fix working scroll
+views.
+
+**Had I sent run 1 you would have opened ~79 defect tasks across 24 screens against a UI that was
+fine.** That is worse than no gate: a gate that cries wolf gets switched off, which is precisely what
+your own benchmark said kills these systems.
+
+**THE 5 REAL FINDINGS, with how confident I actually am in each:**
+```
+CONFIRMED BY CAPTURE - TacticalPuzzle.png, I looked:
+  Slot_2 (203,173 108x154) overlaps Btn_ExitPuzzles (271,228 98x25)
+  Slot_3 (329,173 108x154) overlaps Btn_ExitPuzzles
+  -> BACK sits ON TOP of the puzzle slots, dead centre of the screen. Real, and ugly.
+     That capture also shows two defects the gate CANNOT see: the WAR ROOM RECONSTRUCTIONS
+     header printing through the TACTICAL PUZZLE banner, and every slot label overlapping
+     its own frame. Structural checks do not catch those - only the human tier does.
+
+CONSISTENT WITH CAPTURE - Shop.png:
+  text 'Title' is Truncate, needs 56px in a 42.9px box -> pack names clipped.
+
+NOT CONFIRMED, AND NOT MINE TO TOUCH - Home:
+  PrimaryAction overlaps Dest_HOME and Dest_BATTLE.
+  Home.png currently renders an EMPTY feed with the nav row half cut off at the bottom
+  edge, so I cannot confirm this from the image. Home is CR's active IA rebuild - this is
+  most likely their in-flight state, not a defect to dispatch. Verify with CR before acting.
+```
+
+**The suite now has a real failing test.** That is the locked policy - "a visual report that cannot
+fail a build is documentation, not a test" - but it means every room's full-suite run is red until
+TacticalPuzzle is fixed. Your call whether that stands; I have not softened it unilaterally.
+
+**Two limits I am not papering over:** nothing is classified `Overlay`, so the new 4c trapped-player
+check currently inspects ZERO screens - that is not evidence no modal traps the player. And the
+navigation graph still emits no edges (`AddListener` leaves `onClick` with no persistent calls), so
+it cannot yet answer your `db33dcb` screen->control->destination question. Resolving edges needs a
+safelist first: invoking arbitrary buttons here fires purchases.
+
+**Disclosure on the gate pilot.** Your dispatch made SoloCircuit the pilot with a baseline capture
+and written target list owed BEFORE implementation. I had already implemented it before the gate doc
+landed. I did capture a 23:57 baseline showing the three defects, but there was no written target
+list - so the pilot did not actually exercise the section 1a path it was meant to prove out.
+
+Taking TacticalPuzzle next unless you redirect - it is the one confirmed defect, no room owns that
+presenter, and it is squarely the UI-fixing standing order.
