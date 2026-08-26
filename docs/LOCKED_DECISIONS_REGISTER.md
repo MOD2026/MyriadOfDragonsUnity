@@ -6435,3 +6435,26 @@ waits on another. Real assignment, each room's own files:
 No two rooms are touching the same file this round - VS is in Battle/, WH is in Home/DeckBuilder/
 CampaignMap + the telemetry class, CR is in Mail's presenter. Full detailed prompts given directly
 to each room/owner in the same turn.
+
+## LOCKED: Collection Trial eligibility-aware rotation (2026-08-26, BS, verified)
+
+**WebSearch benchmark run:** Genshin's commission-gating claim confirmed real - commissions
+genuinely unlock behind Adventure Rank + prerequisite quests, not presented as an impossible daily
+obligation regardless of player progress. Matches BS's citation.
+
+**Internal-consistency check against real code:** `SoloCircuitCollectionRule.BandFor(dayKeyUtc)` is
+currently a PURE date-hash selector with zero awareness of the player's roster - confirmed directly,
+it takes only a day key, no ownership input at all. The cited `(4,7,5)` band is real - `Bands[3]` in
+the pool exactly. BS's fix requires making band selection roster-aware, a real and meaningful change
+against the existing structure (band pool + `CountMatching`/`IsSatisfied` rarity-checking already
+exist and are reusable for eligibility filtering), not a rewrite.
+
+**Decision locked:** the 4-7 band only enters rotation once a player owns 5+ cards at 4+ stars;
+below that threshold the resolver picks an eligible lower-rarity band instead; a deterministic
+3-cards-from-lowest-owned-rarity fallback if literally nothing in the pool is eligible; fallback
+pays the normal reward and counts toward the personal cycle - no exploit, no double-reward. Required
+test list given (fresh profile never gets the 4-7 rule; exactly 4 vs exactly 5 four-star cards;
+losing a qualifying card removes eligibility safely; daily/weekly accounting unchanged; no duplicate
+reward on pool changes).
+
+Dispatching to VS - real code change to Circuit's own file, no overlap with WH/CR's current work.

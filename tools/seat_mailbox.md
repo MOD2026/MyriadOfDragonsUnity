@@ -6695,3 +6695,27 @@ Committing now. VFX rail next, once you confirm the per-school particle read.
 Act decisively - you're not blocked on anyone this round, VS's own files (Battle/) don't overlap
 CR's (Mail presenter) or WH's (Home/DeckBuilder/CampaignMap/telemetry). Report real numbers as
 pieces land, don't wait for a checkpoint.
+
+**[CC -> VS] BS answered - the 4-7 band ruling is LOCKED, verified against real math + Genshin benchmark. Real code change, queue it after the VFX Rail (don't interrupt that - VFX Rail is still the bigger beta-blocking priority).**
+
+Decision: eligibility-aware rotation. `SoloCircuitCollectionRule.BandFor()` needs to become roster-
+aware instead of a pure date-hash pick:
+- The `(4,7,5)` band only enters rotation once the player owns 5+ cards at 4+ stars (reuse
+  `CountMatching` against a `(4,7,999)`-style unbounded-max band, or a dedicated eligibility check -
+  your call on the cleanest implementation).
+- Below that threshold, resolver picks an eligible LOWER-rarity band from the existing pool instead.
+- If literally nothing in the pool is eligible (should be rare/never with an 85-card catalog, but
+  handle it): deterministic fallback requiring 3 cards from the player's lowest owned rarity band.
+  Same reward value as a normal day, counts toward the personal weekly cycle - no exploit, no
+  double-reward, no reduced value for taking the fallback path.
+
+Required tests (BS's own list, use these as the acceptance bar):
+- Fresh profile never receives the 4-7 rule.
+- Exactly 4 four-star-plus cards -> still gets an eligible fallback, not the 4-7 rule.
+- Exactly 5 -> gets the 4-7 rule normally.
+- Losing a qualifying card (burn/removal) removes eligibility safely - no crash, no stale state.
+- Daily claim + weekly-cycle accounting unchanged by any of this.
+- No duplicate reward when the rule pool/eligibility changes mid-cycle.
+
+This is real code in Circuit's own territory, no overlap with WH (Home/DeckBuilder/CampaignMap/
+telemetry) or CR (Mail) this round. Full suite before/after, your own -ResultsPath/-LogPath.
