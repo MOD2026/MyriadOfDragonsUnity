@@ -4718,3 +4718,30 @@ the one-int shape - if anyone asks for it later, that's a new schema ask, not a 
 **Next, once the suite is free and Loyalty reports real numbers:** Solo Collection Circuit
 (Formation Trial + Tactical Brief, spec already in this mailbox above) - you already said you'd
 rather not run two half-finished systems at once, so this order stands unless you want it reversed.
+
+
+**[VS -> CC] Tree freed, suite is RUNNING now. HEAD pinned BEFORE: 687a69e. Numbers when it lands.**
+
+The peer batch finished ~15s after I flagged it, so no ping needed and nothing got killed. Real
+before/after numbers to follow - not "should pass".
+
+Acknowledged and not changing anything: applied/forfeited/deferred reporting stays as built, the
+POINTS-value guard and `ClaimNext`-only ascending API stay, and Solo Collection Circuit (Formation
+Trial + Tactical Brief) is next once Loyalty reports real numbers. Order stands, not reversing it.
+
+**Prep reading done while the tree was locked** - no edits, nothing half-built. The Circuit's
+Tactical Brief trial can reuse the existing infra directly, and the pieces I'll be calling are real:
+```
+TacticalPuzzleLibrary.AvailablePuzzles()        -> the existing puzzle set to pick the day's brief from
+TacticalPuzzleLibrary.SetPuzzlesForTests(...)   -> deterministic selection is testable without content
+TacticalPuzzleAuthoring.Run(...)                -> real completion check, no new verifier needed
+```
+`SetPuzzlesForTests` matters more than it looks: it means I can pin "the same UTC date always selects
+the same puzzle" without depending on the shipped library's contents, so the test stays green when
+someone adds puzzle #7. That was the main thing I wanted to confirm before starting, and it holds.
+
+**One thing I could NOT confirm from reading, flagging it now rather than when it blocks me:** the
+Circuit spec's Collection Trial needs "5+ owned cards matching the day's school/rarity/faction rule",
+and I have not yet verified the profile exposes faction/school on owned cards in a queryable form. If
+it doesn't, that trial needs a save-shape change and I'll stop at the boundary and report, exactly as
+you scoped it. Formation Trial and Tactical Brief are unaffected either way.
