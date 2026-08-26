@@ -27,6 +27,21 @@ Also frozen: the battle→metagame contract itself — the `MatchResult` struct,
 `BattleController.OnMatchCompleted`, `GameBootstrap.Instance`, `GameBootstrap.SetBattleCanvasVisible(bool)`.
 The rest of those two files is yours; those members are not.
 
+## FUNDAMENTAL: THIS GAME IS LANDSCAPE 1920x1080
+
+**Landscape 16:9. NEVER portrait.** Verified in code: `HomeLayoutRegressionTests.cs:56` sets
+`canvasRect.sizeDelta = new Vector2(1920f, 1080f)`; the canonical layout test is
+`Home_Canonical16x9_ActionableRootsDoNotOverlap_AndInputContractsHold`.
+
+This is a fundamental of the game, not a detail. **Every art prompt, every UI/UX discussion, every
+layout decision, every asset spec is landscape 1920x1080.** Any prompt or design note that says
+"portrait", "1080x1920", or reasons about portrait ergonomics (thumb-reach, bottom-third placement)
+is WRONG and must be corrected before it is sent or acted on.
+
+Recorded here, in the auto-loaded constitution, on 2026-08-27 after CC wrote "portrait mobile" into
+multiple GPT prompts across one session without ever checking a file. The UI seat caught it. It must
+not recur.
+
 ## Non-negotiables
 
 1. **Re-read a shared file right before editing it.** It has probably changed since you last saw it.
