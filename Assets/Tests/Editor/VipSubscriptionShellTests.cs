@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
@@ -22,6 +23,7 @@ namespace MyriadOfDragons.Tests
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(null);
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
         }
 
@@ -31,9 +33,10 @@ namespace MyriadOfDragons.Tests
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
             foreach (GameObject go in _spawned)
             {
-                if (go != null) Object.DestroyImmediate(go);
+                if (go != null) UnityEngine.Object.DestroyImmediate(go);
             }
             _spawned.Clear();
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(null);
             SaveSystem.ClearRootDirectoryOverride();
             SaveSystem.ResetCurrentProfileForTests();
             if (Directory.Exists(_scratchSaveDir))
@@ -41,19 +44,26 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void OpenValues_RefuseWhileUnset()
+        public void OpenValues_PricesAndDurations_MatchLockedSpec()
         {
-            Assert.IsNull(VipSubscriptionOpenValues.WeeklyGemPrice);
-            Assert.IsNull(VipSubscriptionOpenValues.FortnightGemPrice);
-            Assert.IsNull(VipSubscriptionOpenValues.MonthlyGemPrice);
-            Assert.IsFalse(VipSubscriptionOpenValues.ArePricesConfigured);
-            StringAssert.Contains("OPEN", VipSubscriptionOpenValues.StatusNote.ToUpperInvariant());
+            Assert.AreEqual(800, VipSubscriptionOpenValues.WeeklyGemPrice);
+            Assert.AreEqual(1500, VipSubscriptionOpenValues.FortnightGemPrice);
+            Assert.AreEqual(3000, VipSubscriptionOpenValues.MonthlyGemPrice);
+            Assert.IsTrue(VipSubscriptionOpenValues.ArePricesConfigured);
+            CollectionAssert.AreEqual(new[] { 7, 14, 30 }, VipSubscriptionOpenValues.PlanDurationDays);
+            CollectionAssert.AreEqual(new[] { 1, 2, 4 }, VipSubscriptionOpenValues.PlanMaxClaims);
+            StringAssert.Contains("Stamina", VipSubscriptionOpenValues.StatusNote);
             Assert.AreEqual("[runtime]", VipSubscriptionOpenValues.RuntimePlaceholder);
         }
 
         [Test]
-        public void Presenter_BuildsArtShell_AndActionsRefuse()
+        public void Presenter_BuildsArtShell_AndSubscribeAppliesWeekly()
         {
+            PlayerProfile profile = SaveSystem.CurrentProfile;
+            profile.gems = 2000;
+            profile.stamina = 20;
+            SaveSystem.Save(profile);
+
             var go = new GameObject("VipHarness");
             _spawned.Add(go);
             var presenter = go.AddComponent<VipSubscriptionPresenter>();
@@ -71,15 +81,112 @@ namespace MyriadOfDragons.Tests
                 "State sockets must show atlas-sliced icons, not empty colored wells.");
             Assert.IsNotNull(canvas.transform.Find("BenefitGrid/BenefitWell_0/BenefitIcon")?.GetComponent<Image>()?.sprite,
                 "Benefit wells must show atlas icons.");
-            StringAssert.Contains("OPEN",
+            StringAssert.Contains("Weekly",
                 canvas.transform.Find("BenefitGrid/BenefitWell_0/Label")?.GetComponent<Text>()?.text);
-            StringAssert.Contains("Not subscribed",
-                canvas.transform.Find("IdentityColumn/EntitlementState")?.GetComponent<Text>()?.text);
 
             VipSubscriptionActionResult subscribe = presenter.SubscribeForTests();
-            Assert.AreEqual(VipSubscriptionActionStatus.OpenValuesNotLocked, subscribe.Status);
-            VipSubscriptionActionResult restore = presenter.RestoreForTests();
-            Assert.AreEqual(VipSubscriptionActionStatus.OpenValuesNotLocked, restore.Status);
+            Assert.AreEqual(VipSubscriptionActionStatus.Applied, subscribe.Status);
+            Assert.AreEqual(VipSubscriptionOpenValues.WeeklyGemPrice,
+                2000 - SaveSystem.CurrentProfile.gems);
+            Assert.AreEqual("weekly", SaveSystem.CurrentProfile.vipPlanId);
+            Assert.AreEqual(1, SaveSystem.CurrentProfile.vipClaimsConsumed);
+            Assert.AreEqual(20 + ShopStaminaCatalog.StaminaGrantPerPotion, SaveSystem.CurrentProfile.stamina);
+            Assert.AreEqual(1, SaveSystem.CurrentProfile.staminaShopPurchasesInWindow);
+            StringAssert.Contains("Active",
+                canvas.transform.Find("IdentityColumn/EntitlementState")?.GetComponent<Text>()?.text);
+
+            VipSubscriptionActionResult second = presenter.SubscribePlanForTests(VipPlanKind.Monthly);
+            Assert.AreEqual(VipSubscriptionActionStatus.AlreadySubscribed, second.Status);
+        }
+
+        [Test]
+        public void Subscribe_ForfeitsClaimAtFullStamina_StillConsumesShopSlot()
+        {
+            long t0 = new DateTime(2026, 8, 26, 0, 0, 0, DateTimeKind.Utc).Ticks;
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(t0);
+
+            PlayerProfile profile = SaveSystem.CurrentProfile;
+            profile.gems = 1000;
+            profile.stamina = profile.maxStamina;
+            profile.staminaShopPurchasesInWindow = 0;
+            profile.staminaShopWindowStartUtcTicks = t0;
+            SaveSystem.Save(profile);
+
+            VipSubscriptionActionResult result = VipSubscriptionOpenValues.TrySubscribe(VipPlanKind.Weekly);
+            Assert.AreEqual(VipSubscriptionActionStatus.Applied, result.Status);
+            Assert.AreEqual(1, result.ClaimsForfeited);
+            Assert.AreEqual(0, result.ClaimsApplied);
+            Assert.AreEqual(profile.maxStamina, SaveSystem.CurrentProfile.stamina);
+            Assert.AreEqual(1, SaveSystem.CurrentProfile.vipClaimsConsumed);
+            Assert.AreEqual(1, SaveSystem.CurrentProfile.staminaShopPurchasesInWindow);
+        }
+
+        [Test]
+        public void Fortnight_SecondClaimUnlocksAfterSevenDays_AndSharesShopCap()
+        {
+            long t0 = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(t0);
+
+            PlayerProfile profile = SaveSystem.CurrentProfile;
+            profile.gems = 2000;
+            profile.stamina = 10;
+            profile.staminaShopPurchasesInWindow = 0;
+            profile.staminaShopWindowStartUtcTicks = t0;
+            SaveSystem.Save(profile);
+
+            Assert.AreEqual(VipSubscriptionActionStatus.Applied,
+                VipSubscriptionOpenValues.TrySubscribe(VipPlanKind.Fortnight).Status);
+            Assert.AreEqual(1, SaveSystem.CurrentProfile.vipClaimsConsumed);
+            Assert.AreEqual(1, SaveSystem.CurrentProfile.staminaShopPurchasesInWindow);
+
+            // Second claim unlocks at +7d. Keep the Shop rolling window open and full so the
+            // VIP claim must defer (7d would otherwise expire the 24h window and free the cap).
+            long tPlus7 = t0 + TimeSpan.FromDays(7).Ticks;
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(tPlus7);
+            SaveSystem.CurrentProfile.staminaShopWindowStartUtcTicks = tPlus7;
+            SaveSystem.CurrentProfile.staminaShopPurchasesInWindow = ShopStaminaCatalog.MaxPurchasesPerRollingDay;
+            SaveSystem.Save(SaveSystem.CurrentProfile);
+
+            VipSubscriptionActionResult deferred = VipSubscriptionOpenValues.TryRestore();
+            Assert.AreEqual(VipSubscriptionActionStatus.Applied, deferred.Status);
+            Assert.AreEqual(1, SaveSystem.CurrentProfile.vipClaimsConsumed,
+                "Claim must defer when Shop 24h cap is full — no bypass.");
+
+            // New rolling window + room under cap → second claim lands.
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(tPlus7 + ShopStaminaCatalog.RollingWindowTicks);
+            SaveSystem.CurrentProfile.stamina = 10;
+            SaveSystem.Save(SaveSystem.CurrentProfile);
+            VipSubscriptionActionResult second = VipSubscriptionOpenValues.TryRestore();
+            Assert.AreEqual(2, SaveSystem.CurrentProfile.vipClaimsConsumed);
+            Assert.AreEqual(1, second.ClaimsApplied);
+        }
+
+        [Test]
+        public void Lapse_ExpiresUnusedClaims_NoCompensation()
+        {
+            long t0 = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(t0);
+
+            PlayerProfile profile = SaveSystem.CurrentProfile;
+            profile.gems = 5000;
+            profile.stamina = 10;
+            // Cap shop slots immediately so monthly's later claims stay unused.
+            profile.staminaShopPurchasesInWindow = ShopStaminaCatalog.MaxPurchasesPerRollingDay;
+            profile.staminaShopWindowStartUtcTicks = t0;
+            SaveSystem.Save(profile);
+
+            Assert.AreEqual(VipSubscriptionActionStatus.Applied,
+                VipSubscriptionOpenValues.TrySubscribe(VipPlanKind.Monthly).Status);
+            Assert.AreEqual(0, SaveSystem.CurrentProfile.vipClaimsConsumed,
+                "First claim deferred under full shop cap.");
+
+            long afterExpiry = t0 + TimeSpan.FromDays(31).Ticks;
+            VipSubscriptionOpenValues.SetNowUtcTicksForTests(afterExpiry);
+            VipSubscriptionActionResult restore = VipSubscriptionOpenValues.TryRestore();
+            Assert.AreEqual(VipSubscriptionActionStatus.NotSubscribed, restore.Status);
+            StringAssert.Contains("lapsed", restore.Message.ToLowerInvariant());
+            Assert.AreEqual(string.Empty, SaveSystem.CurrentProfile.vipPlanId);
+            Assert.AreEqual(0, SaveSystem.CurrentProfile.vipClaimsConsumed);
         }
 
         [Test]

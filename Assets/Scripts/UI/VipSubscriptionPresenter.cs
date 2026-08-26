@@ -1,11 +1,12 @@
 using System;
 using MyriadOfDragons.Metagame;
+using MyriadOfDragons.Save;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace MyriadOfDragons.UI
 {
-    /// <summary>VIP / Subscription V1 art shell. Subscribe/restore refuse while OpenValues stay OPEN.</summary>
+    /// <summary>VIP / Subscription V1 — real Gem entitlement + scheduled Stamina claims (LOCKED 2026-08-26).</summary>
     public class VipSubscriptionPresenter : MonoBehaviour
     {
         public const string CanvasName = "VipSubscriptionCanvas";
@@ -13,6 +14,8 @@ namespace MyriadOfDragons.UI
         private GameObject _canvasObj;
         private Action _onBack;
         private Text _statusText;
+        private Text _entitlementStateText;
+        private Text _milestoneText;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
@@ -21,12 +24,26 @@ namespace MyriadOfDragons.UI
         {
             _onBack = onBack;
             BuildUI();
+            // Land any due claims when opening the shell (same restore path).
+            VipSubscriptionActionResult restore = VipSubscriptionOpenValues.TryRestore();
+            if (restore.Status == VipSubscriptionActionStatus.Applied)
+                SetStatus(restore.Message);
+            RefreshEntitlementCopy();
         }
 
         public VipSubscriptionActionResult SubscribeForTests()
         {
             VipSubscriptionActionResult result = VipSubscriptionOpenValues.TrySubscribe();
             SetStatus(result.Message);
+            RefreshEntitlementCopy();
+            return result;
+        }
+
+        public VipSubscriptionActionResult SubscribePlanForTests(VipPlanKind plan)
+        {
+            VipSubscriptionActionResult result = VipSubscriptionOpenValues.TrySubscribe(plan);
+            SetStatus(result.Message);
+            RefreshEntitlementCopy();
             return result;
         }
 
@@ -34,6 +51,7 @@ namespace MyriadOfDragons.UI
         {
             VipSubscriptionActionResult result = VipSubscriptionOpenValues.TryRestore();
             SetStatus(result.Message);
+            RefreshEntitlementCopy();
             return result;
         }
 
@@ -110,30 +128,45 @@ namespace MyriadOfDragons.UI
             col.transform.SetParent(_canvasObj.transform, false);
             SetNorm(col.GetComponent<RectTransform>(), 0.02f, 0.16f, 0.26f, 0.86f);
 
-            Text state = UISharedFoundation.CreateText(col.transform, "EntitlementState",
-                $"Not subscribed · IAP {MetagameShellProfileBinding.OpenAmountLabel}",
+            _entitlementStateText = UISharedFoundation.CreateText(col.transform, "EntitlementState",
+                "Not subscribed",
                 UITextRole.Title, TextAnchor.UpperLeft,
                 new Color(0.95f, 0.9f, 0.79f), true, new Vector2(400f, 48f));
-            SetNorm(state.rectTransform, 0.04f, 0.78f, 0.96f, 0.96f);
+            SetNorm(_entitlementStateText.rectTransform, 0.04f, 0.78f, 0.96f, 0.96f);
 
             Text desc = UISharedFoundation.CreateText(col.transform, "Description",
-                "Convenience only — no combat power, exclusive progression, or economy grant.",
+                "Convenience only — scheduled Stamina claims. No combat power, deck power, or exclusive progression.",
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.85f, 0.82f, 0.7f), true,
                 new Vector2(400f, 120f));
             SetNorm(desc.rectTransform, 0.04f, 0.42f, 0.96f, 0.76f);
 
+            string[] planLabels =
+            {
+                $"W {VipSubscriptionOpenValues.WeeklyGemPrice}g",
+                $"F {VipSubscriptionOpenValues.FortnightGemPrice}g",
+                $"M {VipSubscriptionOpenValues.MonthlyGemPrice}g",
+            };
             for (int i = 0; i < VipSubscriptionOpenValues.StateSocketCount; i++)
             {
                 float left = i / 3f;
-                GameObject socket = new GameObject($"StateSocket_{i}", typeof(RectTransform), typeof(Image));
+                int planIndex = i;
+                GameObject socket = new GameObject($"StateSocket_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
                 socket.transform.SetParent(col.transform, false);
                 Image img = socket.GetComponent<Image>();
                 img.color = new Color(0.12f, 0.14f, 0.18f, 0.35f);
-                img.raycastTarget = false;
+                img.raycastTarget = true;
                 SetNorm(socket.GetComponent<RectTransform>(), left + 0.04f, 0.08f, left + 0.28f, 0.36f);
-                // Atlas is Single-mode; equal-width runtime cells (first 3 = crown tiers).
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(socket.transform, "StateIcon",
                     VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.08f, 0.08f, 0.92f, 0.92f);
+                UISharedFoundation.CreateText(socket.transform, "PlanPrice", planLabels[i],
+                    UITextRole.Caption, TextAnchor.LowerCenter, new Color(0.95f, 0.9f, 0.7f), true,
+                    new Vector2(100f, 24f));
+                socket.GetComponent<Button>().onClick.AddListener(() =>
+                {
+                    VipSubscriptionActionResult result = VipSubscriptionOpenValues.TrySubscribe((VipPlanKind)planIndex);
+                    SetStatus(result.Message);
+                    RefreshEntitlementCopy();
+                });
             }
         }
 
@@ -142,6 +175,16 @@ namespace MyriadOfDragons.UI
             GameObject grid = new GameObject("BenefitGrid", typeof(RectTransform));
             grid.transform.SetParent(_canvasObj.transform, false);
             SetNorm(grid.GetComponent<RectTransform>(), 0.28f, 0.16f, 0.68f, 0.86f);
+
+            string[] benefitLabels =
+            {
+                $"Weekly - 1x{ShopStaminaCatalog.StaminaGrantPerPotion} Stam",
+                "Fortnight - 2 claims",
+                "Monthly - 4 claims",
+                $"Uses Shop {ShopStaminaCatalog.MaxPurchasesPerRollingDay}/24h slots",
+                "Full Stam = forfeit",
+                "No combat power",
+            };
 
             for (int i = 0; i < VipSubscriptionOpenValues.BenefitWellCount; i++)
             {
@@ -157,11 +200,10 @@ namespace MyriadOfDragons.UI
                 SetNorm(well.GetComponent<RectTransform>(),
                     col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f,
                     (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
-                // Decorative atlas cell in the well (cells 0–5); label stays readable below.
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(well.transform, "BenefitIcon",
                     VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.18f, 0.38f, 0.82f, 0.92f);
                 Text label = UISharedFoundation.CreateText(well.transform, "Label",
-                    $"Benefit {i + 1} — convenience {MetagameShellProfileBinding.OpenAmountLabel}",
+                    benefitLabels[i],
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true,
                     new Vector2(220f, 36f));
                 SetNorm(label.rectTransform, 0.06f, 0.06f, 0.94f, 0.34f);
@@ -173,13 +215,11 @@ namespace MyriadOfDragons.UI
             GameObject strip = new GameObject("MilestoneStrip", typeof(RectTransform));
             strip.transform.SetParent(_canvasObj.transform, false);
             SetNorm(strip.GetComponent<RectTransform>(), 0.70f, 0.16f, 0.97f, 0.86f);
-            Text label = UISharedFoundation.CreateText(strip.transform, "MilestoneStatus",
-                $"Milestones {MetagameShellProfileBinding.OpenAmountLabel}\n\n" +
-                $"{MetagameShellProfileBinding.SelfIdentityLine()}\n{MetagameShellProfileBinding.WalletLine()}\n\n" +
-                "Prices/durations/store entitlements stay server-owned — no local purchase truth.",
+            _milestoneText = UISharedFoundation.CreateText(strip.transform, "MilestoneStatus",
+                BuildMilestoneCopy(),
                 UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 400f));
-            SetNorm(label.rectTransform, 0.06f, 0.08f, 0.94f, 0.94f);
+            SetNorm(_milestoneText.rectTransform, 0.06f, 0.08f, 0.94f, 0.94f);
         }
 
         private void BuildActionBar()
@@ -192,7 +232,12 @@ namespace MyriadOfDragons.UI
             subscribe.transform.SetParent(bar.transform, false);
             Image sImg = subscribe.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(subscribe.GetComponent<Button>(), sImg, new Color(0.28f, 0.36f, 0.22f));
-            subscribe.GetComponent<Button>().onClick.AddListener(() => SetStatus(VipSubscriptionOpenValues.TrySubscribe().Message));
+            subscribe.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                VipSubscriptionActionResult result = VipSubscriptionOpenValues.TrySubscribe(VipPlanKind.Weekly);
+                SetStatus(result.Message);
+                RefreshEntitlementCopy();
+            });
             SetNorm(subscribe.GetComponent<RectTransform>(), 0.42f, 0.12f, 0.68f, 0.88f);
             UISharedFoundation.CreateText(subscribe.transform, "Text", "SUBSCRIBE", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(240f, 36f));
@@ -201,10 +246,45 @@ namespace MyriadOfDragons.UI
             restore.transform.SetParent(bar.transform, false);
             Image rImg = restore.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(restore.GetComponent<Button>(), rImg, new Color(0.22f, 0.26f, 0.32f));
-            restore.GetComponent<Button>().onClick.AddListener(() => SetStatus(VipSubscriptionOpenValues.TryRestore().Message));
+            restore.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                VipSubscriptionActionResult result = VipSubscriptionOpenValues.TryRestore();
+                SetStatus(result.Message);
+                RefreshEntitlementCopy();
+            });
             SetNorm(restore.GetComponent<RectTransform>(), 0.70f, 0.12f, 0.96f, 0.88f);
             UISharedFoundation.CreateText(restore.transform, "Text", "RESTORE", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
+        }
+
+        private void RefreshEntitlementCopy()
+        {
+            if (_entitlementStateText != null)
+                _entitlementStateText.text = BuildEntitlementStateLine();
+            if (_milestoneText != null)
+                _milestoneText.text = BuildMilestoneCopy();
+        }
+
+        private static string BuildEntitlementStateLine()
+        {
+            var profile = SaveSystem.CurrentProfile;
+            long now = VipSubscriptionOpenValues.NowUtcTicks();
+            if (!VipSubscriptionOpenValues.IsSubscriptionActive(profile, now))
+                return "Not subscribed";
+            VipSubscriptionOpenValues.TryParsePlanId(profile.vipPlanId, out VipPlanKind plan);
+            int max = VipSubscriptionOpenValues.PlanMaxClaims[(int)plan];
+            return $"Active - {VipSubscriptionOpenValues.PlanDisplayName(plan)} - claims {profile.vipClaimsConsumed}/{max}";
+        }
+
+        private static string BuildMilestoneCopy()
+        {
+            return
+                "VIP plans (Gem)\n" +
+                $"Weekly {VipSubscriptionOpenValues.WeeklyGemPrice} / 7d - 1 claim\n" +
+                $"Fortnight {VipSubscriptionOpenValues.FortnightGemPrice} / 14d - 2 claims\n" +
+                $"Monthly {VipSubscriptionOpenValues.MonthlyGemPrice} / 30d - 4 claims\n\n" +
+                $"{MetagameShellProfileBinding.SelfIdentityLine()}\n{MetagameShellProfileBinding.WalletLine()}\n\n" +
+                BuildEntitlementStateLine();
         }
 
         private void SetStatus(string message)

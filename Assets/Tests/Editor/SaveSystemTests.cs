@@ -88,6 +88,10 @@ namespace MyriadOfDragons.Tests
                 expeditionDayKeyUtc = "2026-08-24",
                 expeditionGoldEarnedTodayUtc = 350,
                 expeditionAttemptsTodayUtc = 2,
+                vipPlanId = "monthly",
+                vipStartedUtcTicks = 1000,
+                vipExpiresUtcTicks = 2000,
+                vipClaimsConsumed = 2,
             };
             written.hasSeenIntro = true;
             written.seenChapters.Add("prologue");
@@ -116,6 +120,10 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual("2026-08-24", read.expeditionDayKeyUtc);
             Assert.AreEqual(350, read.expeditionGoldEarnedTodayUtc);
             Assert.AreEqual(2, read.expeditionAttemptsTodayUtc);
+            Assert.AreEqual("monthly", read.vipPlanId);
+            Assert.AreEqual(1000, read.vipStartedUtcTicks);
+            Assert.AreEqual(2000, read.vipExpiresUtcTicks);
+            Assert.AreEqual(2, read.vipClaimsConsumed);
             Assert.IsTrue(read.hasSeenIntro);
             CollectionAssert.AreEqual(new[] { "prologue", "chapter_two" }, read.seenChapters);
             CollectionAssert.AreEqual(new[] { "dragon_007" }, read.activeDeckCardIds);

@@ -48,6 +48,10 @@ namespace MyriadOfDragons.Save
             // is still worth normalizing to empty here for the same reason every other string/list
             // field in this method is - nothing downstream should have to null-check it.
             profile.expeditionDayKeyUtc ??= string.Empty;
+            profile.vipPlanId ??= string.Empty;
+            profile.vipClaimsConsumed = AtLeastZero(profile.vipClaimsConsumed);
+            if (profile.vipStartedUtcTicks < 0) profile.vipStartedUtcTicks = 0;
+            if (profile.vipExpiresUtcTicks < 0) profile.vipExpiresUtcTicks = 0;
             profile.constructionMaterials = AtLeastZero(profile.constructionMaterials);
             profile.expeditionGoldEarnedTodayUtc = AtLeastZero(profile.expeditionGoldEarnedTodayUtc);
             profile.expeditionAttemptsTodayUtc = AtLeastZero(profile.expeditionAttemptsTodayUtc);

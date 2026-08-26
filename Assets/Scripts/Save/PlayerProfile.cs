@@ -258,6 +258,21 @@ namespace MyriadOfDragons.Save
         /// ShopLoyaltyService floors the value on read and write instead.</summary>
         public int shopMilestoneProgress = 0;
 
+        /// <summary>Highest loyalty milestone POINTS value the player has already claimed.
+        /// Additive, owner-signed-off 2026-08-26 ("OWNER SIGN-OFF: highestClaimedLoyaltyMilestone
+        /// field") after the milestone ladder was locked.
+        ///
+        /// Stores the threshold itself, not an index, so a milestone X is claimed iff
+        /// X &lt;= this value. One int is sufficient - not a bitmask and not seven flags - because
+        /// the ladder is strictly ascending and shopMilestoneProgress never decays.
+        ///
+        /// Defaults to 0, which is below the lowest rung (100), so an old save correctly reads as
+        /// "nothing claimed yet" and no migration step is required. Consequence worth knowing: this
+        /// shape forces claims to happen in ascending order, since claiming a high rung would mark
+        /// every lower one claimed. ShopLoyaltyService enforces that explicitly rather than letting
+        /// a caller silently burn the lower rewards.</summary>
+        public int highestClaimedLoyaltyMilestone = 0;
+
         // --- MEMORY EXPEDITION (Tree of Knowledge daily minigame) ---
         // Additive, owner-approved 2026-08-25 (all 12 fields listed and approved verbatim before
         // this frozen file was touched). Core logic lives in Empire/MemoryExpedition.cs as a plain
