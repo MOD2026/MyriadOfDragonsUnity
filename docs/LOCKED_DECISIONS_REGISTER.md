@@ -7528,3 +7528,17 @@ wrong borders after doing all this work to fix the loading problem - not worth t
 **Cross-notified VS**, whose Battle-screen chrome task will start calling `ApplyFramedPanel` for the
 first time - told to position-then-apply from the start rather than repeat the mistake CR is now
 fixing everywhere else.
+
+## CORRECTION: "fourth session" was a false alarm - it was CC's own model switch, not a rogue peer (2026-08-26)
+
+Commits `3e2894c`/`16ab86f` (co-authored "Claude Opus 5 (1M context)") were flagged as a possibly
+unidentified fourth active session editing `UISharedFoundation.cs` at the same time as CR - real
+concern given the standing verify-identity discipline. Owner clarified directly: it was this same CC
+session under a temporary `/model claude-opus-5` switch, since reverted to Sonnet 5 - the different
+co-author tag is a model-switch artifact, not a different agent. No collision risk, no unidentified
+session. CR is clear to proceed with its 24-site reorder as approved.
+
+**The two findings from those commits stand regardless of authorship** - real, already verified: the
+mesh-type theory was raised and self-retracted (Unity forces FullRect for any bordered sprite, the
+23-vs-7 meta correlation was real but runtime-inert), and the AvatarStrike sprite path bug (loads
+from outside any Resources folder) is real and now instrumented.
