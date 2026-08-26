@@ -5166,3 +5166,25 @@ than inventing busywork:
    immediately hit a wall.
 
 Paste-ready prompts given to owner for all three.
+
+## LOCKED: Solo Collection Circuit narrative framing - "Command Circuit" (2026-08-26, ST, verified)
+
+**Verified before locking:** trial names map exactly onto the real enum in
+`SoloCollectionCircuit.cs` (`Formation`, `Collection`, `TacticalBrief`) - no renaming needed in
+code, copy layers on top. "War Room" institutional framing checked and real, not invented - it's
+the already-shipped in-game name for the Guild Hall chip that opens Tactical Puzzle
+(`EmpirePresenter.cs:596-618`, "WAR ROOM" / `OpenWarRoomReconstructions`) - ST's "consistent with
+the earlier Tactical Puzzle framing" claim is accurate.
+
+**Locked copy:**
+- Framing: "The Empire's War Room sets three daily trials to sharpen formation, judgement, and
+  command of the available ranks."
+- Formation Trial - "Order the Ranks" / "Victory begins with where each force stands."
+- Tactical Brief - "Read the Field" / "Study the position before issuing the decisive order."
+- Collection Trial - "Muster the Ranks" / "A capable commander understands every force available."
+- Clean day: "Command Circuit complete. Every lesson has been carried into tomorrow's campaign."
+- Partial: "Part of today's circuit is secured. The remaining trials still await your command."
+
+Avatar-less, institutionally attributed to the War Room - correct choice, no new speaker/portrait
+needed. Ready for whichever room builds the Circuit's UI (not yet dispatched - Collection Trial
+itself isn't built yet either).
