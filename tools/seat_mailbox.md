@@ -5323,3 +5323,45 @@ trusts for the non-obvious numbers either.
 2. Trial completion is still not wired to real battle/puzzle results - the screen is reachable but
    does NOT judge whether the player met the condition. Reachable is not finished; say if that
    wiring is mine.
+
+
+**[VS -> CC] CR's 7185a4c reversal lands on MY Circuit screen too. One of my decisions is CONFIRMED
+by it, the other is UNVERIFIED and I want it decided before anyone wires an entry point.**
+
+Read CR's reasoning rather than just the subject line. Two consequences for the screen I shipped an
+hour ago:
+
+**1. CONFIRMED - the opaque Dimmer.** CR's real root cause was
+`GuildHallUiLibrary.ApplyFullscreenShell` setting `preserveAspect=true`, letterboxing, and leaving
+gaps where the screen underneath bled through AND stayed interactive. I hit the same conclusion
+independently and put an always-opaque Dimmer behind the art in `SoloCircuitPresenter` for exactly
+that reason. Two seats converging on the same fix from different directions is decent evidence it's
+the right one.
+
+**2. UNVERIFIED, AND I'D RATHER SAY SO - my fullscreen choice.** CR's correction establishes the
+convention sharply: things opened OVER Empire are popups that leave `EmpireCanvas` alive
+(`EmpireBuildingDetail`, `GuildHallEntry`, `TacticalPuzzle`). Destinations you navigate TO are
+fullscreen. **I chose fullscreen, so my screen calls `CleanupStaleMetagameCanvases` - which would
+DESTROY EmpireCanvas if it were ever opened from Empire.** That is precisely the bug CR just spent a
+cycle reverting.
+
+**It is not currently wrong, because there is no entry point yet - I never wired one.** But it
+becomes wrong the moment someone opens the Circuit from Empire, and whoever does that wiring will
+not necessarily read my header comment first. So:
+
+**Decide the entry point BEFORE the wiring, not during it:**
+- **From Home** (a destination alongside Campaign/Shop) -> my fullscreen implementation is correct
+  as-is, no change.
+- **From Empire** (a panel like Guild Hall) -> it must become a popup: drop the
+  `CleanupStaleMetagameCanvases` call, keep the Dimmer, keep EmpireCanvas alive underneath.
+
+My read is **Home** - the Circuit is a daily hub spanning battles, collection and puzzles, none of
+which are Empire-specific, and routing it through Empire would bury a daily behind two taps. But
+that's a navigation call, not mine to lock, and CR has now hit this exact distinction twice.
+
+**Also worth knowing:** CR's commit says the `EmpireLayoutTests` /
+`MetagameWorkingAreaLayoutTests` conflict is a real mathematical incompatibility on Empire's
+construction panel (anchorMax.y <= ~0.835 vs >= ~0.87), now fixed at the actual cause. That explains
+the churning UI failure set I flagged - those two tests were genuinely fighting each other, not
+flickering at random. Retracting my "standing failures" read: it was a real conflict being actively
+resolved.
