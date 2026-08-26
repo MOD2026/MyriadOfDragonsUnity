@@ -9065,3 +9065,59 @@ five separate hero treatments would read as five broken screens.
 Empty states are content, so they belong on the content canvas. Coordinate with CR's Home reference
 implementation before you finalise anchoring, or you will place against a layout that is about to
 change underneath you.
+
+---
+
+## 2026-08-27 — CC → VS. **NEW TOP PRIORITY: validator v2. Ahead of empty-state adoption.**
+
+Spec locked at `6c2696d`. Build this BEFORE CR rolls the two-canvas split across 24 screens — the
+audit needs to exist so it catches mistakes during the rollout rather than after.
+
+**CHECK 0 — GLOBAL CANVAS OVERFLOW AUDIT. Build this first, today. It is ten lines.**
+
+For every Canvas with `ScaleMode == ScaleWithScreenSize`, per target device profile:
+```
+scaleFactor = lerp(screenW/refW, screenH/refH, matchWidthOrHeight)
+renderedW = refW * scaleFactor ;  renderedH = refH * scaleFactor
+FAIL if renderedW > screenW || renderedH > screenH
+report overflowX / overflowY
+```
+
+**This is the check that would have caught the `matchWidthOrHeight` bug on day one.** It sat there
+since project start, produced overlapping HUDs, and every test passed — because the validator
+assumed the canvas mapping was correct and only checked geometry INSIDE it. **Never validate
+geometry inside a container you have not validated.** That principle is worth more than the check.
+
+Device profiles to run it against, at minimum: **2400x1080 phone, 2560x1600 tablet, 1920x1080**.
+Tablets are confirmed in scope, so the tablet profile is not optional.
+
+**Then the five cross-canvas checks:**
+
+1. **HUD placement — replaces the anchor heuristic, which AD confirmed is broken.**
+   `edgeThresholdPx = max(round(H*0.10), 96)`. Any INTERACTIVE element whose `screenRect` intersects
+   the top or bottom edge zone (safe-area insets included) MUST be on the HUD canvas. Deterministic,
+   device-aware, no anchor guessing.
+2. **Safe-area containment.** **Every validator run MUST be passed explicit `screenWidth`,
+   `screenHeight`, `safeAreaOverride` — and a run that omits them FAILS.** Otherwise it passes
+   because the editor's safe area is trivial, i.e. passes for the wrong reason. That failure mode is
+   worse than no check, so please enforce it rather than defaulting.
+3. **Cross-canvas overlap.** Two elements on different canvases with different scale factors can
+   collide on screen while each canvas is clean alone. Compute `screenRect` + `zKey =
+   (canvas.sortingOrder, siblingIndex)` for ALL interactive elements globally; flag intersections
+   above `max(4px, 0.5% of the smaller rect)`; report which is on top.
+4. **Contrast across canvases.** `fontScreenPx` must use THAT element's own canvas scale factor —
+   HUD is match=1, content match=0.5, so they differ. Sample background by finding the topmost
+   graphic across ALL canvases and compositing down. Sampling only the local canvas misses a HUD
+   overlay changing the effective background.
+5. **Raycast blocking.** Static: at each content control's centre, find the topmost raycast-target
+   graphic across canvases; if it is a HUD element with no `Selectable`/`onClick`, flag it as a
+   silent tap-swallower. Geometry checks cannot see this. Dynamic `GraphicRaycaster.Raycast` in
+   PlayMode is the only fully accurate input test — a small set for high-risk screens is worth it,
+   and we currently have **zero** PlayMode tests that check anything visual.
+
+**Ordering: overflow audit passes → then per-screen checks. Do not promote a screen until the full
+suite passes on every device profile.**
+
+Empty-state adoption (Mail/Friends/Chat/Collection filter) moves behind this. Your three earlier
+decisions stand as sent: red test stays red, Home tiles authorised onto the safelist under
+navigate-only/default-deny, contrast stays WARN.
