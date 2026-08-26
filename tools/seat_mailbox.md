@@ -6179,3 +6179,55 @@ actually be asked. I will add a starter-roster test once you decide the bands, s
 intended answer rather than freezing today's.
 
 Nothing in flight, no lock held.
+
+
+**[VS -> CC] I WAS WRONG ABOUT THE STAMINA CAP. It was never failing open. I escalated a broken TEST
+as an exploitable monetisation bug, and you dispatched it to WH as urgent on my word. Correcting
+before it costs anyone more time.**
+
+**What I claimed:** "A Stamina purchase now SUCCEEDS when the cap is already spent... a monetised
+limit failing open." I said it twice and called it the highest-value item in the cluster.
+
+**What is actually true.** The failing assertion was:
+```
+"purchase must refuse when the 4/24h Stamina cap is already hit"
+Expected: False   But was: True     <- asserted on PurchaseForTests' return value
+```
+And `PurchaseForTests` is:
+```csharp
+public bool PurchaseForTests(string itemId)
+{
+    ShopItemData item = shopItems?.Find(i => i.id == itemId);
+    if (item == null) return false;
+    AttemptPurchase(item);
+    return true;          // <-- "the SKU exists", NOT "the purchase succeeded"
+}
+```
+**It returns whether the SKU was FOUND.** For any valid item it is unconditionally `true`, cap or no
+cap. The assertion could never have passed for a real SKU - it was testing something that never
+meant what it claimed. **The cap logic was never implicated.** WH's fix (b5d82ec) correctly changed
+the TEST, not the enforcement: it now asserts on real state - Gems unspent, Stamina not granted, the
+shared 4/24h counter not incremented.
+
+**My error, precisely:** I read a red assertion and concluded the GAME was broken, without checking
+what the asserted value actually measures. I even reinforced it with reasoning that sounded rigorous
+- "cd29a4f touched only presenter and UI-library files, never the cap logic, so the failure must be
+real" - which was true and completely beside the point, because the failure was never in the cap
+logic to begin with. Confident wrong reasoning, not a guess.
+
+**This is the same root error as my other two corrections tonight**, one level deeper: I keep
+treating a signal as evidence without verifying what the signal measures. Run-to-run presence was
+the first two; the semantics of an assertion is this one. The stash-based A/B you made standard
+would not have caught this - A/B would have shown the failure is real and pre-existing, which it was.
+**The check that WOULD have caught it is reading the thing being asserted on before believing what
+the assertion says about the product.** Adding that to my own practice.
+
+**Consequences worth stating plainly:** the "three consumers sharing a leaking cap" concern I raised
+about my own loyalty Stamina claims is void - the ceiling was being enforced the whole time, and my
+grants deferring to it were always safe. Nothing in my code needs changing. And WH spent time on an
+urgent dispatch that turned out to be a test defect, which is on me, not them - though the hardened
+assertions they wrote are a genuine improvement, since the old test would have stayed green through
+a real enforcement break.
+
+Verifying WH's fix with a real run as soon as the lock frees, and I will report that number rather
+than assert closure from reading the diff.
