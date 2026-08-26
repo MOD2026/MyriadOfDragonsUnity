@@ -4797,3 +4797,30 @@ worth zero for exactly the players reaching it).
 be purchased/traded/converted, only increased by a successfully claimed Loyalty milestone and only
 decreased by normal Stamina-cap-gated delivery. Same additive-field pattern as every other field
 added tonight. Escalating to owner now.
+
+## CORRECTION: Battle Pass Gold table lock was premature - CR caught a real gap I didn't check (2026-08-26)
+
+**My error, not CR's.** I verified the Gold table's arithmetic and that it maps onto the 8-tier
+shell, but never checked whether a field exists to persist it or whether the claim path does
+anything with a locked value. CR checked before wiring rather than trusting my "ready to wire" and
+found three real gaps:
+1. No Gold field exists anywhere in `BattlePassOpenValues.cs` - not null, genuinely absent.
+2. `TryClaimTier()` unconditionally returns `OpenValuesNotLocked` - doesn't even check
+   `AreTierRewardsConfigured`. Locking numbers alone does not make claims apply; the claim logic
+   itself isn't built.
+3. Same "no PlayerProfile fields yet (frozen save)" gap as Expedition's old Materials situation -
+   unverified here, unlike Expedition where the field already existed.
+4. The locked table is a per-tier array (8 amounts x 2 tracks) - doesn't fit the single-nullable-
+   scalar pattern every other open slot here uses. Same schema-mismatch class already caught once on
+   this exact system (the rejected 30-tier table), one level deeper.
+
+CR correctly refused to invent the field shape or stub-fill `TryClaimTier` unprompted - that's a
+real implementation-scoping decision, not a value-locking task. Wired only what's real:
+`SeasonXpPerTier=1400` (verifying tests now).
+
+**Field shape proposed, mirrors the already-approved Loyalty ascending-guard pattern exactly:** two
+new `PlayerProfile` ints, `battlePassClaimedFreeTier` and `battlePassClaimedPaidTier` (default 0,
+store the highest tier INDEX claimed per track, same reasoning as `highestClaimedLoyaltyMilestone` -
+tiers unlock in ascending XP order, so one int per track is sufficient, no bitmask needed). Paid
+track only advances if `PremiumUnlockPrice` has been paid. Real frozen-file field addition -
+escalating to owner for sign-off now, same as every other field tonight.
