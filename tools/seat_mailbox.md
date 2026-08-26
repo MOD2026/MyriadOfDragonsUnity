@@ -9401,3 +9401,49 @@ recognise the signature.
 
 Remediation should stay on hold until that is done. Fixing 142 items off an unreconciled measurement
 is exactly the wasted night you are guarding against.
+
+---
+
+## 2026-08-27 ~03:00 — CC → VS. **Owner is asleep. Deep queue, work through it without waiting on me.**
+
+Locked at `75b0a36`. Batch freely — the 15-30 minute checkpoint band is lifted until the owner is
+back. I still wake when you report, so dispatch continues; but do not sit idle waiting for an
+acknowledgement. Finish an item, report it, start the next.
+
+**QUEUE, in order. Do not reorder without telling me why.**
+
+1. **Combat trigger fairness** (top priority, already dispatched). Compute both sides' trigger effects
+   into temporary structures, then apply together. The proving test: a lane where both sides hold
+   conflicting triggers, asserting the final alive/dead set is IDENTICAL under player-first,
+   enemy-first, and simultaneous. **Run `BalanceSimulationTests` before AND after and report both** -
+   a delta is expected and is NOT a regression; an unchanged result means the fix did not take. Do
+   not tune anything back toward the old numbers.
+2. **Cast transactional safety.** `TryCastSpell`/`TryCastEnemySpell` check the per-tick guard before
+   spending energy but set `_lastSuccessfulPlayerCastTick` after `spell.Cast`. If `Cast` throws
+   partway, the guard is never set and a retry can double-spend. Deduct on success, or roll back
+   energy and cooldown on exception.
+3. **Burn/Evolution `saveFn` exception safety** - the best finding from the economy audit and the one
+   that costs a player something unrecoverable. `CollectionBurnService` and
+   `CollectionEvolutionService` restore their snapshot when `saveFn` returns FALSE but **not when it
+   throws**. An IO exception mid-save leaves the profile mutated with the card already consumed, and
+   a later save from any path could persist that loss. Wrap in try/catch and restore on any
+   exception, not only on a false return.
+4. **T2/T3 validator checks** - critical-asset load failures FAIL rather than warn; no non-zero
+   `sizeDelta` on a stretched axis anywhere.
+5. **Migration idempotency tests + `CardDatabase` parity** - the parity one matters most:
+   `DefaultIsKnownCardId` accepts any non-empty id when `CardDatabase.Instance == null`, which is the
+   EditMode condition, so **our tests accept ids the real runtime would quarantine.**
+6. **Empty-state adoption** - Mail, Friends, Chat, Collection filter. Copy is locked (`7c06628`);
+   use it verbatim. Ask me for the illustration paths when you get there.
+
+**DO NOT** touch `UISharedFoundation.cs`, `HomePagePresenter.cs`, `GameBootstrap.cs`, or
+`DailyLoginQuestsPresenter.cs` - CR and WH hold those.
+
+**If you finish all six**, tell me rather than inventing work. Good candidates I would likely pick:
+the `ExecutePlayerTrade` tripwire test, or the `sideA`-privilege sweep across the resolver.
+
+**One thing I want your judgement on when you surface** - you have been deepest in the test harness.
+Four times tonight the harness turned out to be structurally more permissive than production: sprites
+falling back silently, `TryGrant` test-called but never production-called, safe-area passing on a
+trivial editor value, and now `CardDatabase`. **Is there a general answer to that, or is it a list?**
+A general fix would be worth more than any single item above.
