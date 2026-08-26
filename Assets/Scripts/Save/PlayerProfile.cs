@@ -290,6 +290,23 @@ namespace MyriadOfDragons.Save
         /// existing save, so no migration step is needed.</summary>
         public List<string> pendingLoyaltyVipVoucherIds = new List<string>();
 
+        /// <summary>Loyalty Stamina claims earned but not yet delivered, because the real 4-per-24h
+        /// Shop refill cap was already spent. Additive, owner-signed-off 2026-08-26 (BS option (c),
+        /// benchmarked against Genshin's mailbox delivery model).
+        ///
+        /// EXISTS BECAUSE THE ENTITLEMENT WAS BEING DESTROYED: the top rung grants 8 Stamina claims
+        /// against a cap of 4 per 24h, so at least half were silently discarded the moment they
+        /// were earned - the headline whale reward was worth roughly zero to exactly the players
+        /// who reached it. The claims were reported as "deferred" in the result and then dropped.
+        ///
+        /// NOT A CURRENCY: cannot be purchased, traded or converted. Only ever increased by a
+        /// successfully claimed Loyalty milestone, and only ever decreased by normal cap-gated
+        /// delivery - so it can never be used to exceed the 4/24h ceiling, only to stop losing what
+        /// the ceiling defers.
+        ///
+        /// Defaults to 0, the correct reading for every existing save, so no migration is needed.</summary>
+        public int pendingLoyaltyStaminaClaims = 0;
+
         /// <summary>Solo Collection Circuit daily/weekly state. Additive, owner-signed-off
         /// 2026-08-26 - approved as ONE nested object rather than seven loose fields, mirroring
         /// collectionWallet's shape, so future Circuit state lands inside it without touching this

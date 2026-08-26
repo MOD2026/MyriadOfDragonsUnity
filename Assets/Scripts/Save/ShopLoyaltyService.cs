@@ -12,6 +12,15 @@ namespace MyriadOfDragons.Save
         public string Message;
     }
 
+    /// <summary>Result of delivering queued Loyalty Stamina claims. Applied/Forfeited/StillPending
+    /// are reported separately because "you got 8" would be false in every partial case.</summary>
+    public struct ShopLoyaltyStaminaDelivery
+    {
+        public int Applied;
+        public int Forfeited;
+        public int StillPending;
+    }
+
     /// <summary>Outcome of a milestone claim. Carries the partial cases explicitly - a caller that
     /// only checks Claimed would otherwise report "you got 8 Stamina" when the 24h cap let 2
     /// through.</summary>
@@ -248,6 +257,55 @@ namespace MyriadOfDragons.Save
             return next;
         }
 
+        /// <summary>
+        /// Delivers queued Loyalty Stamina claims, up to whatever the real 4-per-24h window still
+        /// allows.
+        ///
+        /// Routes through the SAME cap path a Shop purchase uses, so a queued claim can never be a
+        /// way around the ceiling - it only stops the entitlement being destroyed by it. A claim
+        /// arriving while Stamina is already full is CONSUMED, matching how VIP claims behave
+        /// (ProcessDueClaims forfeits at full) - queuing forever would let a player hoard
+        /// entitlement indefinitely and dump it all at once.
+        ///
+        /// Does NOT save - the caller persists, same contract as the rest of this service.
+        /// </summary>
+        public static ShopLoyaltyStaminaDelivery DeliverPendingStaminaClaims(
+            PlayerProfile profile, long nowUtcTicks)
+        {
+            var delivery = new ShopLoyaltyStaminaDelivery();
+            if (profile == null) return delivery;
+
+            // Floor on READ AND WRITE, not just read. The first version computed the floor into a
+            // local and returned early without persisting it, so a corrupted negative survived
+            // every delivery call untouched - my own test caught it. This matches the AtLeastZero
+            // discipline every other int here already follows.
+            int pending = Math.Max(0, profile.pendingLoyaltyStaminaClaims);
+            profile.pendingLoyaltyStaminaClaims = pending;
+            if (pending == 0) return delivery;
+
+            while (pending > 0)
+            {
+                ShopStaminaCatalog.RefreshRollingWindow(profile, nowUtcTicks);
+                if (profile.staminaShopPurchasesInWindow >= ShopStaminaCatalog.MaxPurchasesPerRollingDay)
+                    break;
+
+                bool atFull = profile.stamina >= profile.maxStamina && profile.maxStamina > 0;
+                if (atFull) delivery.Forfeited++;
+                else
+                {
+                    CurrencyManager.RestoreStamina(profile, ShopStaminaCatalog.StaminaGrantPerPotion, persist: false);
+                    delivery.Applied++;
+                }
+
+                ShopStaminaCatalog.RecordSuccessfulPurchase(profile, nowUtcTicks);
+                pending--;
+            }
+
+            profile.pendingLoyaltyStaminaClaims = pending;
+            delivery.StillPending = pending;
+            return delivery;
+        }
+
         /// <summary>Vouchers earned and still waiting. Floored against a null list from an old save.</summary>
         public static int PendingVoucherCount(PlayerProfile profile) =>
             profile?.pendingLoyaltyVipVoucherIds?.Count ?? 0;
@@ -386,7 +444,14 @@ namespace MyriadOfDragons.Save
                 ShopStaminaCatalog.RefreshRollingWindow(profile, nowUtcTicks);
                 if (profile.staminaShopPurchasesInWindow >= ShopStaminaCatalog.MaxPurchasesPerRollingDay)
                 {
-                    result.StaminaClaimsDeferred = claims - i;
+                    // QUEUE the remainder instead of dropping it. This used to report a "deferred"
+                    // count in the result and then discard it - so the 8-claim top rung lost at
+                    // least half its value against a 4/24h cap, silently, for exactly the players
+                    // who reached it. Same deferred-entitlement shape as the voucher queue.
+                    int deferred = claims - i;
+                    result.StaminaClaimsDeferred = deferred;
+                    profile.pendingLoyaltyStaminaClaims =
+                        Math.Max(0, profile.pendingLoyaltyStaminaClaims) + deferred;
                     break;
                 }
 

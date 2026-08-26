@@ -395,6 +395,95 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void StaminaClaimsBeyondTheCap_AreQUEUED_NotDestroyed()
+        {
+            // THE BUG THIS FIXES: the top rung grants 8 claims against a 4-per-24h cap, so at least
+            // half were reported as "deferred" and then silently discarded - the headline whale
+            // reward was worth roughly zero to exactly the players who earned it.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            long now = ShopStaminaCatalog.NowUtcTicks();
+
+            // Spend the window first, so every granted claim must defer.
+            for (int i = 0; i < ShopStaminaCatalog.MaxPurchasesPerRollingDay; i++)
+                ShopStaminaCatalog.RecordSuccessfulPurchase(profile, now);
+
+            ShopLoyaltyService.Accrue(profile, 100);
+            ShopLoyaltyClaimResult claim = ShopLoyaltyService.ClaimNext(profile, now);
+
+            Assert.IsTrue(claim.Claimed);
+            Assert.AreEqual(1, claim.StaminaClaimsDeferred);
+            Assert.AreEqual(1, profile.pendingLoyaltyStaminaClaims,
+                "A deferred claim must PERSIST - reporting it and dropping it is the original bug.");
+        }
+
+        [Test]
+        public void QueuedStaminaClaims_DeliverOnceTheWindowReopens()
+        {
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            for (int i = 0; i < ShopStaminaCatalog.MaxPurchasesPerRollingDay; i++)
+                ShopStaminaCatalog.RecordSuccessfulPurchase(profile, now);
+            profile.pendingLoyaltyStaminaClaims = 3;
+
+            // Still capped -> nothing delivers.
+            ShopLoyaltyStaminaDelivery blocked =
+                ShopLoyaltyService.DeliverPendingStaminaClaims(profile, now);
+            Assert.AreEqual(0, blocked.Applied);
+            Assert.AreEqual(3, profile.pendingLoyaltyStaminaClaims);
+
+            // A day later the rolling window has reopened.
+            long tomorrow = now + System.TimeSpan.FromHours(25).Ticks;
+            ShopLoyaltyStaminaDelivery delivered =
+                ShopLoyaltyService.DeliverPendingStaminaClaims(profile, tomorrow);
+
+            Assert.Greater(delivered.Applied, 0, "Queued claims must eventually arrive.");
+            Assert.Less(profile.pendingLoyaltyStaminaClaims, 3);
+        }
+
+        [Test]
+        public void QueuedStaminaClaims_CanNEVERExceedTheSharedCap()
+        {
+            // The queue must not become a way around the 4/24h ceiling - it exists to stop the
+            // entitlement being destroyed by the cap, not to bypass it.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            profile.pendingLoyaltyStaminaClaims = 50;
+
+            ShopLoyaltyService.DeliverPendingStaminaClaims(profile, now);
+
+            Assert.LessOrEqual(profile.staminaShopPurchasesInWindow,
+                ShopStaminaCatalog.MaxPurchasesPerRollingDay,
+                "Delivery routes through the same cap path a Shop purchase uses.");
+            Assert.Greater(profile.pendingLoyaltyStaminaClaims, 0,
+                "The rest stays queued rather than being force-delivered.");
+        }
+
+        [Test]
+        public void ADeliveryAtFullStamina_IsConsumed_NotHoardedForever()
+        {
+            // Matches how VIP claims already behave (ProcessDueClaims forfeits at full). Queuing
+            // indefinitely would let a player hoard entitlement and dump it all at once.
+            var profile = new PlayerProfile { stamina = 100, maxStamina = 100 };
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            profile.pendingLoyaltyStaminaClaims = 2;
+
+            ShopLoyaltyStaminaDelivery delivery =
+                ShopLoyaltyService.DeliverPendingStaminaClaims(profile, now);
+
+            Assert.AreEqual(2, delivery.Forfeited);
+            Assert.AreEqual(0, profile.pendingLoyaltyStaminaClaims);
+        }
+
+        [Test]
+        public void ACorruptedNegativePendingCount_IsFloored_NotTrusted()
+        {
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100, pendingLoyaltyStaminaClaims = -5 };
+            Assert.DoesNotThrow(() =>
+                ShopLoyaltyService.DeliverPendingStaminaClaims(profile, ShopStaminaCatalog.NowUtcTicks()));
+            Assert.GreaterOrEqual(profile.pendingLoyaltyStaminaClaims, 0);
+        }
+
+        [Test]
         public void TheCosmeticRung_RefusesBecauseTheSaveCannotRepresentIt()
         {
             // Milestone 500 awards a cosmetic and PlayerProfile has no cosmetic ownership model at
