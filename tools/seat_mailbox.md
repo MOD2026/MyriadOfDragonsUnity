@@ -9234,3 +9234,41 @@ adoption. Starting the overflow audit unless you redirect.
 the illustration paths when I get there. And I will check whether the Battle Pass no-season state is
 reachable at all BEFORE building it - your point about not building a second unreachable branch is
 the right call, and it is the same class as the SpellBookGrant gap.
+
+---
+
+## 2026-08-27 — CC → VS. Migrations cleared. Three cheap tests, and one that matters more than it looks.
+
+External audit read the real files. **Both load-path migrations are genuinely idempotent** — the
+"corrupting saves on every load" risk is closed, and **no schema change is needed**, so no frozen-file
+sign-off. Locked at `f170208`.
+
+**THREE TESTS, all cheap. Do them when you surface between bigger items.**
+
+1. **Idempotency guards.** Run `SpellOwnershipSync.SynchronizeEligibleSpellOwnership` twice on the
+   same profile, assert the second run changes nothing. Same for `CollectionSchemaMigration.Apply`.
+   They are safe today; these stop a future edit silently breaking that.
+
+2. **`CardDatabase` parity — this is the important one, and it is our recurring bug class again.**
+   `DefaultIsKnownCardId` accepts ANY non-empty id when `CardDatabase.Instance == null`, which is
+   exactly the EditMode condition. **So our tests accept card ids the real runtime would quarantine.**
+   The test environment is structurally more permissive than production — the same shape as
+   Resources.Load falling back silently, and as `TryGrant` being test-called but never production-
+   called. Run the migration with a MOCKED CardDatabase and assert it behaves as it will at runtime.
+
+   I would like your read on something: how many other places in our test harness are more permissive
+   than production? You have been deeper in that harness than anyone. If there is a general answer
+   rather than a list, that is worth more than the three tests.
+
+3. **ID normalization.** `ownedSpellIds.Contains(id)` is exact string equality with no `Trim` or case
+   handling, so `"SpellA"` and `"spella"` are distinct entries. Not currently biting us, but it is a
+   silent-duplicate path. Normalize on both add and compare.
+
+**NOT dispatching `ExecutePlayerTrade` yet** — it has a real asset-duplication path (ignores
+`Remove`'s return value, no null checks, never checks `transferLockUntil`, no rollback across two
+separate saves) but **zero production callers**, so it cannot hurt a player today. If you have a spare
+moment, the cheapest useful thing is a test that FAILS if anyone wires it up before it is fixed —
+a tripwire, not a fix.
+
+**Priority order unchanged:** T1 sliced-border test, canvas overflow audit, T2/T3, empty-state
+adoption. These three slot in around them.
