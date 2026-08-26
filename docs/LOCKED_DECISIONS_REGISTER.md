@@ -7036,3 +7036,13 @@ is not fully resolved - flagging honestly rather than asserting either as certai
 window) needs to go out as a paste-ready fenced block for the owner to relay manually - never assumed
 delivered until the owner confirms it was pasted, per the existing standing note on WH's structural
 delivery gap. No further direct dispatches to b3/2a framed as "WH" tasks.
+
+## Real clean full-suite baseline confirmed post-corrections (2026-08-26, CR)
+
+1782 total, 1779 passed, 0 failed, 3 skipped (known-ignored), 0 compile errors, HEAD unchanged both
+ends (`7afdbe4`). No ShopV1ChromeTests hang this run, no BackdropImages/DeckBuilder ghosts, no
+Chapter*FullDepth pollution — CLAUDE.md's non-negotiable #3 baseline now genuinely matches reality
+for the first time this session. CR correctly held off PlayerProfile.cs/ShopLoyaltyService.cs/
+SoloCollectionCircuit.cs/SaveMigration.cs per the Avatar-XP-rework hold, noted `ShopPresenter.cs`
+changed on disk mid-run (presumed WH's profiling instrumentation, not touched). Standing by for the
+independent verification pass once VS reports the Materials rework done.
