@@ -6856,3 +6856,32 @@ known, intermittent, root-caused as "somewhere after Shop's purchase-commit path
 telemetry, not in the Background-collision pattern" - genuine open item for whenever there's
 bandwidth for a fresh angle (real profiling, not more bisection), not urgent enough to keep burning
 tonight's remaining time on.
+
+## Dropped pendingLoyaltyStaminaClaims fix SHIPPED for real, real defect self-caught, real pattern named (2026-08-26, VS, commit e38f3b2)
+
+Verified via `git show --stat`, matches exactly. 52/52. VS took this from its own now-empty queue
+without waiting to be re-dispatched - correct, matches the earlier framing ("not urgent enough to
+interrupt current work," not "don't do it").
+
+**The bug was real and measurable, not theoretical:** the 8,000-point rung grants 8 Stamina claims
+against the real 4-per-24h cap - at least half were being reported as "deferred" and then silently
+dropped, exactly the "worth zero for exactly the players reaching it" failure this session already
+named once. Fix routes delivery through the same cap path a Shop purchase uses (can't bypass the
+ceiling, only stop it from destroying earned entitlement), claims at full Stamina consume rather
+than hoard (matching existing VIP behavior, preventing an indefinite-banking exploit).
+
+**VS's own test caught a real defect in its own fix before it shipped** - a floored-negative value
+computed into a local but never written back, meaning a corrupted negative pending count would have
+silently survived every delivery call. VS named this explicitly as the second time tonight it wrote
+a discipline rule (floor on read AND write) and then broke it one method later - self-aware, not
+self-congratulatory.
+
+**Real pattern worth keeping, named by VS itself:** three separate fixes tonight (VIP vouchers,
+Loyalty Stamina claims, the Circuit's claim guard) are all deferred-entitlement queues, and all three
+came from the exact same root shape - a cap or condition that was individually correct in isolation
+but silently destroyed something the player had already, legitimately earned. Worth checking any
+FUTURE reward gate for this shape directly during design/review, rather than waiting for a
+simulation to accidentally surface it again.
+
+**Still open, unchanged:** milestone 500's cosmetic-ownership gap - the one real remaining blocker
+on the whale Gold tier, BS ask already sent.
