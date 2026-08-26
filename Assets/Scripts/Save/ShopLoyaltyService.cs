@@ -1,4 +1,5 @@
 using System;
+using MyriadOfDragons.Economy;
 
 namespace MyriadOfDragons.Save
 {
@@ -8,6 +9,20 @@ namespace MyriadOfDragons.Save
         public bool Accrued;
         public int PointsAdded;
         public int TotalAfter;
+        public string Message;
+    }
+
+    /// <summary>Outcome of a milestone claim. Carries the partial cases explicitly - a caller that
+    /// only checks Claimed would otherwise report "you got 8 Stamina" when the 24h cap let 2
+    /// through.</summary>
+    public struct ShopLoyaltyClaimResult
+    {
+        public bool Claimed;
+        public int MilestonePoints;
+        public int GoldGranted;
+        public int StaminaClaimsApplied;
+        public int StaminaClaimsForfeited;
+        public int StaminaClaimsDeferred;
         public string Message;
     }
 
@@ -23,11 +38,18 @@ namespace MyriadOfDragons.Save
     ///   - The earn model is PER SPEND: 1 point per 10 Gems, rounded down per transaction.
     ///   - The milestone table is locked and lives here as data (see Milestones).
     ///
-    /// REDEMPTION IS STILL NOT BUILT, but for a narrower reason than before. The blocker is no
-    /// longer a missing table - it is that these milestones are ONE-TIME and nothing on the profile
-    /// records which have been claimed, plus two reward types the save cannot represent at all (no
-    /// cosmetic ownership model exists, and "3-day VIP" is not expressible in the weekly|fortnight|
-    /// monthly plan vocabulary). See RedemptionAvailable.
+    /// UPDATED AGAIN 2026-08-26: REDEMPTION IS NOW BUILT, in the two halves that are actually
+    /// decided. The claim guard exists (PlayerProfile.highestClaimedLoyaltyMilestone, owner-signed
+    /// off), and the Gold and Stamina-claim rewards grant for real. Two things are still gated and
+    /// say so in code rather than being silently absent:
+    ///   - VIP VOUCHER DURATIONS ARE HELD. The two locks disagree: 250 was remapped to weekly (7d)
+    ///     and 1,000 to fortnight (14d) to retire the unexpressible "3-day", while the revised
+    ///     whale-tier lock puts a 7-day voucher at 2,000 - below the 1,000 rung, so the ladder
+    ///     would stop ascending. Repairing it means raising 2,000 to 30-day, a real increase in
+    ///     what paid spend returns, which is an owner call. See VoucherGrantsHeld.
+    ///   - MILESTONE 500 IS A COSMETIC and no cosmetic ownership model exists on the profile.
+    /// Granting a reward the save cannot represent is still worse than not granting it, so both
+    /// stay refused with a reason string instead of a silent no-op.
     ///
     /// Real logic in a plain testable class per CLAUDE.md non-negotiable #6 - no MonoBehaviour, and
     /// it never saves. The caller decides when to persist, exactly like
@@ -115,13 +137,52 @@ namespace MyriadOfDragons.Save
         public static readonly LoyaltyMilestone[] Milestones =
         {
             new LoyaltyMilestone(100, "1 Stamina claim (counts against the existing 4/24h cap)"),
-            new LoyaltyMilestone(250, "3-day VIP voucher"),
+            new LoyaltyMilestone(250, "Weekly (7-day) VIP voucher"),
             new LoyaltyMilestone(500, "Cosmetic badge/frame (existing catalog only)"),
-            new LoyaltyMilestone(1000, "7-day VIP voucher"),
-            new LoyaltyMilestone(2000, "Cosmetic badge/frame (existing catalog only)"),
-            new LoyaltyMilestone(4000, "30-day VIP voucher"),
-            new LoyaltyMilestone(8000, "Premium cosmetic frame"),
+            new LoyaltyMilestone(1000, "Fortnight (14-day) VIP voucher"),
+            new LoyaltyMilestone(2000, "25,000 Gold + 2 Stamina claims + VIP voucher"),
+            new LoyaltyMilestone(4000, "50,000 Gold + 4 Stamina claims + VIP voucher"),
+            new LoyaltyMilestone(8000, "100,000 Gold + 8 Stamina claims + VIP voucher"),
         };
+
+        /// <summary>Gold granted by a milestone, 0 for the rungs that grant none. Kept beside the
+        /// table rather than parsed out of the display string, so a copy edit can never change what
+        /// a player is actually paid.</summary>
+        public static int GoldRewardFor(int milestonePoints)
+        {
+            switch (milestonePoints)
+            {
+                case 2000: return 25000;
+                case 4000: return 50000;
+                case 8000: return 100000;
+                default: return 0;
+            }
+        }
+
+        /// <summary>Stamina claims granted by a milestone. Every one is still subject to the real
+        /// 4-per-24h Shop refill cap - a milestone may never bypass it, so a grant can come back
+        /// partially applied.</summary>
+        public static int StaminaClaimsFor(int milestonePoints)
+        {
+            switch (milestonePoints)
+            {
+                case 100: return 1;
+                case 2000: return 2;
+                case 4000: return 4;
+                case 8000: return 8;
+                default: return 0;
+            }
+        }
+
+        /// <summary>True for rungs whose reward includes a VIP voucher whose duration is not yet
+        /// locked. See the header - this is the ascending-ladder conflict, not an oversight.</summary>
+        public static bool VoucherGrantsHeld(int milestonePoints) =>
+            milestonePoints == 250 || milestonePoints == 1000 ||
+            milestonePoints == 2000 || milestonePoints == 4000 || milestonePoints == 8000;
+
+        /// <summary>True for rungs awarding a cosmetic. No cosmetic ownership model exists on
+        /// PlayerProfile, so these cannot be claimed yet.</summary>
+        public static bool CosmeticGrantsUnsupported(int milestonePoints) => milestonePoints == 500;
 
         /// <summary>Highest milestone the player's progress has REACHED, or -1. Reaching is not
         /// claiming - see RedemptionAvailable.</summary>
@@ -137,18 +198,113 @@ namespace MyriadOfDragons.Save
             return index;
         }
 
+        /// <summary>Redemption exists now that the claim guard does. Individual rewards can
+        /// still refuse - see VoucherGrantsHeld and CosmeticGrantsUnsupported.</summary>
+        public static bool RedemptionAvailable => true;
+
+        /// <summary>Highest milestone POINTS value already claimed. Floored, for the same
+        /// corrupted-save reason ProgressOf floors.</summary>
+        public static int HighestClaimedOf(PlayerProfile profile) =>
+            profile == null ? 0 : Math.Max(0, profile.highestClaimedLoyaltyMilestone);
+
         /// <summary>
-        /// Still false, and now for a DIFFERENT and more specific reason than before.
+        /// The next milestone the player may claim, or -1 if there is none.
         ///
-        /// The milestone table exists as of 2026-08-26, so the earlier blocker is gone. What is
-        /// missing is the ability to CLAIM: these are ONE-TIME milestones and PlayerProfile has no
-        /// field recording which have been taken, so a claim could be repeated indefinitely.
-        ///
-        /// Two of the seven reward types also have nowhere to land. There is no cosmetic ownership
-        /// model on the profile at all (3 of 7 milestones award cosmetics), and the VIP plan
-        /// vocabulary is weekly|fortnight|monthly - a "3-day voucher" is not expressible in it.
-        /// Granting a reward the save cannot represent is worse than not granting it.
+        /// Deliberately the LOWEST unclaimed rung that has been reached, never the highest. The
+        /// guard stores a threshold rather than a set, so claiming a high rung marks every lower
+        /// rung claimed - letting a caller pick would let a player silently destroy the rewards
+        /// underneath the one they picked.
         /// </summary>
-        public static bool RedemptionAvailable => false;
+        public static int NextClaimableMilestone(PlayerProfile profile)
+        {
+            int progress = ProgressOf(profile);
+            int claimed = HighestClaimedOf(profile);
+            for (int i = 0; i < Milestones.Length; i++)
+            {
+                int points = Milestones[i].Points;
+                if (points > claimed && progress >= points) return points;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Claims the next eligible milestone. Does NOT save - the caller persists, same contract
+        /// as Accrue.
+        ///
+        /// Refuses rather than partially advancing when a reward cannot be represented: a held
+        /// voucher or an unsupported cosmetic leaves highestClaimedLoyaltyMilestone untouched, so
+        /// the reward is still owed once the gate lifts instead of being consumed for nothing.
+        /// Stamina is the one reward that CAN come back partial, because the 4-per-24h cap is real
+        /// and outranks the milestone - that case still consumes the claim, and says so.
+        /// </summary>
+        public static ShopLoyaltyClaimResult ClaimNext(PlayerProfile profile, long nowUtcTicks)
+        {
+            var result = new ShopLoyaltyClaimResult { MilestonePoints = -1 };
+            if (profile == null)
+            {
+                result.Message = "No profile.";
+                return result;
+            }
+
+            int points = NextClaimableMilestone(profile);
+            if (points < 0)
+            {
+                result.Message = "No milestone is currently claimable.";
+                return result;
+            }
+
+            result.MilestonePoints = points;
+
+            if (CosmeticGrantsUnsupported(points))
+            {
+                result.Message =
+                    "Milestone " + points + " awards a cosmetic, and no cosmetic ownership model " +
+                    "exists on the profile yet. Claim refused so the reward stays owed.";
+                return result;
+            }
+
+            if (VoucherGrantsHeld(points))
+            {
+                result.Message =
+                    "Milestone " + points + " includes a VIP voucher whose duration is not locked " +
+                    "(the 1,000 vs 2,000 ascending-ladder conflict). Claim refused so the reward " +
+                    "stays owed.";
+                return result;
+            }
+
+            int gold = GoldRewardFor(points);
+            if (gold > 0)
+            {
+                CurrencyManager.AddCurrency(profile, CurrencyType.Gold, gold, persist: false);
+                result.GoldGranted = gold;
+            }
+
+            int claims = StaminaClaimsFor(points);
+            for (int i = 0; i < claims; i++)
+            {
+                ShopStaminaCatalog.RefreshRollingWindow(profile, nowUtcTicks);
+                if (profile.staminaShopPurchasesInWindow >= ShopStaminaCatalog.MaxPurchasesPerRollingDay)
+                {
+                    result.StaminaClaimsDeferred = claims - i;
+                    break;
+                }
+
+                bool atFull = profile.stamina >= profile.maxStamina && profile.maxStamina > 0;
+                if (atFull) result.StaminaClaimsForfeited++;
+                else
+                {
+                    CurrencyManager.RestoreStamina(profile, ShopStaminaCatalog.StaminaGrantPerPotion, persist: false);
+                    result.StaminaClaimsApplied++;
+                }
+
+                ShopStaminaCatalog.RecordSuccessfulPurchase(profile, nowUtcTicks);
+            }
+
+            profile.highestClaimedLoyaltyMilestone = points;
+            result.Claimed = true;
+            result.Message = "Claimed milestone " + points + ".";
+            return result;
+        }
     }
 }
