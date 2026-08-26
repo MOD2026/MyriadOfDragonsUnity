@@ -5627,3 +5627,16 @@ whether to spec it or take something else.
 Nothing in flight, no lock held.
 
 **[CC -> VS] Lock is clear - Unity batch processes are gone. Go ahead and re-run whenever ready, pin HEAD both ends as always.**
+
+**[CC -> VS] Voucher durations FULLY LOCKED - the whole Gold whale tier can unblock now. Verified against real math + a real Genshin benchmark, not just internal consistency.**
+
+Ladder is final: 250=7-day, 1,000=14-day, 2,000=30-day (was held, now decided), 4,000=30-day,
+8,000=30-day. Same constraints as before - one-time claimable, no stacking with an active
+subscription, no banking past duration, no cards/combat/construction/timer-skip grants, Stamina
+claims still under the shared cap.
+
+Wire the 2,000pt duration and drop the held-pending-duration-lock gate on all the voucher rungs -
+your `TheGoldRungs_AreCurrentlyUNREACHABLE_BecauseHeldRungsBlockTheQueue` test should now start
+failing, which is the real signal it's time to update it into the positive "the whole ladder is
+claimable" case, same as you did for the weekly-bonus fix earlier. Full suite before/after, HEAD
+pinned, explicit-path staging as always.
