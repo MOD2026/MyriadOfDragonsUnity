@@ -22,6 +22,13 @@ namespace MyriadOfDragons.Tests
         private static readonly DateTime Day1 = new DateTime(2026, 8, 26, 12, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime Day2 = Day1.AddDays(1);
 
+        /// <summary>Monday of the following ISO week (verified: 2026-08-31 is a Monday, ISO week
+        /// 36). The weekly tests MUST start on a Monday - see
+        /// TheWeeklyBonus_IsUnobtainable_WhenTheWeekIsJoinedMidWeek for why that is a real property
+        /// of the feature and not a convenience of the fixture.</summary>
+        private static readonly DateTime WeekStartMonday =
+            new DateTime(2026, 8, 31, 12, 0, 0, DateTimeKind.Utc);
+
         private static SoloCircuitProgress Fresh() => new SoloCircuitProgress();
 
         [Test]
@@ -146,7 +153,7 @@ namespace MyriadOfDragons.Tests
             // that has ALREADY hit the 1,250 ceiling. Uncapped that day would pay 3,750. The cap is
             // the locked number, so the surplus is clipped - a player is never paid past it.
             var progress = Fresh();
-            DateTime day = Day1;
+            DateTime day = WeekStartMonday;
             for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForWeeklyBonus; i++)
             {
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
@@ -162,7 +169,7 @@ namespace MyriadOfDragons.Tests
         public void TheWeeklyBonus_IsPaidOnce_NotOncePerSubsequentCircuit()
         {
             var progress = Fresh();
-            DateTime day = Day1;
+            DateTime day = WeekStartMonday;
             int timesPaid = 0;
             for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForWeeklyBonus + 1; i++)
             {
@@ -175,6 +182,34 @@ namespace MyriadOfDragons.Tests
             }
 
             Assert.AreEqual(1, timesPaid, "The 7-circuit bonus is one-time per UTC week.");
+        }
+
+        [Test]
+        public void TheWeeklyBonus_IsUnobtainable_WhenTheWeekIsJoinedMidWeek()
+        {
+            // A REAL DESIGN CONSEQUENCE, found because this fixture originally started on a
+            // Wednesday and the bonus never paid. The week key is ISO-8601, so weeks begin Monday.
+            // 7 completed circuits in one UTC week therefore requires a PERFECT week starting
+            // Monday - a player who discovers the Circuit on any later day cannot earn that week's
+            // bonus at all, no matter how well they play.
+            //
+            // Pinned rather than worked around: the code is behaving as specified, and this is the
+            // kind of thing that reads as a bug in a support ticket. If the intent was "any 7 days"
+            // or "7 in a rolling window", that is a spec change, and this test is where it surfaces.
+            var progress = Fresh();
+            DateTime day = WeekStartMonday.AddDays(2);   // joins on the Wednesday
+
+            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForWeeklyBonus; i++)
+            {
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, day);
+                day = day.AddDays(1);
+            }
+
+            Assert.IsFalse(progress.weeklyBonusClaimed,
+                "Joining mid-week makes the 7-circuit bonus unreachable that week - by design, " +
+                "but worth surfacing before a player reports it as broken.");
         }
 
         // --- Deterministic daily selection ---
