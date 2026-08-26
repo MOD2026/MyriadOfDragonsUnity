@@ -55,6 +55,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 
 | Sent | To | What | Status |
 |---|---|---|---|
+| 2026-08-26 | Coding room | Wire milestone-500 Loyalty reward (5,000 Gold+20 Avatar XP+1 Stamina claim) - last unbuilt rung on an otherwise-complete ladder | OPEN - not yet dispatched |
 | 2026-08-26 | Coding room | Design-token rollout across ~20 screens - the real "boxes everywhere" fix | RESOLVED - all 23 presenters done (`2626f10`/`29a0845` Home/DeckBuilder/CampaignMap, Shop needs no migration, different hardened bespoke-shell pattern). Silent-sprite-load sweep also closed across all 23 (`617fc90`, 1770/1770 clean). |
 | 2026-08-26 | Coding room | Materials field on PlayerProfile + Empire Expedition Materials grant wiring | RESOLVED - grant live at `EmpireExpeditionClearTransaction.cs:178`, verified by VS 2026-08-26. |
 | 2026-08-26 | Coding room | Empire display copy - "STRUCTURE LEVEL" hybrid framing | RESOLVED - live at `EmpireBuildingDetailCopy.cs:55,193`, BS's lock cited in-code, verified. |
@@ -67,7 +68,7 @@ confirms receipt/action, or the row is removed once confirmed.**
 | 2026-08-26 | WH (paste-ready, owner relays) | Chapter 3-18 continuity dialogue | RESOLVED - landed `965a86d`, real content through 18-30, the flagged `if(stageId=="18-30")` special case preserved exactly as warned. |
 | 2026-08-26 | WH (paste-ready, owner relays) | Guild Expedition/Permit Weekly Key/Spell Loadout Picker screen wiring | RESOLVED - landed `ca3b210`. |
 | 2026-08-26 | WH (paste-ready, owner relays) | VIP real entitlement implementation | RESOLVED - landed `dad3f05`, `VipSubscriptionOpenValues.cs` confirms `WeeklyGemPrice=800`/`FortnightGemPrice=1500`/`MonthlyGemPrice=3000` exactly matching spec. |
-| 2026-08-26 | BS (via owner) | Loyalty ladder milestone-500 cosmetic-ownership gap - real remaining blocker on the whale Gold tier now that the voucher-lockout fix landed | OPEN - awaiting reply |
+| 2026-08-26 | BS (via owner) | Loyalty ladder milestone-500 cosmetic-ownership gap - real remaining blocker on the whale Gold tier now that the voucher-lockout fix landed | RESOLVED - 5,000 Gold+20 Avatar XP+1 Stamina claim locked, verified for consistency+proportionality. Not yet dispatched to a coding room. |
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
 | 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
 
@@ -6898,3 +6899,29 @@ delivered - the same "logging != delivering" class already caught once tonight
 had this same problem and BS already resolved it the cheap way - replaced the cosmetic with Gold/
 Stamina/voucher value instead of building a cosmetic-inventory schema (see the "revised whale-tier
 Loyalty rewards" lock). 500 is the only tier that never got the same treatment.
+
+## LOCKED: milestone-500 Loyalty reward = 5,000 Gold + 20 Avatar XP + 1 Stamina claim (2026-08-26, BS, verified)
+
+**Reward:** 5,000 Gold + 20 Avatar XP + 1 Stamina claim (`+50` Stamina), routed through the existing
+shared 4-per-24h claim cap and the normal Stamina ceiling - no new grant path. No VIP, cards,
+cosmetics, Forge/Dust, Permits, Evolution materials, combat stats, or timer skips - same constraint
+list as every other rung.
+
+**Internal consistency verified:** ladder now reads 250=750 Gold+10 XP, 500=5,000 Gold+20 XP+1
+Stamina claim, 2,000=25,000 Gold+2 Stamina claims+30-day VIP voucher - Gold (750/5,000/25,000), XP
+(10/20/40) and Stamina claims (0/1/2) are all strictly ascending. BS's note that the earlier ask
+quoted a stale "7-day" voucher for 2,000pt is correct and already reconciled - that rung is real,
+locked, wired 30-day (register line ~5523, `5523/5537/6491`), unaffected by this reward.
+
+**Proportionality benchmark (real, not skipped):** 500pt = 5,000 Gems lifetime spend = dolphin-tier
+real-money spend (~$50, consistent with Sensor Tower's own dolphin-account testing figure). 5,000
+Gold is worth ~4 days of the Solo Circuit's free 1,250 Gold/day F2P grind - proportionate between
+250pt's <1-day value and 2,000pt's ~20-day value, and does not repeat the earlier top-tier failure
+(a $50-equivalent spend reward worth less than 2 days of free grind). A general WebSearch for
+comparable shipped lifetime-spend milestone tracks returned nothing precise enough to cite directly
+(2026 results skew toward battle-pass pricing, not lifetime-spend ladders) - the in-house
+F2P-grind-equivalent method is the real check here, same one that caught the 2,500 Gold error.
+
+**Loyalty ladder now fully specified, all 7 rungs locked.** Real next step: dispatch
+`loyaltyClaimedMilestoneMask`-path wiring for the 500pt rung (same claim flow as the rest of the
+ladder - check bit/highest-claimed -> validate -> grant once -> persist) to a coding room.
