@@ -675,7 +675,13 @@ namespace MyriadOfDragons.UI
             host.transform.SetParent(parent, false);
             SetShellWellPx(host.GetComponent<RectTransform>(), wellPx);
             Text valueText = HomeV3UiLibrary.CreateResourcePill(host.transform, pillSprite, label, value, wellPx.z);
-            RectTransform pillRect = valueText != null ? valueText.transform.parent as RectTransform : null;
+            // Climb to ResourcePill root — valueText may sit under ResourceTextPlate after contrast
+            // plates were added; stretching the text plate alone left the pill art unscaled and the
+            // samples still reading bright backing pixels.
+            Transform climb = valueText != null ? valueText.transform : null;
+            while (climb != null && climb.name != "ResourcePill")
+                climb = climb.parent;
+            RectTransform pillRect = climb as RectTransform;
             if (pillRect != null)
             {
                 pillRect.anchorMin = Vector2.zero;
