@@ -6001,3 +6001,17 @@ to a cap that was never actually leaking). WH's urgent-priority time was spent o
 game-breaking work - not WH's error, the urgency call was based on VS's (since-corrected) claim.
 Honest, undramatic correction - logged so the false alarm doesn't linger as fact anywhere in this
 file.
+
+## Primary-button + modal art wired at real CTAs, verified (2026-08-26, CR, commit 3d7b505)
+
+Verified via `git show --stat`, matches exactly. New `ApplyPrimaryActionButton` (emerald) kept
+separate from the secondary-art auto-pickup - correctly treated as a per-call-site judgment call
+("not every button" per the Visual Authority Memory doc), not a safe blanket default the way
+secondary was. Wired at 8 genuine primary CTAs (Battle Pass unlock, Daily Login claim, VIP
+subscribe, Mail claim, Building Detail upgrade, Guild Expedition claim, Permit Week Key claim,
+Empire collect) - subordinate actions (refresh/consume/submit/back) correctly left alone.
+`CreateModalShell` now uses real modal art at its one real call site (`PackOpenOverlayPresenter`).
+79/79 pass, HEAD 6a6f38f unchanged both ends. Also confirmed CR independently verified `b5d82ec` was
+real before trusting the Stamina-cap correction rather than taking it on faith - good discipline.
+CR now on the DeckBuilder bug (Metagame-owned - correctly read-diagnosing rather than editing
+directly, will hand back a real root cause + proposed fix).
