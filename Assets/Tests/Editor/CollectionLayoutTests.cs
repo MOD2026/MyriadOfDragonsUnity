@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MyriadOfDragons.Cards;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
@@ -10,25 +11,35 @@ using UnityEngine.UI;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// Empire (main overview screen, NOT the building-detail popup - that already has coverage in
-    /// EmpireBuildingDetailLayoutTests) layout/geometry coverage after design-token rollout
-    /// (batch 1, 5f204a5). Same method as EmpireBuildingDetailLayoutTests/
-    /// TacticalPuzzleLayoutTests: measure the BUILT hierarchy's real world rects, only flag art
-    /// that draws AFTER a button it geometrically overlaps (real depth-first paint/raycast order).
-    /// The construction-panel / Btn_Back overlap that surfaced once the panel gained a bordered
-    /// sprite is exactly why this must keep running post-token.
+    /// Collection layout/geometry after design-token rollout batch 1 (5f204a5). Same method as
+    /// <see cref="EmpireBuildingDetailLayoutTests"/> / <see cref="TacticalPuzzleLayoutTests"/>:
+    /// measure BUILT world rects via GetWorldCorners; only flag sprite art that draws AFTER a
+    /// button it geometrically overlaps (depth-first paint order). Full-screen framed backdrops
+    /// that sit behind controls are ignored by design.
     /// </summary>
-    public class EmpireLayoutTests
+    public class CollectionLayoutTests
     {
         private readonly List<GameObject> _spawned = new List<GameObject>();
         private string _scratchSaveDir;
+        private GameObject _databaseGo;
 
         [SetUp]
         public void SetUp()
         {
-            _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MoDEmpireLayout_" + System.Guid.NewGuid().ToString("N"));
+            _scratchSaveDir = Path.Combine(Path.GetTempPath(),
+                "MoDCollectionLayout_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
+            SaveSystem.ResetCurrentProfileForTests();
+
+            CardDatabase.ResetForTests();
+            _databaseGo = new GameObject("CollectionLayout_CardDatabase");
+            _spawned.Add(_databaseGo);
+            _databaseGo.AddComponent<CardDatabase>().Initialize();
+
+            var profile = new PlayerProfile();
+            CollectionSchemaMigration.Apply(profile);
+            Assert.IsTrue(SaveSystem.Save(profile));
             SaveSystem.ResetCurrentProfileForTests();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
         }
@@ -37,22 +48,32 @@ namespace MyriadOfDragons.Tests
         public void TearDown()
         {
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
-            foreach (GameObject go in _spawned) if (go != null) Object.DestroyImmediate(go);
+            foreach (GameObject go in _spawned)
+            {
+                if (go != null) Object.DestroyImmediate(go);
+            }
             _spawned.Clear();
+            foreach (Canvas c in Object.FindObjectsOfType<Canvas>())
+            {
+                if (c != null) Object.DestroyImmediate(c.gameObject);
+            }
+            CardDatabase.ResetForTests();
             SaveSystem.ClearRootDirectoryOverride();
             SaveSystem.ResetCurrentProfileForTests();
-            if (_scratchSaveDir != null && Directory.Exists(_scratchSaveDir)) Directory.Delete(_scratchSaveDir, true);
+            if (_scratchSaveDir != null && Directory.Exists(_scratchSaveDir))
+                Directory.Delete(_scratchSaveDir, true);
         }
 
-        private EmpirePresenter Open()
+        private CollectionPresenter Open()
         {
-            var go = new GameObject("EmpireLayoutHost");
+            var go = new GameObject("CollectionLayoutHost");
             _spawned.Add(go);
-            var presenter = go.AddComponent<EmpirePresenter>();
-            presenter.Initialize(onBackToHome: null);
+            var presenter = go.AddComponent<CollectionPresenter>();
+            presenter.Initialize(onBackToHome: null, onOpenDeckBuilder: null);
             foreach (RectTransform rt in presenter.CanvasObjectForTests.GetComponentsInChildren<RectTransform>(true)
                          .OrderByDescending(r => r.GetComponentsInParent<Transform>(true).Length))
                 LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            Canvas.ForceUpdateCanvases();
             return presenter;
         }
 
@@ -66,18 +87,20 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Empire_ActuallyBuildsItsCanvas()
+        public void Collection_ActuallyBuildsItsCanvas()
         {
-            EmpirePresenter presenter = Open();
-            Assert.IsNotNull(presenter.CanvasObjectForTests, "Empire built no canvas.");
+            CollectionPresenter presenter = Open();
+            Assert.IsNotNull(presenter.CanvasObjectForTests, "Collection built no canvas.");
             Assert.Greater(presenter.CanvasObjectForTests.GetComponentsInChildren<RectTransform>(true).Length, 3,
-                "Empire built a suspiciously empty canvas.");
+                "Collection built a suspiciously empty canvas.");
         }
 
         [Test]
-        public void Empire_NeverDrawsArtOnTopOfAnInteractiveControl()
+        public void Collection_NeverDrawsArtOnTopOfAnInteractiveControl()
         {
-            EmpirePresenter presenter = Open();
+            // DRAW ORDER MATTERS, NOT BARE OVERLAP. Token rollout gave framed panels real sprites;
+            // the Empire construction-panel / Btn_Back bug was invisible until that happened.
+            CollectionPresenter presenter = Open();
             Transform canvas = presenter.CanvasObjectForTests.transform;
 
             Transform[] drawOrder = canvas.GetComponentsInChildren<Transform>(true);
@@ -88,15 +111,19 @@ namespace MyriadOfDragons.Tests
             foreach (Button button in canvas.GetComponentsInChildren<Button>(true))
             {
                 if (!button.gameObject.activeInHierarchy) continue;
-                Rect btn = WorldRect(button.GetComponent<RectTransform>());
-                int buttonIndex = indexOf[button.transform];
+                RectTransform buttonRt = button.GetComponent<RectTransform>();
+                if (buttonRt == null) continue;
+                Rect btn = WorldRect(buttonRt);
+                if (btn.width <= 0f || btn.height <= 0f) continue;
+                if (!indexOf.TryGetValue(button.transform, out int buttonIndex)) continue;
 
                 foreach (Image img in canvas.GetComponentsInChildren<Image>(true))
                 {
                     if (img.sprite == null || !img.gameObject.activeInHierarchy) continue;
                     if (img.GetComponent<Button>() != null) continue;
                     if (img.transform.IsChildOf(button.transform)) continue;
-                    if (indexOf[img.transform] <= buttonIndex) continue;
+                    if (!indexOf.TryGetValue(img.transform, out int artIndex)) continue;
+                    if (artIndex <= buttonIndex) continue;
 
                     Rect art = WorldRect(img.rectTransform);
                     if (art.width <= 0f || art.height <= 0f) continue;

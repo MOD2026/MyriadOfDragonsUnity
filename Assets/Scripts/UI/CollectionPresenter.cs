@@ -28,6 +28,8 @@ namespace MyriadOfDragons.UI
         private Action _onBackToHomeAction;
         private Action _onOpenDeckBuilderAction;
 
+        public GameObject CanvasObjectForTests => _canvasObj;
+
         private Text _ownedCountText;
         private Text _goldPillText;
         private Text _permitPillText;
