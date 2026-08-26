@@ -1,4 +1,5 @@
 using System;
+using MyriadOfDragons.Cards;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
@@ -21,10 +22,20 @@ namespace MyriadOfDragons.Tests
 
         private GameObject _host;
         private SoloCircuitPresenter _presenter;
+        private GameObject _databaseHost;
 
         [SetUp]
         public void SetUp()
         {
+            // A REAL CardDatabase, not a suppressed log. The Circuit screen resolves card rarity
+            // and can open the puzzle library, both of which log genuine errors when the catalog is
+            // absent - and NUnit fails a test on an unhandled error log. Silencing that with
+            // LogAssert would also silence a real "unknown card id" regression, so the fixture
+            // supplies the catalog the same way TacticalPuzzlePresenterTests does.
+            CardDatabase.ResetForTests();
+            _databaseHost = new GameObject("SoloCircuitCardDatabase");
+            _databaseHost.AddComponent<CardDatabase>().Initialize();
+
             _host = new GameObject("SoloCircuitHost");
             _presenter = _host.AddComponent<SoloCircuitPresenter>();
         }
@@ -32,6 +43,8 @@ namespace MyriadOfDragons.Tests
         [TearDown]
         public void TearDown()
         {
+            if (_databaseHost != null) UnityEngine.Object.DestroyImmediate(_databaseHost);
+            CardDatabase.ResetForTests();
             if (_host != null) UnityEngine.Object.DestroyImmediate(_host);
             GameObject stale = GameObject.Find(SoloCircuitPresenter.CanvasName);
             if (stale != null) UnityEngine.Object.DestroyImmediate(stale);
@@ -107,19 +120,22 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void ClearingATrial_PersistsAndTheScreenReflectsIt()
+        public void TappingATrial_DoesNotGrantIt_BecauseTapsAreNotCompletions()
         {
             PlayerProfile profile = FreshProfile();
             _presenter.Initialize(profile, NowUtc, null);
 
             _presenter.PressTrialForTests(SoloCircuitTrial.Formation);
 
-            Assert.IsTrue(
+            // REVERSED DELIBERATELY. This used to assert that tapping a trial cleared it - which
+            // meant the reward was claimable by opening a screen and pressing a button. Formation
+            // needs a real battle result under the day's restriction, and no such signal exists
+            // yet, so the honest behaviour is to grant NOTHING.
+            Assert.IsFalse(
                 SoloCollectionCircuit.IsTrialClearedToday(profile.soloCircuitProgress, SoloCircuitTrial.Formation),
-                "The clear must land on the profile, not only in the view.");
-            StringAssert.Contains("Cleared",
-                _presenter.TrialStatusForTests(SoloCircuitTrial.Formation),
-                "The screen must show the new state after acting.");
+                "Tapping a trial must never grant it - only a real completion signal may.");
+            Assert.AreEqual(0, profile.soloCircuitProgress.goldEarnedTodayUtc,
+                "No Gold may be paid for a tap.");
         }
 
         [Test]

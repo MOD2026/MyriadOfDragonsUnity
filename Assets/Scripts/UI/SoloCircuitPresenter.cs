@@ -1,4 +1,6 @@
 using System;
+using MyriadOfDragons.Battle;
+using MyriadOfDragons.Cards;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 using UnityEngine;
@@ -219,21 +221,112 @@ namespace MyriadOfDragons.UI
         }
 
         /// <summary>
-        /// Records a clear and rebuilds.
+        /// Routes a trial tap to its REAL completion check. Never grants on the tap itself.
         ///
-        /// The presenter deliberately does NOT decide whether the player actually met the trial's
-        /// condition - that is the battle/puzzle result, and inventing it here would make the
-        /// rewards claimable by opening a screen. Wiring the real completion signal is the next
-        /// task; until then this is the single funnel every completion will route through, so the
-        /// grant path and its caps are already exercised.
+        /// This previously called RecordClear directly, which meant the reward was claimable by
+        /// opening a screen and pressing a button - the exact thing the header warned against.
+        /// Each trial now routes to whatever can actually verify it:
+        ///   - Collection: verifiable from the save right now (ownership is a standing fact), so it
+        ///     is checked here and clears immediately when the roster qualifies.
+        ///   - Tactical Brief: needs an observed solve. Opening today's puzzle is the action; the
+        ///     clear arrives via SoloCircuitCompletion.ReportPuzzleSolved when it is actually
+        ///     solved.
+        ///   - Formation: needs a battle result under the day's restriction. NOT WIRED YET, and it
+        ///     refuses rather than pretending - see the status line.
         /// </summary>
         private void AttemptTrial(SoloCircuitTrial trial)
         {
             if (Progress == null) return;
 
-            SoloCollectionCircuit.RecordClear(Progress, trial, _nowUtc);
-            SaveSystem.Save(_profile);
+            switch (trial)
+            {
+                case SoloCircuitTrial.Collection:
+                    SoloCircuitCompletion.ReportCollectionChecked(
+                        Progress, OwnedCardIds(), RarityOf, _nowUtc);
+                    SaveSystem.Save(_profile);
+                    break;
+
+                case SoloCircuitTrial.TacticalBrief:
+                    OpenTodaysBrief();
+                    return;   // the puzzle screen takes over; no rebuild behind it
+
+                case SoloCircuitTrial.Formation:
+                    // Deliberately does nothing. A battle fought under the day's restriction is the
+                    // only thing that can clear this, and no such signal exists yet.
+                    break;
+            }
+
             BuildUI();
+        }
+
+        /// <summary>Opens today's selected puzzle, and reports the solve back to the Circuit when
+        /// the player leaves it. The report is what clears the trial - not the opening.</summary>
+        private void OpenTodaysBrief()
+        {
+            System.Collections.Generic.IReadOnlyList<TacticalPuzzleDefinition> library =
+                TacticalPuzzleLibrary.AvailablePuzzles();
+
+            var host = GetComponent<TacticalPuzzlePresenter>();
+            if (host == null) host = gameObject.AddComponent<TacticalPuzzlePresenter>();
+
+            host.Initialize(library, onExit: () =>
+            {
+                ReportBriefOutcome(host);
+                BuildUI();
+            });
+        }
+
+        /// <summary>Reads the solved puzzle id off the presenter and reports it. Kept separate so a
+        /// test can drive it without a real puzzle session.</summary>
+        private void ReportBriefOutcome(TacticalPuzzlePresenter host)
+        {
+            // Read the solve off the live session rather than a convenience field the presenter
+            // does not expose - IsSolved is the same flag ShowResult() uses to decide whether the
+            // attempt was worth persisting, so the Circuit credits exactly what the puzzle screen
+            // itself counts as a win.
+            TacticalPuzzleSession session = host != null ? host.SessionForTests : null;
+            if (session == null || !session.IsSolved) return;
+
+            string solvedId = session.Definition != null ? session.Definition.PuzzleId : null;
+            if (string.IsNullOrEmpty(solvedId)) return;
+
+            SoloCircuitCompletion.ReportPuzzleSolved(Progress, PuzzleIds(), solvedId, _nowUtc);
+            SaveSystem.Save(_profile);
+        }
+
+        private System.Collections.Generic.List<string> PuzzleIds()
+        {
+            var ids = new System.Collections.Generic.List<string>();
+            foreach (TacticalPuzzleDefinition d in TacticalPuzzleLibrary.AvailablePuzzles())
+                if (d != null && !string.IsNullOrEmpty(d.PuzzleId)) ids.Add(d.PuzzleId);
+            return ids;
+        }
+
+        /// <summary>Owned card ids, covering BOTH storage paths - the V1 cardProgression list and
+        /// the legacy flat cardCollection. A player mid-migration must not silently fail a trial
+        /// because their roster lives in the older field.</summary>
+        private System.Collections.Generic.IEnumerable<string> OwnedCardIds()
+        {
+            var ids = new System.Collections.Generic.List<string>();
+            if (_profile == null) return ids;
+
+            if (_profile.cardProgression != null)
+                foreach (CardProgressionRecord rec in _profile.cardProgression)
+                    if (rec != null && rec.copyCount >= 1 && !string.IsNullOrEmpty(rec.cardId))
+                        ids.Add(rec.cardId);
+
+            if (_profile.cardCollection != null)
+                foreach (string id in _profile.cardCollection)
+                    if (!string.IsNullOrEmpty(id)) ids.Add(id);
+
+            return ids;
+        }
+
+        private int RarityOf(string cardId)
+        {
+            CardDatabase db = CardDatabase.Instance;
+            Card card = db != null ? db.GetCard(cardId) : null;
+            return card != null ? card.Rarity : 0;
         }
 
         private void Close()
