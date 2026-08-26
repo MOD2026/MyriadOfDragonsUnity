@@ -273,6 +273,23 @@ namespace MyriadOfDragons.Save
         /// a caller silently burn the lower rewards.</summary>
         public int highestClaimedLoyaltyMilestone = 0;
 
+        /// <summary>VIP vouchers earned from Loyalty milestones but not yet activated, in FIFO
+        /// order. Additive, auto-approved 2026-08-26 under the extended sign-off protocol.
+        ///
+        /// EXISTS BECAUSE OF A MEASURED LOCKOUT: vouchers cannot stack with an active subscription,
+        /// claims are strictly ascending, and a whale is effectively always subscribed - so the
+        /// 250-point rung refused forever and blocked every rung behind it, including the whole
+        /// Gold tier. The six-month simulation measured LoyaltyGoldClaimed == 0 for a whale.
+        ///
+        /// Stores earned ENTITLEMENT RECORDS (which voucher), never active duration. The activation
+        /// clock starts only when a voucher actually goes live, so this does not bank active time
+        /// and does not conflict with the "no banking past duration" rule.
+        ///
+        /// Bounded by construction: at most one voucher per voucher-granting milestone, and each
+        /// milestone is one-time. Defaults to an empty list, which is the correct reading for every
+        /// existing save, so no migration step is needed.</summary>
+        public List<string> pendingLoyaltyVipVoucherIds = new List<string>();
+
         /// <summary>Solo Collection Circuit daily/weekly state. Additive, owner-signed-off
         /// 2026-08-26 - approved as ONE nested object rather than seven loose fields, mirroring
         /// collectionWallet's shape, so future Circuit state lands inside it without touching this

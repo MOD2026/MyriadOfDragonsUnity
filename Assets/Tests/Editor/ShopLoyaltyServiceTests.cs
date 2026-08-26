@@ -291,11 +291,11 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void AVoucherRung_RefusesWhileASubscriptionIsActive_WithoutBurningTheReward()
+        public void AVoucherRung_QUEUES_WhileSubscribed_AndTheMilestoneStillClaimsFULLY()
         {
-            // Locked constraint: vouchers cannot stack. The important half is that refusing must
-            // NOT advance the guard - a player who happens to be subscribed the day they cross a
-            // milestone would otherwise silently forfeit it forever.
+            // REPLACES the old refusal test. That behaviour was individually correct and
+            // collectively catastrophic: ascending claims + an always-subscribed whale meant the
+            // 250 rung refused forever and blocked the entire ladder behind it.
             var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
             ShopLoyaltyService.Accrue(profile, 250);
             long now = ShopStaminaCatalog.NowUtcTicks();
@@ -305,12 +305,93 @@ namespace MyriadOfDragons.Tests
             profile.vipStartedUtcTicks = now;
             profile.vipExpiresUtcTicks = now + System.TimeSpan.FromDays(30).Ticks;
 
-            ShopLoyaltyClaimResult blocked = ShopLoyaltyService.ClaimNext(profile, now);
+            ShopLoyaltyClaimResult claim = ShopLoyaltyService.ClaimNext(profile, now);
 
-            Assert.IsFalse(blocked.Claimed);
-            Assert.AreEqual(100, profile.highestClaimedLoyaltyMilestone,
-                "The guard must not advance - the voucher is still owed once the plan lapses.");
-            Assert.AreEqual("monthly", profile.vipPlanId, "The active plan must be untouched.");
+            Assert.IsTrue(claim.Claimed, "The milestone must claim FULLY, not refuse.");
+            Assert.AreEqual("weekly", claim.VoucherPlanQueued, "Only the voucher defers.");
+            Assert.AreEqual(250, profile.highestClaimedLoyaltyMilestone,
+                "The guard advances, so the ladder is no longer blocked behind this rung.");
+            Assert.AreEqual("monthly", profile.vipPlanId,
+                "The ACTIVE subscription must be untouched - queuing is not extending.");
+            Assert.AreEqual(1, ShopLoyaltyService.PendingVoucherCount(profile));
+        }
+
+        [Test]
+        public void AQueuedVoucher_ActivatesOnlyOnceTheSubscriptionActuallyLAPSES()
+        {
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            ShopLoyaltyService.Accrue(profile, 250);
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            ShopLoyaltyService.ClaimNext(profile, now);
+
+            profile.vipPlanId = "monthly";
+            profile.vipStartedUtcTicks = now;
+            profile.vipExpiresUtcTicks = now + System.TimeSpan.FromDays(30).Ticks;
+            ShopLoyaltyService.ClaimNext(profile, now);             // queues the weekly voucher
+
+            // Still active -> must NOT activate. Activating here would stack two subscriptions.
+            Assert.AreEqual(string.Empty, ShopLoyaltyService.ActivateNextPendingVoucher(profile, now));
+            Assert.AreEqual(1, ShopLoyaltyService.PendingVoucherCount(profile));
+
+            long afterLapse = profile.vipExpiresUtcTicks + System.TimeSpan.FromDays(1).Ticks;
+            string activated = ShopLoyaltyService.ActivateNextPendingVoucher(profile, afterLapse);
+
+            Assert.AreEqual("weekly", activated);
+            Assert.AreEqual(0, ShopLoyaltyService.PendingVoucherCount(profile));
+            Assert.AreEqual(afterLapse, profile.vipStartedUtcTicks,
+                "The clock starts on ACTIVATION, not when it was earned - otherwise a queued " +
+                "voucher would silently burn its duration while waiting.");
+        }
+
+        [Test]
+        public void QueuedVouchersActivateONEATATIME_InFIFOOrder()
+        {
+            // Two vouchers must never run simultaneously, and the earliest earned goes first.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            profile.pendingLoyaltyVipVoucherIds = new List<string> { "weekly", "fortnight" };
+
+            string first = ShopLoyaltyService.ActivateNextPendingVoucher(profile, now);
+            Assert.AreEqual("weekly", first, "FIFO - earliest earned first.");
+            Assert.AreEqual(1, ShopLoyaltyService.PendingVoucherCount(profile),
+                "The second must still be waiting, not activated alongside the first.");
+
+            Assert.AreEqual(string.Empty, ShopLoyaltyService.ActivateNextPendingVoucher(profile, now),
+                "While the first is live, the second must not activate.");
+        }
+
+        [Test]
+        public void TheWholeLadderNowClaimsThrough_ForASubscribedPlayer()
+        {
+            // The measured lockout, inverted. A permanently-subscribed player used to stop dead at
+            // the 100 rung; now every voucher rung claims (queuing its voucher) and the Gold tier
+            // is reachable.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            ShopLoyaltyService.Accrue(profile, 2000);
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            profile.vipPlanId = "monthly";
+            profile.vipStartedUtcTicks = now;
+            profile.vipExpiresUtcTicks = now + System.TimeSpan.FromDays(30).Ticks;
+
+            var claimed = new List<int>();
+            for (int i = 0; i < 6; i++)
+            {
+                ShopLoyaltyClaimResult r = ShopLoyaltyService.ClaimNext(profile, now);
+                if (!r.Claimed) break;
+                claimed.Add(r.MilestonePoints);
+            }
+
+            // 250 is the proof: that rung used to refuse forever and block everything behind it.
+            CollectionAssert.Contains(claimed, 250, "The voucher rung must now claim, not refuse.");
+
+            // 1000 is deliberately NOT expected. My first draft asserted it and contradicted
+            // itself: the COSMETIC rung at 500 still blocks the ascending queue, so 1000 is
+            // unreachable for a different and still-open reason. The voucher lockout is fixed; the
+            // cosmetic gap is not, and conflating them would hide one behind the other.
+            CollectionAssert.DoesNotContain(claimed, 1000);
+            Assert.AreEqual(500, ShopLoyaltyService.NextClaimableMilestone(profile),
+                "The queue now stops at the cosmetic rung instead of the voucher rung - progress " +
+                "of exactly one blocker, which is what was actually fixed.");
         }
 
         [Test]

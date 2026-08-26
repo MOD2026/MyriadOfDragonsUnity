@@ -378,6 +378,9 @@ namespace MyriadOfDragons.Metagame
                 ledger.LoyaltyGoldClaimed += claim.GoldGranted;
                 ledger.LoyaltyStaminaClaimsApplied += claim.StaminaClaimsApplied;
                 if (!string.IsNullOrEmpty(claim.VoucherPlanGranted)) ledger.LoyaltyVouchersGranted++;
+                // Queued counts as EARNED. A whale is almost always subscribed, so
+                // counting only live activations would report ~0 and hide the fix.
+                if (!string.IsNullOrEmpty(claim.VoucherPlanQueued)) ledger.LoyaltyVouchersGranted++;
             }
         }
     }

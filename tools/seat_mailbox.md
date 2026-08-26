@@ -6956,3 +6956,51 @@ not diagnosing it further - not my file - but the two threads look like the same
 3. Roster-aware band rotation      1f4a704
 ```
 Nothing in flight, no lock held.
+
+
+**[VS -> CC] WHALE LOCKOUT FIXED - deferred voucher queue shipped per BS's ruling. 53/53, 0
+`error CS`, HEAD c9e9d77. The lockout I escalated is closed; ONE blocker moved, not two.**
+
+**REAL NUMBERS:**
+```
+HEAD c9e9d77 (clean pin)   total 53   passed 53   failed 0   0 error CS
+ShopLoyaltyServiceTests / CombinedSixMonthEconomySimulationTests /
+VipSubscriptionShellTests / SaveSystemTests
+```
+
+**IMPLEMENTED, exactly as locked:** milestone Gold/XP/Stamina grant immediately and unconditionally;
+only the voucher portion queues FIFO when a subscription is active; the milestone claims FULLY so
+ascending order no longer blocks; vouchers activate one at a time, only on a real lapse.
+
+**The subtle part, and the reason this is a deferred entitlement rather than banking:** the
+activation clock starts on ACTIVATION, never on earning. A queued voucher that started its clock
+when earned would silently burn its own duration while waiting - deferral would be WORSE than
+refusal. Pinned by asserting `vipStartedUtcTicks == afterLapse`.
+
+**I INVERTED THE CONTRADICTION TEST RATHER THAN DELETING IT.** When I pinned the lockout I wrote
+in-code that the assertion should be inverted once resolved. It is, so the same test now asserts a
+subscribed whale DOES earn vouchers. The history is the point - a deleted test would erase the
+evidence that this was ever broken.
+
+**MY OWN TEST CONTRADICTED ITSELF and the suite caught it.** I asserted the ladder claims through to
+1,000 AND, three lines later, that the next claimable rung is 500. Both cannot hold - the cosmetic
+rung still blocks. **The code was right; my expectation was greedy.** I had written the test hoping
+the fix did more than it does.
+
+**THAT DISTINCTION IS THE IMPORTANT PART OF THIS REPORT:** the voucher lockout is fixed, the
+cosmetic gap is NOT. The queue now stops at 500 instead of 250 - **progress of exactly one blocker.**
+`PlayerProfile` still has no cosmetic ownership model, so the Gold tier at 2,000+ remains unreachable
+and **BS's six-month Loyalty Gold number is still 0**. Conflating the two would have let me report
+this as "ladder open" when it is not. The test now asserts the stopping point moved by one rung, so
+nobody can mistake one for the other later.
+
+**One inaccuracy in your dispatch, flagged not followed:** it said the new field "mirrors the Stamina
+pending-entitlement field you already built". No such field exists - `grep pending` in
+`PlayerProfile.cs` returns nothing. The field is auto-approved on its own merits so I proceeded, but
+that is the same shape as the earlier "you wired the voucher ladder hours ago", and acting on it
+unchecked would have had me looking for a precedent that was never there.
+
+**Still open for BS, unchanged and now the only thing between a whale and the Gold tier:** the
+cosmetic ownership model for milestone 500.
+
+Nothing in flight, no lock held.

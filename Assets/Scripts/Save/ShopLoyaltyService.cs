@@ -24,8 +24,12 @@ namespace MyriadOfDragons.Save
         public int StaminaClaimsForfeited;
         public int StaminaClaimsDeferred;
 
-        /// <summary>Plan id of a VIP voucher granted by this claim, or empty.</summary>
+        /// <summary>Plan id of a VIP voucher granted LIVE by this claim, or empty.</summary>
         public string VoucherPlanGranted;
+
+        /// <summary>Plan id of a voucher QUEUED because a subscription was already active. The
+        /// milestone still claimed fully.</summary>
+        public string VoucherPlanQueued;
 
         public string Message;
     }
@@ -208,6 +212,46 @@ namespace MyriadOfDragons.Save
         public static bool GrantsVoucher(int milestonePoints) =>
             !string.IsNullOrEmpty(VoucherPlanIdFor(milestonePoints));
 
+        /// <summary>
+        /// Puts a voucher live. The activation clock starts NOW, never when it was earned - that is
+        /// what makes a queued voucher a deferred entitlement rather than banked active time, and
+        /// is why this does not conflict with the "no banking past duration" rule.
+        /// </summary>
+        private static void ActivateVoucher(PlayerProfile profile, string planId, long nowTicks)
+        {
+            int planIndex = PlanIndexOf(planId);
+            profile.vipPlanId = planId;
+            profile.vipStartedUtcTicks = nowTicks;
+            profile.vipExpiresUtcTicks = nowTicks + System.TimeSpan.FromDays(
+                MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanDurationDays[planIndex]).Ticks;
+            profile.vipClaimsConsumed = 0;
+        }
+
+        /// <summary>
+        /// Activates the next queued voucher if - and only if - no subscription is currently live.
+        ///
+        /// ONE AT A TIME, FIFO, never while something is active: activating two at once, or
+        /// extending a running subscription, is exactly the stacking the locked rules forbid.
+        /// Cheap no-op when nothing is due, so it is safe to call wherever a lapse could have
+        /// happened. Does NOT save - the caller persists, same contract as Accrue and ClaimNext.
+        /// </summary>
+        public static string ActivateNextPendingVoucher(PlayerProfile profile, long nowTicks)
+        {
+            if (profile?.pendingLoyaltyVipVoucherIds == null) return string.Empty;
+            if (profile.pendingLoyaltyVipVoucherIds.Count == 0) return string.Empty;
+            if (MyriadOfDragons.Metagame.VipSubscriptionOpenValues.IsSubscriptionActive(profile, nowTicks))
+                return string.Empty;
+
+            string next = profile.pendingLoyaltyVipVoucherIds[0];
+            profile.pendingLoyaltyVipVoucherIds.RemoveAt(0);
+            ActivateVoucher(profile, next, nowTicks);
+            return next;
+        }
+
+        /// <summary>Vouchers earned and still waiting. Floored against a null list from an old save.</summary>
+        public static int PendingVoucherCount(PlayerProfile profile) =>
+            profile?.pendingLoyaltyVipVoucherIds?.Count ?? 0;
+
         private static int PlanIndexOf(string planId)
         {
             string[] ids = MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanIds;
@@ -304,24 +348,29 @@ namespace MyriadOfDragons.Save
             if (!string.IsNullOrEmpty(voucherPlan))
             {
                 long nowTicks = MyriadOfDragons.Metagame.VipSubscriptionOpenValues.NowUtcTicks();
+
+                // DEFERRED ENTITLEMENT (locked 2026-08-26, BS). The milestone claims FULLY either
+                // way - the Gold and Stamina grants below run regardless. Only the VOUCHER portion
+                // queues when a subscription is already active.
+                //
+                // This replaces an all-or-nothing refusal that measured as a total lockout: claims
+                // are strictly ascending and a whale is effectively always subscribed, so the
+                // 250-point rung refused forever and blocked every rung behind it - the six-month
+                // sim measured LoyaltyGoldClaimed == 0 for a whale. The refusal was individually
+                // correct and collectively catastrophic.
                 if (MyriadOfDragons.Metagame.VipSubscriptionOpenValues.IsSubscriptionActive(profile, nowTicks))
                 {
-                    // "Cannot stack with an active subscription" is a locked constraint. Refusing
-                    // WITHOUT advancing the guard keeps the reward owed - a player who happens to be
-                    // subscribed the day they cross a milestone must not silently forfeit it.
-                    result.Message =
-                        "Milestone " + points + " grants a VIP voucher, but a subscription is " +
-                        "already active - vouchers cannot stack. The reward stays owed.";
-                    return result;
-                }
+                    if (profile.pendingLoyaltyVipVoucherIds == null)
+                        profile.pendingLoyaltyVipVoucherIds = new System.Collections.Generic.List<string>();
 
-                int planIndex = PlanIndexOf(voucherPlan);
-                profile.vipPlanId = voucherPlan;
-                profile.vipStartedUtcTicks = nowTicks;
-                profile.vipExpiresUtcTicks = nowTicks + System.TimeSpan.FromDays(
-                    MyriadOfDragons.Metagame.VipSubscriptionOpenValues.PlanDurationDays[planIndex]).Ticks;
-                profile.vipClaimsConsumed = 0;
-                result.VoucherPlanGranted = voucherPlan;
+                    profile.pendingLoyaltyVipVoucherIds.Add(voucherPlan);
+                    result.VoucherPlanQueued = voucherPlan;
+                }
+                else
+                {
+                    ActivateVoucher(profile, voucherPlan, nowTicks);
+                    result.VoucherPlanGranted = voucherPlan;
+                }
             }
 
             int gold = GoldRewardFor(points);

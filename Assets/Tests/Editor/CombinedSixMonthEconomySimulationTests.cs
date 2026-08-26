@@ -88,7 +88,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void RegularAndWhale_SpendGems_VIPAndStamina_LoyaltyLadderBlockedByNoStackingRule()
+        public void RegularAndWhale_SpendGems_VIPAndStamina_VouchersDeferInsteadOfLockingTheLadder()
         {
             CombinedSixMonthEconomySimulation.Ledger regular =
                 CombinedSixMonthEconomySimulation.Run(
@@ -107,31 +107,22 @@ namespace MyriadOfDragons.Tests
             Assert.GreaterOrEqual(whale.LoyaltyPointsEarned, 8000,
                 "Whale Gem seed + ladder + VIP should reach the top Loyalty rung in points.");
 
-            // ENGINE TRUTH, and it exposes a real DESIGN CONTRADICTION rather than a bug in any
-            // one piece. Three locked rules interact badly:
-            //   1. Vouchers cannot stack with an active subscription  (locked constraint)
-            //   2. Claims are STRICTLY ASCENDING                      (forced by the single-int guard)
-            //   3. A whale re-subscribes to Monthly VIP the moment it lapses (this sim, line ~338)
-            // => a whale is essentially ALWAYS subscribed, so the 250 voucher rung refuses forever,
-            //    and because refusal correctly does NOT advance the guard, EVERY rung behind it is
-            //    unreachable too - including the 25k/50k/100k Gold tier.
-            //
-            // The loyalty ladder is therefore structurally unclaimable past the 100-point rung for
-            // exactly the players it was designed to reward. Each rule is individually correct;
-            // the combination is not. Pinned here rather than left as a red test, so the gap is
-            // visible in the suite without masking it - the same discipline RedemptionAvailable
-            // used while it was blocked.
-            Assert.AreEqual(0, whale.LoyaltyVouchersGranted,
-                "A permanently-subscribed whale can never claim a voucher - no-stacking refuses it, " +
-                "and ascending claims mean it blocks the whole ladder behind it. DESIGN GAP, not a " +
-                "code defect: this assertion should be INVERTED once the interaction is resolved.");
-            Assert.AreEqual(0, whale.LoyaltyGoldClaimed,
-                "Consequence of the above: the Gold tier at 2,000+ is unreachable for a subscribed " +
-                "whale, so the six-month Loyalty Gold total is 0 rather than a real number.");
+            // THE LOCKOUT IS FIXED (deferred-voucher queue, locked 2026-08-26). Previously this
+            // asserted the contradiction: a permanently-subscribed whale claimed NOTHING past the
+            // 100-point rung, because the voucher refusal blocked the strictly-ascending queue.
+            // The assertion said in-code that it should be INVERTED once resolved. It is resolved,
+            // so it is inverted here rather than deleted - the history is the point.
+            Assert.Greater(whale.LoyaltyVouchersGranted, 0,
+                "A subscribed whale must now EARN vouchers (queued as deferred entitlements) " +
+                "instead of being locked out of its own ladder.");
+            Assert.GreaterOrEqual(whale.LoyaltyVouchersGranted, regular.LoyaltyVouchersGranted,
+                "A whale outspends a regular spender, so it cannot earn fewer.");
 
-            // The regular spender is the control: it subscribes less consistently, so if IT also
-            // reports zero vouchers the cause is broader than the no-stacking interaction.
-            Assert.GreaterOrEqual(regular.LoyaltyVouchersGranted, 0);
+            // The remaining zero is the COSMETIC rung (500), which PlayerProfile still cannot
+            // represent - a genuinely different open gap from the voucher one just closed. Stated
+            // as its own assertion so the two are never conflated again.
+            Assert.Greater(whale.LoyaltyClaimsBlockedAtCosmeticRung, 0,
+                "The cosmetic rung is now the only thing blocking the ladder.");
 
             // Same free Gold farms as F2P; paid BP table is configured but not claimable.
             Assert.AreEqual(483_450,
