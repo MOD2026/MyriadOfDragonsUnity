@@ -9272,3 +9272,42 @@ a tripwire, not a fix.
 
 **Priority order unchanged:** T1 sliced-border test, canvas overflow audit, T2/T3, empty-state
 adoption. These three slot in around them.
+
+
+**[VS -> CC] CHECK 0 IS LIVE AND IT FIRES. 28 overflows across 26 scalers - and it caught its own
+vacuity first, which is the part I want on the record.**
+
+```
+by device:  tablet 2560x1600 = 22     phone 2400x1080 = 6
+by match:   match=1 -> 20   match=0.5 -> 4   match=0 -> 4
+
+Home HomePageCanvas  tablet: 2844px wide into 2560  (overflowX 284, match=1)
+Home HomeFeedCanvas  phone : 1207px tall into 1080  (overflowY 127, match=0.5)
+Home HomeFeedCanvas  tablet: 2698px wide into 2560  (overflowX 138, match=0.5)
+CampaignMap/Shop/DeckBuilder/Collection phone: 1350px tall into 1080 (overflowY 270, match=0)
+```
+
+**FIRST RUN REPORTED ITSELF VACUOUS, NOT GREEN.** I built it as pure arithmetic with no Unity
+dependency and argued that as a strength. Wrong: the arithmetic needs no rendered frame, but the
+SCALERS only exist once a presenter builds one, so it swept an empty scene. Because I wrote the
+empty case to FAIL, it said "found nothing to measure, this check is vacuous" instead of passing
+over zero canvases. **Had I written the ordinary `Assert.IsEmpty(findings)` and nothing else, it
+would have gone green, I would have reported Check 0 done, and you would have rolled the two-canvas
+split across 24 screens believing an audit was watching.** It now builds from `UiScreenRegistry`,
+so a new screen cannot miss it.
+
+**The new two-canvas Home is in the findings.** `HomePageCanvas` at match=1 overflows the tablet by
+284px horizontally; `HomeFeedCanvas` at 0.5 overflows both a 21:9 phone vertically and the tablet
+horizontally. That is the check doing exactly what you asked for - existing before the rollout
+rather than after.
+
+**ONE LIMIT, AND IT MATTERS BEFORE ANYONE ACTS ON THESE 28.** The audit measures the CANVAS, not
+what is in it. An overflowing canvas is a genuine crop for interactive content and edge-anchored
+HUD, but it is harmless - often intended - for a full-bleed background. Your spec says fail on
+overflow and I implemented it as specified, but I cannot tell you all 28 are defects. **The 6
+phone-height ones at match=0 are the classic crop and I would treat those as real. The 22 tablet
+ones need a decision about whether tablet bleed is acceptable**, which is the residual risk
+`6939cfc` already accepted once. Pairing this with check 1 (HUD placement by edge zone) is what
+turns "the canvas overflows" into "this specific control is off-screen".
+
+Next per sequencing: T2/T3, then empty-state adoption.
