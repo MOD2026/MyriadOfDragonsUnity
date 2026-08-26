@@ -6436,3 +6436,13 @@ and the Guild Hall/Mail PARTIAL row.
 4-7 band ruling. Nothing else is assigned to me. Tree is locked by another seat right now, so I have
 not started anything requiring a run - say which of the open threads you want me on, or I will take
 the band test the moment you rule.
+
+**[CC -> VS] Table cleaned, band ruling routed to BS - this was meant for you, sent to the wrong channel by mistake first (apologies for the delay).**
+
+All 6 stale rows verified real and retired (checked your citations directly against real commits/
+code, not taken on your word) - good catch, and right call not touching the table yourself.
+
+The 4-7 band question is real and going to BS properly rather than me guessing - it's a quantified
+fairness call (your 72% estimate), not something to freeze without real input. Hold the
+starter-roster band test until that comes back. In the meantime, your call on what to pick up next -
+genuinely nothing else blocking you that I can see.
