@@ -111,7 +111,7 @@ namespace MyriadOfDragons.UI
             Text title = UISharedFoundation.CreateText(
                 header, "Title", "COMMAND CIRCUIT", UITextRole.Title, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 46f));
-            Band(title.rectTransform, 0.22f, 0.52f, 0.78f, 0.94f);
+            SetNorm(title.rectTransform, 0.22f, 0.52f, 0.78f, 0.94f);
 
             // ST's locked framing (2026-08-26). Institutionally attributed to the War Room -
             // deliberately avatar-less, so no new speaker or portrait is needed.
@@ -121,27 +121,33 @@ namespace MyriadOfDragons.UI
                 + "and command of the available ranks.",
                 UITextRole.Caption, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(1500f, 34f));
-            Band(framing.rectTransform, 0.14f, 0.10f, 0.86f, 0.46f);
+            SetNorm(framing.rectTransform, 0.14f, 0.10f, 0.86f, 0.46f);
 
             // BACK is pinned hard left so it cannot cover the title, which is exactly what it did.
             Button back = UISharedFoundation.CreateButton(
                 header, "Btn_Back", "BACK", new Vector2(180f, 70f),
                 UIFrozenTokens.ColorPanel, Close, null, true);
-            Band(back.GetComponent<RectTransform>(), 0.01f, 0.24f, 0.13f, 0.80f);
+            SetNorm(back.GetComponent<RectTransform>(), 0.01f, 0.24f, 0.13f, 0.80f);
         }
 
         /// <summary>
         /// Anchors a child to an explicit normalised band of its parent.
         ///
-        /// Exists because CreateText/CreateButton size their rects but never place them - without
-        /// this every child of a panel occupies the same centre point and silently overlaps. A
-        /// green suite cannot see that; the contact sheet showed it immediately.
+        /// Named `SetNorm` to match the convention every other presenter already uses (23 files
+        /// carry an identical private helper). I originally wrote this as `SetNorm()` - a third name
+        /// for a thing that already had one, which is how a codebase ends up with three spellings
+        /// of the same idea.
+        ///
+        /// It exists at all because CreateText/CreateButton size their rects but never place them:
+        /// without this call every child of a panel sits on the same centre point and silently
+        /// overlaps. That is not a quirk of those helpers - it is the established contract, and
+        /// every other presenter honours it. I simply omitted the step.
         /// </summary>
-        private static void Band(RectTransform rect, float minX, float minY, float maxX, float maxY)
+        private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)
         {
             if (rect == null) return;
-            rect.anchorMin = new Vector2(minX, minY);
-            rect.anchorMax = new Vector2(maxX, maxY);
+            rect.anchorMin = new Vector2(left, bottom);
+            rect.anchorMax = new Vector2(right, top);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
         }
@@ -187,12 +193,12 @@ namespace MyriadOfDragons.UI
             // 0.88 not 0.94: once ApplyFramedPanel gave these cards a real 9-slice
             // border, the title band ran under the frame's top edge and the text clipped
             // it. The frame did not exist when I first picked these numbers.
-            Band(title.rectTransform, 0.05f, 0.60f, 0.62f, 0.88f);
+            SetNorm(title.rectTransform, 0.05f, 0.60f, 0.62f, 0.88f);
 
             Text flavourText = UISharedFoundation.CreateText(
                 card, "Flavour", flavour, UITextRole.Caption, TextAnchor.UpperLeft,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 32f));
-            Band(flavourText.rectTransform, 0.05f, 0.34f, 0.62f, 0.58f);
+            SetNorm(flavourText.rectTransform, 0.05f, 0.34f, 0.62f, 0.58f);
 
             // The RULE stays separate from the flavour line and is generated from the same
             // deterministic seed that scores the trial - copy must never drift from what is
@@ -200,13 +206,13 @@ namespace MyriadOfDragons.UI
             Text status = UISharedFoundation.CreateText(
                 card, "Status", DescribeTrial(trial), UITextRole.Body, TextAnchor.UpperLeft,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 36f));
-            Band(status.rectTransform, 0.05f, 0.10f, 0.62f, 0.32f);
+            SetNorm(status.rectTransform, 0.05f, 0.10f, 0.62f, 0.32f);
 
             Button play = UISharedFoundation.CreateButton(
                 card, "Btn_Play", IsCleared(trial) ? "CLEARED" : "PLAY", new Vector2(220f, 72f),
                 IsCleared(trial) ? UIFrozenTokens.ColorHeader : UIFrozenTokens.ColorAccentEmerald,
                 () => AttemptTrial(trial), null, true);
-            Band(play.GetComponent<RectTransform>(), 0.68f, 0.28f, 0.94f, 0.72f);
+            SetNorm(play.GetComponent<RectTransform>(), 0.68f, 0.28f, 0.94f, 0.72f);
 
             // Chrome applied AFTER the card's children are banded and its own rect is final -
             // ApplyFramedPanel fits the 9-slice border against the CURRENT rect, so calling it
