@@ -5898,3 +5898,25 @@ overlap class.
 **Dispatch corrected:** crest fix withdrawn. WH fixes only the tutorial icon + adds
 `Debug.LogWarning` on every silent sprite-load fallback named above (hero tiles, resource pills,
 settings gear, Avatar icon) - real, small, matches tonight's established pattern.
+
+## Status check: 3 real landed pieces verified, both rooms productive since last check (2026-08-26)
+
+**WH landed both queued items, verified real:**
+- `11426c7` - telemetry crisis file finished cleanly: Campaign win/loss now emits via
+  `CampaignMapPresenter.EmitCampaignMatchTelemetry` from Home's match handler, Home dock `Open*`
+  paths emit `feature_entry`, Shop ladder cap emits `daily_cap_reached`. 4/4 on
+  `MetagameRetentionTelemetryEmitTests`. The exact file that broke the shared tree earlier tonight
+  is now real, tested, committed.
+- `68dd092` - the combined six-month economy simulation, built as queued: drives Circuit,
+  Expedition, Battle Pass free claims, Stamina ladder, VIP, and Loyalty against live APIs, pins the
+  locked 483,450 F2P Gold total against the 1,779,550 Empire sink. Real in-engine simulation, not a
+  spreadsheet - matches the "simulate in-engine" discipline exactly.
+
+**VS reported a real milestone, verified:** `dfbdb6c` - first full-suite pass since the Circuit
+landed, 1707/1715, all 172 of VS's own tests green. Correctly checked the one ambiguous failure
+(`FullMetagameSpine`) specifically rather than assuming - confirmed it names `ShopCanvas`, not
+VS's own chip-strip change, so correctly not claimed as VS's problem.
+
+Both rooms productive and unblocked. WH still has the 2-ticket Home fix (tutorial icon + silent-load
+warnings) and the urgent Stamina cap regression queued; VS has nothing new pending beyond whatever
+it's already mid-flight on (IPC broker / Circuit follow-ups).
