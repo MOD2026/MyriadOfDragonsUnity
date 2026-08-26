@@ -107,13 +107,17 @@ namespace MyriadOfDragons.UI
                 TeardownUI();
                 _onBackToHome?.Invoke();
             });
+            // Top-anchored, not vertically centered in the 100px header: centering ate clearance
+            // below the button that the construction panel needed, and the two were fighting over
+            // the same real estate (EmpireLayoutTests' overlap check vs MetagameWorkingAreaLayoutTests'
+            // no-decorative-gap check couldn't both pass with Btn_Back sitting mid-header).
             RectTransform backRect = backBtn.GetComponent<RectTransform>();
-            backRect.anchorMin = new Vector2(0f, 0.5f);
-            backRect.anchorMax = new Vector2(0f, 0.5f);
-            backRect.pivot = new Vector2(0f, 0.5f);
-            backRect.anchoredPosition = new Vector2(30f, 0f);
-            backRect.sizeDelta = new Vector2(160f, 60f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 50f));
+            backRect.anchorMin = new Vector2(0f, 1f);
+            backRect.anchorMax = new Vector2(0f, 1f);
+            backRect.pivot = new Vector2(0f, 1f);
+            backRect.anchoredPosition = new Vector2(30f, -5f);
+            backRect.sizeDelta = new Vector2(160f, 40f);
+            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 34f));
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "EMPIRE", UITextRole.Display,
                 TextAnchor.MiddleLeft, new Color(0.95f, 0.92f, 0.82f), true, new Vector2(220f, 60f));
@@ -212,7 +216,7 @@ namespace MyriadOfDragons.UI
             // flat, sprite-less color fill (EmpireLayoutTests' art/button overlap check only
             // considers Images with a sprite), surfaced once ApplyFramedPanel gave it a real
             // bordered sprite. 0.85 restores real clearance.
-            empireRect.anchorMax = new Vector2(0.97f, 0.82f);
+            empireRect.anchorMax = new Vector2(0.97f, 0.87f);
             empireRect.offsetMin = Vector2.zero;
             empireRect.offsetMax = Vector2.zero;
 
@@ -555,13 +559,14 @@ namespace MyriadOfDragons.UI
                 else DestroyImmediate(existingDetail);
             }
 
-            // Guild Hall is a full-screen replacement, not an overlay (unlike TacticalPuzzle/
-            // BuildingDetail) - the Empire canvas must be hidden while it's open, same pattern as
-            // HomePagePresenter.OpenMetagameShellPresenter. Without this, EmpireCanvas stayed
-            // active underneath GuildHallEntryCanvas: both fully interactive, both visibly
-            // rendering at once (real bug, confirmed via owner screenshot).
-            if (_canvasObj != null) _canvasObj.SetActive(false);
-
+            // Guild Hall is a popup over Empire, same convention as BuildingDetail/TacticalPuzzle -
+            // Empire's canvas stays active underneath (MetagameNavigationSpineTests.
+            // OpenAndCloseGuildHallEntry asserts this explicitly, mirroring
+            // OpenAndCloseBuildingDetail). An earlier fix here (dcf9610) wrongly hid Empire's
+            // canvas under the assumption Guild Hall was a full-screen replacement like Guild
+            // Expedition - reverted. The real fix for the visible-overlap bug is Guild Hall's own
+            // backdrop actually covering the screen (GuildHallEntryPresenter.BuildBackground),
+            // not hiding what's underneath it.
             GuildHallEntryPresenter entry = gameObject.GetComponent<GuildHallEntryPresenter>();
             if (entry == null) entry = gameObject.AddComponent<GuildHallEntryPresenter>();
 
@@ -569,7 +574,6 @@ namespace MyriadOfDragons.UI
             {
                 if (Application.isPlaying) Destroy(entry);
                 else DestroyImmediate(entry);
-                if (_canvasObj != null) _canvasObj.SetActive(true);
             });
         }
 

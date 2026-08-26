@@ -30,16 +30,29 @@ namespace MyriadOfDragons.UI
         private void BuildUI()
         {
             TeardownUI();
-            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+            // Do not CleanupStaleMetagameCanvases - Guild Hall is a popup over Empire, same
+            // convention as EmpireBuildingDetailPresenter; EmpireCanvas must stay underneath.
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 40;
 
+            // Real bug (owner screenshot): the art background below used preserveAspect and could
+            // letterbox, leaving gaps where EmpireCanvas visually bled through and stayed
+            // clickable underneath. A guaranteed-opaque dimmer first, same pattern as
+            // EmpireBuildingDetailPresenter's "Dimmer", fixes that regardless of art aspect ratio.
+            GameObject dim = new GameObject("Dimmer", typeof(RectTransform), typeof(Image));
+            dim.transform.SetParent(_canvasObj.transform, false);
+            UISharedFoundation.StretchFull(dim.GetComponent<RectTransform>());
+            Image dimImg = dim.GetComponent<Image>();
+            dimImg.color = new Color(0.08f, 0.09f, 0.12f, 1f);
+            dimImg.raycastTarget = true;
+
             GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bg.transform.SetParent(_canvasObj.transform, false);
             UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
             GuildHallUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), new Color(0.08f, 0.09f, 0.12f));
+            bg.GetComponent<Image>().raycastTarget = false;
 
             BuildHeader();
             BuildBody();
