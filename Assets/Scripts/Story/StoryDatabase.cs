@@ -112,9 +112,9 @@ namespace MyriadOfDragons.Story
             // Chapter 1 continuation, Stages 1-4..1-12 (docs/CAMPAIGN_NARRATIVE_CH1_3_2026-08-23.md).
             // Recurring cast: Thaleia / Rusk / Ione. Interaction prompts are resolved in the
             // post-dialogue lines (no separate choice UI in Phase 1).
-            var thaleia = new StorySpeaker("thaleia", "Thaleia, the Olympus Envoy", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var rusk = new StorySpeaker("rusk", "Rusk Ashrunner", "UI/Portraits/Paladin", SpeakerPosition.Right);
-            var ione = new StorySpeaker("ione", "Ione of the Glass Choir", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var thaleia = new StorySpeaker("thaleia", "Thaleia, the Olympus Envoy", "UI/Portraits/Thaleia", SpeakerPosition.Right);
+            var rusk = new StorySpeaker("rusk", "Rusk Ashrunner", "UI/Portraits/Rusk", SpeakerPosition.Right);
+            var ione = new StorySpeaker("ione", "Ione of the Glass Choir", "UI/Portraits/Ione", SpeakerPosition.Right);
 
             AddAuthoredStageDialogue("1-4", "Ashen Foothills",
                 new[]
@@ -794,7 +794,7 @@ namespace MyriadOfDragons.Story
                 });
 
             // Shared post-finale voice for Ch4–7 / Ch10+ hooks (LOCKED Ch4-7 narrative upgrade 2026-08-25).
-            var unknownVoice = new StorySpeaker("unknown_voice", "Unknown Voice", "UI/Portraits/Paladin", SpeakerPosition.Right);
+            var unknownVoice = new StorySpeaker("unknown_voice", "Unknown Voice", "UI/Portraits/Eryx", SpeakerPosition.Right);
 
             // Chapter 4 depth fill, Stages 4-1..4-30. Ordinary stages stay templated; required
             // beats (4-1 / 4-15 / 4-30 pre + 4-30 post hook) match Ch8–11 treatment shape.
@@ -1899,7 +1899,7 @@ namespace MyriadOfDragons.Story
             // The existing if (stageId == "18-30") block above only authored finale dialogue; this
             // packet replaces those lines in place — no separate ending trigger to preserve.
             var eryx = new StorySpeaker("unknown_voice", "Eryx, the First Witness",
-                "UI/Portraits/Paladin", SpeakerPosition.Right);
+                "UI/Portraits/Eryx", SpeakerPosition.Right);
 
             ReplaceSequenceLines("3-30_post", "Stage 3-30: Cleared",
                 new DialogueLine(ione, "The dead-star road is closing. Its last echo points back through Boiotia."),
