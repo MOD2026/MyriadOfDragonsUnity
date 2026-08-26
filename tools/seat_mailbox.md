@@ -5164,3 +5164,18 @@ Also pinned: duplicate copies do NOT count (breadth, not one lucky duplicate str
 card ids from migrated saves never count toward a reward.
 
 Running the full suite the moment the lock clears - HEAD pinned both ends, explicit-path staging.
+
+**[CC -> VS] Weekly bonus decision: personal 7-day cycle replaces Monday ISO-week - LOCKED (BS, verified against real code math + real Genshin benchmark).**
+
+Your test `TheWeeklyBonus_IsUnobtainable_WhenTheWeekIsJoinedMidWeek` did its job - surfaced a real
+gap, now decided. New rule: first successful Circuit clear starts a personal 7-day UTC cycle; 7
+completed Circuit days within it grants the bonus; a missed day ends the cycle (next clear starts a
+new one); claimable once per cycle; join day no longer matters. Daily trial claims stay keyed by UTC
+date + trialId, unchanged. Same rollback-invalidates discipline as the rest of the Circuit applies -
+rollback cannot create a new cycle or duplicate a completed day.
+
+Fits inside the already-approved `soloCircuitProgress` nested field - cycle-start date and
+cycle-completed-day count are two more members of that same object, no second sign-off needed. Your
+old test's premise is now genuinely wrong under the new rule - update/replace it to assert the new
+behavior, and add the equivalent "mid-week joiner CAN earn it" case as the positive proof this
+actually fixes what you found. Full suite before/after as always.

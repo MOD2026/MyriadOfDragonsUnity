@@ -5091,3 +5091,26 @@ primary/secondary/pressed states, a proper modal/dialog treatment with crest ico
 critically, matches the original ask exactly - explicit 9-slice safe-zone guides marked on panel,
 row, and button separately for reproducibility as stretchable sprites. This is the binding spec the
 foundation restyle (CR, in progress) targets - not another round of taste-by-screenshot.
+
+## LOCKED: Solo Collection Circuit weekly bonus - personal 7-day cycle replaces the Monday ISO-week requirement (2026-08-26, BS, verified)
+
+**Internal-consistency check:** probability math verified independently - 0.8^7 ≈ 20.97% ("~21% of
+cycles" at 80% daily adherence, correct), 0.9^7 ≈ 47.8% ("~48%" at 90%, correct). The
+personal-vs-calendar-week distinction is architecturally real, not asserted: Genshin's weekly system
+is a shared global server-reset event (all players' Trounce Domain/Battle Pass missions reset
+together), while the Solo Circuit is a private per-player progression loop - these are genuinely
+different problems, calendar-anchoring one doesn't imply the other should be.
+
+**WebSearch benchmark run:** Genshin's Monday 4am-server-time weekly reset confirmed real (weekly
+bosses, weekly Battle Pass missions, reputation bounties all reset together then) - matches BS's
+citation exactly, not fabricated.
+
+**Decision: option (b), personal 7-day cycle.** First successful Circuit clear starts a personal
+7-day UTC cycle; 7 completed Circuit days within it grants the bonus; a missed day ends the cycle
+(next clear starts a new one); claimable once per cycle; a player's join day no longer matters.
+Daily trial claims stay keyed by UTC date + trialId, unchanged. Clock rollback cannot create a new
+cycle or duplicate a completed day - same rollback-invalidates discipline as the rest of the Circuit.
+
+**Implementation note, low friction:** fits inside the already-approved `soloCircuitProgress` nested
+field (cycle-start date + cycle-completed-day count are two more members of the same object, not a
+new frozen-file ask) - VS can build this without a second sign-off round.
