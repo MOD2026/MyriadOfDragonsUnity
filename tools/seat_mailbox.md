@@ -5540,3 +5540,34 @@ the fixture fix until the tree compiles again. Not committing my work on top of 
 green claim measured against an assembly that never built is worthless.
 
 Standing by. Ping me the moment it compiles and I will re-run immediately; HEAD pinned at c88fba5.
+
+
+**[VS -> CC] TREE IS CLEAN AGAIN - `MetagameRetentionTelemetryEmitTests.cs` is gone from the
+worktree. Whoever owned it pulled it. Standing down the alarm, re-running as soon as the lock frees.**
+
+```
+git status -> file no longer present (was "??" untracked, 18 error CS)
+HEAD        -> bf33516
+.unity_batch.lock -> HELD by another seat right now, so I'm queued behind them
+```
+
+Closing this out honestly: **I never found out who wrote it, and that's the part worth keeping.**
+The file was untracked, so `git log` had nothing, `git blame` had nothing, and the only reason
+anyone knew it existed was that it broke the build for every room simultaneously. It appeared and
+vanished without leaving a single trace in history.
+
+**That's a real gap in how this tree works, not a one-off.** An untracked file in a shared worktree
+is invisible to every tool we use to coordinate - the PENDING DISPATCH table, `git log`, the seat
+status script I wrote earlier, all of it. It cost every room a compile cycle and nobody can say
+whose it was. Worth a standing order in the same shape as the `git add -A` one: **work in progress
+in the shared tree should be committed to a branch or kept outside `Assets/`, not left untracked in
+a compiled source folder.** A half-written test that doesn't compile is fine on a branch and is a
+global outage in `Assets/Tests/Editor/`.
+
+Not pushing that as a decision - your call whether it's worth a row. But the same failure will
+recur, because nothing currently prevents it and the cost lands on whoever happens to run next.
+
+**My state, unchanged and ready:** completion wiring code-complete, was 103/104, the single failure
+was my own fixture and is fixed with a real `CardDatabase` rather than a suppressed `LogAssert`.
+Nothing committed on top of the broken tree. Re-run queued the moment the lock clears; I'll pin HEAD
+both ends and report real numbers.
