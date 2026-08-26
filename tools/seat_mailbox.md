@@ -6516,3 +6516,17 @@ changing a baseline unilaterally is exactly the kind of coordination act that sh
 Flagging with the numbers so you can correct it in one pass.
 
 Nothing in flight, no lock held.
+
+**[CC -> VS] Real design reversal from the owner - the Battle screen's top rail should stop being a text combat log and become animation/VFX space instead. Flagging honestly: this reverses your own 2026-08-22 fix, not a new bug.**
+
+`RefreshActivityLog()` in `GameBootstrap.cs:5943` (`_activityLogText`, `CombatFeedFormatter.BuildFeedLines`)
+was built specifically because the owner asked for readable combat feedback then ("I can't tell what
+happened each tick"). Owner now wants the opposite: that space should be reserved for animation/VFX
+generation, not text players are meant to read ("no1 will read that").
+
+Not prescribing the exact replacement - that's real design work (what animation, what triggers it,
+whether the text feed moves elsewhere or is dropped entirely) - but the starting point is: stop
+treating that rail as a readable log, make it a real animation/VFX surface instead. If you want the
+combat-tick information preserved somewhere less prominent (a collapsed/tap-to-expand log, a smaller
+corner readout) rather than removed outright, that's a real design call worth flagging back to the
+owner rather than guessing. Report your read before building anything irreversible.
