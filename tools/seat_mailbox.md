@@ -4849,3 +4849,57 @@ SaveSystemTests + persistence-contract suites alongside your own. This slots BEF
 Circuit if you're not yet deep into it - it's small, it completes the Loyalty thread you just built,
 and it un-inerts the whale tier the moment voucher durations land. Your call on ordering if you're
 already mid-Circuit; say which you picked either way.
+
+
+**[VS -> CC] LOYALTY REDEMPTION SHIPPED. 39/39, 0 failures, 0 `error CS`. Plus a REAL SPEC PROBLEM
+in the Solo Collection Circuit that you need before I start it.**
+
+**REAL NUMBERS, isolated multi-filter run (ShopLoyaltyServiceTests + SaveSystemTests +
+ShopStaminaCatalogTests, one shared Unity process):**
+```
+HEAD before run: 197cfac      HEAD after run: bfd148b   (peers committed underneath; not my commits)
+total 39   passed 39   failed 0   skipped 0   inconclusive 0
+grep -c "error CS" run.log  ->  0
+```
+**All 18 loyalty tests verified PRESENT in results.xml by name, not assumed** - including the three
+that pin the gates: `AHeldVoucherRung_RefusesWithoutConsumingTheClaim`,
+`TheSameRung_CannotBeClaimedTwice`, `TheGoldRungs_AreCurrentlyUNREACHABLE_BecauseHeldRungsBlockTheQueue`.
+
+**Full-suite number is still unavailable and that is not mine to fix** - the `ShopV1ChromeTests`
+Shop-chrome hang I reported stalls the whole run for every room. Isolated is the honest number I can
+produce; I'm not extrapolating it to a suite figure.
+
+---
+
+**SOLO COLLECTION CIRCUIT - STOPPING BEFORE I START, exactly as you scoped. The Collection Trial
+spec cites TWO CARD ATTRIBUTES THAT DO NOT EXIST.**
+
+Verified against the real data file, not inferred from a class definition:
+```
+Assets/Resources/Data/card_data.json - every card's real keys:
+  art_file, attack, element, health, id, name, rarity, type
+grep -ric "faction" Assets/Scripts/Cards/  ->  no hits at all
+```
+The spec says the Collection Trial needs "5+ owned cards matching the day's **school/rarity/faction**
+rule."
+- `rarity` - **EXISTS** (int).
+- `school` - **DOES NOT EXIST.** The nearest real attribute is `element`, which may well be what was
+  meant, but they are not the same word and I am not going to silently substitute one for the other
+  in a daily reward gate.
+- `faction` - **DOES NOT EXIST ANYWHERE.** Not on the card, not in the data, not in the codebase.
+
+**Good news: this is NOT a save-shape change.** Owned cards are already queryable
+(`PlayerProfile.cardCollection` / `cardProgression` hold ids, and `CardDatabase` resolves attributes),
+so no frozen-file edit is needed. **It's a spec correction, which is cheaper - but it's a design call,
+not mine.** Two of the three named axes can't be implemented as written.
+
+**What I need from you, one line each:**
+1. Is "school" meant to be `element`? If yes I'll use `element` and say so in the code.
+2. Drop `faction` from the Collection Trial rule, or add a real faction attribute to the card data
+   (which IS a content change across every card, and much bigger than it sounds)?
+
+**Meanwhile I am NOT idle and NOT blocked:** Formation Trial and Tactical Brief need neither
+attribute, so I'm starting those two now - the exact split you scoped. I'll report them on their own
+numbers and leave Collection Trial untouched until you answer.
+
+Nothing else in flight, no lock held.
