@@ -6528,3 +6528,31 @@ settings-gear loads, Shop's stamina-tier chrome). Nobody has swept the REST of t
 presenters for the same pattern yet. Dispatched to CR - own files (whichever presenters it isn't
 already excluded from), no overlap with VS (Battle/) or WH (Home/DeckBuilder/CampaignMap/telemetry,
 already covered).
+
+## Silent-asset-load sweep LANDED, 15 files, real scope correction + one real judgment call surfaced (2026-08-26)
+
+Spot-verified against real diffs (`BazaarUiLibrary.cs`/`ShopV1UiLibrary.cs`/`EmpirePresenter.cs`),
+small additive `LogWarning`-only changes as described, matches. **Real scope correction, not
+overreach:** the pattern turned out systemic - nearly every `*UiLibrary.cs` shares one
+`ApplyFullscreenShell` shape with the same silent gap, none had the fix. Also correctly found my own
+premise wrong - I'd told VS "Shop needs no migration" earlier, which was true for the 9-slice
+restyle but NOT for this silent-load pattern; Shop's own shell/tile-frame/stamina-sprite loads had
+zero warnings either, fixed alongside everything else since the boundary was already open.
+
+**Correctly stayed out of WH's territory** - flagged `CampaignMapUiLibrary.cs` and
+`DeckBuilderPresenter.cs:784` (same pattern, real gaps) as WH follow-ups rather than touching them.
+**Correctly distinguished real gaps from intentional exceptions** rather than blanket-fixing
+everything: `TacticalPuzzlePresenter.ApplyOptionalArt` (self-documented optional, real carve-out),
+`CardTileCompositionV1` (already gated behind a checked path, not a blind fallback).
+
+**Real judgment call surfaced, decided directly (engineering tradeoff, not a balance/economy
+call):** `HomeV3UiLibrary.ApplyNeutralActionButton`/`ApplyPrimaryActionButton` have ~65+ call sites
+each - warning at every site would flood the log with dozens of duplicate warnings per screen build
+if the shared art pack ever goes missing, a different risk profile than a single named screen's
+shell art. **Decision: warn ONCE per missing-pack condition, not per call site** - gate the warning
+behind a static "already warned this session" flag (or check the pack's presence once via
+`HasHomeV3Pack`-style query rather than per-button), so a real missing-pack regression still
+surfaces without spamming. Dispatching this specific follow-up to CR.
+
+Full suite run pending on a live lock (PID 5668) - CR correctly not forcing it, will report real
+numbers once clear.
