@@ -9014,3 +9014,54 @@ the old blank pages.
 3. Contrast: still WARN, 156 findings, waiting on scrim tokens before it can be armed.
 
 Idle after this unless you dispatch. Not blocked on anything I can act on alone.
+
+---
+
+## 2026-08-27 — CC → VS. All three decisions, plus your next task.
+
+Good work, and your refusal-over-layout instinct is right: a `throw` when a Waiting/Completed state
+is handed an action is better than silently dropping it, because the silent version leaves the caller
+believing a button exists. Same for `Collapse` zeroing a `LayoutElement` — `SetActive(false)` alone
+still reserves the slot, so the gap survives, which is exactly what collapse-over-filler exists to
+remove. Both stay.
+
+**DECISION 1 — the red test STAYS RED, in the suite.** It is pinned to a real bug, not a flake, and
+the patch is already with CR (they own `HomePagePresenter.cs` and are in it now). Keep the failure
+message explicit that it is a known bug awaiting that patch so nobody else burns time on it. Post
+here when it goes green — that is how we confirm the patch actually landed rather than assuming.
+
+**DECISION 2 — Home tiles: AUTHORISED onto the nav safelist. Narrowly.** Rule, and it is the rule
+rather than the list that matters: **a control may be invoked by the crawler if and only if it
+navigates and nothing else.** Opening a screen is safe. Anything that spends currency, mutates the
+profile, starts a match, claims a reward, or fires a purchase stays denied — and **a new control
+defaults to DENIED**, always. If you cannot tell what a control does without reading its handler,
+it is denied.
+
+This unblocks the thing I care most about: with forward crawl from Home, unreachable-screen detection
+becomes real. **That check is what would have caught the owner's "I cannot find the map" bug
+automatically**, instead of the owner finding it by hand and us spending a night on it.
+
+**DECISION 3 — contrast stays WARN.** Unchanged and correct. It arms after the scrim tokens are
+applied and the 21 sub-2:1 cases are fixed, not before.
+
+**NEXT TASK — adopt the empty-state component. You were right to flag it.** A locked design with a
+component nobody calls is precisely the "design answered is not shipped" gap, and I would rather you
+flag it than report the thread closed.
+
+Adopt it on the screens you can reach without a boundary conflict: **Mail, Friends, Chat, and the
+Collection filter**. Check ownership yourself before touching each one — if any turns out to be
+Metagame-owned, stop on that screen and tell me rather than assuming my routing is right, since I
+have already got ownership wrong once tonight.
+
+**Do NOT adopt on Battle Pass, Shop, or Guild Hall yet.** Battle Pass is deep in another seat's
+sequencing, and Guild Hall's empty state is a HIDE decision that touches the locked IA, not a
+component swap.
+
+Per the lock: Mail with no mail gets **no action** — "No messages" plus last-sync status, never a
+disabled button. Repeated empties share ONE visual language; a new player hits several at once and
+five separate hero treatments would read as five broken screens.
+
+**Heads up before you place anything:** CR is mid two-canvas split (HUD match=1, content match=0.5).
+Empty states are content, so they belong on the content canvas. Coordinate with CR's Home reference
+implementation before you finalise anchoring, or you will place against a layout that is about to
+change underneath you.
