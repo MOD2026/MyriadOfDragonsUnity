@@ -37,10 +37,17 @@ namespace MyriadOfDragons.UI
     {
         public const string CanvasName = "TacticalPuzzleCanvas";
 
-        /// <summary>Optional art, by role. Nothing here is required to exist yet.</summary>
+        /// <summary>Owner-approved landscape backdrop (quiet centre, no baked UI). Wired through
+        /// CreateFullscreenBackground so a missing load falls back to flat colour visibly.</summary>
+        public const string BackdropResourcePath =
+            "UI/TacticalPuzzleV1/tactical_puzzle_backdrop_landscape_v1";
+
+        /// <summary>Optional art, by role. Backdrop is required for shared chrome; view shells and
+        /// tiles remain optional so a missing pack never blanks the screen.</summary>
         private static readonly Dictionary<string, string> ArtResourcePaths = new Dictionary<string, string>
         {
-            { "entry", "UI/TacticalPuzzleV1/tactical_puzzle_entry_shell_v1_rgba" },
+            // Entry no longer full-bleeds the ornate shell (it baked black margins / dead space).
+            // Board/result shells stay as featured overlays on the shared landscape backdrop.
             { "board", "UI/TacticalPuzzleV1/tactical_puzzle_board_frame_v1_rgba" },
             { "result", "UI/TacticalPuzzleV1/tactical_puzzle_result_modal_v1_rgba" },
             { "tile_locked", "UI/TacticalPuzzleV1/tactical_puzzle_tile_locked_v1_rgba" },
@@ -350,23 +357,51 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 45;
 
-            GameObject bg = new GameObject("Backdrop", typeof(RectTransform), typeof(Image));
-            bg.transform.SetParent(_canvasObj.transform, false);
-            UISharedFoundation.StretchFull(bg.GetComponent<RectTransform>());
-            Image bgImage = bg.GetComponent<Image>();
-            // Opaque by design: a transparent root lets the camera clear colour bleed through on
-            // non-16:9 viewports, which is the class of bug already logged against other screens.
-            bgImage.color = new Color(0.07f, 0.07f, 0.09f, 1f);
-            // One role per view. This used to be entry-or-board, which silently left the delivered
-            // result-modal art unused - the result view rendered the board frame instead.
-            ApplyOptionalArt(bgImage, CurrentView switch
-            {
-                TacticalPuzzleView.Entry => "entry",
-                TacticalPuzzleView.Result => "result",
-                _ => "board",
-            });
+            // Shared landscape backdrop first — fills the former black dead margins. Opaque
+            // fallback if the sprite fails to load (same CreateFullscreenBackground contract).
+            Image backdrop = UISharedFoundation.CreateFullscreenBackground(
+                _canvasObj.transform, BackdropResourcePath, new Color(0.07f, 0.07f, 0.09f, 1f));
+            backdrop.raycastTarget = false;
+            backdrop.preserveAspect = false;
 
-            _viewRoot = bg.transform;
+            // SoloCircuit pattern: header shell + nav-skinned BACK, then content below.
+            RectTransform header = UISharedFoundation.CreateHeaderShell(
+                _canvasObj.transform, "TacticalPuzzleHeader", 110f, null, UIFrozenTokens.ColorHeader);
+            Text title = UISharedFoundation.CreateText(
+                header, "Title", TacticalPuzzleCopy.ScreenTitle, UITextRole.Display,
+                TextAnchor.MiddleCenter, UIFrozenTokens.ColorTextPrimary, true, new Vector2(900f, 48f));
+            title.fontSize = 36;
+            SetNorm(title.rectTransform, 0.18f, 0.20f, 0.82f, 0.90f);
+
+            Button back = UISharedFoundation.CreateButton(
+                header, "Btn_ExitPuzzles", "BACK", new Vector2(180f, 64f),
+                UIFrozenTokens.ColorPanel,
+                CurrentView == TacticalPuzzleView.Entry ? (UnityEngine.Events.UnityAction)Exit : BackToEntry,
+                null, useHomeNavSkin: true);
+            SetNorm(back.GetComponent<RectTransform>(), 0.01f, 0.18f, 0.12f, 0.82f);
+
+            GameObject content = new GameObject("Content", typeof(RectTransform), typeof(Image));
+            content.transform.SetParent(_canvasObj.transform, false);
+            Image contentBg = content.GetComponent<Image>();
+            contentBg.raycastTarget = false;
+            // Semi-transparent grouping (border rule): not a heavy frame, not floating content.
+            contentBg.color = new Color(
+                UIFrozenTokens.ColorPanel.r, UIFrozenTokens.ColorPanel.g,
+                UIFrozenTokens.ColorPanel.b, 0.55f);
+            RectTransform contentRect = content.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0.04f, 0.04f);
+            contentRect.anchorMax = new Vector2(0.96f, 0.88f);
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
+
+            // Board/result featured shell art sits inside content (not fullscreen) so the
+            // landscape backdrop stays visible around it.
+            if (CurrentView != TacticalPuzzleView.Entry)
+            {
+                ApplyOptionalArt(contentBg, CurrentView == TacticalPuzzleView.Result ? "result" : "board");
+            }
+
+            _viewRoot = content.transform;
 
             switch (CurrentView)
             {
@@ -400,27 +435,20 @@ namespace MyriadOfDragons.UI
 
         private void BuildEntryView()
         {
-            Text title = UISharedFoundation.CreateText(_viewRoot, "Title", TacticalPuzzleCopy.ScreenTitle,
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.88f, 0.62f), true,
-                new Vector2(1200f, 60f));
-            title.fontSize = 40;
-            SetNorm(title.rectTransform, 0.06f, 0.86f, 0.94f, 0.95f);
-
+            // Title lives in the shared header. Intro stays in content.
             Text intro = UISharedFoundation.CreateText(_viewRoot, "Intro", TacticalPuzzleCopy.Intro,
-                UITextRole.Body, TextAnchor.UpperCenter, new Color(0.84f, 0.81f, 0.72f), true,
+                UITextRole.Body, TextAnchor.UpperCenter, UIFrozenTokens.ColorTextPrimary, true,
                 new Vector2(1200f, 90f));
             intro.horizontalOverflow = HorizontalWrapMode.Wrap;
             intro.verticalOverflow = VerticalWrapMode.Truncate;
-            SetNorm(intro.rectTransform, 0.10f, 0.76f, 0.90f, 0.85f);
+            SetNorm(intro.rectTransform, 0.08f, 0.82f, 0.92f, 0.96f);
 
             int count = _slate?.Slots.Count ?? 0;
             if (count == 0)
             {
-                // Say so plainly. An empty row of nothing reads as a broken screen, and puzzle
-                // content is a separate design pass that has not landed yet.
                 Text empty = UISharedFoundation.CreateText(_viewRoot, "EmptyState",
                     "NO RECORDS HAVE BEEN RECOVERED YET.", UITextRole.Title, TextAnchor.MiddleCenter,
-                    new Color(0.75f, 0.73f, 0.66f), true, new Vector2(900f, 40f));
+                    UIFrozenTokens.ColorTextPrimary, true, new Vector2(900f, 40f));
                 SetNorm(empty.rectTransform, 0.10f, 0.46f, 0.90f, 0.56f);
             }
 
@@ -428,14 +456,6 @@ namespace MyriadOfDragons.UI
             {
                 BuildSlotTile(i, count);
             }
-
-            // BACK was the ONLY control in this method with no SetNorm call, so it kept Unity's
-            // default centre anchor and landed in the middle of the screen, directly on top of
-            // Slot_2 and Slot_3 - a tap meant for a puzzle hit BACK instead. CreateButton sizes
-            // its rect but never places it; the placement is always the caller's job here.
-            Button exit = UISharedFoundation.CreateButton(_viewRoot, "Btn_ExitPuzzles", "BACK",
-                new Vector2(220f, 56f), new Color(0.28f, 0.2f, 0.16f), Exit);
-            SetNorm(exit.GetComponent<RectTransform>(), 0.02f, 0.88f, 0.13f, 0.96f);
         }
 
         private void BuildSlotTile(int index, int count)
@@ -448,9 +468,9 @@ namespace MyriadOfDragons.UI
             Image img = tile.GetComponent<Image>();
             img.color = slot.State switch
             {
-                TacticalPuzzleSlotState.Completed => new Color(0.16f, 0.36f, 0.26f),
-                TacticalPuzzleSlotState.Available => new Color(0.22f, 0.24f, 0.30f),
-                _ => new Color(0.14f, 0.13f, 0.14f),
+                TacticalPuzzleSlotState.Completed => new Color(0.16f, 0.36f, 0.26f, 0.92f),
+                TacticalPuzzleSlotState.Available => new Color(0.22f, 0.24f, 0.30f, 0.92f),
+                _ => new Color(0.14f, 0.13f, 0.14f, 0.85f),
             };
             ApplyOptionalArt(img, slot.State switch
             {
@@ -462,11 +482,17 @@ namespace MyriadOfDragons.UI
             int captured = index;
             tile.GetComponent<Button>().onClick.AddListener(() => OpenSlot(captured));
 
-            // Even spread across the row; no magic pixel positions, so the row stays correct
-            // whatever number of puzzles the design eventually ships.
             float span = 0.88f / Mathf.Max(1, count);
             float left = 0.06f + span * index;
-            SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, 0.36f, left + span - 0.01f, 0.68f);
+            SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, 0.28f, left + span - 0.01f, 0.78f);
+
+            // ONE primary heavy frame: Available OPEN. Locked/completed stay borderless grouping.
+            if (slot.State == TacticalPuzzleSlotState.Available)
+            {
+                UISharedFoundation.ApplyFramedPanel(img, null,
+                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
+                    kind: UISharedFoundation.FramedPanelKind.ContentPanel);
+            }
 
             Text label = UISharedFoundation.CreateText(tile.transform, "Label", slot.Label,
                 UITextRole.Title, TextAnchor.UpperCenter, new Color(0.95f, 0.9f, 0.79f), true,
@@ -501,13 +527,13 @@ namespace MyriadOfDragons.UI
 
             Text title = UISharedFoundation.CreateText(_viewRoot, "BoardTitle",
                 slot != null ? slot.Label.ToUpperInvariant() : TacticalPuzzleCopy.ScreenTitle,
-                UITextRole.Title, TextAnchor.MiddleLeft, new Color(0.95f, 0.88f, 0.62f), true,
+                UITextRole.Title, TextAnchor.MiddleLeft, UIFrozenTokens.ColorTextPrimary, true,
                 new Vector2(700f, 44f));
             SetNorm(title.rectTransform, 0.04f, 0.90f, 0.60f, 0.97f);
 
             Text objective = UISharedFoundation.CreateText(_viewRoot, "Objective",
                 DescribeObjective(), UITextRole.Body, TextAnchor.MiddleLeft,
-                new Color(0.84f, 0.81f, 0.72f), true, new Vector2(900f, 34f));
+                UIFrozenTokens.ColorTextPrimary, true, new Vector2(900f, 34f));
             SetNorm(objective.rectTransform, 0.04f, 0.84f, 0.72f, 0.90f);
 
             Text budget = UISharedFoundation.CreateText(_viewRoot, "Budget", DescribeBudget(),
@@ -515,31 +541,48 @@ namespace MyriadOfDragons.UI
                 new Vector2(400f, 34f));
             SetNorm(budget.rectTransform, 0.72f, 0.84f, 0.96f, 0.90f);
 
-            // Enemy lanes on top, player lanes below - the same vertical reading order as a match,
-            // so the position transfers to real play instead of teaching a private layout.
             BuildLaneRow("Enemy", TacticalPuzzleSide.Enemy, 0.60f, 0.82f, interactive: false);
             BuildLaneRow("Player", TacticalPuzzleSide.Player, 0.32f, 0.56f, interactive: true);
 
             BuildHandRow();
 
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_Windstep", "ORDER: WINDSTEP",
+            Button wind = UISharedFoundation.CreateButton(_viewRoot, "Btn_Windstep", "ORDER: WINDSTEP",
                 new Vector2(220f, 52f), new Color(0.20f, 0.32f, 0.40f), BeginWindstepOrder);
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_SeismicSwap", "ORDER: SWAP",
+            SetNorm(wind.GetComponent<RectTransform>(), 0.04f, 0.01f, 0.16f, 0.07f);
+            HomeV3UiLibrary.ApplyNeutralActionButton(wind, wind.GetComponent<Image>());
+
+            Button swap = UISharedFoundation.CreateButton(_viewRoot, "Btn_SeismicSwap", "ORDER: SWAP",
                 new Vector2(200f, 52f), new Color(0.32f, 0.26f, 0.40f), BeginSeismicSwapOrder);
+            SetNorm(swap.GetComponent<RectTransform>(), 0.17f, 0.01f, 0.28f, 0.07f);
+            HomeV3UiLibrary.ApplyNeutralActionButton(swap, swap.GetComponent<Image>());
+
             if (_pendingOrder != null)
             {
-                UISharedFoundation.CreateButton(_viewRoot, "Btn_CancelOrder", "CANCEL ORDER",
+                Button cancel = UISharedFoundation.CreateButton(_viewRoot, "Btn_CancelOrder", "CANCEL ORDER",
                     new Vector2(200f, 52f), new Color(0.34f, 0.22f, 0.20f), CancelOrder);
+                SetNorm(cancel.GetComponent<RectTransform>(), 0.29f, 0.01f, 0.40f, 0.07f);
+                HomeV3UiLibrary.ApplyNeutralActionButton(cancel, cancel.GetComponent<Image>());
             }
 
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_Undo", "TAKE BACK",
+            Button undo = UISharedFoundation.CreateButton(_viewRoot, "Btn_Undo", "TAKE BACK",
                 new Vector2(200f, 52f), new Color(0.26f, 0.24f, 0.20f), UndoLastOrder);
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_Reset", "RESET POSITION",
+            SetNorm(undo.GetComponent<RectTransform>(), 0.41f, 0.01f, 0.52f, 0.07f);
+            HomeV3UiLibrary.ApplyNeutralActionButton(undo, undo.GetComponent<Image>());
+
+            Button reset = UISharedFoundation.CreateButton(_viewRoot, "Btn_Reset", "RESET POSITION",
                 new Vector2(220f, 52f), new Color(0.30f, 0.20f, 0.18f), ResetPosition);
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_Commit", "COMMIT",
+            SetNorm(reset.GetComponent<RectTransform>(), 0.53f, 0.01f, 0.65f, 0.07f);
+            HomeV3UiLibrary.ApplyNeutralActionButton(reset, reset.GetComponent<Image>());
+
+            // ONE primary CTA on the board: COMMIT.
+            Button commit = UISharedFoundation.CreateButton(_viewRoot, "Btn_Commit", "COMMIT",
                 new Vector2(200f, 52f), new Color(0.16f, 0.42f, 0.28f), ShowResult);
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_BackToEntry", "BACK",
-                new Vector2(180f, 52f), new Color(0.28f, 0.2f, 0.16f), BackToEntry);
+            SetNorm(commit.GetComponent<RectTransform>(), 0.72f, 0.01f, 0.86f, 0.07f);
+            HomeV3UiLibrary.ApplyPrimaryActionButton(commit, commit.GetComponent<Image>());
+
+            Button backEntry = UISharedFoundation.CreateButton(_viewRoot, "Btn_BackToEntry", "BACK",
+                new Vector2(180f, 52f), UIFrozenTokens.ColorPanel, BackToEntry, null, useHomeNavSkin: true);
+            SetNorm(backEntry.GetComponent<RectTransform>(), 0.87f, 0.01f, 0.98f, 0.07f);
         }
 
         private void BuildLaneRow(string name, TacticalPuzzleSide side, float bottom, float top, bool interactive)
@@ -712,10 +755,15 @@ namespace MyriadOfDragons.UI
             score.horizontalOverflow = HorizontalWrapMode.Wrap;
             SetNorm(score.rectTransform, 0.28f, 0.40f, 0.72f, 0.70f);
 
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_Retry", "STUDY IT AGAIN",
+            Button retry = UISharedFoundation.CreateButton(_viewRoot, "Btn_Retry", "STUDY IT AGAIN",
                 new Vector2(260f, 56f), new Color(0.26f, 0.24f, 0.20f), ResetPosition);
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_ResultBack", "RETURN TO RECORDS",
-                new Vector2(280f, 56f), new Color(0.28f, 0.2f, 0.16f), BackToEntry);
+            SetNorm(retry.GetComponent<RectTransform>(), 0.28f, 0.12f, 0.48f, 0.22f);
+            HomeV3UiLibrary.ApplyNeutralActionButton(retry, retry.GetComponent<Image>());
+
+            Button resultBack = UISharedFoundation.CreateButton(_viewRoot, "Btn_ResultBack", "RETURN TO RECORDS",
+                new Vector2(280f, 56f), UIFrozenTokens.ColorAccentEmerald, BackToEntry);
+            SetNorm(resultBack.GetComponent<RectTransform>(), 0.52f, 0.12f, 0.72f, 0.22f);
+            HomeV3UiLibrary.ApplyPrimaryActionButton(resultBack, resultBack.GetComponent<Image>());
         }
 
         private void BuildStatusLine()

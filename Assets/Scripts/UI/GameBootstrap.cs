@@ -2585,24 +2585,49 @@ namespace MyriadOfDragons.UI
             return ArenaBackdropNames[index];
         }
 
+        /// <summary>Owner-approved quiet-centre landscape for non-campaign Battle launch.
+        /// Campaign keeps the curated Arenas rotation.</summary>
+        public const string BattleLaunchBackdropResourcePath =
+            "UI/BattleLaunchV1/battle_launch_backdrop_landscape_v1";
+
         private void BuildBattleBackdrop(Transform root)
         {
             var bgGo = new GameObject("Background", typeof(RectTransform));
             bgGo.transform.SetParent(root, false);
             var bg = bgGo.AddComponent<Image>();
-            string arenaName = ArenaBackdropNameForTests(_pendingCampaignStage?.stageId);
-            Sprite backdrop = Resources.Load<Sprite>("UI/Backdrops/Arenas/" + arenaName);
+
+            string loadPath;
+            Sprite backdrop;
+            if (_pendingCampaignStage != null)
+            {
+                string arenaName = ArenaBackdropNameForTests(_pendingCampaignStage.stageId);
+                loadPath = "UI/Backdrops/Arenas/" + arenaName;
+                backdrop = Resources.Load<Sprite>(loadPath);
+            }
+            else
+            {
+                loadPath = BattleLaunchBackdropResourcePath;
+                backdrop = Resources.Load<Sprite>(loadPath);
+                if (backdrop == null)
+                {
+                    // Never blank the battle shell — fall back to the prior fixed arena.
+                    loadPath = "UI/Backdrops/Arenas/Lava_Fortress";
+                    backdrop = Resources.Load<Sprite>(loadPath);
+                }
+            }
+
             if (backdrop != null)
             {
                 bg.sprite = backdrop;
                 bg.type = Image.Type.Simple;
                 bg.preserveAspect = false; // fill the whole canvas, cropping rather than letterboxing
+                bg.color = Color.white;
             }
             else
             {
                 bg.sprite = CreateGradientSprite(BackgroundTop, BackgroundBottom);
                 bg.type = Image.Type.Simple;
-                Debug.LogWarning($"[Battle] Failed to load arena backdrop sprite 'UI/Backdrops/Arenas/{arenaName}'.");
+                Debug.LogWarning($"[Battle] Failed to load battle backdrop sprite '{loadPath}'.");
             }
             bg.raycastTarget = false;
             StretchFull(bg.rectTransform);
@@ -4600,11 +4625,15 @@ namespace MyriadOfDragons.UI
             AnchorBand(_playAgainButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.53f, 0.05f);
             _playAgainLabel = _playAgainButton.GetComponentInChildren<Text>();
             _playAgainLabel.fontSize = 22;
+            HomeV3UiLibrary.ApplyPrimaryActionButton(
+                _playAgainButton, _playAgainButton.GetComponent<Image>());
 
             _returnToCityButton = CreateButton(panel, "Return to City", font, OnReturnToCityPressed);
             AnchorBand(_returnToCityButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.05f, 0.53f);
             _returnToCityLabel = _returnToCityButton.GetComponentInChildren<Text>();
             _returnToCityLabel.fontSize = 22;
+            HomeV3UiLibrary.ApplyNeutralActionButton(
+                _returnToCityButton, _returnToCityButton.GetComponent<Image>());
 
             _resultOverlay.SetActive(false);
         }

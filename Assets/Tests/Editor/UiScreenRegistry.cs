@@ -87,7 +87,8 @@ namespace MyriadOfDragons.Tests
             {
                 GameObject host = newHost("CS_CampaignMap");
                 var map = host.AddComponent<CampaignMapPresenter>();
-                map.Initialize(onBackToHome: probe.On("onBackToHome"), onLaunchBattle: probe.On("onLaunchBattle"));
+                map.Initialize(onBackToHome: probe.On("onBackToHome"),
+                    onLaunchBattle: probe.OnLaunch<CampaignStageData>("onLaunchBattle"));
                 return GameObject.Find("CampaignMapCanvas");
             }),
             new UiScreenEntry("Shop", UiSurfaceKind.Secondary, (newHost, probe) =>

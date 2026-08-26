@@ -35,6 +35,17 @@ namespace MyriadOfDragons.Tests
             return () => _fired.Add(callbackName);
         }
 
+        /// <summary>Same as <see cref="On"/> for Func-shaped launch callbacks (CampaignMap returns
+        /// a <see cref="MyriadOfDragons.UI.CampaignLaunchOutcome"/> rather than void).</summary>
+        public Func<T, MyriadOfDragons.UI.CampaignLaunchOutcome> OnLaunch<T>(string callbackName)
+        {
+            return _ =>
+            {
+                _fired.Add(callbackName);
+                return MyriadOfDragons.UI.CampaignLaunchOutcome.BlockedLocked;
+            };
+        }
+
         public void Clear() => _fired.Clear();
     }
 }

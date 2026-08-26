@@ -228,6 +228,16 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(backgroundImage.raycastTarget,
                 "The full-screen arena backdrop must never intercept a tap meant for a real control drawn above it.");
 
+            // Non-campaign Initialize must draw the owner-approved battle-launch backdrop — a null
+            // sprite is the flat-colour silent failure SharedChromeSpriteIntegrityTests exists for.
+            Assert.IsNotNull(backgroundImage.sprite,
+                "Battle Background Image.sprite is null — flat colour fallback, not the launch art.");
+            Sprite expected = Resources.Load<Sprite>(GameBootstrap.BattleLaunchBackdropResourcePath);
+            Assert.IsNotNull(expected,
+                "Battle launch backdrop failed to Resources.Load — import/path broken.");
+            Assert.AreSame(expected, backgroundImage.sprite,
+                "Normal battle must render battle_launch_backdrop_landscape_v1, not a silent substitute.");
+
             // The dim wash (only built when the real backdrop sprite loads) is a sibling Image
             // under the same root with no sprite of its own - same requirement, if present.
             foreach (Image image in root.GetComponentsInChildren<Image>(true))

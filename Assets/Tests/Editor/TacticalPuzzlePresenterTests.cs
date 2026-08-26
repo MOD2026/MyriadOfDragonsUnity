@@ -456,7 +456,7 @@ namespace MyriadOfDragons.Tests
         {
             // Art is a separate, non-blocking track: the screen must be fully usable whether or
             // not the sprites actually exist on disk.
-            foreach (string role in new[] { "entry", "board", "result", "tile_locked", "tile_available", "tile_completed" })
+            foreach (string role in new[] { "board", "result", "tile_locked", "tile_available", "tile_completed" })
                 Assert.IsTrue(TacticalPuzzlePresenter.HasArtPathForTests(role),
                     "Art role '" + role + "' must have a resource path reserved so art can drop in later.");
 
@@ -496,29 +496,34 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void EachView_RendersItsOwnArt_NotAnotherViewsFallback()
         {
-            // The result modal art was delivered and then never applied: the backdrop picked
-            // "entry" or "board" only, so the result view rendered the BOARD frame. A role that
-            // loads but is never used looks identical to working art in every other check.
+            // Shared landscape backdrop is always under Content. Board/result featured shells
+            // load onto Content; entry uses the landscape only (no baked entry shell).
             TacticalPuzzlePresenter presenter = Open(Puzzle("a"));
-            Sprite entry = BackdropSprite(presenter);
+            Sprite entryBackdrop = LandscapeBackdropSprite(presenter);
+            Assert.AreEqual(
+                Resources.Load<Sprite>(TacticalPuzzlePresenter.BackdropResourcePath), entryBackdrop,
+                "Entry must render the shared landscape backdrop.");
 
             presenter.OpenSlot(0);
-            Sprite board = BackdropSprite(presenter);
+            Sprite board = ContentShellSprite(presenter);
 
             presenter.DeploySelectedInto(Lane.Back);
             Assert.AreEqual(TacticalPuzzleView.Result, presenter.CurrentView, "Setup: expected the result view.");
-            Sprite result = BackdropSprite(presenter);
+            Sprite result = ContentShellSprite(presenter);
 
-            Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("entry"), entry, "Entry view art.");
             Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("board"), board, "Board view art.");
             Assert.AreEqual(TacticalPuzzlePresenter.LoadArtForTests("result"), result,
                 "The result view must use the result-modal art, not fall back to the board frame.");
             Assert.AreNotSame(board, result, "Result and board must not render the same sprite.");
         }
 
-        private static Sprite BackdropSprite(TacticalPuzzlePresenter presenter) =>
+        private static Sprite LandscapeBackdropSprite(TacticalPuzzlePresenter presenter) =>
             presenter.CanvasObjectForTests.GetComponentsInChildren<Image>(true)
-                .First(i => i.name == "Backdrop").sprite;
+                .First(i => i.name == "Background").sprite;
+
+        private static Sprite ContentShellSprite(TacticalPuzzlePresenter presenter) =>
+            presenter.CanvasObjectForTests.GetComponentsInChildren<Image>(true)
+                .First(i => i.name == "Content").sprite;
 
         [Test]
         public void SlotTiles_RenderThePerStateArt()
