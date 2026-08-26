@@ -5391,3 +5391,19 @@ literal newline into a C# string literal. Both fixed before they became someone 
 isn't built yet" (from the earlier narrative-framing lock entry) are both now false - Collection
 Trial landed in `53d5aae`, and the Circuit UI is what this entry describes. Register text updated by
 this entry rather than silently left wrong for the next reader.
+
+## Layout-audit sweep COMPLETE across all 23 presenters, real negative result (2026-08-26, WH, commit 69c9763)
+
+Verified the file directly - real, 126 lines, matches the report. Of the remaining ~10 screens
+after the earlier 13, only `SettingsPresenter` genuinely lacked paint-order coverage - the rest
+(GuildHallEntry, EmpireExpedition, SpellLoadoutPicker, PermitWeekKey, GuildExpedition, ChatSocial,
+Bazaar, MemoryExpedition, Avatar, PackOpenOverlay) already had dedicated `*LayoutTests` using the
+same `GetWorldCorners` + depth-first pattern - checked each individually rather than assumed.
+`SettingsLayoutTests.cs` added (2/2 pass, HEAD b078ba4 pinned), real negative result: no paint-order
+bug on Settings (backdrop-first, sprite-less color fills). `StoryOverlay` correctly excluded -
+PlayMode-only, out of this EditMode sweep's scope, not silently skipped without saying so.
+
+**All 23 presenters now have real paint-order coverage.** This closes the layout-audit thread that
+started from the Empire Btn_Back overlap discovery - the systematic sweep found exactly one more
+real gap (Settings) and zero more real bugs, which is itself useful signal that the design-token
+rollout's overlap class was contained to what's already been fixed, not still lurking elsewhere.
