@@ -5605,3 +5605,48 @@ border metrics. Diamond ornament wired as the required separate non-stretched la
 
 CR starting the contact-sheet harness next - the tool that turns "paste me screenshots" into "review
 one sheet."
+
+## Solo Circuit FULLY WIRED - Formation tracking shipped, real structural risk found in shared results files, one correction to my own approval (2026-08-26, VS, commits a4c3e40/d3e24e5)
+
+Both verified via `git show --stat`, match exactly. 123/123 including `BattleLogicTests` 92/92 (the
+number that actually matters - VS modified `TryPlayCard`, the hottest combat path, so its own new
+suites passing would only prove the log works, not that combat is unperturbed).
+
+**Correction to my own earlier approval: `TryDeployReinforcement` was WRONG, `TryPlayCard` is
+right.** I approved the reinforcement hook without catching that initial formation lock-in bypasses
+that path entirely - hooking only reinforcements would have missed the starting board, which is
+most of what a formation restriction actually restricts. VS caught this before shipping, explained
+why, and used the real shared choke point instead. My approval was based on incomplete reasoning;
+VS's correction is right and stands.
+
+**Real structural risk found and disclosed, including VS's own near-miss:** `results.xml`/`run.log`
+are shared mutable files with no ownership marker - any room's run overwrites both, so every pass
+count quoted tonight by any room is only trustworthy if that room's run started AND finished before
+anyone else's. VS caught itself about to report ANOTHER seat's stale results as its own (class names
+in the file didn't match anything VS owns) and disclosed it rather than silently re-running quietly.
+Also disclosed, unprompted: VS overwrote CC's own results earlier tonight (09:43) - already
+immaterial now, but volunteered rather than left buried.
+
+**LOCKING VS's proposed fix, real and low-risk:** `run_editmode_tests.ps1` already exposes
+`-ResultsPath`/`-LogPath` params, unused until now. **Every room passes private, seat-named
+`-ResultsPath`/`-LogPath` on every run from now on** (e.g. `vs_results.xml`/`vs_run.log`,
+`cr_results.xml`/`cr_run.log`) - eliminates all three failure modes VS named: reading a peer's
+numbers as your own, destroying a peer's in-progress results, and `error CS` grep meaning something
+other than your own compile. VS correctly did NOT change the script's global defaults unilaterally -
+that's a coordinated change that could break another room's in-flight parsing, right call to flag
+rather than just do. Standing order added below.
+
+**Real self-caught content bug, correctly NOT auto-fixed:** two of the Formation Trial's 6
+restriction strings ("No more than one unit per lane" / "Every deployed unit must sit in a different
+lane") are the same constraint under different wording - found by VS re-reading its own pool, not by
+any test (both wordings evaluate identically, so nothing red ever flags it - a content duplicate
+survives a green suite by construction). **Decided directly** (a wording/content substitution, not a
+balance number - doesn't need BS's protocol): replace the duplicate with a Resource-cap restriction
+("clear using no more than N Resource") - genuinely distinct from the two positional rules already
+in the pool, and ties into the Circuit's own "command of the available ranks" framing better than a
+third lane-based variant would. Dispatching to VS.
+
+**Circuit is now genuinely complete:** 3 trials, deterministic daily selection, rollback-safe claims,
+personal 7-day cycle, real completion signals for all three (not taps), locked ST copy, reachable
+from the War Room, Formation judged from a real deployment log. Nothing else outstanding on this
+feature.
