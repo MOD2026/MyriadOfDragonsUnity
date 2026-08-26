@@ -89,6 +89,9 @@ namespace MyriadOfDragons.Tests
             RectTransform tutorial = (RectTransform)canvas.Find("TutorialStrip/HomeFeatureRoot");
             Assert.IsNotNull(socialBazaar);
             Assert.IsNotNull(tutorial);
+            Assert.IsNotNull(tutorial.Find("AlertIcon"),
+                "HomeFeatureRoot must reserve an AlertIcon well for the tutorial banner composition.");
+            Assert.IsNotNull(tutorial.Find("FeatureCopy"));
 
             // Pixel contract: social chips Y 100-168, tutorial Y 176-242 (top-left space).
             Assert.IsFalse(UIReleaseGateTestUtility.GetScreenRect(socialBazaar)

@@ -600,7 +600,18 @@ public class HomePagePresenter : MonoBehaviour
             UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(1100f, 80f));
         featureCopy.fontSize = 22;
         featureCopy.raycastTarget = false;
-        SetLocalNormalisedRect(featureCopy.rectTransform, 0.04f, 0.14f, 0.72f, 0.86f);
+        // Shifted right to reserve (0.01–0.07) for the alert icon (Home audit round 2).
+        SetLocalNormalisedRect(featureCopy.rectTransform, 0.09f, 0.14f, 0.72f, 0.86f);
+
+        // Alert icon — composition slot from the Home mockup. Art path still TBD; placeholder
+        // fill keeps the reserved well visible without blocking on a missing asset.
+        GameObject alertIconObj = new GameObject("AlertIcon", typeof(RectTransform), typeof(Image));
+        alertIconObj.transform.SetParent(featureRoot.transform, false);
+        Image alertIcon = alertIconObj.GetComponent<Image>();
+        alertIcon.sprite = null;
+        alertIcon.color = HexColor("#C9A227");
+        alertIcon.raycastTarget = false;
+        SetLocalNormalisedRect(alertIcon.rectTransform, 0.01f, 0.14f, 0.07f, 0.86f);
 
         GameObject startTutorialBtn = new GameObject("StartTutorialButtonRoot", typeof(RectTransform), typeof(Image), typeof(Button));
         startTutorialBtn.transform.SetParent(featureRoot.transform, false);
@@ -671,13 +682,23 @@ public class HomePagePresenter : MonoBehaviour
         heroArtObj.transform.SetParent(tileRoot.transform, false);
 
         Image heroArt = heroArtObj.GetComponent<Image>();
-        Sprite hero = !string.IsNullOrEmpty(heroTileSprite) ? HomeV3UiLibrary.Load(heroTileSprite) : null;
+        Sprite hero = !string.IsNullOrEmpty(heroTileSprite) ? LoadHomeSprite(heroTileSprite) : null;
         if (hero == null && !string.IsNullOrEmpty(iconFallbackSprite))
-            hero = HomeV3UiLibrary.Load(iconFallbackSprite);
+            hero = LoadHomeSprite(iconFallbackSprite);
         if (hero == null && label == "Empire")
-            hero = Resources.Load<Sprite>("UI/Icons/empire tab");
+        {
+            const string empirePath = "UI/Icons/empire tab";
+            hero = Resources.Load<Sprite>(empirePath);
+            if (hero == null)
+                Debug.LogWarning($"[Home] Failed to load Empire tile sprite '{empirePath}'.");
+        }
         if (hero == null && label == "Avatar")
-            hero = Resources.Load<Sprite>("UI/Icons/player profile frame");
+        {
+            const string avatarPath = "UI/Icons/player profile frame";
+            hero = Resources.Load<Sprite>(avatarPath);
+            if (hero == null)
+                Debug.LogWarning($"[Home] Failed to load Avatar tile sprite '{avatarPath}'.");
+        }
 
         heroArt.sprite = hero;
         heroArt.preserveAspect = true;
@@ -739,7 +760,18 @@ public class HomePagePresenter : MonoBehaviour
         rect.offsetMax = Vector2.zero;
     }
 
-    private static Sprite LoadHomeSprite(string fileName) => HomeV3UiLibrary.Load(fileName);
+    private static Sprite LoadHomeSprite(string fileName)
+    {
+        Sprite sprite = HomeV3UiLibrary.Load(fileName);
+        if (sprite == null && !string.IsNullOrEmpty(fileName))
+        {
+            Debug.LogWarning(
+                $"[Home] Failed to load HomeV3 sprite '{fileName}' " +
+                $"(Resources/{HomeV3UiLibrary.ResourceRoot}{fileName}).");
+        }
+
+        return sprite;
+    }
 
     private static Color HexColor(string hex, float alpha = 1f)
     {
@@ -873,6 +905,10 @@ public class HomePagePresenter : MonoBehaviour
         {
             img.sprite = gear;
             img.preserveAspect = true;
+        }
+        else
+        {
+            Debug.LogWarning("[Home] Failed to load settings gear sprite 'UI/Icons/icon_settings_gear'.");
         }
 
         HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(1f, 1f, 1f, gear != null ? 1f : 0.85f));
