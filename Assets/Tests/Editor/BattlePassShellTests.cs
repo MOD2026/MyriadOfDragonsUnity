@@ -43,11 +43,14 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void OpenValues_StayUnset_AndSeasonLengthIsLocked28Days()
+        public void OpenValues_SeasonXpLocked_PremiumPriceStillOpen()
         {
+            // SeasonXpPerTier LOCKED 2026-08-26 (BS, flat 1400/tier). PremiumUnlockPrice (Gem
+            // price) is a separate, still-open item - AreTierRewardsConfigured requires both,
+            // so it correctly stays false until that one locks too.
             Assert.AreEqual(28, BattlePassOpenValues.SeasonLengthDays);
             Assert.AreEqual("28-DAY SEASON", BattlePassOpenValues.SeasonLengthCopy);
-            Assert.IsNull(BattlePassOpenValues.SeasonXpPerTier);
+            Assert.AreEqual(1400, BattlePassOpenValues.SeasonXpPerTier);
             Assert.IsNull(BattlePassOpenValues.PremiumUnlockPrice);
             Assert.IsFalse(BattlePassOpenValues.AreTierRewardsConfigured);
         }

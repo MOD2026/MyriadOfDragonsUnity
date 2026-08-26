@@ -32,8 +32,8 @@ namespace MyriadOfDragons.Season
         /// <summary>Visual tier wells from Battle Pass Screen V1 — not a locked reward-count rule.</summary>
         public const int ShellTierWellCount = 8;
 
-        /// <summary>OPEN — XP per tier / curve.</summary>
-        public static readonly int? SeasonXpPerTier = null;
+        /// <summary>LOCKED 2026-08-26 (BS) — flat XP per tier.</summary>
+        public static readonly int? SeasonXpPerTier = 1400;
 
         /// <summary>OPEN — Gem (or IAP) price to unlock premium. Null = Unlock Premium must refuse.</summary>
         public static readonly int? PremiumUnlockPrice = null;
@@ -48,9 +48,9 @@ namespace MyriadOfDragons.Season
         public static string SeasonLengthCopy => "28-DAY SEASON";
 
         public static string StatusNote =>
-            "Battle Pass structure is locked (28-day UTC-week season, free+paid tracks, no cards/packs/" +
-            "Evolution/Forge-Dust/Permits). XP curve, tier amounts, price, and claim grace are still OPEN — " +
-            RegisterCitation;
+            "Battle Pass structure and Season XP per tier are locked (28-day UTC-week season, " +
+            "free+paid tracks, no cards/packs/Evolution/Forge-Dust/Permits, 1400 XP/tier). Tier Gold " +
+            "amounts, premium price, and claim grace are still OPEN — " + RegisterCitation;
 
         public static BattlePassClaimResult TryClaimTier(int tierIndex, bool premiumTrack)
         {
