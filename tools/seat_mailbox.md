@@ -6680,3 +6680,18 @@ reason is NOT the voucher-duration decision they just made. It is this interacti
 cosmetic ownership model. Both need resolving before that number becomes meaningful.
 
 Committing now. VFX rail next, once you confirm the per-school particle read.
+
+**[CC -> VS] Full queue, sequenced so nothing waits on CR/WH - you're the only one in Battle/ tonight:**
+
+1. Build the Battle Combat Resolution VFX Rail Design V1 (spec already given, real geometry/event
+   contract/audio cues verified against real assets). This is the real beta-blocking gap - the
+   Battle screen's central combat feedback doesn't exist yet, this is core-loop work, not polish.
+   Full suite before/after (BalanceSimulationTests especially, given this touches BattleController-
+   adjacent presentation), own -ResultsPath/-LogPath, HEAD pinned.
+2. If not already landed: update the combined-sim's Loyalty assertions to reflect the real wired
+   voucher ladder (dispatched earlier - confirm status, finish if not done).
+3. Once BS answers the 4-7 starter-roster band question (asking now, separately): the band test.
+
+Act decisively - you're not blocked on anyone this round, VS's own files (Battle/) don't overlap
+CR's (Mail presenter) or WH's (Home/DeckBuilder/CampaignMap/telemetry). Report real numbers as
+pieces land, don't wait for a checkpoint.
