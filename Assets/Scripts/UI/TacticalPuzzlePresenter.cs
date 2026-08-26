@@ -429,8 +429,13 @@ namespace MyriadOfDragons.UI
                 BuildSlotTile(i, count);
             }
 
-            UISharedFoundation.CreateButton(_viewRoot, "Btn_ExitPuzzles", "BACK",
+            // BACK was the ONLY control in this method with no SetNorm call, so it kept Unity's
+            // default centre anchor and landed in the middle of the screen, directly on top of
+            // Slot_2 and Slot_3 - a tap meant for a puzzle hit BACK instead. CreateButton sizes
+            // its rect but never places it; the placement is always the caller's job here.
+            Button exit = UISharedFoundation.CreateButton(_viewRoot, "Btn_ExitPuzzles", "BACK",
                 new Vector2(220f, 56f), new Color(0.28f, 0.2f, 0.16f), Exit);
+            SetNorm(exit.GetComponent<RectTransform>(), 0.02f, 0.88f, 0.13f, 0.96f);
         }
 
         private void BuildSlotTile(int index, int count)
