@@ -6744,3 +6744,19 @@ the fixed test is genuinely absent from the failure list this time - determinist
 Stage2_3_IsWinnable`, Story-owned, already confirmed clean in isolation earlier tonight) - correctly
 reported only, not touched, matching original instruction. This closes a real intermittent-flaky
 thread for good rather than leaving it as permanent known-noise.
+
+## WH's 2-filter confirm: real honest negative, does NOT reproduce the hang - but a cheap check is worth trying before another Unity run (2026-08-26)
+
+Real result: `ShopStaminaLadderUiTests` (real cap-refuse path, genuine `FlushAsync` call into the
+real gateway) -> `ShopV1ChromeTests` in one process, 7/7, no stall. **Correctly caveated, not
+oversold:** the whole combo finished in under 1s, meaning the gateway failed FAST rather than
+actually hanging - this test never exercised the "Cloud Code call genuinely stalls" scenario the
+timeout fix targets, so it's a real negative result but a weak one, not proof the telemetry chain is
+innocent under real network stall conditions.
+
+**Cheap check worth trying before another expensive Unity run:** CR's own full 1770-test run (logged
+above, commit `12f3e48`) landed AFTER fixing the `Background`-collision pollution and reported only
+ONE unrelated failure - no hang. Worth checking whether that's coincidence or whether the Background
+collision and the Shop hang shared a root pollution mechanism (both are "stale object from an
+earlier test resolves via a loose lookup" shaped bugs). Dispatched to WH as a log-review task, no new
+Unity run needed - fits well inside the time cap.
