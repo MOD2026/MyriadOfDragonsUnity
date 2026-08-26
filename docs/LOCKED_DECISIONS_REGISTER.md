@@ -5142,3 +5142,27 @@ the suite is honestly clean.
 full suite unprompted before landing unrelated work, caught its own earlier mistake instead of
 letting a wrong "fixed" status stand, and reported it before it could be mistaken for done. No
 register correction needed beyond this entry - CR is already re-fixing it.
+
+## Proactive backlog scan across BS/ST/UI - 3 real gaps found, none manufactured (2026-08-26)
+
+Owner asked CC to plan ahead for GPT backlog while rooms are in flight. Checked real state rather
+than inventing busywork:
+
+1. **UI - real gap, highest value:** only Gorn's portrait has been generated. Thaleia/Rusk/Ione/
+   Eryx prompts were already declared "sufficiently defined for portrait generation" in the same
+   pack, verified against real story text earlier tonight, and are just sitting unused - the
+   companion trio and the actual revealed antagonist are more player-visible than Gorn (a dead
+   Ch1-3 enemy) and haven't been started.
+2. **ST - real gap, same shape as the Memory Expedition miss:** confirmed in code
+   (`SoloCollectionCircuit.cs`) - the only player-facing text anywhere is `"Cleared " + trial + "."`.
+   Zero narrative framing, same "mechanically real, zero flavor" gap Memory Expedition had before
+   ST's pass. No UI presenter exists for the Circuit yet, so this isn't blocking anyone today - but
+   pre-clearing it now avoids the exact round-trip that just happened once already (art/UI shipped
+   with no story, discovered after the fact, then patched in separately).
+3. **BS - real gap, will block Battle Pass claims once CR's current work lands:** `PremiumUnlockPrice`
+   and `ClaimGraceDays` are both still null in `BattlePassOpenValues.cs`, and
+   `AreTierRewardsConfigured` requires `PremiumUnlockPrice` too - even after the Gold table and XP
+   value are wired, claims stay refused until this lands. Better to ask now than let CR finish and
+   immediately hit a wall.
+
+Paste-ready prompts given to owner for all three.
