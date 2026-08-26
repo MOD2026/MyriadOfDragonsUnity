@@ -1734,6 +1734,53 @@ one hole or several; (3) **Home already has the split and BOTH its canvases appe
 is the split incomplete, or does the split itself still overflow?** If the reference implementation
 does not pass, the pattern is wrong and **the other 23 screens must not be built against it.**
 
+## CORRECTION 2026-08-27: the canvas failure mode is CROWDING, not CLIPPING
+
+**CR corrected CC's framing after reading the real test rather than reasoning from the message. The
+correction is right and it changes what needs fixing.**
+
+**What CC (and AD) got wrong:** "1920 x 1.481 = 2844px rendered into a 2560px screen, so a
+right-edge-anchored element lands 284px off-screen." The arithmetic is correct; **the conclusion is
+not.** For a **ScreenSpaceOverlay** canvas Unity sets the canvas RectTransform to **exactly the
+screen size**, so nothing anchored relative to it - fraction anchors, or the corner-plus-pixel-offset
+pattern this codebase uses - **can ever exceed the screen, by construction.**
+
+**What actually happens:** the canvas's reference-equivalent width **compresses from 1920 to
+2560/1.481 = 1728 units** - a real ~10% loss of design space. Content sized in **FIXED pixels**
+(explicit `sizeDelta`, hardcoded gaps) does not shrink with it, so it occupies a **larger proportion
+of a narrower space** than intended. **The failure is sibling crowding and internal overlap, never
+anything sliding past the physical edge.**
+
+**Consequence: safe-area anchoring would solve the WRONG PROBLEM.** It addresses "things fall off the
+edge." Nothing falls off the edge. **Do not build it.**
+
+**This also re-explains the ORIGINAL bug.** match=0 on a 2400x1080 phone: scaleFactor 1.25, so
+vertical design space compresses from 1080 to 864 units - **20% less height than authored.** The
+overlapping HUDs we have been fixing one screen at a time were **compression-driven crowding all
+along**, not clipping. Consistent with every symptom.
+
+**Breakdown of the 28 findings - one systemic property, not 28 defects:**
+- **20 are match=1** (HUD canvases via `CreateScreenCanvas`), all reporting the **identical** 284px
+  tablet number - one arithmetic property firing on every screen using the standard helper.
+- **4 are match=0.5** (Home's `HomeFeedCanvas`, GameBootstrap's canvas) - on **both** phone (127px
+  vertical) and tablet (138px horizontal). **Confirms 0.5 is partial mitigation, not a fix**, on both
+  axes.
+- **4 are match=0** (CampaignMap/Shop/DeckBuilder/Collection - still-unmigrated Metagame files),
+  phone-vertical 270px: the original problem.
+
+**Home's split is COMPLETE and correct** for what 0.5 can deliver. It reduces compression; it cannot
+eliminate it.
+
+**AGREED NEXT STEP (CR's recommendation, accepted): capture Home's real content at the compressed
+1728-equivalent width and LOOK at it.** If crowding is visible and ugly, the fix is **proportional /
+relative sizing for HUD content** (percentages rather than fixed px) - not safe-area insets. A
+concrete capture settles this faster than more arithmetic, and this project's whole lesson is that
+measuring beats reasoning.
+
+**Test stays RED**, but its message needs rewording: it currently describes an overflow that cannot
+physically occur. It should report **design-space compression** - the condition is right, the
+description is misleading, and a misleading red test gets disabled by whoever reads it next.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
