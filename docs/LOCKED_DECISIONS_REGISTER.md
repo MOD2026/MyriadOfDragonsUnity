@@ -5480,3 +5480,9 @@ commit early/often even as WIP (a red TEST is fine, everyone can still compile a
 work around it) or keep genuinely broken/mid-edit source outside `Assets/` until it compiles. A
 half-written file that doesn't compile is a private problem on a branch and a global outage sitting
 directly in `Assets/Tests/Editor/`. Added as a standing order below.
+
+**Author identified, closing the loop:** WH confirms it was mid-flight on
+`MetagameRetentionTelemetryEmitTests.cs` (matches the telemetry-wiring task dispatched this
+session), hit the compile error VS reported, and is fixing it now for a clean before/after run - not
+idle, not a mystery anymore. VS and CR are both currently blocked on the `.unity_batch.lock` WH's run
+holds; this resolves the same moment WH's suite finishes, not a separate blocker to chase.
