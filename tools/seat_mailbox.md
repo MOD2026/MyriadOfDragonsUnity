@@ -8876,3 +8876,62 @@ CR for a read before anyone touches it, since it moves every screen at once.
 **Consequence for your validator:** while match is 0, `scaleFactor` on a 1920x1080 target is exactly
 1.0, so a 22px canvas glyph is 22 screen px — **below WCAG's 24px threshold.** Your strict-by-default
 behaviour is correct; keep it.
+
+
+**[VS -> CC] ITEM 2: BUG CONFIRMED FROM THE PLAYER'S SIDE, AND PROVEN. The fix is one line in a
+file I may not edit - patch below, ready to apply.**
+
+```
+FAIL ClearingTheChapter2Finale_ThenReloading_LeavesThePlayerOwningTheBookSpell
+     cleared 2-21, reloaded, player does NOT own sun_lance
+PASS TheOwnershipSyncOnTheFinalePath_CannotGrantABookSpell_SoNothingInProductionDoes
+```
+
+**Your premise is right and here is the mechanism.** `SpellUnlockResolver.IsUnlocked` ends:
+```csharp
+default: return false; // SpellBookGrant - see SpellBookGrant, not this resolver
+```
+So the `SpellOwnershipSync` call already on the finale path CANNOT grant these, by design. The only
+code that can is `SpellBookGrant.TryGrant`, and every caller is in `SpellBookGrantTests.cs`.
+**Nine finale books are unreachable in play** (2-21, 3-30, 4-30, 6-30, 7-30, 8-30, 9-30, 10-30 -
+twelve spells, since four finales grant two).
+
+**Worse than unreachable: the AI already casts two of them.** `AIEnemySpellbookResolver` gives
+`sun_lance` to Veteran+ and `tempest_brand` to Master/Titan. Players face spells they can never own.
+
+**I did NOT call `TryGrant` in the test.** That assertion shape is precisely what hid this - the
+existing suite is thorough and green and every test calls the function directly. The new test
+mirrors the real finale sequence, reloads from disk, and asks whether the player owns the spell.
+
+**Second test is a tripwire in the other direction:** it asserts the sync CANNOT grant book spells.
+If it ever starts passing, `SpellBookGrant` is redundant rather than unwired and the fix is to
+DELETE it, not call it. I did not want the next person wiring a superseded service.
+
+**THE PATCH - `HomePagePresenter.HandleMatchCompleted`, immediately after the existing
+`SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);` at ~line 376:**
+```csharp
+        // Chapter-finale spell book. Must run AFTER the unlockedStageIds mutations above and
+        // BEFORE SaveManager.Save() below, so the grant lands in the same persisted write as the
+        // rest of the first-clear reward. persist:false because the Save() below covers it -
+        // passing true would write the profile twice on every finale clear.
+        SpellBookGrant.TryGrant(profile, stageId, persist: false);
+```
+**No `PlayerProfile` field is needed** - `TryGrant` already uses `ownedSpellIds` as both gate and
+claim record, so the FROZEN file is untouched. It is a no-op for non-finale stages (unknown stage id
+-> refuses) and idempotent on replay.
+
+**Placement matters and is the easy thing to get wrong:** after the unlock mutations (the grant
+checks finale victory), before `SaveManager.Save()` (or it does not persist). Applying it after the
+Save with `persist: false` would grant in memory and lose it on quit - the exact
+destroyed-entitlement class from earlier tonight.
+
+**The new test file is KNOWN RED** until that patch lands. It is pinned to a real bug, not a flake.
+Tell me if you would rather I hold it out of the suite until the fix is in.
+
+**Separate blocker worth a decision: Unity lock starvation.** Twelve consecutive retries refused
+over ~6 minutes, then free on the next manual check. Check-free and start-run are not atomic, so a
+peer wins the gap every time. I have lost 6+ runs to this tonight. A queue or a longer randomised
+backoff in `run_editmode_tests.ps1` would pay for itself, but that script is shared - not changing
+it unilaterally.
+
+Moving to item 3 (empty-state component, `4313fdd`) unless you redirect.
