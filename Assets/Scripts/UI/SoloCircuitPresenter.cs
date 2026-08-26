@@ -212,7 +212,9 @@ namespace MyriadOfDragons.UI
                 case SoloCircuitTrial.Formation:
                     return SoloCircuitDailySeed.FormationRestrictionFor(dayKey);
                 case SoloCircuitTrial.Collection:
-                    return SoloCircuitCollectionRule.BandFor(dayKey).Describe();
+                    // Same roster the completion check uses - a screen showing a different rule
+                    // than the one being scored is worse than showing no rule at all.
+                    return SoloCircuitCollectionRule.BandFor(dayKey, OwnedCardIds(), RarityOf).Describe();
                 case SoloCircuitTrial.TacticalBrief:
                     return "Complete today's tactical puzzle.";
                 default:

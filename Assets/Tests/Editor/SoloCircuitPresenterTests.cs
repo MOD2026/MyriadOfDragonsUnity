@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
@@ -112,11 +113,25 @@ namespace MyriadOfDragons.Tests
             string formation = _presenter.TrialStatusForTests(SoloCircuitTrial.Formation);
             string collection = _presenter.TrialStatusForTests(SoloCircuitTrial.Collection);
 
-            // Must match what the deterministic seed actually selected for this UTC day - a screen
-            // showing a different rule than the one being scored is worse than no screen.
+            // Must match what the player is actually SCORED against - a screen showing a different
+            // rule than the one being judged is worse than no screen.
             string dayKey = SoloCollectionCircuit.UtcDayKey(NowUtc);
             Assert.AreEqual(SoloCircuitDailySeed.FormationRestrictionFor(dayKey), formation);
-            Assert.AreEqual(SoloCircuitCollectionRule.BandFor(dayKey).Describe(), collection);
+
+            // ROSTER-AWARE since the 2026-08-26 eligibility ruling: this used to compare against
+            // the date-only overload, which is now the WRONG expectation - a fresh profile owns no
+            // cards, so it correctly receives the fallback rule rather than a pool band it could
+            // never clear. Comparing against the roster-aware call is what keeps this test asking
+            // its real question instead of pinning the old pure-hash behaviour.
+            var emptyRoster = new List<string>();
+            Assert.AreEqual(
+                SoloCircuitCollectionRule.BandFor(dayKey, emptyRoster, id => 0).Describe(),
+                collection);
+
+            // And the point of the ruling: what a brand-new player is shown must be clearable in
+            // principle, not a band their starter roster locks them out of.
+            StringAssert.Contains("3 or more", collection,
+                "An empty roster must land on the fallback, not a 5-card pool band.");
         }
 
         [Test]

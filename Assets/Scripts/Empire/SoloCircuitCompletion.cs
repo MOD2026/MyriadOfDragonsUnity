@@ -121,8 +121,11 @@ namespace MyriadOfDragons.Empire
                 return refused;
             }
 
-            SoloCircuitRarityBand band =
-                SoloCircuitCollectionRule.BandFor(SoloCollectionCircuit.UtcDayKey(nowUtc));
+            // Roster-aware: the band the player is SCORED against must be the one their roster
+            // actually put in rotation, not the pure date pick. Passing the same roster used for
+            // the check is what keeps "what the screen showed" and "what was judged" identical.
+            SoloCircuitRarityBand band = SoloCircuitCollectionRule.BandFor(
+                SoloCollectionCircuit.UtcDayKey(nowUtc), ownedCardIds, rarityOf);
 
             if (!SoloCircuitCollectionRule.IsSatisfied(ownedCardIds, rarityOf, band))
             {

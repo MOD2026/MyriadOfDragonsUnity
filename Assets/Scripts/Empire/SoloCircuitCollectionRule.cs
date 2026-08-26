@@ -64,13 +64,95 @@ namespace MyriadOfDragons.Empire
             new SoloCircuitRarityBand(3, 7, 5),
         };
 
-        /// <summary>Today's rule. Same UTC day, same band, every device - the same determinism
-        /// contract the other two trials use.</summary>
+        /// <summary>
+        /// Minimum cards a fallback rule asks for. Lower than the standard 5 because the fallback
+        /// only fires for a roster that could not satisfy ANY normal band - asking 5 of a player
+        /// who owns almost nothing would reproduce the exact lockout this rotation exists to fix.
+        /// </summary>
+        public const int FallbackRequiredCards = 3;
+
+        /// <summary>
+        /// Today's rule for a player who owns nothing in particular - the pure date pick.
+        ///
+        /// KEPT for display/preview paths that have no roster to hand, but it is NOT what scores a
+        /// trial. Use the roster-aware overload wherever the answer must match what the player is
+        /// actually judged against.
+        /// </summary>
         public static SoloCircuitRarityBand BandFor(string dayKeyUtc)
         {
             int index = SoloCircuitDailySeed.IndexFor(dayKeyUtc, SoloCircuitTrial.Collection, Bands.Count);
             return index < 0 ? Bands[0] : Bands[index];
         }
+
+        /// <summary>
+        /// Today's rule for THIS player's roster - eligibility-aware rotation (LOCKED 2026-08-26, BS).
+        ///
+        /// WHY THIS IS NOT A PURE DATE HASH ANY MORE: measured against the real starter grant, the
+        /// (4,7,5) band is unclearable for a new player - the starter roster tops out at rarity 3,
+        /// so 1 day in 6 was impossible through no fault of theirs. Because the 7-day cycle needs
+        /// CONSECUTIVE complete days, that pushed ~72% of new players out of their first weekly
+        /// bonus. A band nobody can clear is not a challenge, it is a silent tax on new accounts.
+        ///
+        /// So a band only enters rotation when the roster can actually satisfy it, and the day's
+        /// hash picks from the ELIGIBLE set. Determinism is preserved in the sense that matters:
+        /// same day AND same roster always gives the same rule. It is no longer the same rule for
+        /// every player on a given day, which is the deliberate trade.
+        ///
+        /// If nothing at all is eligible - rare with an 85-card catalog, but real for a brand-new
+        /// or heavily-burned roster - a deterministic fallback asks for 3 cards from the player's
+        /// LOWEST owned rarity. Same reward, still counts toward the cycle: the fix for "new players
+        /// cannot clear it" must not quietly become "new players get paid less".
+        /// </summary>
+        public static SoloCircuitRarityBand BandFor(
+            string dayKeyUtc, IEnumerable<string> ownedCardIds, Func<string, int> rarityOf)
+        {
+            if (ownedCardIds == null || rarityOf == null) return BandFor(dayKeyUtc);
+
+            var eligible = new List<SoloCircuitRarityBand>();
+            foreach (SoloCircuitRarityBand band in Bands)
+            {
+                if (IsSatisfied(ownedCardIds, rarityOf, band)) eligible.Add(band);
+            }
+
+            if (eligible.Count == 0) return FallbackBandFor(ownedCardIds, rarityOf);
+
+            int index = SoloCircuitDailySeed.IndexFor(
+                dayKeyUtc, SoloCircuitTrial.Collection, eligible.Count);
+            return index < 0 ? eligible[0] : eligible[index];
+        }
+
+        /// <summary>
+        /// Deterministic last-resort rule: 3 cards at the player's lowest owned rarity.
+        ///
+        /// Uses the LOWEST owned rarity rather than the highest, because the highest is exactly what
+        /// a thin roster has least of - picking it would produce another unclearable day. Returns a
+        /// 1-1/3 band for an empty roster, which is honestly unclearable, but a player owning zero
+        /// cards cannot play the game at all and that is not this rule's problem to paper over.
+        /// </summary>
+        public static SoloCircuitRarityBand FallbackBandFor(
+            IEnumerable<string> ownedCardIds, Func<string, int> rarityOf)
+        {
+            int lowest = int.MaxValue;
+            if (ownedCardIds != null && rarityOf != null)
+            {
+                var counted = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string id in ownedCardIds)
+                {
+                    if (string.IsNullOrEmpty(id) || !counted.Add(id)) continue;
+                    int rarity = rarityOf(id);
+                    if (rarity > 0 && rarity < lowest) lowest = rarity;
+                }
+            }
+
+            if (lowest == int.MaxValue) lowest = 1;
+            return new SoloCircuitRarityBand(lowest, lowest, FallbackRequiredCards);
+        }
+
+        /// <summary>True when the roster can satisfy the high (4-7) band - the specific gate BS's
+        /// ruling names. Exposed so a caller can explain WHY a rule is or is not showing.</summary>
+        public static bool QualifiesForHighRarityBand(
+            IEnumerable<string> ownedCardIds, Func<string, int> rarityOf) =>
+            IsSatisfied(ownedCardIds, rarityOf, new SoloCircuitRarityBand(4, 7, 5));
 
         /// <summary>
         /// How many owned cards fall inside the band.

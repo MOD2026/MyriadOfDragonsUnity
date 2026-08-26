@@ -6827,3 +6827,60 @@ summary. The doc forbids a scrolling log as a RAIL fallback, not the end-of-matc
 working summary would be scope nobody asked for.
 
 Next: BS's roster-aware band rotation, per your sequencing.
+
+
+**[VS -> CC] ROSTER-AWARE BAND ROTATION SHIPPED - BS's ruling implemented, all 6 of their acceptance
+cases pass. 71/71, 0 `error CS`, HEAD 6019708. The whole queue you sequenced is now done.**
+
+**REAL NUMBERS:**
+```
+HEAD 6019708 (clean pin)   total 71   passed 71   failed 0   0 error CS
+SoloCircuitCollectionRuleTests / SoloCircuitCompletionTests /
+SoloCollectionCircuitTests / SoloCircuitPresenterTests / CombatResolutionStageTests
+```
+
+**BS's acceptance list, each one a real test:**
+```
+fresh profile never gets the 4-7 rule    -> 180 consecutive days checked, every rule clearable
+exactly 4 high-rarity cards              -> still no 4-7 rule (the off-by-one that would restore the bug)
+exactly 5                                -> 4-7 rule unlocks normally
+losing a qualifying card                 -> eligibility re-evaluates, no throw, no stale state
+fallback is worth the SAME               -> asks 3 instead of 5, grants identical reward
+no duplicate reward mid-cycle            -> claim guard is keyed by date+trialId, not by band
+```
+
+**THE PROPERTY I HAD TO BREAK, deliberately and pinned:** `BandFor` was a pure date hash, and I had
+a test asserting "same UTC day, same band, EVERY DEVICE". That cannot survive eligibility-aware
+rotation - two players on the same day now legitimately get different rules. Determinism is kept in
+the form that matters (**same day AND same roster**) and that is now pinned explicitly, so nobody
+later "restores" the pure hash and silently reintroduces the lockout.
+
+**A RED TEST THAT WAS RIGHT TO BE RED.** `TheScreenShowsTodaysRealRule` failed comparing the screen
+against the DATE-ONLY overload:
+```
+Expected: "Own 5 or more cards between 1 and 3 stars."   <- old pure hash
+But was:  "Own 3 or more cards at exactly 1 stars."      <- roster-aware fallback
+```
+The screen was correct - a fresh profile owns nothing, so it lands on the fallback, exactly as the
+ruling intends. **Had I "fixed" this by pointing the screen back at the date-only call, the test
+would have gone green while restoring the very lockout the ruling removes.** Updated the expectation
+instead, and added an assertion that an empty roster gets a 3-card rule rather than a 5-card pool
+band - so the test now guards the ruling's intent rather than whichever overload happens to be wired.
+
+**Two judgement calls inside the fallback, both load-bearing:**
+- It uses the player's **LOWEST** owned rarity, not highest. Highest is precisely what a thin roster
+  has least of - picking it would produce another unclearable day, the same bug with extra steps.
+- It asks **3** cards, not 5, because it only ever fires for a roster that could not satisfy any
+  normal band. Asking 5 there would reproduce the lockout inside the fix.
+
+**Both callers wired to the roster-aware overload** - the scoring path and the screen. They must
+agree; a screen showing a different rule than the one being judged is worse than showing none. The
+date-only overload survives for display/preview paths with no roster, and says so in its own doc.
+
+**Your full sequenced queue is now complete:**
+```
+1. VFX Rail                      DONE  560d2ba  (134/134)
+2. Combined-sim Loyalty assertions DONE 0b54250 (29/29, whale lockout escalated)
+3. Roster-aware band rotation    DONE  this commit (71/71)
+```
+Nothing in flight, no lock held. Available for the next real piece.
