@@ -851,6 +851,51 @@ patch notes explicitly acknowledge abrupt transitions, flicker and prior-screen 
 defects**, which confirms transition continuity is a genuine production concern in shipped titles,
 not polish.
 
+## VETTING AUDIT of the 2026-08-27 UI locks - CC self-audit after the owner asked directly
+
+Owner asked whether CC vetted and benchmarked before locking. **Honest answer: NOT for five of them.**
+CC accepted BS's self-declared UNCONFIRMED as if it discharged the standing hard gate. It does not -
+"BS said UNCONFIRMED so there was nothing to benchmark" is exactly the rationalisation the gate
+forbids, and there were independently checkable claims inside those answers.
+
+| Lock | Benchmarked by CC? |
+|---|---|
+| Border/box tiers | YES - two real searches |
+| Production-reachability | YES - Unity Daily Rewards sample verified externally |
+| 8/10/4 counts | YES - BS returned UNCONFIRMED, WH pulled real captures |
+| Event Medals | PARTIAL - code verified, BS's game citations accepted unchecked |
+| Typography (ae1366c) | **NO** |
+| Empty states (4313fdd) | **NO** |
+| Contrast (5c46c28) | **NO at lock time - closed retroactively below** |
+| Interaction states (eeca2e8) | **NO** |
+| Transitions (ee296a0) | **NO at lock time - closed retroactively below** |
+
+### Retroactive verification, run 2026-08-27
+
+**CONTRAST - VERIFIED, and BS's framing was accurate.** WCAG AA is 4.5:1 normal / 3:1 large; **AAA is
+7:1 normal / 4.5:1 large.** Our locked floors (7:1 body+interactive, 4.5:1 large) are **exactly WCAG
+AAA**, so BS's "stricter than WCAG" is correct against AA. Rationale is real: 4.5:1 compensates for
+roughly 20/40 vision (typical at ~age 80); 7:1 compensates for roughly 20/80.
+
+**CAVEAT CC FOUND that BS did not flag, and it affects the validator:** WCAG defines "large text" by
+PHYSICAL size - 18.66px bold or 24px+. Our rule says large = T5 55px+ **in 1920x1080 canvas space**,
+which is not the same thing, because that canvas is scaled down onto a ~6-inch screen. **The
+validator must apply the large-text threshold on the PHYSICAL rendered size, not the canvas value.**
+Getting this backwards would grant the looser 4.5:1 floor to text that is physically small. Flagged
+to CR.
+
+**TRANSITIONS - VERIFIED.** Marvel Snap's July 21 2026 patch notes really do carry the fix: *"The
+Main UI and game mode UI should no longer flash on screen when transitioning through the Post-Match
+of Ranked matches."* Specific, dated, official. Transition continuity is a real shipped-game defect
+class, exactly as claimed.
+
+### Still unbenchmarked - DO NOT cite these as industry-validated
+
+Typography, empty states, and interaction states are locked on PRINCIPLE and internal consistency
+only. They are reasonable and implementable, but no external evidence backs their specific numbers.
+**Revise them from real captures the moment rendered evidence contradicts them** - they carry less
+authority than the locks above.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
