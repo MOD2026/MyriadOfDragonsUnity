@@ -9,18 +9,24 @@ namespace MyriadOfDragons.UI
     /// <summary>
     /// Solo Collection Circuit - the player-reachable screen for the three daily trials.
     ///
-    /// FULLSCREEN, not a popup. That distinction has already caused one real regression on this
-    /// project (the Guild Hall overlap), so it is stated rather than left to be inferred: this is a
-    /// destination the player navigates TO, so it calls CleanupStaleMetagameCanvases and expects
-    /// nothing to remain underneath. A popup (EmpireBuildingDetail, GuildHallEntry) deliberately
-    /// does the opposite and leaves EmpireCanvas alive below it.
+    /// POPUP over Empire - NOT a fullscreen swap. This was originally built fullscreen and is
+    /// corrected here, before anything wired an entry point to it, on real evidence rather than
+    /// preference:
+    ///   - ST's locked framing (2026-08-26) puts the Circuit under "the Empire's War Room".
+    ///   - The War Room entry already exists at EmpirePresenter.cs:596 and opens
+    ///     TacticalPuzzlePresenter "as an overlay, leaving the Empire canvas underneath".
+    ///   - CR reverted the identical fullscreen assumption on Guild Hall in 7185a4c, twice-burned.
+    /// So the Circuit follows the same convention as EmpireBuildingDetail / GuildHallEntry /
+    /// TacticalPuzzle: EmpireCanvas stays alive and findable below this screen.
     ///
-    /// KNOWN GAP, FLAGGED NOT HIDDEN: "SoloCircuitCanvas" is NOT yet in
-    /// CampaignMapPresenter.CleanupStaleMetagameCanvases' master list, because that file belongs to
-    /// the metagame seat. Until it is added, OTHER screens cannot clean up a stale Circuit canvas -
-    /// exactly the bug class that left TacticalPuzzleCanvas orphaned and is the leading suspect for
-    /// the Mail-screen freeze. This screen cleans up after itself on close, so the gap is narrow,
-    /// but it is real and one line fixes it.
+    /// The practical consequence: this screen MUST NOT call CleanupStaleMetagameCanvases. Doing so
+    /// destroys EmpireCanvas out from under a popup, which is exactly the bug CR spent a cycle
+    /// reverting.
+    ///
+    /// RESOLVED 2026-08-26: "SoloCircuitCanvas" is now in
+    /// CampaignMapPresenter.CleanupStaleMetagameCanvases' master list (CC-authorized one-time
+    /// exception, same pattern as TacticalPuzzleCanvas) - any other screen can now clean up a
+    /// stale Circuit canvas, matching every other popup in this family.
     ///
     /// All real logic lives in SoloCollectionCircuit / SoloCircuitDailySeed /
     /// SoloCircuitCollectionRule as plain testable classes. This MonoBehaviour supplies timing and
@@ -63,15 +69,19 @@ namespace MyriadOfDragons.UI
         private void BuildUI()
         {
             TeardownUI();
-            CampaignMapPresenter.CleanupStaleMetagameCanvases();
+
+            // Deliberately NO CleanupStaleMetagameCanvases: this is a popup and EmpireCanvas must
+            // survive underneath it. See the class header - calling it here is the exact regression
+            // 7185a4c reverted on Guild Hall.
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;
-            canvas.sortingOrder = 30;
+            canvas.sortingOrder = 40;   // popup band, same as GuildHallEntryCanvas
 
-            // Guaranteed-opaque base before any art. The Guild Hall bug was a preserveAspect
-            // background letterboxing and letting the screen underneath both show through AND stay
-            // clickable; an opaque dimmer first makes that impossible regardless of art aspect.
+            // Guaranteed-opaque base before any art, and MORE important now that this is a popup:
+            // EmpireCanvas is genuinely alive underneath, so any gap left by a preserveAspect
+            // background would let it both show through AND stay clickable. That was CR's real root
+            // cause on Guild Hall (7185a4c). An opaque dimmer makes it impossible at any aspect.
             GameObject dim = new GameObject("Dimmer", typeof(RectTransform), typeof(Image));
             dim.transform.SetParent(_canvasObj.transform, false);
             UISharedFoundation.StretchFull(dim.GetComponent<RectTransform>());
@@ -89,8 +99,17 @@ namespace MyriadOfDragons.UI
                 _canvasObj.transform, "SoloCircuitHeader", 140f, null, UIFrozenTokens.ColorHeader);
 
             UISharedFoundation.CreateText(
-                header, "Title", "DAILY CIRCUIT", UITextRole.Title, TextAnchor.MiddleCenter,
+                header, "Title", "COMMAND CIRCUIT", UITextRole.Title, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 60f));
+
+            // ST's locked framing (2026-08-26). Institutionally attributed to the War Room -
+            // deliberately avatar-less, so no new speaker or portrait is needed.
+            UISharedFoundation.CreateText(
+                header, "Framing",
+                "The Empire's War Room sets three daily trials to sharpen formation, judgement, "
+                + "and command of the available ranks.",
+                UITextRole.Caption, TextAnchor.MiddleCenter,
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1500f, 40f));
 
             UISharedFoundation.CreateButton(
                 header, "Btn_Back", "BACK", new Vector2(180f, 70f),
@@ -114,13 +133,17 @@ namespace MyriadOfDragons.UI
             layout.childControlWidth = true;
             layout.childForceExpandWidth = true;
 
-            BuildTrialRow(body.transform, SoloCircuitTrial.Formation, "FORMATION TRIAL");
-            BuildTrialRow(body.transform, SoloCircuitTrial.Collection, "COLLECTION TRIAL");
-            BuildTrialRow(body.transform, SoloCircuitTrial.TacticalBrief, "TACTICAL BRIEF");
+            // Titles and subtitles are ST's locked copy, not invented here.
+            BuildTrialRow(body.transform, SoloCircuitTrial.Formation,
+                "ORDER THE RANKS", "Victory begins with where each force stands.");
+            BuildTrialRow(body.transform, SoloCircuitTrial.Collection,
+                "MUSTER THE RANKS", "A capable commander understands every force available.");
+            BuildTrialRow(body.transform, SoloCircuitTrial.TacticalBrief,
+                "READ THE FIELD", "Study the position before issuing the decisive order.");
             BuildCycleRow(body.transform);
         }
 
-        private void BuildTrialRow(Transform parent, SoloCircuitTrial trial, string label)
+        private void BuildTrialRow(Transform parent, SoloCircuitTrial trial, string label, string flavour)
         {
             RectTransform card = UISharedFoundation.CreateCardPrimitive(
                 parent, "Trial_" + trial, new Vector2(1400f, 180f), UIFrozenTokens.ColorPanel);
@@ -130,8 +153,15 @@ namespace MyriadOfDragons.UI
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(1300f, 44f));
 
             UISharedFoundation.CreateText(
+                card, "Flavour", flavour, UITextRole.Caption, TextAnchor.MiddleLeft,
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1300f, 36f));
+
+            // The RULE stays separate from the flavour line and is generated from the same
+            // deterministic seed that scores the trial - copy must never drift from what is
+            // actually being judged.
+            UISharedFoundation.CreateText(
                 card, "Status", DescribeTrial(trial), UITextRole.Body, TextAnchor.LowerLeft,
-                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1300f, 90f));
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1300f, 60f));
 
             UISharedFoundation.CreateButton(
                 card, "Btn_Play", IsCleared(trial) ? "CLEARED" : "PLAY", new Vector2(220f, 72f),
@@ -150,13 +180,19 @@ namespace MyriadOfDragons.UI
             // Says explicitly that a missed day ends the streak. The rule is unforgiving and a
             // player who is not told will read a reset as a bug - the same reason the mid-week gap
             // was worth surfacing in the first place.
+            // ST's locked clean/partial lines, chosen from real state rather than hardcoded.
+            string summary = SoloCollectionCircuit.AllThreeClearedToday(progress)
+                ? "Command Circuit complete. Every lesson has been carried into tomorrow's campaign."
+                : "Part of today's circuit is secured. The remaining trials still await your command.";
+
             string text =
-                "7-DAY CYCLE   " + days + " / " + SoloCollectionCircuit.CircuitsRequiredForCycleBonus +
-                "   -   clear all three trials every day; a missed day starts the cycle over.";
+                summary + "\n7-DAY CYCLE   " + days + " / " +
+                SoloCollectionCircuit.CircuitsRequiredForCycleBonus +
+                "   -   a missed day starts the cycle over.";
 
             UISharedFoundation.CreateText(
                 card, "CycleText", text, UITextRole.Body, TextAnchor.MiddleCenter,
-                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1340f, 60f));
+                UIFrozenTokens.ColorTextPrimary, false, new Vector2(1340f, 100f));
         }
 
         private bool IsCleared(SoloCircuitTrial trial) =>
