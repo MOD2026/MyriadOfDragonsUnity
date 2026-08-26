@@ -31,6 +31,9 @@ because nothing at turn-start surfaced it.
 | 2026-08-26 | **CC does NOT write/edit code, run Unity EditMode batches, commit code changes, OR ROOT-CAUSE/INVESTIGATE BUGS - not even via read-only grep/reading.** Owner corrected this explicitly (2026-08-26): CC's job is to ASSIGN, not to dig. When the owner reports a symptom (a stuck screen, a visual bug, anything broken), CC relays the RAW symptom to CR as-is and lets CR find the root cause - CC does not grep the code first, form a hypothesis, or present "findings" before dispatching. The ONLY read-only Bash CC still does is VERIFYING a peer's own already-reported claim/commit (does commit X really say Y, does file Z really contain the thing CR/VS/WH said it does) - never originating a new investigation into a bug nobody has diagnosed yet. If unsure whether a check is "verifying a claim" vs. "investigating a bug," default to NOT checking and just dispatch the raw symptom. | Owner explicitly lifts it |
 | 2026-08-26 | **WH (Cursor) has NO direct channel from CC - not `tools/seat_mailbox.md` (that is VS's channel only, has real watchers), not `SendMessage`.** WH can only be reached by the owner manually pasting text CC hands over. Every WH task MUST be given to the owner as a standalone, copy-paste-ready fenced code block in the chat reply itself - never written into the mailbox file, never assumed sent. CC has made this exact channel-routing mistake twice already this session (once caught by the owner, once self-corrected) - re-verify the channel before every WH dispatch, don't default to the mailbox out of habit. | Standing rule, does not lift |
 | 2026-08-26 | **HARD GATE, repeated violation: no BS reply gets locked/dispatched without BOTH (a) internal-consistency verification against real code AND (b) a real WebSearch benchmarking its specific numbers/mechanics against comparable shipped games.** This was already a standing rule (CLAUDE.md), violated again this session on the Solo Collection Circuit/PvP-slice/Loyalty-milestone batch - only internal consistency was checked, no industry-standard benchmark was run, and it got locked and dispatched anyway. Owner has now said this "many times." Before writing "LOCKED" for any BS reply: stop, run the WebSearch, cite what it found (numbers that match, numbers that don't, and why), THEN lock. No exceptions for time pressure or batch size. | Standing rule, does not lift - repeated failure, treat as permanently binding |
+| 2026-08-26 | **Every CC turn must end with a paste-ready dispatch/action, never a bare question.** Owner does not want the conversation ending on "should I..." - close every turn by assigning the next real task to VS/CR (direct dispatch) or WH (paste-ready fenced block for the owner to relay). If there is genuinely nothing dispatchable, say so explicitly and still name the concrete blocking dependency, not an open question. | Standing rule, does not lift |
+| 2026-08-26 | **No coding room may sit idle.** At the start of every turn, after the STANDING ORDERS/PENDING DISPATCH check, verify VS/CR/WH each have a live task in flight; if any room's queue is empty, dispatch its next real item from PENDING/backlog immediately, in the same turn. Plan ahead across rooms to avoid two rooms editing the same file/system at once (check "You own"/"You must NOT edit" split and PENDING DISPATCH rows before assigning). Pre-clear any BS/ST/UI design or art dependency EARLY, before a room actually blocks on it, not reactively after the room reports blocked. | Standing rule, does not lift |
+| 2026-08-26 | **Memory-failure disclosure.** If CC's own private memory system (`~/.claude/projects/.../memory/`) appears to be failing, unavailable, or inconsistent, tell the owner immediately - it is explicitly not the system of record for project state (that is this file + seat_mailbox.md), but a failure is still worth flagging. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
 
@@ -51,13 +54,12 @@ confirms receipt/action, or the row is removed once confirmed.**
 | 2026-08-26 | Coding room | Empire display copy - "STRUCTURE LEVEL" hybrid framing for Guild Hall/Embassy/Prison (BS's locked spec) | PENDING - dispatched, no confirmation yet |
 | 2026-08-26 | Coding room | Solo Collection Circuit - Formation Trial + Tactical Brief first; stop before Collection Trial if it needs new save shape | PENDING - dispatched |
 | 2026-08-26 | Coding room | Loyalty redemption full implementation (`highestClaimedLoyaltyMilestone` field, claim guard, Gold+Stamina+voucher grants) - owner signed off, revised whale-tier rewards locked | PENDING - dispatched, voucher durations for 2,000pt still held on BS's answer below |
-| 2026-08-26 | Coding room | Guild Hall screen overlap + Mail screen stuck/unresponsive - raw symptom only, root cause NOT yet diagnosed by the room | PENDING - dispatched, no diagnosis reported yet |
+| 2026-08-26 | Coding room | Guild Hall screen overlap + Mail screen stuck/unresponsive - raw symptom only | PARTIAL - overlap fix landed dcf9610 (canvas cleanup + 114-line test), but the commit message itself says the Mail cause is INFERRED FROM CODE, NOT REPRODUCED. Needs a real Play Mode navigation repro before either symptom is called closed. |
 | 2026-08-26 | BS (via owner) | Voucher-duration monotonicity break: 2,000pt gives a shorter voucher (7-day) than 1,000pt (14-day) despite double the spend - only sane fix is upgrading 2,000pt to 30-day, needs BS's explicit sign-off since it's a real value increase | PENDING - awaiting reply |
 | 2026-08-26 | BS (via owner) | Empire Expedition Stamina-cost/Gold-per-clear/daily-cap + Battle Pass tier Gold amounts - both still real `null` in code, blocks the combined economy simulation | PENDING - awaiting reply |
 | 2026-08-26 | WH (paste-ready, owner relays) | Chapter 3-18 continuity dialogue (ST's verbatim packet) - watch the existing `if(stageId=="18-30")` special case at StoryDatabase.cs:1863 before overwriting | PENDING - given to owner, unconfirmed whether pasted/landed |
 | 2026-08-26 | WH (paste-ready, owner relays) | Guild Expedition/Permit Weekly Key/Spell Loadout Picker screen wiring - real assets already sit in Assets/Resources/UI/{GuildExpeditionV1,PermitWeekKeyV1,SpellLoadoutV1}/ | PENDING - given to owner, unconfirmed whether pasted/landed |
 | 2026-08-26 | WH (paste-ready, owner relays) | VIP real entitlement implementation (BS's re-locked spec: 800/1,500/3,000 Gems, bonus Stamina claims not rate change) | PENDING - given to owner, unconfirmed whether pasted/landed |
-| 2026-08-26 | OWNER | **VIP voucher durations conflict.** CC remapped 250->weekly(7d), 1,000->fortnight(14d) to retire the unexpressible 3-day. The revised whale-tier lock sets 2,000->7d, which sits BELOW the 1,000 rung and breaks the ascending ladder. Monotone fix = upgrade 2,000 to 30-day, a real increase in what paid spend returns. Gold/Stamina halves are unaffected and are shipping now. | PENDING - awaiting owner |
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
 | 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
 
@@ -4516,3 +4518,32 @@ MORE lifetime spend than 1,000 (20,000 vs 10,000 Gems) but returns a SHORTER vou
 8,000). Downgrading 1,000pt isn't an option (already locked, already being built). This is a real
 value increase to what a 20,000-Gem spender gets, not a cosmetic cleanup - needs explicit owner
 confirmation before VS wires it, per the same discipline as every other reward-value change tonight.
+
+## BS adopts a 7-step review protocol going forward (2026-08-26) - NOT a numbers reply, still PENDING
+
+BS's latest reply is a process commitment, not data: source audit -> conflict scan -> quantitative
+sim (F2P/active/whale) -> adversarial abuse checks (bot farming, multi-account, stacking, rollback,
+duplicate claims) -> genre comparison vs. current top-grossing -> implementation-reality split
+(buildable now / server-blocked / needs new schema) -> decision output (numbers + recommendation +
+risks + READY/NOT READY). Applies to all future BS topics, not just this one.
+
+**Does not resolve either open BS ask** - no numbers given yet for:
+1. Voucher-duration fix (2,000pt -> 30-day) sign-off - still awaiting owner, unaffected by this reply.
+2. Empire Expedition Stamina-cost/Gold-per-clear/daily-cap + Battle Pass tier Gold - still real
+   `null` in code, still blocks the combined economy simulation.
+
+BS's proposed next step matches CR's actual blocker: a combined six-month sim covering Gem spend,
+Loyalty rewards, VIP vouchers, Stamina claims, Solo Circuit income, Expedition income, Empire Gold
+sink. Correct next step - but it still needs BS to actually produce the Expedition/Battle Pass Gold
+numbers (ask #2 above) before CR can build it. Nothing to lock from this reply. Both PENDING rows
+above remain PENDING - do not treat protocol adoption as an answer.
+
+## Identity re-verification + queue-resume dispatched to both peer sessions (2026-08-26)
+
+Session names churned again (`myriadofdragonsunity-b3`, `-2a`, plus an `Old room` from ListAgents) -
+none match the last-confirmed CR identity (`myriadofdragonsunity-34`). Sent both `-b3` and `-2a` an
+identical SendMessage: confirm VS-or-CR with a real landed commit hash, then resume whichever queue
+applies (VS: Loyalty field/claim-guard + Gold/Stamina halves, voucher duration still HELD; CR: Guild
+Hall/Mail bug diagnosis + design-token rollout, top priority). Neither room was idle - both already
+had real PENDING work, this was a resume/reverify, not a new task. PENDING DISPATCH unchanged; will
+update once either replies with proof of identity + landed work.
