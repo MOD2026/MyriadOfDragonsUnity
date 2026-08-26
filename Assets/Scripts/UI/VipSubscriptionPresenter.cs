@@ -215,11 +215,16 @@ namespace MyriadOfDragons.UI
                 // Benefit grid is 0.40×0.70 of 1920×1080; each well is half-col / third-row.
                 const float wellW = 0.40f * 1920f * 0.5f;
                 const float wellH = 0.70f * 1080f / 3f;
-                UISharedFoundation.AddSemiTransparentScrimPanel(
+                UISharedFoundation.AddLocalGradientScrim(
                     well.transform,
                     new Vector2(wellW * 0.5f, wellH * 0.20f),
                     new Vector2(wellW * 0.9f, wellH * 0.32f),
-                    UIDesignTokens.FrameTier.Tier2Section);
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    well.transform,
+                    new Vector2(wellW * 0.5f, wellH * 0.20f),
+                    new Vector2(wellW * 0.9f, wellH * 0.32f),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
             }
         }
 
