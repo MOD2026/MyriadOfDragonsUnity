@@ -139,8 +139,15 @@ namespace MyriadOfDragons.Tests
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_BackdropRaycastBootstrap");
 
-            GameObject background = GameObject.Find("Background");
-            Assert.IsNotNull(background, "Setup: expected the arena backdrop GameObject to exist.");
+            // Scoped to this test's own BattlePresentationRoot, not a global GameObject.Find -
+            // 18+ other presenters (Shop, DeckBuilder, Mail, etc.) also name a child "Background",
+            // and a leftover from an earlier test in the same run could resolve first, making this
+            // assertion order-dependent instead of deterministic (real repro, 2026-08-26: passed
+            // clean alone/in small groups all night, failed only inside the full 1762-test suite).
+            RectTransform root = bootstrap.BattlePresentationRootForTests;
+            Transform backgroundTransform = root.Find("Background");
+            Assert.IsNotNull(backgroundTransform, "Setup: expected the arena backdrop GameObject to exist.");
+            GameObject background = backgroundTransform.gameObject;
             Image backgroundImage = background.GetComponent<Image>();
             Assert.IsNotNull(backgroundImage);
             Assert.IsFalse(backgroundImage.raycastTarget,
@@ -148,7 +155,6 @@ namespace MyriadOfDragons.Tests
 
             // The dim wash (only built when the real backdrop sprite loads) is a sibling Image
             // under the same root with no sprite of its own - same requirement, if present.
-            RectTransform root = bootstrap.BattlePresentationRootForTests;
             foreach (Image image in root.GetComponentsInChildren<Image>(true))
             {
                 if (image.gameObject == background || image.sprite != null) continue;
