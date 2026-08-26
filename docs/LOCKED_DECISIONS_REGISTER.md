@@ -7498,3 +7498,33 @@ deliberate-looking but too-heavy fill nobody revisited once real map art existed
 
 Dispatched to WH (paste-ready) rather than VS/CR - contained to one file neither is currently in,
 concrete fix, no design ambiguity requiring a BS ask.
+
+## Apply-before-position is the RULE across ~24 ApplyFramedPanel call sites, not the EmpirePresenter exception - CR's scope correction, verified (2026-08-26)
+
+**CR's watcher approach was disproven and honestly removed, not silently deleted** -
+`OnRectTransformDimensionsChange` doesn't fire synchronously in EditMode even with
+`Canvas.ForceUpdateCanvases()`, kept in `SlicedBorderFitTests.cs` as documented negative evidence.
+Fixed the real EmpirePresenter case by reordering: chrome now applied after final anchors, matching
+every already-correct call site's own shape.
+
+**Then found the assumption backwards while checking the other ~23 sites.** Spot-verified myself:
+`AvatarPresenter.cs:118` - `ApplyFramedPanel` called immediately after `GetComponent<Image>()`, then
+`anchorMin/anchorMax` set four lines later. Same shape CR reported. **Apply-before-position is the
+rule, not the EmpirePresenter exception** - CR's original framing had it backwards, and CR caught its
+own error rather than shipping a narrow fix on a wrong premise.
+
+**Real consequence, bigger than tonight's original 3-file scope:** every `ApplyFramedPanel` call
+computes its border-fit multiplier against Unity's DEFAULT 100x100 rect, not the panel's real final
+size. Small panels (DeckBuilder) collapsed outright. Large panels don't collapse but get their
+borders shrunk to roughly 1/4 authored thickness against a typical content panel's 320-384px border
+sum - a real, distinct, ADDITIONAL defect that only exists now that the sprite-load bug is fixed and
+this code path is finally live.
+
+**APPROVED: option 1, reorder all ~24 call sites the same mechanical, already-proven way.** This is
+the same verified fix pattern (EmpirePresenter), applied to where the bug actually lives rather than
+one site. The alternative (narrow scope now, queue the rest) just leaves ~23 more panels rendering
+wrong borders after doing all this work to fix the loading problem - not worth the deferral.
+
+**Cross-notified VS**, whose Battle-screen chrome task will start calling `ApplyFramedPanel` for the
+first time - told to position-then-apply from the start rather than repeat the mistake CR is now
+fixing everywhere else.
