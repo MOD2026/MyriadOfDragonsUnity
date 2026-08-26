@@ -6641,3 +6641,24 @@ unilateral edit.
 **Real, cheap next confirm proposed, greenlit:** one Unity process, two filters (a FlushAsync-
 emitting class + `ShopV1ChromeTests` together) vs `ShopV1ChromeTests` alone - checks cross-test
 contamination without another full-suite run, fits well inside the 15-20min cap. Go ahead.
+
+## CR's full-suite result: 1758/1759 (3 skipped), real self-check discipline, strong lead on the one failure (2026-08-26)
+
+**Real number, HEAD `453c69d` pinned, 207.9s.** One failure:
+`BattleReleaseLayoutTests.BackdropImages_NeverBlockRaycasts`. **CR checked its own change first
+before looking elsewhere** - confirmed `GameBootstrap.cs`'s arena backdrop still sets
+`raycastTarget = false` unconditionally, its own sprite-warning sweep didn't touch that line. Real
+discipline: rule yourself out honestly before blaming something else.
+
+**Real suspect found, verified even stronger than claimed:** the test does a global
+`GameObject.Find("Background")`, not scoped to the Battle root. Checked directly - **18 files**
+across the UI layer create a GameObject literally named `"Background"`, not "half a dozen" as CR
+estimated. If any prior test in the same continuous run leaves one behind (imperfect teardown), a
+global `Find` could resolve to the wrong screen's backdrop and pick up a stray `raycastTarget=true`
+that has nothing to do with Battle at all. Matches the test's own observed pattern (passes clean in
+isolation, fails in continuous runs) and the already-corrected-but-still-real "intermittent, not
+standing" characterization from earlier tonight.
+
+**Correctly not concluding yet** - re-running in isolation to confirm before calling it flaky,
+queued behind a live lock rather than forcing it. Real, disciplined, matches the exact standard this
+session has held all night.
