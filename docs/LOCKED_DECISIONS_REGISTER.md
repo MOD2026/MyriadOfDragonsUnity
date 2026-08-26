@@ -896,6 +896,53 @@ only. They are reasonable and implementable, but no external evidence backs thei
 **Revise them from real captures the moment rendered evidence contradicts them** - they carry less
 authority than the locks above.
 
+## Retroactive benchmark of the remaining three locks - 2026-08-27 (owner-directed)
+
+### INTERACTION STATES (eeca2e8) - STRONGEST evidence of the three, and it found a real GAP
+
+Peer-reviewed HCI research, not blog guidance (Kaaresoja et al., ACM Trans. Applied Perception /
+Univ. of Glasgow thesis "Latency Guidelines for Touchscreen Virtual Button Feedback"):
+
+- **Visual feedback latency should be 30-85ms.** Our locked target of 50-70ms sits inside that
+  window. **CONFIRMED.**
+- Perceived quality drops significantly between **100 and 150ms** for visual feedback. Our 100ms
+  hard ceiling is right at the edge - correct as a maximum.
+- **100ms is the upper limit of user-acceptable latency** in touch tasks. **CONFIRMED.**
+- Input latency below 50ms is a good minimum requirement for ergonomic touch.
+
+**GAP FOUND - we specified haptic DURATION but never haptic LATENCY.** Research: tactile feedback
+latency must be **5-50ms**, and **if a vibration is not felt within ~30ms the user concludes the
+touch was not registered at all.** Audio feedback latency should be **20-70ms** - also unspecified by
+us. **AMENDMENT: haptics must fire within 30ms of touch-down; UI audio within 70ms.** The existing
+10-20ms haptic figure is the pulse duration and is unchanged.
+
+### TYPOGRAPHY (ae1366c) - PARTIAL corroboration, and the SAME canvas-vs-physical error class
+
+- Amazon's 10-foot-UI guidance sets **28px minimum on a 1080p screen** - matches our 28px body/
+  interactive floor exactly. Caveat: that is TV-at-distance, a different viewing condition, so it
+  corroborates the number without validating the reasoning.
+- Mobile-game guidance: critical UI (buttons, prices, timers) **16px+ with strong contrast**;
+  ~12px absolute readable minimum. Our floors sit above both.
+- Game Accessibility Guidelines treat a readable default font size as a baseline requirement.
+
+**SAME BUG CLASS AS THE CONTRAST ONE:** all of those figures are DEVICE pixels; our 22/28px are
+CANVAS pixels on a 1920x1080 reference. With Unity's CanvasScaler set to Scale-With-Screen-Size they
+coincide only when the device's short axis is ~1080. **The validator must check the PHYSICAL rendered
+size, not the token value** - identical to the large-text fix already sent to CR.
+
+### EMPTY STATES (4313fdd) - WEAKEST. Corroborated, but NOT by shipped games.
+
+UX-industry sources independently converge on our locked anatomy: combine illustration + headline +
+body + CTA; **"show the shape of success with a muted preview or ghost row"** (our ranked option 2,
+truthful preview); and **"offer one obvious next action - not three - one primary CTA, maybe one
+secondary escape hatch"** (our max-one-Tier-1 rule). First-use, user-cleared and error states are
+treated as distinct - close to our four categories.
+
+**But these are UX articles, not shipped-game evidence, which is NOT what the owner's benchmark
+definition asks for.** No verifiable shipped-game empty-state capture was found by BS or CC.
+**Status: internally sound, externally UNVERIFIED against real games. Lowest-authority lock of the
+set - revise first if rendered evidence disagrees.**
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
