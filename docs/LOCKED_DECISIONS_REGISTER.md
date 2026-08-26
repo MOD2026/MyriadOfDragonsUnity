@@ -273,6 +273,86 @@ owner is asking to be measured against; a text search cannot substitute for them
 **Status: the 8/10/4 owner-vs-BS conflict is still NOT benchmark-resolved.** Nothing above confirms
 or refutes a numeric actionable-control ceiling. Do not cite this entry as settling it.
 
+## Production-reachability control - BS reply LOCKED 2026-08-27 (verified + externally benchmarked)
+
+Answers the class of bug found when `SpellBookGrant.TryGrant` turned out to have zero production
+callers. **Locked.** Both gates satisfied before locking - real-code consistency check AND a real
+external benchmark against shipped Unity practice (not a UX article).
+
+**Failure class:** production-reachability / integration-coverage failure - unit-correct transaction
+absent from the player's executable vertical slice. Also "dead feature path" / "test-boundary
+coverage illusion."
+
+**Standard control - traceability chain.** Every economy transaction must trace:
+`player action -> UI entry -> gameplay event -> eligibility resolver -> grant transaction ->
+persistence -> visible result`, and must carry all four of:
+1. unit tests for arithmetic + idempotency;
+2. an integration test proving its **real production caller**;
+3. one end-to-end test starting from the **simulated player action**;
+4. a **runtime telemetry event proving the grant occurred**.
+
+**Static analysis is a WARNING tool, never the gate.** A static call-graph scan can flag
+test-assembly-only reachability, but Unity's serialized callbacks, reflection, event wiring,
+Addressables, scene objects and generated code produce false "unreachable" reports. Use it for
+triage only.
+
+**The real gate is a registered economy-event contract.** Each transaction declares an event ID
+(e.g. `ChapterFinaleSpellBookGrant`); the production-path test invokes the declared gameplay entry
+point and observes that event. CI fails when: the event has no production-path test; the transaction
+is invoked only from test code; the test cannot observe a persisted grant; or the event fires zero
+times in a scripted golden playthrough. Runtime invocation coverage beats caller/metadata inspection
+because it measures behaviour - the same principle as the UI gate.
+
+**Two graphs, not one.** Share the concept, separate the namespaces:
+- **Navigation graph:** screen -> control -> destination.
+- **Gameplay/economy graph:** player action -> gameplay event -> transaction -> persistence/result.
+Join them where they meet (`Chapter screen -> Clear button -> first-clear event -> spell-book grant
+-> owned spell`). Both are reachable-path defects but their validators differ: a screen can be
+reachable yet never fire its transaction, and a transaction can be reachable from gameplay code with
+no UI path at all. One shared "production reachability" dashboard, two namespaces.
+
+**End-to-end priority order (cannot retrofit all at once):**
+1. **Purchase fulfilment** - highest financial/trust risk; simulate purchase callback, entitlement
+   grant, persistence, **duplicate callback**, and reload.
+2. **First-clear rewards** - core progression, and the exact failure already observed here.
+3. **Daily/weekly resets** - time-bound state fails silently; test UTC boundary, repeat claim,
+   missed-period behaviour.
+4. **Login/Loyalty milestones** - login advances state and grants exactly once.
+5. **Battle-pass tier grants** - XP crossing a tier, claim, reload, season boundary.
+6. **Subscription entitlements** - purchase/restore/expiry.
+Each asserts the transaction result AND player-visible state **after reload**.
+
+**Catching silent non-grants in live-ops, three layers:** synthetic canary/autoplay accounts on every
+candidate build (earliest signal); expected-vs-actual telemetry emitting `eligible`,
+`claim_attempted`, `grant_committed`, `grant_visible`, `claim_rejected` with event ID, account ID,
+season/version, UTC timestamp, alerting when eligible substantially exceeds committed; and
+operational reconciliation of entitlement/payment records against granted inventory.
+
+**Release rule, adopted:** *no economy-affecting transaction is "complete" until it has one
+production-path test and one observable runtime grant event.*
+
+### External benchmark (owner's definition - real shipped practice, verified)
+
+BS's Unity citation **checks out**. The official `Unity-Technologies/com.unity.services.samples.
+use-cases` Daily Rewards sample plus `docs.unity.com` Cloud Code documentation confirm the exact
+shape BS described: a claim request **verifies eligibility -> grants the reward -> updates player
+state on Cloud Save**, via a `DailyRewards_Claim` Cloud Code script recording days collected and last
+claim time, with Economy-service currency grants and LiveOps dashboard configuration. This is Unity's
+own shipped reference implementation, not a blog opinion.
+
+### Two real local constraints BS did not have, which change sequencing
+
+1. **Telemetry layer is already largely BUILT here** - `RetentionTelemetryEvents/Gateway/Outbox/
+   PlayerId` exist and are already wired into BattlePass, CampaignMap, DailyLogin, EmpireExpedition,
+   Home and Shop presenters. So layer 2 is far cheaper for us than BS assumed. Extend it, do not
+   build a parallel system.
+2. **BLOCKER - do not add emit sites yet.** `RetentionTelemetryOutbox.FlushAsync` has **no timeout
+   anywhere in its Cloud Code call chain** - the confirmed root cause of `ShopV1ChromeTests` hanging
+   the whole suite roughly half the time. Adding more emit sites before that timeout lands would
+   spread an existing intermittent hang across every economy path. **Fix the timeout first.**
+   Layer 3 (dashboards/reconciliation) is additionally blocked by the CloudCode track being paused
+   2026-08-23 with nothing deployed.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
