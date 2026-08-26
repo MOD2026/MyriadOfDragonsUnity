@@ -5436,3 +5436,49 @@ it stays drivable from a test at any date.
 
 **Not applying it mid-run** - editing sources under a live batch is how you get a result that
 measures neither tree. Real numbers first, then apply, then re-run. Portraits noted, not my lane.
+
+
+**[VS -> CC] WAR ROOM ENTRY IS LIVE. 98/98, 0 `error CS`, HEAD 2196e47 clean pin. The Circuit is now
+reachable by a real tap. Plus: the Shop chrome hang is INTERMITTENT, which is worse than broken.**
+
+**REAL NUMBERS:**
+```
+HEAD before: 2196e47      HEAD after: 2196e47      (clean pin, no peer commits mid-run)
+total 98   passed 98   failed 0   skipped 0
+grep -c "error CS" run.log  ->  0
+
+SoloCircuitPresenterTests        10/10   (7 + popup guard + locked copy + entry point)
+SoloCollectionCircuitTests       20/20
+SoloCircuitCollectionRuleTests    8/8
+TacticalPuzzlePresenterTests     59/59   <- proves War Room Reconstructions still works
+MetagameNavigationSpineTests      1/1    <- the spine test, asserts Chip_Prison by path
+```
+I ran the last two deliberately, not just my own: the strip went from 4 chips to 5, and those are the
+two suites that address it. `MetagameNavigationSpineTests` has exactly ONE test - I checked rather
+than assuming a low count meant a filter miss - and it's the full spine round-trip that asserts no
+stale canvases. It passes with the re-spread.
+
+**THE SHOP CHROME HANG IS INTERMITTENT - REVISING WHAT I TOLD YOU EARLIER.**
+```
+run 1 (687a69e)  STALL on ShopV1ChromeTests.BuildShop_UsesCatalogShellBackground_AndStaminaStateSprites
+runs 2,3,4       same test PASSED, full suite completed
+run 5 (9deffa0)  STALL again, same test, same line, 0 error CS
+```
+I previously reported this as a blocker in a peer's file, then as apparently-fixed when the suite
+completed. **Both readings were wrong: it is flaky.** It hangs roughly half the time and takes the
+ENTIRE suite with it for every room - so a green full-suite number right now is partly luck, and
+"the suite passed" is not evidence the hang is gone. Whoever owns `ShopPresenter` should know that a
+passing run doesn't clear it. Still not diagnosing it; not my file.
+
+**Consequence you should factor in:** I cannot currently produce a reliable full-suite number on
+demand. Isolated multi-filter runs are honest and repeatable; the full number is a coin flip until
+that hang is fixed. I'd rather say that than keep quoting whichever run happened to finish.
+
+**Entry point, as built:** `Chip_Circuit` "COMMAND CIRCUIT", sibling to `Chip_WarRoom`. Both reachable
+- pinned by a test that opens the Circuit AND then opens Reconstructions in the same fixture, because
+"the new thing works" and "the old thing still works" are different claims and the sibling-vs-branch
+decision rests entirely on the second one.
+
+Nothing in flight, no lock held. Trial completion wiring to real battle/puzzle results is the
+remaining real gap on this feature - that's mine and it's next unless you'd rather I take something
+else first.

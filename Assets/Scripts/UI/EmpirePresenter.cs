@@ -583,18 +583,39 @@ namespace MyriadOfDragons.UI
             strip.transform.SetParent(parent, false);
             SetNormalizedRect(strip.GetComponent<RectTransform>(), 0.03f, 0.855f, 0.97f, 0.925f);
 
-            // Four chips now, evenly spread rather than nudged - adding a fourth to hardcoded
-            // thirds would have overlapped the Embassy chip.
-            CreateVariantChip(strip.transform, "Chip_GuildHall", "GUILD HALL", EmpireBuildingKind.GuildHall, 0.00f, 0.235f,
-                onClickOverride: OpenGuildHallEntry);
-            CreateVariantChip(strip.transform, "Chip_Prison", "PRISON", EmpireBuildingKind.Prison, 0.255f, 0.49f);
-            CreateVariantChip(strip.transform, "Chip_Embassy", "EMBASSY", EmpireBuildingKind.Embassy, 0.51f, 0.745f);
+            // FIVE chips now, re-spread rather than squeezed. Widths are computed from one gap
+            // constant instead of hand-tuned literals: the previous pass already noted that adding
+            // a chip to hardcoded thirds overlapped its neighbour, and hand-nudging five sets of
+            // bounds would repeat that by hand. Chip NAMES are unchanged, which matters -
+            // MetagameNavigationSpineTests addresses Chip_Prison by path, not by position.
+            const float chipGap = 0.02f;
+            const int chipCount = 5;
+            float chipWidth = (1f - chipGap * (chipCount - 1)) / chipCount;
+            float x0 = 0f;
+            float x1 = x0 + chipWidth + chipGap;
+            float x2 = x1 + chipWidth + chipGap;
+            float x3 = x2 + chipWidth + chipGap;
+            float x4 = x3 + chipWidth + chipGap;
+
+            CreateVariantChip(strip.transform, "Chip_GuildHall", "GUILD HALL", EmpireBuildingKind.GuildHall,
+                x0, x0 + chipWidth, onClickOverride: OpenGuildHallEntry);
+            CreateVariantChip(strip.transform, "Chip_Prison", "PRISON", EmpireBuildingKind.Prison,
+                x1, x1 + chipWidth);
+            CreateVariantChip(strip.transform, "Chip_Embassy", "EMBASSY", EmpireBuildingKind.Embassy,
+                x2, x2 + chipWidth);
 
             // Entry point for War-Room Reconstructions. Placed on Empire rather than Home because
             // HomePagePresenter belongs to the metagame seat and is not mine to edit - flagged for
             // review if the design wants it on Home instead.
-            CreateVariantChip(strip.transform, "Chip_WarRoom", "WAR ROOM", EmpireBuildingKind.GuildHall, 0.765f, 1f,
-                onClickOverride: OpenWarRoomReconstructions);
+            CreateVariantChip(strip.transform, "Chip_WarRoom", "WAR ROOM", EmpireBuildingKind.GuildHall,
+                x3, x3 + chipWidth, onClickOverride: OpenWarRoomReconstructions);
+
+            // Command Circuit - the daily trials. A SIBLING of War Room rather than a branch of it:
+            // the Tactical Brief trial routes into the same puzzle content War Room opens, so
+            // hijacking that chip would have made the existing Reconstructions entry unreachable and
+            // broken TacticalPuzzlePresenterTests' OpenWarRoomForTests path.
+            CreateVariantChip(strip.transform, "Chip_Circuit", "COMMAND CIRCUIT", EmpireBuildingKind.GuildHall,
+                x4, x4 + chipWidth, onClickOverride: OpenSoloCircuit);
         }
 
         /// <summary>
@@ -617,6 +638,27 @@ namespace MyriadOfDragons.UI
         {
             OpenWarRoomReconstructions();
             return GetComponent<TacticalPuzzlePresenter>();
+        }
+
+        /// <summary>
+        /// Opens the Command Circuit as a POPUP over Empire - EmpireCanvas stays alive underneath,
+        /// same convention as the building-detail popup and War-Room Reconstructions.
+        ///
+        /// nowUtc is passed explicitly rather than read inside the screen, so the presenter stays
+        /// drivable from a test at any date. DateTime.UtcNow is read HERE, at the one edge where
+        /// real wall-clock time legitimately enters.
+        /// </summary>
+        private void OpenSoloCircuit()
+        {
+            var host = GetComponent<SoloCircuitPresenter>();
+            if (host == null) host = gameObject.AddComponent<SoloCircuitPresenter>();
+            host.Initialize(SaveSystem.Profile, System.DateTime.UtcNow, onBack: null);
+        }
+
+        public SoloCircuitPresenter OpenSoloCircuitForTests()
+        {
+            OpenSoloCircuit();
+            return GetComponent<SoloCircuitPresenter>();
         }
 
         private void CreateVariantChip(Transform parent, string name, string label, EmpireBuildingKind kind,
