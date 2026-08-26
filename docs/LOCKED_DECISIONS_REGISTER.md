@@ -6577,3 +6577,9 @@ rather than keep burning time chasing it blind, per the owner's new 15-20 min ca
 **New standing constraint, locked:** WH's own Unity batch runs are capped at 15-20 minutes while the
 owner is actively present (a long run holds the shared `.unity_batch.lock`, blocking every other
 room). Lifts when the owner steps away.
+
+**WH dispatched: code-only trace of the real purchase path, no long Unity run needed.** Real next
+step on the second hang - trace `AttemptPurchase` through `CurrencyManager`/`SaveManager.Save()` for
+anything that could block synchronously (disk write with no timeout, lock/Monitor, unresolved
+callback). Report a real suspect with line references before running anything long, matching the
+new 15-20min discipline.
