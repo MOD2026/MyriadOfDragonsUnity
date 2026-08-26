@@ -47,14 +47,21 @@ namespace MyriadOfDragons.Empire
         /// <summary>Avatar XP granted by the Circuit today. Same reason as goldEarnedTodayUtc.</summary>
         public int avatarXpEarnedTodayUtc = 0;
 
-        /// <summary>ISO-ish UTC week key the weekly counters belong to. Empty = never run.</summary>
-        public string weekKeyUtc = string.Empty;
+        /// <summary>UTC day the current personal cycle began, "yyyy-MM-dd". Empty = no cycle.
+        /// Replaces the old ISO-week key (LOCKED 2026-08-26): weeks began Monday, so a player who
+        /// joined on any later day could not reach 7 circuits that week at all. The cycle now
+        /// starts on the player's own first completed Circuit, so the join day stops mattering.</summary>
+        public string cycleStartDayKeyUtc = string.Empty;
 
-        /// <summary>Days this UTC week on which all three trials were cleared.</summary>
-        public int completedCircuitsThisWeek = 0;
+        /// <summary>Most recent UTC day on which all three trials were cleared. Used to tell a
+        /// continued cycle from a broken one - the two differ by exactly one calendar day.</summary>
+        public string lastCircuitDayKeyUtc = string.Empty;
 
-        /// <summary>True once this week's 7-circuit bonus has been paid. One-time per week.</summary>
-        public bool weeklyBonusClaimed = false;
+        /// <summary>Completed Circuit days in the current cycle (1..7).</summary>
+        public int circuitDaysInCycle = 0;
+
+        /// <summary>True once the current cycle's bonus has been paid. One-time per cycle.</summary>
+        public bool cycleBonusClaimed = false;
     }
 
     /// <summary>Outcome of a trial clear. Carries the refusal reasons explicitly so a caller can
@@ -67,7 +74,7 @@ namespace MyriadOfDragons.Empire
         public int AvatarXpGranted;
         public bool CompletedAllThreeToday;
         public int EventMedalsGranted;
-        public bool WeeklyBonusPaid;
+        public bool CycleBonusPaid;
         public string Message;
     }
 
@@ -81,8 +88,9 @@ namespace MyriadOfDragons.Empire
     /// contract ShopLoyaltyService and TacticalPuzzleSlate use.
     ///
     /// REWARD RULES (locked): 250 Gold + 10 Avatar XP per trial clear; +500 Gold +1 Event Medal for
-    /// clearing all 3 the same day; +2,500 Gold +25 Avatar XP for 7 completed circuits in the UTC
-    /// week. Hard daily ceiling of 1,250 Gold / 30 Avatar XP, enforced as its own check rather than
+    /// clearing all 3 the same day; +2,500 Gold +25 Avatar XP for 7 completed circuits in a PERSONAL
+    /// 7-DAY CYCLE (LOCKED 2026-08-26, replacing a Monday-aligned ISO week that made the bonus
+    /// unreachable for anyone who joined mid-week). Hard daily ceiling of 1,250 Gold / 30 Avatar XP, enforced as its own check rather than
     /// inferred from the per-trial numbers. Nothing else is ever granted - no cards, packs, Forge
     /// Dust, Permits, Evolution materials or Market Credits - which keeps the Circuit out of the
     /// acquisition path, the same constraint the loyalty ladder carries.
@@ -93,9 +101,10 @@ namespace MyriadOfDragons.Empire
         public const int AvatarXpPerTrialClear = 10;
         public const int GoldForAllThreeSameDay = 500;
         public const int EventMedalsForAllThreeSameDay = 1;
-        public const int GoldForSevenCircuitWeek = 2500;
-        public const int AvatarXpForSevenCircuitWeek = 25;
-        public const int CircuitsRequiredForWeeklyBonus = 7;
+        public const int GoldForSevenCircuitCycle = 2500;
+        public const int AvatarXpForSevenCircuitCycle = 25;
+        public const int CircuitsRequiredForCycleBonus = 7;
+        public const int CycleLengthDays = 7;
 
         /// <summary>Hard per-day ceilings. Stated as constants and checked directly, because the
         /// spec caps them explicitly - "don't let stacking exceed it" is a separate requirement
@@ -105,18 +114,37 @@ namespace MyriadOfDragons.Empire
 
         public static string UtcDayKey(DateTime nowUtc) => nowUtc.ToString("yyyy-MM-dd");
 
-        /// <summary>UTC week key as "yyyy-Www". Uses the ISO-8601 week so a week boundary lands on
-        /// Monday rather than "seven days after whenever the player started", matching how
-        /// ascensionPermitWeekKey already partitions the shared weekly Permit budget.</summary>
-        public static string UtcWeekKey(DateTime nowUtc)
+        /// <summary>Parses a "yyyy-MM-dd" day key back to a date, or null if it is empty or
+        /// malformed (an old save, or a hand-edited one).</summary>
+        public static DateTime? ParseDayKey(string dayKeyUtc)
         {
-            var cal = System.Globalization.ISOWeek.GetYear(nowUtc);
-            int week = System.Globalization.ISOWeek.GetWeekOfYear(nowUtc);
-            return cal.ToString("D4") + "-W" + week.ToString("D2");
+            if (string.IsNullOrEmpty(dayKeyUtc)) return null;
+            if (DateTime.TryParseExact(
+                    dayKeyUtc, "yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal |
+                    System.Globalization.DateTimeStyles.AssumeUniversal,
+                    out DateTime parsed))
+            {
+                return parsed.Date;
+            }
+
+            return null;
+        }
+
+        /// <summary>True when <paramref name="dayKeyUtc"/> is the calendar day immediately after
+        /// <paramref name="previousDayKeyUtc"/>. Real date arithmetic, not string adjacency - the
+        /// month and year boundaries are exactly where a naive check would break.</summary>
+        public static bool IsNextCalendarDay(string previousDayKeyUtc, string dayKeyUtc)
+        {
+            DateTime? previous = ParseDayKey(previousDayKeyUtc);
+            DateTime? current = ParseDayKey(dayKeyUtc);
+            if (previous == null || current == null) return false;
+            return (current.Value - previous.Value).TotalDays == 1.0;
         }
 
         /// <summary>
-        /// Rolls the daily and weekly counters forward, and REFUSES to roll them backward.
+        /// Rolls the daily counters forward, and REFUSES to roll them backward.
         ///
         /// The plain key-mismatch reset every other daily system uses (see
         /// EmpireExpeditionDailyReset) is NOT sufficient here. That shape resets whenever the
@@ -153,14 +181,9 @@ namespace MyriadOfDragons.Empire
 
             progress.highWaterDayKeyUtc = today;
 
-            string week = UtcWeekKey(nowUtc);
-            if (progress.weekKeyUtc != week)
-            {
-                progress.weekKeyUtc = week;
-                progress.completedCircuitsThisWeek = 0;
-                progress.weeklyBonusClaimed = false;
-            }
-
+            // No cycle bookkeeping here on purpose. A cycle advances only when a Circuit is
+            // actually COMPLETED, so it is settled in RecordClear rather than on every read - a
+            // player who opens the app and clears nothing must not disturb their own streak.
             return true;
         }
 
@@ -216,19 +239,50 @@ namespace MyriadOfDragons.Empire
                 GrantCapped(progress, GoldForAllThreeSameDay, 0, ref result);
                 result.EventMedalsGranted += EventMedalsForAllThreeSameDay;
 
-                progress.completedCircuitsThisWeek++;
+                AdvanceCycle(progress, UtcDayKey(nowUtc));
 
-                if (!progress.weeklyBonusClaimed &&
-                    progress.completedCircuitsThisWeek >= CircuitsRequiredForWeeklyBonus)
+                if (!progress.cycleBonusClaimed &&
+                    progress.circuitDaysInCycle >= CircuitsRequiredForCycleBonus)
                 {
-                    progress.weeklyBonusClaimed = true;
-                    result.WeeklyBonusPaid = true;
-                    GrantCapped(progress, GoldForSevenCircuitWeek, AvatarXpForSevenCircuitWeek, ref result);
+                    progress.cycleBonusClaimed = true;
+                    result.CycleBonusPaid = true;
+                    GrantCapped(progress, GoldForSevenCircuitCycle, AvatarXpForSevenCircuitCycle, ref result);
                 }
             }
 
             result.Message = "Cleared " + trial + ".";
             return result;
+        }
+
+        /// <summary>
+        /// Extends the personal cycle, or starts a fresh one.
+        ///
+        /// A completed Circuit on the calendar day immediately after the last one continues the
+        /// cycle; anything else starts a new cycle at day 1. That is what "a missed day ends the
+        /// cycle" means in practice - the cycle is a 7-consecutive-day streak that begins whenever
+        /// the player's first Circuit lands, so the join day no longer decides whether the bonus is
+        /// reachable at all.
+        ///
+        /// Same day twice cannot happen (each trial is first-clear-per-day, so all-three fires once
+        /// per day), but it is guarded anyway rather than relying on a caller invariant that a
+        /// future UI could break.
+        /// </summary>
+        private static void AdvanceCycle(SoloCircuitProgress progress, string today)
+        {
+            if (progress.lastCircuitDayKeyUtc == today) return;
+
+            if (IsNextCalendarDay(progress.lastCircuitDayKeyUtc, today))
+            {
+                progress.circuitDaysInCycle++;
+            }
+            else
+            {
+                progress.cycleStartDayKeyUtc = today;
+                progress.circuitDaysInCycle = 1;
+                progress.cycleBonusClaimed = false;
+            }
+
+            progress.lastCircuitDayKeyUtc = today;
         }
 
         /// <summary>

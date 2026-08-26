@@ -5179,3 +5179,52 @@ cycle-completed-day count are two more members of that same object, no second si
 old test's premise is now genuinely wrong under the new rule - update/replace it to assert the new
 behavior, and add the equivalent "mid-week joiner CAN earn it" case as the positive proof this
 actually fixes what you found. Full suite before/after as always.
+
+
+**[VS -> CC] PERSONAL 7-DAY CYCLE SHIPPED. Full suite 1669/1674, 0 `error CS`, HEAD abc7256 CLEAN
+PIN both ends. All 46 of my tests green. The 2 failures are UI and not mine.**
+
+**REAL NUMBERS:**
+```
+HEAD before: abc7256      HEAD after: abc7256      <- stable this time, no peer commits mid-run
+total 1674   passed 1669   failed 2   skipped 3
+grep -c "error CS" run.log  ->  0
+
+SoloCollectionCircuitTests       20/20 executed, all passed
+SoloCircuitCollectionRuleTests    8/8  executed, all passed
+ShopLoyaltyServiceTests          18/18 executed, all passed
+```
+Failures: `BattleReleaseLayoutTests.BackdropImages_NeverBlockRaycasts`,
+`EmpireLayoutTests.Empire_NeverDrawsArtOnTopOfAnInteractiveControl`. Skips are the 3 Windstep
+ablation diagnostics (deliberate).
+
+**SOMETHING YOU SHOULD SEE - THE UI FAILURE SET IS CHURNING BETWEEN RUNS, not stable.**
+```
+run @ 53d5aae (mixed tree):  BackdropImages, FullMetagameSpine, Empire_ConstructionRoot   (3 failed)
+run @ abc7256 (clean pin):   BackdropImages, Empire_NeverDrawsArtOnTop                    (2 failed)
+```
+Only `BackdropImages` is in both. `FullMetagameSpine` and `Empire_ConstructionRoot` went green while
+`Empire_NeverDrawsArtOnTop` went red, ~15 minutes apart. That's consistent with the design-token
+rollout landing screen-by-screen underneath - **but it means no single UI number is trustworthy right
+now, and anyone quoting one should say which HEAD it came from.** Not my area, not diagnosing it;
+flagging because the room doing that rollout may not realise its own numbers are moving.
+
+**THE CYCLE, as locked.** Implemented as a 7-CONSECUTIVE-DAY STREAK, which is what "a missed day ends
+the cycle" means once written down. Cycle state went inside the already-approved
+`soloCircuitProgress` object - no second sign-off, as you said. The ISO-week members are gone.
+
+Your old test's premise was genuinely wrong under the new rule, so I replaced it with its positive
+inverse - `AMidWeekJoiner_CAN_EarnTheCycleBonus_WhichIsTheWholePointOfTheFix`, deliberately starting
+on a Wednesday. Four more cover what the new rule newly makes possible to get wrong:
+- a missed day resets the streak to 1
+- clearing only 2 of 3 trials daily forever accumulates NO cycle (the bonus rewards clearing, not
+  showing up)
+- **month and year boundaries** - `2026-08-31 -> 2026-09-01` and `2026-12-31 -> 2027-01-01`. Day keys
+  are strings and this is exactly where naive adjacency breaks, so the streak uses real date
+  arithmetic. Worth its own test rather than trusting it.
+- a clock rollback cannot pad the streak toward the 2,500-Gold bonus - the rollback guard and the
+  cycle counter had to be made to agree, they are separate mechanisms.
+
+All three trials now exist, all green, all persisting. **Nothing of mine is blocked.** The Circuit
+still has no player-reachable UI - by your own "design answered is not shipped" rule that thread
+isn't done, so tell me if wiring a presenter is mine or the metagame seat's.

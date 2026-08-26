@@ -23,9 +23,9 @@ namespace MyriadOfDragons.Tests
         private static readonly DateTime Day2 = Day1.AddDays(1);
 
         /// <summary>Monday of the following ISO week (verified: 2026-08-31 is a Monday, ISO week
-        /// 36). The weekly tests MUST start on a Monday - see
-        /// TheWeeklyBonus_IsUnobtainable_WhenTheWeekIsJoinedMidWeek for why that is a real property
-        /// of the feature and not a convenience of the fixture.</summary>
+        /// 36). Kept as a stable, real calendar anchor for the multi-day cycle tests. Under the
+        /// current rule the start day no longer matters - see
+        /// AMidWeekJoiner_CAN_EarnTheCycleBonus_WhichIsTheWholePointOfTheFix.</summary>
         private static readonly DateTime WeekStartMonday =
             new DateTime(2026, 8, 31, 12, 0, 0, DateTimeKind.Utc);
 
@@ -129,7 +129,8 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsTrue(third.CompletedAllThreeToday);
             Assert.AreEqual(SoloCollectionCircuit.EventMedalsForAllThreeSameDay, third.EventMedalsGranted);
-            Assert.AreEqual(1, progress.completedCircuitsThisWeek);
+            Assert.AreEqual(1, progress.circuitDaysInCycle,
+                "The first completed Circuit opens the player's personal cycle at day 1.");
         }
 
         [Test]
@@ -147,59 +148,76 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void TheWeeklyBonus_CannotBreachTheDailyCap()
+        public void TheCycleBonus_CannotBreachTheDailyCap()
         {
-            // The case worth pinning: on the 7th day the weekly bonus (2,500 Gold) lands on a day
+            // The case worth pinning: on the 7th day the cycle bonus (2,500 Gold) lands on a day
             // that has ALREADY hit the 1,250 ceiling. Uncapped that day would pay 3,750. The cap is
             // the locked number, so the surplus is clipped - a player is never paid past it.
             var progress = Fresh();
             DateTime day = WeekStartMonday;
-            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForWeeklyBonus; i++)
+            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForCycleBonus; i++)
             {
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, day);
                 Assert.LessOrEqual(progress.goldEarnedTodayUtc, SoloCollectionCircuit.MaxGoldPerDay,
-                    "No day may ever exceed the ceiling, including the weekly-bonus day.");
+                    "No day may ever exceed the ceiling, including the cycle-bonus day.");
                 day = day.AddDays(1);
             }
         }
 
         [Test]
-        public void TheWeeklyBonus_IsPaidOnce_NotOncePerSubsequentCircuit()
+        public void TheCycleBonus_IsPaidOnce_NotOncePerSubsequentCircuit()
         {
             var progress = Fresh();
             DateTime day = WeekStartMonday;
             int timesPaid = 0;
-            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForWeeklyBonus + 1; i++)
+            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForCycleBonus + 1; i++)
             {
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
                 SoloCircuitClearResult r =
                     SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, day);
-                if (r.WeeklyBonusPaid) timesPaid++;
+                if (r.CycleBonusPaid) timesPaid++;
                 day = day.AddDays(1);
             }
 
-            Assert.AreEqual(1, timesPaid, "The 7-circuit bonus is one-time per UTC week.");
+            Assert.AreEqual(1, timesPaid, "The 7-circuit bonus is one-time per cycle.");
         }
 
         [Test]
-        public void TheWeeklyBonus_IsUnobtainable_WhenTheWeekIsJoinedMidWeek()
+        public void AMidWeekJoiner_CAN_EarnTheCycleBonus_WhichIsTheWholePointOfTheFix()
         {
-            // A REAL DESIGN CONSEQUENCE, found because this fixture originally started on a
-            // Wednesday and the bonus never paid. The week key is ISO-8601, so weeks begin Monday.
-            // 7 completed circuits in one UTC week therefore requires a PERFECT week starting
-            // Monday - a player who discovers the Circuit on any later day cannot earn that week's
-            // bonus at all, no matter how well they play.
-            //
-            // Pinned rather than worked around: the code is behaving as specified, and this is the
-            // kind of thing that reads as a bug in a support ticket. If the intent was "any 7 days"
-            // or "7 in a rolling window", that is a spec change, and this test is where it surfaces.
+            // The POSITIVE proof for the gap this fixture originally exposed. Under the old
+            // Monday-aligned ISO week, starting on a Wednesday made the bonus unreachable that week
+            // no matter how well the player played - roughly 6 in 7 new players. The cycle now
+            // starts on the player's OWN first completed Circuit, so the join day is irrelevant.
             var progress = Fresh();
-            DateTime day = WeekStartMonday.AddDays(2);   // joins on the Wednesday
+            DateTime day = WeekStartMonday.AddDays(2);   // deliberately a Wednesday
+            bool paid = false;
 
-            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForWeeklyBonus; i++)
+            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForCycleBonus; i++)
+            {
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
+                SoloCircuitClearResult r =
+                    SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, day);
+                if (r.CycleBonusPaid) paid = true;
+                day = day.AddDays(1);
+            }
+
+            Assert.IsTrue(paid,
+                "A Wednesday joiner must be able to earn the bonus - this is exactly what the " +
+                "ISO-week rule made impossible.");
+        }
+
+        [Test]
+        public void AMissedDay_EndsTheCycle_AndTheNextClearStartsAFreshOne()
+        {
+            var progress = Fresh();
+            DateTime day = WeekStartMonday;
+
+            for (int i = 0; i < 3; i++)
             {
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
@@ -207,9 +225,68 @@ namespace MyriadOfDragons.Tests
                 day = day.AddDays(1);
             }
 
-            Assert.IsFalse(progress.weeklyBonusClaimed,
-                "Joining mid-week makes the 7-circuit bonus unreachable that week - by design, " +
-                "but worth surfacing before a player reports it as broken.");
+            Assert.AreEqual(3, progress.circuitDaysInCycle);
+
+            day = day.AddDays(1);   // skip a day entirely
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, day);
+
+            Assert.AreEqual(1, progress.circuitDaysInCycle,
+                "A missed day ends the cycle - the next clear starts a new one at day 1.");
+        }
+
+        [Test]
+        public void ClearingOnlySomeTrials_DoesNotCountAsACircuitDay()
+        {
+            // "Completed Circuit day" means all three. A player who clears two trials a day forever
+            // must never accumulate a cycle - otherwise the bonus rewards showing up, not clearing.
+            var progress = Fresh();
+            DateTime day = WeekStartMonday;
+
+            for (int i = 0; i < SoloCollectionCircuit.CircuitsRequiredForCycleBonus; i++)
+            {
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
+                day = day.AddDays(1);
+            }
+
+            Assert.AreEqual(0, progress.circuitDaysInCycle);
+            Assert.IsFalse(progress.cycleBonusClaimed);
+        }
+
+        [Test]
+        public void TheCycleSurvivesAMonthBoundary()
+        {
+            // Day keys are strings, and "2026-08-31" -> "2026-09-01" is exactly where naive string
+            // adjacency breaks. The streak check uses real date arithmetic; this pins it.
+            Assert.IsTrue(SoloCollectionCircuit.IsNextCalendarDay("2026-08-31", "2026-09-01"));
+            Assert.IsTrue(SoloCollectionCircuit.IsNextCalendarDay("2026-12-31", "2027-01-01"));
+            Assert.IsFalse(SoloCollectionCircuit.IsNextCalendarDay("2026-08-26", "2026-08-28"));
+            Assert.IsFalse(SoloCollectionCircuit.IsNextCalendarDay("", "2026-08-26"));
+            Assert.IsFalse(SoloCollectionCircuit.IsNextCalendarDay("not-a-date", "2026-08-26"));
+        }
+
+        [Test]
+        public void ClockRollback_CannotManufactureAnExtraCycleDay()
+        {
+            // The rollback guard and the cycle counter have to agree. Winding the clock back after
+            // a completed Circuit must not let the player re-complete an earlier day and pad the
+            // streak toward the 2,500-Gold bonus.
+            var progress = Fresh();
+            DateTime day = WeekStartMonday;
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, day);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, day);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, day);
+            Assert.AreEqual(1, progress.circuitDaysInCycle);
+
+            DateTime yesterday = day.AddDays(-1);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, yesterday);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, yesterday);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, yesterday);
+
+            Assert.AreEqual(1, progress.circuitDaysInCycle,
+                "A rolled-back day must not add to the streak.");
         }
 
         // --- Deterministic daily selection ---
