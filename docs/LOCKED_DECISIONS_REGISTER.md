@@ -4443,3 +4443,24 @@ Milestone corrections locked 2026-08-26 (VS blocker resolution):
   `vipPlanId` keeps its three existing values; the "3-day voucher" wording is retired.
 - 500 / 2,000 / 8,000 (cosmetics) are **deferred, unclaimable-pending-cosmetic-inventory** — no
   cosmetic ownership model exists on PlayerProfile. No currency substitution permitted.
+
+## LOCKED: revised whale-tier Loyalty rewards, verified real (2026-08-26, BS)
+
+**Verified both headline numbers myself:** 100,000 Gold / 1,250 max daily Solo Circuit = exactly 80
+days (matches BS's "~80 days" claim); 100,000 / 1,779,550 = 5.62% (matches "~5.6% of the Empire
+sink" claim). Real, proportionate this time - the earlier disproportionate 2,500 Gold top tier is
+replaced.
+
+**Revised 2,000/4,000/8,000pt rewards** (100/250/500/1,000pt unchanged): 2,000=25,000 Gold+2 Stamina
+claims+7-day VIP voucher; 4,000=50,000 Gold+4 Stamina claims+30-day VIP voucher; 8,000=100,000
+Gold+8 Stamina claims+30-day VIP voucher. Same constraints as before (no cards/packs/Forge-Dust/
+Permits/Evolution materials/combat stats/timer skips; Stamina claims still gated by the real
+4-per-24h cap; VIP vouchers can't stack with an active subscription).
+
+**Persistence, simplified by CR - real, correct reasoning:** a single `highestClaimedLoyaltyMilestone`
+int is sufficient (not a bitmask) because the ladder is strictly ascending and points never decay -
+a milestone X is claimed iff X <= the stored highest-claimed value. One field, not seven flags.
+
+**The ONLY thing still needed from the owner: sign off on this one field** (`highestClaimedLoyaltyMilestone`,
+int, additive, frozen PlayerProfile.cs) - same pattern as every other frozen-file addition tonight.
+Everything else in this thread is resolved.
