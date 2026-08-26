@@ -45,6 +45,11 @@ namespace MyriadOfDragons.Tests
         /// ignore it.</summary>
         private const float Tolerance = 1f;
 
+        /// <summary>Minimum centre strip a 9-slice needs, copied from
+        /// UISharedFoundation.FitSlicedBorderToRect so the check and the fix agree. If that
+        /// constant moves, this must move with it - they describe the same rule.</summary>
+        private const float SlicedMinCenterPx = 6f;
+
         /// <summary>THE LOCKED TARGET RESOLUTION - landscape 1920x1080, the game's fundamental
         /// (CLAUDE.md, 2026-08-27). Measuring at any other size risks reporting defects that only
         /// exist at that size: text clipping in particular is resolution-dependent, because a
@@ -582,6 +587,39 @@ namespace MyriadOfDragons.Tests
                                      absoluteFloor.ToString("0.0", CultureInfo.InvariantCulture) +
                                      ":1 absolute minimum the lock permits nowhere.");
                     }
+                }
+            }
+
+            // --- T1: sliced border fit actually APPLIED (locked 9ca3e0b) --------------------
+            // Mirrors UISharedFoundation.FitSlicedBorderToRect's own arithmetic: a 9-slice sprite
+            // whose borders plus a minimum centre strip exceed the rect cannot draw its centre, so
+            // the border must be scaled down via pixelsPerUnitMultiplier. If the multiplier is
+            // still 1 in that situation, the fit was never applied and the frame renders wrong.
+            //
+            // THIS CHECKS THE RENDERED EFFECT, NOT THAT A METHOD WAS CALLED. That distinction is
+            // the whole reason the bug class survived a green suite: asserting
+            // "FitSlicedBorderToRect was invoked" passes even when it was invoked too early,
+            // against a rect that had not been sized yet, and did nothing.
+            foreach (Image img in root.GetComponentsInChildren<Image>(true))
+            {
+                if (!img.gameObject.activeInHierarchy) continue;
+                if (img.type != Image.Type.Sliced || img.sprite == null) continue;
+                if (img.sprite.border == Vector4.zero) continue;
+
+                Rect r = img.rectTransform.rect;
+                if (r.width <= 0f || r.height <= 0f) continue;
+
+                Vector4 b = img.sprite.border;   // x=left, y=bottom, z=right, w=top
+                bool tooWide = b.x + b.z + SlicedMinCenterPx > r.width;
+                bool tooTall = b.y + b.w + SlicedMinCenterPx > r.height;
+
+                if ((tooWide || tooTall) && Mathf.Approximately(img.pixelsPerUnitMultiplier, 1f))
+                {
+                    findings.Add(screen.Name + ": image " + Q(img.name) + " is Sliced with border (" +
+                                 F(b.x) + "," + F(b.y) + "," + F(b.z) + "," + F(b.w) + ") in a " +
+                                 F(r.width) + "x" + F(r.height) + " rect, leaving no room for the " +
+                                 "centre, but pixelsPerUnitMultiplier is still 1 - the border fit " +
+                                 "was never applied and the frame renders wrong.");
                 }
             }
 
