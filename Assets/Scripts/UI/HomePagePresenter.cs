@@ -813,13 +813,21 @@ public class HomePagePresenter : MonoBehaviour
         title.raycastTarget = false;
         SetLocalNormalisedRect(title.rectTransform, 0.06f, 0.72f, 0.7f, 0.9f);
 
+        // Local scrim under body copy only (card already framed; muted taupe on art read <2:1).
+        UISharedFoundation.AddSemiTransparentScrimPanel(
+            cardObj.transform,
+            new Vector2(width * 0.5f, height * 0.49f),
+            new Vector2(width * 0.88f, height * 0.40f),
+            UIDesignTokens.FrameTier.Tier3Utility);
+
         Text body = UISharedFoundation.CreateText(cardObj.transform, "Body", card.Body, UITextRole.Body,
-            TextAnchor.UpperLeft, HexColor("#B8A68F"), true, new Vector2(1400f, 200f));
+            TextAnchor.UpperLeft, HexColor("#F2E5C9"), true, new Vector2(1400f, 200f));
         // Type-scale hard floor: body copy >=28px. T3Body (35px) matches its exact documented
         // use ("descriptions, instructional copy") in the locked type table.
         UIDesignTokens.Apply(body, UIDesignTokens.TypeTier.T3Body);
         body.horizontalOverflow = HorizontalWrapMode.Wrap;
         body.raycastTarget = false;
+        UISharedFoundation.ApplyTextShadow(body);
         SetLocalNormalisedRect(body.rectTransform, 0.06f, 0.28f, 0.94f, 0.7f);
 
         // One dominant primary action per page (locked rule) - primary chrome, not neutral.

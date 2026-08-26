@@ -211,11 +211,19 @@ namespace MyriadOfDragons.UI
             backingRect.offsetMax = Vector2.zero;
             backingImage.raycastTarget = false;
 
+            // Local plate over the text half of the pill only - leaves the left art unread darkened.
+            UISharedFoundation.AddSemiTransparentScrimPanel(
+                pillRoot.transform,
+                new Vector2(width * 0.62f, 26f),
+                new Vector2(width * 0.58f, 44f),
+                UIDesignTokens.FrameTier.Tier2Section);
+
             Text labelText = UISharedFoundation.CreateText(
                 pillRoot.transform, "ResourceLabel", label, UITextRole.Body, TextAnchor.MiddleLeft,
-                new Color(0.95f, 0.9f, 0.79f), true, new Vector2(80f, 30f));
+                Color.white, true, new Vector2(80f, 30f));
             labelText.fontSize = 16;
             labelText.raycastTarget = false;
+            UISharedFoundation.ApplyTextShadow(labelText);
             RectTransform labelRect = labelText.rectTransform;
             labelRect.anchorMin = new Vector2(0.27f, 0.2f);
             labelRect.anchorMax = new Vector2(0.55f, 0.8f);
@@ -224,10 +232,11 @@ namespace MyriadOfDragons.UI
 
             Text valueText = UISharedFoundation.CreateText(
                 pillRoot.transform, "ResourceValue", value, UITextRole.Display, TextAnchor.MiddleRight,
-                new Color(0.95f, 0.9f, 0.79f), true, new Vector2(100f, 30f));
+                Color.white, true, new Vector2(100f, 30f));
             valueText.fontSize = 22;
             valueText.fontStyle = FontStyle.Bold;
             valueText.raycastTarget = false;
+            UISharedFoundation.ApplyTextShadow(valueText);
             RectTransform valueRect = valueText.rectTransform;
             valueRect.anchorMin = new Vector2(0.55f, 0.2f);
             valueRect.anchorMax = new Vector2(0.91f, 0.8f);

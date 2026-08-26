@@ -123,8 +123,13 @@ namespace MyriadOfDragons.UI
             xp.transform.SetParent(_canvasObj.transform, false);
             SetNorm(xp.GetComponent<RectTransform>(), 0.18f, 0.78f, 0.82f, 0.86f);
 
+            // SeasonXpRow is ~1229x86 at 1920x1080; plate only the label column.
+            UISharedFoundation.AddSemiTransparentScrimPanel(
+                xp.transform, new Vector2(98f, 43f), new Vector2(196f, 48f),
+                UIDesignTokens.FrameTier.Tier2Section);
             Text xpLabel = UISharedFoundation.CreateText(xp.transform, "Label", "SEASON XP", UITextRole.Caption,
-                TextAnchor.MiddleLeft, new Color(0.7f, 0.9f, 0.72f), true, new Vector2(160f, 24f));
+                TextAnchor.MiddleLeft, Color.white, true, new Vector2(160f, 24f));
+            UISharedFoundation.ApplyTextShadow(xpLabel);
             SetNorm(xpLabel.rectTransform, 0.00f, 0.15f, 0.16f, 0.85f);
 
             GameObject bar = new GameObject("XpBar", typeof(RectTransform), typeof(Image));
@@ -184,13 +189,25 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
+                // Tier wells ~189x268 at 1920x1080 (8 wells across TrackTable). Local plates only.
+                const float wellW = 189f;
+                const float wellH = 268f;
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    well.transform, new Vector2(wellW * 0.5f, wellH * 0.85f),
+                    new Vector2(wellW * 0.9f, wellH * 0.28f), UIDesignTokens.FrameTier.Tier2Section);
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    well.transform, new Vector2(wellW * 0.5f, wellH * 0.26f),
+                    new Vector2(wellW * 0.9f, wellH * 0.38f), UIDesignTokens.FrameTier.Tier2Section);
+
                 Text headerN = UISharedFoundation.CreateText(well.transform, "TierIndex", $"T{i + 1}", UITextRole.Caption,
-                    TextAnchor.UpperCenter, new Color(0.8f, 0.85f, 0.7f), true, new Vector2(80f, 24f));
+                    TextAnchor.UpperCenter, Color.white, true, new Vector2(80f, 24f));
+                UISharedFoundation.ApplyTextShadow(headerN);
                 SetNorm(headerN.rectTransform, 0.05f, 0.72f, 0.95f, 0.98f);
 
                 Text amount = UISharedFoundation.CreateText(well.transform, "RewardAmount",
                     MetagameShellProfileBinding.PassSeasonXpLine(), UITextRole.Body, TextAnchor.MiddleCenter,
-                    new Color(0.95f, 0.9f, 0.79f), true, new Vector2(100f, 28f));
+                    Color.white, true, new Vector2(100f, 28f));
+                UISharedFoundation.ApplyTextShadow(amount);
                 SetNorm(amount.rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
             }
         }

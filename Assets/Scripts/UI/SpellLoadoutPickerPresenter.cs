@@ -133,9 +133,14 @@ namespace MyriadOfDragons.UI
             SetNorm(title.rectTransform, 0.18f, 0.15f, 0.72f, 0.9f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", string.Empty,
-                UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
+                UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(480f, 40f));
+            UISharedFoundation.ApplyTextShadow(_statusText);
             SetNorm(_statusText.rectTransform, 0.70f, 0.1f, 0.98f, 0.9f);
+            // Header strip ~1920x108; plate only the status column.
+            UISharedFoundation.AddSemiTransparentScrimPanel(
+                topBar.transform, new Vector2(1920f * 0.84f, 54f), new Vector2(480f, 72f),
+                UIDesignTokens.FrameTier.Tier2Section);
         }
 
         private void BuildSlotSummary()
@@ -164,11 +169,20 @@ namespace MyriadOfDragons.UI
                 if (schoolImg != null) schoolImg.enabled = false;
 
                 Text header = UISharedFoundation.CreateText(cell.transform, "EffectLabel", $"SLOT {i + 1}",
-                    UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.75f, 0.7f, 0.55f), true,
+                    UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(200f, 24f));
                 header.fontSize = 13;
                 header.raycastTarget = false;
+                UISharedFoundation.ApplyTextShadow(header);
                 SetNorm(header.rectTransform, 0.42f, 0.55f, 0.95f, 0.95f);
+                // Slot cells ~ (0.92*1920)/N x 86; plate the label half only.
+                float cellW = (0.92f * 1920f) / Mathf.Max(1, _requiredSlots);
+                float cellH = 0.10f * 1080f * 0.8f;
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    cell.transform,
+                    new Vector2(cellW * 0.68f, cellH * 0.75f),
+                    new Vector2(cellW * 0.55f, cellH * 0.45f),
+                    UIDesignTokens.FrameTier.Tier2Section);
 
                 Text pick = UISharedFoundation.CreateText(cell.transform, "PickLabel", "(empty)",
                     UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true,
@@ -227,10 +241,18 @@ namespace MyriadOfDragons.UI
 
                 Text effectHeader = UISharedFoundation.CreateText(colGo.transform, "EffectHeader",
                     SpellLoadoutSelection.EffectSlotLabel(effect).ToUpperInvariant(),
-                    UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.8f, 0.75f, 0.55f), true,
+                    UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(180f, 22f));
                 effectHeader.fontSize = 12;
+                UISharedFoundation.ApplyTextShadow(effectHeader);
                 SetNorm(effectHeader.rectTransform, 0.02f, 0.88f, 0.98f, 0.98f);
+                float colW = (0.94f * 1920f) / Mathf.Max(1, colsThisRow);
+                float colH = rows == 1 ? 0.60f * 1080f : 0.28f * 1080f;
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    colGo.transform,
+                    new Vector2(colW * 0.5f, colH * 0.93f),
+                    new Vector2(colW * 0.96f, colH * 0.12f),
+                    UIDesignTokens.FrameTier.Tier2Section);
 
                 List<AvatarSpell> spells = SpellLoadoutSelection.SpellsForEffect(_pool, effect);
                 float rowH = 0.86f / Mathf.Max(spells.Count, 1);

@@ -208,9 +208,18 @@ namespace MyriadOfDragons.UI
                     VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.18f, 0.38f, 0.82f, 0.92f);
                 Text label = UISharedFoundation.CreateText(well.transform, "Label",
                     benefitLabels[i],
-                    UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true,
+                    UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(220f, 36f));
+                UISharedFoundation.ApplyTextShadow(label);
                 SetNorm(label.rectTransform, 0.06f, 0.06f, 0.94f, 0.34f);
+                // Benefit grid is 0.40×0.70 of 1920×1080; each well is half-col / third-row.
+                const float wellW = 0.40f * 1920f * 0.5f;
+                const float wellH = 0.70f * 1080f / 3f;
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    well.transform,
+                    new Vector2(wellW * 0.5f, wellH * 0.20f),
+                    new Vector2(wellW * 0.9f, wellH * 0.32f),
+                    UIDesignTokens.FrameTier.Tier2Section);
             }
         }
 

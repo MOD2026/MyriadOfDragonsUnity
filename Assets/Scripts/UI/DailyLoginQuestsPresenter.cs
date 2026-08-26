@@ -186,9 +186,18 @@ namespace MyriadOfDragons.UI
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                     kind: UISharedFoundation.FramedPanelKind.ListRow);
 
+                // Login panel 0.44×0.80 of canvas; streak nodes 0.92×0.48 of panel; 6 wells.
+                float nodeW = (0.44f * 1920f) * 0.92f / Mathf.Max(1, DailyLoginQuestsOpenValues.ShellLoginWellCount);
+                float nodeH = (0.80f * 1080f) * 0.48f * 0.8f;
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    node.transform,
+                    new Vector2(nodeW * 0.5f, nodeH * 0.84f),
+                    new Vector2(nodeW * 0.9f, nodeH * 0.28f),
+                    UIDesignTokens.FrameTier.Tier2Section);
                 Text dayLabel = UISharedFoundation.CreateText(node.transform, "DayIndex", $"Day {i + 1}",
-                    UITextRole.Caption, TextAnchor.UpperCenter, new Color(0.85f, 0.9f, 0.8f), true,
+                    UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true,
                     new Vector2(60f, 22f));
+                UISharedFoundation.ApplyTextShadow(dayLabel);
                 SetNorm(dayLabel.rectTransform, 0.05f, 0.7f, 0.95f, 0.98f);
 
                 int gold = DailyLoginQuestsService.LoginGoldBase + i * DailyLoginQuestsService.LoginGoldPerTier;
@@ -253,9 +262,18 @@ namespace MyriadOfDragons.UI
                 progress.GetComponent<Image>().raycastTarget = false;
                 SetNorm(progress.GetComponent<RectTransform>(), 0.16f, 0.18f, 0.52f, 0.48f);
 
+                // Quest panel 0.44×0.80 of canvas; each row ~0.24 of panel height.
+                float rowW = 0.44f * 1920f;
+                float rowHeightPx = 0.80f * 1080f * 0.24f;
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    row.transform,
+                    new Vector2(rowW * 0.61f, rowHeightPx * 0.33f),
+                    new Vector2(rowW * 0.16f, rowHeightPx * 0.36f),
+                    UIDesignTokens.FrameTier.Tier2Section);
                 _questProgressTexts[i] = UISharedFoundation.CreateText(row.transform, "ProgressCopy",
                     "0 / 1", UITextRole.Caption, TextAnchor.MiddleLeft,
-                    new Color(0.8f, 0.85f, 0.7f), true, new Vector2(120f, 22f));
+                    Color.white, true, new Vector2(120f, 22f));
+                UISharedFoundation.ApplyTextShadow(_questProgressTexts[i]);
                 SetNorm(_questProgressTexts[i].rectTransform, 0.54f, 0.18f, 0.68f, 0.48f);
 
                 GameObject claim = new GameObject("Btn_Claim", typeof(RectTransform), typeof(Image), typeof(Button));

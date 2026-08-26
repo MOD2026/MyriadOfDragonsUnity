@@ -2297,6 +2297,19 @@ namespace MyriadOfDragons.UI
             backRect.sizeDelta = new Vector2(160f, 40f);
 
             CreateTextElement(backBtnObj.transform, "Text", "< BACK", Vector2.zero, 24, TextAnchor.MiddleCenter);
+            // Contrast: BACK was measured at 1.1-1.5:1 against map art. CreateTextElement defaults
+            // to a 700x100 box that samples far outside the button; tighten to the button and put a
+            // local scrim behind the label only (not the full header / map).
+            Text backLabel = backBtnObj.transform.Find("Text")?.GetComponent<Text>();
+            if (backLabel != null)
+            {
+                backLabel.rectTransform.sizeDelta = new Vector2(150f, 36f);
+                backLabel.color = Color.white;
+                UISharedFoundation.ApplyTextShadow(backLabel);
+            }
+            UISharedFoundation.AddSemiTransparentScrimPanel(
+                backBtnObj.transform, new Vector2(80f, 20f), new Vector2(156f, 38f),
+                UIDesignTokens.FrameTier.Tier2Section);
 
             // Chapter Title + progress + stamina status — stacked anchors (no overlapping 700×100 boxes).
             int displayChapter = ResolveDisplayChapterForTests(SaveSystem.CurrentProfile);
@@ -2312,18 +2325,35 @@ namespace MyriadOfDragons.UI
             // (Stamina: current/max + the per-attempt entry cost), reused for requirement 2's
             // blocked-launch messages so there is exactly one status surface on this screen, not
             // a new one per concern. Bottom band of the header bar only.
+            // Plate host keeps the scrim local to this status band (header is 100px tall @ 1920).
+            GameObject statusPlate = new GameObject("StatusTextPlate", typeof(RectTransform));
+            statusPlate.transform.SetParent(topBar.transform, false);
+            RectTransform statusPlateRect = statusPlate.GetComponent<RectTransform>();
+            statusPlateRect.anchorMin = new Vector2(0.18f, 0.04f);
+            statusPlateRect.anchorMax = new Vector2(0.82f, 0.30f);
+            statusPlateRect.offsetMin = Vector2.zero;
+            statusPlateRect.offsetMax = Vector2.zero;
+            const float statusPlateW = 0.64f * 1920f;
+            const float statusPlateH = 0.26f * 100f;
+            UISharedFoundation.AddSemiTransparentScrimPanel(
+                statusPlate.transform,
+                new Vector2(statusPlateW * 0.5f, statusPlateH * 0.5f),
+                new Vector2(statusPlateW, statusPlateH),
+                UIDesignTokens.FrameTier.Tier2Section);
+
             GameObject statusObj = new GameObject("StatusText");
-            statusObj.transform.SetParent(topBar.transform, false);
+            statusObj.transform.SetParent(statusPlate.transform, false);
             statusText = statusObj.AddComponent<Text>();
             statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             statusText.fontSize = 18;
             statusText.alignment = TextAnchor.MiddleCenter;
-            statusText.color = new Color(0.9f, 0.82f, 0.64f);
+            statusText.color = Color.white;
             statusText.supportRichText = true;
             statusText.raycastTarget = false;
+            UISharedFoundation.ApplyTextShadow(statusText);
             RectTransform statusRect = statusObj.GetComponent<RectTransform>();
-            statusRect.anchorMin = new Vector2(0.18f, 0.04f);
-            statusRect.anchorMax = new Vector2(0.82f, 0.30f);
+            statusRect.anchorMin = Vector2.zero;
+            statusRect.anchorMax = Vector2.one;
             statusRect.offsetMin = Vector2.zero;
             statusRect.offsetMax = Vector2.zero;
             RefreshPersistentStatusText();
@@ -2635,8 +2665,24 @@ namespace MyriadOfDragons.UI
         private static void CreateHeaderStackText(Transform parent, string objectName, string content,
             float anchorMinY, float anchorMaxY, int fontSize, FontStyle fontStyle)
         {
+            // Local plate so scrim stays behind this label band only (header = 100px @ 1920 wide).
+            GameObject plate = new GameObject(objectName + "Plate", typeof(RectTransform));
+            plate.transform.SetParent(parent, false);
+            RectTransform plateRect = plate.GetComponent<RectTransform>();
+            plateRect.anchorMin = new Vector2(0.18f, anchorMinY);
+            plateRect.anchorMax = new Vector2(0.82f, anchorMaxY);
+            plateRect.offsetMin = Vector2.zero;
+            plateRect.offsetMax = Vector2.zero;
+            float plateW = 0.64f * 1920f;
+            float plateH = Mathf.Max(8f, (anchorMaxY - anchorMinY) * 100f);
+            UISharedFoundation.AddSemiTransparentScrimPanel(
+                plate.transform,
+                new Vector2(plateW * 0.5f, plateH * 0.5f),
+                new Vector2(plateW, plateH),
+                UIDesignTokens.FrameTier.Tier2Section);
+
             GameObject textObj = new GameObject(objectName);
-            textObj.transform.SetParent(parent, false);
+            textObj.transform.SetParent(plate.transform, false);
 
             Text txt = textObj.AddComponent<Text>();
             txt.text = content;
@@ -2649,10 +2695,11 @@ namespace MyriadOfDragons.UI
             txt.horizontalOverflow = HorizontalWrapMode.Wrap;
             txt.verticalOverflow = VerticalWrapMode.Truncate;
             txt.raycastTarget = false;
+            UISharedFoundation.ApplyTextShadow(txt);
 
             RectTransform rect = textObj.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.18f, anchorMinY);
-            rect.anchorMax = new Vector2(0.82f, anchorMaxY);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
         }
