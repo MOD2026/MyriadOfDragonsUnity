@@ -1781,6 +1781,60 @@ measuring beats reasoning.
 physically occur. It should report **design-space compression** - the condition is right, the
 description is misleading, and a misleading red test gets disabled by whoever reads it next.
 
+## BATTLE AUDIT 2026-08-27: player has a hidden first-mover advantage. CC-VERIFIED.
+
+**The combat audit found a real fairness bug that violates a locked design decision.**
+
+**CONFIRMED IN CODE, not accepted on assertion:**
+- `LaneBattleResolver.cs:87-88` - `ResolveTriggers(laneA, laneB, ...)` then
+  `ResolveTriggers(laneB, laneA, ...)`.
+- `BattleController.cs:951` - `ResolveTurn(PlayerState, EnemyState, tickNumber)`. **The player is
+  ALWAYS sideA.**
+
+**So player triggers resolve before enemy triggers, in every lane, on every tick, in every match.**
+Damage itself IS simultaneous (health snapshots at :76-77, damage applied to both, then triggers), so
+the bug is confined to trigger-vs-trigger interaction - but that is where it bites hardest: **a
+player trigger that kills an enemy unit prevents that unit's own trigger from ever firing.**
+
+**This violates `MOS_v1.1.md` §20's resolved "no initiative in simultaneous combat" decision
+(2026-08-23).** The design says neither side acts first; the code gives the player a deterministic
+edge in every close clash.
+
+**Why every test missed it:** the behaviour is internally consistent and fully deterministic.
+Aggregate assertions - win rates, average damage, balance sims - cannot see it, because the bias is
+baked uniformly into every sample. **It is only visible if you ask whether swapping the two calls
+changes the outcome.**
+
+**FIX (AD's Option A, accepted): compute both sides' trigger effects into temporary structures
+FIRST, then apply them together.** Reversing or alternating the order (Option B) hides the bias
+rather than removing it - rejected.
+
+**THIS WILL MOVE BALANCE NUMBERS.** `BalanceSimulationTests` must be run before AND after and the
+delta reviewed deliberately. A shift is expected and is NOT a regression; an unchanged result would
+mean the fix did not take.
+
+### Other findings
+
+**MEDIUM - `sideA` is privileged by convention throughout the resolver.** `ResolveTurn` is always
+called player-first, so any ordering choice anywhere inside silently favours the player. Even where
+each method is individually symmetric, the convention invites the same bug again.
+
+**MEDIUM - cast is not transactional.** `TryCastSpell`/`TryCastEnemySpell` check the per-tick guard
+BEFORE spending energy but set `_lastSuccessfulPlayerCastTick` AFTER `spell.Cast`. If `Cast` throws
+or fails partway, the guard is never set and a retry can double-spend. Fix: deduct on success, or
+roll back energy and cooldown on exception.
+
+**MEDIUM - non-portable RNG seed.** `MatchRngSeed = ... ?? Guid.NewGuid().GetHashCode()`.
+`Guid.GetHashCode()` is not stable across .NET runtimes/platforms, so production seeds are not
+portable. Tests pin explicitly so they are unaffected.
+
+**LOW** - tie-breaks depend on list iteration order (fine today, fragile if anything becomes a
+`HashSet`/dictionary later).
+
+**Answer to "would this only appear in a real build?": NO.** The trigger bug is a pure logic bug that
+EditMode tests can and should catch. The only genuine build-vs-editor risks here are the RNG seed
+portability above, and any future move of this flow into coroutines or threads.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
