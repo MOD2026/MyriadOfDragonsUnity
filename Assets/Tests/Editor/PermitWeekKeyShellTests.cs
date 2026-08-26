@@ -86,15 +86,21 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_ServerKeyButton_OpensShell_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - SERVER-KEY and the weekly permit
+            // claim merge into ONE Quests/Events "PERMIT" tab (register: "no two permanent Home
+            // buttons for what's really one logical feature"). The tab runs both sub-states
+            // (local claim, then this real server-authoritative screen).
             var go = new GameObject("HomePermitWeekKeyReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform
-                .Find("TopHud/WeeklyPermitStrip/Btn_PermitWeekKey")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
+            home.OpenQuestsEventsHubForTests();
+            GameObject hub = home.TabHubObjectForTests;
+            Assert.NotNull(hub, "Setup: expected the Quests/Events hub to open.");
+            Button openBtn = hub.transform.Find("Dest_PERMIT")?.GetComponent<Button>();
+            Assert.NotNull(openBtn, "Setup: expected a PERMIT tab inside the Quests/Events hub.");
             openBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(PermitWeekKeyPresenter.CanvasName));

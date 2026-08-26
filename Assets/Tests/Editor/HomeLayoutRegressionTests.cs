@@ -85,40 +85,29 @@ namespace MyriadOfDragons.Tests
             foreach (string region in HomeSemanticRegions.All)
                 Assert.IsNotNull(canvas.Find(region), $"Missing semantic region '{region}'.");
 
-            RectTransform socialBazaar = (RectTransform)canvas.Find("TopHud/Btn_Bazaar");
-            RectTransform tutorial = (RectTransform)canvas.Find("TutorialStrip/HomeFeatureRoot");
-            Assert.IsNotNull(socialBazaar);
-            Assert.IsNotNull(tutorial);
-            Assert.IsNotNull(tutorial.Find("AlertIcon"),
-                "HomeFeatureRoot must reserve an AlertIcon well for the tutorial banner composition.");
-            Assert.IsNotNull(tutorial.Find("FeatureCopy"));
-
-            // Pixel contract: social chips Y 100-168, tutorial Y 176-242 (top-left space).
-            Assert.IsFalse(UIReleaseGateTestUtility.GetScreenRect(socialBazaar)
-                    .Overlaps(UIReleaseGateTestUtility.GetScreenRect(tutorial)),
-                "Social-chip row must not overlap the tutorial banner.");
+            // Home IA rebuild (register: "LOCKED: Home IA rebuild - five-destination shell +
+            // rotating feed, replaces the static 22-target grid"): the old TopHud social-chip row
+            // and TutorialStrip/HomeFeatureRoot banner are gone. The tutorial invite is now the
+            // WELCOME feed card (new-player only, via BuildFeed's isNewPlayer branch) and social
+            // (Chat/Mail/Friends) collapsed into one Btn_SocialDrawer entry point.
+            const string feedContent = "ContentPanel/HomeFeed/Viewport/Content";
 
             var actionable = new List<RectTransform>
             {
                 (RectTransform)canvas.Find("TopHud/IdentityRoot"),
                 (RectTransform)canvas.Find("TopHud/Btn_Settings"),
-                (RectTransform)canvas.Find("TopHud/Btn_SpellLoadout"),
-                (RectTransform)canvas.Find("TopHud/Btn_BattlePass"),
-                (RectTransform)canvas.Find("TopHud/Btn_DailyLogin"),
-                (RectTransform)canvas.Find("TopHud/Btn_Bazaar"),
-                (RectTransform)canvas.Find("TopHud/Btn_Chat"),
-                (RectTransform)canvas.Find("TopHud/Btn_Mail"),
-                (RectTransform)canvas.Find("TopHud/Btn_Friends"),
-                (RectTransform)canvas.Find("TopHud/Btn_MemoryExpedition"),
-                (RectTransform)canvas.Find("TopHud/Btn_Vip"),
-                (RectTransform)canvas.Find("TopHud/WeeklyPermitStrip/ClaimWeeklyPermitsButton"),
-                (RectTransform)canvas.Find("TutorialStrip/HomeFeatureRoot/StartTutorialButtonRoot"),
-                (RectTransform)canvas.Find("ContentPanel/NavigationStage/Btn_Campaign"),
-                (RectTransform)canvas.Find("ContentPanel/NavigationStage/Btn_Empire"),
-                (RectTransform)canvas.Find("ContentPanel/NavigationStage/Btn_Cards"),
-                (RectTransform)canvas.Find("ContentPanel/NavigationStage/Btn_Shop"),
-                (RectTransform)canvas.Find("ContentPanel/NavigationStage/Btn_Avatar"),
-                (RectTransform)canvas.Find("ContentPanel/NavigationStage/Btn_To Battle"),
+                (RectTransform)canvas.Find("TopHud/Btn_SocialDrawer"),
+                (RectTransform)canvas.Find($"{feedContent}/FeedCard_WELCOME/PrimaryAction"),
+                (RectTransform)canvas.Find($"{feedContent}/FeedCard_CAMPAIGN/PrimaryAction"),
+                (RectTransform)canvas.Find($"{feedContent}/FeedCard_QUESTS & EVENTS/PrimaryAction"),
+                (RectTransform)canvas.Find($"{feedContent}/FeedCard_EMPIRE/PrimaryAction"),
+                (RectTransform)canvas.Find($"{feedContent}/FeedCard_WEEKLY PERMIT/ClaimWeeklyPermitsButton"),
+                (RectTransform)canvas.Find($"{feedContent}/FeedCard_WEEKLY PERMIT/Btn_PermitWeekKey"),
+                (RectTransform)canvas.Find("ContentPanel/DestinationBar/Dest_HOME"),
+                (RectTransform)canvas.Find("ContentPanel/DestinationBar/Dest_BATTLE"),
+                (RectTransform)canvas.Find("ContentPanel/DestinationBar/Dest_QUESTS"),
+                (RectTransform)canvas.Find("ContentPanel/DestinationBar/Dest_COLLECTION"),
+                (RectTransform)canvas.Find("ContentPanel/DestinationBar/Dest_EMPIRE"),
             };
 
             foreach (RectTransform rt in actionable)
@@ -144,10 +133,10 @@ namespace MyriadOfDragons.Tests
             {
                 "TopHud/IdentityRoot",
                 "TopHud/Btn_Settings",
-                "TopHud/Btn_Bazaar",
-                "TutorialStrip/HomeFeatureRoot/StartTutorialButtonRoot",
-                "ContentPanel/NavigationStage/Btn_Campaign",
-                "ContentPanel/NavigationStage/Btn_To Battle",
+                "TopHud/Btn_SocialDrawer",
+                $"{feedContent}/FeedCard_WELCOME/PrimaryAction",
+                $"{feedContent}/FeedCard_CAMPAIGN/PrimaryAction",
+                "ContentPanel/DestinationBar/Dest_BATTLE",
             };
             foreach (string path in actionRoots)
             {
@@ -155,24 +144,14 @@ namespace MyriadOfDragons.Tests
                 UIReleaseGateTestUtility.AssertActionRoot(root, path);
             }
 
-            // Decorative: backdrop + tutorial strip background must not steal clicks.
+            // Decorative: backdrop and every feed card's own background fill must not steal clicks.
             Image backdrop = canvas.Find("Background")?.GetComponent<Image>();
             Assert.IsNotNull(backdrop);
             Assert.IsFalse(backdrop.raycastTarget, "Home backdrop must be non-raycastable.");
 
-            Image tutorialBg = canvas.Find("TutorialStrip/HomeFeatureRoot")?.GetComponent<Image>();
-            Assert.IsNotNull(tutorialBg);
-            Assert.IsFalse(tutorialBg.raycastTarget, "Tutorial banner fill must be decorative (non-raycastable).");
-
-            // Known dead-space band between social chips (bottom 168) and tutorial (top 176):
-            // a 1920×1080 point at mid-gap should not sit inside either actionable rect.
-            Rect gapProbe = new Rect(400f, 1080f - 172f, 2f, 2f); // y from bottom for Unity Rect
-            foreach (RectTransform rt in actionable)
-            {
-                Rect r = UIReleaseGateTestUtility.GetScreenRect(rt);
-                Assert.IsFalse(r.Overlaps(gapProbe),
-                    $"Dead-space gap Y~172 must stay clear of actionable '{rt.name}' ({UIReleaseGateTestUtility.BoundsText(rt)}).");
-            }
+            Image welcomeCardBg = canvas.Find($"{feedContent}/FeedCard_WELCOME")?.GetComponent<Image>();
+            Assert.IsNotNull(welcomeCardBg);
+            Assert.IsFalse(welcomeCardBg.raycastTarget, "Feed card fill must be decorative (non-raycastable).");
 
             Image settingsImg = canvas.Find("TopHud/Btn_Settings")?.GetComponent<Image>();
             Assert.IsNotNull(settingsImg);

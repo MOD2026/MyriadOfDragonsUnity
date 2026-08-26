@@ -83,14 +83,19 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_LoginButton_OpensDailyLogin_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - Daily Login is a tab inside the
+            // Quests/Events destination hub, not a direct Home button.
             var go = new GameObject("HomeDailyLoginReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button loginBtn = homeCanvas.transform.Find("TopHud/Btn_DailyLogin")?.GetComponent<Button>();
-            Assert.NotNull(loginBtn);
+            home.OpenQuestsEventsHubForTests();
+            GameObject hub = home.TabHubObjectForTests;
+            Assert.NotNull(hub, "Setup: expected the Quests/Events hub to open.");
+            Button loginBtn = hub.transform.Find("Dest_DAILY LOGIN")?.GetComponent<Button>();
+            Assert.NotNull(loginBtn, "Setup: expected a DAILY LOGIN tab inside the Quests/Events hub.");
             loginBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(DailyLoginQuestsPresenter.CanvasName));

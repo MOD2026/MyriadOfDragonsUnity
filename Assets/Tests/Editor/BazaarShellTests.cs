@@ -104,14 +104,20 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_BazaarButton_OpensShell_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild (register: "LOCKED: Home IA
+            // rebuild") - Bazaar is no longer a direct Home button, it's a tab inside the
+            // Collection destination hub (register: "Cards/Shop/Bazaar become ONE tabbed hub").
             var go = new GameObject("HomeBazaarReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_Bazaar")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
+            home.OpenCollectionHubForTests();
+            GameObject hub = home.TabHubObjectForTests;
+            Assert.NotNull(hub, "Setup: expected the Collection hub to open.");
+            Button openBtn = hub.transform.Find("Dest_BAZAAR")?.GetComponent<Button>();
+            Assert.NotNull(openBtn, "Setup: expected a BAZAAR tab inside the Collection hub.");
             openBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(BazaarPresenter.CanvasName));

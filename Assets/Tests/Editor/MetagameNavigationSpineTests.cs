@@ -98,9 +98,15 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
             Assert.IsTrue(homeCanvas.activeSelf);
 
-            // --- Home → Collection ---
-            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Cards");
+            // --- Home → Collection, via the Collection hub launcher (Home IA rebuild: Cards/Shop/
+            // Bazaar/VIP consolidate under ONE Collection destination reached via DestinationBar,
+            // register: "LOCKED: Home IA rebuild") ---
+            Click(homeCanvas, "ContentPanel/DestinationBar/Dest_COLLECTION");
             Assert.IsFalse(homeCanvas.activeSelf);
+            GameObject collectionHub = GameObject.Find("CollectionHub");
+            Assert.NotNull(collectionHub, "Dest_COLLECTION must open the Collection hub launcher.");
+            Click(collectionHub, "Dest_CARDS");
+            Assert.IsNull(GameObject.Find("CollectionHub"), "Tapping a hub tab must tear the hub down.");
             Assert.NotNull(GameObject.Find("CollectionCanvas"));
             Assert.NotNull(home.GetComponent<CollectionPresenter>());
 
@@ -142,9 +148,13 @@ namespace MyriadOfDragons.Tests
 
             int goldBeforeShop = SaveSystem.CurrentProfile.gold;
 
-            // --- Home → Shop V1 ---
-            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Shop");
+            // --- Home → Shop V1, via the Collection hub launcher ---
+            Click(homeCanvas, "ContentPanel/DestinationBar/Dest_COLLECTION");
             Assert.IsFalse(homeCanvas.activeSelf);
+            GameObject shopHub = GameObject.Find("CollectionHub");
+            Assert.NotNull(shopHub, "Dest_COLLECTION must open the Collection hub launcher.");
+            Click(shopHub, "Dest_SHOP");
+            Assert.IsNull(GameObject.Find("CollectionHub"));
             GameObject shopCanvas = GameObject.Find("ShopCanvas");
             Assert.NotNull(shopCanvas);
             Assert.IsTrue(ShopV1UiLibrary.HasShopV1Pack);
@@ -159,9 +169,15 @@ namespace MyriadOfDragons.Tests
             AssertNoMetagameCanvases();
             Assert.AreEqual(goldBeforeShop, SaveSystem.CurrentProfile.gold, "Shop back must not mutate wallet.");
 
-            // --- Home → Battle Pass ---
-            Click(homeCanvas, "TopHud/Btn_BattlePass");
+            // --- Home → Battle Pass, via the Quests/Events hub launcher (SERVER-KEY/permit and
+            // BattlePass/DailyLogin/Memory/Circuit/Guild all consolidate under ONE Quests/Events
+            // destination, register: "LOCKED: Home IA rebuild") ---
+            Click(homeCanvas, "ContentPanel/DestinationBar/Dest_QUESTS");
             Assert.IsFalse(homeCanvas.activeSelf);
+            GameObject questsHub = GameObject.Find("QuestsEventsHub");
+            Assert.NotNull(questsHub, "Dest_QUESTS must open the Quests/Events hub launcher.");
+            Click(questsHub, "Dest_BATTLE PASS");
+            Assert.IsNull(GameObject.Find("QuestsEventsHub"));
             Assert.NotNull(GameObject.Find(BattlePassPresenter.CanvasName));
             Assert.NotNull(home.GetComponent<BattlePassPresenter>());
             Assert.AreEqual("28-DAY SEASON",
@@ -172,9 +188,13 @@ namespace MyriadOfDragons.Tests
             Assert.IsNull(home.GetComponent<BattlePassPresenter>());
             AssertNoMetagameCanvases();
 
-            // --- Home → Daily Login / Quests ---
-            Click(homeCanvas, "TopHud/Btn_DailyLogin");
+            // --- Home → Daily Login / Quests, via the same Quests/Events hub launcher ---
+            Click(homeCanvas, "ContentPanel/DestinationBar/Dest_QUESTS");
             Assert.IsFalse(homeCanvas.activeSelf);
+            GameObject loginHub = GameObject.Find("QuestsEventsHub");
+            Assert.NotNull(loginHub, "Dest_QUESTS must open the Quests/Events hub launcher.");
+            Click(loginHub, "Dest_DAILY LOGIN");
+            Assert.IsNull(GameObject.Find("QuestsEventsHub"));
             Assert.NotNull(GameObject.Find(DailyLoginQuestsPresenter.CanvasName));
             Assert.NotNull(home.GetComponent<DailyLoginQuestsPresenter>());
             StringAssert.Contains("READY", home.GetComponent<DailyLoginQuestsPresenter>().StatusTextForTests);
@@ -194,7 +214,7 @@ namespace MyriadOfDragons.Tests
             AssertNoMetagameCanvases();
 
             // --- Home → Empire → Expedition → Empire → Home ---
-            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Empire");
+            Click(homeCanvas, "ContentPanel/DestinationBar/Dest_EMPIRE");
             Assert.IsFalse(homeCanvas.activeSelf);
             GameObject empireCanvas = GameObject.Find("EmpireCanvas");
             Assert.NotNull(empireCanvas);
@@ -233,8 +253,9 @@ namespace MyriadOfDragons.Tests
             Assert.IsNull(home.GetComponent<EmpirePresenter>());
             AssertNoMetagameCanvases();
 
-            // --- Home → Avatar → Home (direct tile) ---
-            Click(homeCanvas, "ContentPanel/NavigationStage/Btn_Avatar");
+            // --- Home → Avatar → Home, via the identity header (Home IA rebuild: the Avatar hero
+            // tile is CUT, register: "Avatar tile CUT - identity header already owns this need") ---
+            Click(homeCanvas, "TopHud/IdentityRoot");
             Assert.IsFalse(homeCanvas.activeSelf);
             GameObject avatarCanvas = GameObject.Find("AvatarCanvas");
             Assert.NotNull(avatarCanvas);

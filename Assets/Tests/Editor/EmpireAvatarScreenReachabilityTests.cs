@@ -73,8 +73,11 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
             Assert.IsNotNull(homeCanvas, "Setup: Home canvas must exist.");
 
-            Button avatarTile = FindButton(homeCanvas, "ContentPanel/NavigationStage/Btn_Avatar");
-            Assert.IsTrue(avatarTile.interactable, "Home must expose a direct Avatar hero tile.");
+            // Real reachability path since the Home IA rebuild - the Avatar hero tile is CUT
+            // (register: "Avatar tile CUT - identity header already owns this need"). Avatar is
+            // now reached by tapping the persistent identity header instead.
+            Button avatarTile = FindButton(homeCanvas, "TopHud/IdentityRoot");
+            Assert.IsTrue(avatarTile.interactable, "Home's identity header must open Avatar.");
             avatarTile.onClick.Invoke();
 
             Assert.IsFalse(homeCanvas.activeSelf, "Opening Avatar from Home must hide Home.");

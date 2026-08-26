@@ -192,14 +192,20 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_VipButton_OpensShell_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - VIP is a tab inside the
+            // Collection destination hub (register: "VipSubscription -> Collection/Shop, as a
+            // tab or modal"), not a direct Home button.
             var go = new GameObject("HomeVipReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_Vip")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
+            home.OpenCollectionHubForTests();
+            GameObject hub = home.TabHubObjectForTests;
+            Assert.NotNull(hub, "Setup: expected the Collection hub to open.");
+            Button openBtn = hub.transform.Find("Dest_VIP")?.GetComponent<Button>();
+            Assert.NotNull(openBtn, "Setup: expected a VIP tab inside the Collection hub.");
             openBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(VipSubscriptionPresenter.CanvasName));

@@ -36,15 +36,18 @@ namespace MyriadOfDragons.Tests
             RectTransform canvasRect = canvas.GetComponent<RectTransform>();
             UIReleaseGateTestUtility.RequireInsideCanvas("Home canvas", canvasRect);
 
+            // Home IA rebuild: TutorialStrip/HomeFeatureRoot and ContentPanel/NavigationStage are
+            // gone, replaced by the scrollable HomeFeed and the persistent DestinationBar, both
+            // parented under ContentPanel (register: "LOCKED: Home IA rebuild").
             RectTransform identityRoot = canvas.transform.Find("TopHud/IdentityRoot")?.GetComponent<RectTransform>();
             RectTransform resourceRow = canvas.transform.Find("TopHud/ResourceRow")?.GetComponent<RectTransform>();
-            RectTransform featureRoot = canvas.transform.Find("TutorialStrip/HomeFeatureRoot")?.GetComponent<RectTransform>();
-            RectTransform navStage = canvas.transform.Find("ContentPanel/NavigationStage")?.GetComponent<RectTransform>();
+            RectTransform homeFeed = canvas.transform.Find("ContentPanel/HomeFeed")?.GetComponent<RectTransform>();
+            RectTransform destinationBar = canvas.transform.Find("ContentPanel/DestinationBar")?.GetComponent<RectTransform>();
 
             Assert.NotNull(identityRoot, "Home gate: missing IdentityRoot.");
             Assert.NotNull(resourceRow, "Home gate: missing ResourceRow.");
-            Assert.NotNull(featureRoot, "Home gate: missing HomeFeatureRoot.");
-            Assert.NotNull(navStage, "Home gate: missing NavigationStage.");
+            Assert.NotNull(homeFeed, "Home gate: missing HomeFeed.");
+            Assert.NotNull(destinationBar, "Home gate: missing DestinationBar.");
             Assert.IsNull(canvas.transform.Find("EmpireConstructionRoot"),
                 "Empire construction belongs on Empire screen, not Home.");
             Assert.IsNotNull(canvas.transform.Find("TopHud"), "Home must expose TopHud semantic region.");
@@ -55,14 +58,14 @@ namespace MyriadOfDragons.Tests
 
             UIReleaseGateTestUtility.RequireInsideCanvas("IdentityRoot", identityRoot);
             UIReleaseGateTestUtility.RequireInsideCanvas("ResourceRow", resourceRow);
-            UIReleaseGateTestUtility.RequireInsideCanvas("HomeFeatureRoot", featureRoot);
-            UIReleaseGateTestUtility.RequireInsideCanvas("NavigationStage", navStage);
+            UIReleaseGateTestUtility.RequireInsideCanvas("HomeFeed", homeFeed);
+            UIReleaseGateTestUtility.RequireInsideCanvas("DestinationBar", destinationBar);
 
             UIReleaseGateTestUtility.RequireVerticalOrder(
-                "Home layout order (header → feature → nav)",
+                "Home layout order (header → feed → destination bar)",
                 resourceRow,
-                featureRoot,
-                navStage);
+                homeFeed,
+                destinationBar);
         }
 
         [Test]
@@ -74,16 +77,16 @@ namespace MyriadOfDragons.Tests
             GameObject canvas = presenter.HomeCanvasObjectForTests;
             Assert.NotNull(canvas, "Home gate: expected a Home canvas to be created.");
 
-            UIReleaseGateTestUtility.RequireNestedPlacementSafety(canvas, "ContentPanel/NavigationStage");
+            UIReleaseGateTestUtility.RequireNestedPlacementSafety(canvas, "ContentPanel/DestinationBar");
 
-            foreach (string requiredName in new[] { "Btn_Campaign", "Btn_Empire", "Btn_Cards", "Btn_Shop", "Btn_To Battle" })
+            foreach (string requiredName in new[] { "Dest_HOME", "Dest_BATTLE", "Dest_QUESTS", "Dest_COLLECTION", "Dest_EMPIRE" })
             {
-                GameObject actionRoot = canvas.transform.Find($"ContentPanel/NavigationStage/{requiredName}")?.gameObject;
+                GameObject actionRoot = canvas.transform.Find($"ContentPanel/DestinationBar/{requiredName}")?.gameObject;
                 UIReleaseGateTestUtility.AssertActionRoot(actionRoot, requiredName);
                 UIReleaseGateTestUtility.AssertDecorativeChildrenAreNonRaycastable(actionRoot, requiredName);
             }
 
-            UIReleaseGateTestUtility.AssertNoBlockingGraphicOverAction(canvas, new[] { "Btn_Campaign", "Btn_Empire", "Btn_Cards", "Btn_Shop", "Btn_To Battle" });
+            UIReleaseGateTestUtility.AssertNoBlockingGraphicOverAction(canvas, new[] { "Dest_HOME", "Dest_BATTLE", "Dest_QUESTS", "Dest_COLLECTION", "Dest_EMPIRE" });
         }
     }
 }

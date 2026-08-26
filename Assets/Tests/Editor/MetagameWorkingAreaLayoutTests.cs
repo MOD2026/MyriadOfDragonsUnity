@@ -208,8 +208,12 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Home_PassAndLogin_DoNotCoverResourcePills()
+        public void Home_IdentityAndSocialControls_DoNotCoverResourcePills()
         {
+            // Home IA rebuild: BattlePass/DailyLogin/SpellLoadout no longer live as direct TopHud
+            // buttons (BattlePass/DailyLogin moved into the Quests/Events hub, SpellLoadout is
+            // reached via the Avatar screen). The remaining real TopHud neighbours of ResourceRow
+            // are IdentityRoot, Btn_Settings, and the new Btn_SocialDrawer entry point.
             var go = new GameObject("HomeSeasonHudHarness");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
@@ -217,15 +221,13 @@ namespace MyriadOfDragons.Tests
             PrepareCanvas(home.HomeCanvasObjectForTests);
 
             Rect pills = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("TopHud/ResourceRow"));
-            Rect spells = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("TopHud/Btn_SpellLoadout"));
-            Rect pass = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("TopHud/Btn_BattlePass"));
-            Rect login = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("TopHud/Btn_DailyLogin"));
+            Rect identity = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("TopHud/IdentityRoot"));
+            Rect social = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("TopHud/Btn_SocialDrawer"));
             Rect settings = WorldBounds((RectTransform)home.HomeCanvasObjectForTests.transform.Find("TopHud/Btn_Settings"));
-            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(spells, 2f)), "SPELLS must not sit on Gold/Gems/Stamina pills.");
-            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(pass, 2f)), "PASS must not sit on Gold/Gems/Stamina pills.");
-            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(login, 2f)), "LOGIN must not sit on resource pills.");
+            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(identity, 2f)), "Identity header must not sit on Gold/Gems/Stamina pills.");
+            Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(social, 2f)), "Social drawer entry must not sit on resource pills.");
             Assert.IsFalse(Inset(pills, 2f).Overlaps(Inset(settings, 2f)));
-            Assert.IsFalse(Inset(spells, 2f).Overlaps(Inset(pass, 2f)), "SPELLS must not overlap PASS.");
+            Assert.IsFalse(Inset(social, 2f).Overlaps(Inset(settings, 2f)), "Social drawer entry must not overlap Settings.");
         }
 
         private static void PrepareCanvas(GameObject canvasGo)

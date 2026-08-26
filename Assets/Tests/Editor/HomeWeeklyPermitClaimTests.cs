@@ -48,7 +48,7 @@ namespace MyriadOfDragons.Tests
             home.BuildHomePageUIForTests();
 
             Transform strip = FindWeeklyStrip(home);
-            Assert.NotNull(strip, "BuildHomePageUI must create WeeklyPermitStrip.");
+            Assert.NotNull(strip, "BuildHomePageUI must create the WEEKLY PERMIT feed card.");
             Assert.NotNull(strip.Find("ClaimWeeklyPermitsButton"),
                 "BuildHomePageUI must create ClaimWeeklyPermitsButton.");
             Assert.NotNull(strip.Find("WeeklyPermitStatus"),
@@ -151,11 +151,15 @@ namespace MyriadOfDragons.Tests
             return _spawned.AddComponent<HomePagePresenter>();
         }
 
+        /// <summary>Real reachability path since the Home IA rebuild - the merged Permit entry
+        /// lives on its own WEEKLY PERMIT feed card (register: "SERVER-KEY and WEEKLY-permit-
+        /// claim merge into ONE Quests/Events entry... no two permanent Home buttons"), not the
+        /// old top-header WeeklyPermitStrip. Same real claim/status functionality, relocated.</summary>
         private static Transform FindWeeklyStrip(HomePagePresenter home)
         {
             GameObject canvas = home.HomeCanvasObjectForTests;
             Assert.NotNull(canvas);
-            return canvas.transform.Find("TopHud/WeeklyPermitStrip");
+            return canvas.transform.Find("ContentPanel/HomeFeed/Viewport/Content/FeedCard_WEEKLY PERMIT");
         }
 
         private static Button FindClaimButton(HomePagePresenter home)

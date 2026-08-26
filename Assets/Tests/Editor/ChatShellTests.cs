@@ -85,15 +85,18 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_ChatButton_OpensShell_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - Chat/Mail/Friends collapse into
+            // ONE global Social drawer (register: "ChatSocial / MailInbox / Friends -> ONE
+            // global Social drawer... three tabs inside it"), not separate Home buttons. Chat is
+            // the drawer's default tab.
             var go = new GameObject("HomeChatReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_Chat")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
-            openBtn.onClick.Invoke();
+            home.OpenSocialDrawerForTests();
+            Assert.NotNull(home.SocialDrawerObjectForTests, "Setup: expected the Social drawer to open.");
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(ChatSocialPresenter.CanvasName));
 
@@ -103,6 +106,8 @@ namespace MyriadOfDragons.Tests
             back.onClick.Invoke();
             Assert.IsTrue(homeCanvas.activeSelf);
             Assert.IsNull(go.GetComponent<ChatSocialPresenter>());
+            Assert.IsNull(home.SocialDrawerObjectForTests,
+                "The sub-presenter's own Back button must close the whole drawer, not strand it empty.");
         }
 
         /// <summary>Same pattern as BazaarShellTests' own FakeBazaarGateway - a benign, real

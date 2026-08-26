@@ -121,14 +121,19 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_MemoryExpeditionButton_OpensShell_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - Memory Expedition is a tab
+            // inside the Quests/Events destination hub, not a direct Home button.
             var go = new GameObject("HomeMemoryExpeditionReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_MemoryExpedition")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
+            home.OpenQuestsEventsHubForTests();
+            GameObject hub = home.TabHubObjectForTests;
+            Assert.NotNull(hub, "Setup: expected the Quests/Events hub to open.");
+            Button openBtn = hub.transform.Find("Dest_MEMORY")?.GetComponent<Button>();
+            Assert.NotNull(openBtn, "Setup: expected a MEMORY tab inside the Quests/Events hub.");
             openBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(MemoryExpeditionPresenter.CanvasName));

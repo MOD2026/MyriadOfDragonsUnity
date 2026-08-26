@@ -334,12 +334,13 @@ namespace MyriadOfDragons.Tests
         }
 
         /// <summary>
-        /// GUIDANCE-CONTRACT RECONCILIATION FOLLOW-UP, 2026-08-21 - replaces the retired
-        /// `HomeBanner_ShowsApprovedCopy` test (formerly in TutorialGuidanceTests.cs). HomeV3
-        /// originally used a "TutorialRoot" strip; current Home builds the same tutorial-entry
-        /// contract under <c>HomeFeatureRoot</c> (banner + StartTutorialButtonRoot →
-        /// OnStartTutorialClicked → StartApprovedTutorialBattle). Selectors track the live UI
-        /// name; production still has a real tutorial entry button.
+        /// Home IA rebuild, 2026-08-27 (register: "LOCKED: Home IA rebuild") - the standalone
+        /// TutorialStrip/HomeFeatureRoot region is gone; the tutorial invite is now the first
+        /// card in Home's swipeable feed (register: "Tutorial banner: new player only, first few
+        /// days, then converts to the Events feed card"), gated on profile.totalMatches == 0 (the
+        /// closest real existing signal - no real "days since install" field exists). A fresh
+        /// SetUp profile via SaveSystem.ResetCurrentProfileForTests() has totalMatches == 0, so
+        /// the WELCOME card is expected to be present here.
         /// </summary>
         [Test]
         public void HomeTutorialStrip_ShowsApprovedCopyAndStartTutorialButtonEntersTheApprovedTutorialBattle()
@@ -353,16 +354,16 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = presenter.HomeCanvasObjectForTests;
             Assert.IsNotNull(homeCanvas, "Setup: expected Home's canvas to exist.");
 
-            Transform tutorialRoot = homeCanvas.transform.Find("TutorialStrip/HomeFeatureRoot");
-            Assert.IsNotNull(tutorialRoot, "Home must contain the current tutorial-entry strip (HomeFeatureRoot).");
+            Transform welcomeCard = homeCanvas.transform.Find("ContentPanel/HomeFeed/Viewport/Content/FeedCard_WELCOME");
+            Assert.IsNotNull(welcomeCard, "Home's feed must contain a WELCOME card for a new (totalMatches==0) player.");
 
-            Text tutorialCopy = tutorialRoot.Find("FeatureCopy")?.GetComponent<Text>();
-            Assert.IsNotNull(tutorialCopy, "The tutorial strip must contain its feature copy text.");
+            Text tutorialCopy = welcomeCard.Find("Body")?.GetComponent<Text>();
+            Assert.IsNotNull(tutorialCopy, "The WELCOME card must contain its feature copy text.");
             Assert.AreEqual(HomePagePresenter.HomeFeatureTutorialInviteCopy, tutorialCopy.text,
-                "FeatureCopy must invite Start Tutorial for a new player (not only Campaign/Empire lines).");
+                "The WELCOME card's body must invite Start Tutorial for a new player.");
 
-            Button startTutorialButton = tutorialRoot.Find("StartTutorialButtonRoot")?.GetComponent<Button>();
-            Assert.IsNotNull(startTutorialButton, "The tutorial strip must contain a real Start Tutorial button.");
+            Button startTutorialButton = welcomeCard.Find("PrimaryAction")?.GetComponent<Button>();
+            Assert.IsNotNull(startTutorialButton, "The WELCOME card must contain a real Start Tutorial primary action.");
 
             startTutorialButton.onClick.Invoke();
 

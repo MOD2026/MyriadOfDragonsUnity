@@ -254,9 +254,20 @@ namespace MyriadOfDragons.Tests
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_SpellLoadout")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
-            openBtn.onClick.Invoke();
+            // Real reachability path since the Home IA rebuild - Spell Loadout is no longer a
+            // direct Home button (register: "SpellLoadoutPicker -> modal launched from Collection
+            // or Battle preparation. Never permanent navigation"). Neither of those two launch
+            // points has been wired yet (real, separate follow-up work, not done in this pass) -
+            // the one still-real path today is Avatar's own existing Spell Loadout button
+            // (AvatarPresenter's onOpenSpellLoadout callback, unchanged by this rebuild).
+            Button identityBtn = homeCanvas.transform.Find("TopHud/IdentityRoot")?.GetComponent<Button>();
+            Assert.NotNull(identityBtn, "Setup: expected the identity header to open Avatar.");
+            identityBtn.onClick.Invoke();
+            GameObject avatarCanvas = GameObject.Find("AvatarCanvas");
+            Assert.NotNull(avatarCanvas, "Setup: expected Avatar to open.");
+            Button spellBtn = avatarCanvas.transform.Find("Btn_SpellLoadout")?.GetComponent<Button>();
+            Assert.NotNull(spellBtn, "Setup: expected Avatar's own Spell Loadout button.");
+            spellBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(SpellLoadoutPickerPresenter.CanvasName));
 

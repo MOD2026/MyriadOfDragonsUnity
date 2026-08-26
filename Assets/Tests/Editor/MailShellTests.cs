@@ -72,15 +72,21 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_MailButton_OpensShell_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - Mail is a tab inside the global
+            // Social drawer, not a direct Home button. Chat is the drawer's default tab, so Mail
+            // needs an explicit tab tap.
             var go = new GameObject("HomeMailReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_Mail")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
-            openBtn.onClick.Invoke();
+            home.OpenSocialDrawerForTests();
+            GameObject drawer = home.SocialDrawerObjectForTests;
+            Assert.NotNull(drawer, "Setup: expected the Social drawer to open.");
+            Button mailTab = drawer.transform.Find("TabBar/Dest_MAIL")?.GetComponent<Button>();
+            Assert.NotNull(mailTab, "Setup: expected a MAIL tab in the Social drawer.");
+            mailTab.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(MailInboxPresenter.CanvasName));
 
@@ -90,6 +96,8 @@ namespace MyriadOfDragons.Tests
             back.onClick.Invoke();
             Assert.IsTrue(homeCanvas.activeSelf);
             Assert.IsNull(go.GetComponent<MailInboxPresenter>());
+            Assert.IsNull(home.SocialDrawerObjectForTests,
+                "The sub-presenter's own Back button must close the whole drawer, not strand it empty.");
         }
 
     }

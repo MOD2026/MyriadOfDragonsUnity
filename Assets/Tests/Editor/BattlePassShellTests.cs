@@ -100,14 +100,19 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_PassButton_OpensBattlePass_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - Battle Pass is a tab inside the
+            // Quests/Events destination hub, not a direct Home button.
             var go = new GameObject("HomeBattlePassReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button passBtn = homeCanvas.transform.Find("TopHud/Btn_BattlePass")?.GetComponent<Button>();
-            Assert.NotNull(passBtn);
+            home.OpenQuestsEventsHubForTests();
+            GameObject hub = home.TabHubObjectForTests;
+            Assert.NotNull(hub, "Setup: expected the Quests/Events hub to open.");
+            Button passBtn = hub.transform.Find("Dest_BATTLE PASS")?.GetComponent<Button>();
+            Assert.NotNull(passBtn, "Setup: expected a BATTLE PASS tab inside the Quests/Events hub.");
             passBtn.onClick.Invoke();
 
             Assert.IsFalse(homeCanvas.activeSelf);

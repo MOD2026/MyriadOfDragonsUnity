@@ -79,14 +79,19 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void Home_FriendsButton_OpensShell_AndBackReturnsHome()
         {
+            // Real reachability path since the Home IA rebuild - Friends is a tab inside the
+            // global Social drawer, not a direct Home button.
             var go = new GameObject("HomeFriendsReach");
             _spawned.Add(go);
             var home = go.AddComponent<HomePagePresenter>();
             home.BuildHomePageUIForTests();
             GameObject homeCanvas = home.HomeCanvasObjectForTests;
 
-            Button openBtn = homeCanvas.transform.Find("TopHud/Btn_Friends")?.GetComponent<Button>();
-            Assert.NotNull(openBtn);
+            home.OpenSocialDrawerForTests();
+            GameObject drawer = home.SocialDrawerObjectForTests;
+            Assert.NotNull(drawer, "Setup: expected the Social drawer to open.");
+            Button openBtn = drawer.transform.Find("TabBar/Dest_FRIENDS")?.GetComponent<Button>();
+            Assert.NotNull(openBtn, "Setup: expected a FRIENDS tab in the Social drawer.");
             openBtn.onClick.Invoke();
             Assert.IsFalse(homeCanvas.activeSelf);
             Assert.NotNull(GameObject.Find(FriendsPresenter.CanvasName));
@@ -97,6 +102,8 @@ namespace MyriadOfDragons.Tests
             back.onClick.Invoke();
             Assert.IsTrue(homeCanvas.activeSelf);
             Assert.IsNull(go.GetComponent<FriendsPresenter>());
+            Assert.IsNull(home.SocialDrawerObjectForTests,
+                "The sub-presenter's own Back button must close the whole drawer, not strand it empty.");
         }
 
     }
