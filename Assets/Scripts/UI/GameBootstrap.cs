@@ -2495,6 +2495,13 @@ namespace MyriadOfDragons.UI
             var scaler = canvasGo.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(CanvasWidth, CanvasHeight);
+            // Reverted to the original 0.5 (CC 4e836a5, 2026-08-27, after checking): this canvas
+            // is MIXED - edge-anchored Top HUD bands (Player/Phase/Enemy resource bars) AND
+            // centre-weighted battlefield/hand-dock gameplay content on the same canvas. Neither
+            // match=1 (crops battle content horizontally on a wide-short mismatch) nor a blanket
+            // match=0 is right for a mixed screen; a real HUD/content split is the correct fix but
+            // is an owner decision here per the frozen battle-metagame-contract boundary
+            // (SetBattleCanvasVisible operates on this exact canvas) - not attempted in this pass.
             scaler.matchWidthOrHeight = 0.5f;
 
             canvasGo.AddComponent<GraphicRaycaster>();

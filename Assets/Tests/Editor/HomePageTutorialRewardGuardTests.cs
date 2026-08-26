@@ -354,7 +354,7 @@ namespace MyriadOfDragons.Tests
             GameObject homeCanvas = presenter.HomeCanvasObjectForTests;
             Assert.IsNotNull(homeCanvas, "Setup: expected Home's canvas to exist.");
 
-            Transform welcomeCard = homeCanvas.transform.Find("ContentPanel/HomeFeed/Viewport/Content/FeedCard_WELCOME");
+            Transform welcomeCard = homeCanvas.transform.Find("ContentPanel/HomeFeedCanvas/HomeFeed/Viewport/Content/FeedCard_WELCOME");
             Assert.IsNotNull(welcomeCard, "Home's feed must contain a WELCOME card for a new (totalMatches==0) player.");
 
             Text tutorialCopy = welcomeCard.Find("Body")?.GetComponent<Text>();

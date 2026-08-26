@@ -90,7 +90,7 @@ namespace MyriadOfDragons.Tests
             // and TutorialStrip/HomeFeatureRoot banner are gone. The tutorial invite is now the
             // WELCOME feed card (new-player only, via BuildFeed's isNewPlayer branch) and social
             // (Chat/Mail/Friends) collapsed into one Btn_SocialDrawer entry point.
-            const string feedContent = "ContentPanel/HomeFeed/Viewport/Content";
+            const string feedContent = "ContentPanel/HomeFeedCanvas/HomeFeed/Viewport/Content";
 
             var actionable = new List<RectTransform>
             {

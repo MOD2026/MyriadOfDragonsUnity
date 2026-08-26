@@ -159,7 +159,7 @@ namespace MyriadOfDragons.Tests
         {
             GameObject canvas = home.HomeCanvasObjectForTests;
             Assert.NotNull(canvas);
-            return canvas.transform.Find("ContentPanel/HomeFeed/Viewport/Content/FeedCard_WEEKLY PERMIT");
+            return canvas.transform.Find("ContentPanel/HomeFeedCanvas/HomeFeed/Viewport/Content/FeedCard_WEEKLY PERMIT");
         }
 
         private static Button FindClaimButton(HomePagePresenter home)

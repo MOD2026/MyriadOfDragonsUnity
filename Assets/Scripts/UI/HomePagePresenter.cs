@@ -355,8 +355,35 @@ public class HomePagePresenter : MonoBehaviour
             return;
         }
 
-        profile.gold += currentActiveStage.goldReward;
-        profile.gems += currentActiveStage.gemReward;
+        int permitsGranted = ApplyFirstClearRewards(profile, currentActiveStage);
+
+        RefreshTopHUD();
+        Debug.Log($"[Metagame] Awarded {currentActiveStage.goldReward} Gold & {currentActiveStage.gemReward} Gems " +
+                  $"for first clear of Stage {stageId}!" +
+                  (permitsGranted > 0 ? $" Granted {permitsGranted} Ascension Permit." : string.Empty) +
+                  (nextStageId != null ? $" Unlocked Stage {nextStageId}." : " Chapter 1 complete."));
+
+        // Chapter 1 post-victory story bridge: first clear only (replays already returned above).
+        // Rewards/unlocks are already persisted - story is presentation on top of that contract,
+        // never a gate. Missing sequence is a silent no-op so stages without copy still clear.
+        TryPlayCampaignPostVictoryStory(stageId);
+    }
+
+    /// <summary>The real first-clear reward mutation sequence - extracted from
+    /// HandleMatchCompleted (CC 2026-08-27, after SpellBookProductionReachabilityTests.cs caught
+    /// a hand-mirrored test copy silently drifting from production and staying green while the
+    /// real call site was dead) so this is the ONE place either production or a test can drive it
+    /// from. HandleMatchCompleted cannot be called directly from EditMode (private, needs live
+    /// UI - see its own MonoBehaviour-only concerns), but this method has none of that: plain
+    /// PlayerProfile mutation, no scene/canvas dependency, callable and assertable directly. A
+    /// test asserting against this method is asserting against what production actually runs, not
+    /// a copy of it - CLAUDE.md's "real logic in plain testable methods" rule applied to reward
+    /// grants, not just battle math. Returns permits granted, for the caller's own log line.</summary>
+    public static int ApplyFirstClearRewards(PlayerProfile profile, CampaignStageData stage)
+    {
+        string stageId = stage.stageId;
+        profile.gold += stage.goldReward;
+        profile.gems += stage.gemReward;
         profile.claimedStageRewardIds.Add(stageId);
         int permitsGranted = TryGrantChapterFinalePermit(profile, stageId);
 
@@ -375,22 +402,18 @@ public class HomePagePresenter : MonoBehaviour
         // fired with the pre-unlock stage list.
         SpellOwnershipSync.SynchronizeEligibleSpellOwnership(profile);
 
+        // Chapter-finale spell book. Must run AFTER the unlockedStageIds mutations above and
+        // BEFORE SaveManager.Save() below, so the grant lands in the same persisted write as the
+        // rest of the first-clear reward. persist:false because the Save() below covers it -
+        // passing true would write the profile twice on every finale clear.
+        SpellBookGrant.TryGrant(profile, stageId, persist: false);
+
         // Saved immediately after the first-clear reward/unlock mutation (Chapter 1 progression
         // contract #7) - not deferred to OnDestroy, OpenDeckBuilder's own save-on-close, or any
         // later action, so the result survives even if the player quits before doing anything
         // else.
         SaveManager.Save();
-
-        RefreshTopHUD();
-        Debug.Log($"[Metagame] Awarded {currentActiveStage.goldReward} Gold & {currentActiveStage.gemReward} Gems " +
-                  $"for first clear of Stage {stageId}!" +
-                  (permitsGranted > 0 ? $" Granted {permitsGranted} Ascension Permit." : string.Empty) +
-                  (nextStageId != null ? $" Unlocked Stage {nextStageId}." : " Chapter 1 complete."));
-
-        // Chapter 1 post-victory story bridge: first clear only (replays already returned above).
-        // Rewards/unlocks are already persisted - story is presentation on top of that contract,
-        // never a gate. Missing sequence is a silent no-op so stages without copy still clear.
-        TryPlayCampaignPostVictoryStory(stageId);
+        return permitsGranted;
     }
 
     /// <summary>Resolves "&lt;stageId&gt;_post" from StoryDatabase the same way Campaign launch
@@ -578,9 +601,27 @@ public class HomePagePresenter : MonoBehaviour
         PlayerProfile profile = SaveManager.SaveData;
         bool isNewPlayer = profile == null || profile.totalMatches == 0;
 
+        // HUD/Content canvas split (CC 4e836a5, 2026-08-27, Home as the reference
+        // implementation): the feed is scrollable, masked, centre-weighted CONTENT, not edge-
+        // anchored chrome - it gets its own nested Canvas at match=0.5 rather than inheriting the
+        // outer canvas's match=1 (which exists to protect TopHud/DestinationBar from vertical
+        // clipping, not to govern content). The nested canvas's OWN RectTransform is still
+        // positioned in the OUTER (match=1) canvas's coordinate space - only content INSIDE it
+        // uses the nested CanvasScaler. scrollObj now stretch-fills the nested canvas instead of
+        // repeating the same pixel placement a second time.
+        GameObject feedCanvasObj = new GameObject("HomeFeedCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        feedCanvasObj.transform.SetParent(contentParent, false);
+        SetScreenRectFromTopLeftPixels(feedCanvasObj.GetComponent<RectTransform>(), 24, 176, 1896, 962);
+        Canvas feedCanvas = feedCanvasObj.GetComponent<Canvas>();
+        feedCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        CanvasScaler feedScaler = feedCanvasObj.GetComponent<CanvasScaler>();
+        feedScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        feedScaler.referenceResolution = new Vector2(1920, 1080);
+        feedScaler.matchWidthOrHeight = 0.5f;
+
         GameObject scrollObj = new GameObject("HomeFeed", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
-        scrollObj.transform.SetParent(contentParent, false);
-        SetScreenRectFromTopLeftPixels(scrollObj.GetComponent<RectTransform>(), 24, 176, 1896, 962);
+        scrollObj.transform.SetParent(feedCanvasObj.transform, false);
+        UISharedFoundation.StretchFull(scrollObj.GetComponent<RectTransform>());
         Image scrollBg = scrollObj.GetComponent<Image>();
         scrollBg.sprite = null;
         scrollBg.color = Color.clear;
@@ -1102,6 +1143,7 @@ public class HomePagePresenter : MonoBehaviour
         CanvasScaler scaler = _socialDrawerObj.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.matchWidthOrHeight = UISharedFoundation.MatchWidthOrHeight;
 
         GameObject dim = new GameObject("Dimmer", typeof(RectTransform), typeof(Image));
         dim.transform.SetParent(_socialDrawerObj.transform, false);
@@ -1239,6 +1281,7 @@ public class HomePagePresenter : MonoBehaviour
         CanvasScaler scaler = _tabHubObj.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.matchWidthOrHeight = UISharedFoundation.MatchWidthOrHeight;
 
         UISharedFoundation.CreateFullscreenBackground(_tabHubObj.transform, null, UIFrozenTokens.ColorBackground);
 
