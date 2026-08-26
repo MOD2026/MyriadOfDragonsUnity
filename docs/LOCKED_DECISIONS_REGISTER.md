@@ -4866,3 +4866,47 @@ instructed pending the field sign-off (now granted, dispatching in same turn). C
 chain (Guild Hall investigation -> token batches 1-2 -> Expedition wiring -> BP XP) is closed out;
 next: Battle Pass Gold implementation with the newly signed-off fields, then remaining token-rollout
 batches.
+
+## CC<->VS pipe: outside-AI diagnosis received - pipe is unfixable from our side, TCP/watcher replacement planned (2026-08-26)
+
+Owner relayed a real Windows-IPC review (MS Learn-cited). Conclusions:
+- The silent pipe loss matches AppContainer named-object namespace isolation: an AppContainer
+  process's named pipes are invisible to unpackaged processes unless the CREATING APP explicitly
+  ACLs + qualifies the object names. No end-user switch, no manifest capability, no `LOCAL\` trick
+  fixes an existing private pipe from outside. **Fixing the built-in SendMessage transport would
+  need Anthropic-side changes - stop retrying it for CC<->VS.** (Desktop-app sessions can still
+  message each other fine - that stays.)
+- Replacement, ranked: (1) **localhost TCP** (ms latency, event-driven; only risk is AppContainer
+  loopback restrictions - possibly needing an elevated CheckNetIsolation LoopbackExempt - so TEST
+  first, don't assume); (2) **filesystem message queue with kernel change-notification watchers**
+  (FileSystemWatcher / Register-ObjectEvent / ReadDirectoryChangesW - near-instant, no polling;
+  one file per message + atomic rename), strictly better than the current polling loop even as the
+  fallback; AF_UNIX and mmap+event evaluated and rejected (edge cases / engineering cost).
+- **Test in flight:** VS asked (via mailbox) to start a listener on 127.0.0.1:45678 FROM ITS OWN
+  unpackaged process; CC will curl from the desktop-app side. Listener origin matters - a listener
+  spawned from CC's own shell could share the container and fake a pass. Result decides TCP vs
+  watcher-queue. Design/implementation of the chosen transport goes to VS (infra, small, both
+  endpoints are VS-reachable).
+
+## LOCKED: no card school/faction taxonomy in Phase-1 - Collection Trial ships rarity-only (2026-08-26, BS, verified)
+
+**Internal-consistency check:** matches the real code exactly - `Card` carries only `Rarity` (1-7
+stars), no school/faction field exists, spell Schools are a real but SEPARATE system (SpellLoadoutV1
+assets) and stay separate. No new save fields, no migration, Collection Trial's deterministic
+seed/claim ledger/reward cap untouched.
+
+**WebSearch benchmark run:** Marvel Snap confirmed to run NO faction/class deck restrictions - Ben
+Brode explicitly rejected restriction-heavy deckbuilding; identity comes from synergies/archetypes
+(Ongoing/Discard/Destroy/Move/On Reveal). Hearthstone sits at the opposite pole (class identity as a
+core constraint). MOD's identity (formation, lanes, effects, spells, rarity, evolution) genuinely
+matches the Snap model - BS's genre placement is accurate, not asserted.
+
+**Decision:** rarity-band rules only for the Collection Trial ("5+ cards in the required rarity
+range" style). Taxonomy without mechanics would be cosmetic metadata with real retrofit cost (full
+catalog labeling pass, single-vs-multi-label rules, validation, filters, AI/event rules, possible
+save migration). **Phase-2 reopening gate:** only when a concrete mechanic NEEDS it (faction deck
+rule, faction research branch, a card set designed around the identity) - then taxonomy is designed
+first and the catalog assigned in one audited content pass, not incrementally.
+
+Matches the ruling already sent to VS (rarity-only, don't invent metadata) - VS needs no new
+instruction, the mailbox dispatch stands as-is.
