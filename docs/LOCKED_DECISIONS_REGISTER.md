@@ -6229,3 +6229,20 @@ overlap bug hit Empire (`7185a4c`) and Avatar (`7576fdf`) independently once eac
 art - both were invisible while flat, both surfaced immediately on migration. WH has already crossed
 the Metagame-ownership boundary repeatedly tonight (VIP/Friends, Home telemetry, Home layout fix),
 so it can check this now rather than wait for the full restyle to expose it as a surprise later.
+
+## AD's second DeckBuilder pass: disciplined this time, verified accurate, but redundant - already-solved thread (2026-08-26)
+
+Owner could only upload 3 files this round (not the full ZIP) - AD correctly scoped its analysis to
+only what it had, explicitly listed what it could NOT determine, and asked for more files instead of
+inventing citations. Real improvement over the earlier fabricated report. **Verified against the
+real file: every citation checks out** - `RefreshCollectionUI`/`UpdateDeckUIState`/
+`TryAddOwnedCardById`/`ownedCollectionCards.Count > 0` all real, `recommendedDeckButton.interactable`
+line matches exactly.
+
+**No action needed - this independently re-derives the same conclusion CR already reached and fixed
+hours ago** (`60793d0`): `ownedCollectionCards` was empty because the test fixture never seeded a
+profile. CR's fix already adds the missing `[SetUp]` + seeds real cards via `CardDatabase.AllCards`,
+verified 16/16 passing. AD traced the same gate from the presenter side without knowing the fix
+already landed - accurate, but nothing new to dispatch. Noting for the record that AD's discipline
+clearly improved between passes (scoped to available evidence vs. fabricated citations last time) -
+worth remembering that inconsistency is possible pass-to-pass, still verify every time.
