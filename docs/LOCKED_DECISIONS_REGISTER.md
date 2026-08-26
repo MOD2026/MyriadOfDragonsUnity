@@ -1316,6 +1316,54 @@ wrong scale being corrected, not regressions.**
 **Type floor 22 -> 24px still stands** (at scaleFactor 1.0 a 22px glyph is 22 screen px, below
 WCAG's 24px threshold).
 
+## VALIDATOR v2 - LOCKED 2026-08-27: six checks for the two-canvas world
+
+AD audit. **Answers the question that mattered most: could the `matchWidthOrHeight` bug have been
+caught automatically? YES - by one cheap check we never had.**
+
+### CHECK 0 - GLOBAL CANVAS OVERFLOW AUDIT (runs FIRST, before any per-screen geometry)
+
+For every Canvas with `ScaleMode == ScaleWithScreenSize`, per target device profile:
+```
+scaleFactor = lerp(screenW/refW, screenH/refH, matchWidthOrHeight)
+renderedW = refW * scaleFactor ; renderedH = refH * scaleFactor
+FAIL if renderedW > screenW or renderedH > screenH
+report overflowX = renderedW - screenW, overflowY = renderedH - screenH
+```
+**This single check would have flagged the whole-project scaler misconfiguration on day one.** It
+slipped through because the validator assumed the canvas mapping was correct and only checked
+per-screen geometry inside it. **Never validate geometry inside a container you have not validated.**
+
+### The other five
+
+1. **HUD placement invariant - NOT an anchor heuristic.** `edgeThresholdPx = max(round(H*0.10), 96)`.
+   Any INTERACTIVE element whose `screenRect` intersects the top or bottom edge zone (accounting for
+   safe-area insets) **must** be parented to the HUD canvas. Deterministic and device-aware;
+   replaces the broken anchor test.
+2. **Safe-area containment.** Every interactive HUD element fully inside `Screen.safeArea`.
+   **EditMode discipline: every validator run MUST be given explicit `screenWidth`, `screenHeight`
+   and `safeAreaOverride`; a run that omits them FAILS.** Otherwise the test passes because the
+   editor's safe area is trivial - passing for the wrong reason.
+3. **Cross-canvas overlap.** Elements on different canvases with different scale factors can collide
+   on screen while each canvas looks clean alone. Compute `screenRect` + `zKey =
+   (canvas.sortingOrder, siblingIndex)` for ALL interactive elements globally, test every pair, flag
+   intersections above `max(4px, 0.5% of the smaller rect)`, and report which is on top.
+4. **Contrast across canvases.** `fontScreenPx` uses THAT element's own canvas scale factor. Sample
+   the background by finding the topmost graphic across ALL canvases at each sample point and
+   compositing down to opacity. **Naive failure: sampling only the local canvas misses a HUD overlay
+   changing the effective background.**
+5. **Raycast blocking.** Static (EditMode): at each content control's centre, find the topmost
+   raycast-target graphic across canvases; if it is a HUD element with no `Selectable`/`onClick`,
+   flag it as a silent tap-swallower. Dynamic (PlayMode): `GraphicRaycaster.Raycast` and assert the
+   first hit is the expected target - **the only fully accurate input test**, worth a small PlayMode
+   set for high-risk screens.
+
+**Deterministic `screenRect`:** `rt.GetWorldCorners` + `WorldToScreenPoint`, or the CanvasScaler
+formula mapped through anchors/pivots. Both agree when implemented correctly.
+
+**Ordering rule: global overflow audit passes -> then per-screen checks. Do not promote a screen
+until the full suite passes for every target device profile.**
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
