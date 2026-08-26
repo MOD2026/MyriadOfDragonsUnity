@@ -7806,7 +7806,49 @@ no bearing on the analysis.
   secondary CTA in feed only. No persistent world map for Phase-1 - Campaign's map already owns
   geographic progression; a second map would be pure navigation duplication with no opponent system
   to justify it.
-- Full element-by-element verdict for all 22 inventoried elements (keep/demote/cut + destination),
+- Full element-by-element verdict for all 22 inventoried elements - THE ACTUAL TABLE, pasted below
+  rather than referenced (CC originally wrote only a summary line claiming this table existed; CR
+  caught it by grepping and correctly refused to build against a spec it had verified was absent -
+  same "logged != delivered" failure class already caught twice tonight):
+
+| Current Home element | Verdict | Destination |
+|---|---|---|
+| SPELLS | Demote | Collection -> Spell Book |
+| PASS | Demote | Quests / Events |
+| LOGIN | Demote | Profile/Settings; not a Home action |
+| Gold pill | Keep | Read-only resource strip |
+| Gems pill | Keep | Read-only resource strip |
+| Stamina pill | Keep | Read-only resource strip; tap may open refill |
+| Settings gear | Keep | Persistent corner action |
+| BAZAAR | Demote | Collection hub, Bazaar tab |
+| CHAT | Demote | Global Social drawer, Chat tab |
+| MAIL | Demote | Global Social drawer, Mail tab |
+| FRIENDS | Demote | Global Social drawer, Friends tab |
+| MEMORY | Keep, demote | Quests / Events |
+| VIP | Demote | Collection/Shop - tab or modal |
+| Weekly Permit claim | Demote | Quests / Events, merged Permit entry, badge when claimable |
+| SERVER-KEY | Keep function, demote location | Quests / Events, same merged Permit entry (2nd sub-state) |
+| Tutorial banner | Conditional keep | Feed slot, first few days only, then converts to Events card |
+| Campaign tile | Keep | Feed primary CTA / Battle destination |
+| Empire tile | Keep | Empire destination; feed card when construction completes |
+| Avatar tile | CUT | Identity header already owns this need |
+| Cards tile | Keep, demote | Collection destination |
+| Shop tile | Keep, demote | Collection hub, Shop tab |
+| To Battle tile | Keep, demote | Battle destination; not a separate Home tile, not a second map |
+
+**The 5 destinations CR flagged as unaccounted-for ARE answered** - by BS's second reply (the
+20-screen structural pass), which CC received and failed to log here. Ruling, now recorded:
+- **ChatSocial / MailInbox / Friends** -> ONE global **Social drawer**, accessible from any
+  destination, three tabs inside it, unread badges. Explicitly NOT a sixth bottom-nav destination
+  and explicitly not three separate Home buttons.
+- **VipSubscription** -> Collection/Shop, as a tab or modal.
+- **SpellLoadoutPicker** -> modal launched from Collection or Battle preparation. Never permanent
+  navigation.
+- **PackOpenOverlay** -> true modal, never appears in navigation, Close/Continue not Back.
+
+**Global overlays (not destinations):** Social drawer, Settings, Pack opening, Spell loadout.
+
+
   including the corrected Permit consolidation: SERVER-KEY and WEEKLY-permit-claim merge into ONE
   Quests/Events entry with two labeled sub-states (local scheduled claim vs. server-authoritative
   claim), badge when either is claimable, no player-facing implementation terminology, no two
@@ -7820,3 +7862,42 @@ the current Home construction wholesale - genuinely larger than tonight's other 
 (VS/CR/WH all mid-flight on the hang investigation, script metas, and Battle chrome). Sequencing
 this against that in-flight work is the owner's call, not mine to decide unilaterally - asking
 directly rather than assuming either "now" or "later."
+
+## Full-project UI/UX pass: 20 non-Home screens mapped, 4 more found unclassified, and a real border-density finding (2026-08-26, BS + CC audit)
+
+**BS's structural pass on the remaining screens** (destination ownership, consolidation, dead-end
+rules, P0/P1/P2 priority) is recorded in the entry above via the Social-drawer / Collection-hub /
+Expedition rulings. Key structural calls: Collection+Shop+Bazaar become ONE tabbed hub;
+Chat+Mail+Friends become ONE global Social drawer; the three Expeditions deliberately do NOT merge
+(EmpireExpedition->Battle as repeatable farming, MemoryExpedition->Quests/Events as daily solo,
+GuildExpedition->Quests/Events as co-op/server-dependent - different rules, rewards, ledgers, and
+dependency status; merging would hide real distinctions).
+
+**Navigation dead-end rule, locked:** a full destination entered through navigation needs explicit
+Back or a persistent destination bar; a modal/overlay launched from another screen may use
+Close/Dismiss instead. `EmpireBuildingDetail` is currently a drilldown with NO back button - either
+add Back or make it an unmistakable modal with Close. `PackOpenOverlay` correctly needs
+Close/Continue, not Back. `HomePage` correctly has no Back (it is the root).
+
+**BS correctly refused completion over a real inventory gap.** CC's prompt listed 20 non-Home
+screens; the project has 25 presenters. **The four genuinely unclassified: `DeckBuilder`,
+`GuildHallEntry`, `PermitWeekKey`, `SoloCircuit`** - identified from real code, not guessed.
+`DeckBuilder` is the notable miss: a core-loop screen (build/save the battle deck) absent from an IA
+map. Routed back to BS for classification; `PermitWeekKey` almost certainly needs no separate
+destination (already folded into the merged Quests/Events Permit entry), `GuildHallEntry` is the one
+that might genuinely stress the five-destination model.
+
+**NEW, separate finding - border/box density, quantified and benchmarked (owner-requested):** 42
+bordered ornamental panels are drawn across this UI (counted: every `ApplyFramedPanel`/
+`CreateFramedPanel` call site). Benchmarked against 2026 mobile-game UI practice, the direction is
+explicitly opposite - current standard is cleaner HUDs reducing visual clutter, flat/minimal as
+default, "proper spacing, limited colour palettes, sparse iconography, crisp typography" replacing
+heavy ornamental framing. **Real tension worth naming honestly:** tonight's work fixed a genuine bug
+where those 42 borders weren't rendering at all (sprite-load failure -> flat-colour fallback
+everywhere). That fix was correct regardless - broken art is broken. But the current state is that
+ornate framing now works correctly *everywhere*, which is exactly when to ask whether it should BE
+everywhere. "Every panel gets a gold ornamental 9-slice border" is accretion in the same way Home's
+button crowding was accretion - nobody decided it deliberately. Routed to BS with a specific ask for
+a coder-applicable rule (which element types keep framing, which drop to flat/spacing-only) and an
+explicit invitation to push back if ornate framing is genuinely correct for this dark-fantasy genre
+rather than following a general mobile trend.
