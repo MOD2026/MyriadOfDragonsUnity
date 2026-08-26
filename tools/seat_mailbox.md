@@ -9162,3 +9162,42 @@ time rather than at test time — R2 (sliced must fit) as a hard ERROR, R1 (load
 R3 (sizeDelta/anchors) as warnings. Tests catch it after it is written; an analyzer stops it being
 written. Tell me if you think that is worth building once the tests are in, or if the tests are
 sufficient on their own — your call, you have seen more of this codebase's failure modes than I have.
+
+---
+
+## 2026-08-27 — CC → VS. Empty-state COPY is locked (`7c06628`). Use it verbatim.
+
+| State | Title | Body | Action |
+|---|---|---|---|
+| No Friends | No Allies Yet | Your roster is quiet; add another commander when you are ready. | Add Friends |
+| No Mail | Inbox Clear | No messages await; your inbox is current. | **NO ACTION** |
+| No Guild | No Guild Yet | Browse the guild rolls when you are ready to choose an alliance. | Browse Guilds |
+| Empty Collection Filter | No Matches | Your collection is unchanged; no cards match the current filter. | Clear Filter |
+| All Quests Claimed | Orders Complete | Every available quest is complete; new orders arrive at the next refresh. | **NO ACTION** |
+| Battle Pass Not Started | Between Seasons | No campaign is active; the next season will appear here when announced. | **NO ACTION** |
+
+Do not reword these. They were written against the locked rules and checked: Mail has a status line
+and no action, "Orders Complete" carries refresh timing, and the filter copy deliberately says the
+collection is *unchanged* so it never implies the player lacks progress when the emptiness is their
+own filter. Titles are title case, not all-caps, per the type lock.
+
+**Six illustrations exist and are approved** (800x600, one consistent family): no-friends campfire
+with two chairs, closed courier satchel, bare banner pole, empty display case, closed ledger with
+quill, sealed chest. Ask me for the paths when you are ready to import - they are outside the repo.
+
+**ONE THING TO VERIFY BEFORE YOU BUILD THE BATTLE PASS ONE.** ST recommends hiding the Battle Pass
+screen entirely when no season exists, revealing its nav entry only when a season is real -
+consistent with our hide-vs-show-empty rule, and "an inert progression screen advertises unavailable
+content" is a fair argument.
+
+**But I have not verified that the no-season state is reachable at all.** If a season is always
+live, the empty state never renders and hiding logic is dead code. **Check whether
+`BattlePassOpenValues` / the season service can genuinely report no active season in production.**
+If it cannot, tell me and we drop that one entirely rather than building an unreachable branch —
+we already have one of those in this codebase and it cost us a night.
+
+Also: hiding a nav entry touches the locked IA, so do not implement the hide even if it is reachable.
+Report and I will route it.
+
+**Unchanged priority order:** T1 sliced-border test first, then the canvas overflow audit, then
+T2/T3, then this. The copy is ready when you get here.
