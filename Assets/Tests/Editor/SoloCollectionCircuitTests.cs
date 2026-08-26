@@ -128,9 +128,41 @@ namespace MyriadOfDragons.Tests
                 SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, Day1);
 
             Assert.IsTrue(third.CompletedAllThreeToday);
-            Assert.AreEqual(SoloCollectionCircuit.EventMedalsForAllThreeSameDay, third.EventMedalsGranted);
+            // EventMedalsForAllThreeSameDay stays declared for future ledger activation; the
+            // dormant EventLedgerActive gate zeroes at grant time (MemoryExpedition pattern).
+            Assert.AreEqual(0, third.EventMedalsGranted,
+                "Event Medals are dormant until a trusted server ledger exists — do not tell the player they earned medals that never mint.");
+            Assert.AreEqual(1, SoloCollectionCircuit.EventMedalsForAllThreeSameDay,
+                "Forward-declared medal constant must remain (schema for activation day).");
+            Assert.IsFalse(SoloCollectionCircuit.EventLedgerActive);
             Assert.AreEqual(1, progress.circuitDaysInCycle,
                 "The first completed Circuit opens the player's personal cycle at day 1.");
+        }
+
+        [Test]
+        public void FullCircuitSameDay_SurfacesNoMedalLineWhileLedgerDormant()
+        {
+            var progress = Fresh();
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Formation, Day1);
+            SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.Collection, Day1);
+            SoloCircuitClearResult third =
+                SoloCollectionCircuit.RecordClear(progress, SoloCircuitTrial.TacticalBrief, Day1);
+
+            Assert.AreEqual(0, third.EventMedalsGranted);
+
+            // Same omit rule the Daily Login presenter uses for ModeRewardClaimed — medals=0 is
+            // its own confusing lie when the ledger is dormant.
+            var claimShape = new MyriadOfDragons.Season.DailyLoginQuestClaimResult
+            {
+                GoldGranted = third.GoldGranted,
+                MaterialsGranted = third.MaterialsGranted,
+                StaminaGranted = 0,
+                EventMedalsGranted = third.EventMedalsGranted,
+                PassSeasonXpGranted = 0,
+            };
+            string outcome = MyriadOfDragons.UI.DailyLoginQuestsPresenter.FormatModeRewardOutcome(claimShape);
+            Assert.IsFalse(outcome.Contains("medals="),
+                "Zeroed Event Medals must omit the medal token entirely, not render medals=0. Got: " + outcome);
         }
 
         [Test]

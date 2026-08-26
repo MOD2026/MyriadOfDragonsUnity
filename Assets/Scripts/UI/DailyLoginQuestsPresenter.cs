@@ -64,13 +64,25 @@ namespace MyriadOfDragons.UI
             if (_telemetryOutbox != null && result != null && result.Status == DailyLoginQuestClaimStatus.Applied)
             {
                 string playerId = RetentionTelemetryPlayerId.CurrentOrEmpty();
-                string outcome = $"gold={result.GoldGranted},materials={result.MaterialsGranted},stamina={result.StaminaGranted}," +
-                                  $"medals={result.EventMedalsGranted},xp={result.PassSeasonXpGranted}";
+                string outcome = FormatModeRewardOutcome(result);
                 _telemetryOutbox.Enqueue(RetentionTelemetryEvents.ModeRewardClaimed(
                     playerId, "daily_login_quests", $"slot_{result.SlotIndex}", outcome));
                 _ = _telemetryOutbox.FlushAsync(System.Threading.CancellationToken.None);
             }
             return result;
+        }
+
+        /// <summary>Builds the ModeRewardClaimed outcome string. Omits medals entirely when
+        /// zeroed by the dormant event-ledger gate — "medals=0" is its own confusing lie.</summary>
+        public static string FormatModeRewardOutcome(DailyLoginQuestClaimResult result)
+        {
+            if (result == null) return string.Empty;
+            string outcome =
+                $"gold={result.GoldGranted},materials={result.MaterialsGranted},stamina={result.StaminaGranted}";
+            if (result.EventMedalsGranted > 0)
+                outcome += $",medals={result.EventMedalsGranted}";
+            outcome += $",xp={result.PassSeasonXpGranted}";
+            return outcome;
         }
 
         private void BuildUI()

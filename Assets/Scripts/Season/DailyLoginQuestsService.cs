@@ -12,6 +12,12 @@ namespace MyriadOfDragons.Season
     /// </summary>
     public static class DailyLoginQuestsService
     {
+        /// <summary>Phase-1: no live event-ledger helper yet — medals stay 0 until one lands.
+        /// Same gate MemoryExpeditionService / SoloCollectionCircuit use. LoginEventMedals stays
+        /// declared so activation is a one-line flip; existing profile.eventMedals balances are
+        /// deliberately left alone (owner decides zero vs grandfather).</summary>
+        public static bool EventLedgerActive => false;
+
         public const int QuestSlotCount = 3;
         public const int LoginWellCount = 6;
 
@@ -121,7 +127,7 @@ namespace MyriadOfDragons.Season
                 GoldGranted = LoginGoldBase + tier * LoginGoldPerTier,
                 MaterialsGranted = LoginMaterialsBase + tier,
                 StaminaGranted = LoginStamina,
-                EventMedalsGranted = LoginEventMedals,
+                EventMedalsGranted = EventLedgerActive ? LoginEventMedals : 0,
                 PassSeasonXpGranted = LoginPassSeasonXp,
             };
         }
@@ -206,7 +212,10 @@ namespace MyriadOfDragons.Season
             CurrencyManager.AddCurrency(profile, CurrencyType.Gold, gold, persist: false);
             profile.constructionMaterials = Math.Max(0, profile.constructionMaterials) + materials;
             CurrencyManager.RestoreStamina(profile, LoginStamina, persist: false);
-            CurrencyManager.AddCurrency(profile, CurrencyType.EventMedal, LoginEventMedals, persist: false);
+            // Forward-declared LoginEventMedals stays; gate zeroes at mint time until a trusted
+            // server ledger exists. Do NOT touch medals already on the profile.
+            if (EventLedgerActive)
+                CurrencyManager.AddCurrency(profile, CurrencyType.EventMedal, LoginEventMedals, persist: false);
             profile.passSeasonXp = Math.Max(0, profile.passSeasonXp) + LoginPassSeasonXp;
         }
 

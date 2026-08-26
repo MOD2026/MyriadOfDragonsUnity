@@ -49,6 +49,31 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void ClaimLogin_WhileEventLedgerDormant_GrantsZeroMedals_AndLeavesBalanceUnchanged()
+        {
+            // Event Medals are LOCKED DORMANT until a trusted server ledger exists. LoginEventMedals
+            // stays declared; the gate zeroes at grant. Existing balances are deliberately not
+            // wiped - owner decides zero vs grandfather.
+            Assert.IsFalse(DailyLoginQuestsService.EventLedgerActive);
+            Assert.AreEqual(1, DailyLoginQuestsService.LoginEventMedals,
+                "Forward-declared medal constant must remain for activation day.");
+
+            var profile = new PlayerProfile
+            {
+                gold = 0, constructionMaterials = 0, stamina = 50, maxStamina = 100,
+                eventMedals = 17, // pre-existing leak balance — must survive the claim
+            };
+            DateTime day1 = new DateTime(2026, 8, 20, 12, 0, 0, DateTimeKind.Utc);
+
+            DailyLoginQuestClaimResult claim = DailyLoginQuestsService.ClaimLogin(profile, day1, persist: false);
+            Assert.AreEqual(DailyLoginQuestClaimStatus.Applied, claim.Status);
+            Assert.AreEqual(0, claim.EventMedalsGranted,
+                "Dormant ledger must not report Event Medals earned.");
+            Assert.AreEqual(17, profile.eventMedals,
+                "Claim must not mint into or clear existing profile.eventMedals.");
+        }
+
+        [Test]
         public void ClaimLogin_SameUtcDay_RefusesDoubleClaim()
         {
             var profile = new PlayerProfile();

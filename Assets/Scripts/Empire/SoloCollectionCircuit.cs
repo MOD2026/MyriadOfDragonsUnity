@@ -103,6 +103,10 @@ namespace MyriadOfDragons.Empire
     /// </summary>
     public static class SoloCollectionCircuit
     {
+        /// <summary>Phase-1: no live event-ledger helper yet — medals stay 0 until one lands.
+        /// Same gate MemoryExpeditionService.EventLedgerActive uses; reward-table constants stay.</summary>
+        public static bool EventLedgerActive => false;
+
         public const int GoldPerTrialClear = 250;
         public const int MaterialsPerTrialClear = 50;
         public const int GoldForAllThreeSameDay = 500;
@@ -261,7 +265,9 @@ namespace MyriadOfDragons.Empire
             {
                 result.CompletedAllThreeToday = true;
                 GrantCapped(progress, GoldForAllThreeSameDay, 0, ref result);
-                result.EventMedalsGranted += EventMedalsForAllThreeSameDay;
+                // Forward-declared EventMedalsForAllThreeSameDay stays on the table; gate zeroes
+                // at grant time (MemoryExpedition pattern) until a trusted server ledger exists.
+                result.EventMedalsGranted += EventLedgerActive ? EventMedalsForAllThreeSameDay : 0;
 
                 AdvanceCycle(progress, UtcDayKey(nowUtc));
 

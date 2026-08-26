@@ -66,9 +66,12 @@ namespace MyriadOfDragons.Save
     ///     2,000/4,000/8,000=30d. The earlier hold - which refused every voucher rung while the
     ///     2,000-point duration was undecided - is resolved, and its gate has been REMOVED rather
     ///     than left permanently false, because a dead gate reads as a live constraint.
-    ///   - MILESTONE 500 IS A COSMETIC and no cosmetic ownership model exists on the profile.
-    /// Granting a reward the save cannot represent is still worse than not granting it, so both
-    /// stay refused with a reason string instead of a silent no-op.
+    ///   - MILESTONE 500 IS RESOURCES (5,000 Gold + 100 Materials + 1 Stamina claim) — see
+    ///     Milestones / GoldRewardFor. Cosmetics are deliberately deferred until a real cosmetic
+    ///     catalog and equip surface exist on the profile; do not "fix" this rung back to a
+    ///     cosmetic to match older prose.
+    /// Granting a reward the save cannot represent is still worse than not granting it, so any
+    /// remaining undecided rungs stay refused with a reason string instead of a silent no-op.
     ///
     /// Real logic in a plain testable class per CLAUDE.md non-negotiable #6 - no MonoBehaviour, and
     /// it never saves. The caller decides when to persist, exactly like
