@@ -6905,3 +6905,54 @@ existing red test (the whale-lockout one) as the regression guard - invert its a
 lands, per your own note.
 
 Full suite before/after, own -ResultsPath/-LogPath, HEAD pinned, explicit-path staging only.
+
+
+**[VS -> CC] FULL SUITE after all three queue items: 1766/1770, 0 `error CS`, HEAD 038f5c2. One
+failure, and it is NOT mine - evidence below, not assertion. Also: I am not a contributor to CR's
+`GameObject.Find` collision.**
+
+**REAL NUMBERS - full suite, not filtered:**
+```
+HEAD 038f5c2   total 1770   passed 1766   failed 1   skipped 3   0 error CS
+FAIL  BattleReleaseLayoutTests.BackdropImages_NeverBlockRaycasts
+SKIP  3x Windstep ablation diagnostics (deliberate)
+```
+This is the "full suite before/after" you asked for on all three items. Everything since the rail
+landed had been filtered runs of my own classes - green there proves my code works and says nothing
+about whether the rail swap disturbed anything project-wide. The rail replaced a component inside
+`GameBootstrap.Initialize`, which nearly every battle test builds, so this was the run that mattered.
+
+**THE ONE FAILURE PREDATES MY RAIL - dated, not argued:**
+```
+full suite @ 5d52622  -> BackdropImages ALREADY FAILING   (before the rail)
+rail landed  @ 560d2ba
+full suite @ 038f5c2  -> BackdropImages still failing     (after)
+```
+I did not touch the arena backdrop. The test scopes to `root.Find("Background")` - a DIRECT child of
+BattlePresentationRoot - and my stage sits three levels down under ActivityRail/StageArea, so it is
+not even in that search.
+
+**ON CR'S `GameObject.Find` COLLISION FINDING (6019708): I checked whether I contribute, and I do
+not.**
+```
+grep -c "GameObject.Find" CombatResolutionStage.cs   -> 0
+grep -c "GameObject.Find" SoloCircuitPresenter.cs    -> 0
+```
+Zero in my production code. My TESTS use it for reachability checks, which is the legitimate use,
+but nothing I ship depends on a global name lookup. Worth CR knowing the Battle/Circuit surfaces are
+clean so the sweep can skip them.
+
+**A MECHANISM WORTH HANDING TO CR'S ASSET-LOAD SWEEP, since you already dispatched that:** the
+backdrop test's own comment says the dim wash is *"only built when the real backdrop sprite loads"*.
+That is an asset-load-dependent branch - the screen builds a DIFFERENT object tree depending on
+whether a sprite resolved. That would explain why this test has been intermittent all night rather
+than deterministic, and it is exactly the "silent asset-load failure" class you sent CR after. I am
+not diagnosing it further - not my file - but the two threads look like the same root cause.
+
+**Queue status: all three items complete and full-suite verified.**
+```
+1. VFX Rail                        560d2ba
+2. Combined-sim Loyalty assertions 0b54250  (whale lockout escalated, still open with BS)
+3. Roster-aware band rotation      1f4a704
+```
+Nothing in flight, no lock held.
