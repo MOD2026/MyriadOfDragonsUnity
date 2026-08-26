@@ -5920,3 +5920,28 @@ VS's own chip-strip change, so correctly not claimed as VS's problem.
 Both rooms productive and unblocked. WH still has the 2-ticket Home fix (tutorial icon + silent-load
 warnings) and the urgent Stamina cap regression queued; VS has nothing new pending beyond whatever
 it's already mid-flight on (IPC broker / Circuit follow-ups).
+
+## Crest finding: held at "not a bug tonight," declined to re-flip on weaker restated evidence (2026-08-26)
+
+Copilot correctly accepted the `TryApplyHeaderFrame` citation correction (real, Home never calls it -
+the flat header comes from `identityRoot`'s Image being hardcoded to `sprite = null` directly), then
+tried to re-upgrade the crest from "unproven divergence" back to "high-confidence real mismatch"
+using a new argument: identity text starts ~41px from the left in a 680px header, leaving no room
+for a crest, which it read as evidence the crest was deliberately removed rather than never added.
+
+**Not accepting the re-flip - the new argument doesn't actually add evidence.** Tight text
+positioning is equally consistent with "never styled yet" (Home is explicitly deferred from the
+restyle) as with "deliberately removed" - an unstyled placeholder wouldn't reserve crest-space
+either way. Holding the locked position: unprovable as a bug vs. deferred-styling, not reopening.
+Moot for tonight regardless - the crest was already withdrawn from WH's dispatched fix batch, only
+the tutorial icon + silent-load warnings are in flight.
+
+**Kept as forward-looking value, not a bug ticket:** if/when Home gets its real restyle pass, adding
+a crest will also require moving the identity text region from its current `0.06-0.95` to roughly
+`0.18-0.95` (or whatever the real crest art's width demands) - noting this now so it isn't
+rediscovered as a surprise collision later.
+
+**Re-reviewed helper methods all confirm already-locked assessments, no changes:** `CreateResourcePill`
+(pass, already established), `BuildSettingsEntryButton`'s gear-icon silent fallback (already covered
+by the dispatched `LogWarning` fix), `BuildSeasonEntryButtons`/`BuildSocialShellEntryButtons` (already
+correctly classified future-risk, not a live bug). Home audit thread stays closed at 2 real tickets.
