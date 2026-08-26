@@ -162,6 +162,10 @@ namespace MyriadOfDragons.UI
             rect.pivot = new Vector2(0.5f, 1f);
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(0f, height);
+            // Called AFTER the rect is positioned/sized above, same apply-before-position
+            // discipline as ApplyFramedPanel - real regression found by external audit
+            // (CC, 2026-08-27): this set Image.Type.Sliced with no border-fit call at all.
+            FitSlicedBorderToRect(headerImage);
             return rect;
         }
 
@@ -235,6 +239,10 @@ namespace MyriadOfDragons.UI
             RectTransform rect = buttonObj.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             EnforceMinTouchTarget(rect);
+            // Called AFTER sizing/EnforceMinTouchTarget above, same reasoning as CreateHeaderShell's
+            // identical fix - real regression found by external audit (CC, 2026-08-27): this set
+            // Image.Type.Sliced with no border-fit call at all.
+            FitSlicedBorderToRect(image);
 
             Button button = buttonObj.GetComponent<Button>();
             if (useHomeNavSkin && sprite != null && (highlightedSprite != null || pressedSprite != null || disabledSprite != null))
@@ -430,7 +438,13 @@ namespace MyriadOfDragons.UI
                     : CreateOrGetRoundedPanelSprite(topColor, bottomColor, cornerRadius);
                 target.type = Image.Type.Sliced;
                 target.color = Color.white;
-                if (tier.HasValue) FitSlicedBorderToRect(target);
+                // Real regression, found by external audit (CC, 2026-08-27): this was gated on
+                // `tier.HasValue`, but CreateOrGetRoundedPanelSprite (the untiered branch, the
+                // COMMON case whenever no authored art exists) sets a 9-slice border too - same
+                // "flat boxes everywhere" collapse this session's own root-cause fix addressed for
+                // authored art, just left unfixed here. Every Image.Type.Sliced assignment in this
+                // method needs its border fitted, authored or procedural, tiered or not.
+                FitSlicedBorderToRect(target);
 
                 // Only warn when there WAS a real path to try and it genuinely failed to load -
                 // DefaultFramedPanelResourcePath legitimately returns null for a kind with no art
