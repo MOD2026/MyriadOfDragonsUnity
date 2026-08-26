@@ -273,6 +273,36 @@ namespace MyriadOfDragons.Save
         /// a caller silently burn the lower rewards.</summary>
         public int highestClaimedLoyaltyMilestone = 0;
 
+        /// <summary>Solo Collection Circuit daily/weekly state. Additive, owner-signed-off
+        /// 2026-08-26 - approved as ONE nested object rather than seven loose fields, mirroring
+        /// collectionWallet's shape, so future Circuit state lands inside it without touching this
+        /// frozen file again.
+        ///
+        /// Every field inside defaults to "no circuit run yet" (empty day keys, zero counters), so
+        /// a save that predates the feature deserializes correctly and no migration step is needed.
+        /// Logic lives in Empire/SoloCollectionCircuit.cs as a plain testable class; this is only
+        /// its persistence.</summary>
+        public MyriadOfDragons.Empire.SoloCircuitProgress soloCircuitProgress =
+            new MyriadOfDragons.Empire.SoloCircuitProgress();
+
+        /// <summary>Count of Battle Pass free-track tiers already claimed, from tier 0 upward.
+        /// Additive, owner-signed-off 2026-08-26 ("OWNER SIGN-OFF x2 + protocol extension
+        /// locked", exact shape: int, default 0) - ascending-guard mirror of
+        /// <see cref="highestClaimedLoyaltyMilestone"/>, adapted from a threshold VALUE to a
+        /// 0-based tier INDEX: tier N is claimed iff N &lt; this value (not &lt;=), so this reads
+        /// as "how many tiers claimed so far" rather than "highest index claimed" - the same
+        /// count either way, but this framing keeps default 0 unambiguously meaning "nothing
+        /// claimed yet" without needing a -1 sentinel or an extra field, which the sign-off didn't
+        /// include. Tiers unlock in strictly ascending order, so one int is sufficient.</summary>
+        public int battlePassClaimedFreeTier = 0;
+
+        /// <summary>Count of Battle Pass paid-track tiers already claimed. Same shape and
+        /// reasoning as <see cref="battlePassClaimedFreeTier"/>, tracked separately because the
+        /// two tracks claim independently (a player can be ahead on one track and behind on the
+        /// other). Paid-track claims additionally require premium to be unlocked - enforced in
+        /// BattlePassOpenValues, not by this field.</summary>
+        public int battlePassClaimedPaidTier = 0;
+
         // --- MEMORY EXPEDITION (Tree of Knowledge daily minigame) ---
         // Additive, owner-approved 2026-08-25 (all 12 fields listed and approved verbatim before
         // this frozen file was touched). Core logic lives in Empire/MemoryExpedition.cs as a plain
