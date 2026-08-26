@@ -3803,6 +3803,16 @@ namespace MyriadOfDragons.UI
                 _spellIcons.Add(icon);
                 _spellNameLabels.Add(spellName);
             }
+
+            // Unlike the hand-card/mini-card sites (which knew their exact target size in
+            // advance and could pre-set sizeDelta), these 4 buttons' real width comes from
+            // _spellBar's own VerticalLayoutGroup (childControlWidth/childForceExpandWidth=true)
+            // with no locally-known value to pre-set. ForceRebuildLayoutImmediate is synchronous
+            // (works in EditMode, unlike Update()/a resize-watcher - see FitSlicedBorderToRect's
+            // own doc comment for why that approach was tried and discarded earlier tonight), so
+            // running it once here resolves every child's real rect before fitting.
+            ForceLayoutThenFitButtons((RectTransform)_spellBar.transform, _spellButtons);
+
             _spellBar.gameObject.SetActive(false);
         }
 
@@ -6881,6 +6891,23 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.FitSlicedBorderToRect(button.GetComponent<Image>());
             Transform fillT = button.transform.Find("Fill");
             if (fillT != null) UISharedFoundation.FitSlicedBorderToRect(fillT.GetComponent<Image>());
+        }
+
+        /// <summary>General-purpose answer to the "sliced border fit needs a real size, but this
+        /// child's real size only exists after a LayoutGroup/LayoutElement pass runs" problem -
+        /// the variant of the apply-before-position bug that a locally-known pre-set sizeDelta
+        /// (used elsewhere tonight for the hand-card/mini-card sites) can't solve, because there
+        /// is no single locally-known target value here. LayoutRebuilder.ForceRebuildLayoutImmediate
+        /// is synchronous and safe to call in EditMode (unlike a resize-watcher via
+        /// OnRectTransformDimensionsChange, tried and disproven earlier tonight - see
+        /// FitSlicedBorderToRect's own doc comment), so forcing one real layout pass on the
+        /// layout root before fitting resolves every child's actual rect first. Reusable by
+        /// design (CC, 2026-08-27) rather than a spell-bar special case - any future layout-group
+        /// child with sliced chrome and no easily-known target size can call this.</summary>
+        private static void ForceLayoutThenFitButtons(RectTransform layoutRoot, IEnumerable<Button> buttons)
+        {
+            if (layoutRoot != null) LayoutRebuilder.ForceRebuildLayoutImmediate(layoutRoot);
+            foreach (Button b in buttons) FitButtonChrome(b);
         }
 
         /// <summary>A hand card: rarity frame behind, art inset within its border, name/cost
