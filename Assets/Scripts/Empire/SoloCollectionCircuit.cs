@@ -96,7 +96,7 @@ namespace MyriadOfDragons.Empire
     /// REWARD RULES (locked): 250 Gold + 50 Construction Materials per trial clear; +500 Gold +1 Event Medal for
     /// clearing all 3 the same day; +2,500 Gold +125 Materials for 7 completed circuits in a PERSONAL
     /// 7-DAY CYCLE (LOCKED 2026-08-26, replacing a Monday-aligned ISO week that made the bonus
-    /// unreachable for anyone who joined mid-week). Hard daily ceiling of 1,250 Gold / 150 Materials, enforced as its own check rather than
+    /// unreachable for anyone who joined mid-week). Hard daily ceiling of 1,250 Gold / 275 Materials, enforced as its own check rather than
     /// inferred from the per-trial numbers. Nothing else is ever granted - no cards, packs, Forge
     /// Dust, Permits, Evolution materials or Market Credits - which keeps the Circuit out of the
     /// acquisition path, the same constraint the loyalty ladder carries.
@@ -120,9 +120,21 @@ namespace MyriadOfDragons.Empire
         /// spec caps them explicitly - "don't let stacking exceed it" is a separate requirement
         /// from the per-trial amounts happening to sum correctly today.</summary>
         public const int MaxGoldPerDay = 1250;
-        /// <summary>Also derived at the same 5x ratio (30 XP -> 150 Materials), for the same
-        /// reason and with the same caveat.</summary>
-        public const int MaxMaterialsPerDay = 150;
+        /// <summary>
+        /// LOCKED 275 (BS, 2026-08-26) - deliberately NOT the 5x-ratio derivation.
+        ///
+        /// My first pass derived 150 from the 30 XP cap at the same 5x ratio as the per-trial
+        /// conversion, and that number silently broke the feature: three trial clears total exactly
+        /// 150, leaving ZERO room, so the 125 cycle bonus clipped to nothing on every occurrence -
+        /// a 7-day streak reward that could never pay. A full suite passed over it, because nothing
+        /// asserted the bonus pays anything.
+        ///
+        /// 275 = 150 (three trials) + 125 (cycle bonus), so a cycle-completion day pays both in
+        /// full. Unlike Gold - whose cap deliberately clips its weekly bonus and is BS-locked to do
+        /// so - this one is sized to leave room, because a streak reward that structurally cannot
+        /// pay is worse than no streak reward.
+        /// </summary>
+        public const int MaxMaterialsPerDay = 275;
 
         public static string UtcDayKey(DateTime nowUtc) => nowUtc.ToString("yyyy-MM-dd");
 

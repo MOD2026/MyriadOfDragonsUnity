@@ -167,22 +167,16 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void TheMaterialsCycleBonus_CURRENTLY_ClipsToZero_WhichIsAKnownGap()
+        public void TheMaterialsCycleBonus_PaysInFULL_OnACycleCompletionDay()
         {
-            // PINS A REAL DEFECT rather than leaving it only in a mailbox note. The full suite went
-            // GREEN over this, because nothing asserted the cycle bonus pays anything - green did
-            // not mean correct.
+            // INVERTED from the assertion that pinned the defect. That one recorded the collision -
+            // three trials totalled exactly the 150/day cap, so the 125 cycle bonus clipped to zero
+            // every time and a full suite passed over it because nothing checked. BS locked 275,
+            // which is 150 (three trials) + 125 (bonus), so the streak reward now actually pays.
             //
-            //   3 trials x 50 Materials      = 150
-            //   MaxMaterialsPerDay (derived) = 150
-            //   room for the 125 cycle bonus =   0
-            //
-            // Both figures were derived by me at BS's 5x ratio, independently, and never checked
-            // against each other - so the 7-day streak reward can never pay out.
-            //
-            // THIS TEST SHOULD BE INVERTED once BS rules: raise the cap to 275 so the bonus pays,
-            // or set the bonus to 0 because 125-that-always-clips is a lie in the rewards table.
-            // Written as an assertion, not a TODO, precisely so it fails loudly when that lands.
+            // Asserts the NONZERO payout directly rather than "does not crash" - a clip back to
+            // zero would be invisible to any weaker assertion, which is exactly how this shipped
+            // the first time.
             var progress = Fresh();
             DateTime day = WeekStartMonday;
 
@@ -192,16 +186,19 @@ namespace MyriadOfDragons.Tests
                 day = day.AddDays(1);
             }
 
-            int materialsBeforeBonusDay = progress.materialsEarnedTodayUtc;
             SoloCircuitClearResult bonusDay = ClearWholeCircuit(progress, day);
 
-            Assert.IsTrue(bonusDay.CycleBonusPaid, "Setup: the 7th day must actually pay the bonus.");
-            Assert.AreEqual(SoloCollectionCircuit.MaxMaterialsPerDay, progress.materialsEarnedTodayUtc,
-                "The day is capped out by the three trial clears alone.");
-            Assert.AreEqual(3 * SoloCollectionCircuit.MaterialsPerTrialClear,
-                SoloCollectionCircuit.MaxMaterialsPerDay,
-                "The cap EXACTLY equals three trial clears - this is the collision. Change either " +
-                "MaxMaterialsPerDay or MaterialsForSevenCircuitCycle and this assertion should fail.");
+            Assert.IsTrue(bonusDay.CycleBonusPaid, "Setup: the 7th day must pay the cycle bonus.");
+
+            int trialsTotal = 3 * SoloCollectionCircuit.MaterialsPerTrialClear;
+            Assert.AreEqual(trialsTotal + SoloCollectionCircuit.MaterialsForSevenCircuitCycle,
+                progress.materialsEarnedTodayUtc,
+                "A cycle-completion day must pay three trial clears AND the full bonus - not the " +
+                "cap-clipped remainder.");
+
+            Assert.GreaterOrEqual(SoloCollectionCircuit.MaxMaterialsPerDay,
+                trialsTotal + SoloCollectionCircuit.MaterialsForSevenCircuitCycle,
+                "The cap must leave room for the bonus. If this fails, the clip is back.");
         }
 
         [Test]
