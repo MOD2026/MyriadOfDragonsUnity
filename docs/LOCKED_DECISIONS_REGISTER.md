@@ -7786,3 +7786,37 @@ PID 63700, 23:42:23 - blocked a clean retry anyway) - flagged it and moved on. *
 for whoever picks this up next: is this a second genuine intermittent hang, or the same underlying
 class (something between-fixture, per WH's Shop finding) surfacing at a different point in suite
 order?** Worth connecting to WH's narrowed investigation rather than treated as fully separate.
+
+## LOCKED: Home IA rebuild - five-destination shell + rotating feed, replaces the static 22-target grid (2026-08-26, BS, verified)
+
+**Verified:** internal consistency checked against real code (SERVER KEY corrected - it's real player
+value via `OpenPermitWeekKey`, not admin cruft, confirmed via `HomePagePresenter.cs:538-549` - BS's
+revised call correctly keeps the function and only demotes the location). Real benchmark run: 3-5
+item bottom tab bars in the thumb zone is confirmed current Material Design/Apple HIG best practice,
+not aesthetic preference. Count corrected to 22 (CC's original "21+" prompt undercounted by one) -
+no bearing on the analysis.
+
+**Structure:**
+- Persistent chrome: identity header, resource strip (Gold/Gems/Stamina, read-only), settings gear,
+  five bottom destinations - Home/My Page, Battle, Quests/Events, Collection, Empire.
+- Main feed: one swipeable/paginated area, 3-5 cards (Campaign objective, Circuit/Memory Expedition,
+  Battle Pass/event promo, Empire construction status, limited-time notice), one dominant primary
+  action per page.
+- "To Battle" is NOT a second map - folds under Battle as quick-entry for ordinary/async battle,
+  secondary CTA in feed only. No persistent world map for Phase-1 - Campaign's map already owns
+  geographic progression; a second map would be pure navigation duplication with no opponent system
+  to justify it.
+- Full element-by-element verdict for all 22 inventoried elements (keep/demote/cut + destination),
+  including the corrected Permit consolidation: SERVER-KEY and WEEKLY-permit-claim merge into ONE
+  Quests/Events entry with two labeled sub-states (local scheduled claim vs. server-authoritative
+  claim), badge when either is claimable, no player-facing implementation terminology, no two
+  permanent Home buttons for what's really one logical feature.
+- Avatar tile CUT (identity header already owns that need) - direct answer to owner's question 3.
+- Tutorial banner: new player only, first few days, then converts to the Events/Circuit/Pass feed
+  card - direct answer to owner's question 5.
+
+**Real scope, not yet dispatched:** this touches every screen's navigation entry point and replaces
+the current Home construction wholesale - genuinely larger than tonight's other coding threads
+(VS/CR/WH all mid-flight on the hang investigation, script metas, and Battle chrome). Sequencing
+this against that in-flight work is the owner's call, not mine to decide unilaterally - asking
+directly rather than assuming either "now" or "later."
