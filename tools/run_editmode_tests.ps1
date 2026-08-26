@@ -176,27 +176,127 @@ if (-not (Test-Path $UnityExe)) {
 
 $lockFile = Join-Path $ProjectPath ".unity_batch.lock"
 
-if (Test-Path $lockFile) {
-    $lockInfo = Get-Content $lockFile -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
-    $lockPid = $lockInfo.pid
-    $lockOwner = $lockInfo.owner
-    $lockStillAlive = $lockPid -and (Get-Process -Id $lockPid -ErrorAction SilentlyContinue)
-    if ($lockStillAlive) {
-        Write-Error "Unity is locked by another seat ($lockOwner, watcher PID $lockPid, since $($lockInfo.startedAt)). Wait for it to finish - do not delete the lock file or start a run anyway."
+# Atomic-acquire + backoff, added 2026-08-27 after real contention tonight (multiple seats'
+# batch runs colliding - one room measured 12 consecutive refusals over ~6 minutes with 6+ lost
+# runs; a second room independently hit 7+ refusals across 7 different watcher PIDs in the same
+# window). Root cause: the old check-then-create below was two separate steps (Test-Path, then
+# Set-Content), not one atomic operation - a peer could win the gap between them every time, and
+# every waiter retried on the same fixed cadence, so simultaneous waiters kept colliding with
+# each other instead of desynchronising. Fixed with three real mechanisms, not just a longer wait:
+#   1. Atomic acquire: [System.IO.File]::Open(..., FileMode.CreateNew, ...) either creates the
+#      file or throws IOException if it already exists - no gap for a race to land in.
+#   2. Randomised exponential backoff: waiters desynchronise instead of retrying in lockstep.
+#   3. A total wait ceiling with a clear "starved after N attempts over M minutes" message,
+#      instead of retrying forever or failing silently on the first refusal.
+# Stale-lock reclaim (the file's own recorded watcher PID no longer running) is unchanged in
+# spirit from before - a crashed run must not block everyone indefinitely - just moved inside the
+# retry loop so a reclaim triggers an immediate re-attempt rather than a fixed decision made once.
+function Try-AcquireUnityBatchLock {
+    param([string]$Path, [int]$OwnerPid)
+    try {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        try {
+            $writer = New-Object System.IO.StreamWriter($stream)
+            $json = @{ pid = $OwnerPid; owner = "coding-seat-batch-wrapper"; startedAt = (Get-Date).ToString("o") } | ConvertTo-Json
+            $writer.Write($json)
+            $writer.Flush()
+        }
+        finally {
+            $stream.Dispose()
+        }
+        return $true
+    }
+    catch [System.IO.IOException] {
+        return $false
+    }
+}
+
+$lockWaitCeilingMinutes = 10
+$lockDeadline = (Get-Date).AddMinutes($lockWaitCeilingMinutes)
+$lockAttempt = 0
+$lockAcquired = $false
+
+# Overnight-safety requirement (CC, 2026-08-27): this script is the one shared entry point every
+# seat uses, and with the owner asleep nobody can escalate a bad hard-stop until morning. If the
+# new acquire path throws anything UNEXPECTED (not the ordinary "someone else holds it" case,
+# which Try-AcquireUnityBatchLock already handles internally), fall back to the old, simpler
+# check-then-create logic and proceed loudly rather than exiting silently. A noisy degraded run
+# (with its own small race window, same as every run before tonight) beats every seat being
+# blocked until a human wakes up.
+try {
+    while (-not $lockAcquired) {
+        $lockAttempt++
+
+        if (Try-AcquireUnityBatchLock -Path $lockFile -OwnerPid $PID) {
+            # Won the file, but a live interactive Editor (Working Hands, no lock file of its own)
+            # still needs exclusive Unity access - check AFTER acquiring so nothing else can slip
+            # in between this check and actually launching Unity below.
+            if (Get-Process -Name "Unity" -ErrorAction SilentlyContinue) {
+                Remove-Item $lockFile -Force -ErrorAction SilentlyContinue
+                Write-Host "Unity is already running outside this lock (likely Working Hands' interactive Editor) - releasing the lock and waiting."
+            }
+            else {
+                $lockAcquired = $true
+                break
+            }
+        }
+        else {
+            # Someone else holds the file. Check whether its recorded owner is actually still
+            # alive before waiting - a crashed/killed run must not block everyone indefinitely.
+            if (Test-Path $lockFile) {
+                try {
+                    $lockInfo = Get-Content $lockFile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                    $lockPid = $lockInfo.pid
+                    $lockStillAlive = $lockPid -and (Get-Process -Id $lockPid -ErrorAction SilentlyContinue)
+                    if (-not $lockStillAlive) {
+                        Write-Host "Stale lock file found (owner process $lockPid no longer running) - reclaiming it."
+                        Remove-Item $lockFile -Force -ErrorAction SilentlyContinue
+                        continue  # retry the atomic acquire immediately, no backoff for a reclaim
+                    }
+                }
+                catch {
+                    # Lock file mid-write by whoever just created it, or transiently unreadable -
+                    # treat as live and fall through to the normal backoff below.
+                }
+            }
+        }
+
+        if ((Get-Date) -ge $lockDeadline) {
+            Write-Error "Starved waiting for the Unity batch lock after $lockAttempt attempts over $lockWaitCeilingMinutes minutes. Another seat is holding it continuously - check tools/.unity_batch.lock and whoever's PID it names."
+            exit 1
+        }
+
+        # Randomised exponential backoff (base doubles each attempt, capped at 30s, plus up to
+        # 50% jitter) - the desynchronising mechanism itself, not just a longer fixed wait.
+        $baseDelaySeconds = [Math]::Min(30, [Math]::Pow(2, [Math]::Min($lockAttempt, 5)))
+        $jitterSeconds = Get-Random -Minimum 0.0 -Maximum ($baseDelaySeconds * 0.5)
+        Start-Sleep -Seconds ($baseDelaySeconds + $jitterSeconds)
+    }
+}
+catch {
+    Write-Host "WARNING: the new lock-acquire path threw an unexpected error ($($_.Exception.Message)) - falling back to the old simple check-then-create logic rather than blocking. This run has the SAME small race window every run had before tonight's fix; that is an accepted, known-survivable degradation, not a silent failure."
+    $lockAcquired = $false
+    if (Test-Path $lockFile) {
+        $lockInfo = Get-Content $lockFile -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+        $lockPid = $lockInfo.pid
+        $lockOwner = $lockInfo.owner
+        $lockStillAlive = $lockPid -and (Get-Process -Id $lockPid -ErrorAction SilentlyContinue)
+        if ($lockStillAlive) {
+            Write-Error "Unity is locked by another seat ($lockOwner, watcher PID $lockPid, since $($lockInfo.startedAt)). Wait for it to finish - do not delete the lock file or start a run anyway."
+            exit 1
+        }
+        else {
+            Write-Host "Stale lock file found (owner process $lockPid no longer running) - clearing it and proceeding."
+            Remove-Item $lockFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if (Get-Process -Name "Unity" -ErrorAction SilentlyContinue) {
+        Write-Error "Unity is already running (no lock file, so this wasn't started by this script - likely Working Hands' interactive Editor). Close it fully before starting a batch run (exclusive project lock)."
         exit 1
     }
-    else {
-        Write-Host "Stale lock file found (owner process $lockPid no longer running) - clearing it and proceeding."
-        Remove-Item $lockFile -Force -ErrorAction SilentlyContinue
-    }
+    @{ pid = $PID; owner = "coding-seat-batch-wrapper"; startedAt = (Get-Date).ToString("o") } | ConvertTo-Json | Set-Content -Path $lockFile -Encoding utf8
+    $lockAcquired = $true
 }
-
-if (Get-Process -Name "Unity" -ErrorAction SilentlyContinue) {
-    Write-Error "Unity is already running (no lock file, so this wasn't started by this script - likely Working Hands' interactive Editor). Close it fully before starting a batch run (exclusive project lock)."
-    exit 1
-}
-
-@{ pid = $PID; owner = "coding-seat-batch-wrapper"; startedAt = (Get-Date).ToString("o") } | ConvertTo-Json | Set-Content -Path $lockFile -Encoding utf8
 
 try {
 

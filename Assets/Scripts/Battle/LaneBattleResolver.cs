@@ -84,8 +84,22 @@ namespace MyriadOfDragons.Battle
             // dead-card prune below. Simultaneous triggers resolve Front->Middle->Back (the
             // caller's own ResolutionOrder loop already gives that) then slot order (Cards' own
             // list order, preserved by iterating it directly) - no separate ordering needed here.
-            ResolveTriggers(laneA, laneB, healthBeforeA);
-            ResolveTriggers(laneB, laneA, healthBeforeB);
+            // SIMULTANEOUS. Both sides' triggers are PLANNED against the same post-damage state,
+            // then applied together.
+            //
+            // This used to be two sequential ResolveTriggers calls, and because BattleController
+            // always passes the player as sideA, player triggers resolved first in every lane, of
+            // every tick, of every match. A player trigger that killed an enemy unit stopped that
+            // unit's own trigger from ever firing - a hidden first-mover advantage, and a direct
+            // violation of MOS_v1.1 section 20's "no initiative in simultaneous combat".
+            //
+            // Reversing or alternating the order would only move the bias to the other side. The
+            // only order-independent answer is to decide every effect from one shared snapshot
+            // before any of them lands.
+            var plannedEffects = new List<TriggerEffect>();
+            PlanTriggers(laneA, laneB, healthBeforeA, plannedEffects);
+            PlanTriggers(laneB, laneA, healthBeforeB, plannedEffects);
+            ApplyTriggerEffects(plannedEffects);
 
             // Wave 3 lock (Vulnerability): "consumed on trigger, expires next clash if unused".
             // A mark that triggered this clash was already cleared inside ApplyDamage, so this
@@ -220,7 +234,49 @@ namespace MyriadOfDragons.Battle
         /// `opposingLane` and each other. A unit already used, or currently Silenced, is skipped
         /// entirely - Silence's own "unresolved triggers can't enter the queue" contract, since
         /// this pass IS the queue.</summary>
-        private static void ResolveTriggers(LaneState selfLane, LaneState opposingLane, Dictionary<BattleCardInstance, int> healthBeforeThisClash)
+        /// <summary>One decided-but-not-yet-applied trigger effect. Deliberately a plain value:
+        /// the whole point is that nothing mutates a unit until every side has been consulted.</summary>
+        private readonly struct TriggerEffect
+        {
+            public readonly BattleCardInstance Target;
+            public readonly int Damage;
+            public readonly int Heal;
+
+            private TriggerEffect(BattleCardInstance target, int damage, int heal)
+            {
+                Target = target;
+                Damage = damage;
+                Heal = heal;
+            }
+
+            public static TriggerEffect Hit(BattleCardInstance target, int amount) => new TriggerEffect(target, amount, 0);
+            public static TriggerEffect Mend(BattleCardInstance target, int amount) => new TriggerEffect(target, 0, amount);
+        }
+
+        /// <summary>Applies every planned effect. Deaths land only here, so a unit killed by this
+        /// batch still had its own trigger planned - which is exactly what makes the resolution
+        /// simultaneous rather than merely reordered.</summary>
+        private static void ApplyTriggerEffects(List<TriggerEffect> effects)
+        {
+            foreach (TriggerEffect effect in effects)
+            {
+                if (effect.Target == null) continue;
+                if (effect.Damage > 0) effect.Target.ApplyDamage(effect.Damage);
+                if (effect.Heal > 0) effect.Target.Heal(effect.Heal);
+            }
+        }
+
+        /// <summary>
+        /// Decides this lane's trigger effects WITHOUT applying them.
+        ///
+        /// Every target is chosen from the state as it stands after combat damage and before ANY
+        /// trigger has landed, so both sides read the same board. Trigger consumption
+        /// (MarkTriggerUsed) still happens here: the trigger fires either way, and whether its
+        /// victim survives long enough to feel it is not the firing unit's business.
+        /// </summary>
+        private static void PlanTriggers(
+            LaneState selfLane, LaneState opposingLane,
+            Dictionary<BattleCardInstance, int> healthBeforeThisClash, List<TriggerEffect> into)
         {
             foreach (BattleCardInstance unit in selfLane.Cards)
             {
@@ -233,7 +289,7 @@ namespace MyriadOfDragons.Battle
                         // beyond "a living opposing unit in the lane", so this picks the first one
                         // in slot order, the same fallback order everything else in this file uses.
                         BattleCardInstance hexTarget = opposingLane.Cards.FirstOrDefault(c => c.IsAlive);
-                        hexTarget?.ApplyDamage(1);
+                        if (hexTarget != null) into.Add(TriggerEffect.Hit(hexTarget, 1));
                         unit.MarkTriggerUsed();
                         break;
 
@@ -257,7 +313,7 @@ namespace MyriadOfDragons.Battle
                                 mostDamaged = friendly;
                             }
                         }
-                        mostDamaged?.Heal(1);
+                        if (mostDamaged != null) into.Add(TriggerEffect.Mend(mostDamaged, 1));
                         break;
 
                     // ShieldDiscipline/AshRebirth are reactive (BattleCardInstance.ApplyDamage
