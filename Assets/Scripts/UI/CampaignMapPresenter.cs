@@ -2342,6 +2342,13 @@ namespace MyriadOfDragons.UI
             statusPlateRect.pivot = new Vector2(0.5f, 1f);
             statusPlateRect.sizeDelta = new Vector2(statusPlateW, statusPlateH);
             statusPlateRect.anchoredPosition = new Vector2(0f, -70f);
+            Image statusFill = statusPlate.AddComponent<Image>();
+            statusFill.sprite = UISharedFoundation.CreateRoundedPanelSprite(
+                new Color(0.03f, 0.035f, 0.05f, 0.95f),
+                new Color(0.03f, 0.035f, 0.05f, 0.95f), cornerRadius: 1);
+            statusFill.type = Image.Type.Simple;
+            statusFill.color = Color.white;
+            statusFill.raycastTarget = false;
             UISharedFoundation.AddLocalGradientScrim(
                 statusPlate.transform,
                 new Vector2(statusPlateW * 0.5f, statusPlateH * 0.5f),
@@ -2687,6 +2694,13 @@ namespace MyriadOfDragons.UI
             plateRect.pivot = new Vector2(0.5f, 1f);
             plateRect.sizeDelta = new Vector2(plateW, plateHeightPx);
             plateRect.anchoredPosition = new Vector2(0f, -topInsetPx);
+            Image plateFill = plate.AddComponent<Image>();
+            plateFill.sprite = UISharedFoundation.CreateRoundedPanelSprite(
+                new Color(0.03f, 0.035f, 0.05f, 0.95f),
+                new Color(0.03f, 0.035f, 0.05f, 0.95f), cornerRadius: 1);
+            plateFill.type = Image.Type.Simple;
+            plateFill.color = Color.white;
+            plateFill.raycastTarget = false;
             UISharedFoundation.AddLocalGradientScrim(
                 plate.transform,
                 new Vector2(plateW * 0.5f, plateHeightPx * 0.5f),
