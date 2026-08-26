@@ -7109,3 +7109,16 @@ justification felt sound right up until it was disproven" when WH fixed it prope
 Circuit (all 3 trials + the cycle-bonus fix), Combat Resolution VFX rail, and the Avatar-XP-removal/
 Materials rework are shipped and full-suite verified. CR's independent verification pass on this
 exact fix is the one real thing still in flight.
+
+## CR's independent verification of 4b58058 CLOSES the Materials cycle-bonus thread for good (2026-08-26)
+
+1785 total, 1782 passed, 0 failed, 3 skipped, 0 compile errors, HEAD unchanged `263ee5d`. Not a
+rubber-stamp - CR read the actual assertion body rather than trusting the test name:
+`materialsEarnedTodayUtc == trialsTotal + MaterialsForSevenCircuitCycle` (full uncapped 275),
+confirmed `MaxMaterialsPerDay >= trialsTotal + bonus` regression guard exists, and independently
+re-derived `50×3+125=275` matching BS's lock exactly, no drift. Thread genuinely closed - Loyalty
+ladder, Solo Circuit, Combat Resolution VFX rail, and the Avatar-XP-removal/Materials rework are all
+shipped and now doubly verified (builder + independent reviewer).
+
+Real open items remaining: the DeckBuilder UI hang (deprioritized by owner, on hold), and an AD audit
+in progress on DeckBuilder's design-token chrome (owner dispatching directly, not yet reported back).
