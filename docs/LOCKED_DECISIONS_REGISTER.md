@@ -1936,16 +1936,36 @@ to prevent, and it has now happened three times in one night** - the rule is cle
 through compaction. Worth restating at the top of any future overnight queue rather than assuming it
 carries.
 
-**STILL OPEN - the Shop crowding gate.** CR's session compacted before capturing Shop at 1728x1080,
-so it was never taken. **The 23-screen canvas rollout remains HALTED.** Re-dispatched to CR with the
-decision rule delegated: Shop clean at 1728 = gate closed and rollout unhalted by CR's own call;
-Shop crowded = stop, and the fix becomes proportional sizing rather than fixed pixels.
+**SHOP CROWDING GATE: CLOSED 2026-08-27. 23-SCREEN CANVAS ROLLOUT UNHALTED.**
 
-**Home at 1728 was captured and is CLEAN** - no crowding, no touching siblings. But CR correctly
-flagged it as weak evidence: Home's heaviest element is a single full-bleed card with generous
-margins and a 5-button bar with real 8px gaps, so it absorbs ~10% compression easily. **Shop is the
-genuine stress case** - four fixed-width pack cards (235/236/237/218 units) in a row plus four
-640x150 stamina rows.
+CR measured Shop at 1728x1080 (the compressed size a 2560x1600 tablet produces under match=1) AND
+captured it visually. Not assumed either way.
+
+```
+canvas world bounds x=[-864, 864]; all 8 ShopGrid children well inside
+4 gem-pack cards: widths 211.5 / 212.4 / 213.3 / 196.2, ~48 unit gaps - no touching
+4 stamina rows:   width 576 each, 15-20 unit vertical gaps - no overlap
+rightmost stamina right edge 1130.0 vs canvas 1184.0  -> 54 unit margin
+leftmost pack card -508.0     vs canvas -544.0        -> 36 unit margin
+anyOverlap = False, anyOffCanvas = False - by measurement AND by eye on the PNG
+```
+
+**So the design-space compression is real but tolerable**, even on the densest fixed-width row layout
+we have. Home was clean but weak evidence; Shop is the genuine stress case and it also passes. The
+crowding theory is closed - **no proportional-sizing rework needed**, the two-canvas pattern stands as
+specified.
+
+**Stale doc caught in passing:** the Shop art inventory records stamina rows as **640** wide; the real
+current width is **576**. `docs/SHOP_ART_INVENTORY.md` is wrong on that figure - anything sized against
+it would be ~11% off.
+
+**Method note worth reusing:** a LIVE `CanvasScaler` silently recomputes the canvas rect from the real
+EditMode screen size and **discards a manual `sizeDelta` injection**. The scaler component must be
+DISABLED before injecting a simulated size. CR hit this on Home, caught it by measuring the canvas's
+own world corners rather than trusting the injection, and applied the fix here. Any future
+simulated-resolution measurement needs the same step.
+
+
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
