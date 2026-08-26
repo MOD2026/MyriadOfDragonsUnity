@@ -6458,3 +6458,21 @@ losing a qualifying card removes eligibility safely; daily/weekly accounting unc
 reward on pool changes).
 
 Dispatching to VS - real code change to Circuit's own file, no overlap with WH/CR's current work.
+
+## Mail-screen theory DISPROVEN, both CR queue items closed (2026-08-26, commit f135c76)
+
+Verified via `git show --stat`, matches exactly. **Real negative result, not a shrug:** CR wrote an
+actual repro test (`MailScreenAfterStalePopupTests.cs`) targeting the theorized bug shape (jump to
+Mail straight from a Guild Hall popup without using its own Back button) rather than declaring "no
+bug found" without trying. It passes - `MailInboxCanvas` was already in the cleanup master list from
+the start (unlike `TacticalPuzzleCanvas`/`SoloCircuitCanvas`, which genuinely were missing), so the
+orphan-canvas theory doesn't hold for Mail specifically. 4/4 pass. **Root cause of any genuine
+Mail-freeze report remains unfound** - this closes the theory, not the underlying symptom if it
+recurs.
+
+Two-test recheck also closed: both `BackdropImages_NeverBlockRaycasts` and
+`Chapter2CampaignContentTests.Stage2_3_IsWinnable` pass clean at a fresh pinned HEAD (`f135c76` ->
+`ab4146e`) - confirms both were transient/order-dependent noise from the earlier moving-HEAD
+bisection run, not real regressions.
+
+CR now genuinely idle - both queued items closed, nothing next assigned yet.
