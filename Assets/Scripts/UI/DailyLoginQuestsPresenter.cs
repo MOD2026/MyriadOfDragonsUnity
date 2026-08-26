@@ -196,11 +196,12 @@ namespace MyriadOfDragons.UI
                 dayPlateRect.pivot = new Vector2(0.5f, 0.5f);
                 dayPlateRect.sizeDelta = new Vector2(nodeW * 0.9f, dayPlateH);
                 dayPlateRect.anchoredPosition = new Vector2(nodeW * 0.5f, nodeH * 0.84f);
-                UISharedFoundation.AddSemiTransparentScrimPanel(
-                    dayPlate.transform,
-                    new Vector2(nodeW * 0.45f, dayPlateH * 0.5f),
-                    new Vector2(nodeW * 0.9f, dayPlateH),
-                    UIDesignTokens.FrameTier.Tier1Hero);
+                UISharedFoundation.AddLocalGradientScrim(
+                    dayPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    dayPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
                 Text dayLabel = UISharedFoundation.CreateText(dayPlate.transform, "DayIndex", $"Day {i + 1}",
                     UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true,
                     new Vector2(60f, 22f));
@@ -276,11 +277,14 @@ namespace MyriadOfDragons.UI
                 // Quest panel 0.44×0.80 of canvas; each row ~0.24 of panel height.
                 float rowW = 0.44f * 1920f;
                 float rowHeightPx = 0.80f * 1080f * 0.24f;
-                UISharedFoundation.AddSemiTransparentScrimPanel(
-                    row.transform,
-                    new Vector2(rowW * 0.61f, rowHeightPx * 0.33f),
+                UISharedFoundation.AddLocalGradientScrim(
+                    row.transform, new Vector2(rowW * 0.61f, rowHeightPx * 0.33f),
                     new Vector2(rowW * 0.16f, rowHeightPx * 0.36f),
-                    UIDesignTokens.FrameTier.Tier2Section);
+                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                UISharedFoundation.AddLocalGradientScrim(
+                    row.transform, new Vector2(rowW * 0.61f, rowHeightPx * 0.33f),
+                    new Vector2(rowW * 0.16f, rowHeightPx * 0.36f),
+                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
                 _questProgressTexts[i] = UISharedFoundation.CreateText(row.transform, "ProgressCopy",
                     "0 / 1", UITextRole.Caption, TextAnchor.MiddleLeft,
                     Color.white, true, new Vector2(120f, 22f));
