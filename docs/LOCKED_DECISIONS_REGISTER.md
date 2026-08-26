@@ -25,6 +25,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-26 | Chapter production HELD at 18 - **owner explicitly confirmed, not just unanswered**: too much UI is still broken (borders/boxes not matching mockups) to justify more content before more polish. Do NOT re-ask this as if undecided. | Owner explicitly lifts it |
 | 2026-08-26 | **UI-fixing is the current top priority across all rooms** - owner flagged real frustration at slow visible progress on border/box/mockup-mismatch bugs. CC should proactively hunt for this bug class (reachable screen + real approved art + Load() never called) via read-only diagnosis and batch-dispatch findings, not wait for one-off reports. | Owner signals priority has shifted |
 | 2026-08-25 | WH batch size ~50% up from single-atom tasks; owner is LIVE (15-30 min deliverable band) | Owner signals stepping away (then batch freely) |
+| 2026-08-26 | **WH's Unity runs capped at 15-20 minutes per task while the owner is actively present** - a long WH run holds `.unity_batch.lock`, blocking every other room's own runs. Owner will explicitly say when stepping away, which lifts this back to free-batching. Applies to WH specifically (its Unity batch runs are the long-holding ones); does not change VS/CR's own run discipline. | Owner signals stepping away, or explicitly lifts it |
 | 2026-08-25 | Frozen-file edits (PlayerProfile.cs etc.) need a vetted, locked field list BEFORE the edit - per-case, never blanket | Standing rule, does not lift |
 | 2026-08-25 | Empire Defense: design-only, behind evidence gate - no build/art/story dispatch | Memory Expedition live + gate criteria met (10+ wks) |
 | 2026-08-25 | Windstep ablation conclusions pre-0fdd193 are VOID (two stacked confounds: enemyTier spellbook bug, then gate-probability bug) - only 0fdd193's numbers are real | Permanent |
@@ -6556,3 +6557,23 @@ surfaces without spamming. Dispatching this specific follow-up to CR.
 
 Full suite run pending on a live lock (PID 5668) - CR correctly not forcing it, will report real
 numbers once clear.
+
+## WH: restyle + telemetry deadline both landed real; honest correction on the Shop hang theory (2026-08-26, commits 2626f10/a35d84e)
+
+Both verified via `git show --stat`, match exactly. Home/DeckBuilder/CampaignMap restyled onto
+frozen tokens + 9-slice panels (Shop correctly excluded, matches CR's own finding it needs no
+migration); `RetentionTelemetryOutbox.FlushAsync` now has a real deadline (linked `CancelAfter` +
+`Task.WhenAny`, covers a gateway that ignores its own cancellation token) with a real hang-repro
+test proving it returns within the deadline.
+
+**Honest correction, not a silent claim of victory:** the deadline fix is real and correct, but WH
+tested it against the actual full continuous suite and it still hangs (exit 124) - **at
+`ShopV1ChromeTests`'s successful-purchase path, which does NOT call `FlushAsync` at all.** The
+telemetry-timeout theory explained a real bug and fixed it, but is not the full explanation for the
+observed suite hang - there's a second, still-unfound stall, tentatively resembling a Save-path
+stall under deep batch load rather than the telemetry chain. WH correctly stopped further Unity runs
+rather than keep burning time chasing it blind, per the owner's new 15-20 min cap.
+
+**New standing constraint, locked:** WH's own Unity batch runs are capped at 15-20 minutes while the
+owner is actively present (a long run holds the shared `.unity_batch.lock`, blocking every other
+room). Lifts when the owner steps away.
