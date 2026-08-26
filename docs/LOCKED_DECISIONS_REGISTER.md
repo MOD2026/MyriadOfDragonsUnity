@@ -7542,3 +7542,31 @@ session. CR is clear to proceed with its 24-site reorder as approved.
 mesh-type theory was raised and self-retracted (Unity forces FullRect for any bordered sprite, the
 23-vs-7 meta correlation was real but runtime-inert), and the AvatarStrike sprite path bug (loads
 from outside any Resources folder) is real and now instrumented.
+
+## CR closes ALL THREE fronts of the chrome bug in one pass - real numbers, verification queued (2026-08-26)
+
+**22 presenter call sites reordered** (position-then-apply, the proven EmpirePresenter pattern):
+AvatarPresenter(1), BattlePassPresenter(1), BazaarPresenter(1), ChatSocialPresenter(1),
+CollectionPresenter(3), DailyLoginQuestsPresenter(3), DeckBuilderPresenter(2), EmpirePresenter(2,
+incl. the original), FriendsPresenter(1), MailInboxPresenter(1), SettingsPresenter(4),
+VipSubscriptionPresenter(2), plus `UISharedFoundation.CreateModalShell` itself - the shared modal
+helper carried the identical bug. Checked `CreateFramedPanel` too: already correct (sets `sizeDelta`
+before calling `ApplyFramedPanel` internally), confirmed via direct read at line 439 - no reorder
+needed there.
+
+**Original scope item finally landed:** `HomeV3UiLibrary.ApplyNeutralActionButton`/
+`ApplyPrimaryActionButton`'s real-sprite branches now call `FitSlicedBorderToRect` too - this was
+pending since the very first dispatch and got folded into the same pass. Both helpers already
+position-before-apply at their real call sites (verified via DeckBuilder's Btn_Confirm/Recommended,
+MailInbox's Btn_Back) - the opposite pattern from `ApplyFramedPanel`'s dominant bug, so only the
+missing fit-call needed adding, not a reorder.
+
+**The CONFIRM/SAVE DECK primary-CTA fix also landed in the same pass** -
+`DeckBuilderPresenter.cs`'s Btn_Confirm is now `ApplyPrimaryActionButton`. All three original findings
+from tonight (sprite-load truncation, border-fit-before-positioning, and the neutral/primary CTA
+mismatch) are now addressed in source, pending verification.
+
+**Blocked on verification only** - `.unity_batch.lock` live under another seat's run (PID 15908,
+22:55:04). Full suite plus four targeted classes (`SlicedBorderFitTests`, `UISharedFoundationTests`,
+`EmpireLayoutTests`, `DeckBuilderReleaseGateTests`) queued to catch any regression across ~22
+mechanical edits. Real numbers pending - nothing claimed as done until that run reports.
