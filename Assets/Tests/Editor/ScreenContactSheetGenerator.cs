@@ -31,8 +31,17 @@ namespace MyriadOfDragons.Tests
     {
         private readonly List<UnityEngine.Object> _spawned = new List<UnityEngine.Object>();
         private string _scratchSaveDir;
-        private const int CaptureWidth = 960;
-        private const int CaptureHeight = 540;
+        // THE LOCKED TARGET RESOLUTION - landscape 1920x1080 (CLAUDE.md, 2026-08-27).
+        // Individual screen PNGs are captured at full size because that is the geometry the
+        // owner reviews and the validator measures; both must describe the same frame.
+        private const int CaptureWidth = 1920;
+        private const int CaptureHeight = 1080;
+
+        // The tiled sheet halves each tile. 24 screens at full size would be a 9600x5400
+        // texture - ~155MB - which is a real risk of failing the run on memory rather than on
+        // anything about the UI. The sheet is for spotting which screen to open; the full-size
+        // PNG beside it is for actually looking.
+        private const int SheetTileDivisor = 2;
         private const int TileCols = 5;
 
         [SetUp]
@@ -178,9 +187,11 @@ namespace MyriadOfDragons.Tests
 
         private Texture2D BuildTiledSheet(List<(string name, Texture2D tex)> shots)
         {
+            int tileW = CaptureWidth / SheetTileDivisor;
+            int tileH = CaptureHeight / SheetTileDivisor;
             int rows = Mathf.CeilToInt(shots.Count / (float)TileCols);
-            int sheetW = TileCols * CaptureWidth;
-            int sheetH = rows * CaptureHeight;
+            int sheetW = TileCols * tileW;
+            int sheetH = rows * tileH;
             var sheet = new Texture2D(sheetW, sheetH, TextureFormat.RGB24, false);
 
             var blank = new Color[sheetW * sheetH];
@@ -191,12 +202,26 @@ namespace MyriadOfDragons.Tests
             {
                 Texture2D tile = shots[i].tex;
                 if (tile == null) continue;
+
+                Color[] full = tile.GetPixels();
+                var small = new Color[tileW * tileH];
+                for (int y = 0; y < tileH; y++)
+                {
+                    int srcRow = y * SheetTileDivisor * CaptureWidth;
+                    int dstRow = y * tileW;
+                    for (int x = 0; x < tileW; x++)
+                    {
+                        small[dstRow + x] = full[srcRow + x * SheetTileDivisor];
+                    }
+                }
+
                 int col = i % TileCols;
                 int row = i / TileCols;
-                int x = col * CaptureWidth;
-                int y = sheetH - (row + 1) * CaptureHeight; // top-left origin visually
-                sheet.SetPixels(x, y, CaptureWidth, CaptureHeight, tile.GetPixels());
+                int px = col * tileW;
+                int py = sheetH - (row + 1) * tileH; // top-left origin visually
+                sheet.SetPixels(px, py, tileW, tileH, small);
             }
+
             sheet.Apply();
             return sheet;
         }

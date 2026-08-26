@@ -45,11 +45,13 @@ namespace MyriadOfDragons.Tests
         /// ignore it.</summary>
         private const float Tolerance = 1f;
 
-        /// <summary>Matches ScreenContactSheetGenerator exactly. The gate must measure the
-        /// same geometry the reviewed screenshot shows, or the two can disagree with no way to
-        /// tell which is right.</summary>
-        private const int CaptureWidth = 960;
-        private const int CaptureHeight = 540;
+        /// <summary>THE LOCKED TARGET RESOLUTION - landscape 1920x1080, the game's fundamental
+        /// (CLAUDE.md, 2026-08-27). Measuring at any other size risks reporting defects that only
+        /// exist at that size: text clipping in particular is resolution-dependent, because a
+        /// CanvasScaler scales glyphs and boxes by different rules. The contact sheet renders the
+        /// same 16:9 frame, so the gate and the reviewed screenshot still describe one geometry.</summary>
+        private const int CaptureWidth = 1920;
+        private const int CaptureHeight = 1080;
 
         [SetUp]
         public void SetUp()
