@@ -6175,3 +6175,20 @@ already landed (`60793d0`). This is the exact failure mode the standing verifica
 exists to catch - a confident, detailed, well-formatted report is not evidence of a correct one.
 AD is not exempt from verification just because its earlier Shop/Home findings were real and
 checked out - every finding gets checked, every time, this session included.
+
+## WH batch: 3 real pieces landed while owner away, all verified (2026-08-26)
+
+1. Home 2-ticket fix (`6ad2870`, verified) - tutorial AlertIcon well reserved (0.01-0.07), FeatureCopy
+   shifted, `Debug.LogWarning` added on silent sprite-load fallbacks (HomeV3/gear/Avatar/Empire tile).
+2. DeckBuilder - independently re-verified WH's own run against CR's already-closed `60793d0` fix
+   (3/3 on its own filter), no new work needed, correctly recognized as already done rather than
+   redoing it.
+3. SoloCircuit layout coverage (`5e6df19`, verified) - closes the LAST remaining UI presenter with
+   zero paint-order coverage, matching the same proven pattern as every other layout-test sweep
+   tonight. 15/15 including DeckBuilderReleaseGate.
+
+**Real status: every UI presenter in the project now has paint-order test coverage.** Confirmed
+`STRUCTURE LEVEL` copy already landed (not open, tests assert it). Correctly did NOT touch the
+Shop hang (dispatched separately, not yet reported) or the Metagame-owned Btn_Back predictive check
+(CR's own flag, still blocked on the ownership boundary) - named both as real remaining items rather
+than silently dropping them.
