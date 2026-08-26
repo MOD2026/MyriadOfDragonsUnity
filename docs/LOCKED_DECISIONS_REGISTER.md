@@ -4409,3 +4409,19 @@ preserving all 7 thresholds.
 
 Real next step: owner sign-off on the field (same pattern as every other frozen-file addition this
 session), then dispatch to a coding room.
+
+## CORRECTION: Loyalty redemption lock was incomplete - real whale-tier proportionality gap found (2026-08-26)
+
+**Real gate failure, owner caught it:** the prior lock only benchmarked the general MECHANIC (one-
+time claimable milestones) against real games, never ran the standing F2P/whale diagnostic on the
+actual NUMBERS - a repeated miss of the same hard gate, now corrected.
+
+**Real math, done now:** 8,000 points = ~80,000 lifetime Gems spent (genuine whale-tier spend, at
+1pt/10Gems). The reward at that tier: 2 Stamina claims (100 Stamina) + 2,500 Gold + 50 Avatar XP.
+Compare against Solo Collection Circuit's own real reward, free to any F2P player: up to 1,250
+Gold/day. **The whale's lifetime-loyalty top reward for ~80,000 Gems spent is worth less than 2
+days of a F2P player's free daily grind.** Not a shortcut/exploit risk (too generous) - the opposite:
+the top tier doesn't feel proportionate to the spend required to reach it, undercutting the entire
+purpose of a loyalty program (making real spenders feel meaningfully recognized).
+
+**Not re-locking until BS answers this.** Routed back as a real ask, not accepted as final.
