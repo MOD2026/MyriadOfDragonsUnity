@@ -6131,3 +6131,13 @@ hang (not a crash, not a red test) in EditMode usually means an infinite loop, a
 synchronous call, or a deadlock somewhere in initialization/construction - worth a focused look now
 that it's a 3x-repeated pattern rather than continuing to route around it with filtered runs
 indefinitely.
+
+## CR standing down cleanly - genuinely no dispatchable work right now, not idling by neglect (2026-08-26)
+
+CR's own territory (restyle rollout, DeckBuilder fix, primary-button wiring) is fully closed. Every
+remaining real thread is blocked on something outside CR's control: Home/Shop/DeckBuilder/
+CampaignMap ownership needs the owner (away), BS's Loyalty-curve ask needs VS's voucher wiring, and
+the Shop hang is already dispatched to WH - putting CR on the same hang risks a repeat of the exact
+parallel-collision just cleaned up on DeckBuilder. Correctly not manufacturing scope. Standing down
+until the boundary resolves or something new surfaces - this is the legitimate "nothing
+dispatchable" case the standing order already accounts for, not a room going idle by default.
