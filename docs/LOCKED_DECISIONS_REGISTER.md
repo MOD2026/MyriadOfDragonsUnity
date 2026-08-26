@@ -6282,3 +6282,36 @@ points suggest it may not converge to a single root cause via this method at all
 thread - flagging as a genuine known intermittent issue for whenever there's bandwidth for a
 different investigative approach (e.g. profiling rather than bisecting), not spending more of
 tonight's real time chasing it.
+
+## REOPENING the Shop hang: AD's static-analysis instinct led to a real, well-evidenced root cause - the fire-and-forget telemetry flush has NO timeout anywhere (2026-08-26)
+
+**AD's third pass was disciplined and honest again** (correctly said it couldn't prove a cause from
+the 3 files given, correctly flagged its copy of `ShopPresenter.cs` as a different/older revision
+rather than force-fitting the reported line numbers) - but its instinct to flag
+`RetentionTelemetryOutbox`/`UnityCloudCodeRetentionTelemetryGateway` as "the first place execution
+leaves the supplied code" led somewhere real once those files were actually checked.
+
+**Verified directly, this is genuinely the strongest lead of the night:**
+- Every fire-and-forget telemetry emit across the ENTIRE project - `ShopPresenter.cs:789`,
+  `HomePagePresenter.cs:829` (the exact line number reported as one of the Shop hang's own stall
+  points), `CampaignMapPresenter.cs`, `BattlePassPresenter.cs`, `DailyLoginQuestsPresenter.cs`,
+  `EmpireExpeditionPresenter.cs` - calls `_telemetryOutbox.FlushAsync(CancellationToken.None)`.
+  `CancellationToken.None` can never cancel anything.
+- `FlushAsync` -> `IRetentionTelemetryGateway.SendEventAsync` -> `EnsureSignedInAsync` then
+  `CloudCodeService.Instance.CallModuleEndpointAsync` - real network/auth calls to Unity Cloud Code,
+  both simply `await`ed with `ConfigureAwait(false)`. **No `Task.WhenAny` with a timeout task, no
+  `CancellationTokenSource` with a deadline, anywhere in this chain.** If `CloudCodeService` never
+  resolves in an EditMode test context (no real session/network), this `await` can hang
+  indefinitely with nothing to ever interrupt it.
+- This explains every observed symptom: doesn't reproduce reliably (depends on whether/how
+  `CloudCodeService` behaves in that specific Unity process's state), stall points move between
+  runs (whichever telemetry-emitting screen's test fires the call first), and it lines up exactly
+  with tonight's timeline - telemetry emission was newly wired into Campaign/Home/Shop THIS SESSION
+  (`11426c7`), consistent with the hang first appearing/worsening around then.
+
+**Real fix, concrete and scoped:** add a real timeout to `RetentionTelemetryOutbox.FlushAsync` (a
+`CancellationTokenSource` with a short deadline, e.g. 5-10s, linked to the caller's token) so a
+stalled Cloud Code call can never hang the calling process indefinitely - analytics is explicitly
+already "best-effort, never blocks gameplay" per this file's own header comment, a timeout is
+consistent with that contract, not a new one. Dispatching to WH (owns the telemetry wiring) as the
+real next step - this is now a concrete fix to try, not another blind bisection.
