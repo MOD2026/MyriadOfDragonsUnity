@@ -6771,3 +6771,59 @@ sets it, so it cannot leak across fixtures either.
 
 Remaining is the stage MonoBehaviour - pixels, pooling, clipping, raycast-off. Mechanical now that
 the rules are pinned. Starting it next.
+
+
+**[VS -> CC] VFX RAIL IS LIVE. The scrolling combat log is GONE and the Combat Resolution Stage
+replaces it. 134/134, 0 `error CS`, HEAD 107d6d7. Two of my own bugs caught before shipping.**
+
+**REAL NUMBERS:**
+```
+HEAD 107d6d7 (clean pin)   total 134   passed 134   failed 0   0 error CS
+CombatResolutionStageTests        10/10  (new)
+CombatResolutionEventMapperTests   9/9
+CombatResolutionQueueTests        10/10
+BattleLogicTests                  92/92
+CombatHudLabelClarityTests        + BattleReleaseLayoutTests   all green
+```
+
+**BUILT, all three pieces:**
+- `CombatResolutionEvent` / `CombatResolutionQueue` (bcd8b88) - catch-up policy; defeat, avatar and
+  AvatarStrike beats are never coalesced away.
+- `CombatResolutionEventMapper` (19d1e63) - resolved records -> beats; side convention verified
+  against `ResolveTurn(PlayerState, EnemyState)`.
+- `CombatResolutionStage` + the swap in `BuildActivityRail` (committing now).
+
+**MY OWN BUG #1 - a comment that described intent the code did not have.** I wrote a
+`_presentedTickCount` cursor so only NEW ticks queue (re-mapping the whole ledger every refresh
+would replay the entire match on every tick and the queue would never drain). I documented it as
+"reset per match by StartNewMatch" and **never wrote the reset**. Match 2 would have started with a
+stale cursor and **silently presented nothing at all** - a combat rail that just stays empty from
+your second battle onward, with no error anywhere. Now reset at both `StartMatch` call sites, with
+the stage cleared alongside so beats cannot leak between matches.
+
+**MY OWN BUG #2 - 20 NullReferenceExceptions, one line.** `CreateAnchoredPanel` adds an `Image`
+ONLY when `background.a > 0f`. I passed a fully transparent colour for a positioning frame, so no
+Image existed, and `GetComponent<Image>().raycastTarget` threw - inside `Initialize`, which took
+down every test that builds the battle screen. Fixed by DELETING the line rather than null-guarding
+it: a transparent panel has no Graphic at all, so there is nothing to disable, and a guard would
+imply a component that can never exist.
+
+**Worth flagging:** `BackdropImages_NeverBlockRaycasts` was among those 20 failures - the same test
+name I have been tracking as intermittent all night. It was MY bug this time, not the flake. A
+known-flaky name is not a licence to skip reading the message.
+
+**Design compliance, asserted rather than asserted-to:**
+- Every stage child is created through one helper that forces `raycastTarget = false`, and a test
+  walks the whole tree to prove it. The spell rail sits directly beneath - one raycastable child
+  swallows taps with nothing looking wrong, which is the Guild Hall bug twice over.
+- `RectMask2D` clips the stage, so no effect can reach the board or hand dock.
+- Exactly ONE `Text` in the stage (the signed number) - a test fails if a log creeps back.
+- Numbers carry an explicit sign; `0` renders as "0", never blank.
+- The hold cannot drop below the doc's 650 ms legibility floor.
+- `Tick(deltaTime)` instead of `Update()`, so EditMode can drive a full beat.
+
+**One deliberate non-change:** `CombatFeedFormatter` still backs `MatchAnalyzer`'s post-match
+summary. The doc forbids a scrolling log as a RAIL fallback, not the end-of-match recap - removing a
+working summary would be scope nobody asked for.
+
+Next: BS's roster-aware band rotation, per your sequencing.

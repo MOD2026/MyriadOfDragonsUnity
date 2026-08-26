@@ -301,7 +301,7 @@ namespace MyriadOfDragons.UI
         private readonly List<Text> _spellNameLabels = new List<Text>();
 
         /// <summary>Activity rail's own log of recent resolved ticks - see RefreshActivityLog.</summary>
-        private Text _activityLogText;
+        private CombatResolutionStage _combatResolutionStage;
 
         /// <summary>Spellbook index of the spell currently awaiting a lane tap, or -1 when no
         /// spell is armed. AvatarStrike spells never set this - they cast immediately on tap
@@ -920,6 +920,11 @@ namespace MyriadOfDragons.UI
             // avatarLevel/unlockedStageIds still passed as StartMatch's fallback for an empty
             // equippedSpellIds. _aiProfile.DifficultyTier gives the enemy its own tier-authored
             // spellbook (AIEnemySpellbookResolver) instead of mirroring the player's loadout.
+            // Reset BEFORE the match starts: the presented-tick cursor is per-match, and a stale
+            // value would make match 2 skip every beat whose index the previous match already passed.
+            _presentedTickCount = 0;
+            if (_combatResolutionStage != null) _combatResolutionStage.ClearAll();
+
             _battleController.StartMatch(playerDeck, enemyDeck, playerEconomy, enemyEconomy,
                 _empireData.AvatarLevel, _profile.unlockedStageIds, _profile.equippedSpellIds,
                 _aiProfile.DifficultyTier);
@@ -1074,6 +1079,11 @@ namespace MyriadOfDragons.UI
                 StartingResourceCap = tutorialEmpire.ResourceCap,
                 Turn1Resource = tutorialEmpire.Turn1Resource,
             };
+
+            // Reset BEFORE the match starts: the presented-tick cursor is per-match, and a stale
+            // value would make match 2 skip every beat whose index the previous match already passed.
+            _presentedTickCount = 0;
+            if (_combatResolutionStage != null) _combatResolutionStage.ClearAll();
 
             _battleController.StartMatch(playerDeck, enemyDeck, economy, enemyEconomy);
             _battleController.DealFormationHand(_battleController.PlayerState);
@@ -2588,6 +2598,7 @@ namespace MyriadOfDragons.UI
             {
                 bg.sprite = CreateGradientSprite(BackgroundTop, BackgroundBottom);
                 bg.type = Image.Type.Simple;
+                Debug.LogWarning($"[Battle] Failed to load arena backdrop sprite 'UI/Backdrops/Arenas/{arenaName}'.");
             }
             bg.raycastTarget = false;
             StretchFull(bg.rectTransform);
@@ -3598,17 +3609,31 @@ namespace MyriadOfDragons.UI
             railAccent.rectTransform.anchoredPosition = Vector2.zero;
             railAccent.raycastTarget = false;
 
-            Text railTitle = CreateText(rail, "COMBAT ACTIVITY", 19, GoldTextColor, font);
+            Text railTitle = CreateText(rail, "COMBAT RESOLUTION", 19, GoldTextColor, font);
             railTitle.fontStyle = FontStyle.Bold;
             railTitle.raycastTarget = false;
             AnchorBand(railTitle.rectTransform, 0.92f, 0.99f, 0.04f, 0.04f);
 
-            _activityLogText = CreateText(rail, "", 15, Color.white, font);
-            _activityLogText.raycastTarget = false;
-            _activityLogText.alignment = TextAnchor.UpperLeft;
-            _activityLogText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _activityLogText.verticalOverflow = VerticalWrapMode.Truncate;
-            AnchorBand(_activityLogText.rectTransform, 0.02f, 0.90f, 0.04f, 0.04f);
+            // REPLACES the scrolling COMBAT ACTIVITY text log (owner call 2026-08-26: this space
+            // should carry animation, not sentences - "no1 will read that"). That reverses my own
+            // 2026-08-22 readability pass on this same rail, which was correct for the request it
+            // answered; the request changed.
+            //
+            // The stage is passive and clipped, and every child is built raycast-off, so the spell
+            // rail immediately below stays fully tappable. The combat-tick detail is NOT relocated:
+            // the design doc explicitly forbids restoring a scrolling log as a fallback, and permits
+            // a developer-only log outside the player-facing HUD instead.
+            var stageHost = new GameObject("CombatResolutionStageHost");
+            stageHost.transform.SetParent(rail, false);
+            _combatResolutionStage = stageHost.AddComponent<CombatResolutionStage>();
+            // Transparent on purpose: this is a positioning frame, not a visual. CreateAnchoredPanel
+            // adds an Image ONLY when background alpha > 0 (see its own body), so a fully
+            // transparent panel has no Graphic at all - which is exactly what we want here, and why
+            // there is nothing to switch raycasts off on. Calling GetComponent<Image>() on it threw
+            // a NullReferenceException that took down all of GameBootstrap.Initialize.
+            RectTransform stageArea = CreateAnchoredPanel(rail, "StageArea",
+                new Color(0f, 0f, 0f, 0f), new Vector2(0.02f, 0.04f), new Vector2(0.98f, 0.90f));
+            _combatResolutionStage.Initialize(stageArea);
 
             // Separate Spell/action rail region, below and independent of the activity rail -
             // never scrolls together and never shares a raycastable background with it.
@@ -5942,20 +5967,28 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void RefreshActivityLog()
         {
-            if (_activityLogText == null) return;
+            // Kept as the same call site the tick loop already used, so nothing about WHEN combat
+            // feedback updates changes - only what it produces. The text log is gone; resolved
+            // ticks are mapped to presentation beats and queued on the stage.
+            if (_combatResolutionStage == null) return;
 
             IReadOnlyList<CombatTickRecord> ledger = _battleController.CombatLedger;
-            if (ledger.Count == 0)
+            if (ledger == null || ledger.Count == 0) return;
+
+            // Only beats from ticks not yet presented. Re-mapping the whole ledger every refresh
+            // would replay the entire match on every tick - the queue would never drain.
+            for (int i = _presentedTickCount; i < ledger.Count; i++)
             {
-                _activityLogText.text = _battleController.Phase == BattlePhase.Formation
-                    ? $"FORMATION PHASE\nCLASH 0/{BattleController.MaxCombatTicks}"
-                    : "No ticks resolved yet.";
-                return;
+                foreach (CombatResolutionEvent beat in CombatResolutionEventMapper.MapTick(ledger[i]))
+                    _combatResolutionStage.Enqueue(beat);
             }
 
-            List<string> lines = CombatFeedFormatter.BuildFeedLines(ledger, _battleController.SpellCastLog, maxLines: 6);
-            _activityLogText.text = string.Join("\n", lines);
+            _presentedTickCount = ledger.Count;
         }
+
+        /// <summary>Ticks presented so far, so RefreshActivityLog never re-queues old ones.
+        /// Reset per match by StartNewMatch.</summary>
+        private int _presentedTickCount;
 
         /// <summary>
         /// Swaps the bottom action row between the Formation button and the Combat spell bar,
