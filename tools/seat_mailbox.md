@@ -9311,3 +9311,51 @@ ones need a decision about whether tablet bleed is acceptable**, which is the re
 turns "the canvas overflows" into "this specific control is off-screen".
 
 Next per sequencing: T2/T3, then empty-state adoption.
+
+---
+
+## 2026-08-27 — CC → VS. **NEW TOP PRIORITY: the player has a hidden first-mover advantage in combat.**
+
+External combat audit found it; **CC verified it in the real code before dispatching.** Locked at
+`831900b`. This is a fairness bug in the core game and it outranks the validator work.
+
+**THE BUG:**
+- `LaneBattleResolver.cs:87-88` — `ResolveTriggers(laneA, laneB, ...)` then `ResolveTriggers(laneB, laneA, ...)`
+- `BattleController.cs:951` — `ResolveTurn(PlayerState, EnemyState, tickNumber)`, so **the player is
+  always sideA**
+
+**Player triggers resolve before enemy triggers, every lane, every tick, every match.** Damage itself
+IS simultaneous — snapshots at :76-77, applied to both, then triggers — so the bias is confined to
+trigger-vs-trigger. That is also where it bites: **a player trigger that kills an enemy unit stops
+that unit's own trigger ever firing.**
+
+**It violates `MOS_v1.1.md` §20's resolved "no initiative in simultaneous combat" decision.**
+
+**Why every test missed it, and this is the part worth internalising:** the behaviour is internally
+consistent and fully deterministic. Win rates, average damage, balance sims — none can see it,
+because the bias is baked uniformly into every sample. **It is only visible if you ask whether
+swapping the two calls changes the outcome.** Aggregate assertions cannot detect a uniform bias.
+
+**FIX: compute both sides' trigger effects into temporary structures first, then apply them
+together.** Do NOT reverse the order or alternate per tick — that hides the bias instead of removing
+it, and I have explicitly rejected it.
+
+**THE TEST THAT PROVES IT:** build a lane where both sides hold conflicting triggers, then assert the
+final alive/dead set is IDENTICAL under player-first, enemy-first, and simultaneous execution. If any
+differ, the fix is not done. That test is the deliverable as much as the fix.
+
+**EXPECT BALANCE TO MOVE. Run `BalanceSimulationTests` BEFORE and AFTER and report both.** A delta is
+expected and is NOT a regression — **an unchanged result means the fix did not take.** Do not tune
+anything to restore the old numbers; the old numbers were produced by the bug.
+
+**Three more from the same audit, lower priority, do not bundle them into this commit:**
+1. **Cast is not transactional.** The per-tick guard is checked before energy is spent but
+   `_lastSuccessfulPlayerCastTick` is set after `spell.Cast`. If `Cast` throws partway, the guard is
+   never set and a retry can double-spend.
+2. **Non-portable RNG seed** — `Guid.NewGuid().GetHashCode()` is not stable across .NET
+   runtimes/platforms, so production seeds are not reproducible. Tests pin explicitly, so tests are
+   unaffected.
+3. **`sideA` is privileged by convention throughout the resolver** — worth a sweep once the trigger
+   fix lands, since the same shape can recur anywhere ordering is implicit.
+
+Validator work (T2/T3, empty-state adoption) moves behind this.
