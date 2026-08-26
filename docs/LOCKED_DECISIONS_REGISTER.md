@@ -74,6 +74,8 @@ confirms receipt/action, or the row is removed once confirmed.**
 | 2026-08-26 | WH (paste-ready, owner relays) | VIP real entitlement implementation | RESOLVED - landed `dad3f05`, `VipSubscriptionOpenValues.cs` confirms `WeeklyGemPrice=800`/`FortnightGemPrice=1500`/`MonthlyGemPrice=3000` exactly matching spec. |
 | 2026-08-26 | BS (via owner) | Loyalty ladder milestone-500 cosmetic-ownership gap | RESOLVED, then revised - original 5,000 Gold+20 Avatar XP+1 Stamina claim lock was superseded same day by the Avatar-XP-removal decision (Materials replaces XP everywhere). Current locked reward is the Materials version; dispatched to VS, see row above. |
 | 2026-08-26 | WH | none - VIP/Friends atlas fix (bee2c1f) confirmed landed, nothing outstanding | — |
+| 2026-08-27 | CR | UI Verification Gate is binding on the Home IA rebuild before it may be reported done - 5-step post-land run + 7-item sign-off + real interactive count under the new counting rule (Home max 8) | IN PROGRESS - sent, not yet confirmed |
+| 2026-08-27 | VS | (1) SoloCircuit visual defects run as the gate pilot - baseline capture + written target list owed to CC BEFORE implementation; (2) queued: build the runtime UI validation run enforcing the §2 hard-fail list | IN PROGRESS - sent, not yet confirmed |
 | 2026-08-26 | VS | tac_w1_m02 - CLOSED, verified 6/6 at 9c54dd2 | RESOLVED, row retired |
 
 ---
