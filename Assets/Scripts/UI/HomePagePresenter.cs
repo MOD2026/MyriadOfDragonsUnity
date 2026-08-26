@@ -26,7 +26,6 @@ public class HomePagePresenter : MonoBehaviour
     private Text gemsHudText;
     private Text energyHudText;
     private Text avatarIdentityText;
-    private Text weeklyPermitStatusText;
 
     // Current Active Stage Track
     private CampaignStageData currentActiveStage;
@@ -427,7 +426,6 @@ public class HomePagePresenter : MonoBehaviour
         // Semantic regions — authoritative parents for NEW Home geometry (LOCKED 2026-08-25).
         HomeSemanticRegions.EnsureAll(homeCanvasObj.transform);
         Transform topHud = HomeRegion(HomeSemanticRegions.TopHud);
-        Transform tutorialStrip = HomeRegion(HomeSemanticRegions.TutorialStrip);
         Transform contentPanel = HomeRegion(HomeSemanticRegions.ContentPanel);
 
         // === IDENTITY SURFACE (text-only — identity frame needs slice metadata; crest RGB excluded) ===
@@ -497,69 +495,29 @@ public class HomePagePresenter : MonoBehaviour
             "Stamina", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
 
         BuildSettingsEntryButton(topHud);
-        BuildSeasonEntryButtons(topHud);
-        BuildSocialShellEntryButtons(topHud);
+        BuildSocialDrawerEntryButton(topHud);
 
         if (SaveManager.SaveData != null)
             PlayerSettingsService.ApplyFromProfile(SaveManager.SaveData);
 
-        BuildWeeklyPermitClaimStrip(topHud);
-        TryAutoClaimWeeklyPermitsOnHomeOpen();
+        // LOCKED 2026-08-26 (register: "LOCKED: Home IA rebuild - five-destination shell +
+        // rotating feed") - replaces the old static 6-tile grid + scattered SPELLS/PASS/LOGIN/
+        // BAZAAR/CHAT/MAIL/FRIENDS/MEMORY/VIP header row with: a swipeable feed (3-5 cards, one
+        // dominant primary action per page) and a persistent 5-destination bottom bar. Avatar
+        // tile is CUT per the locked verdict (identity header above already owns that need).
+        BuildFeed(contentPanel);
+        BuildDestinationBar(contentPanel);
 
-        BuildHomeFeaturePanel(tutorialStrip);
-        BuildNavigationStage(contentPanel);
+        // Must run AFTER BuildFeed - the WEEKLY PERMIT card's status text field is created there.
+        TryAutoClaimWeeklyPermitsOnHomeOpen();
     }
 
     private Transform HomeRegion(string regionName) =>
         HomeSemanticRegions.Ensure(homeCanvasObj.transform, regionName);
 
-    private void BuildWeeklyPermitClaimStrip(Transform parent)
-    {
-        GameObject strip = new GameObject("WeeklyPermitStrip", typeof(RectTransform));
-        strip.transform.SetParent(parent, false);
-        SetScreenRectFromTopLeftPixels(strip.GetComponent<RectTransform>(), 900, 100, 1896, 148);
-
-        GameObject claimBtnObj = new GameObject("ClaimWeeklyPermitsButton", typeof(RectTransform), typeof(Image), typeof(Button));
-        claimBtnObj.transform.SetParent(strip.transform, false);
-        Image claimBg = claimBtnObj.GetComponent<Image>();
-        HomeV3UiLibrary.ApplyNavTileButton(claimBtnObj.GetComponent<Button>(), claimBg);
-        if (claimBg.sprite == null)
-            claimBg.color = HexColor("#1A3A4A");
-        claimBtnObj.GetComponent<Button>().onClick.AddListener(OnClaimWeeklyPermitsClicked);
-        SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.0f, 0.15f, 0.22f, 0.95f);
-
-        Text claimLabel = UISharedFoundation.CreateText(
-            claimBtnObj.transform, "ClaimLabel",
-            $"WEEKLY · {CollectionSchemaRules.AscensionPermitsPerTrustedWeek}",
-            UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(220f, 36f));
-        claimLabel.fontSize = 14;
-        claimLabel.fontStyle = FontStyle.Bold;
-        claimLabel.raycastTarget = false;
-
-        // Server-authoritative PermitWeekKey path (does not replace CollectionAscensionPermits stopgap).
-        GameObject serverBtnObj = new GameObject("Btn_PermitWeekKey", typeof(RectTransform), typeof(Image), typeof(Button));
-        serverBtnObj.transform.SetParent(strip.transform, false);
-        Image serverBg = serverBtnObj.GetComponent<Image>();
-        HomeV3UiLibrary.ApplyNavTileButton(serverBtnObj.GetComponent<Button>(), serverBg);
-        if (serverBg.sprite == null)
-            serverBg.color = HexColor("#2A4A3A");
-        serverBtnObj.GetComponent<Button>().onClick.AddListener(OpenPermitWeekKey);
-        SetLocalNormalisedRect(serverBtnObj.GetComponent<RectTransform>(), 0.23f, 0.15f, 0.40f, 0.95f);
-        Text serverLabel = UISharedFoundation.CreateText(
-            serverBtnObj.transform, "Label", "SERVER KEY",
-            UITextRole.Caption, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(140f, 36f));
-        serverLabel.fontSize = 13;
-        serverLabel.fontStyle = FontStyle.Bold;
-        serverLabel.raycastTarget = false;
-
-        weeklyPermitStatusText = UISharedFoundation.CreateText(
-            strip.transform, "WeeklyPermitStatus", string.Empty,
-            UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(500f, 36f));
-        weeklyPermitStatusText.fontSize = 18;
-        weeklyPermitStatusText.raycastTarget = false;
-        SetLocalNormalisedRect(weeklyPermitStatusText.rectTransform, 0.42f, 0.1f, 1.0f, 0.95f);
-    }
-
+    /// <summary>Silent auto-claim on Home open - the merged Permit entry (OpenPermitClaimEntry,
+    /// inside the WEEKLY PERMIT feed card - moved off the old top-header WeeklyPermitStrip, real
+    /// functionality preserved, not resurrected UI.</summary>
     private void TryAutoClaimWeeklyPermitsOnHomeOpen()
     {
         PlayerProfile profile = SaveManager.SaveData;
@@ -568,8 +526,8 @@ public class HomePagePresenter : MonoBehaviour
         int granted = TryClaimManualWeeklyPermits(profile, out string status);
         if (granted > 0)
             SaveManager.Save();
-        if (weeklyPermitStatusText != null)
-            weeklyPermitStatusText.text = status;
+        if (_weeklyPermitStatusText != null)
+            _weeklyPermitStatusText.text = status;
     }
 
     private void OnClaimWeeklyPermitsClicked()
@@ -580,166 +538,300 @@ public class HomePagePresenter : MonoBehaviour
         int granted = TryClaimManualWeeklyPermits(profile, out string status);
         if (granted > 0)
             SaveManager.Save();
-        if (weeklyPermitStatusText != null)
-            weeklyPermitStatusText.text = status;
+        if (_weeklyPermitStatusText != null)
+            _weeklyPermitStatusText.text = status;
+    }
+
+    /// <summary>One feed card's content - real state read at BuildFeed time, not a template.</summary>
+    private readonly struct FeedCard
+    {
+        public readonly string Title;
+        public readonly string Body;
+        public readonly string ActionLabel;
+        public readonly UnityEngine.Events.UnityAction Action;
+
+        public FeedCard(string title, string body, string actionLabel, UnityEngine.Events.UnityAction action)
+        {
+            Title = title;
+            Body = body;
+            ActionLabel = actionLabel;
+            Action = action;
+        }
+    }
+
+    /// <summary>LOCKED Home IA: "Main feed: one swipeable/paginated area, 3-5 cards (Campaign
+    /// objective, Circuit/Memory Expedition, Battle Pass/event promo, Empire construction status,
+    /// limited-time notice), one dominant primary action per page." A real horizontal ScrollRect,
+    /// one full-viewport card per page - each card names its own single dominant action, matching
+    /// the locked rule rather than a grid of equal-weight buttons.
+    ///
+    /// Tutorial banner: no real "days since install" field exists on PlayerProfile (frozen file,
+    /// not adding one for this) - profile.totalMatches == 0 is the closest already-existing real
+    /// signal for "hasn't played yet" and is used as the gate. This is a genuine proxy, not the
+    /// literal "first few days" language - flagged rather than silently treated as equivalent.
+    /// Once totalMatches > 0 the tutorial card is gone for good, matching "converts to the Events
+    /// feed card" (a returning player who somehow has 0 matches would see the tutorial card again,
+    /// which is the correct behavior for that edge case, not a bug).</summary>
+    private void BuildFeed(Transform contentParent)
+    {
+        PlayerProfile profile = SaveManager.SaveData;
+        bool isNewPlayer = profile == null || profile.totalMatches == 0;
+
+        GameObject scrollObj = new GameObject("HomeFeed", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+        scrollObj.transform.SetParent(contentParent, false);
+        SetScreenRectFromTopLeftPixels(scrollObj.GetComponent<RectTransform>(), 24, 176, 1896, 962);
+        Image scrollBg = scrollObj.GetComponent<Image>();
+        scrollBg.sprite = null;
+        scrollBg.color = Color.clear;
+        scrollBg.raycastTarget = true;
+
+        GameObject viewportObj = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D), typeof(Image));
+        viewportObj.transform.SetParent(scrollObj.transform, false);
+        SetLocalNormalisedRect(viewportObj.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f);
+        Image viewportImg = viewportObj.GetComponent<Image>();
+        viewportImg.color = Color.clear;
+        viewportImg.raycastTarget = false;
+
+        GameObject contentObj = new GameObject("Content", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        contentObj.transform.SetParent(viewportObj.transform, false);
+        RectTransform contentRect = contentObj.GetComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0f, 0f);
+        contentRect.anchorMax = new Vector2(0f, 1f);
+        contentRect.pivot = new Vector2(0f, 0.5f);
+        contentRect.anchoredPosition = Vector2.zero;
+
+        var layout = contentObj.GetComponent<HorizontalLayoutGroup>();
+        // childControlWidth MUST be true - a card's LayoutElement.preferredWidth/preferredHeight
+        // is only ever read/applied by HorizontalLayoutGroup when childControl* is true. With it
+        // false (the mistake caught here via a real overlap test), every card silently stayed at
+        // Unity's own default 100x100 RectTransform size instead of a real full-viewport page -
+        // real bug, not just a stale test: cards were reported at ~33px wide, small enough to
+        // overlap the identity header instead of filling the feed.
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = true;
+        layout.spacing = 0f;
+
+        ScrollRect sr = scrollObj.GetComponent<ScrollRect>();
+        sr.viewport = viewportObj.GetComponent<RectTransform>();
+        sr.content = contentRect;
+        sr.horizontal = true;
+        sr.vertical = false;
+        sr.movementType = ScrollRect.MovementType.Elastic;
+
+        var cards = new List<FeedCard>();
+
+        if (isNewPlayer)
+        {
+            cards.Add(new FeedCard("WELCOME", HomeFeatureTutorialInviteCopy, "START TUTORIAL", OnStartTutorialClicked));
+        }
+
+        // Must route to the real map (OpenStoryCampaign), not straight into a match
+        // (OnToBattleClicked skips CampaignMapPresenter entirely) - register: "'To Battle' folds
+        // under Battle, no second world map." A direct-to-match shortcut here would be a second,
+        // divergent navigation target alongside the DestinationBar's own BATTLE root.
+        cards.Add(new FeedCard("CAMPAIGN",
+            "Continue your Campaign push - the next stage is waiting.",
+            "TO BATTLE", OpenStoryCampaign));
+
+        cards.Add(new FeedCard("QUESTS & EVENTS",
+            "Daily Login, Battle Pass, Memory Expedition, Solo Circuit, and Guild content live here.",
+            "OPEN", OpenQuestsEventsHub));
+
+        cards.Add(new FeedCard("EMPIRE",
+            profile != null
+                ? $"Castle L{profile.castleLevel} · Barracks L{profile.barracksLevel} · Gate L{profile.gateLevel}"
+                : "Manage your Empire's construction.",
+            "OPEN EMPIRE", OpenEmpire));
+
+        float viewportWidth = 1896f - 24f;
+        float viewportHeight = 962f - 176f;
+        for (int i = 0; i < cards.Count; i++)
+        {
+            BuildFeedCard(contentObj.transform, cards[i], viewportWidth, viewportHeight);
+        }
+
+        // The merged Permit entry (locked design: "SERVER-KEY and WEEKLY-permit-claim merge into
+        // ONE Quests/Events entry with two labeled sub-states... no two permanent Home buttons
+        // for what's really one logical feature") gets its own feed card rather than a bare tab,
+        // because it's the one entry that needs real, visible status feedback (was
+        // WeeklyPermitStrip's WeeklyPermitStatus text on the old Home header row - real
+        // functionality, not resurrected UI, just relocated into the feed).
+        BuildWeeklyPermitFeedCard(contentObj.transform, viewportWidth, viewportHeight);
+
+        contentRect.sizeDelta = new Vector2(viewportWidth * (cards.Count + 1), viewportHeight);
+    }
+
+    private Text _weeklyPermitStatusText;
+
+    private void BuildWeeklyPermitFeedCard(Transform parent, float width, float height)
+    {
+        GameObject cardObj = new GameObject("FeedCard_WEEKLY PERMIT", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        cardObj.transform.SetParent(parent, false);
+        LayoutElement le = cardObj.GetComponent<LayoutElement>();
+        le.preferredWidth = width;
+        le.preferredHeight = height;
+
+        Image cardBg = cardObj.GetComponent<Image>();
+        UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+        cardBg.raycastTarget = false;
+
+        Text title = UISharedFoundation.CreateText(cardObj.transform, "Title", "WEEKLY PERMIT", UITextRole.Display,
+            TextAnchor.UpperLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 50f));
+        title.fontSize = 30;
+        title.fontStyle = FontStyle.Bold;
+        title.raycastTarget = false;
+        SetLocalNormalisedRect(title.rectTransform, 0.06f, 0.72f, 0.7f, 0.9f);
+
+        _weeklyPermitStatusText = UISharedFoundation.CreateText(cardObj.transform, "WeeklyPermitStatus", string.Empty,
+            UITextRole.Body, TextAnchor.UpperLeft, HexColor("#B8A68F"), true, new Vector2(1400f, 200f));
+        _weeklyPermitStatusText.fontSize = 20;
+        _weeklyPermitStatusText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        _weeklyPermitStatusText.raycastTarget = false;
+        SetLocalNormalisedRect(_weeklyPermitStatusText.rectTransform, 0.06f, 0.28f, 0.94f, 0.7f);
+        RefreshWeeklyPermitStatusText();
+
+        GameObject claimBtnObj = new GameObject("ClaimWeeklyPermitsButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        claimBtnObj.transform.SetParent(cardObj.transform, false);
+        Image claimImg = claimBtnObj.GetComponent<Image>();
+        Button claimBtn = claimBtnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyPrimaryActionButton(claimBtn, claimImg);
+        claimBtn.onClick.AddListener(OnClaimWeeklyPermitsClicked);
+        SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.06f, 0.08f, 0.4f, 0.22f);
+        Text claimLabel = UISharedFoundation.CreateText(claimBtnObj.transform, "Label", "CLAIM", UITextRole.Body,
+            TextAnchor.MiddleCenter, Color.white, true, new Vector2(260f, 40f));
+        claimLabel.fontSize = 20;
+        claimLabel.fontStyle = FontStyle.Bold;
+        claimLabel.raycastTarget = false;
+
+        // Second sub-state: the server-authoritative PermitWeekKey screen (SERVER KEY, demoted
+        // per the locked design - no player-facing implementation terminology in the label).
+        GameObject serverBtnObj = new GameObject("Btn_PermitWeekKey", typeof(RectTransform), typeof(Image), typeof(Button));
+        serverBtnObj.transform.SetParent(cardObj.transform, false);
+        Image serverImg = serverBtnObj.GetComponent<Image>();
+        Button serverBtn = serverBtnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(serverBtn, serverImg, new Color(0.16f, 0.22f, 0.2f, 0.92f));
+        serverBtn.onClick.AddListener(OpenPermitWeekKey);
+        SetLocalNormalisedRect(serverBtnObj.GetComponent<RectTransform>(), 0.44f, 0.08f, 0.7f, 0.22f);
+        Text serverLabel = UISharedFoundation.CreateText(serverBtnObj.transform, "Label", "OTHER BONUS", UITextRole.Body,
+            TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
+        serverLabel.fontSize = 18;
+        serverLabel.fontStyle = FontStyle.Bold;
+        serverLabel.raycastTarget = false;
+    }
+
+    private void RefreshWeeklyPermitStatusText()
+    {
+        if (_weeklyPermitStatusText == null) return;
+        PlayerProfile profile = SaveManager.SaveData;
+        _weeklyPermitStatusText.text = profile != null
+            ? $"Balance {profile.ascensionPermitBalance}/{CollectionSchemaRules.AscensionPermitHoardCap}."
+            : string.Empty;
+    }
+
+    private void BuildFeedCard(Transform parent, FeedCard card, float width, float height)
+    {
+        GameObject cardObj = new GameObject($"FeedCard_{card.Title}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        cardObj.transform.SetParent(parent, false);
+        LayoutElement le = cardObj.GetComponent<LayoutElement>();
+        le.preferredWidth = width;
+        le.preferredHeight = height;
+
+        Image cardBg = cardObj.GetComponent<Image>();
+        UISharedFoundation.ApplyFramedPanel(cardBg, null, UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+        cardBg.raycastTarget = false;
+
+        Text title = UISharedFoundation.CreateText(cardObj.transform, "Title", card.Title, UITextRole.Display,
+            TextAnchor.UpperLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 50f));
+        title.fontSize = 30;
+        title.fontStyle = FontStyle.Bold;
+        title.raycastTarget = false;
+        SetLocalNormalisedRect(title.rectTransform, 0.06f, 0.72f, 0.7f, 0.9f);
+
+        Text body = UISharedFoundation.CreateText(cardObj.transform, "Body", card.Body, UITextRole.Body,
+            TextAnchor.UpperLeft, HexColor("#B8A68F"), true, new Vector2(1400f, 200f));
+        body.fontSize = 20;
+        body.horizontalOverflow = HorizontalWrapMode.Wrap;
+        body.raycastTarget = false;
+        SetLocalNormalisedRect(body.rectTransform, 0.06f, 0.28f, 0.94f, 0.7f);
+
+        // One dominant primary action per page (locked rule) - primary chrome, not neutral.
+        GameObject actionBtn = new GameObject("PrimaryAction", typeof(RectTransform), typeof(Image), typeof(Button));
+        actionBtn.transform.SetParent(cardObj.transform, false);
+        Image actionImg = actionBtn.GetComponent<Image>();
+        Button actionButton = actionBtn.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyPrimaryActionButton(actionButton, actionImg);
+        actionButton.onClick.AddListener(card.Action);
+        SetLocalNormalisedRect(actionBtn.GetComponent<RectTransform>(), 0.06f, 0.08f, 0.4f, 0.22f);
+
+        Text actionLabel = UISharedFoundation.CreateText(actionBtn.transform, "Label", card.ActionLabel, UITextRole.Body,
+            TextAnchor.MiddleCenter, Color.white, true, new Vector2(260f, 40f));
+        actionLabel.fontSize = 20;
+        actionLabel.fontStyle = FontStyle.Bold;
+        actionLabel.raycastTarget = false;
+    }
+
+    /// <summary>LOCKED Home IA: persistent five-destination bottom bar - Home/My Page, Battle,
+    /// Quests/Events, Collection, Empire. Home itself is this screen (a tap just ensures the
+    /// feed is showing); the other four route through the real existing entry points
+    /// (OpenStoryCampaign/OnToBattleClicked, the new Quests/Events + Collection hub launchers,
+    /// OpenEmpire) rather than inventing new navigation.</summary>
+    private void BuildDestinationBar(Transform parent)
+    {
+        GameObject bar = new GameObject("DestinationBar", typeof(RectTransform), typeof(Image));
+        bar.transform.SetParent(parent, false);
+        SetScreenRectFromTopLeftPixels(bar.GetComponent<RectTransform>(), 0, 970, 1920, 1080);
+        Image barBg = bar.GetComponent<Image>();
+        barBg.sprite = null;
+        barBg.color = UIFrozenTokens.ColorHeader;
+        barBg.raycastTarget = false;
+
+        const int destCount = 5;
+        const float gap = 8f;
+        const float barLeft = 16f;
+        const float barRight = 1904f;
+        float destWidth = ((barRight - barLeft) - gap * (destCount - 1)) / destCount;
+
+        void PlaceDestination(int index, string label, UnityEngine.Events.UnityAction action)
+        {
+            float left = barLeft + index * (destWidth + gap);
+            float right = left + destWidth;
+            CreateDestinationButton(bar.transform, label, left, 970f, right, 1080f, action);
+        }
+
+        PlaceDestination(0, "HOME", RefreshHomeFeed);
+        PlaceDestination(1, "BATTLE", OpenStoryCampaign);
+        PlaceDestination(2, "QUESTS", OpenQuestsEventsHub);
+        PlaceDestination(3, "COLLECTION", OpenCollectionHub);
+        PlaceDestination(4, "EMPIRE", OpenEmpire);
+    }
+
+    private void CreateDestinationButton(Transform parent, string label, float leftPx, float topPx, float rightPx, float bottomPx,
+        UnityEngine.Events.UnityAction action)
+    {
+        GameObject btnObj = new GameObject($"Dest_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(parent, false);
+        SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), leftPx, topPx, rightPx, bottomPx);
+        Image img = btnObj.GetComponent<Image>();
+        Button btn = btnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(0.11f, 0.14f, 0.19f, 0.9f));
+        btn.onClick.AddListener(action);
+
+        Text text = UISharedFoundation.CreateText(btnObj.transform, "Label", label, UITextRole.Body,
+            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(160f, 32f));
+        text.fontSize = 16;
+        text.fontStyle = FontStyle.Bold;
+        text.raycastTarget = false;
+    }
+
+    /// <summary>The "HOME" destination is this same screen - refreshes the live feed/HUD rather
+    /// than opening anything, matching HomePage's own "no Back button, it is the root" rule
+    /// (register: navigation dead-end audit).</summary>
+    private void RefreshHomeFeed()
+    {
         RefreshTopHUD();
-    }
-
-    private void BuildHomeFeaturePanel(Transform parent)
-    {
-        // Tutorial strip under the social-chip row (chips occupy Y 100–168). Keep a clear gap.
-        GameObject featureRoot = new GameObject("HomeFeatureRoot", typeof(RectTransform), typeof(Image));
-        featureRoot.transform.SetParent(parent, false);
-        SetScreenRectFromTopLeftPixels(featureRoot.GetComponent<RectTransform>(), 120, 176, 1800, 242);
-        Image featureBg = featureRoot.GetComponent<Image>();
-        featureBg.sprite = null;
-        featureBg.color = UIFrozenTokens.ColorPanel;
-        featureBg.raycastTarget = false;
-
-        Text featureCopy = UISharedFoundation.CreateText(
-            featureRoot.transform, "FeatureCopy",
-            HomeFeatureTutorialInviteCopy,
-            UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(1100f, 80f));
-        featureCopy.fontSize = 22;
-        featureCopy.raycastTarget = false;
-        // Shifted right to reserve (0.01–0.07) for the alert icon (Home audit round 2).
-        SetLocalNormalisedRect(featureCopy.rectTransform, 0.09f, 0.14f, 0.72f, 0.86f);
-
-        // Alert icon — composition slot from the Home mockup. Art path still TBD; placeholder
-        // fill keeps the reserved well visible without blocking on a missing asset.
-        GameObject alertIconObj = new GameObject("AlertIcon", typeof(RectTransform), typeof(Image));
-        alertIconObj.transform.SetParent(featureRoot.transform, false);
-        Image alertIcon = alertIconObj.GetComponent<Image>();
-        alertIcon.sprite = null;
-        alertIcon.color = UIFrozenTokens.ColorAccentBronze;
-        alertIcon.raycastTarget = false;
-        SetLocalNormalisedRect(alertIcon.rectTransform, 0.01f, 0.14f, 0.07f, 0.86f);
-
-        GameObject startTutorialBtn = new GameObject("StartTutorialButtonRoot", typeof(RectTransform), typeof(Image), typeof(Button));
-        startTutorialBtn.transform.SetParent(featureRoot.transform, false);
-        Image btnBg = startTutorialBtn.GetComponent<Image>();
-        HomeV3UiLibrary.ApplyNeutralActionButton(startTutorialBtn.GetComponent<Button>(), btnBg, HexColor("#1A3A4A"));
-        startTutorialBtn.GetComponent<Button>().onClick.AddListener(OnStartTutorialClicked);
-        SetLocalNormalisedRect(startTutorialBtn.GetComponent<RectTransform>(), 0.76f, 0.14f, 0.96f, 0.86f);
-
-        Text btnLabel = UISharedFoundation.CreateText(
-            startTutorialBtn.transform, "ActionLabel", "START TUTORIAL",
-            UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(200f, 40f));
-        btnLabel.fontSize = 18;
-        btnLabel.fontStyle = FontStyle.Bold;
-        btnLabel.raycastTarget = false;
-    }
-
-    private void BuildNavigationStage(Transform parent)
-    {
-        // No dock frame (excluded). Six live actions: pack four + Empire + direct Avatar entry.
-        GameObject navStage = new GameObject("NavigationStage", typeof(RectTransform));
-        navStage.transform.SetParent(parent, false);
-        SetScreenRectFromTopLeftPixels(navStage.GetComponent<RectTransform>(), 24, 724, 1896, 1052);
-
-        // Equal-width tiles across the stage (38–1860). Avatar is a first-class Home entry;
-        // Empire → Avatar remains available on the Empire screen.
-        const float stageLeft = 38f;
-        const float stageRight = 1860f;
-        const float tileTop = 724f;
-        const float tileBottom = 1030f;
-        const float gap = 12f;
-        const int tileCount = 6;
-        float tileWidth = ((stageRight - stageLeft) - gap * (tileCount - 1)) / tileCount;
-
-        void Place(int index, string label, string heroTileSprite, string iconFallbackSprite, UnityEngine.Events.UnityAction action)
-        {
-            float left = stageLeft + index * (tileWidth + gap);
-            float right = left + tileWidth;
-            CreateHeroTile(label, heroTileSprite, iconFallbackSprite, left, tileTop, right, tileBottom, action, navStage.transform);
-        }
-
-        Place(0, "Campaign", "home_tile_campaign_hero_v3", "home_icon_story_v3", OpenStoryCampaign);
-        Place(1, "Empire", "home_tile_empire_hero_v3", null, OpenEmpire);
-        Place(2, "Avatar", null, null, () => OpenAvatar(returnToEmpireOnBack: false));
-        Place(3, "Cards", "home_tile_cards_hero_v3", "home_icon_cards_v3", OpenCollection);
-        Place(4, "Shop", "home_tile_shop_hero_v3", "home_icon_shop_v3", OpenShop);
-        Place(5, "To Battle", null, "home_icon_battle_v3", () => OnToBattleClicked());
-    }
-
-    private void CreateHeroTile(string label, string heroTileSprite, string iconFallbackSprite, float left, float top, float right, float bottom,
-        UnityEngine.Events.UnityAction action, Transform parent)
-    {
-        // HeroTileButtonRoot — neutral target; hero art is PreserveAspect foreground only (never square nav tile body).
-        GameObject tileRoot = new GameObject($"Btn_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
-        tileRoot.transform.SetParent(parent, false);
-
-        Image tileBackground = tileRoot.GetComponent<Image>();
-        Button tileButton = tileRoot.GetComponent<Button>();
-        HomeV3UiLibrary.ApplyNeutralActionButton(tileButton, tileBackground, new Color(0.10f, 0.14f, 0.18f, 0.88f));
-        tileButton.onClick.AddListener(action);
-
-        RectTransform tileParent = parent as RectTransform;
-        if (tileParent != null)
-        {
-            SetChildRectFromParentTopOrigin(tileRoot.GetComponent<RectTransform>(), tileParent, 24f, 724f, 1896f, 1052f, left, top, right, bottom);
-        }
-
-        GameObject heroArtObj = new GameObject("HeroArt", typeof(RectTransform), typeof(Image));
-        heroArtObj.transform.SetParent(tileRoot.transform, false);
-
-        Image heroArt = heroArtObj.GetComponent<Image>();
-        Sprite hero = !string.IsNullOrEmpty(heroTileSprite) ? LoadHomeSprite(heroTileSprite) : null;
-        if (hero == null && !string.IsNullOrEmpty(iconFallbackSprite))
-            hero = LoadHomeSprite(iconFallbackSprite);
-        if (hero == null && label == "Empire")
-        {
-            const string empirePath = "UI/Icons/empire tab";
-            hero = Resources.Load<Sprite>(empirePath);
-            if (hero == null)
-                Debug.LogWarning($"[Home] Failed to load Empire tile sprite '{empirePath}'.");
-        }
-        if (hero == null && label == "Avatar")
-        {
-            const string avatarPath = "UI/Icons/player profile frame";
-            hero = Resources.Load<Sprite>(avatarPath);
-            if (hero == null)
-                Debug.LogWarning($"[Home] Failed to load Avatar tile sprite '{avatarPath}'.");
-        }
-
-        heroArt.sprite = hero;
-        heroArt.preserveAspect = true;
-        heroArt.raycastTarget = false;
-        heroArt.color = hero != null ? Color.white : HexColor("#3D566E");
-        // Foundation hero window: x 7–93%, y 7–69% (bottom-origin normalised).
-        SetLocalNormalisedRect(heroArt.rectTransform, 0.07f, 0.31f, 0.93f, 0.93f);
-
-        Text tileLabel = UISharedFoundation.CreateText(
-            tileRoot.transform, "TileLabel", label,
-            UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(320f, 60f));
-        tileLabel.fontSize = 28;
-        tileLabel.fontStyle = FontStyle.Bold;
-        tileLabel.raycastTarget = false;
-        SetLocalNormalisedRect(tileLabel.rectTransform, 0.09f, 0.06f, 0.91f, 0.27f);
-    }
-
-    private static void SetLocalTopOriginRect(RectTransform rect, float leftPercent, float topPercent, float rightPercent, float bottomPercent)
-    {
-        rect.anchorMin = new Vector2(leftPercent, 1f - bottomPercent);
-        rect.anchorMax = new Vector2(rightPercent, 1f - topPercent);
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-    }
-
-    private static void SetChildRectFromParentTopOrigin(RectTransform rect, RectTransform parent, float parentLeftPx, float parentTopPx, float parentRightPx, float parentBottomPx, float leftPx, float topPx, float rightPx, float bottomPx)
-    {
-        float parentWidth = Mathf.Max(1f, parentRightPx - parentLeftPx);
-        float parentHeight = Mathf.Max(1f, parentBottomPx - parentTopPx);
-
-        float localLeft = leftPx - parentLeftPx;
-        float localRight = rightPx - parentLeftPx;
-        float localTop = topPx - parentTopPx;
-        float localBottom = bottomPx - parentTopPx;
-
-        rect.anchorMin = new Vector2(localLeft / parentWidth, 1f - localBottom / parentHeight);
-        rect.anchorMax = new Vector2(localRight / parentWidth, 1f - localTop / parentHeight);
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
     }
 
     private static void SetLocalNormalisedRect(RectTransform rect, float left, float bottom, float right, float top)
@@ -928,24 +1020,289 @@ public class HomePagePresenter : MonoBehaviour
         }
     }
 
-    private void BuildSeasonEntryButtons(Transform parent)
+    /// <summary>LOCKED Home IA: Chat/Mail/Friends collapse into ONE global Social drawer,
+    /// explicitly NOT a sixth destination and explicitly not three separate Home buttons
+    /// (register: "ChatSocial / MailInbox / Friends -> ONE global Social drawer, accessible from
+    /// any destination, three tabs inside it, unread badges. Explicitly NOT a sixth bottom-nav
+    /// destination"). This button is the drawer's one entry point.</summary>
+    private void BuildSocialDrawerEntryButton(Transform parent)
     {
-        CreateHeaderTextButton(parent, "Btn_SpellLoadout", "SPELLS", 1340, 18, 1476, 90, OpenSpellLoadoutPicker);
-        CreateHeaderTextButton(parent, "Btn_BattlePass", "PASS", 1488, 18, 1632, 90, OpenBattlePass);
-        CreateHeaderTextButton(parent, "Btn_DailyLogin", "LOGIN", 1644, 18, 1768, 90, OpenDailyLoginQuests);
+        GameObject btnObj = new GameObject("Btn_SocialDrawer", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(parent, false);
+        SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), 1656, 18, 1772, 90);
+        Image img = btnObj.GetComponent<Image>();
+        Button btn = btnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(0.16f, 0.22f, 0.2f, 0.92f));
+        btn.onClick.AddListener(OpenSocialDrawer);
+
+        Text label = UISharedFoundation.CreateText(btnObj.transform, "Label", "SOCIAL", UITextRole.Caption,
+            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(100f, 32f));
+        label.fontSize = 16;
+        label.fontStyle = FontStyle.Bold;
+        label.raycastTarget = false;
     }
 
-    /// <summary>Art-ready social / meta shells (OpenValues refuse until numbers/backend lock).</summary>
-    private void BuildSocialShellEntryButtons(Transform parent)
+    private enum SocialDrawerTab { Chat, Mail, Friends }
+
+    private GameObject _socialDrawerObj;
+    private SocialDrawerTab _socialDrawerActiveTab = SocialDrawerTab.Chat;
+
+    /// <summary>Opens the global Social drawer overlay - three tabs (Chat/Mail/Friends), each
+    /// swapping in the real existing presenter's own canvas rather than reimplementing chat/mail/
+    /// friends inside the drawer. Accessible from any destination per the locked design; built
+    /// here on Home since every destination routes back through Home's own gameObject/lifecycle.</summary>
+    private void OpenSocialDrawer()
     {
-        // Secondary strip under Identity — stays left of WeeklyPermitStrip (x≥900). Y 100–168;
-        // tutorial banner lives below at Y 176–242 (no overlap).
-        CreateHeaderTextButton(parent, "Btn_Bazaar", "BAZAAR", 40, 100, 175, 168, OpenBazaar);
-        CreateHeaderTextButton(parent, "Btn_Chat", "CHAT", 183, 100, 318, 168, OpenChatSocial);
-        CreateHeaderTextButton(parent, "Btn_Mail", "MAIL", 326, 100, 461, 168, OpenMailInbox);
-        CreateHeaderTextButton(parent, "Btn_Friends", "FRIENDS", 469, 100, 604, 168, OpenFriends);
-        CreateHeaderTextButton(parent, "Btn_MemoryExpedition", "MEMORY", 612, 100, 747, 168, OpenMemoryExpedition);
-        CreateHeaderTextButton(parent, "Btn_Vip", "VIP", 755, 100, 890, 168, OpenVipSubscription);
+        EmitFeatureEntry("social_drawer");
+        if (_socialDrawerObj != null) SafeDestroy(_socialDrawerObj);
+
+        _socialDrawerObj = new GameObject("SocialDrawer", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        _socialDrawerObj.transform.SetParent(transform, false);
+        Canvas canvas = _socialDrawerObj.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 20;
+        CanvasScaler scaler = _socialDrawerObj.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        GameObject dim = new GameObject("Dimmer", typeof(RectTransform), typeof(Image));
+        dim.transform.SetParent(_socialDrawerObj.transform, false);
+        UISharedFoundation.StretchFull(dim.GetComponent<RectTransform>());
+        Image dimImg = dim.GetComponent<Image>();
+        dimImg.color = UIFrozenTokens.ColorBackground;
+        dimImg.raycastTarget = true;
+
+        GameObject tabBar = new GameObject("TabBar", typeof(RectTransform), typeof(Image));
+        tabBar.transform.SetParent(_socialDrawerObj.transform, false);
+        SetScreenRectFromTopLeftPixels(tabBar.GetComponent<RectTransform>(), 0, 0, 1920, 100);
+        Image tabBarBg = tabBar.GetComponent<Image>();
+        tabBarBg.sprite = null;
+        tabBarBg.color = UIFrozenTokens.ColorHeader;
+        tabBarBg.raycastTarget = false;
+
+        CreateDestinationButton(tabBar.transform, "CHAT", 24, 0, 644, 100, () => SwitchSocialDrawerTab(SocialDrawerTab.Chat));
+        CreateDestinationButton(tabBar.transform, "MAIL", 660, 0, 1280, 100, () => SwitchSocialDrawerTab(SocialDrawerTab.Mail));
+        CreateDestinationButton(tabBar.transform, "FRIENDS", 1296, 0, 1896, 100, () => SwitchSocialDrawerTab(SocialDrawerTab.Friends));
+
+        GameObject closeBtnObj = new GameObject("Btn_CloseDrawer", typeof(RectTransform), typeof(Image), typeof(Button));
+        closeBtnObj.transform.SetParent(_socialDrawerObj.transform, false);
+        SetScreenRectFromTopLeftPixels(closeBtnObj.GetComponent<RectTransform>(), 1780, 970, 1896, 1080);
+        Image closeImg = closeBtnObj.GetComponent<Image>();
+        Button closeBtn = closeBtnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(closeBtn, closeImg, new Color(0.2f, 0.14f, 0.14f, 0.92f));
+        closeBtn.onClick.AddListener(CloseSocialDrawer);
+        Text closeLabel = UISharedFoundation.CreateText(closeBtnObj.transform, "Label", "CLOSE", UITextRole.Body,
+            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(100f, 32f));
+        closeLabel.fontSize = 16;
+        closeLabel.fontStyle = FontStyle.Bold;
+        closeLabel.raycastTarget = false;
+
+        SwitchSocialDrawerTab(SocialDrawerTab.Chat);
+    }
+
+    private void SwitchSocialDrawerTab(SocialDrawerTab tab)
+    {
+        _socialDrawerActiveTab = tab;
+
+        // Tear down whichever of the three tab presenters is currently live before opening the
+        // newly-selected one - only one tab's content is ever on screen at a time.
+        SafeDestroy(gameObject.GetComponent<ChatSocialPresenter>());
+        SafeDestroy(gameObject.GetComponent<MailInboxPresenter>());
+        SafeDestroy(gameObject.GetComponent<FriendsPresenter>());
+
+        // onBack wired to CloseSocialDrawer, not a no-op - each sub-presenter's own real Back
+        // button must close the whole drawer and restore Home, not silently do nothing (a real
+        // bug caught before shipping: an empty callback would tear down the sub-presenter's
+        // canvas but leave the drawer's tab bar/dimmer stranded on screen with nothing under it).
+        switch (tab)
+        {
+            case SocialDrawerTab.Chat:
+                EmitFeatureEntry("chat_social");
+                gameObject.AddComponent<ChatSocialPresenter>().Initialize(CloseSocialDrawer);
+                break;
+            case SocialDrawerTab.Mail:
+                EmitFeatureEntry("mail_inbox");
+                gameObject.AddComponent<MailInboxPresenter>().Initialize(CloseSocialDrawer);
+                break;
+            case SocialDrawerTab.Friends:
+                EmitFeatureEntry("friends");
+                gameObject.AddComponent<FriendsPresenter>().Initialize(CloseSocialDrawer);
+                break;
+        }
+    }
+
+    private void CloseSocialDrawer()
+    {
+        SafeDestroy(gameObject.GetComponent<ChatSocialPresenter>());
+        SafeDestroy(gameObject.GetComponent<MailInboxPresenter>());
+        SafeDestroy(gameObject.GetComponent<FriendsPresenter>());
+        if (_socialDrawerObj != null) SafeDestroy(_socialDrawerObj);
+        _socialDrawerObj = null;
+        RefreshTopHUD();
+    }
+
+    /// <summary>Exposed for tests: the Social drawer button's own onClick target.</summary>
+    public void OpenSocialDrawerForTests() => OpenSocialDrawer();
+    public GameObject SocialDrawerObjectForTests => _socialDrawerObj;
+
+    /// <summary>LOCKED Home IA: DailyLoginQuests, BattlePass, MemoryExpedition, SoloCircuit, the
+    /// merged Permit entry, and GuildHallEntry (as a Guild tab) all consolidate under ONE
+    /// Quests/Events destination (register: "SoloCircuit -> Quests/Events", "PermitWeekKey ->
+    /// Quests/Events, no separate destination", "GuildHallEntry -> Quests/Events as a GUILD TAB").
+    /// A tab-strip launcher that opens the real existing presenter per tab - not a deep visual
+    /// merge of six screens, a single shared entry point so none of them are a permanent Home
+    /// button of their own.</summary>
+    private void OpenQuestsEventsHub()
+    {
+        EmitFeatureEntry("quests_events_hub");
+        BuildTabHub("QuestsEventsHub", new (string, UnityEngine.Events.UnityAction)[]
+        {
+            ("DAILY LOGIN", OpenDailyLoginQuests),
+            ("BATTLE PASS", OpenBattlePass),
+            ("MEMORY", OpenMemoryExpedition),
+            ("CIRCUIT", OpenSoloCircuit),
+            ("GUILD", OpenGuildHallEntry),
+            ("PERMIT", OpenPermitClaimEntry),
+        });
+    }
+
+    /// <summary>LOCKED Home IA: Cards/Shop/Bazaar/VIP consolidate under ONE Collection
+    /// destination; DeckBuilder is a Collection sub-screen (register: "DeckBuilder -> Collection
+    /// (sub-screen, not a root). Owns persistent card/deck state.") reachable via the Cards tab's
+    /// own existing "Open Deck Builder" button, unchanged.</summary>
+    private void OpenCollectionHub()
+    {
+        EmitFeatureEntry("collection_hub");
+        BuildTabHub("CollectionHub", new (string, UnityEngine.Events.UnityAction)[]
+        {
+            ("CARDS", OpenCollection),
+            ("SHOP", OpenShop),
+            ("BAZAAR", OpenBazaar),
+            ("VIP", OpenVipSubscription),
+        });
+    }
+
+    private GameObject _tabHubObj;
+
+    /// <summary>Shared minimal hub shell for Quests/Events and Collection - a tab strip over a
+    /// dimmed backdrop; tapping a tab tears the hub down and opens the real existing presenter
+    /// for that tab (unchanged onBack, returns straight to Home, same as every other destination
+    /// today). Kept deliberately thin rather than a deep per-hub reimplementation.</summary>
+    private void BuildTabHub(string hubName, (string label, UnityEngine.Events.UnityAction action)[] tabs)
+    {
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(false);
+        if (_tabHubObj != null) SafeDestroy(_tabHubObj);
+
+        _tabHubObj = new GameObject(hubName, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        _tabHubObj.transform.SetParent(transform, false);
+        Canvas canvas = _tabHubObj.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        CanvasScaler scaler = _tabHubObj.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        UISharedFoundation.CreateFullscreenBackground(_tabHubObj.transform, null, UIFrozenTokens.ColorBackground);
+
+        GameObject header = new GameObject("Header", typeof(RectTransform), typeof(Image));
+        header.transform.SetParent(_tabHubObj.transform, false);
+        SetScreenRectFromTopLeftPixels(header.GetComponent<RectTransform>(), 0, 0, 1920, 100);
+        Image headerBg = header.GetComponent<Image>();
+        headerBg.sprite = null;
+        headerBg.color = UIFrozenTokens.ColorHeader;
+        headerBg.raycastTarget = false;
+
+        GameObject backBtnObj = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
+        backBtnObj.transform.SetParent(header.transform, false);
+        backBtnObj.GetComponent<RectTransform>().anchorMin = new Vector2(0f, 1f);
+        backBtnObj.GetComponent<RectTransform>().anchorMax = new Vector2(0f, 1f);
+        backBtnObj.GetComponent<RectTransform>().pivot = new Vector2(0f, 1f);
+        backBtnObj.GetComponent<RectTransform>().anchoredPosition = new Vector2(30f, -5f);
+        backBtnObj.GetComponent<RectTransform>().sizeDelta = new Vector2(160f, 40f);
+        Image backImg = backBtnObj.GetComponent<Image>();
+        Button backBtn = backBtnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(backBtn, backImg, new Color(0.22f, 0.18f, 0.14f, 0.92f));
+        backBtn.onClick.AddListener(CloseTabHub);
+        UISharedFoundation.CreateText(backBtnObj.transform, "Text", "< BACK", UITextRole.Body,
+            TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 34f));
+
+        GameObject tabRow = new GameObject("TabRow", typeof(RectTransform));
+        tabRow.transform.SetParent(_tabHubObj.transform, false);
+        SetScreenRectFromTopLeftPixels(tabRow.GetComponent<RectTransform>(), 220, 24, 1896, 76);
+
+        float tabGap = 8f;
+        float tabWidth = ((1896f - 220f) - tabGap * (tabs.Length - 1)) / tabs.Length;
+        for (int i = 0; i < tabs.Length; i++)
+        {
+            (string label, UnityEngine.Events.UnityAction action) tab = tabs[i];
+            float left = 220f + i * (tabWidth + tabGap);
+            float right = left + tabWidth;
+            UnityEngine.Events.UnityAction wrapped = () =>
+            {
+                SafeDestroy(_tabHubObj);
+                _tabHubObj = null;
+                tab.action();
+            };
+            CreateDestinationButton(_tabHubObj.transform, tab.label, left, 24, right, 76, wrapped);
+        }
+    }
+
+    private void CloseTabHub()
+    {
+        if (_tabHubObj != null) SafeDestroy(_tabHubObj);
+        _tabHubObj = null;
+        if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+        RefreshTopHUD();
+    }
+
+    /// <summary>Exposed for tests.</summary>
+    public void OpenQuestsEventsHubForTests() => OpenQuestsEventsHub();
+    public void OpenCollectionHubForTests() => OpenCollectionHub();
+    public GameObject TabHubObjectForTests => _tabHubObj;
+
+    private void OpenSoloCircuit()
+    {
+        EmitFeatureEntry("solo_circuit");
+        OpenMetagameShellPresenter<SoloCircuitPresenter>(pass => pass.Initialize(SaveManager.SaveData, System.DateTime.UtcNow, () =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    private void OpenGuildHallEntry()
+    {
+        EmitFeatureEntry("guild_hall");
+        OpenMetagameShellPresenter<GuildHallEntryPresenter>(pass => pass.Initialize(() =>
+        {
+            if (homeCanvasObj != null) homeCanvasObj.SetActive(true);
+            RefreshTopHUD();
+            SafeDestroy(pass);
+        }));
+    }
+
+    public void OpenSoloCircuitForTests() => OpenSoloCircuit();
+    public void OpenGuildHallEntryForTests() => OpenGuildHallEntry();
+
+    /// <summary>The merged Permit entry (locked design: "SERVER-KEY and WEEKLY-permit-claim merge
+    /// into ONE Quests/Events entry with two labeled sub-states... no player-facing implementation
+    /// terminology, no two permanent Home buttons for what's really one logical feature"). Both
+    /// sub-states run from this one tab tap: the local scheduled weekly claim, then the
+    /// server-authoritative PermitWeekKey screen.</summary>
+    private void OpenPermitClaimEntry()
+    {
+        // Reuses the existing local-claim logic exactly as-is (TryClaimManualWeeklyPermits) - no
+        // weeklyPermitStatusText surface exists on this hub tab, so the result is only logged;
+        // the second sub-state (server-authoritative) still opens its own real status screen.
+        PlayerProfile profile = SaveManager.SaveData;
+        if (profile != null)
+        {
+            int granted = TryClaimManualWeeklyPermits(profile, out string status);
+            if (granted > 0) SaveManager.Save();
+            Debug.Log($"[Home] Weekly permit claim: {status}");
+        }
+
+        OpenPermitWeekKey();
     }
 
     public void OpenBazaarForTests() => OpenBazaar();
@@ -1053,22 +1410,6 @@ public class HomePagePresenter : MonoBehaviour
             RefreshTopHUD();
             SafeDestroy(pass);
         }));
-    }
-
-    private void CreateHeaderTextButton(Transform parent, string name, string label, float left, float top, float right, float bottom,
-        UnityEngine.Events.UnityAction action)
-    {
-        GameObject btnObj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-        btnObj.transform.SetParent(parent, false);
-        SetScreenRectFromTopLeftPixels(btnObj.GetComponent<RectTransform>(), left, top, right, bottom);
-        Image img = btnObj.GetComponent<Image>();
-        HomeV3UiLibrary.ApplyNeutralActionButton(btnObj.GetComponent<Button>(), img, new Color(0.16f, 0.22f, 0.2f, 0.92f));
-        btnObj.GetComponent<Button>().onClick.AddListener(action);
-        Text text = UISharedFoundation.CreateText(btnObj.transform, "Label", label, UITextRole.Caption,
-            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 40f));
-        text.fontSize = 16;
-        text.fontStyle = FontStyle.Bold;
-        text.raycastTarget = false;
     }
 
     private void OpenSettings()
