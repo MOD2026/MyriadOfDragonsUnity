@@ -4661,3 +4661,64 @@ totals 15,000/30,000 per season) and the six-month combined totals (F2P 483,450 
 repeatable Gold against the 1,779,550 Empire sink = 27.2%/37.3%). XP curve stays unlocked, blocks
 nothing else - CR can wire the Gold table now, `AreTierRewardsConfigured` just won't flip true until
 `SeasonXpPerTier` (or its replacement) is also locked.
+
+## LOCKED: SeasonXpPerTier = 1,400 (2026-08-26, BS, verified) - Battle Pass fully unblocked
+
+Fits the real scalar field exactly (no schema change). 8 x 1,400 = 11,200 total, preserving BS's
+originally intended full-track XP total from the rejected curve. Benchmark holds - Genshin's ~1,000
+XP/level (50,000 XP / 50 levels, confirmed via genshin-impact wiki) is close in per-unit terms while
+MOD deliberately uses 8 larger wells instead of 50 small ones. Battle Pass is now fully locked:
+Gold table + 8-tier mapping (prior entry) + this XP value. `AreTierRewardsConfigured` can go true
+once CR wires both. Curve-array version explicitly deferred as a separate future ask, not part of
+this lock.
+
+## WH's three packets confirmed committed (2026-08-26) - all three verified real
+
+| Packet | Commit | Verified |
+|---|---|---|
+| Ch3-18 continuity dialogue | `965a86d` | yes - see story-fix verification below |
+| Guild Expedition/Permit Week Key/Spell Loadout wiring | `ca3b210` | yes - matches dispatched assets |
+| VIP entitlements | `dad3f05` | yes - shared Shop Stamina claim slots per BS's re-locked spec |
+
+All on `main`, all landed before this entry. PENDING DISPATCH rows for all three retired.
+
+## Story fix genuinely resolves the Ch3-18 continuity gap, verified line-by-line - portrait HELD status LIFTED (2026-08-26)
+
+Spot-checked the actual implementation in `StoryDatabase.cs` against ST's locked plan, not just the
+commit message:
+- `3-30_post` repaired: the dead-star road now closes ("Its last echo points back through Boiotia")
+  instead of opening into Ch4 - the geographic discontinuity ST flagged is gone.
+- Unknown Voice escalates distinctly across 4-30/5-30/6-30/7-30 finales (confirmed real, different
+  lines each time, not the same warning repeated).
+- Eryx identity reveal is real and lands where the plan says: a new `eryx` speaker (`"Eryx, the
+  First Witness"`) replaces `unknown_voice` display lines from 18-1 onward - `18-15_pre` has Ione
+  naming the pattern, Eryx confirming ("The world had to ask you to build it for me").
+- **18-30 resolution genuinely reframed, not left as the old contradiction:** `18-30_pre`/`_post`
+  replaced in full - Eryx tempts ("Take the throne and bind every oath..."), player explicitly
+  refuses both times (`"If I refuse, everything we built must stand without me"` /
+  `"No crown, no banner, no silent throne. Your design ends here."`). The old flat "I do not need a
+  voice. I need the throne." contradiction line is gone from the live path (the dead pre-existing
+  `if (stageId == "18-30")` block above it is now unreachable dead code from before this packet -
+  worth a cleanup pass later, not urgent).
+
+**This is the real fix the portrait HELD ruling was blocked on.** Cast priority from the earlier
+lock stands: Priority 1 = Thaleia, Rusk, Ione, Gorn, Eryx (identity now resolved, no longer "pending
+reveal"). Portrait commissioning may now proceed - see UI prompt dispatched below.
+
+## Design-token rollout batch 2/~20 LANDED, verified real (2026-08-26, CR, commit 5c4538c)
+
+BattlePass (tier wells), DailyLoginQuests (login wells, streak bar, quest rows), MailInbox (mail
+rows), Friends (friend rows), VipSubscription (plan sockets, benefit wells) - all bare flat
+`img.color` fills with no button-skin, converted to `ApplyFramedPanel` + tokens. Verified via
+`git show --stat`, matches report. 39/39 pass across 6 shell/layout test classes, HEAD dad3f05
+unchanged before/after.
+
+CR now on the queued Expedition Gold/Stamina/cap wiring, then Battle Pass Gold table (correctly
+confirming the real Gold-bearing field name before writing anything, rather than guessing off
+`SeasonXpPerTier` which is XP-only) - room not idle, no dispatch needed. Both Expedition and Battle
+Pass Gold values are now fully locked (prior entries), nothing blocking either wire-up.
+
+## UI portrait commissioning dispatched (2026-08-26) - first real art ask since the story fix landed
+
+Priority 1 cast per the locked continuity plan: Thaleia, Rusk, Ione, Gorn, Eryx. Paste-ready prompt
+given to owner below. Not yet confirmed sent.
