@@ -7737,3 +7737,32 @@ starting - teardown, domain reload, or test-runner-level state, not gameplay cod
 **No Play Mode visual confirmation yet** (batch lock / no interactive session) - WH flagged this
 itself, asking for a quick Play glance when available rather than claiming the gradient looks right
 sight unseen.
+
+## CR catches a FOURTH stale dispatch, delivers 1795/1795 - genuinely clean full suite for the first time tonight (2026-08-26, commit eedc9ec)
+
+**The DailyLoginQuests dispatch was stale** - CR had already found and fixed it hours earlier during
+the same 22-site reorder pass (hit the identical failing test itself), committed in `54dfcf9`.
+Verified directly: `DailyLoginQuestsPresenter.cs:175/196/231` all pass `kind: ListRow` already, git
+status clean, no uncommitted WIP. Fourth time tonight CR has caught a dispatch built on stale
+information rather than acting on it blind (BackdropImages, the DeckBuilder assertions, and now
+this) - the verify-first instruction has paid for itself every single time it's been given a chance.
+
+**Fell back to the queued AD items as instructed, both real and verified:**
+`CreateOrGetRoundedPanelSprite` (quantized-key cache, no eviction - matches tonight's own scoping
+discipline) wired into `ApplyFramedPanel`'s fallback branch, plus the 100x100-default-rect
+`Debug.LogWarning` catching any future apply-before-position regression before it ships silently
+again.
+
+**Full suite: 1795/1795, 0 compile errors, 0 failures.** Genuinely clean - the AvatarStrike flipbook
+case (VS's importer fix, `ce8ffc6`) is confirmed gone in this run, meaning this is the FIRST
+combined-fix verification tonight, closing the honest caveat logged two entries ago about CR's prior
+1794/1795 possibly predating VS's fix. Both fixes are now confirmed compatible and working together,
+measured, not assumed.
+
+**Also flagged, not touched:** `BattleReleaseLayoutTests.cs` picked up a new test generalizing the
+art-over-interactive-control guard to the Battle screen - not CR's, correctly left alone and reported
+rather than silently absorbed.
+
+**State as of this entry: every coding-side thread from tonight's UI investigation is either shipped
+and verified, or has a real next step in flight.** The only thing missing is the owner's own eyes,
+which are blocked on a login issue outside anyone's control.
