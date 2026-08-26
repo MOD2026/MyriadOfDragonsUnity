@@ -532,6 +532,53 @@ room soonest.
 6. **Art pipeline.** 3 zero-chrome backdrops (GameBootstrap / TacticalPuzzle / SoloCircuit) prompted
    at 1920x1080 landscape, not yet generated or imported.
 
+## Typography - LOCKED 2026-08-27 (1920x1080 landscape, 1.25 modular scale)
+
+Pairs with the four frame tiers. Implement as design tokens alongside them.
+
+| Token | Size | Weight | Line-height | Use |
+|---|---:|---:|---:|---|
+| T1 Micro | 22px | 500 | 26px | Compact metadata, timers, secondary labels |
+| T2 Utility | 28px | 500 | 34px | Resource labels, rows, tooltips |
+| T3 Body | 35px | 400-500 | 42px | Descriptions, instructional copy |
+| T4 Control | 44px | 600 | 52px | Buttons, tabs, navigation labels |
+| T5 Section | 55px | 600 | 66px | Section headings, mode names |
+| T6 Hero | 69px | 700 | 83px | Primary CTA, featured title |
+| T7 Display | 86px | 700 | 103px | Rare opening / major result headline |
+
+**The scale is a vocabulary and a ceiling, not a requirement to show seven sizes.**
+
+**Frame-tier pairing:** Tier1 Hero -> T6/T7 title, T4-T5 supporting. Tier2 Section -> T5 heading,
+T3 body, T4 selected tab. Tier3 Utility -> T2 labels, T1 values, T3 only for explanatory rows.
+Tier4 Surface/no frame -> T1 metadata, HUD values, counters, status. A primary CTA is normally T6,
+but a compact control's label may be T4. **A T7 headline inside a Tier-3 row is a hierarchy error.**
+
+**HARD FLOORS: 22px absolute minimum for any player-facing text; 28px minimum for body copy and
+interactive labels.** Derived from the real display condition, not the editor - a 1920x1080 reference
+canvas is commonly rendered onto a ~6-inch landscape screen.
+
+**Max FOUR active text roles per screen** (display/hero, section/control, body, utility/metadata).
+Weight and colour may vary within a role; do not add sizes to decorate individual panels. More than
+four triggers review, not a build failure.
+
+**ALL-CAPS: cut back, do not eliminate.** Keep for short primary CTAs, tabs and compact mode labels
+(TO BATTLE, SHOP, CLAIM). Convert instructional sentences, story text, rewards and long headings to
+title/sentence case. **No all-caps beyond ~14 characters** unless tracking and width are deliberately
+designed. Retain +2% to +5% tracking where all-caps stays. Our current screens over-use it -
+"ORDER THE RANKS" and similar long all-caps titles are exactly the case to convert.
+
+**Spacing that satisfies NO-DEAD-SPACE without collapsing hierarchy:** line-height 1.2x headings/
+controls, 1.3x body; single-line control padding 10-14px; multi-line body padding 16-20px inside a
+section; heading-to-content gap 12-18px; unrelated-group gap 24-32px; 45-75 characters per line.
+**Test every gap: does it separate a semantic group, improve scan order, or protect a tap target?
+If not, remove it.** No-dead-space does NOT mean collapsing leading until text is a wall.
+
+**Benchmark: UNCONFIRMED for exact pixel values on all five games checked** (Snap, Clash Royale,
+Hearthstone, Arknights, Genshin) - official captures do not expose a fixed 1920x1080 reference scale
+and UI varies by device/mode. BS correctly refused to estimate. Qualitative pattern observable in all
+of them: a dominant display/CTA surface with compact restrained utility text, hierarchy from scale
+and contrast rather than many type sizes.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
