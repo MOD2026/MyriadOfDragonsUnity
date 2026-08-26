@@ -384,14 +384,12 @@ namespace MyriadOfDragons.Tests
             // 250 is the proof: that rung used to refuse forever and block everything behind it.
             CollectionAssert.Contains(claimed, 250, "The voucher rung must now claim, not refuse.");
 
-            // 1000 is deliberately NOT expected. My first draft asserted it and contradicted
-            // itself: the COSMETIC rung at 500 still blocks the ascending queue, so 1000 is
-            // unreachable for a different and still-open reason. The voucher lockout is fixed; the
-            // cosmetic gap is not, and conflating them would hide one behind the other.
-            CollectionAssert.DoesNotContain(claimed, 1000);
-            Assert.AreEqual(500, ShopLoyaltyService.NextClaimableMilestone(profile),
-                "The queue now stops at the cosmetic rung instead of the voucher rung - progress " +
-                "of exactly one blocker, which is what was actually fixed.");
+            // INVERTED 2026-08-26, and this is the whole arc in one assertion. Earlier tonight
+            // this test could only reach 250 (voucher lockout), then only 500 (cosmetic rung).
+            // Both are resolved, so a permanently-subscribed player now claims straight through to
+            // the Gold tier.
+            CollectionAssert.Contains(claimed, 1000);
+            CollectionAssert.Contains(claimed, 2000, "The Gold tier is reachable at last.");
         }
 
         [Test]
@@ -484,14 +482,56 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void TheCosmeticRung_RefusesBecauseTheSaveCannotRepresentIt()
+        public void NoRungAwardsACosmeticAnyMore_SoNothingBlocksTheLadder()
         {
-            // Milestone 500 awards a cosmetic and PlayerProfile has no cosmetic ownership model at
-            // all. Granting a reward the save cannot represent is worse than not granting it - the
-            // player would see a success message and own nothing.
-            Assert.IsTrue(ShopLoyaltyService.CosmeticGrantsUnsupported(500));
-            Assert.IsFalse(ShopLoyaltyService.CosmeticGrantsUnsupported(100),
-                "Only the cosmetic rung is blocked for this reason.");
+            // Milestone 500 was the last cosmetic and the last blocker: it could not be claimed
+            // (no ownership model) and ascending order meant it walled off everything behind it.
+            // BS replaced the reward rather than building an ownership model for one rung.
+            foreach (ShopLoyaltyService.LoyaltyMilestone m in ShopLoyaltyService.Milestones)
+                Assert.IsFalse(ShopLoyaltyService.CosmeticGrantsUnsupported(m.Points),
+                    "Rung " + m.Points + " still claims to award an unrepresentable cosmetic.");
+        }
+
+        [Test]
+        public void TheWholeLadderNowClaimsThroughToTheGoldTier()
+        {
+            // THE PAYOFF, and the thing that was measured as impossible twice tonight: first the
+            // voucher lockout blocked at 250, then the cosmetic rung blocked at 500. Both are
+            // resolved, so a subscribed player can now reach the Gold tier at 2,000.
+            var profile = new PlayerProfile { stamina = 0, maxStamina = 100 };
+            ShopLoyaltyService.Accrue(profile, 2000);
+            long now = ShopStaminaCatalog.NowUtcTicks();
+            profile.vipPlanId = "monthly";
+            profile.vipStartedUtcTicks = now;
+            profile.vipExpiresUtcTicks = now + System.TimeSpan.FromDays(30).Ticks;
+            int goldBefore = profile.gold;
+
+            var claimed = new List<int>();
+            for (int i = 0; i < 8; i++)
+            {
+                ShopLoyaltyClaimResult r = ShopLoyaltyService.ClaimNext(profile, now);
+                if (!r.Claimed) break;
+                claimed.Add(r.MilestonePoints);
+            }
+
+            CollectionAssert.Contains(claimed, 500, "The former cosmetic rung must now claim.");
+            CollectionAssert.Contains(claimed, 2000, "The Gold tier must finally be reachable.");
+            Assert.Greater(profile.gold, goldBefore + 25000,
+                "5,000 from the 500 rung plus 25,000 from the 2,000 rung, at minimum.");
+        }
+
+        [Test]
+        public void AvatarXpIsOWED_ButNotGranted_BecauseThereIsNowhereToPutIt()
+        {
+            // PlayerProfile has avatarLevel and NO XP field - nothing anywhere stores or consumes
+            // Avatar XP. Granting it would write to a void and report a reward the player never
+            // receives, which is the destroyed-entitlement pattern found three times already
+            // tonight. Exposed as an owed amount instead, so a real sink can pay it later.
+            //
+            // This test should be REWRITTEN, not deleted, once an XP sink exists.
+            Assert.AreEqual(20, ShopLoyaltyService.AvatarXpOwedFor(500),
+                "BS's locked table owes 20 Avatar XP at the 500 rung.");
+            Assert.AreEqual(0, ShopLoyaltyService.AvatarXpOwedFor(100));
         }
 
         [Test]
@@ -520,13 +560,14 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(claimed, 250, "The 250 voucher rung must now claim.");
             Assert.Greater(profile.vipExpiresUtcTicks, 0,
                 "Walking the ladder must have granted a real VIP voucher.");
-            Assert.AreEqual(goldBefore, profile.gold,
-                "No Gold yet - 500 is a cosmetic rung and still blocks the queue below 2,000.");
 
-            // The remaining blocker is the cosmetic rung, NOT a voucher. That is a different and
-            // still-open gap (no cosmetic ownership model), and naming it here keeps the two from
-            // being confused when someone reads a red test later.
-            Assert.IsTrue(ShopLoyaltyService.CosmeticGrantsUnsupported(500));
+            // INVERTED 2026-08-26. This used to assert Gold was UNCHANGED because the cosmetic rung
+            // walled off everything below 2,000. BS replaced that reward, so the walk now reaches
+            // the Gold tier and the ladder pays out end to end.
+            Assert.Greater(profile.gold, goldBefore,
+                "The ladder now pays real Gold - it used to stop dead at the cosmetic rung.");
+            Assert.IsFalse(ShopLoyaltyService.CosmeticGrantsUnsupported(500),
+                "500 is no longer a cosmetic rung.");
         }
 
         [Test]

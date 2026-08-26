@@ -118,11 +118,17 @@ namespace MyriadOfDragons.Tests
             Assert.GreaterOrEqual(whale.LoyaltyVouchersGranted, regular.LoyaltyVouchersGranted,
                 "A whale outspends a regular spender, so it cannot earn fewer.");
 
-            // The remaining zero is the COSMETIC rung (500), which PlayerProfile still cannot
-            // represent - a genuinely different open gap from the voucher one just closed. Stated
-            // as its own assertion so the two are never conflated again.
-            Assert.Greater(whale.LoyaltyClaimsBlockedAtCosmeticRung, 0,
-                "The cosmetic rung is now the only thing blocking the ladder.");
+            // THE LADDER IS NOW FULLY OPEN. Both blockers measured tonight are resolved: the
+            // voucher lockout (deferred queue) and the cosmetic rung (BS replaced the reward). This
+            // assertion previously required the cosmetic block to EXIST - inverted here, as its own
+            // comment said it should be once resolved.
+            Assert.AreEqual(0, whale.LoyaltyClaimsBlockedAtCosmeticRung,
+                "Nothing blocks the ascending queue any more.");
+
+            // And the number BS has been waiting on all night is finally real rather than 0.
+            Assert.Greater(whale.LoyaltyGoldClaimed, 0,
+                "Six-month whale Loyalty Gold is now a real figure - this was 0 while the ladder " +
+                "was locked, and 0 was never the true answer, only the blocked one.");
 
             // Same free Gold farms as F2P; paid BP table is configured but not claimable.
             Assert.AreEqual(483_450,

@@ -154,7 +154,7 @@ namespace MyriadOfDragons.Save
         {
             new LoyaltyMilestone(100, "1 Stamina claim (counts against the existing 4/24h cap)"),
             new LoyaltyMilestone(250, "Weekly (7-day) VIP voucher"),
-            new LoyaltyMilestone(500, "Cosmetic badge/frame (existing catalog only)"),
+            new LoyaltyMilestone(500, "5,000 Gold + 1 Stamina claim"),
             new LoyaltyMilestone(1000, "Fortnight (14-day) VIP voucher"),
             new LoyaltyMilestone(2000, "25,000 Gold + 2 Stamina claims + VIP voucher"),
             new LoyaltyMilestone(4000, "50,000 Gold + 4 Stamina claims + VIP voucher"),
@@ -168,12 +168,27 @@ namespace MyriadOfDragons.Save
         {
             switch (milestonePoints)
             {
+                case 500: return 5000;      // BS-locked 2026-08-26, replacing the cosmetic
                 case 2000: return 25000;
                 case 4000: return 50000;
                 case 8000: return 100000;
                 default: return 0;
             }
         }
+
+        /// <summary>
+        /// Avatar XP a milestone owes, per BS's locked table.
+        ///
+        /// NOT GRANTED, AND DELIBERATELY SO: there is no Avatar XP field on PlayerProfile at all -
+        /// only `avatarLevel`. Nothing anywhere stores or consumes XP, so granting it here would
+        /// write to a void and report a reward the player never receives. Exposed as a number the
+        /// caller can display or bank once a real sink exists, rather than silently dropped - which
+        /// is exactly the destroyed-entitlement pattern already found three times tonight.
+        ///
+        /// The Solo Circuit has the same gap and I built it: AvatarXpPerTrialClear is counted for
+        /// the daily cap and then discarded. Flagged for a real sink rather than patched here.
+        /// </summary>
+        public static int AvatarXpOwedFor(int milestonePoints) => milestonePoints == 500 ? 20 : 0;
 
         /// <summary>Stamina claims granted by a milestone. Every one is still subject to the real
         /// 4-per-24h Shop refill cap - a milestone may never bypass it, so a grant can come back
@@ -183,6 +198,7 @@ namespace MyriadOfDragons.Save
             switch (milestonePoints)
             {
                 case 100: return 1;
+                case 500: return 1;         // BS-locked 2026-08-26
                 case 2000: return 2;
                 case 4000: return 4;
                 case 8000: return 8;
@@ -318,9 +334,19 @@ namespace MyriadOfDragons.Save
             return 0;
         }
 
-        /// <summary>True for rungs awarding a cosmetic. No cosmetic ownership model exists on
-        /// PlayerProfile, so these cannot be claimed yet.</summary>
-        public static bool CosmeticGrantsUnsupported(int milestonePoints) => milestonePoints == 500;
+        /// <summary>
+        /// No rung awards a cosmetic any more.
+        ///
+        /// Milestone 500 was the only one, and it was unclaimable because PlayerProfile has no
+        /// cosmetic ownership model - which blocked the whole ascending ladder behind it. BS
+        /// replaced the cosmetic with concrete rewards on 2026-08-26 rather than building an
+        /// ownership model for a single rung, so the blocker is gone by removal, not by workaround.
+        ///
+        /// Kept as a function returning false rather than deleted: callers and tests still ask the
+        /// question, and a permanently-false predicate documents that the answer is now "none"
+        /// instead of leaving readers to infer it from an absence.
+        /// </summary>
+        public static bool CosmeticGrantsUnsupported(int milestonePoints) => false;
 
         /// <summary>Highest milestone the player's progress has REACHED, or -1. Reaching is not
         /// claiming - see RedemptionAvailable.</summary>

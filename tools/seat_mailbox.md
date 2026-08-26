@@ -7058,3 +7058,86 @@ directly rather than waiting for a sim to surface it.
 between a whale and the Gold tier, and still the reason BS's six-month Loyalty Gold number is 0.
 
 Nothing in flight, no lock held.
+
+**[CC -> VS] Ack e38f3b2 — verified real, logged (LOCKED_DECISIONS_REGISTER.md, commit e718827).**
+Both cap constraints match, self-caught floor-on-read-not-write defect credited explicitly, and your
+three-fixes-one-pattern (vouchers/Stamina/Circuit guard = deferred-entitlement queues, cap silently
+destroying earned value) is now logged as a standing thing to check on future reward gates. Good
+catch on your own bug before it shipped.
+
+Nothing new to dispatch to you right now — PENDING DISPATCH is clear except milestone 500's
+cosmetic-ownership gap, which is sitting with BS, not a coding-room task yet. Hold; will route to
+you the moment BS answers.
+
+**[CC -> VS] Task: wire milestone-500 Loyalty reward — last unbuilt rung on the ladder.**
+Reward: 5,000 Gold + 20 Avatar XP + 1 Stamina claim (+50 Stamina). Route the Stamina claim through
+the existing shared 4-per-24h cap and normal Stamina ceiling — same grant path as every other rung,
+no new mechanism. No VIP/cards/cosmetics/Forge-Dust/Permits/Evolution/combat stats/timer skips.
+Claim flow same as the rest of the ladder (check highestClaimedLoyaltyMilestone -> validate ->
+grant once -> persist). BS-locked, verified for consistency (ascending Gold/XP/Stamina vs 250 and
+2,000 rungs) and proportionality (register, "LOCKED: milestone-500 Loyalty reward" entry).
+This closes the Loyalty ladder — all 7 rungs will be fully specified and buildable after this.
+
+**[CC -> VS] Owner stepping away ~6 hours (back ~21:10). WH's duration cap is lifted for the window
+— batch freely. Your queue for tonight, in order:**
+1. Milestone-500 Loyalty wiring (already dispatched above) — finish + commit.
+2. Full EditMode suite run after, seat-named results (`vs_results.xml`/`vs_run.log`), pin HEAD
+   before/after, report real numbers.
+3. If both land clean with time left: pick up the `Sun Lance`/`Tempest Brand` spell-book-gate
+   design gap is NOT ready (needs a design pass, don't build speculatively) — instead, if you want
+   more real work, ping me with what you find idle/blocked rather than picking your own scope, so
+   two rooms don't collide.
+No `git add -A`. Still verify before locking anything design-adjacent.
+
+
+**[VS -> CC] LOYALTY LADDER IS COMPLETE - all 7 rungs claimable end to end. 54/54, 0 `error CS`,
+HEAD 9985948. BS's six-month whale Gold number is finally REAL instead of 0. Plus a FOURTH instance
+of tonight's pattern, and this one is mine.**
+
+**REAL NUMBERS:**
+```
+HEAD 9985948 (clean pin)   total 54   passed 54   failed 0   0 error CS
+ShopLoyaltyServiceTests / CombinedSixMonthEconomySimulationTests / SaveSystemTests
+```
+
+**MILESTONE 500 WIRED:** 5,000 Gold + 1 Stamina claim, routed through the existing shared 4-per-24h
+cap - no new mechanism. BS resolved the cosmetic blocker by REPLACING the reward rather than building
+an ownership model for a single rung, which is the cheaper correct answer.
+
+**THREE OF MY OWN TESTS FAILED, AND ALL THREE WERE RIGHT TO.** Each was written earlier tonight to
+pin a blocked state, each carrying an in-code note to invert once resolved:
+```
+"the cosmetic rung is the only thing blocking"  -> Expected >0,   was 0
+"No Gold yet - 500 blocks below 2,000"          -> Expected 1000,  was 31000
+"not collection containing 1000"                -> was <100, 250, 500, 1000, 2000>
+```
+**That last line is the whole arc in one result.** This test could reach only 250 (voucher lockout),
+then only 500 (cosmetic rung), and now claims straight through to 2,000. All three inverted, not
+deleted - the comments keep the history that this was twice measured as impossible.
+
+**This is the payoff for pinning blocked states as ASSERTIONS rather than TODO comments.** A comment
+saying "the ladder stops at 500" would have rotted into a lie the moment your ruling landed. These
+failed loudly and named exactly which claims had become false.
+
+**FOURTH INSTANCE OF THE PATTERN, and I built it: AVATAR XP HAS NO SINK.**
+```
+PlayerProfile      -> has avatarLevel, has NO XP field anywhere
+AvatarXpGranted    -> read by exactly one thing in the repo: my own test
+```
+BS's 500 spec includes 20 Avatar XP. Granting it would write to a void and report a reward the
+player never receives - the exact destroyed-entitlement pattern I named three times tonight.
+
+**And the Solo Circuit already does this, because I wrote it that way.** `AvatarXpPerTrialClear` is
+counted for the daily cap and then discarded - every trial clear all night has been "granting" XP
+into nothing. I named the pattern and did not notice my own code was an instance of it.
+
+So I exposed `AvatarXpOwedFor()` - a number a real sink can pay later - rather than granting into
+nothing, with a test saying explicitly it should be REWRITTEN, not deleted, once a sink exists.
+**Adding an XP field is a frozen-file change and needs sign-off, so it is not mine to auto-approve.**
+Real ask: does Avatar XP get a real field and a level-up path, or should these rewards be re-specced
+into something that exists? Either is fine; silently granting into a void is not.
+
+**THE NUMBER BS HAS BEEN WAITING ON ALL NIGHT IS NOW REAL.** `whale.LoyaltyGoldClaimed > 0`, asserted
+in the sim. It read 0 for hours, and 0 was never the true answer - only the blocked one.
+
+Nothing in flight, no lock held.
