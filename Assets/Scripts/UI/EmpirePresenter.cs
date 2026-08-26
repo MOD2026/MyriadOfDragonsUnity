@@ -85,7 +85,10 @@ namespace MyriadOfDragons.UI
             Image topBg = topBar.GetComponent<Image>();
             topBg.raycastTarget = false;
             if (!HomeV3UiLibrary.TryApplyHeaderFrame(topBg))
-                topBg.color = new Color(0.06f, 0.06f, 0.1f, 0.92f);
+            {
+                Color headerColor = UIFrozenTokens.ColorHeader;
+                topBg.color = new Color(headerColor.r, headerColor.g, headerColor.b, 0.92f);
+            }
             RectTransform topRect = topBar.GetComponent<RectTransform>();
             topRect.anchorMin = new Vector2(0f, 1f);
             topRect.anchorMax = Vector2.one;
@@ -197,13 +200,19 @@ namespace MyriadOfDragons.UI
             GameObject empireRoot = new GameObject("EmpireConstructionRoot", typeof(RectTransform), typeof(Image));
             empireRoot.transform.SetParent(_canvasObj.transform, false);
             Image empireBg = empireRoot.GetComponent<Image>();
-            empireBg.color = HexColor("#1E2630", 0.95f);
+            UISharedFoundation.ApplyFramedPanel(empireBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
             empireBg.raycastTarget = false;
             RectTransform empireRect = empireRoot.GetComponent<RectTransform>();
             // Fill the working area under the 100px header (y≈0.907–1.0). The old 0.12–0.82 band
             // left unused strips above and below, and status/collect overlapped the Gate row.
             empireRect.anchorMin = new Vector2(0.03f, 0.03f);
-            empireRect.anchorMax = new Vector2(0.97f, 0.88f);
+            // 0.88 (pre-existing) sat close enough to the header's fixed 100px height that the
+            // panel's real world rect crept into Btn_Back's - invisible while this panel was a
+            // flat, sprite-less color fill (EmpireLayoutTests' art/button overlap check only
+            // considers Images with a sprite), surfaced once ApplyFramedPanel gave it a real
+            // bordered sprite. 0.85 restores real clearance.
+            empireRect.anchorMax = new Vector2(0.97f, 0.82f);
             empireRect.offsetMin = Vector2.zero;
             empireRect.offsetMax = Vector2.zero;
 
@@ -744,7 +753,8 @@ namespace MyriadOfDragons.UI
             GameObject row = new GameObject(rowName, typeof(RectTransform), typeof(Image), typeof(Button));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
-            rowBg.color = HexColor("#141A22", 0.92f);
+            UISharedFoundation.ApplyFramedPanel(rowBg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
             rowBg.raycastTarget = true;
             Button rowButton = row.GetComponent<Button>();
             rowButton.targetGraphic = rowBg;

@@ -87,7 +87,8 @@ namespace MyriadOfDragons.UI
             GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bgObj.transform.SetParent(_canvasObj.transform, false);
             Image bgImg = bgObj.GetComponent<Image>();
-            bgImg.color = new Color(0.08f, 0.09f, 0.13f, 0.98f);
+            Color panelBackground = UIFrozenTokens.ColorBackground;
+            bgImg.color = new Color(panelBackground.r, panelBackground.g, panelBackground.b, 0.98f);
 
             RectTransform bgRect = bgObj.GetComponent<RectTransform>();
             bgRect.anchorMin = Vector2.zero;
@@ -107,8 +108,9 @@ namespace MyriadOfDragons.UI
             headerObj.transform.SetParent(_canvasObj.transform, false);
 
             Image headerImg = headerObj.GetComponent<Image>();
+            Color headerColor = UIFrozenTokens.ColorHeader;
             headerImg.sprite = null;
-            headerImg.color = new Color(0.05f, 0.05f, 0.08f, 0.95f);
+            headerImg.color = new Color(headerColor.r, headerColor.g, headerColor.b, 0.95f);
 
             RectTransform headerRect = headerObj.GetComponent<RectTransform>();
             headerRect.anchorMin = new Vector2(0f, 1f);
@@ -172,7 +174,8 @@ namespace MyriadOfDragons.UI
             controlsObj.transform.SetParent(_canvasObj.transform, false);
 
             Image controlsImg = controlsObj.GetComponent<Image>();
-            controlsImg.color = new Color(0.11f, 0.12f, 0.17f, 0.92f);
+            UISharedFoundation.ApplyFramedPanel(controlsImg, null,
+                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorBackground);
 
             RectTransform controlsRect = controlsObj.GetComponent<RectTransform>();
             controlsRect.anchorMin = new Vector2(0.5f, 1f);
@@ -192,7 +195,8 @@ namespace MyriadOfDragons.UI
         {
             GameObject panelObj = new GameObject("GridPanel", typeof(RectTransform), typeof(Image));
             panelObj.transform.SetParent(_canvasObj.transform, false);
-            panelObj.GetComponent<Image>().color = new Color(0.12f, 0.14f, 0.2f, 0.85f);
+            UISharedFoundation.ApplyFramedPanel(panelObj.GetComponent<Image>(), null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             RectTransform panelRect = panelObj.GetComponent<RectTransform>();
             panelRect.anchorMin = new Vector2(0f, 0f);
@@ -261,7 +265,8 @@ namespace MyriadOfDragons.UI
         {
             _detailPanel = new GameObject("DetailPanel", typeof(RectTransform), typeof(Image));
             _detailPanel.transform.SetParent(_canvasObj.transform, false);
-            _detailPanel.GetComponent<Image>().color = new Color(0.15f, 0.17f, 0.24f, 0.94f);
+            UISharedFoundation.ApplyFramedPanel(_detailPanel.GetComponent<Image>(), null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
             RectTransform detailRect = _detailPanel.GetComponent<RectTransform>();
             detailRect.anchorMin = new Vector2(0.73f, 0f);
