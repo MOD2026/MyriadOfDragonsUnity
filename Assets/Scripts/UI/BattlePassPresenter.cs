@@ -189,26 +189,53 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
-                // Tier wells ~189x268 at 1920x1080 (8 wells across TrackTable). Local plates only.
+                // Absolute local plates above framed art (same under-backing trap as Shop pills).
                 const float wellW = 189f;
                 const float wellH = 268f;
+                GameObject indexPlate = new GameObject("TierIndexPlate", typeof(RectTransform));
+                indexPlate.transform.SetParent(well.transform, false);
+                RectTransform indexPlateRect = indexPlate.GetComponent<RectTransform>();
+                indexPlateRect.anchorMin = indexPlateRect.anchorMax = new Vector2(0f, 0f);
+                indexPlateRect.pivot = new Vector2(0.5f, 0.5f);
+                float indexH = wellH * 0.28f;
+                indexPlateRect.sizeDelta = new Vector2(wellW * 0.9f, indexH);
+                indexPlateRect.anchoredPosition = new Vector2(wellW * 0.5f, wellH * 0.85f);
                 UISharedFoundation.AddSemiTransparentScrimPanel(
-                    well.transform, new Vector2(wellW * 0.5f, wellH * 0.85f),
-                    new Vector2(wellW * 0.9f, wellH * 0.28f), UIDesignTokens.FrameTier.Tier2Section);
-                UISharedFoundation.AddSemiTransparentScrimPanel(
-                    well.transform, new Vector2(wellW * 0.5f, wellH * 0.26f),
-                    new Vector2(wellW * 0.9f, wellH * 0.38f), UIDesignTokens.FrameTier.Tier2Section);
-
-                Text headerN = UISharedFoundation.CreateText(well.transform, "TierIndex", $"T{i + 1}", UITextRole.Caption,
-                    TextAnchor.UpperCenter, Color.white, true, new Vector2(80f, 24f));
+                    indexPlate.transform,
+                    new Vector2(wellW * 0.45f, indexH * 0.5f),
+                    new Vector2(wellW * 0.9f, indexH),
+                    UIDesignTokens.FrameTier.Tier1Hero);
+                Text headerN = UISharedFoundation.CreateText(indexPlate.transform, "TierIndex", $"T{i + 1}",
+                    UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true, new Vector2(80f, 24f));
                 UISharedFoundation.ApplyTextShadow(headerN);
-                SetNorm(headerN.rectTransform, 0.05f, 0.72f, 0.95f, 0.98f);
+                RectTransform headerRect = headerN.rectTransform;
+                headerRect.anchorMin = Vector2.zero;
+                headerRect.anchorMax = Vector2.one;
+                headerRect.offsetMin = Vector2.zero;
+                headerRect.offsetMax = Vector2.zero;
 
-                Text amount = UISharedFoundation.CreateText(well.transform, "RewardAmount",
+                GameObject rewardPlate = new GameObject("RewardAmountPlate", typeof(RectTransform));
+                rewardPlate.transform.SetParent(well.transform, false);
+                RectTransform rewardPlateRect = rewardPlate.GetComponent<RectTransform>();
+                rewardPlateRect.anchorMin = rewardPlateRect.anchorMax = new Vector2(0f, 0f);
+                rewardPlateRect.pivot = new Vector2(0.5f, 0.5f);
+                float rewardH = wellH * 0.38f;
+                rewardPlateRect.sizeDelta = new Vector2(wellW * 0.9f, rewardH);
+                rewardPlateRect.anchoredPosition = new Vector2(wellW * 0.5f, wellH * 0.26f);
+                UISharedFoundation.AddSemiTransparentScrimPanel(
+                    rewardPlate.transform,
+                    new Vector2(wellW * 0.45f, rewardH * 0.5f),
+                    new Vector2(wellW * 0.9f, rewardH),
+                    UIDesignTokens.FrameTier.Tier1Hero);
+                Text amount = UISharedFoundation.CreateText(rewardPlate.transform, "RewardAmount",
                     MetagameShellProfileBinding.PassSeasonXpLine(), UITextRole.Body, TextAnchor.MiddleCenter,
                     Color.white, true, new Vector2(100f, 28f));
                 UISharedFoundation.ApplyTextShadow(amount);
-                SetNorm(amount.rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
+                RectTransform amountRect = amount.rectTransform;
+                amountRect.anchorMin = Vector2.zero;
+                amountRect.anchorMax = Vector2.one;
+                amountRect.offsetMin = Vector2.zero;
+                amountRect.offsetMax = Vector2.zero;
             }
         }
 
