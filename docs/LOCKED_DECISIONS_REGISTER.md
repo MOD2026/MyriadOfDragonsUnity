@@ -7081,3 +7081,15 @@ an accidental duplicate.
 full), or keep 150 and rewrite the cycle bonus to 0 (since 125-that-always-clips is a false number in
 the rewards table). VS's own read is 275 - a 7-day streak reward that can never pay is worse than
 none - but flagged this correctly as BS's call, not its own to make.
+
+## LOCKED: MaxMaterialsPerDay = 275, cycle bonus now pays for real (2026-08-26, BS, verified)
+
+**Verified real:** 150 (3 trials) + 125 (cycle bonus) = 275, matches exactly. Weekly-cycle math also
+checked: 6 ordinary days x 150 + 1 completion day x 275 = 1,175/cycle, only 125 above the plain
+6-ordinary-day-equivalent 1,050 - a small, bounded faucet increase, not a new economy hole. Gold's
+cap stays unchanged (that clip is deliberate/documented); Materials' was accidental, now fixed.
+Matches VS's own recommendation exactly.
+
+**Dispatching to VS:** change `MaxMaterialsPerDay` from 150 to 275 in `SoloCollectionCircuit.cs`, add
+a real test asserting the cycle-completion-day grant actually includes the full 125 bonus (not just
+that it doesn't crash), full suite run after.
