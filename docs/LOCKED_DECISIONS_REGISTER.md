@@ -5753,3 +5753,23 @@ center-anchored `CreateTextElement` and `ApplyNavTileButton`. Real stamina icon 
 `-ResultsPath`/`-LogPath`, new standing discipline correctly followed). Full continuous suite not
 run yet - lock held by another room, correctly not forced. This closes the specific screenshot bug;
 broader mockup-alignment work is a separate, larger thread below.
+
+## Secondary-button art wired, real pre-existing DeckBuilder bug found via proper A/B isolation (2026-08-26, CR, commit fd28f63)
+
+Verified via `git show --stat`, matches. `ApplyNeutralActionButton` now picks up real navy/bronze
+secondary-button 9-slice art automatically across ~65 call sites, zero per-site changes - same
+leverage pattern as the panel restyle. 149/151 on broad verification.
+
+**Real A/B result on the 2 failures, done properly - git-stashed `HomeV3UiLibrary.cs` back to
+completely unmodified, re-ran `DeckBuilderReleaseGateTests`, got byte-identical failures** ("no card
+roots created" / "Btn_Recommended not interactable"). This proves the failures predate CR's change
+entirely - not a regression, a real pre-existing bug in `DeckBuilderPresenter.cs` (Metagame-owned,
+correctly not investigated further by CR). Flagging as a real, reproducible bug for whoever picks up
+Metagame-owned work next - DeckBuilder currently produces zero card roots and its Recommended-deck
+button is non-interactable, unconditionally.
+
+**Real follow-up, not yet done, correctly flagged rather than attempted rushed:** primary-button
+(emerald) and modal art are imported but still unwired - nothing currently calls
+`ApplyFramedPanel`/equivalent for primary CTAs, and identifying which buttons deserve primary vs.
+secondary treatment is real per-call-site judgment, not a blanket swap. Queued as the next real
+piece of the restyle thread.
