@@ -2307,9 +2307,12 @@ namespace MyriadOfDragons.UI
                 backLabel.color = Color.white;
                 UISharedFoundation.ApplyTextShadow(backLabel);
             }
-            UISharedFoundation.AddSemiTransparentScrimPanel(
+            UISharedFoundation.AddLocalGradientScrim(
                 backBtnObj.transform, new Vector2(80f, 20f), new Vector2(156f, 38f),
-                UIDesignTokens.FrameTier.Tier2Section);
+                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            UISharedFoundation.AddLocalGradientScrim(
+                backBtnObj.transform, new Vector2(80f, 20f), new Vector2(156f, 38f),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
 
             // Chapter Title + progress + stamina status — stacked anchors (no overlapping 700×100 boxes).
             int displayChapter = ResolveDisplayChapterForTests(SaveSystem.CurrentProfile);
@@ -2337,11 +2340,16 @@ namespace MyriadOfDragons.UI
             statusPlateRect.pivot = new Vector2(0.5f, 1f);
             statusPlateRect.sizeDelta = new Vector2(statusPlateW, statusPlateH);
             statusPlateRect.anchoredPosition = new Vector2(0f, -70f);
-            UISharedFoundation.AddSemiTransparentScrimPanel(
+            UISharedFoundation.AddLocalGradientScrim(
                 statusPlate.transform,
                 new Vector2(statusPlateW * 0.5f, statusPlateH * 0.5f),
                 new Vector2(statusPlateW, statusPlateH),
-                UIDesignTokens.FrameTier.Tier1Hero);
+                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            UISharedFoundation.AddLocalGradientScrim(
+                statusPlate.transform,
+                new Vector2(statusPlateW * 0.5f, statusPlateH * 0.5f),
+                new Vector2(statusPlateW, statusPlateH),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
 
             GameObject statusObj = new GameObject("StatusText");
             statusObj.transform.SetParent(statusPlate.transform, false);
@@ -2677,11 +2685,16 @@ namespace MyriadOfDragons.UI
             plateRect.pivot = new Vector2(0.5f, 1f);
             plateRect.sizeDelta = new Vector2(plateW, plateHeightPx);
             plateRect.anchoredPosition = new Vector2(0f, -topInsetPx);
-            UISharedFoundation.AddSemiTransparentScrimPanel(
+            UISharedFoundation.AddLocalGradientScrim(
                 plate.transform,
                 new Vector2(plateW * 0.5f, plateHeightPx * 0.5f),
                 new Vector2(plateW, plateHeightPx),
-                UIDesignTokens.FrameTier.Tier1Hero);
+                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            UISharedFoundation.AddLocalGradientScrim(
+                plate.transform,
+                new Vector2(plateW * 0.5f, plateHeightPx * 0.5f),
+                new Vector2(plateW, plateHeightPx),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
 
             GameObject textObj = new GameObject(objectName);
             textObj.transform.SetParent(plate.transform, false);
