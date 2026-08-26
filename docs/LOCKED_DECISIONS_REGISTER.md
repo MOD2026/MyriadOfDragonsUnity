@@ -991,6 +991,55 @@ archive of Olympus treaties burning from within, forged writs copied from voice-
 ST's excavated-backstory instinct was correct; it simply attached it to a setting we do not have. The
 rewrite anchors to the burning archive and the Ash Regent instead.
 
+## CONTRAST GATE: 156 REAL FINDINGS, DELIBERATELY NOT ARMED (VS, 2026-08-27)
+
+VS implemented the 5c46c28 contrast lock and it works. **156 real findings after removing a
+self-caught artifact.**
+
+```
+21 findings UNDER 2:1   <- effectively unreadable
+58 findings 2-4:1
+58 findings 4-6:1
+19 findings 6-7:1       <- near the floor
+worst: Shop 23, BattlePass 21, TacticalPuzzle 15, MemoryExpedition 15
+```
+
+**VS caught its own artifact before reporting.** First pass sampled the normal frame and skipped
+pixels near the text colour to exclude glyphs - but **anti-aliased edge pixels are blends**, too far
+from the text colour to skip, scoring ~1.5:1, and reliably >5% of a label's area. So the 5th
+percentile was landing INSIDE the anti-aliasing on every label. Fixed by rendering each screen TWICE,
+second pass with every `Text` disabled. **169 -> 156; the difference was pure artifact.** Exactly the
+discipline this project keeps demanding.
+
+**Verified against a real capture, not asserted:** `CampaignMap.png` shows `BACK` nearly invisible
+against the map art and stage labels "Outer Border Guard"/"Volcanic Ridge" illegible dark-on-dark -
+the 1.1-1.5:1 readings. The check measures something true.
+
+**CC DECISION - DO NOT ARM AS BUILD FAILURE YET.** VS's reasoning is accepted: flipping it now reds
+the shared suite for every room until scrims exist across ~15 screens, and the scrim tokens are
+design work that has not started. **Arming a gate nobody can pass is how a gate gets disabled** -
+which is the exact failure the exception-manifest rule was written to prevent. **Order: (1) land the
+scrim tokens, (2) fix the 21 sub-2:1 cases - those are unreadable, not merely below target, (3) then
+flip to hard fail.** One-line change when ready.
+
+**Known limit, disclosed by VS:** the floor is chosen off `Text.fontSize` (authoring px), not
+rendered px - so a 55px+ label in a scaled container may be judged against 7:1 instead of 4.5:1,
+i.e. **too strictly, never too leniently.** This is the same canvas-vs-physical pixel issue already
+flagged on the type floors; failing strict is the safe direction, so it is not blocking.
+
+## OWNERSHIP COLLISION - CC caused it, resolved 2026-08-27
+
+CC told CR to own `UiValidationRunTests.cs` and the contrast validator. **VS had already built both**
+(`5baf37f`, `8468ed5`) plus the exception manifest, 1920x1080 alignment and the TacticalPuzzle BACK
+fix. Cause: **CC was dispatching to VS via `SendMessage` while VS reports in `tools/seat_mailbox.md`
+- CC never read the channel it had itself locked as VS's.** Two dispatches (FlushAsync timeout,
+empty-state component) never reached VS at all.
+
+**Resolution: VS KEEPS `UiValidationRunTests.cs` and all validator work. CR owns design tokens
+(frame tiers, type scale, scrims, interaction states) and presenter changes.** VS wrote it and it
+works; moving it would waste real output. **CC must read `tools/seat_mailbox.md` every turn** - it is
+VS's only channel and it has real watchers.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
