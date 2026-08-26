@@ -2255,9 +2255,11 @@ namespace MyriadOfDragons.UI
             // edge lets castle/mountain art show through. Image.Type.Simple so the gradient is
             // not destroyed by 9-slice middle-stretch.
             Color headerColor = UIFrozenTokens.ColorHeader;
+            // Contrast: status/progress sit in the lower header where the soft fade was ~18% —
+            // map art blew through local plates. Keep a visible fade but hold ≥70% at the bottom.
             topBarBg.sprite = UISharedFoundation.CreateRoundedPanelSprite(
-                new Color(headerColor.r, headerColor.g, headerColor.b, 0.68f),
-                new Color(headerColor.r, headerColor.g, headerColor.b, 0.18f),
+                new Color(headerColor.r, headerColor.g, headerColor.b, 0.90f),
+                new Color(headerColor.r, headerColor.g, headerColor.b, 0.72f),
                 cornerRadius: 1);
             topBarBg.type = Image.Type.Simple;
             topBarBg.color = Color.white;
