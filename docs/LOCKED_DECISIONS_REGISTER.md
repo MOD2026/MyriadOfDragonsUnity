@@ -7378,3 +7378,46 @@ further from greps; this needs runtime inspection by the seat that owns the file
 All three assigned to VS with `GameBootstrap.cs` (Battle-seat owned, VS built the rail). Note this is
 the same screen as the "never in the design-token rollout" finding - the Battle screen is now
 carrying three independent real defects, and is the most-played screen in the game.
+
+## CR retracts its own transient-race theory; SharedFoundation sprites fail to load REPRODUCIBLY - and this may invalidate my 9-slice diagnosis as the ACTIVE cause (2026-08-26)
+
+**CR corrected itself unprompted, which is the valuable part.** Its first theory (batch read racing an
+interactive Editor write) was wrong: it re-ran with `.unity_batch.lock` clear AND zero `Unity.exe`
+processes confirmed beforehand, and got the identical failure - all 8 SharedFoundation `.meta` files
+reported by Unity as unparseable YAML / invalid GUID. Reproducible across 2 independent runs.
+
+**Verified from my side, independently:** no duplicate GUIDs anywhere in `Assets/` (the classic cause
+of "does not have a valid GUID"), all 8 GUIDs distinct, the `SharedFoundation.meta` folder meta is
+present, files textually clean, zero uncommitted changes on any of them. CR's read holds up. Points
+at Unity's own `Library/` asset-database cache for these 8 GUIDs, not the source files.
+
+**THE PART THAT MATTERS MOST, and CR is the one who spotted it:** *"a full-suite test passing doesn't
+catch it, since nothing asserts which visual path (real art vs. fallback) was actually taken."* Every
+green run tonight - including the 1782/1785s - is silent on whether real art or the flat-color
+fallback rendered.
+
+**Honest consequence for my own root-cause claim:** if `Resources.Load` is genuinely returning null
+for these sprites at runtime, then `ApplyNeutralActionButton`/`ApplyPrimaryActionButton` take their
+**flat-color fallback branch** (`Image.Type.Simple`, no sprite) - and in that branch the 9-slice
+border math I measured **never executes at all**. The borders would be irrelevant. My arithmetic is
+correct in isolation and may simply not be the ACTIVE cause of what the owner is seeing. Both defects
+can be real simultaneously, with the load failure masking the geometric one entirely. **I should not
+have presented the 9-slice finding as "THE root cause" without first confirming which branch actually
+runs** - the same "green does not mean correct" trap VS named on the Materials cycle bonus, and I
+walked into it one day later.
+
+**The decisive test is cheap and only the owner can run it.** `HomeV3UiLibrary` already carries
+warn-once flags on exactly these fallbacks (`_warnedSecondaryButtonArtMissing:19`,
+`_warnedPrimaryButtonArtMissing:20`, emitting at :78 and :144) - added by CR's own earlier
+silent-sprite-load sweep, which is now doing precisely the job it was built for. So: **open the Unity
+console in the interactive Editor and look for "[HomeV3] Failed to load ... button chrome".**
+Present -> the art genuinely is not loading, that is the live bug, and the 9-slice fix is a correct
+but currently-inert improvement. Absent -> loading works in-Editor, the failure is batch-mode-only,
+and the 9-slice geometry stands as the real cause of the flat look. Note `ApplyFramedPanel` has NO
+equivalent LogWarning (zero `LogWarning` in `UISharedFoundation.cs`) - a real instrumentation gap
+worth closing regardless of how this resolves.
+
+**CR correctly refused to attempt cache surgery** (Library/ manipulation or a forced reimport are
+Editor-side operations on a live shared project, not file edits) and is holding rather than building
+on unverified ground. Its `FitSlicedBorderToRect`/`EnsureFitsOnResize` work and tests remain
+implemented but unvalidated.
