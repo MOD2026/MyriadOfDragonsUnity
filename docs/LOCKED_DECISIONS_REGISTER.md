@@ -4934,3 +4934,16 @@ placeholder-path false flag. Correction to the earlier cast-priority lock: Gorn 
 Ch1-3 companion alongside Thaleia/Rusk/Ione - the "Priority 1" grouping conflated the two. Real next
 step: a physical description is a narrative question (ST's lane, not UI's to invent), not something
 CC should just decide. Paste-ready ST ask given to owner below.
+
+## WH: layout-test sweep of the 7 token-rollout screens LANDED, verified real - no new bugs found (2026-08-26, commits ff2dd37/181b692)
+
+Result: no new paint-order overlaps on any of the 7 screens (Empire/Collection/BattlePass/
+DailyLoginQuests/MailInbox/Friends/VipSubscription). 6 already had the
+EmpireBuildingDetail/TacticalPuzzle-pattern coverage; Collection was only in HighTraffic tests -
+added dedicated `CollectionLayoutTests` + `CanvasObjectForTests` exposure. HEAD pinned 43ef06f,
+0 error CS, 14/14 (2/screen). Empire's construction-panel/Btn_Back overlap (already fixed in token
+batch 1, `5f204a5`) correctly not re-flagged as new. Both commits verified via `git show --stat`,
+match the report exactly.
+
+Clean negative result - real, not a rubber stamp (dedicated Collection coverage was actually
+missing and got built, not just re-asserted). WH now idle, dispatching next.
