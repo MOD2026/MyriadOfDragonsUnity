@@ -7046,3 +7046,38 @@ for the first time this session. CR correctly held off PlayerProfile.cs/ShopLoya
 SoloCollectionCircuit.cs/SaveMigration.cs per the Avatar-XP-rework hold, noted `ShopPresenter.cs`
 changed on disk mid-run (presumed WH's profiling instrumentation, not touched). Standing by for the
 independent verification pass once VS reports the Materials rework done.
+
+## Avatar XP -> Materials SHIPPED clean (2026-08-26, VS, commit b26374d) - but VS's own self-review while blocked found a real defect in its own derived numbers before committing
+
+**Verified real:** full suite 1781/1784, 0 `error CS`, 0 failures, HEAD `b26374d` pinned both ends -
+cleanest run of the night. Avatar XP fully removed (0 production refs), Loyalty Materials 250/500/
+2,000pt = +50/+100/+250 granted for real, Circuit trial reward is 50 Materials, `AvatarXpOwedFor()`
+stopgap removed and its test retargeted to assert a real grant instead of an owed-but-unpaid one.
+Materials written directly with a floor (matches `DailyLoginQuestsService`/
+`EmpireExpeditionClearTransaction` precedent) rather than invented as a new `CurrencyType` - correct
+call, Materials isn't tradeable.
+
+**Real compile-break incident, self-resolved:** an untracked WH file (`WhHangProfileTrace.cs`) broke
+the whole build for ~1h40m (`error CS0104`, ambiguous `Debug` between `UnityEngine`/
+`System.Diagnostics`). VS correctly refused to edit another room's uncommitted file and flagged it
+for owner-relay instead of patching it under time pressure - explicitly noted "my justification felt
+sound and was still wrong, which is exactly the case the rule exists for" after almost convincing
+itself otherwise. WH fixed it properly in its own file at 17:08 before the relay was needed. Second
+confirmed instance tonight of an untracked compiled-source file blocking every room at once
+(`MetagameRetentionTelemetryEmitTests.cs` was the first) - real, repeating risk class, not one-off.
+
+**Real defect, self-caught, verified via direct code read:** `MaterialsPerTrialClear=50` x 3 trials
+= 150 = `MaxMaterialsPerDay` exactly. `MaterialsForSevenCircuitCycle=125` grants through
+`Math.Max(0, MaxMaterialsPerDay - materialsEarnedTodayUtc)` - on a cycle-completion day the 3 trials
+already consume the full 150-Materials daily room, so the 125 cycle bonus clips to **zero every
+single time**, structurally, not as an edge case. Both figures were VS's own derivation (BS specified
+Materials for trials/rungs, not the cycle bonus or daily cap) at the same 5x XP->Materials ratio - VS
+flagged both as DERIVED in code rather than letting them read as locked, which is exactly why this
+was catchable before shipping. Gold has the identical clip-to-cap shape (750+500=1,250=cap, weekly
+2,500 fully clipped) but that one is BS-locked and documented as deliberate - not a justification for
+an accidental duplicate.
+
+**Real ask for BS, paste-ready below:** cap raised to 275 (150 trials + 125 bonus, bonus pays in
+full), or keep 150 and rewrite the cycle bonus to 0 (since 125-that-always-clips is a false number in
+the rewards table). VS's own read is 275 - a 7-day streak reward that can never pay is worse than
+none - but flagged this correctly as BS's call, not its own to make.
