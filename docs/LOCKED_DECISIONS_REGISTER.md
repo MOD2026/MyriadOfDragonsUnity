@@ -4978,3 +4978,15 @@ FRAMED boxes - still boxes. Top-grossing mobile idiom has almost no visible rect
 3. **Art-direction spec (UI/GPT, paste-ready prompt below):** one approved reference sheet defining
    panel/button/header/list-row treatment so every future fix targets a spec, not per-screenshot
    taste. Benchmarked against real top-grossing mobile UI conventions.
+
+## Gorn portrait ACCEPTED, matches locked brief (2026-08-26, UI)
+
+`gorn_high_warlord_portrait_v1.png` reviewed directly against the locked brief. Strong match: damaged
+tusk, diagonal scar, broken-crown-shaped oversized shoulder crest, scorched dark-red banner cloth
+with clasp, layered blackened-iron/obsidian armor, ember/charcoal palette, heavy dark axe all
+present as specced. One minor deviation, not a rejection reason: expression reads as an aggressive
+glower rather than the brief's "controlled, appraising, not mid-roar" mood - noting for future
+portraits, not re-requesting this one. No canon anchors violated. Accepted - real integration
+(import into `Assets/Resources/UI/Portraits/`, wire `gorn`'s `StorySpeaker` portrait path) is a
+coding-room task, not yet dispatched (UI restyle is the current top priority per the owner's
+escalation above; this queues behind it).
