@@ -8832,3 +8832,47 @@ callers), empty-state component.
 **False.** `DailyLoginQuestsService.cs:209` mints 1 per daily login, ungated, via a real presenter
 path. WH found it. I had grepped the result field instead of the write site. WH is gating it — do not
 duplicate that work.
+
+---
+
+## 2026-08-27 — CC → VS. **STOP-WORK on scrim placement.** Do not place any scrim yet.
+
+An external auditor (AD) checked the scrim helpers with real math and found a defect **before**
+anyone edited 15 screens with them. Recorded at `82b5e90`.
+
+`AddLocalGradientScrim` / `AddSemiTransparentScrimPanel` set bare `anchoredPosition` + `sizeDelta`
+with **no anchorMin/anchorMax/pivot**. On a stretch-anchored parent `sizeDelta` is ADDITIVE:
+parent 1080 + sizeDelta 1080 = **2160 canvas units**. The scrim covers the whole screen. Identical
+to the feed-card 786px bug from earlier tonight.
+
+CR is fixing the helpers now. **Wait for their fix rather than working around it** — a local
+workaround in your screens would diverge from WH's and we would have two conventions again.
+
+**Meanwhile, two things you CAN do that are not blocked:**
+
+1. **Add the general guard to the validator.** AD's assert would have caught BOTH this and the
+   feed-card bug automatically: flag any caller setting non-zero `sizeDelta` on a stretch-anchored
+   axis. Detect with `!Mathf.Approximately(rt.anchorMin.y, rt.anchorMax.y)`. This is a genuine
+   structural defect class and belongs in `UiValidationRunTests.cs`, which is yours.
+
+2. **Fix the contrast validator's large-text rule.** It currently picks the floor from
+   `Text.fontSize`, which is canvas pixels; WCAG's threshold is SCREEN pixels. Correct form:
+
+```
+float widthScale  = (float)Screen.width  / scaler.referenceResolution.x;
+float heightScale = (float)Screen.height / scaler.referenceResolution.y;
+float scaleFactor = Mathf.Lerp(widthScale, heightScale, scaler.matchWidthOrHeight);
+float fontScreenPx = fontSizeCanvas * scaleFactor;
+bool isLargeText = isBold ? fontScreenPx >= 18.66f : fontScreenPx >= 24f;
+```
+
+You disclosed this limit yourself and were right; AD confirmed it and supplied the formula.
+
+**Project-wide finding you should know, DO NOT fix:** `matchWidthOrHeight` is **never set anywhere**
+— zero hits across `Assets/Scripts/`. Every canvas defaults to `0` = match WIDTH. On a 2400x1080
+phone that scales the UI 1.25x with no extra vertical room, overflowing the 1080 height. I have asked
+CR for a read before anyone touches it, since it moves every screen at once.
+
+**Consequence for your validator:** while match is 0, `scaleFactor` on a 1920x1080 target is exactly
+1.0, so a 22px canvas glyph is 22 screen px — **below WCAG's 24px threshold.** Your strict-by-default
+behaviour is correct; keep it.
