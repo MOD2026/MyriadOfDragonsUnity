@@ -6,13 +6,17 @@ namespace MyriadOfDragons.Tests
     /// <summary>
     /// Asserts that shared-chrome sprites actually LOAD and can actually 9-SLICE.
     ///
-    /// WHY THIS EXISTS: three separate bugs tonight were invisible to a green 1782/1785 suite,
-    /// because nothing anywhere asserted which visual path rendered - real art, or the flat-colour
-    /// fallback:
+    /// WHY THIS EXISTS: two real bugs were invisible to a green 1782/1785 suite, because nothing
+    /// anywhere asserted which visual path rendered - real art, or the flat-colour fallback. The
+    /// third item below is a theory of mine that this file's own assertion DISPROVED, kept because
+    /// a retraction is more useful to the next reader than a deleted claim:
     ///   1. All 8 SharedFoundation .meta files were truncated mid-token, so every sprite failed to
     ///      load and every button fell back to flat colour.
-    ///   2. Those same sprites are imported Tight rather than FullRect, so even once loading is
-    ///      fixed the 9-slice borders cannot be applied and the frames stay missing.
+    ///   2. RETRACTED - I claimed these sprites were imported Tight and so could never 9-slice.
+    ///      The assertion below, written to prove it, showed they come back FullRect: Unity forces
+    ///      FullRect whenever a border is defined, which makes the .meta's spriteMeshType field
+    ///      inert. Nobody should bulk-edit spriteMeshType on this basis. The check stays as a
+    ///      forward guard, not as evidence of a bug that existed.
     ///   3. My own CombatResolutionStage loaded the AvatarStrike sheet from a path with no
     ///      Resources folder. My test asserted the layer was ENABLED, not that it had a SPRITE - a
     ///      null sprite renders as a tinted quad and passed.
