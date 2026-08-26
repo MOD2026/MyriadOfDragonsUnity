@@ -1835,6 +1835,48 @@ portable. Tests pin explicitly so they are unaffected.
 EditMode tests can and should catch. The only genuine build-vs-editor risks here are the RNG seed
 portability above, and any future move of this flow into coroutines or threads.
 
+## Pack/Burn/Evolution audit 2026-08-27 - CC verified, AD corrected in BOTH directions
+
+**WORSE than AD said - the receipt dedupe is completely inert in production.**
+
+AD worried that an EMPTY `receiptId` skips the dedupe check. The real situation is worse:
+**`ShopPresenter.cs:189` generates a FRESH GUID on every single call** -
+`string receiptId = System.Guid.NewGuid().ToString("N");` - and passes it in. So
+`CommittedReceiptsById.TryGetValue(receiptId, ...)` at `CollectionPackReceiptService.cs:61-62`
+**can never hit**, because the id is unique per invocation. The in-memory receipt cache
+(`:38`, a `static Dictionary`) is written on every success and read never. **The entire idempotency
+mechanism is dead code in production.** `TryOpenPack` has exactly one production caller, that one.
+
+**LESS BAD than AD said - it is not a duplication exploit.** AD framed double-tap as producing a
+"duplicate grant" or letting a player be charged once and receive twice. It does not: each call
+deducts gems AND grants cards, so two taps produce two charges and two packs. **The player receives
+what they paid for.** The real harm is an *accidental double purchase of real-money currency* - a
+refund and trust problem, not a duplication or economy exploit. Sizing this correctly matters,
+because it changes it from "must not ship" to "must fix before real-money packs go live."
+
+**AD's CONCURRENCY findings DO NOT APPLY.** Repeated advice about `ConcurrentDictionary`, per-profile
+locks, `SemaphoreSlim`, and two calls interleaving mid-method assumes threads. **Unity UI callbacks
+run on the single main thread**, so two taps produce two SEQUENTIAL complete calls, never an
+interleaved race. The double-tap problem is real; the threading explanation for it is wrong, and
+building locks would add complexity against a failure mode that cannot occur here. Same class of
+error as AD's earlier save-layer audit - correct arithmetic, wrong model of the runtime.
+
+**VERIFIED REAL and worth fixing:**
+1. **Receipt dedupe is inert** (above). Either make the caller reuse a stable id per purchase intent,
+   or drop the mechanism rather than leaving dead code that looks like protection.
+2. **In-memory-only receipts do not survive a restart** - true, though moot while the ids are unique
+   per call anyway.
+3. **`saveFn` exception safety.** Burn/Evolution restore their snapshot when `saveFn` returns FALSE
+   but not when it THROWS. An IO exception mid-save leaves the profile mutated in memory - card
+   already consumed - and a later save could persist that loss. **This is the genuine
+   destroyed-card-without-payout path**, and it is the finding that matters most in these three files.
+4. **Snapshot/restore pattern itself is GOOD** and AD agrees - all three services capture, mutate,
+   save, and restore on failure. That is why this is hardening rather than an emergency.
+
+**NOT proposing the `PlayerProfile` schema change** AD suggested. `PlayerProfile` is frozen, and with
+unique-per-call ids a persisted receipt list would store an ever-growing set of ids that are never
+looked up. Fix the caller first; revisit persistence only if a stable purchase-intent id exists.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
