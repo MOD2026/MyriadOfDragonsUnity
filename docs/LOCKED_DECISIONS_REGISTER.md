@@ -5031,3 +5031,63 @@ blocking it):** on round-complete (clean or partial clear), show the real result
 (`MemoryExpeditionUiLibrary` needs an `ApplyResultModal` twin to the existing
 `ApplyFullscreenShell`) with ST's locked result line inside it, instead of updating `_statusText`.
 Round names go on the HUD/round tracker. No new asset needed - just wiring what's already there.
+
+## IPC UPGRADE CONFIRMED: localhost TCP crosses the MSIX/desktop-app boundary (2026-08-26)
+
+VS started a listener on 127.0.0.1:45678 from its own unpackaged process; CC curled it from the
+desktop-app session - **HTTP 200, real connection.** Loopback is NOT blocked. This settles the open
+question from the earlier IPC diagnosis: TCP is viable, no CheckNetIsolation/admin workaround
+needed. Next: design a minimal broker or direct-socket protocol to replace mailbox polling for
+CC<->VS - dispatching to VS as infra work, not urgent relative to game systems but worth building
+now that it's proven.
+
+## Solo Collection Circuit (Formation Trial + Tactical Brief) LANDED, verified real (2026-08-26, VS, commit 0decd2c)
+
+34/34 pass (16/16 `SoloCollectionCircuitTests` + 18/18 `ShopLoyaltyServiceTests` still green), HEAD
+94768a2 unchanged both ends, 0 error CS. Verified via `git show --stat`, matches report exactly.
+First run was 32/33 - VS's own test's premise was wrong, not the code, and VS caught it rather than
+weakening the assertion (see design finding below).
+
+**Two real engineering decisions, both correct and independently sound:**
+1. **Rollback-safe daily guard, deliberately NOT copying `EmpireExpeditionDailyReset`'s idiom.** The
+   standard "reset whenever the stored key differs" pattern resets on a key that's EARLIER too -
+   exactly what a clock rollback produces, which would let a player farm all three trials
+   indefinitely. Circuit keeps a high-water day key that refuses to reset below it instead.
+2. **Fixed FNV-1a hash for daily puzzle selection, not `System.Random` with a derived seed** -
+   `Random`'s sequence isn't contractually stable across runtimes, avoiding an "puzzle silently
+   changed after a Unity upgrade" bug class.
+
+**Persistence: ONE additive nested field, mirrors an already-approved pattern - AUTO-APPROVED under
+the extended sign-off protocol (real code-consistency reasoning above, mirrors
+`CollectionMaterialWallet`'s existing nested-object shape on `PlayerProfile`, peer-confirmed
+blocker: Formation/Tactical Brief are green and literally cannot persist without it):**
+```
+PlayerProfile.soloCircuitProgress   (nested [Serializable] object, additive)
+```
+VS to add it - full suite before/after, HEAD pinned, explicit-path staging only.
+
+**REAL DESIGN QUESTION, escalating to owner (not CC's or a room's call - genuine balance/UX
+judgment):** the weekly bonus requires "7 completed circuits in the UTC week." Independently
+verified VS's calendar claim: 2026-08-26 is a real Wednesday, ISO week 35 (weeks start Monday). That
+means **7/7 in one ISO week requires starting on a Monday** - a player who discovers the Circuit on
+any other day of the week cannot earn that week's bonus AT ALL, no matter how well they play
+afterward (~6 in 7 players on any given day). VS did not change the code (it does what the spec
+says) - pinned the consequence in a named test instead
+(`TheWeeklyBonus_IsUnobtainable_WhenTheWeekIsJoinedMidWeek`) so it surfaces as a decision, not a
+silent gap. Paste-ready owner question below.
+
+**Collection Trial's `school`/`faction` question is ALREADY ANSWERED** - VS asked before reading the
+earlier ruling (mailbox timestamps confirm the ruling posted first): rarity-band rules only, no
+taxonomy in Phase-1 (locked, BS-verified entry above). Re-sent to VS via mailbox rather than leaving
+it to be missed twice.
+
+## LOCKED: UI Style Reference V2 - binding restyle target for CR (2026-08-26, UI)
+
+Regenerated against the accepted Home V3/Battle V3/Deck V3/Empire V2 art, with a companion "Visual
+Authority Memory" doc locking palette/geometry/hierarchy/production rules and explicitly rejected
+style drift. Reviewed directly (viewed the actual PNG): ornate gold-filigree bordered panels over
+painted background art (not flat monochrome boxes), chamfered/hexagonal buttons with distinct
+primary/secondary/pressed states, a proper modal/dialog treatment with crest iconography, and -
+critically, matches the original ask exactly - explicit 9-slice safe-zone guides marked on panel,
+row, and button separately for reproducibility as stretchable sprites. This is the binding spec the
+foundation restyle (CR, in progress) targets - not another round of taste-by-screenshot.
