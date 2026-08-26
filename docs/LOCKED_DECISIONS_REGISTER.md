@@ -7194,3 +7194,36 @@ non-raycast-blocking per a documented Campaign input contract ("modal backdrop m
 clicks") - so copying tonight's Guild Hall opaque-dimmer fix here would break an intentional design.
 Needs the owner to say whether the orange is INSIDE the detail panel or a node bleeding through
 behind it. Correctly refused to guess.
+
+## AD's third pass CONFIRMS the 9-slice root cause - its best work of the session, one real error in it (2026-08-26)
+
+**Independently confirmed the mechanism and the arithmetic** (border sum >= rect dimension -> no
+center region -> Unity collapses/stretches the bands -> flat block). Also supplied a real per-Image
+correction formula and a genuinely useful side-effect list. This is a marked improvement over its
+first pass (wholesale fabrication) and second (proposed "borders are zero", the exact inverse of the
+truth) - the difference each time was being handed measured facts instead of being asked to theorise.
+Worth remembering as the way to use AD: give it real data, ask it to check reasoning, never ask it to
+guess a cause from a screenshot.
+
+**Formula (AD's, to be verified in-engine before shipping):**
+`mv = Bv / max(1, rectH - minCenterPx)`, `mh = Bh / max(1, rectW - minCenterPx)`,
+`multiplier = clamp(max(1, max(mv, mh)), 1, 4)`, `minCenterPx ~6`. Worked example on the 62px button:
+`mv = 128/56 = 2.29`, so ~2.3, shrinking the vertical border sum to ~56px inside a 62px rect.
+
+**The one real error, caught by checking rather than accepting:** AD's pseudocode computes the rect
+as `rt.rect.width * canvas.scaleFactor`. The scaleFactor term does not belong.
+`GameBootstrap.cs:2495-2497` uses ScaleWithScreenSize with a referenceResolution and never sets
+`referencePixelsPerUnit` (defaults to 100), and the sprites are `spritePixelsToUnits: 100` - at
+100:100 the sliced border maps 1:1 into rect units, so the comparison must be border-pixels against
+`rt.rect.height` directly in reference units. Including scaleFactor inflates the rect against an
+unscaled border, under-correcting the multiplier AND making the result vary by device resolution.
+Flagged to CR to settle empirically in-engine rather than by argument - CR has Unity, neither AD nor
+CC should be the final authority on Unity's exact sliced-border math.
+
+**Second real finding from AD, now an audit item:** `ui_content_panel_v1`'s 384px vertical border sum
+means any panel instance rendering shorter than 384px hits the identical collapse - tall panels
+survive, small modals/list rows/compact previews would not. Enumeration pass assigned to CR.
+
+**Side effect worth keeping:** changing `pixelsPerUnitMultiplier` changes the Image's reported
+native/preferred size, so it must be set before layout rebuild (or force one after) or LayoutGroup-
+driven screens will jitter.
