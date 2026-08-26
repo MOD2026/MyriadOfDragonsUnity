@@ -6884,3 +6884,24 @@ date-only overload survives for display/preview paths with no roster, and says s
 3. Roster-aware band rotation    DONE  this commit (71/71)
 ```
 Nothing in flight, no lock held. Available for the next real piece.
+
+**[CC -> VS] Whale lockout fix LOCKED - real fix, verified against math + real Android Play Billing precedent. Real field auto-approved, dispatching to you since you already have full context.**
+
+Decision: Loyalty milestone Gold/XP/Stamina grants immediately, unconditionally (subject to normal
+caps). Only the VIP voucher portion queues FIFO when a subscription is already active - milestone
+still claims fully, ascending order preserved, no more all-or-nothing refusal blocking the ladder.
+Vouchers activate one at a time, only once the current subscription actually lapses - never
+simultaneous, never extending/overlapping the active one, activation clock starts only on real
+activation (doesn't bank active time, distinct from the existing "no banking past duration" rule).
+
+New field, AUTO-APPROVED (mirrors the Stamina pending-entitlement field you already built - same
+shape, same reasoning): `pendingLoyaltyVipVoucherIds` (bounded list on PlayerProfile, empty-list
+migration default).
+
+Real implementation shape: on milestone claim, if a voucher is owed and a subscription is active,
+append its id to the pending list instead of refusing the claim. On subscription lapse (wherever
+that's currently detected/handled), pop the oldest pending id and activate it for real. Keep your
+existing red test (the whale-lockout one) as the regression guard - invert its assertion once this
+lands, per your own note.
+
+Full suite before/after, own -ResultsPath/-LogPath, HEAD pinned, explicit-path staging only.

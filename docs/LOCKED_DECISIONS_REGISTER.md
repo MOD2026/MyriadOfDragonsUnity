@@ -6707,3 +6707,29 @@ outright. Same pattern likely applies here - paste-ready BS ask given to owner b
 
 **VS's full sequenced queue is now complete, standing by for next real dispatch** - not idle by
 neglect, genuinely finished everything assigned.
+
+## LOCKED: Loyalty VIP vouchers queue as deferred entitlements, whale lockout resolved (2026-08-26, BS, verified)
+
+**Internal-consistency check:** 7+14+30+30+30=111 deferred-day math correct. Reasoning against the
+existing "no banking past duration" rule is sound and doesn't conflict: the queue stores earned
+entitlement RECORDS (which voucher, not yet an active duration), never extends or overlaps an
+active subscription, activation clock only starts once a voucher actually goes live - genuinely
+distinct from banking active time.
+
+**WebSearch benchmark run:** the closest real precedent is Android's own Play Billing
+`ReplacementMode.DEFERRED`/`subscriptionsv2.defer` - the actual official platform mechanism for
+extending/queuing subscription entitlement without stacking or charging until activation. Not a
+shipped-game marketing example, but genuinely the real underlying mechanism games in this space
+build on - a legitimate citation, not padding.
+
+**Decision locked:** Loyalty milestone Gold/XP/Stamina grants immediately, unconditionally, subject
+to normal caps - only the VIP voucher portion queues (FIFO) when a subscription is already active.
+Ascending milestone order preserved (a milestone claims fully even with a pending voucher, unlike
+the old all-or-nothing refusal). Vouchers activate one at a time, sequentially, only once the
+current subscription actually lapses - never simultaneously, never extending/overlapping the active
+one.
+
+**Field auto-approved under the extended sign-off protocol** (mirrors the already-approved Stamina
+pending-entitlement field from earlier tonight, same shape, same reasoning, real peer-confirmed
+blocker): `pendingLoyaltyVipVoucherIds` (bounded list, empty-list migration default) on
+`PlayerProfile`. Dispatching to VS - full context on this exact system already, no ramp-up needed.
