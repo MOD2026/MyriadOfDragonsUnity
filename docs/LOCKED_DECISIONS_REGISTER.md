@@ -6607,3 +6607,15 @@ directly beneath it, caught via a real tree-walk test before it shipped, not aft
 **CR's own full-suite verification run is in flight** (sprite-warning sweep + HomeV3 once-per-session
 gate, own `-ResultsPath`/`-LogPath`, HEAD pinned `453c69d`) - will report real numbers when it
 finishes.
+
+## CORRECTION to my own previous entry: 453c69d was CR's own commit, not a stale "Old room" session (2026-08-26)
+
+**My mistake, corrected same-turn.** I assumed the duplicate standing-order commit (`453c69d`) came
+from the earlier stood-down "Old room" session and flagged it as a real coordination risk. CR
+confirmed directly: that commit is its own. **This was a real near-simultaneous timing collision
+between two active, legitimate sessions (me and CR) independently reaching the same conclusion and
+logging it within moments of each other** - not a stood-down session acting without authority. Real
+process note either way: two sessions writing to the same coordination file can race even when both
+are behaving correctly: worth a quick `git log` check before assuming who authored something,
+exactly the discipline this session already applies to peer-identity claims elsewhere. No actual
+harm - the dedup itself was correct regardless of attribution, and the content was identical.
