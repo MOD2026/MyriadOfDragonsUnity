@@ -6677,3 +6677,33 @@ scoped to the Battle root), the actual fix is small - scope `BattleReleaseLayout
 the real Battle presentation root instead of a global scene search. This should make the test
 deterministic instead of order-dependent, closing a real test-fragility gap rather than continuing
 to route around it. Dispatched to CR.
+
+## VS completed the FULL sequenced queue - VFX Rail, Loyalty sim, roster-aware bands - and surfaced a serious real monetization contradiction along the way (2026-08-26)
+
+**All 3 verified real via git log/show:** VFX Rail (`560d2ba`, 134/134), combined-sim Loyalty
+assertions (`0b54250`, 29/29), roster-aware band rotation (`1f4a704`, 71/71, all 6 of BS's acceptance
+cases pass). VS's own reasoning throughout was careful, not just "tests green": kept a deliberately
+red test red rather than silently pointing the screen back at the wrong overload and restoring the
+lockout the ruling exists to remove; documented two load-bearing judgment calls in the fallback
+(lowest owned rarity not highest, 3 cards not 5 - both chosen specifically to avoid reproducing the
+lockout inside the fix itself).
+
+**Serious real finding, escalating properly rather than resolving unilaterally:** wiring the
+already-locked voucher ladder into the combined sim exposed a genuine contradiction between THREE
+separately-locked rules: vouchers cannot stack with an active subscription (locked, verified real at
+`ShopLoyaltyService.cs:307`) + Loyalty claims are strictly ascending (locked, single-int guard) + a
+whale who stays CONTINUOUSLY subscribed (the natural behavior of an actual whale, not an edge case)
+means the 250pt voucher refuses forever, which blocks every rung behind it - **the entire Gold tier
+becomes permanently unreachable for exactly the players the whale tier targets.** Measured directly:
+`LoyaltyVouchersGranted == 0` and `LoyaltyGoldClaimed == 0` over a full six-month simulated whale
+persona. VS correctly pinned this as a RED test with an explicit note to invert once resolved,
+rather than silently working around it or picking a fix itself - real monetization call, not VS's or
+CC's to make.
+
+**Real precedent for the fix shape already exists in this same file/session:** the earlier 3-consumer
+Stamina-cap collision hit an almost identical shape (a reward that could resolve to zero for exactly
+the players who'd earn it) and BS's locked fix was to QUEUE the entitlement instead of refusing it
+outright. Same pattern likely applies here - paste-ready BS ask given to owner below.
+
+**VS's full sequenced queue is now complete, standing by for next real dispatch** - not idle by
+neglect, genuinely finished everything assigned.
