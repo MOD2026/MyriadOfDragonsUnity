@@ -6760,3 +6760,37 @@ ONE unrelated failure - no hang. Worth checking whether that's coincidence or wh
 collision and the Shop hang shared a root pollution mechanism (both are "stale object from an
 earlier test resolves via a loose lookup" shaped bugs). Dispatched to WH as a log-review task, no new
 Unity run needed - fits well inside the time cap.
+
+## Whale-lockout voucher fix SHIPPED, verified real (2026-08-26, VS, commit 7bb0fc1) - but 2 real corrections surface, one is mine
+
+Verified via `git show --stat`, matches exactly. 53/53, HEAD `c9e9d77` pinned before. Deferred
+voucher queue implemented exactly as locked - milestone Gold/XP/Stamina grants unconditionally,
+only the voucher portion defers when a subscription is active, activation clock starts on real
+activation (not on earning - a real, correct distinction VS called out explicitly: starting the
+clock at earn time would let a queued voucher silently burn its own duration while waiting, making
+deferral worse than the refusal it replaces).
+
+**VS caught its own overclaim before reporting it - real discipline.** Its own test asserted two
+things that couldn't both be true (claims through to 1,000 AND next claimable rung is 500). Real
+state: **the voucher lockout is fixed, but a SEPARATE, still-real blocker remains** - milestone 500's
+cosmetic reward has no ownership model on `PlayerProfile`, so the ladder now stops at 500 instead of
+250 (progress of exactly one rung, not "open"). The Gold tier at 2,000+ is still unreachable, and
+BS's six-month whale Loyalty Gold number is still genuinely 0. VS explicitly refused to let this read
+as "ladder open" when it isn't.
+
+**CORRECTION, my own error:** I told VS the new `pendingLoyaltyVipVoucherIds` field "mirrors the
+Stamina pending-entitlement field you already built" - VS checked and found no such field exists.
+**Worse than a bad citation: the actual `pendingLoyaltyStaminaClaims` fix (locked and dispatched to
+VS hours ago, register lines ~4802/4860, mailbox ~4834) was never built at all.** Confirmed directly
+- `grep pending` in `PlayerProfile.cs` returns only VS's new voucher field, nothing Stamina-related.
+This is a real dropped task, the exact "delivered != retired" failure class already caught once
+tonight on the PENDING DISPATCH table - a decision got locked, dispatched, and then genuinely lost
+in the night's volume rather than landing. VS correctly did not blindly trust my false-precedent
+claim, verified independently, and proceeded on the field's own merits - exactly right.
+
+**Two real follow-ups, both real, neither urgent enough to interrupt current work:**
+1. The cosmetic-ownership-model gap at milestone 500 is now THE actual remaining blocker on the
+   whale Gold tier - real BS/design question, paste-ready ask below.
+2. The `pendingLoyaltyStaminaClaims` fix needs to actually be built - it was correctly locked, just
+   never implemented. Queuing as a real follow-up, not urgent tonight given the voucher fix just
+   took priority and landed clean.
