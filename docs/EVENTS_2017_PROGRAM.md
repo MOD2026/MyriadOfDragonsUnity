@@ -18,10 +18,28 @@ Until now this program lived in two places that cannot hold it:
 
 ## Status — 1 of 9 dissected
 
-| # | Event | Dissected | Numbers locked | Simulated | Fail-proven |
-|---|---|---|---|---|---|
-| 1 | **Chest Hunt** | YES | YES (`0b39beb`, corrected) | **external check only** | **NO** |
-| 2–9 | *(eight remaining — names to be extracted from the 2017 source)* | no | no | no | no |
+| # | Event (2017 source name) | Line | Core loop | Dissected | Numbers | Simulated | Fail-proven |
+|---|---|---:|---|---|---|---|---|
+| 1 | **Chest** (Chest Hunt) | 48 | Explore 3 areas, collect 8 fragment types x2, boss grants missing | YES | YES (corrected) | in-engine run pending | **NO** |
+| 2 | **Valley of the Cursed One** | 110 | Boss hunt; boss-attraction items, signal fire, locked free attack | no | no | no | no |
+| 3 | **Guild vs Guild / Siege** | 167 | Roles (Guardian/Assault/Healer), morale, revive, siege meter, captains | no | no | no | no |
+| 4 | **Battle Royale** | 236 | Headcount vs rival teams, attack meter, headcount boosters | no | no | no | no |
+| 5 | **Puzzle Event** | 270 | Puzzle-piece drops, Instinct item, point boosters | no | no | no | no |
+| 6 | **Conqueror** | 297 | Neutral-ground AI, rival rally points, hotspots, land rewards | no | no | no | no |
+| 7 | **Area Clearance** | ~362 | Clear areas vs guards/players, bribe/flag economy | no | no | no | no |
+| 8 | **Castle Breach** | ~392 | Attack/defend castle, surrendered troops replenish, flag cost per attack | no | no | no | no |
+| 9 | **Captives** | ~448 | Captives from AI or players, food economy | no | no | no | no |
+
+**1 of 9 dissected. Events 2-9 have never been examined** - not by BS, not by any seat. The source text
+for each is in `docs/events_2017_source/EVENTS_2017_for_BS.txt` at the line numbers above.
+
+### The shared-economy problem is visible already, before any dissection
+
+Reading across the nine, **the same items recur in almost every event**: Signal Fire, High Security,
+Potions, Flags, boost cards (points / keys / attack / area / headcount / castle), and "there will be a
+daily limited time event" hotspot modifiers appear in event after event. **That is the clash the owner
+asked about, and it is structural, not incidental** - nine events drawing on one item pool and one daily
+attention budget. A per-event dissection will not surface it; a cross-event contention pass will.
 
 ## Chest Hunt — locked, but NOT clear
 
