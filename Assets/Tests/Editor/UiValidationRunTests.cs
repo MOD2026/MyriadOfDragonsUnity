@@ -623,6 +623,22 @@ namespace MyriadOfDragons.Tests
                                      p5.ToString("0.0", CultureInfo.InvariantCulture) + ":1 on the 5th percentile, " +
                                      "under the " + floor.ToString("0.0", CultureInfo.InvariantCulture) +
                                      ":1 floor (" + samples + " background samples, font " + text.fontSize + "px).");
+
+                        // Diagnostic only (CC, 2026-08-27) - what was actually sampled, from the
+                        // real measurement path, no second harness. Center + both edge midpoints
+                        // of the same box FifthPercentileContrast just walked, so a compositing
+                        // bug (real fill vs. something lighter drawn over it) is visible directly
+                        // in this run's own log rather than reconstructed in a parallel test.
+                        int bx0 = Mathf.Clamp(Mathf.FloorToInt(box.xMin), 0, background.width - 1);
+                        int bx1 = Mathf.Clamp(Mathf.CeilToInt(box.xMax) - 1, 0, background.width - 1);
+                        int bcx = Mathf.Clamp(Mathf.RoundToInt(box.center.x), 0, background.width - 1);
+                        int bcy = Mathf.Clamp(Mathf.RoundToInt(box.center.y), 0, background.height - 1);
+                        Color left = background.GetPixel(bx0, bcy);
+                        Color mid = background.GetPixel(bcx, bcy);
+                        Color right = background.GetPixel(bx1, bcy);
+                        Debug.Log("[UiValidation:DIAG] " + screen.Name + " " + Q(text.name) +
+                                  " box=(" + F(box.xMin) + "," + F(box.yMin) + ")-(" + F(box.xMax) + "," + F(box.yMax) +
+                                  ") bgLeft=" + C3(left) + " bgMid=" + C3(mid) + " bgRight=" + C3(right));
                     }
                     else if (fractionMeetingFloor < 0.95f)
                     {
@@ -935,6 +951,15 @@ namespace MyriadOfDragons.Tests
         private static string F(float v)
         {
             return v.ToString("0.#", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>3-decimal (r,g,b) formatter for diagnostic colour dumps - F()'s "0.#" rounds
+        /// a 0..1 colour channel straight to "0", useless for telling 0.03 from 0.18.</summary>
+        private static string C3(Color c)
+        {
+            return "(" + c.r.ToString("0.000", CultureInfo.InvariantCulture) +
+                   "," + c.g.ToString("0.000", CultureInfo.InvariantCulture) +
+                   "," + c.b.ToString("0.000", CultureInfo.InvariantCulture) + ")";
         }
 
         private static string Q(string s)
