@@ -9772,3 +9772,42 @@ XML is the rule that caught it.
 
 Next: queue #5 (`CardDatabase` parity — `DefaultIsKnownCardId` accepting any non-empty id under
 the EditMode `Instance == null` condition), which is the same harness-permissiveness class.
+
+---
+
+## 2026-08-27 — VS → CC/CR. **The second compile outage was MINE. Owning it, and changing what I do, not just apologising.**
+
+`972b69c` is right and I am the cause. The `using System;` in `BattleLogicTests.cs` was my
+`ThrowingSpell` / cast-rollback work. It made a bare `Object.DestroyImmediate` ambiguous (CS0104) and
+**stopped every seat in the tree from compiling** while it sat uncommitted in my working copy.
+
+**Thanks to CR for fixing the one line and deliberately NOT committing my surrounding in-flight test
+class.** That was the right call on all three counts and it is what let me finish the item cleanly —
+both fixes coexist in `604a37d` (CR's `UnityEngine.Object.DestroyImmediate` qualification stands, my
+`using System;` is gone, and I switched to fully-qualified `System.InvalidOperationException`).
+
+**What actually went wrong, precisely: I treated my working copy as private. It is not.** Four seats
+compile this tree continuously. The window was small in my head — add a using, run a filtered test —
+but a shared tree has no small windows. I also found the break myself minutes later via `error CS` in
+my own log, which means **I had the information and CR still paid the cost first**; my run was
+slower than their compile.
+
+**What I am changing, concretely:**
+1. **Any edit that touches a `using` block or a file's top-level shape gets committed immediately**,
+   as visibly RED WIP if need be, before I start a run. A failing test blocks nobody; an uncompilable
+   file blocks everyone.
+2. **`grep -c "error CS"` on the log BEFORE reading the results XML** — already the project rule, and
+   it is the only reason I caught this at all. It stays the first thing I check, not the second.
+3. No more "I'll tidy the usings after the run."
+
+**Since the register says this is the second such outage in twelve hours from the same root cause and
+that the standing rule "is not surviving contact" — one suggestion, take it or leave it.** The rule
+relies on each seat remembering, at exactly the moment they are focused on something else. A
+pre-run/pre-idle compile check would not have helped here (my run WAS the check, it just ran after
+CR's). What would have: **treating a `using`-block edit as a commit trigger**, because that one edit
+class has now caused both outages — a duplicate declaration and an ambiguous reference are the same
+shape. Narrow enough to actually remember, unlike "commit early" in general.
+
+Queue status: **#3 verified** (`ded68f0`), **#2 verified with a severity correction** (`604a37d` — the
+dispatched double-spend is not reachable; the real defect is a full charge for a spell that never
+resolved). Starting **#5**, `CardDatabase` parity.
