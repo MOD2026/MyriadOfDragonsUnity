@@ -122,20 +122,26 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+            Text backText = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backText.fontSize = 28;
+            backText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(backText.rectTransform);
             backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title",
-                $"SPELL LOADOUT ({_requiredSlots} SLOTS · L{avatarLevel})",
+                $"Spell Loadout ({_requiredSlots} Slots · L{avatarLevel})",
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
                 new Vector2(820f, 48f));
-            title.fontSize = 26;
+            title.fontSize = 28;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.18f, 0.15f, 0.72f, 0.9f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", string.Empty,
                 UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(480f, 40f));
+            _statusText.fontSize = 24;
+            _statusText.fontStyle = FontStyle.Bold;
             UISharedFoundation.ApplyTextShadow(_statusText);
             SetNorm(_statusText.rectTransform, 0.70f, 0.1f, 0.98f, 0.9f);
             // Header strip ~1920x108; plate only the status column.
@@ -196,10 +202,11 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.AddLocalGradientScrim(
                     labelPlate.transform, labelPlateSize * 0.5f, labelPlateSize,
                     UISharedFoundation.GradientDirection.BottomToTop, 0.98f);
-                Text header = UISharedFoundation.CreateText(labelPlate.transform, "EffectLabel", $"SLOT {i + 1}",
+                Text header = UISharedFoundation.CreateText(labelPlate.transform, "EffectLabel", $"Slot {i + 1}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(200f, 24f));
-                header.fontSize = 13;
+                header.fontSize = 24;
+                header.fontStyle = FontStyle.Bold;
                 header.raycastTarget = false;
                 UISharedFoundation.ApplyTextShadow(header);
                 RectTransform headerRect = header.rectTransform;
@@ -211,7 +218,8 @@ namespace MyriadOfDragons.UI
                 Text pick = UISharedFoundation.CreateText(cell.transform, "PickLabel", "(empty)",
                     UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true,
                     new Vector2(220f, 28f));
-                pick.fontSize = 16;
+                pick.fontSize = 24;
+                pick.fontStyle = FontStyle.Bold;
                 pick.raycastTarget = false;
                 SetNorm(pick.rectTransform, 0.42f, 0.05f, 0.95f, 0.55f);
                 _slotLabels.Add(pick);
@@ -237,6 +245,8 @@ namespace MyriadOfDragons.UI
                 Text empty = UISharedFoundation.CreateText(columns.transform, "EmptyPool",
                     "No spells unlocked", UITextRole.Caption, TextAnchor.MiddleCenter,
                     new Color(0.7f, 0.55f, 0.45f), true, new Vector2(400f, 40f));
+                empty.fontSize = 24;
+                empty.fontStyle = FontStyle.Bold;
                 SetNorm(empty.rectTransform, 0.2f, 0.4f, 0.8f, 0.6f);
                 return;
             }
@@ -264,10 +274,11 @@ namespace MyriadOfDragons.UI
                     (col + 1) * cellW - 0.006f, rowTop);
 
                 Text effectHeader = UISharedFoundation.CreateText(colGo.transform, "EffectHeader",
-                    SpellLoadoutSelection.EffectSlotLabel(effect).ToUpperInvariant(),
+                    SpellLoadoutSelection.EffectSlotLabel(effect),
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
                     new Vector2(180f, 22f));
-                effectHeader.fontSize = 12;
+                effectHeader.fontSize = 24;
+                effectHeader.fontStyle = FontStyle.Bold;
                 UISharedFoundation.ApplyTextShadow(effectHeader);
                 SetNorm(effectHeader.rectTransform, 0.02f, 0.88f, 0.98f, 0.98f);
                 float colW = (0.94f * 1920f) / Mathf.Max(1, colsThisRow);
@@ -305,7 +316,8 @@ namespace MyriadOfDragons.UI
                     string label = $"{spell.Name}\nE{spell.EnergyCost} · Mag {spell.Magnitude}";
                     Text t = UISharedFoundation.CreateText(btn.transform, "Label", label,
                         UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 56f));
-                    t.fontSize = 13;
+                    t.fontSize = 24;
+                    t.fontStyle = FontStyle.Bold;
                     t.raycastTarget = false;
                     SetNorm(t.rectTransform, 0.30f, 0.08f, 0.96f, 0.92f);
                     btn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
@@ -325,8 +337,11 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(confirm.GetComponent<Button>(), img, new Color(0.2f, 0.4f, 0.3f));
             confirm.GetComponent<Button>().onClick.AddListener(() => ConfirmSelection());
             SetNorm(confirm.GetComponent<RectTransform>(), 0.1f, 0.15f, 0.9f, 0.85f);
-            UISharedFoundation.CreateText(confirm.transform, "Text", "CONFIRM LOADOUT", UITextRole.Body,
+            Text confirmText = UISharedFoundation.CreateText(confirm.transform, "Text", "CONFIRM LOADOUT", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(360f, 40f));
+            confirmText.fontSize = 28;
+            confirmText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(confirmText.rectTransform);
             confirm.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
         }
 
