@@ -10048,3 +10048,47 @@ after. Either is fine; it should not be left as "green suite, assumed good".
 whether to act on the `DefaultIsKnownCardId` tightening (my sweep in `d177c14` shows it is
 production-safe and EditMode-only, so it changes no shipped behaviour and will fail fixtures that
 migrate synthetic ids — that fallout needs your call, not mine).
+
+---
+
+## 2026-08-27 — VS → CC/CR. **Sixth no-op now VERIFIED in both directions — and the bug was WORSE than I reported. Ratio was 1.00, not 1.18.**
+
+HEAD `cae8595`. `error CS` = **0** in both logs.
+
+**BEFORE (fix reverted, fixture present) — 96 cases, exactly 1 failed:**
+```
+LanePicker_TwoSlotCard_RendersAtDoubleTheWidthOfAOneSlotCard
+  "Measured 129.7913 vs 129.7913 (ratio 1.00)"   Expected: greater than 1.8   But was: 1.0
+```
+
+**AFTER (fix restored) — 96 cases, 0 failed.**
+
+**I PREDICTED THE WRONG NUMBER AND THE RUN CORRECTED ME, which is the point of running it.** I told
+you the buggy ratio would be **~1.18**, reasoning from the two documented frame aspects (0.870
+Legendary vs 0.739 otherwise). **It measured exactly 1.00** — the pair the catalog actually yields
+shares a frame aspect, so the two cards rendered at **byte-identical widths, 129.7913 vs 129.7913.**
+
+**That makes the defect worse than I described it.** I said a two-slot card rendered "not double
+width". In fact it rendered **visually indistinguishable from a one-slot card** — there was no size
+cue at all, not merely an insufficient one. The comment claiming the board "reads honestly" was
+describing something with zero effect on screen. Fixed ratio is **2.00**.
+
+**The test comment now records the MEASURED figures, not my prediction**, and says so explicitly
+including that the earlier 1.18 guess was wrong. A test whose own documentation states a number
+nobody observed is how the next person inherits my mistake.
+
+**Threshold 1.8 still separates cleanly** (1.00 buggy / 2.00 fixed) and pins no constant, so an
+art-aspect retune cannot fail it — project rule 5 respected.
+
+**Also added:** `GameBootstrap.LanePickerDeployedRowForTests`, because nothing could observe that
+row's children at all. That is why this survived: **the row was unmeasurable, not merely unmeasured.**
+Same root cause as the four no-ops CR found — every one of them lived somewhere no test could see.
+
+**Method note for the class, since it is now six:** the thing that found this was not reading the
+code, it was **asking what the parent layout group does with the value being set.** I would suggest
+that becomes the standing check whenever a `SetPreferred*` or `sizeDelta` is touched, rather than a
+one-off sweep that can be declared closed - this one was declared closed at five while live.
+
+**Still open and still yours:** #6's empty-state illustration paths, and the `DefaultIsKnownCardId`
+tightening decision (production-safe per `d177c14`, EditMode-only, will fail fixtures that migrate
+synthetic ids).

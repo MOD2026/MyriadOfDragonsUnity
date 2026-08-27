@@ -1225,10 +1225,14 @@ namespace MyriadOfDragons.Tests
             // CreateCardButton wrote is what rendered. Nothing could see it, because nothing measured
             // this row. Sixth instance of the silent-no-op class.
             //
-            // ASSERTS A RELATIONSHIP, NOT A MAGNITUDE (project rule 5). The two cards carry different
-            // frame aspects (0.870 Legendary vs 0.739 otherwise), so with the bug the ratio is ~1.18
-            // and with the rule applied it is ~2.35. A 1.8 threshold separates them cleanly and does
-            // not pin either constant, so a legitimate art-aspect retune cannot fail this.
+            // ASSERTS A RELATIONSHIP, NOT A MAGNITUDE (project rule 5).
+            // MEASURED, not predicted: with the rule dead both cards render at EXACTLY the same width
+            // (129.79 vs 129.79, ratio 1.00) because this pair shares a frame aspect - so a two-slot
+            // card is visually indistinguishable from a one-slot one. With the rule applied the ratio
+            // is 2.00. The 1.8 threshold sits between them and pins no constant, so an art-aspect
+            // retune cannot fail this test.
+            // (An earlier draft of this comment guessed 1.18 from the two documented aspects. The run
+            // said 1.00. The measurement is what is recorded here.)
             SaveValidDeckForNormalMatch();
 
             var go = new GameObject("LanePickerWidthBootstrap");
@@ -1271,8 +1275,8 @@ namespace MyriadOfDragons.Tests
             Assert.Greater(twoSlotWidth / oneSlotWidth, 1.8f,
                 "A two-slot card must visibly consume the space it costs. Measured " + twoSlotWidth
                 + " vs " + oneSlotWidth + " (ratio " + (twoSlotWidth / oneSlotWidth).ToString("0.00")
-                + "). A ratio near 1.18 means the SlotWeight rule is being ignored and only the "
-                + "rarity frame aspect is showing through.");
+                + "). A ratio near 1.00 means the SlotWeight rule is being ignored entirely and a "
+                + "two-slot card is rendering the same size as a one-slot one.");
         }
 
         private BattleController StartFormationMatch(int enemyHealth = 2000)
