@@ -176,7 +176,7 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(req.GetComponent<Button>(), reqImg,
                 new Color(0.18f, 0.22f, 0.26f));
             req.GetComponent<Button>().onClick.AddListener(() =>
-                SetStatus(EmpireCastleInterlock.StatusNote));
+                SetStatus(EmpireCastleInterlock.PlayerStatus));
             SetNorm(req.GetComponent<RectTransform>(), 0.04f, 0.23f, 0.36f, 0.30f);
             UISharedFoundation.CreateText(req.transform, "Text", "VIEW REQUIREMENTS >", UITextRole.Caption,
                 TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(280f, 28f));
@@ -269,7 +269,13 @@ namespace MyriadOfDragons.UI
         private void SetStatus(string message)
         {
             if (_statusText != null)
-                _statusText.text = message ?? string.Empty;
+                // The OpenValues diagnostic is mapped to its short player-facing form: the
+                // ActionResult Message carries the full StatusNote when values are not locked,
+                // which overflows this band. Repointing only the initial CreateText would leave
+                // the long string one click away from returning.
+                _statusText.text = message == EmpireCastleInterlock.StatusNote
+                    ? EmpireCastleInterlock.PlayerStatus
+                    : (message ?? string.Empty);
         }
 
         private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)

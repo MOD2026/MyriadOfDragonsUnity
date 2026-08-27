@@ -137,7 +137,7 @@ namespace MyriadOfDragons.UI
             identity.fontStyle = FontStyle.Bold;
             SetNorm(identity.rectTransform, 0.18f, 0.15f, 0.35f, 0.85f);
 
-            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", ChatSocialOpenValues.StatusNote,
+            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", ChatSocialOpenValues.PlayerStatus,
                 UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(520f, 40f));
             _statusText.fontSize = 22;
@@ -277,7 +277,13 @@ namespace MyriadOfDragons.UI
         private void SetStatus(string message)
         {
             if (_statusText != null)
-                _statusText.text = message ?? string.Empty;
+                // The OpenValues diagnostic is mapped to its short player-facing form: the
+                // ActionResult Message carries the full StatusNote when values are not locked,
+                // which overflows this band. Repointing only the initial CreateText would leave
+                // the long string one click away from returning.
+                _statusText.text = message == ChatSocialOpenValues.StatusNote
+                    ? ChatSocialOpenValues.PlayerStatus
+                    : (message ?? string.Empty);
         }
 
         private void SetStream(string message)

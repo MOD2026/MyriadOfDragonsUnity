@@ -75,6 +75,15 @@ namespace MyriadOfDragons.Empire
             && BaseMaterialsPerClear.HasValue
             && DailyExpeditionGoldCap.HasValue;
 
+        /// <summary>Short, player-facing status copy for this shell's status label. Deliberately
+        /// separate from <see cref="StatusNote"/>: that string is a developer/transaction
+        /// diagnostic consumed as the ActionResult Message, and at full length it overflows the
+        /// band it is shown in. StatusNote stays byte-identical for every Message consumer; only
+        /// the label reads this. Carries no design numbers - a shell line must not become a
+        /// second source for live values. Same split as BattlePassOpenValues.PlayerStatus
+        /// (02eb9f8) and the three shells in 7e14ab5.</summary>
+        public static string PlayerStatus => "Expedition rewards are still being tuned.";
+
         public static string StatusNote =>
             "Empire Expedition structure and clear rewards (Stamina/Gold/Materials/daily Gold cap) " +
             "are locked; daily attempts, unlock condition, and rotation cadence are still OPEN — " + RegisterCitation;

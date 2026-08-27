@@ -291,6 +291,11 @@ namespace MyriadOfDragons.Empire
     /// </summary>
     public static class EmpireCastleInterlock
     {
+        /// <summary>Short, player-facing copy for the requirements button. Separate from
+        /// <see cref="StatusNote"/>, which is a developer note about a missing interlock
+        /// table and is not player copy. StatusNote is unchanged for its other readers.</summary>
+        public const string PlayerStatus = "Upgrade requirements aren't final yet.";
+
         public const string StatusNote =
             "No locked 1-30 interlock table exists for the 11-building v2 roster - only one stale " +
             "illustrative example (Castle 15 -> Barracks 15 / Gate 13) predating the 5-building reopen. " +
