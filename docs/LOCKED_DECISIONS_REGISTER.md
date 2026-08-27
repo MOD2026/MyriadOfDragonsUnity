@@ -65,6 +65,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-27 | **THE TEST HARNESS IS STRUCTURALLY MORE PERMISSIVE THAN PRODUCTION - assume it, design against it.** Five confirmed instances now, all the same shape: the test environment silently supplies something production would not, so the test goes green while proving nothing. (1) `Resources.Load` failing to a flat colour indistinguishable from success; (2) `SpellBookGrant.TryGrant` called only by tests, never by the game; (3) safe-area checks passing on the editor's trivial `Screen.safeArea`; (4) `DefaultIsKnownCardId` accepting ANY non-empty id when `CardDatabase.Instance == null`, which is the EditMode condition; (5) **`attack: 0` being an UNAUTHORED SENTINEL that substitutes rarity-generated stats** - a fairness test written with 0 attack had both units killing each other with ordinary combat damage, went green, and proved nothing against the buggy resolver it was written to catch. **Rule: a test that could pass for a reason other than the one intended is not a test. Prove it FAILS against the broken state before trusting it to pass against the fixed one.** A before/after baseline is the cheapest way to do that, and it is what caught (5). | Standing rule, does not lift |
 | 2026-08-27 | **A PASS/FAIL SUITE CANNOT DETECT A UNIFORM BIAS - CC gave wrong advice here and VS corrected it.** CC told VS "an unchanged balance result means the fix did not take." Wrong: `BalanceSimulationTests` asserts RELATIONSHIPS, not magnitudes (project rule 5), so it passes identically before and after by design. **Only the logged figures move.** This is precisely why the player's first-mover trigger advantage survived months of green simulation runs - the bias was baked uniformly into every sample, so every aggregate assertion stayed true. **When testing for bias, compare LOGGED MAGNITUDES before and after; do not expect a pass/fail suite to notice.** | Standing rule, does not lift |
 | 2026-08-27 | **DO NOT STAGE A FILE YOU DO NOT OWN - even with explicit paths.** Fourth attribution collision on this project, and explicit-path staging has now demonstrably failed to prevent it, because `git add <file>` takes the WHOLE file including another room's uncommitted work in it. **New rule: if you have local changes in a file another room owns, do not stage that file at all - tell the owning room instead.** Ownership is per-file and non-negotiable for staging purposes even when your own edit is small and correct. Prior incidents: a `highestClaimedLoyaltyMilestone` field swept into `dad3f05`; `SoloCircuitPresenter.cs` into `dc4a955`; a lock-script fix into `d76bd77`; and nine `GameBootstrap.cs` interaction-state wiring sites into `0c4e0e3`. Content survived every time; attribution did not. | Standing rule, does not lift |
+| 2026-08-27 | **A QUOTED CODE SNIPPET IS NOT EVIDENCE - grep the tree before relaying it.** CC relayed a peer's quoted line (`SetPreferredWidth(occupied.gameObject, 118 * SlotWeight)`) as a live finding, dispatched off it, and told one room their fix "does not work" and another that their sweep criterion "had a hole". **Both wrong: the line had already been replaced and the comment at `GameBootstrap.cs:4522` says so in past tense.** A second room checked the actual file and corrected CC. **CC then compounded it by flipping to the opposite wrong conclusion, again without checking.** The rule already existed for peer CLAIMS; it now explicitly covers peer-supplied CODE QUOTES, which are more persuasive and therefore more dangerous - a quote looks like evidence while being exactly as unverified as a claim. **One grep costs nothing; a wrong dispatch costs two rooms a cycle each.** | Standing rule, does not lift |
 | 2026-08-26 | **Every BS/ST/UI prompt goes directly in the chat reply, in a fenced code block, EVERY time - never just "published to the GPT Prompt Hub artifact" as the sole delivery.** Owner cannot talk to GPT/WH directly through CC and does not want to hunt down a link to get a prompt to paste - "u cant talk directly toe gpt and wh so lock it down tat u need to give prompt each time." The artifact stays useful as an archive/index, but it is never a substitute for pasting the actual prompt text in the same turn it's ready. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -2363,6 +2364,30 @@ enough that CC treats the sampler as the leading hypothesis rather than one of t
 **CONSEQUENCE IF CONFIRMED: some of the 156 contrast findings were never real, and rooms have spent
 hours placing scrims against phantom numbers.** This outranks further remediation - **no room should
 fix more contrast findings until the sampler is verified.**
+
+## CORRECTED 2026-08-27: the lane-picker SlotWeight bug is FIXED. The test is FLAKY.
+
+**CC was wrong twice on this thread and both errors came from not checking the file.**
+
+**Verified against the real tree:** `GameBootstrap.cs:4522` reads *"This used to be
+`SetPreferredWidth(..., 118 * SlotWeight)` and was DEAD"* - **past tense**. Lines 4535-4537 are the
+`sizeDelta`-scaling replacement. **The validator room's fix landed and is correct.** The no-op class
+stays CLOSED at five; CC's "reopened at six" was based on a line that no longer exists.
+
+**The 1.00 ratio is a genuine FLAKE, not a broken fix.** CR built a scratch diagnostic driving the
+same card-selection and saved-deck setup and measured the scaling working **every run** -
+`archer_dragon` (SlotWeight 2) at `sizeDelta.x=259.58` vs `warrior` (SlotWeight 1) at `129.79`,
+exactly **2.0x**. Then ran the real test in isolation three times on identical HEAD with zero changes:
+**fail, pass, pass.**
+
+So the maths is sound when driven directly; something in the full
+`GameBootstrap.Initialize()` -> `RefreshLanePicker` path intermittently yields the pre-scale value.
+**Hypothesis: a `CardDatabase`/static-cache race**, not the SlotWeight line.
+
+**Why this matters beyond one test:** a flaky test in a suite this size is corrosive - it teaches
+people to re-run rather than investigate, which is how a "known flake" habit starts. This project has
+already had a baseline note wrongly blame real regressions on flakiness. **Pinning the race is worth
+more than the width fix was.**
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
