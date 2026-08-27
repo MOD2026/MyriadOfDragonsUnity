@@ -430,6 +430,8 @@ namespace MyriadOfDragons.UI
         private Text _tutorialGuidanceCaption;
         private Button _resetLineupButton;
         private Button _recommendedLineupButton;
+        private GameObject _deckBlockedOverlay;
+        private Text _deckBlockedText;
 
         /// <summary>Current step of the guided Chapter 1 sequence, or null for a normal match
         /// (which never constructs one) - see the TutorialStep enum's own doc comment.</summary>
@@ -551,6 +553,12 @@ namespace MyriadOfDragons.UI
         /// visibility and text - see BuildTutorialGuidanceCaption's own comment.</summary>
         public bool TutorialGuidanceCaptionActiveForTests => _tutorialGuidanceCaption != null && _tutorialGuidanceCaption.gameObject.activeSelf;
         public string TutorialGuidanceCaptionTextForTests => _tutorialGuidanceCaption != null ? _tutorialGuidanceCaption.text : null;
+
+        /// <summary>Exposed for tests: the blocked-normal-battle overlay's current visibility and
+        /// text - see BuildDeckBlockedOverlay's own comment for why this state moved off the
+        /// caption above onto its own surface.</summary>
+        public bool DeckBlockedOverlayActiveForTests => _deckBlockedOverlay != null && _deckBlockedOverlay.activeSelf;
+        public string DeckBlockedOverlayTextForTests => _deckBlockedText != null ? _deckBlockedText.text : null;
 
         /// <summary>Block P Soft — locked mode strings for Campaign vs ordinary Battle (not Tutorial).</summary>
         public const string NormalBattleModeLabel = "Normal Battle";
@@ -731,6 +739,7 @@ namespace MyriadOfDragons.UI
             BuildCardDetailOverlay(battleRoot, defaultFont);
             BuildLanePickerOverlay(battleRoot, defaultFont);
             BuildResultOverlay(battleRoot, defaultFont);
+            BuildDeckBlockedOverlay(battleRoot, defaultFont);
             BuildTutorialOverlay(battleRoot, defaultFont);
             BuildSpellTooltip(battleRoot, defaultFont);
 
@@ -1575,6 +1584,11 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void RefreshNormalMatchGuidanceCaption()
         {
+            // The blocked-deck state lives on its own overlay now, not this caption - see
+            // BuildDeckBlockedOverlay's own comment. Hidden by default every refresh; the one
+            // branch below that needs it turns it back on.
+            RefreshDeckBlockedOverlay(null);
+
             if (IsTutorialMatch)
             {
                 _tutorialGuidanceCaption.gameObject.SetActive(false);
@@ -1597,8 +1611,8 @@ namespace MyriadOfDragons.UI
 
             if (_normalMatchStartError != null)
             {
-                _tutorialGuidanceCaption.text = WithBattleModePrefix(_normalMatchStartError);
-                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                _tutorialGuidanceCaption.gameObject.SetActive(false);
+                RefreshDeckBlockedOverlay(WithBattleModePrefix(_normalMatchStartError));
                 return;
             }
 
@@ -1674,6 +1688,10 @@ namespace MyriadOfDragons.UI
         {
             if (_tutorialGuidanceCaption == null) return;
 
+            // Same reasoning as RefreshNormalMatchGuidanceCaption's own call - the blocked-deck
+            // state moved to its own overlay (BuildDeckBlockedOverlay), not this caption band.
+            RefreshDeckBlockedOverlay(null);
+
             if (_battleController.Phase == BattlePhase.Resolved)
             {
                 // The result overlay's own text (HandleMatchEnded) already carries the
@@ -1693,8 +1711,8 @@ namespace MyriadOfDragons.UI
 
             if (_normalMatchStartError != null)
             {
-                _tutorialGuidanceCaption.text = CampaignGuidanceBody(_normalMatchStartError);
-                _tutorialGuidanceCaption.gameObject.SetActive(true);
+                _tutorialGuidanceCaption.gameObject.SetActive(false);
+                RefreshDeckBlockedOverlay(CampaignGuidanceBody(_normalMatchStartError));
                 return;
             }
 
@@ -4765,6 +4783,63 @@ namespace MyriadOfDragons.UI
             _returnToCityButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
             _resultOverlay.SetActive(false);
+        }
+
+        /// <summary>
+        /// The blocked-normal-battle state ("no complete saved deck") used to render inside
+        /// TutorialGuidanceCaption's single-line mode-label band (CaptionY0/Y1, 28.08px) - a
+        /// content-class mismatch, not a sizing bug: that band is a MODE LABEL slot, and this is a
+        /// two-line ERROR state (UI Verification Gate finding, 2026-08-27 - the message needs
+        /// ~41px and the band's entire legal gutter, per CaptionY0/Y1's own comment, tops out at
+        /// 32.4px; no font size at or above the 22px floor makes two lines fit in that space).
+        /// CC's ruling (register `def4a77`): give the message its own centred blocking surface
+        /// over the board instead of forcing it into the caption band. Legitimate specifically
+        /// because the state already blocks the board - with no valid deck there is nothing on it
+        /// for the player to interact with, so covering it occludes no live control. Same
+        /// panel geometry as ResultOverlay (an already-approved "centred modal over the board"
+        /// shape in this file), reused for consistency rather than inventing a new footprint.
+        /// </summary>
+        private void BuildDeckBlockedOverlay(Transform canvasTransform, Font font)
+        {
+            _deckBlockedOverlay = new GameObject("DeckBlockedOverlay");
+            _deckBlockedOverlay.transform.SetParent(canvasTransform, false);
+            RectTransform overlayRect = _deckBlockedOverlay.AddComponent<RectTransform>();
+            StretchFull(overlayRect);
+
+            Image dim = CreateImage(_deckBlockedOverlay.transform, new Color(0, 0, 0, 0.7f));
+            StretchFull(dim.rectTransform);
+
+            RectTransform panel = CreateRoundedPanel(_deckBlockedOverlay.transform, "DeckBlockedPanel", HandPanelTop, HandPanelBottom);
+            panel.anchorMin = new Vector2(0.15f, 0.30f);
+            panel.anchorMax = new Vector2(0.85f, 0.70f);
+            panel.offsetMin = Vector2.zero;
+            panel.offsetMax = Vector2.zero;
+            UISharedFoundation.FitSlicedBorderToRect(panel.GetComponent<Image>());
+
+            _deckBlockedText = CreateText(panel, "", 24, Color.white, font);
+            _deckBlockedText.fontStyle = FontStyle.Bold;
+            _deckBlockedText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _deckBlockedText.verticalOverflow = VerticalWrapMode.Truncate;
+            AnchorBand(_deckBlockedText.rectTransform, 0.15f, 0.85f, 0.08f, 0.08f);
+
+            _deckBlockedOverlay.SetActive(false);
+        }
+
+        /// <summary>Shows/hides the deck-blocked overlay with the given body text (already
+        /// mode-prefixed by the caller), or hides it when <paramref name="body"/> is null. The
+        /// caller is responsible for calling this only when a valid deck is genuinely absent -
+        /// this method does no state checks of its own, matching every other Refresh*Caption
+        /// method in this file.</summary>
+        private void RefreshDeckBlockedOverlay(string body)
+        {
+            if (_deckBlockedOverlay == null) return;
+            if (body == null)
+            {
+                _deckBlockedOverlay.SetActive(false);
+                return;
+            }
+            _deckBlockedText.text = body;
+            _deckBlockedOverlay.SetActive(true);
         }
 
         // ---------- Interaction ----------
