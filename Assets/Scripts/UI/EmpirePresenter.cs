@@ -752,6 +752,23 @@ namespace MyriadOfDragons.UI
             }
         }
 
+        /// <summary>Tile-only label, separate from `def.DisplayName` (register 3aede59) -
+        /// DisplayName stays the full building name everywhere else (detail popup, etc.), never
+        /// touched here. Two names wrap to two lines at 24px bold in this ~72px tile and overflow
+        /// the geometry gate by 15.8px even after the tile/band were already grown as far as this
+        /// strip allows (see CreateStructureTile's own SetNormalizedRect comment) - shortened
+        /// instead of shrinking below the font floor or growing the tile further. Every other
+        /// building's real name already fits on one line, so it passes through unchanged.</summary>
+        private static string ShortTileLabel(EmpireBuildingKind kind, string displayName)
+        {
+            switch (kind)
+            {
+                case EmpireBuildingKind.TrainingGrounds: return "TRAINING";
+                case EmpireBuildingKind.TreeOfKnowledge: return "KNOWLEDGE";
+                default: return displayName.ToUpperInvariant();
+            }
+        }
+
         private void CreateStructureTile(Transform parent, EmpireBuildingKind kind, float left, float right)
         {
             EmpireBuildingDefinition def = EmpireBuildingRoster.Get(kind);
@@ -796,7 +813,7 @@ namespace MyriadOfDragons.UI
             }
 
             Text label = UISharedFoundation.CreateText(tile.transform, "StructureName",
-                def.DisplayName.ToUpperInvariant(), UITextRole.Caption, TextAnchor.MiddleLeft,
+                ShortTileLabel(kind, def.DisplayName), UITextRole.Caption, TextAnchor.MiddleLeft,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 24f));
             label.fontSize = 24;
             label.fontStyle = FontStyle.Bold;
