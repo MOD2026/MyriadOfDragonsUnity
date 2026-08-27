@@ -81,6 +81,7 @@ namespace MyriadOfDragons.UI
             backRect.sizeDelta = new Vector2(160f, 40f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter,
                 Color.white, true, new Vector2(140f, 34f));
+            backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             UISharedFoundation.CreateText(topBar.transform, "Title", "AVATAR", UITextRole.Display, TextAnchor.MiddleCenter,
                 new Color(0.95f, 0.92f, 0.82f), true, new Vector2(800f, 60f)).fontSize = 32;
@@ -170,6 +171,7 @@ namespace MyriadOfDragons.UI
                 SetNorm(empireBtn.GetComponent<RectTransform>(), 0.04f, 0.04f, 0.36f, 0.14f);
                 UISharedFoundation.CreateText(empireBtn.transform, "Label", "OPEN EMPIRE", UITextRole.Body,
                     TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(280f, 40f));
+                empireBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
             }
 
             if (_onOpenSpellLoadout != null)
@@ -188,6 +190,7 @@ namespace MyriadOfDragons.UI
                 SetNorm(loadoutBtn.GetComponent<RectTransform>(), 0.40f, 0.04f, 0.72f, 0.14f);
                 UISharedFoundation.CreateText(loadoutBtn.transform, "Label", "SPELL LOADOUT", UITextRole.Body,
                     TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(280f, 40f));
+                loadoutBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
             }
         }
 

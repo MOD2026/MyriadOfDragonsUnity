@@ -227,6 +227,13 @@ namespace MyriadOfDragons.UI
         private CanvasGroup _canvasGroup;
         private Button _button;
 
+        /// <summary>What ApplyAt itself last wrote (or observed) on `_button.interactable` -
+        /// distinguishes an EXTERNAL change (GameBootstrap/a presenter set .interactable directly)
+        /// from our own write-back reflecting straight back at us, so the two-way sync below can't
+        /// turn into a feedback loop that clobbers an explicit SetDisabled() call made this same
+        /// frame (see ApplyAt's own comment).</summary>
+        private bool _lastObservedInteractable = true;
+
         /// <summary>Fires once per valid activation - pointer went down inside, stayed inside (or
         /// re-entered before release) through touch-up, and the idempotent-activation cooldown has
         /// elapsed. Never fires twice for one fast double-tap within that cooldown.</summary>
@@ -250,6 +257,15 @@ namespace MyriadOfDragons.UI
             if (_graphic != null) _baseColor = _graphic.color;
             _canvasGroup = GetComponent<CanvasGroup>();
             _button = GetComponent<Button>();
+            // Seed from the button's REAL starting state (some callers, e.g. GameBootstrap's
+            // enemy lane buttons, start non-interactable by design) - without this, frame one's
+            // sync in ApplyAt would misread that starting false as an "external change" against
+            // the hardcoded _lastObservedInteractable default of true and flip it right back.
+            if (_button != null)
+            {
+                _lastObservedInteractable = _button.interactable;
+                if (!_button.interactable) _flags |= InteractionStateFlags.Disabled;
+            }
         }
 
         public UIDesignTokens.FrameTier Tier { get => tier; set => tier = value; }
@@ -358,6 +374,28 @@ namespace MyriadOfDragons.UI
         public void ApplyAt(float nowSec)
         {
             EnsureCached();
+
+            // Passive sync FROM Button.interactable, not just the reverse write-back below (CR,
+            // 2026-08-27, Battle/Empire/Avatar wiring pass): GameBootstrap and the metagame
+            // presenters already set `.interactable` directly at dozens of call sites across their
+            // Refresh methods - rewiring every one of those to call SetDisabled() instead would be
+            // a huge, risky sweep for no real gain. Mirroring the existing property here means
+            // every one of those call sites gets disabled-state visual feedback for free, with zero
+            // change to how they already manage interactable. Self-healing: this runs every frame,
+            // so a control disabled then re-enabled elsewhere picks the flag back up automatically.
+            //
+            // Gated on _lastObservedInteractable, not a plain comparison against the current flag -
+            // without that guard this would fight an explicit SetDisabled() call made the same
+            // frame (own regression, caught before landing: SetDisabled(true) followed immediately
+            // by ApplyAt(0f) would see Button.interactable still true - because the write-back below
+            // hasn't run yet this frame - and incorrectly clear the flag it was just told to set).
+            // Comparing against what WE last wrote instead of the live flag means this only fires on
+            // a genuinely external change, never on our own write-back reflecting back at us.
+            if (_button != null && _button.interactable != _lastObservedInteractable)
+            {
+                SetFlagAt(InteractionStateFlags.Disabled, !_button.interactable, nowSec);
+            }
+
             float msSinceChange = (nowSec - _lastChangeTimeSec) * 1000f;
             InteractionVisual v = UIInteractionStateTokens.Resolve(_flags, tier, msSinceChange);
 
@@ -373,7 +411,10 @@ namespace MyriadOfDragons.UI
             if (_canvasGroup != null) _canvasGroup.alpha = v.Opacity;
 
             if (_button != null)
+            {
                 _button.interactable = (_flags & (InteractionStateFlags.Disabled | InteractionStateFlags.Locked)) == 0;
+                _lastObservedInteractable = _button.interactable;
+            }
 
             // Error is one-shot and self-clearing once its flash sequence has fully played.
             if ((_flags & InteractionStateFlags.Error) != 0 &&

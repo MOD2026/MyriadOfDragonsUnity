@@ -118,6 +118,7 @@ namespace MyriadOfDragons.UI
             backRect.anchoredPosition = new Vector2(30f, -5f);
             backRect.sizeDelta = new Vector2(160f, 40f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 34f));
+            backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "EMPIRE", UITextRole.Display,
                 TextAnchor.MiddleLeft, new Color(0.95f, 0.92f, 0.82f), true, new Vector2(220f, 60f));
@@ -161,6 +162,7 @@ namespace MyriadOfDragons.UI
                 hitRect.sizeDelta = new Vector2(140f, 52f);
                 UISharedFoundation.CreateText(avatarBtnObj.transform, "ActionLabel", "AVATAR",
                     UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 36f));
+                avatarBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             }
 
             // Empire Expedition (structure-locked farm loop) — opens the rotation shell.
@@ -179,6 +181,7 @@ namespace MyriadOfDragons.UI
             expeditionRect.sizeDelta = new Vector2(170f, 52f);
             UISharedFoundation.CreateText(expeditionBtnObj.transform, "ActionLabel", "EXPEDITION",
                 UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(150f, 36f));
+            expeditionBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             resourceGroup.transform.SetParent(topBar.transform, false);
@@ -681,6 +684,7 @@ namespace MyriadOfDragons.UI
             SetNormalizedRect(chip.GetComponent<RectTransform>(), left, 0.08f, right, 0.92f);
             UISharedFoundation.CreateText(chip.transform, "Label", label, UITextRole.Caption, TextAnchor.MiddleCenter,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 28f));
+            chip.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
         }
 
         /// <summary>The five buildings that had no UI presence at all until now.</summary>
@@ -732,6 +736,7 @@ namespace MyriadOfDragons.UI
             Image bg = tile.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNavTileButton(tile.GetComponent<Button>(), bg);
             bg.color = HexColor("#1A2A34");
+            tile.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             EmpireBuildingKind captured = kind;
             tile.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
@@ -811,6 +816,12 @@ namespace MyriadOfDragons.UI
             rowBg.raycastTarget = true;
             Button rowButton = row.GetComponent<Button>();
             rowButton.targetGraphic = rowBg;
+            // None, not Unity's default ColorTint (CR, 2026-08-27, interaction-states sweep): this
+            // is the one real button in this file that never called an ApplyXActionButton helper
+            // (it uses ApplyFramedPanel below instead), so it never got a transition override and
+            // was left on ColorTint, which silently fights InteractionStateController over
+            // Image.color - the exact conflict class CC flagged as likely systemic.
+            rowButton.transition = Selectable.Transition.None;
             EmpireBuildingKind captured = kind;
             rowButton.onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(row.GetComponent<RectTransform>(), 0.03f, bottom, 0.97f, top);
@@ -818,6 +829,7 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.ApplyFramedPanel(rowBg, null,
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                 kind: UISharedFoundation.FramedPanelKind.ListRow);
+            row.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
             Text rowText = UISharedFoundation.CreateText(row.transform, "RowSummary", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 80f));
@@ -855,6 +867,8 @@ namespace MyriadOfDragons.UI
             buttonLabel.fontSize = 16;
             buttonLabel.fontStyle = FontStyle.Bold;
             SetNormalizedRect(buttonLabel.rectTransform, 0.05f, 0.05f, 0.95f, 0.95f);
+            buttonRoot.AddComponent<InteractionStateController>().Tier =
+                primary ? UIDesignTokens.FrameTier.Tier1Hero : UIDesignTokens.FrameTier.Tier2Section;
             return buttonRoot;
         }
 
