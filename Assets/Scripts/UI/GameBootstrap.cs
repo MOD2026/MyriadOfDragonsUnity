@@ -162,6 +162,27 @@ namespace MyriadOfDragons.UI
         private static readonly Vector2 PrimaryActionMin = new Vector2(0.745f, 0.025f);
         private static readonly Vector2 PrimaryActionMax = new Vector2(0.985f, 0.195f);
 
+        // Bounded collapsible SelectedCard (AD ruling, 2026-08-28): HandPanel itself does not
+        // grow (HandPanelMax above is untouched) - real worst-case content (150px measured) does
+        // not fit the collapsed 84.5px box, so overflow is handled by an explicit-action overlay
+        // instead of a permanently taller panel. These four are the AD-approved budget.
+        private const float SelectedCardExpandedMaxHeightPx = 140f;
+        private const float HandHintReservedHeightPx = 100f;
+        private const float SelectedCardPaddingPx = 8f; // above AND below - 16px total
+        private const float PlayerBoardSafetyGapPx = 6f;
+
+        /// <summary>Static design-envelope check (AD ruling): 140 + 100 + 16 + 6 = 262 &lt;= 270.
+        /// This is a budget sanity check on the constants above, not the real runtime
+        /// availability check - see <see cref="TryExpandSelectedCard"/>, which re-measures real
+        /// Player-board headroom every time expansion is requested, because the assumed 270px
+        /// envelope here is NOT the same number as PlayerBoardMin's real position (only 32.4px of
+        /// real headroom currently exists above HandPanel - see that method's own comment).
+        /// Asserted once at Initialize so a future edit to any of the four constants above can't
+        /// silently break the AD-approved budget without a visible failure.</summary>
+        private const float SelectedCardStaticBudgetPx =
+            SelectedCardExpandedMaxHeightPx + HandHintReservedHeightPx + (SelectedCardPaddingPx * 2f) + PlayerBoardSafetyGapPx;
+        private const float SelectedCardStaticEnvelopePx = 270f;
+
         // Thin gap band between the Top HUD's own bottom edge (.885) and the Enemy board's top
         // edge (.875) - the only non-HUD, non-board sliver anywhere near the top of the V4
         // layout, reused for the approved tutorial-only guidance caption (see
@@ -437,6 +458,12 @@ namespace MyriadOfDragons.UI
         private Text _selectedCardText;
         private readonly List<Button> _handButtons = new List<Button>();
 
+        // Bounded collapsible SelectedCard overlay (AD ruling, 2026-08-28) - see
+        // SelectedCardExpandedMaxHeightPx's own comment and TryExpandSelectedCard.
+        private bool _selectedCardExpanded;
+        private GameObject _selectedCardExpandOverlay;
+        private Text _selectedCardExpandOverlayText;
+
         private GameObject _cardDetailOverlay;
         private Text _cardDetailClassTag;
         private Image _cardDetailArt;
@@ -673,6 +700,9 @@ namespace MyriadOfDragons.UI
         public void Initialize()
         {
             Instance = this;
+            Debug.Assert(SelectedCardStaticBudgetPx <= SelectedCardStaticEnvelopePx,
+                $"SelectedCard static budget ({SelectedCardStaticBudgetPx}px) exceeds the AD-approved " +
+                $"envelope ({SelectedCardStaticEnvelopePx}px) - a constant changed without re-checking the budget.");
             Font defaultFont = GetDefaultFont();
 
             Canvas canvas = BuildCanvas();
@@ -3753,6 +3783,15 @@ namespace MyriadOfDragons.UI
             // Positioned neatly below the Reset/AutoFormation buttons and above the deck count.
             RectTransform placementBox = CreateAnchoredPanel(panel, "SelectedCardBox",
                 new Color(0f, 0f, 0f, 0.35f), new Vector2(0.005f, 0.28f), new Vector2(0.19f, 0.74f));
+            // Tap affordance for the bounded collapsible overlay (AD ruling, 2026-08-28) - the
+            // box itself is the tap target since a real player-visible worst-case selection
+            // (a long card name) does not fit the collapsed box, and adding a separate small
+            // "expand" icon would need its own real estate this saturated panel does not have.
+            // Never a placement control (see this method's own header comment) - toggling
+            // expansion is the only thing tapping this box does.
+            Button selectedCardExpandButton = placementBox.gameObject.AddComponent<Button>();
+            selectedCardExpandButton.transition = Selectable.Transition.None;
+            selectedCardExpandButton.onClick.AddListener(ToggleSelectedCardExpansion);
             _selectedCardText = CreateText(placementBox, "", 22, GoldTextColor, font);
             _selectedCardText.raycastTarget = false;
             _selectedCardText.alignment = TextAnchor.UpperCenter;
@@ -3877,6 +3916,92 @@ namespace MyriadOfDragons.UI
             StretchFull(_handHintText.rectTransform);
             _handHintText.gameObject.SetActive(false);
         }
+
+        /// <summary>Explicit user action only (AD ruling) - never auto-expands from content
+        /// length alone. Toggling collapses an already-open overlay unconditionally (collapse is
+        /// always safe), or attempts to open one (which can be refused - see
+        /// TryExpandSelectedCard).</summary>
+        private void ToggleSelectedCardExpansion()
+        {
+            if (_selectedCardExpanded) CollapseSelectedCard();
+            else TryExpandSelectedCard();
+        }
+
+        /// <summary>
+        /// Re-evaluates real Player-board headroom EVERY call (AD ruling: "Re-evaluate at
+        /// expansion time", not once at build time) - HandPanelMax and PlayerBoardMin are the
+        /// real anchors this screen already ships with, not the 270px design-envelope assumption
+        /// SelectedCardStaticEnvelopePx checks against. Right now that real headroom is only
+        /// (0.225 - 0.195) * 1080 = 32.4px, so the AD-approved 140+16px overlay budget (156px)
+        /// cannot fit today - this method blocks rather than growing HandPanel or the overlay
+        /// past what real headroom allows, exactly as instructed ("block it or use an
+        /// overlay/scroll path"). Returns whether the overlay actually opened.
+        /// </summary>
+        public bool TryExpandSelectedCard()
+        {
+            if (_selectedCardText == null || string.IsNullOrEmpty(_selectedCardText.text)) return false;
+
+            float realHeadroomPx = (PlayerBoardMin.y - HandPanelMax.y) * CanvasHeight - PlayerBoardSafetyGapPx;
+            float requiredPx = SelectedCardExpandedMaxHeightPx + (SelectedCardPaddingPx * 2f);
+            if (realHeadroomPx < requiredPx)
+            {
+                // Blocked: never partially expand past what real headroom allows. Collapsed view
+                // (best-fit shrink/truncate within the existing 84.5px box) remains the only
+                // presentation - no scroll path is built since there is currently zero screen
+                // configuration where expansion is reachable to test one against.
+                _selectedCardExpanded = false;
+                return false;
+            }
+
+            if (_selectedCardExpandOverlay == null)
+            {
+                _selectedCardExpandOverlay = new GameObject("SelectedCardExpandOverlay", typeof(RectTransform), typeof(Image));
+                _selectedCardExpandOverlay.transform.SetParent(_canvasTransform, false);
+                Image bg = _selectedCardExpandOverlay.GetComponent<Image>();
+                bg.color = new Color(0.05f, 0.04f, 0.06f, 0.96f);
+                bg.raycastTarget = true;
+                _selectedCardExpandOverlayText = CreateText(_selectedCardExpandOverlay.transform, "", 22, GoldTextColor, GetDefaultFont());
+                _selectedCardExpandOverlayText.alignment = TextAnchor.UpperCenter;
+                _selectedCardExpandOverlayText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                _selectedCardExpandOverlayText.verticalOverflow = VerticalWrapMode.Truncate;
+                StretchFull(_selectedCardExpandOverlayText.rectTransform);
+                Button closeButton = _selectedCardExpandOverlay.AddComponent<Button>();
+                closeButton.transition = Selectable.Transition.None;
+                closeButton.onClick.AddListener(CollapseSelectedCard);
+            }
+
+            // Anchored at HandPanel's own top-left corner, growing UPWARD by the real available
+            // (and now confirmed sufficient) headroom - never past PlayerBoardMin's real position
+            // minus the safety gap, matching the check above exactly.
+            RectTransform overlayRect = (RectTransform)_selectedCardExpandOverlay.transform;
+            overlayRect.anchorMin = new Vector2(HandPanelMin.x, HandPanelMax.y);
+            overlayRect.anchorMax = new Vector2(HandPanelMin.x, HandPanelMax.y);
+            overlayRect.pivot = new Vector2(0f, 0f);
+            float overlayWidthPx = (HandPanelMax.x - HandPanelMin.x) * 0.19f * CanvasWidth; // matches SelectedCardBox's own width fraction
+            overlayRect.sizeDelta = new Vector2(overlayWidthPx, SelectedCardExpandedMaxHeightPx + (SelectedCardPaddingPx * 2f));
+            overlayRect.anchoredPosition = new Vector2(0f, PlayerBoardSafetyGapPx);
+            _selectedCardExpandOverlayText.text = _selectedCardText.text;
+
+            _selectedCardExpandOverlay.SetActive(true);
+            _selectedCardExpanded = true;
+            return true;
+        }
+
+        private void CollapseSelectedCard()
+        {
+            _selectedCardExpanded = false;
+            if (_selectedCardExpandOverlay != null) _selectedCardExpandOverlay.SetActive(false);
+        }
+
+        /// <summary>Exposed for tests: attempts expansion exactly as a real tap does, returns
+        /// whether it actually opened (false = blocked by real headroom).</summary>
+        public bool TryExpandSelectedCardForTests() => TryExpandSelectedCard();
+        public void CollapseSelectedCardForTests() => CollapseSelectedCard();
+        public bool SelectedCardExpandedForTests => _selectedCardExpanded;
+        public bool SelectedCardExpandOverlayActiveForTests =>
+            _selectedCardExpandOverlay != null && _selectedCardExpandOverlay.activeSelf;
+        public string SelectedCardExpandOverlayTextForTests =>
+            _selectedCardExpandOverlayText != null ? _selectedCardExpandOverlayText.text : null;
 
         /// <summary>
         /// V3's primary action region (handoff anchor: (.72,.02)-(.98,.18)) - just the single

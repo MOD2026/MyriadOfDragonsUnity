@@ -2886,6 +2886,48 @@ namespace MyriadOfDragons.Tests
                 "so a tutorial run can never leak into the next normal match's reward eligibility.");
         }
 
+        /// <summary>
+        /// Bounded collapsible SelectedCard (AD ruling, CR-UI-COLLAPSIBLE-SELECTED-CARD-001,
+        /// 2026-08-28). Drives a real card selection through HandCardPressedForTests, then
+        /// attempts real expansion through the same code path a tap does
+        /// (TryExpandSelectedCardForTests). Under this screen's REAL current geometry
+        /// (HandPanelMax.y=0.195, PlayerBoardMin.y=0.225 - only 32.4px of real headroom minus the
+        /// 6px safety gap), the AD-approved 140+16px overlay budget (156px) cannot fit, so the
+        /// real, correct outcome is BLOCKED - not a stub, the actual runtime safety check working
+        /// as designed against this screen's real layout.
+        /// </summary>
+        [Test]
+        public void GameBootstrap_SelectedCardExpansion_CollapsedByDefault_BlockedByRealHeadroom()
+        {
+            SaveValidDeckForNormalMatch();
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("CollapsibleSelectedCard");
+
+            // Collapsed default state - no expansion has been requested yet.
+            Assert.IsFalse(bootstrap.SelectedCardExpandedForTests,
+                "STATE UNREACHED: SelectedCard must start collapsed.");
+            Assert.IsFalse(bootstrap.SelectedCardExpandOverlayActiveForTests,
+                "STATE UNREACHED: the expand overlay must not exist/be active before any tap.");
+
+            List<Card> hand = bootstrap.Battle.PlayerState.Hand;
+            Assert.IsNotEmpty(hand, "Setup: expected a real dealt Formation hand.");
+            Card longestNameCard = hand.OrderByDescending(c => c.DisplayName.Length).First();
+            bootstrap.HandCardPressedForTests(longestNameCard);
+            Assert.AreEqual(longestNameCard.Id, bootstrap.SelectedCardIdForTests,
+                "Setup: expected a real selection to register before attempting expansion.");
+
+            // Expansion-gated state: the real runtime headroom re-check, exactly as a tap would
+            // trigger it, against this screen's real HandPanelMax/PlayerBoardMin geometry.
+            bool opened = bootstrap.TryExpandSelectedCardForTests();
+
+            Assert.IsFalse(opened,
+                "BLOCKER: real headroom (32.4px - 6px safety gap) cannot fit the AD-approved " +
+                "140+16px overlay budget (156px) - expansion must refuse, not partially open.");
+            Assert.IsFalse(bootstrap.SelectedCardExpandedForTests,
+                "STATE UNREACHED: a blocked expansion must not flip the expanded flag.");
+            Assert.IsFalse(bootstrap.SelectedCardExpandOverlayActiveForTests,
+                "STATE UNREACHED: a blocked expansion must not show the overlay.");
+        }
+
         [Test]
         public void SimpleAI_AggressiveFillsFrontLane_DefensivePrefersMiddle()
         {
