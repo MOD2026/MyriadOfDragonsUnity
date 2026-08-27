@@ -2104,6 +2104,50 @@ Shop was measured - real world corners of the TopHud clusters plus a capture. **
 good and the locked test stands untouched. Crowded = reopen**, and the fix is proportional sizing
 inside the HUD clusters, still not a canvas split.
 
+## Battle compressed-size measurement: CLEAN. Question CLOSED 2026-08-27.
+
+CR measured GameBootstrap at (2147, 966) - the effective design space for the WORSE of its two
+profiles (phone 2400x1080 at match=0.5, 11% height loss; tablet is only 5% width loss). Used
+`LayoutRebuilder` rather than `ForceUpdateCanvases` so the live scaler never overwrote the injection.
+Measure-only, HEAD unchanged.
+
+```
+PlayerHud / PhaseHud / EnemyHud : 601.2 wide each, ~128.8pt gaps, all inside canvas x=[-753.5, 1393.5]
+TopHud bottom edge y=611.9  vs  ActivityRail top y=602.3  ->  9.6pt clearance
+anyOverlap = False, anyOffCanvas = False - confirmed visually on the capture
+```
+
+**One canvas at match=0.5 stands. No split. The locked structural test is untouched.** Health bars,
+portraits and the centred phase text all read correctly at compression.
+
+**The Enemy HUD is clean too** - so the locked text-to-animation rebuild of that region inherits **a
+clean slate, not a crowding problem.**
+
+## NEW DEFECT: SPELLS panel text overlap under compression (found on the same capture)
+
+The SPELLS panel below the HUD shows **real text overlap at the compressed size**: "Mend" over its own
+cost label, "Divine Bolt" over "60 COST". Different region from TopHud - `PrimaryActionPanel`
+territory. **This is the crowding failure mode we predicted and had not yet found anywhere.** Home,
+Shop and Battle's TopHud all absorbed compression; this does not, because those rows pack fixed-width
+text against fixed-width cost labels with no slack.
+
+## SECOND GLOBAL COMPILE OUTAGE IN 12 HOURS - same root cause
+
+`Assets/Tests/Editor/BattleLogicTests.cs` had `using System;` added by in-flight uncommitted work
+(a new `ThrowingSpell` / `CastThatThrows_RefundsEnergyAndCooldown_PlayerPath` test - VS's "cast
+transactional safety" item), which made a bare `Object.DestroyImmediate` ambiguous between
+`System.Object` and `UnityEngine.Object` (CS0104) and **blocked every test in the suite from
+compiling.**
+
+CR fixed the single line (qualified `UnityEngine.Object.DestroyImmediate`), touched nothing else, and
+**deliberately did not commit the surrounding in-flight test class** - correct on all three counts.
+
+**This is the second time in twelve hours that uncommitted work-in-progress has taken out every
+seat's compile.** First was `DailyLoginQuestsPresenter.cs`'s duplicate `rowH`. The standing rule -
+commit early as visibly RED work-in-progress rather than leaving a non-compiling file loose in a
+shared, actively-compiled tree - **is not surviving contact.** A failing TEST still lets everyone
+compile and work around it; an uncompilable FILE stops all four seats at once.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
