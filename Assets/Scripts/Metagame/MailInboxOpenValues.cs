@@ -20,6 +20,14 @@ namespace MyriadOfDragons.Metagame
     public static class MailInboxOpenValues
     {
         public static string RuntimePlaceholder => "[runtime]";
+        /// <summary>Short, player-facing status copy for the shell's StatusLine. Deliberately
+        /// separate from <see cref="StatusNote"/>: that string is a developer/transaction
+        /// diagnostic consumed as the ActionResult Message, and at full length it overflows the
+        /// StatusLine band. StatusNote stays byte-identical for every Message consumer; only the
+        /// label reads this. Carries no design numbers - a shell line must not become a second
+        /// source for live values. Same split as BattlePassOpenValues.PlayerStatus (02eb9f8).</summary>
+        public static string PlayerStatus => "No mail yet.";
+
         public static string StatusNote =>
             "Mail / Inbox shell is art-ready. Attachment claim, retention, and message classes stay OPEN/server-authored — no player-to-player mail, no duplicate receipt while reconciling.";
 
