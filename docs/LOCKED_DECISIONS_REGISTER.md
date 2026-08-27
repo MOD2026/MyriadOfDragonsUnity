@@ -66,6 +66,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-27 | **A PASS/FAIL SUITE CANNOT DETECT A UNIFORM BIAS - CC gave wrong advice here and VS corrected it.** CC told VS "an unchanged balance result means the fix did not take." Wrong: `BalanceSimulationTests` asserts RELATIONSHIPS, not magnitudes (project rule 5), so it passes identically before and after by design. **Only the logged figures move.** This is precisely why the player's first-mover trigger advantage survived months of green simulation runs - the bias was baked uniformly into every sample, so every aggregate assertion stayed true. **When testing for bias, compare LOGGED MAGNITUDES before and after; do not expect a pass/fail suite to notice.** | Standing rule, does not lift |
 | 2026-08-27 | **DO NOT STAGE A FILE YOU DO NOT OWN - even with explicit paths.** Fourth attribution collision on this project, and explicit-path staging has now demonstrably failed to prevent it, because `git add <file>` takes the WHOLE file including another room's uncommitted work in it. **New rule: if you have local changes in a file another room owns, do not stage that file at all - tell the owning room instead.** Ownership is per-file and non-negotiable for staging purposes even when your own edit is small and correct. Prior incidents: a `highestClaimedLoyaltyMilestone` field swept into `dad3f05`; `SoloCircuitPresenter.cs` into `dc4a955`; a lock-script fix into `d76bd77`; and nine `GameBootstrap.cs` interaction-state wiring sites into `0c4e0e3`. Content survived every time; attribution did not. | Standing rule, does not lift |
 | 2026-08-27 | **A QUOTED CODE SNIPPET IS NOT EVIDENCE - grep the tree before relaying it.** CC relayed a peer's quoted line (`SetPreferredWidth(occupied.gameObject, 118 * SlotWeight)`) as a live finding, dispatched off it, and told one room their fix "does not work" and another that their sweep criterion "had a hole". **Both wrong: the line had already been replaced and the comment at `GameBootstrap.cs:4522` says so in past tense.** A second room checked the actual file and corrected CC. **CC then compounded it by flipping to the opposite wrong conclusion, again without checking.** The rule already existed for peer CLAIMS; it now explicitly covers peer-supplied CODE QUOTES, which are more persuasive and therefore more dangerous - a quote looks like evidence while being exactly as unverified as a claim. **One grep costs nothing; a wrong dispatch costs two rooms a cycle each.** | Standing rule, does not lift |
+| 2026-08-27 | **NEVER DISMISS A VISUAL ANOMALY AS "probably the tool."** CR saw "Firestorm" appearing to overlap "SPELLS" during a compression capture, wrote it off as a capture-technique artifact, and moved on. It was almost certainly a REAL bug - dead `SetPreferredHeight` calls rendering text at 100px instead of 24/20 - found only later by a code sweep. **A capture is measurement; treating an unexplained result as instrument error rather than data is how real defects get filed as noise.** If a capture shows something wrong, either explain it or log it as unexplained. Never explain it away. CR flagged this against themselves unprompted, which is why it is recorded. | Standing rule, does not lift |
 | 2026-08-26 | **Every BS/ST/UI prompt goes directly in the chat reply, in a fenced code block, EVERY time - never just "published to the GPT Prompt Hub artifact" as the sole delivery.** Owner cannot talk to GPT/WH directly through CC and does not want to hunt down a link to get a prompt to paste - "u cant talk directly toe gpt and wh so lock it down tat u need to give prompt each time." The artifact stays useful as an archive/index, but it is never a substitute for pasting the actual prompt text in the same turn it's ready. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -2388,6 +2389,27 @@ So the maths is sound when driven directly; something in the full
 people to re-run rather than investigate, which is how a "known flake" habit starts. This project has
 already had a baseline note wrongly blame real regressions on flakiness. **Pinning the race is worth
 more than the width fix was.**
+
+## SEVENTH silent no-op - the corrected criterion works (`8ba1b35`, 2026-08-27)
+
+`textColLayout.childControlHeight = false` on the spell row's name/cost column. **`spellName`'s
+`SetPreferredHeight(24)` and `spellLabel`'s `(20)` were both dead, and neither Text has a `sizeDelta`
+set anywhere else** - so nothing sized them at all. Measured before: **both rendered at Unity's
+default 100 tall, stacking to 200 units inside a container correctly only 62 tall.** After the flip:
+exactly 24 and 20, textCol totals 54, fits.
+
+**This is the case the ORIGINAL sweep criterion could never have caught** - it looked for
+`SetPreferred*` layered on an element already sized by `sizeDelta`. Here there was no `sizeDelta` at
+all; the element was sized by nothing. The corrected criterion - *does every sizing call actually
+change the rendered result* - is what found it.
+
+**Remaining candidate sites re-checked and CLEAN:** `EmpireExpeditionPresenter.CreateStageNode` has
+both `sizeDelta` and a `LayoutElement`, but the values agree (340 both places) and
+`childControlHeight = true`, so `minHeight`/`flexibleHeight` are live too.
+`CampaignMapPresenter`/`HomeV3UiLibrary.CreateResourcePill` never had a `LayoutElement` - nothing to
+disagree.
+
+**Class stands at SEVEN.** 141/141 tests, 0 CS errors.
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
