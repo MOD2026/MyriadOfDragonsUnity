@@ -2010,6 +2010,42 @@ GuildExpedition 22, Shop 20, Vip 16, Friends 16, then a long tail down to DeckBu
 **A few screens own most of the pile**, so this is a handful of targeted passes rather than a
 project-wide retypesetting.
 
+## Working-tree ownership audit 2026-08-27 morning - 80 uncommitted entries, ONE has an owner
+
+Two sessions died overnight; session addresses churned completely (CC itself moved). CR re-identified
+with checkable evidence (the Shop gate measurements only CR could have produced) and audited the tree.
+
+**OWNED:** `Assets/Scripts/UI/UISharedFoundation.cs` (28 ins/13 del) - CR's, **Finding 2 in progress**:
+`WarnOnceMissingSprite` wired into `CreateFullscreenBackground`/`CreateHeaderShell`/`ApplyFramedPanel`,
+replacing the old inline `_warnedFramedPanelPathsMissing` set. **Not yet wired into `CreateButton`'s
+own silent fallback; no `critical:true` sites picked.** Incomplete, not broken.
+
+**NOT CR's, and now identified so nobody has to guess:**
+- `tools/run_editmode_tests.ps1` (1 line) - **WH's message-text edit**, not CR's atomic-lock fix
+  (that landed separately in `d76bd77`).
+- `Assets/Tests/Editor/ContrastDiagnosticTests.cs` (untracked) - the validator room's.
+- `WhHangProfileTrace.cs`, `Packages/manifest.json`, `packages-lock.json`,
+  `BLOCK_R_SAME_CLASS_UNIFORM_ROSTER_SCAN.md` - untouched by CR.
+- Everything else untracked (`ch16_out/`, `wh_*`, `docs/ui_gate_baseline_*`,
+  `docs/competitor_ui_refs/`, `docs/player_build_first/`, stray `.meta`s, `tools/__pycache__/`) -
+  WH scratch/output and art-import leftovers.
+
+**CC DECISION: `critical:true` applies to PRIMARY CTA ART and NAV SKINS only.** Those are where a
+silent fallback to flat colour is indistinguishable from success and leaves the player staring at the
+thing they are meant to press. Everything else warns.
+
+## CORRECTION: `AddSemiTransparentScrimPanel` is not "broken" - it is unproven
+
+CC called it broken. **Imprecise.** CR checked: `Image.color` with no sprite DOES render - Unity
+substitutes the default white UI sprite and tints it. **The real finding is narrower: it moved zero
+measured contrast ratios where it was actually used, and it has exactly ONE call site in the whole
+codebase (`HomePagePresenter.cs:817`) - nowhere near any of the 5 remaining under-2:1 screens, which
+all use the sprite-backed `AddLocalGradientScrim` that has proven itself.**
+
+**Deleting it on the grounds that two supported paths are not worth maintaining when only one is
+verified - NOT on the grounds that it fails to render.** Authorised, with the single call site swapped
+to `AddLocalGradientScrim` (same call shape).
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
