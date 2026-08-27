@@ -3141,6 +3141,64 @@ a child to that pill.
 **Why this matters beyond Shop: until now we have never had proof the contrast remediation works at
 all.** If the plate starts drawing and the ratios improve, that is the first direct evidence.
 
+## CHEST HUNT NUMBERS - LOCKED 2026-08-27, with two CC arithmetic corrections
+
+**8 fragment types x 2 copies = 16 per set**, one set per 7-day window. Target completion: **50% of
+full-entry players, 20% of 12-15-entry players, 30% never.**
+
+| Area | Clear | Fragments | Gold | Materials | Chest quality |
+|---|---:|---:|---:|---:|---|
+| 1 Safe | 95% | 1 | 180 | 8 | 75% Common / 25% Fine |
+| 2 Ruined | 85% | 1 | 300 | 14 | 50/40/10 Common/Fine/Superior |
+| 3 Buried | 70% | 2 | 500 | 22 | 25/50/25 Fine/Superior/Relic |
+
+**Duplicates: 75 Gold, never convertible to fragments, cards, Materials or Stamina.** Target duplicate
+share 35-40%. **Above 50% the chase is a Gold grind; below 25% the set is too easy.**
+
+**Boss:** unlocks after 12 clears including at least one per area, consumes an entry, once per window,
+grants **2 guaranteed MISSING fragments + 1,000 Gold + 25 Materials.** Cannot replace exploration.
+
+**Full completion ~17,000 Gold + 269 Materials + 1 Stamina claim. CC verified: 17,000/1,779,550 =
+0.955% of campaign Gold** - meaningfully above Puzzle's 5,000 without distorting the Empire sink.
+Materials 269/week sits far under the 275/DAY solo cap.
+
+**Time: 25/30/35s per area, 45s boss. Three clears = 2-3 min, boss day 3-4 min.** Inside the 3-5 min
+budget. **Explicitly: do NOT raise daily entries to compensate for low completion - that turns the
+event into a chore.**
+
+### CC CORRECTION 1: the fragment maths is RIGHT, and tighter than BS stated
+
+Verified independently:
+```
+A1 7x0.95x1 = 6.65   A2 7x0.85x1 = 5.95   A3 7x0.70x2 = 9.80   total 22.40 drops
+dup 35% -> 14.56 unique + 2 boss = 16.56   (need 16)  -> completes
+dup 40% -> 13.44 unique + 2 boss = 15.44   (need 16)  -> FAILS
+```
+**The 50% completion target is not a design choice, it is where the duplicate rate lands.** The design
+sits exactly on the knife-edge between completing and not, which is why it produces ~50%. **That is
+elegant, but it means the duplicate rate is the single most sensitive number in the event** - a shift
+from 35% to 40% flips a full-entry player from completing to not. **The simulation must pin duplicate
+share precisely; everything else has slack and this does not.**
+
+### CC CORRECTION 2: the entry budget overruns by one
+
+BS's worked example uses 7 attempts per area = 21 entries, **then the boss on top = 22.** The cap is
+**21**. Either the boss is exempt from the cap, or the realistic route is 20 area attempts plus boss.
+**Small, but it changes the fragment total and therefore the completion rate** - which, per Correction
+1, is the knife-edge number. Resolve before building.
+
+### The honest test BS set for itself, and it is the right one
+
+**Chest only earns the verb EXPLORE if route order has consequence:** safety versus fragment
+throughput, whether to risk Area 3 before boss access, reserving entries for the boss, reacting to the
+missing-fragment pattern. **"If the implementation presents three battle buttons with fixed rewards and
+no consequence to route order, it is not exploration - it is Floor Clearance with different labels, and
+the honest answer is to merge the modes."** Recorded as the acceptance criterion, not an aspiration.
+
+**Simulation contract: 10,000 deterministic seeds, three policies (Safe / Greedy / Mixed), in-engine
+against real event, battle, reward and persistence code.** Healthy if no area dominates on BOTH
+expected progress and safety.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
