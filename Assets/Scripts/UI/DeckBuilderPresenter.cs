@@ -258,6 +258,7 @@ namespace MyriadOfDragons.UI
             CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = UISharedFoundation.MatchWidthOrHeight;
 
             GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bgObj.transform.SetParent(canvasObj.transform, false);
