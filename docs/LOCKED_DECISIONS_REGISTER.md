@@ -70,6 +70,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-27 | **GR1 CORRECTED BY THE OWNER: "deliver the game the FASTEST AND MOST EFFICIENT/SECURE way." Not speed alone.** CC had been reading GR1 as pure velocity and using it to justify skipping its own verification gates - locking five UI decisions with no benchmark, relaying a peer code quote without grepping it (wrong twice), locking the segmented-bar design with no benchmark until the owner asked. **Every one of those cost MORE total time than verifying would have**, because a wrong lock has to be found, corrected, and re-dispatched to rooms that already acted on it. **So skipping verification VIOLATES GR1, it does not serve it.** Efficiency and security are part of the goal, not a tax on it. Dispatches stay fast; anything written as LOCKED costs a verification step first. | Standing rule, does not lift |
 | 2026-08-27 | **A WHOLE-FILE REWRITE THAT STRIPS A BOM HAS ALMOST CERTAINLY DROPPED CONTENT TOO. The BOM is the cheap tell - check the diff, do not trust the tool.** VS found an uncommitted revert of a real data-loss fix: the `try/catch` around `saveFn(profile)` that restores the snapshot when a save THROWS was deleted from BOTH `CollectionBurnService.cs` and `CollectionEvolutionService.cs`, replaced by a bare `if (!saveFn(profile))` which only catches a save that fails politely. **A throwing save then escapes with the profile already mutated - copy consumed, gold and permit spent, rollback never runs.** The tell: both files ALSO lost their UTF-8 BOM in the same diff (`ef bb bf` -> `75 73 69`) while every neighbour kept theirs. **Nobody deliberately reverting an exception-safety fix also silently changes two files' encoding** - that is an automated rewrite or a bad merge. CC verified both facts independently before acting. | Standing rule, does not lift |
 | 2026-08-27 | **CHANNEL ASYMMETRY IS STARVING VS - urgent items go by BOTH channels.** CR reaches CC by direct session message; VS writes to `tools/seat_mailbox.md`; **CC repeatedly reads one and not the other.** VS went FOUR messages unanswered while holding a live data-loss finding, and the owner flagged it as increasingly frequent. The existing rule telling CC to read the mailbox every turn has demonstrably not held. **Fix: any urgent item is posted to the mailbox for the record AND sent as a direct session message.** Duplication is cheaper than a data-loss report sitting unread. CC still reads the mailbox every turn; this is belt and braces because the belt keeps failing. | Standing rule, does not lift |
+| 2026-08-27 | **OWNER DIRECTIVE: KEEP ALL NINE 2017 EVENTS. Fine-tune them so they do not clash - do NOT discard any.** BS recommended keeping one (Chest) and rejecting five outright; the owner overrides that. **The eight that "fail" today fail only on the trusted-server dependency, which is a SEQUENCING problem, not a design verdict.** So they are retained and staged, not deleted. **The anti-clash mechanism is DOMINANT VERB + CADENCE, not reward tables** - BS's own strongest point: different reward tables do NOT create different mental models, only a different dominant verb does (solve / deduce / explore / defend / race). Any two events sharing a verb AND a cadence are the same event wearing two skins and must be differentiated or merged. | Owner explicitly lifts it |
 | 2026-08-26 | **Every BS/ST/UI prompt goes directly in the chat reply, in a fenced code block, EVERY time - never just "published to the GPT Prompt Hub artifact" as the sole delivery.** Owner cannot talk to GPT/WH directly through CC and does not want to hunt down a link to get a prompt to paste - "u cant talk directly toe gpt and wh so lock it down tat u need to give prompt each time." The artifact stays useful as an archive/index, but it is never a substitute for pasting the actual prompt text in the same turn it's ready. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -2949,6 +2950,34 @@ findings depend on what ran before them.
 
 **CampaignMap ScrollView/Mask thread survives** - a structural sibling-order finding is not undermined
 by coordinate instability. Second priority.
+
+## Three-daily-loop collision - BS answer, and the owner's override (2026-08-27)
+
+**BS's session-time estimate, the practical crux:** Solo Circuit 4-6 min + Memory Expedition 2-4 min
+(once real) + Chest Hunt 5-8 min = **14-18 minutes of daily obligations** before loading, reading, or
+failed attempts. **Target for our player is 8-12 minutes, ceiling ~15.** A lapsed card-battler player
+who dislikes grinding reads 14-18 as a chore list, not variety. **Three daily reset clocks, three entry
+points, three ledgers, three claim obligations, one combat engine.**
+
+**BS's recommendation: merge Chest Hunt INTO Memory Expedition** - Memory keeps its Tree of Knowledge
+location, fixed daily seed, completion ledger and recovered-record narrative; Chest Hunt supplies the
+route choice, chest qualities, fragments, boss milestone and completion reward. **Re-fictioned as
+sealed memory caches and recovered fragments, NOT buried Titan treasure** - digging up chests inside a
+Tree of Knowledge is incoherent and would cost the building its reason to exist. Solo Circuit stays
+separate because it tests a genuinely different skill.
+
+**BS's structural fourth option, worth keeping regardless:** one Daily Expedition entry point; only ONE
+route required per day; further entries optional; **the narrative and reward track WEEKLY while the
+activity allowance is DAILY.** That decouples obligation from content.
+
+**OWNER OVERRIDE: keep all nine.** The eight BS would drop fail on server dependency, which is
+sequencing rather than a design verdict. **Retained and staged, not deleted.**
+
+**THE ANTI-CLASH RULE, extracted from BS's own reasoning and now binding:** different reward tables do
+NOT create different mental models. **Only a different DOMINANT VERB does.** Circuit = solve. Memory =
+deduce/reveal. Chest = choose/explore. **If Memory becomes another sequence of ordinary auto-battles it
+is not distinct and should not be a separate mode.** Two events sharing a verb AND a cadence are one
+event with two skins.
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
