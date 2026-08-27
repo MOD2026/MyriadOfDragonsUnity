@@ -64,6 +64,7 @@ because nothing at turn-start surfaced it.
 | 2026-08-27 ~03:00, RETIRED morning | ~~Owner asleep, batch freely.~~ **RETIRED - owner is BACK AND ACTIVE.** The 15-20 minute per-task cap on WH is in force again, owner-restated. CC violated it immediately on the owner's return by writing WH a four-task batch (sampler investigation + 2-4:1 band + font floor + scaler change) - well over the window. **Size WH dispatches to ONE concrete bounded deliverable while the owner is watching.** The cap exists because a long WH batch holds the shared `.unity_batch.lock` and blocks other seats' runs, and because the owner wants visible progress rather than a silent hour. Lifted only on an explicit step-away signal - never assumed. | Owner signals stepping away |
 | 2026-08-27 | **THE TEST HARNESS IS STRUCTURALLY MORE PERMISSIVE THAN PRODUCTION - assume it, design against it.** Five confirmed instances now, all the same shape: the test environment silently supplies something production would not, so the test goes green while proving nothing. (1) `Resources.Load` failing to a flat colour indistinguishable from success; (2) `SpellBookGrant.TryGrant` called only by tests, never by the game; (3) safe-area checks passing on the editor's trivial `Screen.safeArea`; (4) `DefaultIsKnownCardId` accepting ANY non-empty id when `CardDatabase.Instance == null`, which is the EditMode condition; (5) **`attack: 0` being an UNAUTHORED SENTINEL that substitutes rarity-generated stats** - a fairness test written with 0 attack had both units killing each other with ordinary combat damage, went green, and proved nothing against the buggy resolver it was written to catch. **Rule: a test that could pass for a reason other than the one intended is not a test. Prove it FAILS against the broken state before trusting it to pass against the fixed one.** A before/after baseline is the cheapest way to do that, and it is what caught (5). | Standing rule, does not lift |
 | 2026-08-27 | **A PASS/FAIL SUITE CANNOT DETECT A UNIFORM BIAS - CC gave wrong advice here and VS corrected it.** CC told VS "an unchanged balance result means the fix did not take." Wrong: `BalanceSimulationTests` asserts RELATIONSHIPS, not magnitudes (project rule 5), so it passes identically before and after by design. **Only the logged figures move.** This is precisely why the player's first-mover trigger advantage survived months of green simulation runs - the bias was baked uniformly into every sample, so every aggregate assertion stayed true. **When testing for bias, compare LOGGED MAGNITUDES before and after; do not expect a pass/fail suite to notice.** | Standing rule, does not lift |
+| 2026-08-27 | **DO NOT STAGE A FILE YOU DO NOT OWN - even with explicit paths.** Fourth attribution collision on this project, and explicit-path staging has now demonstrably failed to prevent it, because `git add <file>` takes the WHOLE file including another room's uncommitted work in it. **New rule: if you have local changes in a file another room owns, do not stage that file at all - tell the owning room instead.** Ownership is per-file and non-negotiable for staging purposes even when your own edit is small and correct. Prior incidents: a `highestClaimedLoyaltyMilestone` field swept into `dad3f05`; `SoloCircuitPresenter.cs` into `dc4a955`; a lock-script fix into `d76bd77`; and nine `GameBootstrap.cs` interaction-state wiring sites into `0c4e0e3`. Content survived every time; attribution did not. | Standing rule, does not lift |
 | 2026-08-26 | **Every BS/ST/UI prompt goes directly in the chat reply, in a fenced code block, EVERY time - never just "published to the GPT Prompt Hub artifact" as the sole delivery.** Owner cannot talk to GPT/WH directly through CC and does not want to hunt down a link to get a prompt to paste - "u cant talk directly toe gpt and wh so lock it down tat u need to give prompt each time." The artifact stays useful as an archive/index, but it is never a substitute for pasting the actual prompt text in the same turn it's ready. | Standing rule, does not lift |
 
 ## PENDING DISPATCH (check this first, every turn)
@@ -2301,6 +2302,39 @@ border contrast, no shadow, 100ms. **A disabled control must never animate as if
 
 The remaining seven states (focus, pending, locked, new, error...) wait until pressed and disabled are
 everywhere - those two are what a player meets constantly; the rest are situational.
+
+## Pressed + disabled across Battle/Empire/Avatar 2026-08-27 (`cae8595`, `0c4e0e3`)
+
+**New capability, well-judged:** `InteractionStateController` now **passively syncs its Disabled flag
+FROM `Button.interactable`** rather than requiring every presenter to call `SetDisabled()`.
+GameBootstrap/Empire/Avatar set `.interactable` directly at dozens of existing call sites; rewiring
+them all would have been a large pointless sweep. **CR caught their own regression before landing it**
+- a naive two-way sync clobbered an explicit `SetDisabled(true)` made in the same frame, because the
+write-back had not yet run to make `.interactable` agree. Fixed with a last-observed-value guard so it
+reacts only to genuinely external changes. Verified both directions: external `.interactable=false`
+darkens to exactly **0.520** (`DisabledBrightness`); re-enable restores the exact original colour.
+
+**SEVENTH ColorTint instance found:** `EmpirePresenter.CreateBuildingRow` never called an
+`ApplyXActionButton` helper (it uses `ApplyFramedPanel`), so it sat on Unity's ColorTint default the
+whole time. Fixed to `None`; Tier2Section's 9% darken now lands on exactly 0.910.
+
+**DEFERRED, correctly and not silently:** `CreateCardButton` (hand and lane-picker cards) has its own
+**affordability-based colour tinting** that the controller's per-frame repaint would silently
+overwrite. **Same conflict class as ColorTint but business-logic colour rather than a Unity built-in.**
+Needs its own resolution, not a blind wire-up.
+
+## ANOTHER ROOM'S FIX DOES NOT WORK - `LanePicker_TwoSlotCard...` measured 1.00 vs expected >1.8
+
+Found by CR while verifying unrelated work; `git diff` confirms CR's changes touch **zero lines** of
+that path, so it is genuinely pre-existing on bare HEAD. Traced to the validator room's commits
+`cb7868c`/`0c4e0e3`. **Their own report commit `62e4bb2` says "rendering itself still unverified"** -
+that self-assessment was accurate, and the honesty in it is why this was attributed correctly instead
+of becoming a mystery failure.
+
+**A two-slot card renders at identical width to a one-slot card.** Almost certainly the same
+silent-no-op class: `SetPreferredWidth` ignored under a parent group with `childControlWidth = false`.
+Relayed with the fix pattern (pre-set `sizeDelta` directly) and the instruction to verify by measuring
+rendered width, not by confirming the call ran.
 
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
