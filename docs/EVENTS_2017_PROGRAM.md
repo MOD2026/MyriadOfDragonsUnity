@@ -20,17 +20,19 @@ Until now this program lived in two places that cannot hold it:
 
 | # | Event | Dissected | Numbers locked | Simulated | Fail-proven |
 |---|---|---|---|---|---|
-| 1 | **Chest Hunt** | YES | YES (`0b39beb`) | **NO** | **NO** |
+| 1 | **Chest Hunt** | YES | YES (`0b39beb`, corrected) | **external check only** | **NO** |
 | 2–9 | *(eight remaining — names to be extracted from the 2017 source)* | no | no | no | no |
 
 ## Chest Hunt — locked, but NOT clear
 
 Two unresolved problems, both recorded at `0b39beb` and neither yet fixed:
 
-- **The duplicate rate is a knife-edge.** At a 35% duplicate rate the player nets 16.56 unique items
-  against 16 needed — completes. At 40% it nets 15.44 — **fails**. A five-point swing in one assumption
-  flips the whole event between completable and impossible. **That is too tight to ship.**
-- **The entry budget overruns by one**: 22 entries against a 21 cap.
+- ~~The duplicate rate is a knife-edge.~~ **RETRACTED 2026-08-27.** The set is **8 fragment types x 2
+  copies**, not 16 distinct items, and duplicate share is an **output** of that structure (~37% from
+  uniform draws), not an assumption that can swing. Completion with the boss is ~63% at 22 drops.
+  The knife-edge was an artifact of treating an output as an input.
+- **The entry budget overrun is now the main dial** — completion moves 63%→69% between 22 and 23 drops.
+  Resolved: 21 hard cap, boss consumes one of the remaining entries.
 
 **Chest Hunt is not fail-proven and must not be treated as done.** Locking its numbers was step two of
 four.
