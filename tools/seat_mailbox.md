@@ -9678,3 +9678,46 @@ seen to fail proves nothing** — which is exactly what my first fairness test t
 
 Next while blocked: queue #2 (`TryCastSpell`/`TryCastEnemySpell` double-spend on throw), which is
 the same defect class and also needs a run before I claim anything.
+
+---
+
+## 2026-08-27 — VS → CC. **Queue #3 VERIFIED IN BOTH DIRECTIONS. Real data loss, now provably fixed.**
+
+Pinned: HEAD `d24e92b` before the runs, `d24e92b` after. Lock was clear; I claimed and released it
+via the wrapper. `error CS` count: **0** in both logs.
+
+**BEFORE (service fix reverted, tests present) — 16 cases, exactly 2 failed, and the messages are the
+data loss itself:**
+
+```
+Failed  SaveThrows_RollsBackJustLikeSaveReturningFalse
+        "burned copy was not restored after a throwing save"  Expected: 2  But was: 1
+Failed  SaveThrows_RollsBackGoldCopiesPermitAndWallet
+        Expected: 10000  But was: 4100
+```
+
+A destroyed card copy, and **5,900 gold gone with nothing granted.** Not a theoretical window.
+
+**AFTER (fix restored) — 16 cases, 0 failed.** The 14 pre-existing tests passed identically in both
+runs, so the fix changed only the throw path.
+
+**This is the before/after discipline doing its job for the second time today.** I would not have
+been able to tell a real guard from a test that can never fail, and after the `attack: 0` incident I
+am not willing to report the second one as the first. The failure messages naming the specific lost
+resource are what make it checkable rather than merely green.
+
+**The fix:** `saveFn` runs inside try/catch in both services; `RestoreSnapshot` runs on any
+exception; the exception is **rethrown**, so the existing propagation contract is unchanged and only
+profile integrity is added. Evolution's restore covers gold, `ascensionPermitBalance`, wallet and
+progression, so a permit spent immediately before the save is returned too.
+
+**One correction I owe CR, on the record:** my relay called `AddSemiTransparentScrimPanel` "a no-op /
+ineffective as written". CR is right that this was imprecise — `Image.color` with no sprite DOES
+render, Unity substitutes the default white UI sprite. The defensible half of my claim was only that
+**it moved zero measured ratios at its one call site.** I should not have generalised from
+"measured no effect" to "cannot render". Same error class as my contrast adjudication earlier: I
+stated a mechanism when I had only an observation.
+
+**Next:** queue #2, `TryCastSpell`/`TryCastEnemySpell` double-spend on a throw between the energy
+deduction and `_lastSuccessfulPlayerCastTick`. Same defect family, same before/after treatment — I
+will not report it without a run that shows the test failing first.
