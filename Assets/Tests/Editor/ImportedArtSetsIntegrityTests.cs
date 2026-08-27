@@ -126,6 +126,40 @@ namespace MyriadOfDragons.Tests
             }
         }
 
+        /// <summary>The other three empty-state tests all pass on an RGB texture. Resolution and
+        /// load-success say nothing about transparency, so an importer preset change or a
+        /// re-import that flattened these to RGB would ship silently and render each illustration
+        /// as an opaque 800x600 box over the screen art behind it. These are cut-out illustrations
+        /// composited onto authored backgrounds - alpha is the whole reason they work.
+        ///
+        /// Asserts the FORMAT rather than sampling pixels: sprite textures import with
+        /// isReadable=false, so GetPixels would throw here rather than measure anything.</summary>
+        [Test]
+        public void EveryEmptyStateIllustration_KeepsAnAlphaChannel_NotFlattenedToRgb()
+        {
+            var alphaCapable = new System.Collections.Generic.HashSet<TextureFormat>
+            {
+                TextureFormat.RGBA32, TextureFormat.ARGB32, TextureFormat.BGRA32,
+                TextureFormat.RGBA4444, TextureFormat.ARGB4444, TextureFormat.RGBAHalf,
+                TextureFormat.RGBAFloat, TextureFormat.DXT5, TextureFormat.DXT5Crunched,
+                TextureFormat.BC7, TextureFormat.ASTC_4x4, TextureFormat.ASTC_6x6,
+                TextureFormat.ASTC_8x8, TextureFormat.ETC2_RGBA8, TextureFormat.ETC2_RGBA8Crunched,
+            };
+
+            foreach (string path in EmptyStatePaths)
+            {
+                Sprite sprite = Resources.Load<Sprite>(path);
+                Assert.IsNotNull(sprite, path);
+
+                TextureFormat format = sprite.texture.format;
+                Assert.IsTrue(alphaCapable.Contains(format),
+                    $"'{path}' imported as {format}, which carries no alpha channel. The source PNG is " +
+                    "RGBA and alphaIsTransparency is set in its .meta - an opaque format here means the " +
+                    "import was flattened, and the illustration will render as a solid block over the " +
+                    "screen behind it.");
+            }
+        }
+
         [Test]
         public void EveryEmptyStateIllustration_RendersOnAnImage_NotNullSprite()
         {
