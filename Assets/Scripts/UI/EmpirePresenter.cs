@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Data;
@@ -135,7 +135,10 @@ namespace MyriadOfDragons.UI
             titleRect.sizeDelta = new Vector2(220f, 60f);
 
             _avatarSummaryText = UISharedFoundation.CreateText(topBar.transform, "AvatarSummary", "Avatar L1",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(360f, 36f));
+                // Band grown 36 -> 60: at 24px bold this summary wraps to two lines (measured 55px
+                // against a 36px band), so the box grows rather than the type shrinking - the 22px
+                // font floor holds and height overflows are fixed by the surface, not the font.
+                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(360f, 60f));
             _avatarSummaryText.fontSize = 24;
             _avatarSummaryText.fontStyle = FontStyle.Bold;
             RectTransform avatarRect = _avatarSummaryText.rectTransform;
@@ -143,7 +146,10 @@ namespace MyriadOfDragons.UI
             avatarRect.anchorMax = new Vector2(0f, 0.5f);
             avatarRect.pivot = new Vector2(0f, 0.5f);
             avatarRect.anchoredPosition = new Vector2(440f, 0f);
-            avatarRect.sizeDelta = new Vector2(360f, 36f);
+            // 36 -> 60: this line OVERRIDES the size passed to CreateText above, so it is the
+            // band the geometry gate actually measures. At 24px bold the summary wraps to two
+            // lines (55px measured), so the box grows; the font floor is untouched.
+            avatarRect.sizeDelta = new Vector2(360f, 60f);
 
             if (_onOpenAvatar != null)
             {
@@ -186,7 +192,10 @@ namespace MyriadOfDragons.UI
             expeditionRect.anchorMax = new Vector2(0f, 0.5f);
             expeditionRect.pivot = new Vector2(0f, 0.5f);
             expeditionRect.anchoredPosition = new Vector2(_onOpenAvatar != null ? 980f : 820f, 0f);
-            expeditionRect.sizeDelta = new Vector2(170f, 52f);
+            // Widened 170 -> 240: "EXPEDITION" at 28px bold does not fit 170px on one line, so it
+            // wrapped to two and measured 63px against this button's 52px height. Widening lets it
+            // sit on one line instead of forcing the button taller, which would fight the top bar.
+            expeditionRect.sizeDelta = new Vector2(240f, 52f);
             Text expLabel = UISharedFoundation.CreateText(expeditionBtnObj.transform, "ActionLabel", "EXPEDITION",
                 UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(150f, 36f));
             expLabel.fontSize = 28;
@@ -758,7 +767,11 @@ namespace MyriadOfDragons.UI
 
             EmpireBuildingKind captured = kind;
             tile.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
-            SetNormalizedRect(tile.GetComponent<RectTransform>(), left + 0.004f, 0.06f, right - 0.004f, 0.94f);
+            // Tile grown (0.06-0.94 -> 0.02-0.98 of the strip): the longest names wrap to two
+            // lines at 24px bold and need ~55px, which did not fit the name band above the
+            // level line at the old tile height. Growing the surface is the locked fix for a
+            // height overflow; shrinking to 22px would sit on the floor and still be tight.
+            SetNormalizedRect(tile.GetComponent<RectTransform>(), left + 0.004f, 0.02f, right - 0.004f, 0.98f);
 
             // Real building thumbnail, was missing entirely - this strip rendered as plain colored
             // boxes with text only, even though the same 5 renders already exist and are wired into
@@ -790,7 +803,14 @@ namespace MyriadOfDragons.UI
             label.resizeTextForBestFit = false;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.raycastTarget = false;
-            SetNormalizedRect(label.rectTransform, 0.34f, 0.48f, 0.98f, 0.92f);
+            // Band grown downward (0.48 -> 0.16 of tile height): the longest structure names
+            // ("TRAINING GROUNDS", "TREE OF KNOWLEDGE") wrap to two lines at 24px bold and measured
+            // 55px against a 31.6px band. The tile is only ~72px tall, so a two-line name needs
+            // most of it - the level line below is anchored separately and keeps its own band.
+            // Name keeps the band ABOVE StructureLevel (which owns 0.08-0.48) - an earlier
+            // attempt grew this down to 0.16 and would have overlapped it, trading one gate
+            // failure for another. The extra room comes from the TILE growing instead.
+            SetNormalizedRect(label.rectTransform, 0.34f, 0.50f, 0.98f, 0.96f);
 
             Text level = UISharedFoundation.CreateText(tile.transform, "StructureLevel",
                 "LEVEL " + EmpireBuildingLevels.LevelOf(SaveManager.SaveData, kind),
