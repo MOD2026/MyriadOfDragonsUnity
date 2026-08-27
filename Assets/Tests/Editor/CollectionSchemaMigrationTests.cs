@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Save;
@@ -107,6 +107,50 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.Contains(profile.collectionMigrationUnknownIds, "not_a_real_card");
             Assert.AreEqual(1, profile.cardProgression.Count);
             Assert.AreEqual("warrior", profile.cardProgression[0].cardId);
+        }
+
+        [Test]
+        public void DefaultIdCheck_WithDatabaseLoaded_QuarantinesUnknownId()
+        {
+            // Migration_UnknownIds_QuarantinedNotProgression above passes its OWN predicate
+            // (id => id == "warrior"), so it never exercises DefaultIsKnownCardId - the branch
+            // production actually uses. This covers the default path with a real CardDatabase
+            // loaded, which is what the live runtime does.
+            var profile = new PlayerProfile();
+            profile.cardCollection.Add("not_a_real_card");
+
+            CollectionSchemaMigration.Apply(profile);
+
+            Assert.IsTrue(CollectionSchemaMigration.LastApplyVerifiedIdsAgainstDatabase,
+                "Setup guard: this fixture builds a CardDatabase, so the strict branch must have run.");
+            CollectionAssert.Contains(profile.collectionMigrationUnknownIds, "not_a_real_card");
+            Assert.IsEmpty(profile.cardProgression, "An unknown id must not become a progression row.");
+        }
+
+        [Test]
+        public void DefaultIdCheck_WithoutDatabase_AcceptsAnyId_AndReportsTheFallback()
+        {
+            // Documents the real harness gap instead of leaving it silent: with no CardDatabase,
+            // the default check accepts ids the live runtime quarantines. MOST EditMode fixtures
+            // never build a database, so most migration tests run on this permissive branch and
+            // prove nothing about id legality. Behaviour is deliberately unchanged here - a load
+            // that legitimately precedes the database must not start discarding a player's cards -
+            // so this locks the gap in place visibly rather than closing it by stealth.
+            Object.DestroyImmediate(_databaseGo);
+            _databaseGo = null;
+            CardDatabase.ResetForTests();
+
+            var profile = new PlayerProfile();
+            profile.cardCollection.Add("not_a_real_card");
+
+            CollectionSchemaMigration.Apply(profile);
+
+            Assert.IsFalse(CollectionSchemaMigration.LastApplyVerifiedIdsAgainstDatabase,
+                "Setup guard: this test is only meaningful with no CardDatabase loaded.");
+            Assert.IsEmpty(profile.collectionMigrationUnknownIds,
+                "Without a database the unknown id is accepted rather than quarantined - the gap.");
+            Assert.AreEqual(1, profile.cardProgression.Count,
+                "An id the live runtime would reject became a real progression row.");
         }
 
         [Test]

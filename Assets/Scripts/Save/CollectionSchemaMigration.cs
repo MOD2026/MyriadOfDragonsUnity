@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using MyriadOfDragons.Cards;
 
@@ -85,14 +85,34 @@ namespace MyriadOfDragons.Save
             }
         }
 
+        /// <summary>True when the most recent <see cref="Apply"/> validated ids against a real
+        /// <see cref="CardDatabase"/>; false when it fell back to accepting any non-empty id because
+        /// no database was loaded.
+        ///
+        /// Exists because that fallback is INVISIBLE, and invisible permissiveness is how a test
+        /// suite ends up proving less than it appears to. In EditMode most fixtures never build a
+        /// CardDatabase, so they silently take the permissive branch and accept ids the real runtime
+        /// would quarantine - a green migration test there says nothing about id legality. This flag
+        /// lets a fixture that cares ASSERT which branch it got instead of assuming the strict one.
+        ///
+        /// Deliberately NOT used to change behaviour: tightening the fallback could quarantine a
+        /// real player's cards on any load that legitimately runs before the database exists. That
+        /// is a decision above this file, so this makes the gap measurable rather than silently
+        /// closing it.</summary>
+        public static bool LastApplyVerifiedIdsAgainstDatabase { get; private set; }
+
         private static bool DefaultIsKnownCardId(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return false;
 
             if (CardDatabase.Instance != null)
+            {
+                LastApplyVerifiedIdsAgainstDatabase = true;
                 return CardDatabase.Instance.GetCard(id) != null;
+            }
 
-            // EditMode tests and pre-bootstrap loads may not have CardDatabase — accept non-empty ids.
+            // EditMode tests and pre-bootstrap loads may not have CardDatabase - accept non-empty ids.
+            LastApplyVerifiedIdsAgainstDatabase = false;
             return true;
         }
     }
