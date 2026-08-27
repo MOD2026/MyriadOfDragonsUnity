@@ -3732,7 +3732,18 @@ namespace MyriadOfDragons.UI
             spellLayout.childForceExpandWidth = true;
             spellLayout.childForceExpandHeight = false;
             spellLayout.childControlWidth = true;
-            spellLayout.childControlHeight = false;
+            // Real bug found during the Battle compression measurement pass (CR, 2026-08-27):
+            // this was false, which means the VerticalLayoutGroup does not touch each row's own
+            // height at all - the row (a bare `new GameObject typeof(RectTransform)` from
+            // CreateButton, which never sets its own sizeDelta) was rendering at Unity's default
+            // 100x100 RectTransform size, not the intended 62px from SetPreferredHeight below,
+            // because a LayoutElement's preferredHeight only takes effect when childControlHeight
+            // is true. Measured: 4 rows at the real (buggy) 100px height need 418 units, but
+            // SpellList only has ~255 (authored 1920x1080) or ~114 (2400x1080 phone at match=0.5,
+            // the compression case that first surfaced this) - rows 2-4 render mostly or entirely
+            // outside SpellList's own bounds, which is what the SPELLS-panel text overlap in the
+            // Battle compression capture actually was.
+            spellLayout.childControlHeight = true;
 
             for (int i = 0; i < 4; i++)
             {
