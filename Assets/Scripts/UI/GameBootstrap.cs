@@ -7144,6 +7144,23 @@ namespace MyriadOfDragons.UI
                 bg.color = ButtonDisabledColor;
             }
 
+            // Added LAST, after every one-time color decision above (affordability tint, selected
+            // tint, or plain white) - InteractionStateController caches Graphic.color as its base
+            // at EnsureCached() time (Awake(), which AddComponent triggers synchronously) and
+            // every frame repaints _baseColor * pressBrightness, never an absolute color. Placed
+            // here, that means press darkening modulates whatever affordability already decided
+            // (measured: an unaffordable card's press color = ButtonDisabledColor * 0.91, not
+            // white * 0.91) rather than overwriting it - CC's "layering, not a fight over one
+            // property" framing, and it already falls out of the existing cache-once design once
+            // wired in the right place. No architecture change needed.
+            //
+            // Disabled-state sync is a non-issue here: RefreshHand always rebuilds these fresh
+            // (DestroyImmediate + recreate) rather than mutating .interactable on a persisting
+            // button, and per the comment above, hand cards stay interactable=true always
+            // (unaffordable is expressed only via this tint) - so the two systems were never
+            // expressing the same thing two different ways to begin with.
+            go.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
+
             return button;
         }
 
