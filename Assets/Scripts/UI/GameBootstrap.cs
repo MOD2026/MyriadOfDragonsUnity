@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using MyriadOfDragons.AI;
@@ -4502,7 +4502,23 @@ namespace MyriadOfDragons.UI
                 // A two-slot card is rendered double width, so the board reads honestly - a
                 // 7-star visibly consumes the space it costs rather than looking like any other
                 // card that happens to block more.
-                SetPreferredWidth(occupied.gameObject, 118 * laneState.Cards[i].Definition.SlotWeight);
+                //
+                // This used to be SetPreferredWidth(..., 118 * SlotWeight) and was DEAD: deployedLayout
+                // sets childControlWidth = false (see its own line above), so the group ignores
+                // LayoutElement.preferredWidth entirely and the sizeDelta CreateCardButton already wrote
+                // - a RARITY-derived width - is what actually renders. SlotWeight never reached the
+                // screen. Sixth instance of the silent-no-op class swept 2026-08-27; the sweep cleared
+                // this site because a sizeDelta exists, which answers "renders at SOME deliberate size"
+                // rather than "renders at the INTENDED size".
+                //
+                // Scale the sizeDelta that wins, rather than re-asserting the dead 118 constant: that
+                // preserves the rarity frame aspect CreateCardButton derived instead of stretching every
+                // card to an unrelated fixed width. The battle board does the same multiply at
+                // RefreshLaneSlots and works, because ITS group sets childControlWidth = true.
+                var occupiedRect = (RectTransform)occupied.transform;
+                occupiedRect.sizeDelta = new Vector2(
+                    occupiedRect.sizeDelta.x * laneState.Cards[i].Definition.SlotWeight,
+                    occupiedRect.sizeDelta.y);
                 occupied.onClick.AddListener(() =>
                 {
                     if (_battleController.TryRecallCard(_pickerLane, slot)) RefreshLanePicker();
