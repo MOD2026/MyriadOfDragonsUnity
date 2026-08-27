@@ -2336,6 +2336,34 @@ silent-no-op class: `SetPreferredWidth` ignored under a parent group with `child
 Relayed with the fix pattern (pre-set `sizeDelta` directly) and the instruction to verify by measuring
 rendered width, not by confirming the call ran.
 
+## Shop scaler migration DONE 2026-08-27 (`0ef148b`) - canvas rollout effectively complete
+
+`ShopPresenter.cs` now uses `UISharedFoundation.MatchWidthOrHeight`. **68/68 across ten Shop fixtures,
+zero regressions, no broken pixel assertions.** Notably the migration did NOT break the pixel-position
+assertions we expected it might.
+
+**Canvas rollout status: the screens that matter are done.** Home, CampaignMap, Collection,
+DeckBuilder, Shop migrated; Battle deliberately stays one canvas at match=0.5 (measured clean, locked
+structural test untouched).
+
+**Shop contrast after migration:** 2 sub-2:1 (`ResourceValue` 1.6, `ResourceLabel` 1.7), 7 in the
+2-4:1 band, 14 above 4.5:1.
+
+**THIRD PIECE OF EVIDENCE FOR THE SAMPLER BUG.** WH reports the two stubborn Shop labels "remain
+unchanged as their local pixel layout **and the camera sampler bounding box** behave identically."
+That now makes three screens where a label refuses to move no matter what is placed behind it:
+- CampaignMap `StatusText` 1.4 / `ProgressHint` 1.5 - unchanged behind a **flat 0.92-opacity header**
+- Shop `ResourceValue` 1.6 / `ResourceLabel` 1.7 - unchanged across a **scale-factor change**
+- SpellLoadoutPicker `EffectLabel` 1.9
+
+**A label whose measured contrast does not respond to an opaque plate directly behind it, or to a
+change in canvas scale, is not measuring the pixels behind that label.** The pattern is now strong
+enough that CC treats the sampler as the leading hypothesis rather than one of three.
+
+**CONSEQUENCE IF CONFIRMED: some of the 156 contrast findings were never real, and rooms have spent
+hours placing scrims against phantom numbers.** This outranks further remediation - **no room should
+fix more contrast findings until the sampler is verified.**
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
