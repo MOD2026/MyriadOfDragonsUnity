@@ -128,14 +128,14 @@ namespace MyriadOfDragons.UI
                 new Vector2(640f, 48f));
             title.fontSize = 30;
             title.fontStyle = FontStyle.Bold;
-            SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
+            SetNorm(title.rectTransform, 0.29f, 0.15f, 0.71f, 0.90f);
 
             Text identity = UISharedFoundation.CreateText(topBar.transform, "SelfIdentity",
                 MetagameShellProfileBinding.SelfIdentityLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
                 Color.white, true, new Vector2(280f, 28f));
             identity.fontSize = 22;
             identity.fontStyle = FontStyle.Bold;
-            SetNorm(identity.rectTransform, 0.18f, 0.15f, 0.35f, 0.85f);
+            SetNorm(identity.rectTransform, 0.11f, 0.15f, 0.28f, 0.85f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", ChatSocialOpenValues.PlayerStatus,
                 UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
@@ -171,8 +171,9 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                     kind: UISharedFoundation.FramedPanelKind.ListRow);
-                UISharedFoundation.CreateText(row.transform, "Label", channels[i], UITextRole.Caption,
+                Text label = UISharedFoundation.CreateText(row.transform, "Label", channels[i], UITextRole.Caption,
                     TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 28f));
+                UISharedFoundation.StretchFull(label.rectTransform);
             }
         }
 
