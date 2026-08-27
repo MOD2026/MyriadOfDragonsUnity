@@ -110,6 +110,24 @@ namespace MyriadOfDragons.Tests
             // this test the moment the sprite-load fix landed, because DiamondOverlay only began
             // rendering then and landed on a button. Art that never drew cannot overlap anything;
             // art that suddenly draws can. Battle had no guard at the exact moment it gained art.
+            CardDatabase database = SpawnDatabase();
+            var sizingProfile = new PlayerProfile();
+            sizingProfile.ApplyDataToEmpire();
+            int deckSize = sizingProfile.Empire.DeckSlotCount;
+
+            List<string> deckIds = database.AllCards
+                .Select(c => c.Id)
+                .Where(id => id != "warrior" && id != "novice_knight" && id != "goblin_caster")
+                .Take(deckSize)
+                .ToList();
+
+            PlayerProfile profile = new PlayerProfile();
+            profile.cardCollection = new List<string>(deckIds);
+            profile.ApplyDataToEmpire();
+            profile.activeDeckCardIds = new List<string>(deckIds);
+            Assert.IsTrue(SaveSystem.Save(profile), "Setup: the production save path must persist the confirmed deck.");
+            SaveSystem.ResetCurrentProfileForTests();
+
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_BattleArtOverControlBootstrap");
             Transform root = bootstrap.transform;
 

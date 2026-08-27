@@ -115,6 +115,24 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void Build_WithIllustration_InstantiatesImageWithCorrectSprite()
+        {
+            RectTransform region = NewRegion();
+            UIEmptyState.Build(region, EmptyStateKind.Waiting, "No messages",
+                "Mail from the Empire will arrive here.", statusLine: "Last checked just now",
+                illustrationPath: UIEmptyState.IllustrationNoMail);
+
+            Image illu = null;
+            foreach (Image img in region.GetComponentsInChildren<Image>(true))
+            {
+                if (img.name == "EmptyState_Illustration") illu = img;
+            }
+
+            Assert.IsNotNull(illu, "EmptyState_Illustration GameObject should be created when illustrationPath is passed.");
+            Assert.IsNotNull(illu.sprite, "EmptyState_Illustration sprite should load properly.");
+        }
+
+        [Test]
         public void Collapse_ZeroesTheRegion_SoNeighboursReflowInsteadOfLeavingAGap()
         {
             RectTransform region = NewRegion();

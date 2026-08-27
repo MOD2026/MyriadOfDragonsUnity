@@ -51,6 +51,13 @@ namespace MyriadOfDragons.UI
     /// </summary>
     public static class UIEmptyState
     {
+        public const string IllustrationNoFriends = "UI/EmptyStatesV1/empty_state_no_friends_v1";
+        public const string IllustrationNoMail = "UI/EmptyStatesV1/empty_state_no_mail_v1";
+        public const string IllustrationNoGuild = "UI/EmptyStatesV1/empty_state_no_guild_v1";
+        public const string IllustrationCollectionFilter = "UI/EmptyStatesV1/empty_state_collection_filter_v1";
+        public const string IllustrationAllQuestsClaimed = "UI/EmptyStatesV1/empty_state_all_quests_claimed_v1";
+        public const string IllustrationBattlePassNotStarted = "UI/EmptyStatesV1/empty_state_battle_pass_not_started_v1";
+
         /// <summary>Proportions from the locked table, as fractions of the region. Deliberately
         /// relative: the spec calls for a responsive region, and fixed pixels would break the
         /// moment this is used in a narrow column instead of a full-width panel.</summary>
@@ -86,7 +93,8 @@ namespace MyriadOfDragons.UI
             string explanation,
             string statusLine = null,
             string actionLabel = null,
-            Action onAction = null)
+            Action onAction = null,
+            string illustrationPath = null)
         {
             if (region == null) throw new ArgumentNullException(nameof(region));
             if (string.IsNullOrEmpty(title)) throw new ArgumentException("An empty state must say what is absent.", nameof(title));
@@ -102,11 +110,39 @@ namespace MyriadOfDragons.UI
                     nameof(actionLabel));
             }
 
+            bool hasIllustration = false;
+            if (!string.IsNullOrEmpty(illustrationPath))
+            {
+                Sprite illuSprite = Resources.Load<Sprite>(illustrationPath);
+                if (illuSprite != null)
+                {
+                    hasIllustration = true;
+                    GameObject illuGo = new GameObject("EmptyState_Illustration", typeof(RectTransform), typeof(Image));
+                    illuGo.transform.SetParent(region, false);
+                    Image illuImg = illuGo.GetComponent<Image>();
+                    illuImg.sprite = illuSprite;
+                    illuImg.type = Image.Type.Simple;
+                    illuImg.preserveAspect = true;
+                    illuImg.color = Color.white;
+                    illuImg.raycastTarget = false;
+                    SetNorm(illuGo.GetComponent<RectTransform>(), 0.20f, 0.44f, 0.80f, 0.98f);
+                }
+            }
+
+            float titleTop = hasIllustration ? 0.43f : TitleTop;
+            float titleBottom = hasIllustration ? 0.31f : TitleBottom;
+            float bodyTop = hasIllustration ? 0.30f : BodyTop;
+            float bodyBottom = hasIllustration ? 0.17f : BodyBottom;
+            float statusBottom = hasIllustration ? 0.04f : 0.08f;
+            float statusTop = hasIllustration ? 0.15f : 0.17f;
+            float actionBottom = hasIllustration ? 0.04f : ActionBottom;
+            float actionTop = hasIllustration ? 0.16f : ActionTop;
+
             Text titleText = UISharedFoundation.CreateText(
                 region, "EmptyState_Title", title, UITextRole.Title, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 70f));
             UIDesignTokens.Apply(titleText, UIDesignTokens.TypeTier.T5Section);
-            SetNorm(titleText.rectTransform, 0.08f, TitleBottom, 0.92f, TitleTop);
+            SetNorm(titleText.rectTransform, 0.08f, titleBottom, 0.92f, titleTop);
 
             if (!string.IsNullOrEmpty(explanation))
             {
@@ -116,7 +152,7 @@ namespace MyriadOfDragons.UI
                 UIDesignTokens.Apply(body, UIDesignTokens.TypeTier.T3Body);
                 body.horizontalOverflow = HorizontalWrapMode.Wrap;
                 body.verticalOverflow = VerticalWrapMode.Truncate;
-                SetNorm(body.rectTransform, 0.12f, BodyBottom, 0.88f, BodyTop);
+                SetNorm(body.rectTransform, 0.12f, bodyBottom, 0.88f, bodyTop);
             }
 
             if (!string.IsNullOrEmpty(statusLine))
@@ -127,7 +163,7 @@ namespace MyriadOfDragons.UI
                     region, "EmptyState_Status", statusLine, UITextRole.Caption, TextAnchor.MiddleCenter,
                     UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 40f));
                 UIDesignTokens.Apply(status, UIDesignTokens.TypeTier.T2Utility);
-                SetNorm(status.rectTransform, 0.10f, 0.08f, 0.90f, 0.17f);
+                SetNorm(status.rectTransform, 0.10f, statusBottom, 0.90f, statusTop);
             }
 
             if (!wantsAction) return;
@@ -147,7 +183,7 @@ namespace MyriadOfDragons.UI
                     UIDesignTokens.FillAlpha(UIDesignTokens.FrameTier.Tier1Hero));
             }
 
-            SetNorm(action.GetComponent<RectTransform>(), 0.36f, ActionBottom, 0.64f, ActionTop);
+            SetNorm(action.GetComponent<RectTransform>(), 0.36f, actionBottom, 0.64f, actionTop);
         }
 
         /// <summary>

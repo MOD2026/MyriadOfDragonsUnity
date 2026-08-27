@@ -3115,8 +3115,15 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void BuildHeaderBar(Transform canvasTransform, Font font)
         {
-            CreateAnchoredPanel(canvasTransform, "TopHud",
+            RectTransform topHudPanel = CreateAnchoredPanel(canvasTransform, "TopHud",
                 new Color(0.05f, 0.04f, 0.07f, V3PanelAlpha), TopHudMin, TopHudMax);
+            Image topHudAccent = CreateImage(topHudPanel, AccentBorderColor);
+            topHudAccent.rectTransform.anchorMin = new Vector2(0f, 0f);
+            topHudAccent.rectTransform.anchorMax = new Vector2(1f, 0f);
+            topHudAccent.rectTransform.pivot = new Vector2(0.5f, 0f);
+            topHudAccent.rectTransform.sizeDelta = new Vector2(0f, 3f);
+            topHudAccent.rectTransform.anchoredPosition = Vector2.zero;
+            topHudAccent.raycastTarget = false;
 
             // ----- Player cluster (left) -----
             RectTransform playerCluster = CreateAnchoredPanel(canvasTransform, "PlayerHud", Color.clear,
@@ -3731,13 +3738,21 @@ namespace MyriadOfDragons.UI
                 WithAlpha(HandPanelTop, V3PanelAlpha), new Vector2(0f, 0f), new Vector2(1f, 0.88f));
             panelBackground.transform.SetAsFirstSibling(); // stays behind every real control built below
             HandDockBackgroundImageForTests = panelBackground.GetComponent<Image>();
+            Image handAccent = CreateImage(panelBackground, AccentBorderColor);
+            handAccent.rectTransform.anchorMin = new Vector2(0f, 1f);
+            handAccent.rectTransform.anchorMax = new Vector2(1f, 1f);
+            handAccent.rectTransform.pivot = new Vector2(0.5f, 1f);
+            handAccent.rectTransform.sizeDelta = new Vector2(0f, 3f);
+            handAccent.rectTransform.anchoredPosition = Vector2.zero;
+            handAccent.raycastTarget = false;
 
             // Left status box - text only. Never itself a placement control: FRONT/MIDDLE/BACK
             // here are a passive reminder of the selection already made via OnHandCardPressed/
             // OnLanePressed (existing input routes), not a second way to place a card - adding
             // tappable buttons here would be a new control the handoff explicitly forbids.
+            // Positioned neatly below the Reset/AutoFormation buttons and above the deck count.
             RectTransform placementBox = CreateAnchoredPanel(panel, "SelectedCardBox",
-                new Color(0f, 0f, 0f, 0.35f), new Vector2(0.005f, 0.30f), new Vector2(0.15f, 0.98f));
+                new Color(0f, 0f, 0f, 0.35f), new Vector2(0.005f, 0.28f), new Vector2(0.19f, 0.74f));
             _selectedCardText = CreateText(placementBox, "", 22, GoldTextColor, font);
             _selectedCardText.raycastTarget = false;
             _selectedCardText.alignment = TextAnchor.UpperCenter;
@@ -3751,7 +3766,7 @@ namespace MyriadOfDragons.UI
             StretchFull(_selectedCardText.rectTransform);
 
             _deckCountText = CreateText(panel, "", 22, GoldTextColor, font);
-            AnchorBand(_deckCountText.rectTransform, 0.06f, 0.28f, 0.005f, 0.85f);
+            AnchorBand(_deckCountText.rectTransform, 0.04f, 0.24f, 0.005f, 0.85f);
             _deckCountText.alignment = TextAnchor.MiddleLeft;
 
             _synergyText = CreateText(panel, "", 16, SelectedColor, font);
@@ -3761,7 +3776,7 @@ namespace MyriadOfDragons.UI
             _synergyText.resizeTextForBestFit = true;
             _synergyText.resizeTextMinSize = 11;
             _synergyText.resizeTextMaxSize = 16;
-            AnchorBand(_synergyText.rectTransform, 0.0f, 0.05f, 0.005f, 0.85f);
+            AnchorBand(_synergyText.rectTransform, 0.0f, 0.04f, 0.005f, 0.85f);
 
             // Existing Reset/Recommended Lineup mechanic (see the original BuildLineupButtons'
             // own comment for why these must keep working) - compact, tucked into this panel's
@@ -3776,7 +3791,7 @@ namespace MyriadOfDragons.UI
             // pixel size. Positioned at the panel's own top-left corner with the panel's full
             // height below it free, so growing taller collides with nothing.
             resetRect.sizeDelta = new Vector2(96f, 36f);
-            resetRect.anchoredPosition = Vector2.zero;
+            resetRect.anchoredPosition = new Vector2(0f, -2f);
 
             // Shared chrome, applied AFTER the anchors above are final. Order is load-bearing:
             // ApplyFramedPanel-family helpers compute their border-fit multiplier from the rect's
@@ -3803,7 +3818,7 @@ namespace MyriadOfDragons.UI
             // Grown from 110x26 to 150x36 (font floor fix, matches Reset's own growth) and
             // repositioned to sit right after Reset's new 96px width plus the same small gap.
             recRect.sizeDelta = new Vector2(150f, 36f);
-            recRect.anchoredPosition = new Vector2(100f, 0f);
+            recRect.anchoredPosition = new Vector2(100f, -2f);
 
             // Also subordinate: AUTO FORMATION is a convenience, not the screen's CTA.
             HomeV3UiLibrary.ApplyNeutralActionButton(
@@ -3817,13 +3832,13 @@ namespace MyriadOfDragons.UI
             var rowGo = new GameObject("HandRow", typeof(RectTransform));
             rowGo.transform.SetParent(panel, false);
             var rowRect = (RectTransform)rowGo.transform;
-            rowRect.anchorMin = new Vector2(0.16f, 0f);
-            rowRect.anchorMax = new Vector2(1f, 1f);
+            rowRect.anchorMin = new Vector2(0.20f, 0f);
+            rowRect.anchorMax = new Vector2(0.98f, 1f);
             rowRect.offsetMin = new Vector2(8, HandRowVerticalInset);
             rowRect.offsetMax = new Vector2(-8, -HandRowVerticalInset);
             var rowLayout = rowGo.AddComponent<HorizontalLayoutGroup>();
             rowLayout.spacing = 14f;
-            rowLayout.childAlignment = TextAnchor.MiddleCenter;
+            rowLayout.childAlignment = TextAnchor.MiddleLeft;
             rowLayout.childForceExpandWidth = false;
             // 2026-08-16, real-raycast investigation: with this false, the layout group only
             // ever used each card's LayoutElement.preferredWidth (130, from
@@ -4114,6 +4129,8 @@ namespace MyriadOfDragons.UI
 
             foreach (Button spellBtn in _spellButtons)
             {
+                HomeV3UiLibrary.ApplyNeutralActionButton(spellBtn, spellBtn.GetComponent<Image>());
+                FitButtonChrome(spellBtn);
                 spellBtn.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
             }
 
@@ -6933,13 +6950,31 @@ namespace MyriadOfDragons.UI
 
             int handIndex = 0;
             string tutorialAllowedCardId = TutorialAllowedCardId();
+            int handCount = _battleController != null && _battleController.PlayerState != null && _battleController.PlayerState.Hand != null
+                ? _battleController.PlayerState.Hand.Count
+                : 0;
+            float maxRowWidth = ((HandPanelMax.x - HandPanelMin.x) * (0.98f - 0.20f) * CanvasWidth) - 16f;
+            float spacing = handCount > 5 ? 4f : 14f;
+            if (_handRow != null)
+            {
+                var rowLayout = _handRow.GetComponent<HorizontalLayoutGroup>();
+                if (rowLayout != null)
+                {
+                    rowLayout.spacing = spacing;
+                }
+            }
+            float unscaledTotal = handCount * 145f + Mathf.Max(0, handCount - 1) * spacing;
+            float cardScale = (handCount > 0 && unscaledTotal > maxRowWidth)
+                ? Mathf.Clamp((maxRowWidth - Mathf.Max(0, handCount - 1) * spacing) / (handCount * 145f), 0.6f, 1f)
+                : 1f;
+
             foreach (Card card in _battleController.PlayerState.Hand)
             {
                 Card capturedCard = card;
                 bool affordable = card.ResourceCost <= resource;
                 bool isSelected = _selectedCard == card;
 
-                Button button = CreateCardButton(_handRow, card, font, affordable, isSelected);
+                Button button = CreateCardButton(_handRow, card, font, affordable, isSelected, cardScale);
                 button.onClick.AddListener(() => OnHandCardPressed(capturedCard));
 
                 // Guided-tutorial lock: Button.interactable genuinely blocks onClick (unlike the
@@ -6961,6 +6996,11 @@ namespace MyriadOfDragons.UI
 
                 _handButtons.Add(button);
                 handIndex++;
+            }
+
+            if (_handRow != null && _handRow is RectTransform handRowRect)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(handRowRect);
             }
 
             bool anyAffordable = _battleController.PlayerState.Hand.Any(c => c.ResourceCost <= resource);
@@ -7355,7 +7395,6 @@ namespace MyriadOfDragons.UI
             text.fontStyle = FontStyle.Bold;
             StretchFull(text.rectTransform);
             UISharedFoundation.ApplyTextShadow(text);
-            UISharedFoundation.AddLocalGradientScrim(go.transform, Vector2.zero, new Vector2(200f, 50f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             return button;
         }
@@ -7392,7 +7431,7 @@ namespace MyriadOfDragons.UI
 
         /// <summary>A hand card: rarity frame behind, art inset within its border, name/cost
         /// text below. Always interactable - see RefreshHand.</summary>
-        private Button CreateCardButton(Transform parent, Card card, Font font, bool affordable, bool isSelected)
+        private Button CreateCardButton(Transform parent, Card card, Font font, bool affordable, bool isSelected, float scale = 1f)
         {
             var go = new GameObject($"Card_{card.Id}", typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -7419,7 +7458,7 @@ namespace MyriadOfDragons.UI
             // constants instead of restating a number, so shrinking the panel again cannot
             // silently reintroduce it. 196 stays the cap when the row is tall enough.
             float handRowHeight = (HandPanelMax.y - HandPanelMin.y) * CanvasHeight - (HandRowVerticalInset * 2f);
-            float cardHeight = Mathf.Min(196f, handRowHeight);
+            float cardHeight = Mathf.Min(196f, handRowHeight) * Mathf.Clamp(scale, 0.5f, 1f);
             float cardWidth = cardHeight * GetRarityFrameAspect(card.Rarity);
             SetPreferredWidth(go, cardWidth);
             SetPreferredHeight(go, cardHeight);
