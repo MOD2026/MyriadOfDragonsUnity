@@ -3034,6 +3034,40 @@ authored content and a presenter. Chest has a locked design and no code. **That 
 sequence: Puzzle first, Chest second.** Its two known defects (text overlap, zero chrome) are UI work
 on an existing screen rather than a new system.
 
+## BREAKTHROUGH 2026-08-27: the contrast plates are NOT RENDERING AT ALL
+
+**Decisive test:** CR toggled `plateImg.enabled = false` and re-rendered through the REAL camera that
+`PrepareForMeasurement` configures (not a rebuilt one - the previous hand-built harness diverged
+108px vs 21px, so a second camera setup was not trusted). Fresh RenderTexture, read back, fully
+restored afterwards.
+
+**Result: byte-identical, all 43 rows, y417-459, enabled versus disabled.** No difference at the dark
+run, none at the orange/cyan region, none at the backdrop.
+
+**`ResourceTextPlate`'s Image contributes NOTHING VISIBLE.** The near-black run at y441-443 was never
+the plate.
+
+**THIS INVERTS THE ENTIRE INVESTIGATION.** It is not "the plate renders too light" and never was.
+**The plate may not be rendering at all**, and the dark readings that produced the 1.6/1.7 contrast
+numbers are **coincidentally-dark `PillBacking` art**, not the contrast scrim doing its job.
+
+**IMPLICATION, and it is large: the contrast remediation on these pills may have done nothing.** If
+the same holds elsewhere, scrims placed across several screens today are decorative - present in the
+hierarchy, invisible on screen. **That is the eighth instance of this project's defining failure shape:
+something that runs cleanly, raises no error, and has no effect.**
+
+**Hypotheses closed on this thread, each by one measurement:** misplaced plate; broken sampler;
+linear-to-sRGB colour conversion; alpha-0.95 compositing; parent CanvasGroup; validator instability;
+9-slice collapse. **Seven.** Every one died cleanly rather than being left ambiguous.
+
+**Known-good state before the failure:** sprite baked pixel `(0.031, 0.035, 0.051, 0.949)` via
+`GetPixel` - correct. `Image.color` white. `enabled` true. Plate is the LAST child of `ResourcePill`,
+so it should render ON TOP of `PillBacking`. **Correct data, correct order, no output.**
+
+**Next: why is the Image not drawing?** Check `sprite` non-null at runtime, `canvasRenderer` mesh
+non-empty, and `canvasRenderer.GetColor()` alpha - a zero-alpha CanvasRenderer or an empty mesh would
+produce exactly this and is invisible to every inspection done so far.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
