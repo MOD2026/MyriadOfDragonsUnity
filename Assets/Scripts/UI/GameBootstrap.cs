@@ -2849,7 +2849,18 @@ namespace MyriadOfDragons.UI
                 total.alignment = TextAnchor.MiddleCenter;
                 total.horizontalOverflow = HorizontalWrapMode.Wrap;
                 total.resizeTextForBestFit = true;
-                total.resizeTextMinSize = 11;
+                // min 11 -> 22: makes the 22px floor STRUCTURAL rather than incidental.
+                // Measured 2026-08-27 with an isolated probe replicating this exact config:
+                // the label already renders at 22px at "ATK 0/OVF 0" (63px preferred),
+                // "ATK 999/OVF 999" (87px) and "ATK 1234/OVF 1234" (99px) - best-fit never
+                // shrinks here because this box is ~234px tall, so wrapping absorbs the width
+                // before shrinking is ever needed. So this is a no-op TODAY. It is worth
+                // setting anyway: best-fit shrinking is invisible to the geometry gate (a
+                // shrunk label is not an overflow), so with min=11 a future band-height
+                // reduction could silently reintroduce sub-floor text with the gate still
+                // green. min=22 makes that show up as wrap/truncation instead of a silent
+                // sub-floor render.
+                total.resizeTextMinSize = 22;
                 total.resizeTextMaxSize = 22;
                 AnchorBand(total.rectTransform, 0.05f, 0.95f, 0.06f, 0.06f);
 
