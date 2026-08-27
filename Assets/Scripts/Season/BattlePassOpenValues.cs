@@ -80,6 +80,15 @@ namespace MyriadOfDragons.Season
 
         public static string SeasonLengthCopy => "28-DAY SEASON";
 
+        /// <summary>Short, player-facing status copy for the BattlePass shell's StatusLine.
+        /// Deliberately separate from <see cref="StatusNote"/>: that string is a ~350-char
+        /// developer/transaction diagnostic consumed as BattlePassClaimResult.Message, and it
+        /// overflows the StatusLine band (83px of text in a 48.4px band) because it was never
+        /// player copy. StatusNote stays byte-identical for every Message consumer; only the
+        /// label reads this. Carries no design numbers - tier counts, Gem prices and XP-per-tier
+        /// are live values and a shell line must not become a second source for them.</summary>
+        public static string PlayerStatus => "Season rewards aren't live yet. Check back soon.";
+
         public static string StatusNote =>
             "Battle Pass structure, Season XP per tier, and both Gold tables are locked " +
             "(28-day UTC-week season, free+paid tracks, no cards/packs/Evolution/Forge-Dust/Permits, " +

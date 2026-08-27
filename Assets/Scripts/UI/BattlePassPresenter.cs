@@ -248,7 +248,7 @@ namespace MyriadOfDragons.UI
             access.fontStyle = FontStyle.Bold;
             SetNorm(access.rectTransform, 0.36f, 0.45f, 0.98f, 0.90f);
 
-            _statusText = UISharedFoundation.CreateText(bar.transform, "StatusLine", BattlePassOpenValues.StatusNote,
+            _statusText = UISharedFoundation.CreateText(bar.transform, "StatusLine", BattlePassOpenValues.PlayerStatus,
                 UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.85f, 0.75f, 0.5f), true, new Vector2(1600f, 28f));
             _statusText.fontSize = 24;
             _statusText.fontStyle = FontStyle.Bold;
@@ -277,10 +277,16 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.StretchFull(backText.rectTransform);
         }
 
+        /// <summary>Pushes a claim result message into the StatusLine. Maps the OpenValues
+        /// diagnostic to its short player-facing form: BattlePassClaimResult.Message carries the
+        /// full ~350-char StatusNote when values aren't locked, which overflows this band. Every
+        /// other status message is already short and passes through unchanged.</summary>
         private void SetStatus(string message)
         {
-            if (_statusText != null)
-                _statusText.text = message ?? string.Empty;
+            if (_statusText == null) return;
+            _statusText.text = message == BattlePassOpenValues.StatusNote
+                ? BattlePassOpenValues.PlayerStatus
+                : (message ?? string.Empty);
         }
 
         private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)
