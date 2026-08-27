@@ -1,0 +1,783 @@
+There will be a guild rewards for all events
+At least 10 players is requires in the guild to enter the guild wars
+Skills
+Will carry a percentage trigger
+There will be a Hall of Fame for all beta testers or those players with successful implementation of ideas (bug reporting are not included)
+Players on Hall of Fame will receive 5 extra event items after the start of all events
+Bug reporter will not be included in the Hall of Fame but will receive 5 event items during events or 5 locked potion during normal times
+Limited to the first 5 players who reported the bug
+Any item that is caused by the bug will be removed.
+Section 2
+Event will not be up until we have enough players (target is 10,000 players)
+The event rewards will be break into the following tier
+Tier A:  Rank 1- 10
+Tier B:  Rank 11-30
+Tier C:  Rank 31-100
+Tier D:  Rank 101- 300
+Tier E : Rank 301-500
+Tier F :  Rank 501- 1000
+Tier G :  Rank 1001-2000
+Tier H : Rank 2001-5000
+Tier I : Rank 5001- 10000
+Tier J : Above rank 10000
+In all events, players will be group in the following tiers
+Tier 1: Top 1 to Top 50 (50 players)
+Tier 2: Top 50 to Top 150 (100Players)
+Tier 3: Top 150 to Top 350 (200Players)
+Tier 4: Top 350 to Top 700 (350 players)
+Tier 5: Top 600 to Top 1200 (600 Players)
+Tier 6: No of players in pervious tier x2 (1200)
+So on until all the players in the server are sorted in this manner
+10 random Players within the same tier will be group together in one cycle that last for 6 hours
+Rewards like potions, key, points, items, gold, food will be given out at the end of the cycle based on the ranking of each cycle
+Depending on the traffic, there might be one or two Bloodlust cycle(s) whereby rewards are double or triple
+*Such cycle does not apply to guild wars
+There will be event rewards given out once a certain numbers of items/damage/area clearance/puzzle pieces collected
+For all event cards, once the player have used the event cards during the event, the card will be locked until the event ends
+It will be tradable once the event is over
+Any captured boss will act as an experience boost card
+A sign up banner will appear for all players
+Players who sign up for the event will receive event items
+Rewards cards will be locked for 3 days after the events
+All event items are locked but event cards are tradable
+Events will run for 7-10 days expect for Guild wars which will run on alternate weekends
+All experience gain during the event will be consumed by the avatar and not the cards/characters
+There will be a milestone clearage reward system during the event.
+Loyalty point and gems will be given out to player who clear a certain milestone during the event
+9types of events
+Chest
+Storyline for Chest
+Titan once ruled the earth and they have control over all humans. Servant, slaves are the names for any humans living at the ages. Titans forced them to in mines, farms all day long. Any precious metals, food are kept away from the human. One day as the titans are gone from the surface of earth, human are set free and the quest of chest hunting begins. Now it is your chance to dig and reveal any chests kept by the titans.
+Item collection (chest)
+Rewards will be given out based on the number of items collected
+3 area to be explored in this event
+1st area which has lower stamina consumption with lower chest drop and key drop
+2nd area which has median stamina consumption with high keys drop
+3rd area which has high stamina consumption with high gold chest drop with occasionally gold key drop
+Keys will be drop from AI or found in hot spot
+Gold key
+Normal key
+2 type of chest available (might increase to 3 in the future)
+Gold chest
+Wooden chest
+Gold chest have a time span of 30mins whereby wooden chest can store up to 1hrs
+Players can stack as many chests in their inventory as they wish
+Gold chest consist of
+Higher no of  event items
+More locked Potions
+More food
+More gold
+Signal fire
+High security
+Experience boost
+Gold keys
+Normal key
+Gold Chest
+Requires 3 gold keys to open one gold chest
+Use 1 gold key or 3 normal key to send gold chest to allies for opening (time limited- 30mins) ( items opened will be shared with allies)
+One gold key or 3 normal keys are required to open allies chest
+Can be opened with normal key at 10%
+Wooden chest consist of
+Events items
+Lock Potions
+Food
+Gold
+Gold key
+Normal key
+One normal key can be used to open a normal chest at 90% success rate (not available to send to allies)
+Each time a chest is opened,it will fill a meter and once the meter is full, it will trigger ablessing momentthat can last for 10 mins
+During this period, all chest will give 50% more event items than normal
+Blessed moment increase the drop rate of chests/gold keys
+An indicator will appear on the player screen (time left and bonus)
+During this period, a boss will appear randomly, players cankill the boss for key drops.
+Level of the boss depend on the level of the players
+Higher level give a better key drops (normal and gold)
+Once 10 mins is up, the bonus will drop back to zero
+Will be available 24/7 throughout the event
+Item purchase for this event:
+Gold keys
+Potions
+Points booster cards
+Keys drop booster cards
+All normal key will vanish at the end of the event however gold keys remains.
+Army can be replenish by signal fire or retreating back to base at the cost of 20 stamina
+There will be a skip function for opening of the chest
+There will be a daily limited time event
+More gold key drops
+More stamina hotspot
+Raid (kill boss)
+Storyline
+Valley of the cursed one
+An exiled witch banished into the misty valley by the village chief. She swore revenge on those who dislike her. By a stroke of luck, she found the remains of mighty titans and work on a spell to revive them. Now with an army of titan under her control, she is coming for you. You are the only hope to stop this madness.
+Rewards will be given out based on the damage of all the encounter boss
+Will be available 24/7 throughout the event
+Possibility to include a mega boss for bonus damage
+Raid boss will appearing at random throughout the questing
+Each area clearance will boost the player attacking deck for boss (up to 200% bonus)
+Flag will be consumed for each attack on the boss
+There will be 3 options for launching attacks on the boss
+First option – attack with one flag at one time (normal 10% damage)
+Second option – attack with 3 flags  at one time (150% more damage)
+Third option – attack with 5 flags (200% more damage)
+Call for help will be available for either guild or allies
+First hit on the boss will be free but at only 30% of the deck force
+Each attack on boss after the first attack requires one flag
+Any damage taken by the army can only be replenish at barrack
+Retreat and refill of armies requires 20 stamina
+There will be a meter for the player to fill by attacking bosses
+Once meter is filled, it will activate a 10 minutes time frame that allows players to do 1.5x of their current damage to all bosses. (known as Rage)
+Items possible drop from boss will be
+Locked Potions
+Gold
+Food
+Signal fire
+Locked Free attack
+Each time the boss is kill, the health will increase by 1.15 times and the attack and defend will increase by 1.1 times
+Mega boss will escape after 0.5 hour and a normal boss will escape after 1hr minutes
+A random special boss might appear after defeat of any boss
+This special boss will appear only for 15 mins but will receive 2x more damage from any player
+The health and attack of the boss will be the same as a normal boss
+Only one boss will appear at one time
+There will be an option not to fight the boss but the 15% of army will be penalized for running
+Purchase for this events
+Boss attraction item
+Double attack items on boss (last for one boss only)
+Potion
+Signal fire
+Attack boost cards
+There will be a daily limited time event
+More boss encounter
+More Flag replenish hotspot
+Guild wars (will be our focus)
+Held in 2-4 sessions (proposed timing  11am, 6pm, 10pm EDT)
+Each session last for 2 hours which consist of 2 battles which last for 30mins
+Timing of the session will be based on the traffic flow of the game systems
+Guild must be at least level 10 to enter the guild war
+Players will attack each other to earn medal and more medals can be obtain by attacking the guild castle
+Outcomes of the battle is based on the total number of medals collected during the event
+Winning guild will earn extra 20% of the total medals won in that battle
+Armies will be auto replenished after every fight
+Guild will be break into 7 tiers
+Top 1-10
+Top 10-30
+Top 30-100
+Top 100-200
+Top 200-500
+Top 500-1000
+Rest of the guilds
+During the events, guilds will be randomize to battle with another guild within it tiers.
+There will not be any repeated battle opponent per day unless for top 10 whereby the pool is not big enough
+Morale will be needed for performing any action during the gvg battle
+10 morale will be given at the start
+Any skill activation will use 5 morale
+Morale can be replenish either by
+Normal questing (every 10 stamina consumed = 1 morale gained)
+Warcry (in-app purchase)
+Facebook/twitter post (once per battle)- posting willreplenish the of players morale
+Each players will have 5 life
+If player lose 5 life, he will be unable to attack but he is still allowed to activate his skill
+The player only lose one life if he lost the fight during defending
+Facebook/twitter post (once per battle)- posting will also revives the players
+Players can only be revived by healer
+A combo will be triggered off when one guild mate attack
+This combo can stack and cap at 200 combos (however player can still see the combo going up)
+This combo will give 1.2x more attack and defend to all guild mate when it reaches 200 combo ( 1 combo = 0.001x damage)
+The combo will reset once there is no attack from the guild for 3 minutes.
+There will be 3 roles are available for this event. Players will be assigned prior to the war start
+Guardian
+Assault
+Healer
+These position can be appointed by any leader or picked by players
+Guardian
+They are the stronghold of the castle
+Skill of a guardian (last for 4 mins)
+Increase leadership for all players (1.2x)
+Reduce the medals obtained by opponents
+The castle can only be attack once 50%all of the guardian are defeated
+Assault
+They are the attacking force of the guild
+Skill of assault(lasts for 4 mins)
+Increase the attack of all members (1.2x)
+ Attack 2 enemies with one morale (individual)
+Healer
+They are the healer of the guild
+Skills of the guardian
+Increase defend for all players (last for 4 minutes) (1.2x)
+Healing for all Healers only upon revived(via fb/twitter posting)
+Reviving of any individual players (requires 5 morale for reviving but healer can only heal one life with one morale per time)
+Player can change to any position during the battle at the cost of 1 morale
+Duplicated Skill can’t be stacked
+4 positions are available for gvg events
+Guild leader
+Stay hidden until the three captains are defeated
+Guardian captain
+Increase leadership for all players until defeated when being attacked (1.2x)
+Assault captain
+Increase attack for all players until defeated when attacking (1.2x)
+Medic captain
+Increase defend until defeated when being attacked (1.2x)
+The captain is appointed by the guild leader
+More medals will be given out upon the first successful defeat of leader
+If more than one player knock off the leader at the same time, both of them will receive the same amount of medals
+Castle ‘siege attack
+Castle siege attack can attack 50% of the remaining enemies at random upon activation ( including hidden captain)
+Siege attack can only be trigger when these 2 conditions are met
+When the siege meter is full
+Activated  by either one of the 4 captains
+Meter gauge of siege attack will replenish when guild members attack or being attack or upon activation of skills
+Damage of the castle’s attack depend on the level of the guild castle
+There will be medals for every siege attack
+Winners of each battle will take the medals and the loser will receive zero point
+Defender who wins the fight will earn 30% of the medals for the fight
+Item that is available for gvg
+Warcry
+Medal booster (increase the number of medal gained, time frame 7 mins)
+Potions
+Battle Royale
+Players will fight with each other to get rankings
+Rewards will be given out based on the ranking
+A pre-register will be available to sign up
+A team of 5 members will be formed before the events begins
+Members must be either allies or guild mates
+Upon starting of event, all teams will be locked throughout the events
+Players must agree in order to form a team
+Failure to do so will be assigned to a random player within the similar ranking tier of the last event
+5 teams will be placed into a battle field whereby players of each team will be fighting with each other (last for 6 hours)
+Upon winning a fight, the winner will get headcounts for their team
+The number of headcounts won is based on
+The strength of the rival team
+The damage on the rival including overkills
+The headcounts will be spilt into 6 portions within the winning team whereby the player who won get fight get 2 portion of the winning chips and the rest is split evenly within the team
+Only the avatar and name of the opponent can be seen in the battle
+Players can not attack the same players unless defeated by other player (attacking or being attacked) or player must complete a cycle attack on all of the rivals players in all the team
+Players must battle with at least one other player from the other teams before hitting the second player of the same team. Eg. To hit the 2nd player of team A, the player must first hit the 1st player of Team A then fight at least one players from Team B, C and D then back to Team A.
+If a team mate does a hit within 30 minutes after player attacked, a combo will be initiated.
+Combo will increase the attack of the team
+It can stack up to 200% with a 10% increment but will be capped at 150% bonus unless meter triggered
+Each attack will fill up a meter
+The meter can only be trigger when it is full.
+Upontriggered playerwill gain200% bonus in attack and last for 10 minutes- known as God’ strength ( individual only)
+Army can be replenish by signal fire or retreating back to base at the cost of 20 stamina
+Player can use High security for protection against attack
+Items for the events
+Potion
+Headcount booster card
+High security
+Temporary attack increase
+There will be a daily limited time event
+More headcounts rewards
+More flag replenish hotspot
+Puzzle event
+Players must find the missing pieces of the jigsaw puzzle to earn point  for this event
+The pieces of jigsaw puzzle will increase per completed puzzle
+Players will not be able to complete a puzzle by questing as questing only give 80% of the puzzle needed
+Upon getting each pieces of puzzle or completing puzzle allows players to earn points
+During event, once the players completed an area, there will be 4 doors for the players to choose.
+Door 1 contain some prizes like gold/food/instinct (require to repeat the area)
+Door 2 fight AI(repeat area)
+Door 3 proceed to the next area
+Door 4 possible of puzzle or potion(repeat area or proceed on)
+Once the door is opened and if the player was to repeat the area, the option of 4 doors reduces down to 3 doors.
+There will be an item(instinct) available to peek through the door for a given time frame (eg. 10 mins)
+Players can fight with each other to steal jigsaw pieces from one another
+The information of rival players will not be reveal
+If attack fail, players can seek help from allies or guild mates
+A function ‘scout’ will be available whereby upon activation, the usage of stamina will reduce by 5% if another guild mate or allies is questing at the same time.
+Up to 5 guild mates/allies will be linked to enjoy a maximum of 25% stamina usage reduction
+Upon linkage, the function will stay active as long as the other party did not idle for more than 5 minutes
+Army can be replenish by signal fire or retreating back to base at the cost of 20 stamina
+Item to be purchase
+Instinct
+Potions
+High security
+Point booster cards
+There will be a daily limited time event
+More puzzle drops
+More stamina hotspot
+Conqueror
+The rankings of this event will be based on the total amount of land occupied by players
+Players will quest an area and a couple of events will happens during questing
+Encounter neutral ground AI
+Encounter other player rally point
+Hot spots
+Upon completion of an area exploring,  players can set up rally point for that explored area
+Upon setting up an rally point will trigger the following drop items
+Signal fire
+High security
+potion
+Rally point will be set at for 1 hour time frame
+During this time frame, there is a possibility that the rally point will be attacked by other players (this encounter will be based on the ranking tier)
+Once the rally point has been attacked by player B, no other players will be allowed to attack the same rally point other than aid called by player B
+The defeated players (regardless player A or B) can request for aid from guild mate or allies for help
+First aid attack will be free at 30% damage (no reduction in army)
+Second or more attack attempted by players will experience loss of army in battle
+The defender player will have a higher defend and higher attack which also applicable to any players who he called for support
+Winning support player will received share of lands depending on their contribution at the end of the hour (No. of attacks and damage on the opponent)
+Winning a fight might drop rewards like signal fire or high security or potion
+Upon winning a fight(whether defend or attack), the winner will recover 20% of the lost armies in the battle as a form of recruitment of surrender soldiers
+Rally point can only be defended by players who set the rally point or players who encounter the rally point
+Army can be replenish by signal fire or retreating back to base at the cost of 20 stamina
+There will be a cool down period of 5 minutes after every attack
+When the timer is up at 1hr, the player who occupied the area the longest period wins
+Lands will be give out based on the percentage of the time of occupation to every player who taken part in the fight
+Rally encounter/setter will receive 20% more land than aiding players
+High security can be used to secure the rally point from being attack
+Items to be purchase
+Area boost cards
+potions
+Signal fire
+High security
+There will be a daily limited time event
+Higher lands rewards
+More flag replenish hotspot
+Floor Clearance event (prison break)
+The rankings of the players will be based on the number of floor cleared
+The floor will be either cleared by questing or by kill random appeared normal guards or Mega Guards
+Upon clearance of each floor rewards will be given out
+Potions
+Signal fire
+Bribe
+Flag
+Normal Guard will last for 1hr and mega guard will last for 1.5hour
+Reinforcement is possible from allies/friends
+First attack is free but at 30% deck power
+There will be 3 options for launching attacks
+First option – attack with one flag at one time (normal 10% damage)
+Second option – attack with 3 flags  at one time (150% more damage)
+Third option – attack with 5 flags (200% more damage)
+Winning a normal guard will give 120% clearance
+Winning a Mega guard will give 300% clearance
+The winnings will be shared based on the damage done, finder and last attackPossible drop
+Bribe
+Flag
+Potion
+Signal fire
+There will be an option not to fight the boss but the 15% of army will be penalized for running
+Army will have to be replenish at barrack at the cost of 20 stamina or used of signal fire
+During questing, there is a probability that you might meet
+Allies/ Friend
+Team up with friendly give you 5% bonus for area clearance
+Up to 200% bonus for area clearance
+There is no time limit for this point however only 5% bonus can be obtain once per friendly
+Other players
+Option A- persuade players to join you party as friendly (refer to  above)
+Players might reject and engaged into fight
+Persuade players will only give 1% bonus
+Option B- engaged with players
+Winning the fight will give you 20% clearance of that floor
+Losing the fight will take always 20% clearance of that floor
+A meter gauge will get filled every time you encounter a players/friendly
+Once meter is full, there will be a bonus of 150% in area clearance
+Bonus will only last for 10 minutes
+Upon reaching 200% bonus, winning a players fight will give 40% clearance and losing a fight still remain at 20% clearance
+Items to be purchase
+Area clearance boost cards
+Potions
+Flag
+Bribe (lower the defend of the guard)
+There will be a daily limited time event
+More stamina replenish hotspot
+More guard appearance
+Castle defend (damage on castle and gate)
+Player ranking is depend by the damage done on the enemy castle
+The strength of player castle is depend on the fame and gate of their empire
+A new hot spot for encountering player castle will be added
+Up to 5 heroes can be assigned for repairing the castle
+The % and rate of repair is based on the total leadership of the heroes and the fame
+Food and gold will be needed for the repair
+At the start of all firstencounter fight, the castle will be solidified to max health
+Repair of castle will be initialize after the first attack
+The health of the castle will be updated after every attack
+Heroes assigned to castle repair cannot be placed in the frontline for questing
+Heroes are allowed to retaliate the enemy
+Armies of the defending heroes will be auto replenished after every battle (not from the barrack but from the server)
+Health of the castle will restored back to max upon breached
+Breach of castle
+give opponent 5x times more damage points
+opponent will also gain 5% more in attack for the rest of the event
+Players who help out will receive 0.5% boost in attack for the rest of the event
+a cap of 200% bonus can be earned
+Gold/food loot from players
+Troop replenished from surrender soldiers
+Period of engagement will be limited to 1 hour
+Upon level up of avatar or completion of a building, the health of the castle will be replenish during engagement
+Opponent can call for allies/friends for help, however allies and friends are only allowed to hit once at 30% of his deck power per engagement
+First attack by encountered  player will be free at 30% deck power and any further attack requires flags
+Subsequence attack will consumer a flag
+There will be 3 options for launching attacks
+First option – attack with one flag at one time (normal 10% damage)
+Second option – attack with 3 flags  at one time (150% more damage)
+Third option – attack with 5 flags (200% more damage)
+Players can replenish his troops via signal fire or spend 20 stamina to return to base to replenish his troop from barrack
+A meter gauge will get fill after every attack and breaching of castle will give a high % of filling
+Once the meter gauge is full, players will reduce the damage taken by 50%
+Damage done by the player will increase by 50%
+This bonus will only last for 10 minutes
+After each attack, player will obtain the following drop
+Food/gold
+Signal fire
+Flags
+Potion
+Players can chose to retreat at a cost of 20 stamina and search for a new rival anytime
+The outlook of castle will be different for different tier of castle level
+Tier 1: level 100-80
+Tier 2: level 79-50
+Tier 3: level 49-20
+Tier 4: level 19-1
+If player is actives for the past 30 minutes (within 30 minutes from the log off time), rival might be ambush by the players frontline and instead of attacking the castle, the rival will be attacking the player’s frontline
+Ambush troop will have 30% more in damage
+Players can send tributes to his allies/friends which contain gold+food
+Gold and food sent in the tributes does not come from the players supplies
+Once tributes accepted by allies, players are allowed to send more
+There will be a limit of sending 50 tributes per player per day
+Items to be purchase
+Castle defend boost cards
+Castle attack boost cards
+Potions
+Flag
+Signal fire
+Siege  (temporary increase damage to castle)
+There will be a daily limited time event
+Formore point rewards per attack
+More gold and food hot spot
+Pet raising (dragon raising)
+The rankings of the players depend on how many dragons they have fed and raised during the event
+Difficulty of raising a dragon increase as more dragons were raised
+The dragon can be fed with the following items
+Event food (3 different grades of event food - High, middle, low)
+Food
+Captives from AI or players
+Synthetic food that can be purchase with gold (low grade)
+Every captives has a fear indicator (1-100%)
+Upon capture, a lower grade cards/character will have a higher fear factor
+Fear increase with the length of stay in the prison
+100% is the maximum fear limits that each captives can experiences
+The % of fear is directly proportional to the quality of dragon feed
+Each captive can be interrogated by sending over to allies/guild mate
+Each guild mate/ allies can only interrogate once per captive
+Each interrogation will induce 10% fear on the captive
+Player can find the dragon food from the following
+Questing (Event food, food, gold)
+Battling with AI during questing (captives)
+Encounter allies/friends
+Encounter non friendly player (any player who is not in your guild or friend list) (capture at 1 to 3 captives)(using the normal fighting animation)
+Drops from boss
+Every encounter with allies/friends will
+Increase 1% for a higher chance to get event items/capture prisoners
+Up to 50% maximum limit with 50 allies/friends
+Induce 5% fear for all captives in the prison
+The number of captives is limited by the size of the prison
+Once the prison is full, captives will be directly fed to the dragon
+Once a dragon matures,
+It will increase 5% more chances to get better event items/ capture prison
+A maximum of 200% can be reached
+Every time a dragon mature the meter gauge will get fill
+Upon reaching a full gauge, it will actives for 30 minutes and trigger a mega boss
+During this period, there will be an increase of 100% more event food items drop
+50% higher chances of getting a higher grade event food
+Increase 50% chances of capturing a prisoner
+If the mega boss is defeated during this period, a second mega boss will appear
+Players can call for help to fight the mega boss
+Players can call for a dragon strike on the boss
+The effectiveness of the dragon strike depend on the number/maturity of the dragon
+First attack by player will be free at 30% deck power and any further attack requires flags
+Subsequence attack will consumer a flag
+There will be 3 options for launching attacks
+First option – attack with one flag at one time (normal 10% damage)
+Second option – attack with 3 flags  at one time (150% more damage)
+Third option – attack with 5 flags (200% more damage)
+Players can replenish his troops via signal fire or spend 20 stamina to return to base to replenish his troop from barrack
+The mega boss will escape in a 1 hour time frame
+Items possible drop from boss will be
+Locked Potions
+Gold
+Food
+Signal fire
+Locked Free attack
+Event food
+Capture boss
+Each time the boss is kill, the health will increase by 1.15 times and the attack and defend will increase by 1.1 times
+Item to be purchase
+Dragon breeder character
+Event food finder character
+Dragon strike
+Potions
+Signal fire
+There will be a daily limited time event for
+Higher dragon growth rate
+Higher event food drops
+Special dungeon (quest)-*China market only
+Similar to item collection but will be open for VIP only(payers)
+Trading system open on Friday until Sunday or on PH
+Section 3
+Notification
+Notification will show up for the following
+Energy fully charge
+Development completed
+Hourly rewards
+Daily rewards
+Upcoming events
+Starting of events
+Empire being attack
+Events supports from allies
+New message from allies
+There will be an option to turn off any notification by the players
+Violation
+Any  misbehavior conducted by any player that will negatively influence more than 5 players in the game might be subject to punishment A(subject to approved by game master)
+Real money trading is allow but will not be encourage
+Any repeat offender will be subject to punishment B
+If any player caught for using any form of aids other than the approved in game method will be severely deal with punishment C
+Scam report must include the below screenshot but not limited to
+An clear agreement of trade with clear indication of both party identities
+A transaction record
+However all items involved in the scammed trade will not be return to players but will be confiscated by system
+Scammer will be subjected to punishment A with the possibility of cease of account
+Any scam that involved with real money will be ignore
+If any player report a fake report, he will be subjected to punishment A
+Punishment:
+Unable to create any chat room or forum tread and ban from trading and chat room for 3 days
+Suspend for one week and will not be able to participate next event excluding guild war, will be banned from trading for 4 weeks and can only enter the next event on the 3rd day.
+Suspend from trading for 4 weeks and not able to participate in the next event
+Feedback
+Feedback will be via by email
+If suggestion is implemented in game, rewards will be given out
+Rewards
+Free ally point card deck (only selected 3*,4* and 5* can be draw from this deck)
+Daily log in rewards (match and win)
+There will be 4 cards appear on the screen
+Player will chose 2 cards out of 4
+If both cards are the same cards, player will receive a reward
+If both cards are different, player will not receive anything
+One chance will be given out daily
+The player can continue to open cards until they mismatch the cards
+Once 4 cards are opened, player will promote to the next stage
+There will be 5 stages, first 4 stages will consist for only 4 cards to match and the last stage will have 6 cards to match.
+The stages will be reset every week
+30 days login in rewards
+A different rewards everyday
+Hourly rewards eg. Redeem random rewards within 2 hours
+Gallery rewards
+Gallery contains all the character/cards in the game which can be view by the players
+The gallery is separated into many pages
+Questing page
+Event page
+Card package page
+Each pages contain a certain number of character/cards
+The arrangement of the character/cards will be based on the location of discovery. Eg. Chapter 1 will have a total of 3 cards which can be found by player whereas event page is the page that contain all the cards that can be found during the event and card package pages contain all the cards released in the same batches
+Upon completion of collection of all the cards in the page, players will receivedesignated rewards.
+Upon leveling cards to max level 100 will receive additional rewards
+All new players will be receive the following
+A starter pack which consist of potions and item and gem for cards draw
+VIP membership for one week
+5 days of high security
+All event rewards will be available for collection within 14 days, after 14 days the rewards will be gone
+There will be a section whereby players can see all the rewards in a place.
+In apps purchase
+Gems Package
+Gems
+ | Price USD
+ | Availability
+ |
+100
+ | 0.99
+ | Once Daily
+ |
+280
+ | 2.99
+ | unlimited
+ |
+570
+ | 5.99
+ | unlimited
+ |
+1250
+ | 12.99
+ | unlimited
+ |
+2450
+ | 24.99
+ | unlimited
+ |
+5500
+ | 49.99
+ | unlimited
+ |
+12000
+ | 99.99
+ | unlimited
+ |
+Gems
+ | Price USD
+ |
+ |
+100
+ | 0.99
+ | Once Daily
+ |
+280
+ | 2.99
+ |  unlimited
+ |
+570
+ | 5.99
+ |  unlimited
+ |
+1240
+ | 12.99
+ |  unlimited
+ |
+2390
+ | 24.99
+ |  unlimited
+ |
+5500
+ | 49.99
+ |  unlimited
+ |
+12000
+ | 99.99
+ |  unlimited
+ |
+Package
+Starter package draw at 300 gems
+Includes 2 potions (unbound), 2 flags (unbound) one normal card draw
+Normal one card (50% off for the three draws) at 300 gems
+5 cards package draw at 1400 gems
+9 cards package draw at 2500 gems
+20 cards package draw at 5000 gems
+VIP membership value
+7 daysWeeklong membership at800 gems
+Receive 1 energy/attack potion potion at day 1,3,5 and 7
+Receive 1 flag orpeace treaty high security or call to armsignal fire at day 2,4,6 (if in the case for event, event items will be given out)
+Received 1x one normal card package
+Ability to purchase any package at a 2% discount
+Able to swap 1 attackflag for 5%5 of stamina
+Able to swap 16.6% of15 stamina for 1 flag
+Able to receive 5 stamina for every allies ally message sent (refresh every 6 hours)
+Stamina replenish rate reduce from 1 min to 55 sec
+Fortnight membership at 1500 gems
+Receive 1 potion at day 1,3,5,7,9,11,13 and 2 potion on day 14
+Receive 1 flag or high security or signal fire at day 2,4,6,8,10 and day 12(if in the case for event, event items will be given out)
+Received 2x one normal card package
+Ability to purchase any package at a 3.5% discount
+Able to swap 1 flag for 6%7 stamina
+Able to swap 14.3%13 stamina for 1 flag
+Able to receive 5 stamina for every allyies message sent (refresh every 5 hours)
+Stamina replenish rate reduce from 1 min to 50 sec
+Monthly membership at 3000 gems
+Receive 1 potion at day 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29 and 5 potions on day 30
+Receive 1 flag or high security or signal fire at day 2,4,6,8,10,12,14,16,18,20,22,24,26 and day 20 (if in the case for event, event items will be given out)
+Received 1x 5 draw card package
+Ability to purchase any package at a 5% discount
+Able to swap 1 flag for 7%9of stamina
+Able to swap 12.5% of10 stamina for 1 flag
+Able to receive 5 stamina for every allies ally message sent (refresh every 4 hours)
+Stamina replenish rate reduce from 1 min to 45 sec
+Player will not get penalties if they are unable to log in.
+Card packageDraw system
+Package
+ | 1
+ | 5
+ | 9
+ | 20
+ |
+Rarity
+ | Normal
+ | High A
+ | High B
+ | High C
+ |
+1*
+ | 35%
+ | 5%
+ | 0%
+ | 0%
+ |
+2*
+ | 30%
+ | 10%
+ | 0%
+ | 0%
+ |
+3*
+ | 22%
+ | 50%
+ | 47.5%
+ | 35%
+ |
+4*
+ | 10%
+ | 25%
+ | 37.5%
+ | 45%
+ |
+5*
+ | 3%
+ | 10%
+ | 15%
+ | 20%
+ |
+DC
+ | 1000
+ | 3000
+ | 7000
+ | 15000
+ |
+Norm draws
+ | 1
+ | 4
+ | 7
+ | 16
+ |
+High draws
+ | 0
+ | 1
+ | 2
+ | 4
+ |
+Gems
+ | 300
+ | 1400
+ | 2500
+ | 5000
+ |
+Normal package
+1 cards draw package will draw a normal % card
+Normal % draw 70%, 20%, 10% for 3*, 4* and 5* (1 draw)
+Get 1 loyalty point
+5 cards draw package will have 2 types of % chances
+High % draw 60%, 25%, 15% for 3*, 4* and 5* respectively (1 draw)
+Normal % draw 70%, 20 %, 10% for 3*, 4* and 5* (4 draws)
+Get 3 loyalty point
+9 cards draw package will have 2 types of % chances
+High % draw 45%, 35%, 20% for 3*, 4* and 5* respectively (2 draws)
+Normal % draw 70%, 20%, 10% for 3*, 4* and 5* (7 draws)
+Get 7 loyalty point
+20 cards draw package will have 2 types of % chances
+High % draw 20%, 45%, 35% for 3*, 4* and 5* respectively (4 draws)
+Normal % draw 70%, 20 %, 10% for 3*, 4* and 5* (16 draws)
+Get 15 loyalty point
+Event focus package
+Pool drawing system whereby there will be a total number of cards to be drawn. There will be a 5* and 2x 4* cards in the pool and each draw will reduce the no of cards in the pool so eventually payer will have a chance to draw 5*/4* cards. There is also a reset button if the player wants to
+Draw % will be the same as normal % draw
+Loyalty point systems whereby payer accumulate point for every purchase and can use that point to redeem for later. A different card deck will be available for this loyalty point systems
+Redemption
+5000 loyalty point for week long membership
+9500 loyalty point for fortnight membership
+18000 loyalty point for month membership
+500 and 1000 loyalty point to redeem the cards here.
+Potions
+Signal fire
+High Security
+Events items
+1 item – 80 gems
+5 items – 380 gems
+10 items –  740 gems
+20 items – 1400 gems
+75 items – 5000 gems
+There will be a deal to buy all items package at 50% but limited to one buy person
+Gems for building empire
+Other than reduce the waiting time for building, there will be a burst of resource collection (1 gem for every 12 minutes reduction)
+Tickets for events
+Special equipment can’t be purchase and only can be earn thru questing or events
+Payment will be by app store or similar payment like in alipay in wechat

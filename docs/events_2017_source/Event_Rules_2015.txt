@@ -1,0 +1,21 @@
+Event Rules
+Chest
+How it works
+You quested for ancient, mysterious chests containing random items, and opened them for Unlock Points for you and your guild.
+While questing, you would come across event bosses that dropped golden Chests containing more valuable items. During the event you would also be able to collect keys used to open the chests. Inside the chests you would find treasures that you could complete into sets for a new 3*, 4* and 5* card.
+Keys
+Peasant Keys have a chance of opening your chests. If 3 keys are used to aid an ally in opening a chest, the chance is 100%, if 2 or 4 allies (depends on event) come to the aid of the person requesting help.
+Royal Keys have a 100% chance of opening a chest. You also have a higher chance of better rewards, and you earn more Unlock Points when used on your own chests. Royal Keys can be bought in the store during the event period.
+Chest
+Wooden Chest - Found in Event Quests. Contains a random item or an Event Artifacts.
+Golden Chest - Opened with 3 Gold Keys for more Unlock Points, or by allies using any 1 Royal key or 3Peasant keys each.
+Golden time zone
+In this Event there is a special cycles on certain timing of the event called Golden Time. During Golden Time the top players in those Rival rankings will receive an extremely large Unlock Points reward.
+Bonus Breakdown
+An Event Bonus Card can help you perform and rank better in events. They might have a bonus attack effect, a bonus ranking point effect, a bonus drop rate effect for certain events, improves your damage against bosses or other players, the amount of points you earn, or the amount of items you receive during a quest. The bonus effect is not always listed on the card.
+They are typically only added to the Event packs, where they remain available after the end of the event, but MIGHT be stripped of their bonus effect. Newly released Event bonus Cards will have 2x effective as compared to previously released Event bonus cards with the same skill.
+Note: Unlock Points bonus effect is cumulative. If an Event Bonus Card has the bonus effect skill as both the normal and ultimate skill, the effect will be stackable.
+Trading restriction
+Any used event card by the player will be restricted from trading until the end of event. Player will not be able to trade the particular event card once it has been equipped and used in the event. The card will be unlock once the event ends.
+Penalty
+http://reignofdragons.wikia.com/wiki/Raid_Event
