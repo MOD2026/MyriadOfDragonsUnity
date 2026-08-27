@@ -2625,6 +2625,38 @@ engine already knows the currently available spell would be lethal, never a fore
 **That directly covers the case the segments cannot.** It was specified as optional; on this analysis
 it is **required**, not optional.
 
+## Oversized scrims FIXED 2026-08-27 (`4708e36`) - and an EIGHTH instance of the same class
+
+MemoryExpedition (26 scrims / 14 buttons) and SpellLoadoutPicker (18 scrims / 6 buttons) both measure
+**0 overlaps** after the fix. DailyLoginQuests untouched - routed to the room that owns it.
+
+**CR's FIRST attempt was itself wrong and they caught it before committing.** They computed the scrim
+size from a formula assuming the canvas is exactly 1920x1080 in local units, chaining fractions
+grid -> tile -> plate down to a literal. Measured it: **MemoryExpedition's tiles still overlapped,
+just less severely.** Real cause - **in the EditMode environment the canvas's resolved width was 640,
+not 1920.** The assumed literal does not hold whenever the canvas is not literally that size.
+
+**That is the EIGHTH instance of "assumed size does not match real size" today**, and it appeared
+*inside the fix for the seventh.* The class is not a set of bugs, it is a habit of reasoning.
+
+**THE REAL FIX, and the pattern to reuse: read the target RectTransform's own `.rect.size` directly
+after its anchors are set.** Unity resolves fraction-anchored rects synchronously, so that value is
+true regardless of what the canvas turns out to be. **No formula, no literal, no assumed canvas.**
+
+**Warning added to `AddLocalGradientScrim`'s doc comment:** all three broken instances were inside a
+per-element LOOP; every correct call site is a one-off. A loop is where reaching for a fixed literal
+feels natural, so the next person is now warned at the point of use.
+
+## Enemy crest art APPROVED 2026-08-27
+
+Five tier emblems (Novice / Apprentice / Veteran / Master / Titan), 512x512 RGBA, genuine alpha,
+transparent to the corners. **CC verified the 70px-over-near-black test sheet by eye, not on the audit
+CSV alone:** all five individually identifiable at render size, clear escalation from a plain iron
+sigil to an ornate horned crest with amber engraving, one coherent heraldic family, muted throughout.
+
+**NOT IMPORTED YET.** Source:
+`C:/Users/zihan/Documents/Codex/2026-08-09/referenced-chatgpt-conversation-this-is-an-3/outputs/Battle_Enemy_Crest_Emblems_V1/`
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
