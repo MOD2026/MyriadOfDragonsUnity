@@ -3814,7 +3814,17 @@ namespace MyriadOfDragons.UI
                 textColLayout.childForceExpandWidth = true;
                 textColLayout.childForceExpandHeight = false;
                 textColLayout.childControlWidth = true;
-                textColLayout.childControlHeight = false;
+                // Seventh instance of the silent-no-op class (CR, 2026-08-27, corrected-criterion
+                // sweep - CC flagged that "sizeDelta exists" isn't the same question as "every
+                // sizing call here has an effect"): this was false, so spellName's/spellLabel's
+                // SetPreferredHeight(24)/(20) below never applied - neither has its own sizeDelta
+                // set anywhere, so both rendered at Unity's default 100 tall (measured), stacking to
+                // 200 units inside a textColGo that is itself correctly only 62 tall. Flipped to
+                // true so the LayoutElements actually apply - unlike the row's own width fix
+                // earlier, there's no nested LayoutGroup on spellName/spellLabel to fight over the
+                // value (that conflict was specific to Text, which owns one), so this is the plain
+                // childControlHeight=true fix, not the pre-set-sizeDelta workaround.
+                textColLayout.childControlHeight = true;
 
                 Text spellName = CreateText(textColGo.transform, "", 17, Color.white, font);
                 spellName.fontStyle = FontStyle.Bold;
