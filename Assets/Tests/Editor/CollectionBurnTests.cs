@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Save;
 using NUnit.Framework;
@@ -145,6 +145,27 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(ok);
             Assert.AreEqual(CollectionBurnError.SaveFailed, result.Error);
             Assert.AreEqual(2, profile.cardProgression[0].copyCount);
+            Assert.AreEqual(0, profile.cardProgression[0].trainingXp);
+        }
+
+        [Test]
+        public void SaveThrows_RollsBackJustLikeSaveReturningFalse()
+        {
+            // A save that THROWS used to leave the profile mutated with the copy already consumed,
+            // so a later save from any path could persist the loss. Restore must not depend on the
+            // save reporting failure politely.
+            PlayerProfile profile = NewMigratedProfile();
+            profile.cardProgression.Add(new CardProgressionRecord { cardId = "warrior", copyCount = 2, trainingXp = 0 });
+
+            Assert.Throws<IOException>(() => CollectionBurnService.TryBurnCopy(
+                profile,
+                "warrior",
+                CollectionBurnPath.TrainingXp,
+                receiptId: null,
+                out CollectionBurnReceiptResult _,
+                saveFn: _ => throw new IOException("disk full mid-save")));
+
+            Assert.AreEqual(2, profile.cardProgression[0].copyCount, "burned copy was not restored after a throwing save");
             Assert.AreEqual(0, profile.cardProgression[0].trainingXp);
         }
 

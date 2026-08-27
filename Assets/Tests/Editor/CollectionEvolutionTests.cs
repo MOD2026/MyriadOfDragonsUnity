@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Save;
 using NUnit.Framework;
@@ -163,6 +163,46 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(copiesBefore, profile.cardProgression[0].copyCount);
             Assert.AreEqual(stepBefore, profile.cardProgression[0].evolutionStep);
             Assert.AreEqual(permitsBefore, profile.ascensionPermitBalance);
+            Assert.AreEqual(forgeBefore, profile.collectionWallet.forgeCredits);
+            Assert.AreEqual(3, profile.cardProgression[0].cardLevel);
+            Assert.AreEqual(10, profile.cardProgression[0].trainingXp);
+        }
+
+        [Test]
+        public void SaveThrows_RollsBackGoldCopiesPermitAndWallet()
+        {
+            // Same defect as the burn path: restore ran only on a FALSE return, never on a throw,
+            // leaving copy, gold, materials and any spent permit consumed with nothing granted.
+            PlayerProfile profile = NewMigratedProfile(gold: 10000);
+            profile.ascensionPermitBalance = 2;
+            profile.collectionWallet.forgeCredits = 100;
+            profile.collectionWallet.dustByRarity.Add(new RarityMaterialBalance { rarity = 1, dust = 50 });
+            profile.cardProgression.Add(new CardProgressionRecord
+            {
+                cardId = "warrior",
+                copyCount = 2,
+                evolutionStep = 1,
+                cardLevel = 3,
+                trainingXp = 10,
+            });
+
+            int goldBefore = profile.gold;
+            int copiesBefore = profile.cardProgression[0].copyCount;
+            int stepBefore = profile.cardProgression[0].evolutionStep;
+            int permitsBefore = profile.ascensionPermitBalance;
+            int forgeBefore = profile.collectionWallet.forgeCredits;
+
+            Assert.Throws<IOException>(() => CollectionEvolutionService.TryEvolve(
+                profile,
+                "warrior",
+                receiptId: null,
+                out CollectionEvolutionReceiptResult _,
+                saveFn: _ => throw new IOException("disk full mid-save")));
+
+            Assert.AreEqual(goldBefore, profile.gold);
+            Assert.AreEqual(copiesBefore, profile.cardProgression[0].copyCount, "consumed copy was not restored after a throwing save");
+            Assert.AreEqual(stepBefore, profile.cardProgression[0].evolutionStep);
+            Assert.AreEqual(permitsBefore, profile.ascensionPermitBalance, "spent ascension permit was not restored after a throwing save");
             Assert.AreEqual(forgeBefore, profile.collectionWallet.forgeCredits);
             Assert.AreEqual(3, profile.cardProgression[0].cardLevel);
             Assert.AreEqual(10, profile.cardProgression[0].trainingXp);

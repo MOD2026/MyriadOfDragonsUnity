@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using MyriadOfDragons.Cards;
 
@@ -82,7 +82,20 @@ namespace MyriadOfDragons.Save
             result.CopiesAfter = record.copyCount;
             result.GoldAfter = profile.gold;
 
-            if (!saveFn(profile))
+            bool saved;
+            try
+            {
+                saved = saveFn(profile);
+            }
+            catch
+            {
+                // A throwing save leaves the profile mutated with the copy already consumed.
+                // Restore before the exception escapes, then let it propagate as before.
+                RestoreSnapshot(profile, snapshot);
+                throw;
+            }
+
+            if (!saved)
             {
                 RestoreSnapshot(profile, snapshot);
                 result.Error = CollectionBurnError.SaveFailed;
