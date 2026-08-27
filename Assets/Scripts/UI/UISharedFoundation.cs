@@ -171,29 +171,6 @@ namespace MyriadOfDragons.UI
             return rect;
         }
 
-        public static RectTransform CreateBottomDock(Transform parent, string name, float height, Color background)
-        {
-            GameObject dockObj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup));
-            dockObj.transform.SetParent(parent, false);
-
-            Image bg = dockObj.GetComponent<Image>();
-            bg.color = background;
-
-            RectTransform rect = dockObj.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 0f);
-            rect.anchorMax = new Vector2(1f, 0f);
-            rect.pivot = new Vector2(0.5f, 0f);
-            rect.sizeDelta = new Vector2(0f, height);
-
-            HorizontalLayoutGroup hlg = dockObj.GetComponent<HorizontalLayoutGroup>();
-            hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.spacing = UIFrozenTokens.SpacingGrid * 4;
-            hlg.childControlWidth = false;
-            hlg.childControlHeight = false;
-
-            return rect;
-        }
-
         public static Text CreateCurrencyPill(Transform parent, string text, Color background)
         {
             GameObject pill = new GameObject("CurrencyPill", typeof(RectTransform), typeof(Image));
@@ -488,7 +465,15 @@ namespace MyriadOfDragons.UI
                 // Only warn when there WAS a real path to try and it genuinely failed to load -
                 // DefaultFramedPanelResourcePath legitimately returns null for a kind with no art
                 // authored yet, and that's not a bug. ~24+ call sites share this fallback.
-                WarnOnceMissingSprite(path, "ApplyFramedPanel/CreateFramedPanel (falls back to the procedural rounded panel)");
+                //
+                // Tier1Hero implies critical (CC, 2026-08-27): the locked definition of Tier 1 is
+                // literally "the screen's ONE primary CTA" - a button whose chrome is Tier-1 IS the
+                // primary CTA by definition, so a missing sprite there is the exact silent-fallback
+                // case Finding 2 exists to catch, not a cosmetic miss. Reuses the tier already
+                // threaded through this method rather than a new parameter, so callers that pass a
+                // tier for border-style reasons get the criticality for free.
+                WarnOnceMissingSprite(path, "ApplyFramedPanel/CreateFramedPanel (falls back to the procedural rounded panel)",
+                    critical: tier == UIDesignTokens.FrameTier.Tier1Hero);
             }
         }
 
