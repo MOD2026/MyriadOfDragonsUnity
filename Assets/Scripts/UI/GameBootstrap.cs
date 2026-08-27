@@ -3758,10 +3758,14 @@ namespace MyriadOfDragons.UI
             _selectedCardText.alignment = TextAnchor.UpperCenter;
             _selectedCardText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _selectedCardText.resizeTextForBestFit = true;
+            // NOT raised to the 22px floor: measured 2026-08-28, real worst-case content needs
+            // 150px at 22px font against this box's real 84.5px - raising the min without
+            // growing the box trades an invisible shrink for visible clipping. Needs a real
+            // redesign (capture-reviewed), not a constant flip. See docs/CC_CO_CONTROL_BOARD.md.
             _selectedCardText.resizeTextMinSize = 10;
-            // Font floor fix (16->22 max): placementBox is ~199x125px real size, real room for
-            // this multi-line hint at 22px - best-fit still governs the actual rendered size per
-            // line count, this just raises the ceiling it can use.
+            // Font floor fix (16->22 max, pre-existing, still safe on its own): placementBox has
+            // real room for a SHORT selection at 22px - best-fit still governs the actual
+            // rendered size per line count, this just raises the ceiling it can use.
             _selectedCardText.resizeTextMaxSize = 22;
             StretchFull(_selectedCardText.rectTransform);
 
@@ -3774,6 +3778,11 @@ namespace MyriadOfDragons.UI
             _synergyText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _synergyText.verticalOverflow = VerticalWrapMode.Truncate;
             _synergyText.resizeTextForBestFit = true;
+            // NOT raised to the 22px floor: measured 2026-08-28, this band is only ~7.3px real
+            // (0.04 of the panel height) against a worst-case description needing ~100px -
+            // Truncate mode also makes the geometry gate's overflow check structurally blind
+            // here. Needs a real redesign (capture-reviewed), not a constant flip. See
+            // docs/CC_CO_CONTROL_BOARD.md.
             _synergyText.resizeTextMinSize = 11;
             _synergyText.resizeTextMaxSize = 16;
             AnchorBand(_synergyText.rectTransform, 0.0f, 0.04f, 0.005f, 0.85f);
@@ -3860,6 +3869,9 @@ namespace MyriadOfDragons.UI
             _handHintText = CreateText(placementBox, "", 14, new Color(0.85f, 0.6f, 0.4f), font);
             _handHintText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _handHintText.resizeTextForBestFit = true;
+            // NOT raised to the 22px floor: shares placementBox with _selectedCardText above
+            // (real measured 84.5px) - same box-too-small blocker, needs the same redesign pass.
+            // See docs/CC_CO_CONTROL_BOARD.md.
             _handHintText.resizeTextMinSize = 10;
             _handHintText.resizeTextMaxSize = 14;
             StretchFull(_handHintText.rectTransform);
