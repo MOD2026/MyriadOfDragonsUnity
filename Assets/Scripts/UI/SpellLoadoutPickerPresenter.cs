@@ -221,7 +221,14 @@ namespace MyriadOfDragons.UI
                 pick.fontSize = 24;
                 pick.fontStyle = FontStyle.Bold;
                 pick.raycastTarget = false;
-                SetNorm(pick.rectTransform, 0.42f, 0.05f, 0.95f, 0.55f);
+                // Geometry gate fix (register, 2026-08-27): band grown from 0.05-0.55 (43.2px) to
+                // 0.0-0.64 (~55px+) - a two-line wrap at 24px needs 55px and the old band was
+                // 11.8px short. PickLabel is a plain sibling Text on `cell` with no backing of its
+                // own; the only thing at these fractions is EffectLabelPlate's dark full-cell
+                // plate (0.40-0.98 x, 0.50-0.98 y) behind it - PickLabel already renders on top of
+                // that plate in their pre-existing 0.05 overlap, so extending further into it is
+                // the same relationship, not a new one. EffectLabelPlate itself is untouched.
+                SetNorm(pick.rectTransform, 0.42f, 0.0f, 0.95f, 0.64f);
                 _slotLabels.Add(pick);
             }
 
