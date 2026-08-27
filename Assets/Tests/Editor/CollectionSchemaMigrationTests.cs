@@ -128,14 +128,16 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void DefaultIdCheck_WithoutDatabase_AcceptsAnyId_AndReportsTheFallback()
+        public void DefaultIdCheck_WithoutDatabase_QuarantinesRatherThanAccepting()
         {
-            // Documents the real harness gap instead of leaving it silent: with no CardDatabase,
-            // the default check accepts ids the live runtime quarantines. MOST EditMode fixtures
-            // never build a database, so most migration tests run on this permissive branch and
-            // prove nothing about id legality. Behaviour is deliberately unchanged here - a load
-            // that legitimately precedes the database must not start discarding a player's cards -
-            // so this locks the gap in place visibly rather than closing it by stealth.
+            // The gap this used to document is now closed. Previously the no-database fallback
+            // accepted ANY non-empty id, so the harness was structurally more permissive than
+            // production and a green migration test proved nothing about id legality. The default
+            // check now rejects instead, and this fixture is the lock on that.
+            //
+            // Quarantine is non-destructive: the id lands in collectionMigrationUnknownIds and the
+            // legacy cardCollection list is never mutated, so a load that legitimately precedes the
+            // database loses nothing recoverable.
             Object.DestroyImmediate(_databaseGo);
             _databaseGo = null;
             CardDatabase.ResetForTests();
@@ -147,10 +149,31 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsFalse(CollectionSchemaMigration.LastApplyVerifiedIdsAgainstDatabase,
                 "Setup guard: this test is only meaningful with no CardDatabase loaded.");
-            Assert.IsEmpty(profile.collectionMigrationUnknownIds,
-                "Without a database the unknown id is accepted rather than quarantined - the gap.");
-            Assert.AreEqual(1, profile.cardProgression.Count,
-                "An id the live runtime would reject became a real progression row.");
+            CollectionAssert.Contains(profile.collectionMigrationUnknownIds, "not_a_real_card",
+                "With no database to validate against, the id must be quarantined, not accepted.");
+            Assert.IsEmpty(profile.cardProgression,
+                "An id the live runtime would reject must not become a progression row.");
+        }
+
+        [Test]
+        public void DefaultIdCheck_WithoutDatabase_LeavesLegacyListIntactForLaterRecovery()
+        {
+            // The tightening is only defensible because it is non-destructive. If a load ever does
+            // precede the database, the quarantine must be recoverable - which requires the legacy
+            // cardCollection list to survive untouched. This asserts the property the decision to
+            // reject rests on, rather than trusting the comment that claims it.
+            Object.DestroyImmediate(_databaseGo);
+            _databaseGo = null;
+            CardDatabase.ResetForTests();
+
+            var profile = new PlayerProfile();
+            profile.cardCollection.Add("warrior");
+
+            CollectionSchemaMigration.Apply(profile);
+
+            CollectionAssert.Contains(profile.cardCollection, "warrior",
+                "Migration must never mutate the legacy list - it is the only recovery source.");
+            CollectionAssert.Contains(profile.collectionMigrationUnknownIds, "warrior");
         }
 
         [Test]

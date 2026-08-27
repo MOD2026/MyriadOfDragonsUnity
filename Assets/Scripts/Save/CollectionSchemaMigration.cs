@@ -86,19 +86,12 @@ namespace MyriadOfDragons.Save
         }
 
         /// <summary>True when the most recent <see cref="Apply"/> validated ids against a real
-        /// <see cref="CardDatabase"/>; false when it fell back to accepting any non-empty id because
-        /// no database was loaded.
+        /// <see cref="CardDatabase"/>; false when no database was loaded and every id was therefore
+        /// quarantined.
         ///
-        /// Exists because that fallback is INVISIBLE, and invisible permissiveness is how a test
-        /// suite ends up proving less than it appears to. In EditMode most fixtures never build a
-        /// CardDatabase, so they silently take the permissive branch and accept ids the real runtime
-        /// would quarantine - a green migration test there says nothing about id legality. This flag
-        /// lets a fixture that cares ASSERT which branch it got instead of assuming the strict one.
-        ///
-        /// Deliberately NOT used to change behaviour: tightening the fallback could quarantine a
-        /// real player's cards on any load that legitimately runs before the database exists. That
-        /// is a decision above this file, so this makes the gap measurable rather than silently
-        /// closing it.</summary>
+        /// The flag predates the tightening below and still earns its place: it lets a fixture
+        /// ASSERT which branch it got rather than assume, so a wholesale quarantine caused by a
+        /// missing database is never mistaken for a genuine id-legality result.</summary>
         public static bool LastApplyVerifiedIdsAgainstDatabase { get; private set; }
 
         private static bool DefaultIsKnownCardId(string id)
@@ -111,9 +104,21 @@ namespace MyriadOfDragons.Save
                 return CardDatabase.Instance.GetCard(id) != null;
             }
 
-            // EditMode tests and pre-bootstrap loads may not have CardDatabase - accept non-empty ids.
+            // No database: REJECT rather than accept. The old fallback accepted any non-empty id,
+            // which made the harness structurally more permissive than production - EditMode
+            // fixtures silently validated ids the live runtime quarantines, so a green migration
+            // test proved nothing about id legality.
+            //
+            // Safe because production always has the database by the time a profile migrates
+            // (verified by sweep d177c14); the permissive branch was reachable only from EditMode
+            // and pre-bootstrap paths. Migration is non-destructive either way - rejected ids land
+            // in collectionMigrationUnknownIds, and the legacy cardCollection list is never mutated,
+            // so nothing is lost even if a load does precede the database.
+            //
+            // A fixture that genuinely does not care about id legality must now say so out loud by
+            // passing its own predicate to Apply, e.g. Apply(profile, _ => true).
             LastApplyVerifiedIdsAgainstDatabase = false;
-            return true;
+            return false;
         }
     }
 }
