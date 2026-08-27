@@ -2586,6 +2586,45 @@ check it.**
 drop to **10 segments at 10%** rather than thinning dividers. Performance is unlikely to matter at 20
 static segments in uGUI, but measure rather than assume.
 
+## VERIFIED: the 20-segment bar holds - but not for the reason CC first gave (2026-08-27)
+
+CC wrote that proportional segments survived the 100-540+ health range "by luck rather than design".
+Owner rejected that. **Checked against real code. The conclusion changes.**
+
+**REAL NUMBERS:**
+- `PlayerEmpireData.BaseAvatarHealth = 100`, `MaxAvatarHealthBonus = 120` at Avatar L30, plus castle
+  and other bonuses - the 100-to-540+ range is real.
+- **Spell damage is FIXED and does not scale with enemy max health.** `AvatarSpell` deals
+  `magnitude * AvatarDamageMultiplier`, and `LaneBattleResolver.AvatarDamageMultiplier = 4`. Spell
+  magnitudes are unit-scale 1-12, so a magnitude-6 spell deals **24 damage, always.**
+
+**WHAT THAT MEANS ACROSS PROGRESSION:**
+```
+                          24-damage spell
+at 100 max HP    ->  24%  ->  ~4.8 segments
+at 540 max HP    ->  4.4% ->  ~0.9 segments
+```
+**The same spell moves five segments early and less than one segment late.**
+
+**THE DESIGN STILL HOLDS, and here is the actual reason - two questions, two mechanisms:**
+- **"How much health remains?"** is answered by the **proportional segments**. 5%-of-max is correct at
+  every point on the curve; the bar is honest about a 24-damage spell being a large chunk of 100 and a
+  small chunk of 540. That is not a display flaw, it is the truth.
+- **"Did my spell land?"** is answered by the **damage flash event** (120ms), NOT by segment movement.
+  Which is exactly why BS specified it as an event rather than relying on the bar.
+
+**So it was not luck. The two mechanisms cover two different questions, and neither is doing the
+other's job.**
+
+**GENUINE RESIDUAL RISK, now identified rather than hand-waved:** late-game, a single cast moves under
+one segment, so a player **cannot read from the bar whether two more casts will finish the
+opponent.** Resolution degrades exactly where the fight is longest.
+
+**MITIGATION ALREADY IN THE DESIGN:** the deterministic lethal marker - shown only when the combat
+engine already knows the currently available spell would be lethal, never a forecast, never a number.
+**That directly covers the case the segments cannot.** It was specified as optional; on this analysis
+it is **required**, not optional.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
