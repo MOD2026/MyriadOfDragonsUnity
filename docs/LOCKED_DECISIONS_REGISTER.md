@@ -2979,6 +2979,60 @@ deduce/reveal. Chest = choose/explore. **If Memory becomes another sequence of o
 is not distinct and should not be a separate mode.** Two events sharing a verb AND a cadence are one
 event with two skins.
 
+## NINE EVENTS - VERB + CADENCE TABLE LOCKED 2026-08-27
+
+Owner directive: keep all nine, differentiate rather than discard. **Anti-clash mechanism is DOMINANT
+VERB + CADENCE.**
+
+| Event | Verb | Cadence | Server |
+|---|---|---|---|
+| Chest | **Explore** | Weekly, 7-day window | None solo |
+| Puzzle | **Deduce** | Weekly, 3-7 puzzles | None solo |
+| Floor Clearance | **Endure** | Weekly, 7-day window | None as solo gauntlet |
+| Dragon Raising | **Nurture** | Seasonal, 7-14 days | None solo |
+| Raid | **Hunt** | Fortnightly, 3-4 days | HARD - boss HP, damage ledger, claims |
+| Guild Wars | **Coordinate** | Fortnightly, alternating with Raid | HARD - roster, roles, scoring |
+| Castle Defend | **Protect** | Fortnightly, alternating with Guild Wars | HARD - snapshots, repair, retaliation |
+| Conqueror | **Claim** | Seasonal, 14 days | HARD - territory ownership, occupancy |
+| Battle Royale | **Race** | Seasonal, 7 days per 28-day season | HARD - matchmaking, snapshots |
+
+**NON-OVERLAP RULES:** never Guild Wars with Castle Defend; never Raid with either; never Battle Royale
+with Conqueror; never two full solo events in one week. **Until a server exists, only Chest, Puzzle,
+Floor Clearance and Dragon Raising activate.**
+
+**DAILY BUDGET: TWO substantive activities maximum.** Solo Circuit 4-6 min + one event 3-5 min +
+Memory as a 2-3 min MICRO-session + claims = **10-14 minutes.** Three substantive activities is 14-20
+and turns the game into a checklist. **If Chest or Puzzle is live, the player must NOT also be required
+to complete Floor Clearance.**
+
+**VERB COLLISIONS TO WATCH** (behavioural, even where names differ): Raid/Castle Defend both become
+repeated attacks - keep Raid PvE boss hunting, Castle Defend timed protection, **and if Castle Defend
+cannot offer real defence decisions, DROP it rather than maintain two siege modes.**
+Conqueror/Castle Defend both do base protection. Chest/Floor Clearance both collapse into "run battles,
+take drops" unless Chest stays route-choice and Floor stays survival escalation. Puzzle/Solo Circuit
+both test constrained decisions. Dragon Raising/Chest both become collection meters unless Dragon
+centres on feed allocation.
+
+**MISSING COGNITIVE MODE: PLAN/ALLOCATE** - spending a constrained budget across competing objectives.
+Nothing in the line-up does this. **Dragon Raising is the candidate** - make feed quality, timing and
+limited daily allocation the central decision, not another combat clear with a different reward icon.
+
+**MEMORY EXPEDITION vs PUZZLE - the sharpest distinction in the answer:** Puzzle = **deduce the correct
+battle line** (tactical reconstruction). Memory = **recover the correct record pattern** (non-combat
+reveal/matching). If Memory becomes another sequence of ordinary auto-battles it is not distinct and
+should not be a separate mode.
+
+### CC VERIFICATION: Puzzle is NOT a 2017 design - it is PARTLY BUILT
+
+BS proposed Puzzle "using the existing verifier" without knowing how much exists. Checked:
+`TacticalPuzzleVerifier.cs` 335 lines, `TacticalPuzzleAuthoring.cs` 513 lines with **16 authored
+puzzle definitions**, `TacticalPuzzlePresenter.cs` 825 lines. **1,673 lines and real authored content.**
+
+**So Puzzle is the cheapest of the nine to ship, not Chest** - it has a verifier, an authoring layer,
+authored content and a presenter. Chest has a locked design and no code. **That reorders the build
+sequence: Puzzle first, Chest second.** Its two known defects (text overlap, zero chrome) are UI work
+on an existing screen rather than a new system.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
