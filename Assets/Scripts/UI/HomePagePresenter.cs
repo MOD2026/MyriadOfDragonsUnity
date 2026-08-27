@@ -464,8 +464,13 @@ public class HomePagePresenter : MonoBehaviour
 
         Button identityButton = identityRoot.AddComponent<Button>();
         identityButton.targetGraphic = identityBg;
-        identityButton.transition = Selectable.Transition.ColorTint;
+        // None, not ColorTint (CR, 2026-08-27, interaction-states pass 1/pressed-only): Button's
+        // own ColorTint transition silently overwrites any color InteractionStateController paints
+        // (documented conflict, see CreateButton's own identical note) - the controller is now the
+        // single source of truth for this button's visual feedback.
+        identityButton.transition = Selectable.Transition.None;
         identityButton.onClick.AddListener(() => OpenAvatar());
+        identityRoot.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
         // HUD placeholders before Save is ready — must mirror PlayerProfile field defaults (not re-typed).
         PlayerProfile hudDefaults = new PlayerProfile();
@@ -756,6 +761,10 @@ public class HomePagePresenter : MonoBehaviour
         Button claimBtn = claimBtnObj.GetComponent<Button>();
         HomeV3UiLibrary.ApplyPrimaryActionButton(claimBtn, claimImg);
         claimBtn.onClick.AddListener(OnClaimWeeklyPermitsClicked);
+        // Additive to the existing SpriteSwap press art (not a replacement) - SpriteSwap only
+        // touches .sprite, this controller only touches .color/localScale, so they compose rather
+        // than conflict (unlike ColorTint, which fights over the same .color property).
+        claimBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
         SetLocalNormalisedRect(claimBtnObj.GetComponent<RectTransform>(), 0.06f, 0.08f, 0.4f, 0.22f);
         Text claimLabel = UISharedFoundation.CreateText(claimBtnObj.transform, "Label", "CLAIM", UITextRole.Body,
             TextAnchor.MiddleCenter, Color.white, true, new Vector2(260f, 40f));
@@ -772,6 +781,7 @@ public class HomePagePresenter : MonoBehaviour
         Button serverBtn = serverBtnObj.GetComponent<Button>();
         HomeV3UiLibrary.ApplyNeutralActionButton(serverBtn, serverImg, new Color(0.16f, 0.22f, 0.2f, 0.92f));
         serverBtn.onClick.AddListener(OpenPermitWeekKey);
+        serverBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
         SetLocalNormalisedRect(serverBtnObj.GetComponent<RectTransform>(), 0.44f, 0.08f, 0.7f, 0.22f);
         Text serverLabel = UISharedFoundation.CreateText(serverBtnObj.transform, "Label", "OTHER BONUS", UITextRole.Body,
             TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
@@ -866,6 +876,9 @@ public class HomePagePresenter : MonoBehaviour
         Button actionButton = actionBtn.GetComponent<Button>();
         HomeV3UiLibrary.ApplyPrimaryActionButton(actionButton, actionImg);
         actionButton.onClick.AddListener(card.Action);
+        // Tier1Hero: the comment above and the locked rule both say this is the screen's one
+        // primary CTA - gets the strong end of the press feedback (0.96 scale, 80ms).
+        actionBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
         SetLocalNormalisedRect(actionBtn.GetComponent<RectTransform>(), 0.06f, 0.08f, 0.4f, 0.22f);
 
         Text actionLabel = UISharedFoundation.CreateText(actionBtn.transform, "Label", card.ActionLabel, UITextRole.Body,
@@ -921,6 +934,9 @@ public class HomePagePresenter : MonoBehaviour
         Button btn = btnObj.GetComponent<Button>();
         HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(0.11f, 0.14f, 0.19f, 0.9f));
         btn.onClick.AddListener(action);
+        // Shared by DestinationBar, both tab hubs, and the Social drawer's tab strip (see the
+        // label-box comment below) - one wiring point covers all of them.
+        btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
         // Label box scales with the REAL button width (was a hardcoded 160px regardless of the
         // caller's actual button size) - at the T2Utility (28px) type floor, a fixed 160px box
@@ -1122,6 +1138,8 @@ public class HomePagePresenter : MonoBehaviour
             img.color = new Color(0.2f, 0.24f, 0.3f, 0.9f);
 
         btn.onClick.AddListener(OpenSettings);
+        // Small icon button - Tier4Surface (no scale change, tint only per the locked tokens).
+        btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier4Surface;
 
         if (gear == null)
         {
@@ -1149,6 +1167,7 @@ public class HomePagePresenter : MonoBehaviour
         Button btn = btnObj.GetComponent<Button>();
         HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(0.16f, 0.22f, 0.2f, 0.92f));
         btn.onClick.AddListener(OpenSocialDrawer);
+        btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
         Text label = UISharedFoundation.CreateText(btnObj.transform, "Label", "SOCIAL", UITextRole.Caption,
             TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(180f, 36f));
@@ -1208,6 +1227,7 @@ public class HomePagePresenter : MonoBehaviour
         Button closeBtn = closeBtnObj.GetComponent<Button>();
         HomeV3UiLibrary.ApplyNeutralActionButton(closeBtn, closeImg, new Color(0.2f, 0.14f, 0.14f, 0.92f));
         closeBtn.onClick.AddListener(CloseSocialDrawer);
+        closeBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier4Surface;
         Text closeLabel = UISharedFoundation.CreateText(closeBtnObj.transform, "Label", "CLOSE", UITextRole.Body,
             TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(100f, 32f));
         UIDesignTokens.Apply(closeLabel, UIDesignTokens.TypeTier.T2Utility);
@@ -1341,6 +1361,7 @@ public class HomePagePresenter : MonoBehaviour
         Button backBtn = backBtnObj.GetComponent<Button>();
         HomeV3UiLibrary.ApplyNeutralActionButton(backBtn, backImg, new Color(0.22f, 0.18f, 0.14f, 0.92f));
         backBtn.onClick.AddListener(CloseTabHub);
+        backBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier4Surface;
         UISharedFoundation.CreateText(backBtnObj.transform, "Text", "< BACK", UITextRole.Body,
             TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 34f));
 
