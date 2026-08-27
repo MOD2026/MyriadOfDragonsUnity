@@ -135,7 +135,7 @@ namespace MyriadOfDragons.UI
             Image eImg = entry.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(entry.GetComponent<Button>(), eImg, new Color(0.22f, 0.36f, 0.28f));
             entry.GetComponent<Button>().onClick.AddListener(OpenGuildExpedition);
-            SetNorm(entry.GetComponent<RectTransform>(), 0.60f, 0.06f, 0.94f, 0.22f);
+            SetNorm(entry.GetComponent<RectTransform>(), 0.58f, 0.08f, 0.95f, 0.24f);
             UISharedFoundation.CreateText(entry.transform, "Text", "EXPEDITION", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
             entry.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
