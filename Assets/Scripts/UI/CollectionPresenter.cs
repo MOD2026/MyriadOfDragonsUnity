@@ -320,6 +320,7 @@ namespace MyriadOfDragons.UI
             {
                 _onBackToHomeAction?.Invoke();
             });
+            backBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             GameObject deckBtnObj = CreateButton(_canvasObj.transform, "OpenDeckBuilderButton", "OPEN DECK BUILDER", new Vector2(560f, 60f), new Vector2(360f, 70f), new Color(0.18f, 0.4f, 0.28f));
             HomeV3UiLibrary.ApplyNavTileButton(deckBtnObj.GetComponent<Button>(), deckBtnObj.GetComponent<Image>());
@@ -327,6 +328,10 @@ namespace MyriadOfDragons.UI
             {
                 _onOpenDeckBuilderAction?.Invoke();
             });
+            // Tier2, not Tier1Hero - Collection's own purpose is browsing/managing cards (the
+            // detail panel's Burn/Evolve actions), not funneling to Deck Builder; this is a real,
+            // prominent nav action but not "the one thing this screen exists to lead to."
+            deckBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
         }
 
         private void LoadOwnedCards()
@@ -459,6 +464,12 @@ namespace MyriadOfDragons.UI
             hit.color = new Color(1f, 1f, 1f, 0.01f);
             Button tileBtn = tileObj.GetComponent<Button>();
             tileBtn.targetGraphic = hit;
+            // The tile's own Graphic (hit) is a near-invisible hit-catcher (alpha 0.01) - the
+            // visible card art lives in child Images this controller doesn't touch, so press here
+            // reads mainly as the scale squish, not a color darken. Still real, visible feedback
+            // (the whole tile including its art scales down), just via a different channel than
+            // most buttons. Tier3Utility: grid content, not the screen's singular CTA.
+            tileObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Card resolved = EnsureCardDatabase()?.GetCard(card.CardId);
             string tileName = resolved != null ? resolved.DisplayName : card.DisplayName;
@@ -624,6 +635,9 @@ namespace MyriadOfDragons.UI
         {
             GameObject btnObj = CreateButton(_detailActionsRoot, label.Replace(" ", ""), label, pos, new Vector2(360f, 38f), tint);
             btnObj.GetComponent<Button>().onClick.AddListener(action);
+            // Burn/Evolve - real currency/collection-consequential actions, the actual purpose of
+            // this screen's detail panel.
+            btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
         }
 
         private void AttemptBurn(CollectionBurnPath path)
@@ -816,6 +830,10 @@ namespace MyriadOfDragons.UI
 
             Button button = root.GetComponent<Button>();
             button.interactable = interactable;
+            // None, not Unity's default ColorTint - this button never called an
+            // ApplyXActionButton helper, so it was never given an explicit transition.
+            button.transition = Selectable.Transition.None;
+            root.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             CreateTextElement(root.transform, "Label", label, Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
             return root;
@@ -839,6 +857,7 @@ namespace MyriadOfDragons.UI
             Button button = root.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(button, root.GetComponent<Image>());
             button.onClick.AddListener(CycleClassFilter);
+            root.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             return label;
         }
 
@@ -886,6 +905,7 @@ namespace MyriadOfDragons.UI
             Button button = root.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(button, root.GetComponent<Image>());
             button.onClick.AddListener(CycleSortMode);
+            root.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             return label;
         }
 
@@ -930,6 +950,11 @@ namespace MyriadOfDragons.UI
             btnObj.transform.localScale = Vector3.one;
 
             btnObj.GetComponent<Image>().color = color;
+            // None, not Unity's default ColorTint - some callers (CreateDetailActionButton) never
+            // apply an ApplyXActionButton helper afterward, so without this they'd silently keep
+            // the default and fight InteractionStateController over Image.color. Callers that DO
+            // apply SpriteSwap afterward simply override this, which is harmless.
+            btnObj.GetComponent<Button>().transition = Selectable.Transition.None;
 
             RectTransform rect = btnObj.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, 0f);
