@@ -315,6 +315,7 @@ namespace MyriadOfDragons.UI
             CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = UISharedFoundation.MatchWidthOrHeight;
 
             // 2. Shop V1 catalog shell (1920×1080 RGBA) — empty wells; runtime owns all text/values.
             GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(Image));
