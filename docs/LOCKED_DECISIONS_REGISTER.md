@@ -2266,6 +2266,42 @@ person writing a test against these buttons does not lose the same hour.
 
 122/122 tests, 0 CS errors.
 
+## Interaction states: pressed LIVE on Home 2026-08-27 (`5aa472a`) - and a sixth silent-conflict
+
+**First real attachment of the interaction-state system.** Scoped deliberately to ONE state on ONE
+screen, verified, then stopped.
+
+Wired: `IdentityRoot` (Tier3), `ClaimWeeklyPermitsButton` + `Btn_PermitWeekKey` (Tier2/Tier3), the feed
+card's `PrimaryAction` (**Tier1Hero** - literally the screen's one primary CTA per its own code
+comment), `CreateDestinationButton` (Tier2 - the shared helper backing the nav bar, both tab hubs AND
+the Social drawer tabs, so **one wiring point covered all of them**), and Settings/CloseDrawer/Back at
+Tier4Surface per the tokens' no-scale carve-out for small icons.
+
+**VERIFIED BY MEASURING RENDERED OUTPUT, not by confirming the handler ran.** A real
+`OnPointerDownAt`/`ApplyAt` sequence on `Dest_BATTLE`, reading back: `localScale` settled at exactly
+**0.97** (the Tier2Section token), `Graphic.color` darkened to exactly **0.910** (1 - 0.09, not merely
+"darker"), released cleanly to 1.0, and **`sizeDelta`/`anchoredPosition` provably unchanged
+throughout.** Plus a real mid-press frame capture.
+
+**SIXTH INSTANCE OF THE SILENT-CONFLICT CLASS - and this one is systemic.** `IdentityRoot` used
+Unity's `ColorTint` transition, which **silently fights the controller over `Image.color`** - two
+systems writing the same property, last writer wins, no error, no warning. **`ColorTint` is Unity's
+DEFAULT button transition**, so any button created without an explicit transition carries it. Fixed by
+setting `None`.
+
+**`SpriteSwap` composes fine** and was correctly left alone - it only touches `.sprite`. That
+distinction holds until someone adds a tinted sprite-swap button, so it is a check, not an assumption.
+
+**NEXT PASS AUTHORISED: pressed AND disabled, across the remaining screens.** Both attach at the same
+wiring point and the pattern is proven, so visiting twenty screens twice to add one property each
+would be waste. **Disabled matters more than its list position suggests: a disabled button that looks
+identical to an enabled one is actively MISLEADING** - the player taps it and concludes the game is
+broken rather than that the action is unavailable. Tokens: 45-60% brightness, 45-60% opacity, 50%
+border contrast, no shadow, 100ms. **A disabled control must never animate as if it accepted input.**
+
+The remaining seven states (focus, pending, locked, new, error...) wait until pressed and disabled are
+everywhere - those two are what a player meets constantly; the rest are situational.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
