@@ -95,11 +95,11 @@ namespace MyriadOfDragons.UI
         /// Returns whether the item existed by id - not whether the purchase itself succeeded, so
         /// a test asserts the real, resulting profile state rather than a return value standing
         /// in for it.</summary>
-        public bool PurchaseForTests(string itemId)
+        public bool PurchaseForTests(string itemId, string receiptId = null)
         {
             ShopItemData item = shopItems?.Find(i => i.id == itemId);
             if (item == null) return false;
-            AttemptPurchase(item);
+            AttemptPurchase(item, receiptId);
             return true;
         }
 
@@ -178,7 +178,9 @@ namespace MyriadOfDragons.UI
             return buyBtn != null && buyBtn.interactable;
         }
 
-        private static bool TryOpenGemPack(PlayerProfile profile, string skuId, out PackReceiptResult result)
+        private string _currentPurchaseAttemptReceiptId;
+
+        public static bool TryOpenGemPack(PlayerProfile profile, string skuId, string receiptId, out PackReceiptResult result)
         {
             result = null;
             if (profile == null) return false;
@@ -186,7 +188,8 @@ namespace MyriadOfDragons.UI
             var rng = _packRngSeedForTests.HasValue
                 ? new System.Random(_packRngSeedForTests.Value)
                 : new System.Random();
-            string receiptId = System.Guid.NewGuid().ToString("N");
+            if (string.IsNullOrEmpty(receiptId))
+                receiptId = System.Guid.NewGuid().ToString("N");
             result = new PackReceiptResult();
             if (!CollectionPackReceiptService.TryOpenPack(profile, skuId, rng, receiptId, out result))
             {
@@ -196,6 +199,9 @@ namespace MyriadOfDragons.UI
 
             return true;
         }
+
+        public static bool TryOpenGemPack(PlayerProfile profile, string skuId, out PackReceiptResult result) =>
+            TryOpenGemPack(profile, skuId, null, out result);
 
         private void SetupShopItems()
         {
@@ -266,7 +272,8 @@ namespace MyriadOfDragons.UI
             string description = descriptionFactory(sku);
             return new ShopItemData(skuId, title, description, 0, sku.GemCost, p =>
             {
-                if (!TryOpenGemPack(p, skuId, out PackReceiptResult r)) return false;
+                string receiptId = _currentPurchaseAttemptReceiptId;
+                if (!TryOpenGemPack(p, skuId, receiptId, out PackReceiptResult r)) return false;
                 _pendingPackReceipt = r;
                 return true;
             }, walletCommittedByCallback: true);
@@ -711,10 +718,16 @@ namespace MyriadOfDragons.UI
         /// transaction defers its own save so the whole purchase (reward + cost) commits in the
         /// single SaveSystem.Save below, not several partial writes.
         /// </summary>
-        private void AttemptPurchase(ShopItemData item)
+        private void AttemptPurchase(ShopItemData item, string receiptId = null)
         {
-            var totalSw = Stopwatch.StartNew();
-            WhHangProfileTrace.Mark($"AttemptPurchase.enter id={item?.id}");
+            _currentPurchaseAttemptReceiptId = string.IsNullOrEmpty(receiptId)
+                ? System.Guid.NewGuid().ToString("N")
+                : receiptId;
+
+            try
+            {
+                var totalSw = Stopwatch.StartNew();
+                WhHangProfileTrace.Mark($"AttemptPurchase.enter id={item?.id}");
 
             // Insufficient currency changes nothing - checked, and returned on, before any
             // profile mutation or reward attempt.
@@ -826,6 +839,11 @@ namespace MyriadOfDragons.UI
             }
 
             WhHangProfileTrace.Mark("AttemptPurchase.exit_ok", totalSw.ElapsedMilliseconds);
+            }
+            finally
+            {
+                _currentPurchaseAttemptReceiptId = null;
+            }
         }
 
         /// <summary>Real retention-telemetry emit for Shop Stamina 4/24h cap (register: remaining

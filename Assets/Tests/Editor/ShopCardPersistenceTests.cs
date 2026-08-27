@@ -264,5 +264,81 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(1500, reloaded.gold, "Gold Vault's grant must persist across a reload, same as before.");
             Assert.AreEqual(60, reloaded.stamina, "Stamina potion's grant must persist across a reload, same as before.");
         }
+
+        [Test]
+        public void SamePurchaseReceiptId_DeduplicatesAcrossShopAttempts_DifferentReceiptIdsBothGrant()
+        {
+            Assert.IsTrue(CollectionPackCatalog.TryGetSku(CollectionPackCatalog.SingleSigilSkuId, out CollectionPackSku singleSigil));
+            const int initialGems = 5000;
+            PlayerProfile profile = NewMigratedProfile(gems: initialGems);
+            ShopPresenter shop = SpawnAndInitializeShop(profile);
+
+            int copiesBefore = TotalCopyCount(profile);
+            const string stableReceiptA = "shop-purchase-attempt-stable-A";
+            const string stableReceiptB = "shop-purchase-attempt-stable-B";
+
+            // 1. First attempt with receipt A -> must spend Gems and grant 1 card copy.
+            Assert.IsTrue(shop.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId, stableReceiptA));
+            Assert.AreEqual(initialGems - singleSigil.GemCost, profile.gems, "First purchase with receipt A must spend gems.");
+            Assert.AreEqual(copiesBefore + 1, TotalCopyCount(profile), "First purchase with receipt A must grant 1 card copy.");
+
+            int gemsAfterA = profile.gems;
+            int copiesAfterA = TotalCopyCount(profile);
+
+            // 2. Second attempt (retry/double-tap) with the SAME receipt A -> must NOT spend Gems or grant duplicate cards.
+            Assert.IsTrue(shop.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId, stableReceiptA));
+            Assert.AreEqual(gemsAfterA, profile.gems, "Retry with same receipt A must NOT spend gems again.");
+            Assert.AreEqual(copiesAfterA, TotalCopyCount(profile), "Retry with same receipt A must NOT grant duplicate card copies.");
+
+            PlayerProfile reloadedAfterRetry = SaveSystem.Load();
+            Assert.AreEqual(gemsAfterA, reloadedAfterRetry.gems, "Persisted gems must reflect exactly one purchase.");
+            Assert.AreEqual(copiesAfterA, TotalCopyCount(reloadedAfterRetry), "Persisted card copies must reflect exactly one purchase.");
+
+            // 3. Third attempt with DIFFERENT receipt B -> must spend Gems again and grant second card copy.
+            Assert.IsTrue(shop.PurchaseForTests(CollectionPackCatalog.SingleSigilSkuId, stableReceiptB));
+            Assert.AreEqual(gemsAfterA - singleSigil.GemCost, profile.gems, "New purchase with distinct receipt B must spend gems.");
+            Assert.AreEqual(copiesAfterA + 1, TotalCopyCount(profile), "New purchase with distinct receipt B must grant a second card copy.");
+
+            PlayerProfile reloadedAfterB = SaveSystem.Load();
+            Assert.AreEqual(gemsAfterA - singleSigil.GemCost, reloadedAfterB.gems, "Persisted gems must reflect two total purchases.");
+            Assert.AreEqual(copiesAfterA + 1, TotalCopyCount(reloadedAfterB), "Persisted card copies must reflect two total purchases.");
+        }
+
+        [Test]
+        public void TryOpenGemPack_DirectInvocation_RespectsReceiptIdIdempotency()
+        {
+            Assert.IsTrue(CollectionPackCatalog.TryGetSku(CollectionPackCatalog.SingleSigilSkuId, out CollectionPackSku singleSigil));
+            const int initialGems = 5000;
+            PlayerProfile profile = NewMigratedProfile(gems: initialGems);
+
+            const string receiptId1 = "direct-pack-attempt-1";
+            const string receiptId2 = "direct-pack-attempt-2";
+
+            int copiesBefore = TotalCopyCount(profile);
+
+            // First call with receiptId1
+            Assert.IsTrue(ShopPresenter.TryOpenGemPack(profile, CollectionPackCatalog.SingleSigilSkuId, receiptId1, out PackReceiptResult first));
+            Assert.IsTrue(first.Success);
+            Assert.AreEqual(receiptId1, first.ReceiptId);
+            Assert.AreEqual(initialGems - singleSigil.GemCost, profile.gems);
+            Assert.AreEqual(copiesBefore + 1, TotalCopyCount(profile));
+
+            int gemsAfterFirst = profile.gems;
+            int copiesAfterFirst = TotalCopyCount(profile);
+
+            // Re-invoke with same receiptId1 -> idempotent return
+            Assert.IsTrue(ShopPresenter.TryOpenGemPack(profile, CollectionPackCatalog.SingleSigilSkuId, receiptId1, out PackReceiptResult second));
+            Assert.IsTrue(second.Success);
+            Assert.AreEqual(first.ReceiptId, second.ReceiptId);
+            Assert.AreEqual(gemsAfterFirst, profile.gems, "Re-invoking with same receiptId must not spend gems again.");
+            Assert.AreEqual(copiesAfterFirst, TotalCopyCount(profile), "Re-invoking with same receiptId must not grant more card copies.");
+
+            // Invoke with distinct receiptId2 -> grants second pack
+            Assert.IsTrue(ShopPresenter.TryOpenGemPack(profile, CollectionPackCatalog.SingleSigilSkuId, receiptId2, out PackReceiptResult third));
+            Assert.IsTrue(third.Success);
+            Assert.AreEqual(receiptId2, third.ReceiptId);
+            Assert.AreEqual(gemsAfterFirst - singleSigil.GemCost, profile.gems, "Distinct receiptId must spend gems.");
+            Assert.AreEqual(copiesAfterFirst + 1, TotalCopyCount(profile), "Distinct receiptId must grant an additional card copy.");
+        }
     }
 }
