@@ -4477,7 +4477,8 @@ namespace MyriadOfDragons.UI
                 return;
             }
 
-            Sprite art = Resources.Load<Sprite>($"Story/Backgrounds/{backgroundName}");
+            Sprite art = Resources.Load<Sprite>($"UI/Backdrops/Arenas/{backgroundName}")
+                ?? Resources.Load<Sprite>($"Story/Backgrounds/{backgroundName}");
             if (art == null)
             {
                 _narrativeBackground.enabled = false;

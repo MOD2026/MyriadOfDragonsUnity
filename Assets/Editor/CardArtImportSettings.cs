@@ -68,7 +68,11 @@ namespace MyriadOfDragons.EditorTools
                 importer.spriteBorder = new Vector4(cap, 0f, cap, 0f);
             }
 
-            if (path.Contains("/Resources/UI/Icons/"))
+            if (path.Contains("/Resources/CardArt/"))
+            {
+                importer.maxTextureSize = 1024;
+            }
+            else if (path.Contains("/Resources/UI/Icons/"))
             {
                 importer.maxTextureSize = 512;
             }
