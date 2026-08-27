@@ -2227,6 +2227,45 @@ asserting rows-plus-spacing FIT within SpellList's real height. +4 units on 266 
 longer spell name, a font bump, or a fifth spell silently re-breaks it in combat. **Assert the
 relationship, not the magic numbers.**
 
+## Silent-no-op sweep COMPLETE 2026-08-27 (`462eb2c`) - class closed, 5 instances total
+
+Boundary shift landed, both conditions met, project swept.
+
+**Condition 1 - ActivityRail capture: CLEAN.** Result text measured exactly 34px world height after
+the 14% band reduction. CR confirmed **analytically and empirically that font size is a
+canvas-reference value, not derived from a region's own fraction**, so squeezing the band cannot touch
+it. That closes the legibility-floor worry properly rather than by inspection.
+
+**Condition 2 - fit test added and PROVEN NON-VACUOUS.**
+`SpellList_EveryRowPlusSpacing_FitsItsOwnRealHeight_UnderPhoneCompression` asserts the relationship,
+not magic numbers. CR **temporarily reverted the boundary shift, confirmed the test FAILED with the
+exact predicted figures (266 needed vs 228.5 available), then restored it.** That is the standard now
+- a test nobody has watched fail is not yet a test.
+
+**THIRD instance of the bug class found in the sweep:** `CreateEmptySlotDisplay` (Lane Picker's
+DeployedRow empty-slot placeholder) measured at Unity's default 100 wide instead of 316. Same cause,
+same fix (pre-set `sizeDelta`), verified by measurement before and after.
+
+**Rest of the project verified CLEAN:** `CampaignMapPresenter.CreateStageNode` (sets sizeDelta
+directly, 220x220), `CollectionPresenter`/`EmpirePresenter` (both via `HomeV3UiLibrary.
+CreateResourcePill`, sets sizeDelta directly), `EmpireExpeditionPresenter.CreateStageNode` (340x520),
+lane picker's AvailableRow (uses `CreateCardButton`, already sets sizeDelta).
+
+**DEAD CODE FLAGGED, not deleted:** `UISharedFoundation.CreateBottomDock` has **zero callers anywhere
+in the project.** Out of scope for the sweep; recorded so it is a decision rather than a discovery.
+
+**FINAL TALLY - five silent no-ops, one class:** `ApplyFramedPanel` vs a stale 100x100 rect;
+`AddSemiTransparentScrimPanel` moving zero ratios; `SetPreferredHeight` under
+`childControlHeight = false`; `SetPreferredWidth` under `childControlWidth = false`;
+`CreateEmptySlotDisplay` under the same. **The unifying shape: a layout call that returns normally,
+leaves no error, and has no effect** - invisible to tests asserting absence-of-crash, visible only by
+measuring the rendered result.
+
+**`CreateButton`'s internal "Text" child trap is now a doc comment on the method itself**, so the next
+person writing a test against these buttons does not lose the same hour.
+
+122/122 tests, 0 CS errors.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
