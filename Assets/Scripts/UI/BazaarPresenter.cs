@@ -206,17 +206,17 @@ namespace MyriadOfDragons.UI
         {
             GameObject panel = new GameObject("SelectedPanel", typeof(RectTransform));
             panel.transform.SetParent(_canvasObj.transform, false);
-            SetNorm(panel.GetComponent<RectTransform>(), 0.60f, 0.18f, 0.97f, 0.86f);
+            SetNorm(panel.GetComponent<RectTransform>(), 0.67f, 0.04f, 0.96f, 0.86f);
             _detailsText = UISharedFoundation.CreateText(panel.transform, "Details",
                 "Loading…",
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(480f, 220f));
-            SetNorm(_detailsText.rectTransform, 0.05f, 0.35f, 0.95f, 0.95f);
+            SetNorm(_detailsText.rectTransform, 0.04f, 0.53f, 0.96f, 0.96f);
             GameObject action = new GameObject("Btn_PrimaryAction", typeof(RectTransform), typeof(Image), typeof(Button));
             action.transform.SetParent(panel.transform, false);
             Image aImg = action.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNeutralActionButton(action.GetComponent<Button>(), aImg, new Color(0.2f, 0.4f, 0.3f));
             action.GetComponent<Button>().onClick.AddListener(() => _ = RunPrimaryActionAsync());
-            SetNorm(action.GetComponent<RectTransform>(), 0.05f, 0.05f, 0.95f, 0.22f);
+            SetNorm(action.GetComponent<RectTransform>(), 0.02f, 0.015f, 0.98f, 0.115f);
             UISharedFoundation.CreateText(action.transform, "Text", "CONFIRM", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
             action.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
