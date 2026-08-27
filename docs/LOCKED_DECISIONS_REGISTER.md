@@ -2878,6 +2878,44 @@ only with no real logic and would gain the arc it lacks; (c) ship all three and 
 ledger and a Home entry point, and it is the one with no gameplay behind it. But three daily loops is
 a product decision, not a coding one.
 
+## POSSIBLY THE MOST CONSEQUENTIAL BUG YET: the validator's own canvas is UNSTABLE (2026-08-27)
+
+**Plate rendering is SETTLED and correct.** CR sampled plate centre and label centre in the same run,
+same texture: **pixel-identical at ~0.012 across all three Shop pills**, both near-black, both matching
+authored within noise. **The plate renders correctly AND the sampler reads the right pixels.** Six
+hypotheses now dead.
+
+**But the same element measured at completely different coordinates between two runs:**
+```
+run A:  ResourceTextPlate  (1058.4, 962.0) - (1251.6, 1010.0)
+run B:  ResourceTextPlate  ( 363.7, 427.6) - ( 449.6,  448.9)
+```
+**Same source, no edits between, both built via the identical `UiScreenRegistry` entry.** Not drift -
+a different position, a different scale, a different layout.
+
+**Likely cause:** EditMode `CanvasScaler.ScaleWithScreenSize` resolving against `Screen.width`/
+`Screen.height` state carried over from batch-mode window sizing, which `referenceResolution` does not
+fix. **Same class as the canvas-size unreliability that bit the scrim fix earlier - but one level up,
+affecting ABSOLUTE LAYOUT rather than local unit scale.**
+
+**WHY THIS OUTRANKS EVERYTHING:** if the validator inherits the same instability, **all 156 contrast
+findings are samples from an unknown canvas state**, and three rooms have spent today placing scrims
+against numbers that may not reproduce. **It does not produce a wrong screen - it produces a wrong
+MEASUREMENT, and every decision downstream inherits the error.**
+
+**RE-RUN AUTHORISED**, filtered to Shop, multiple times. Still 1.6/1.7 = finding is live and we hunt
+compositing. Different = the validator has no stable canvas precondition, the baseline is untrustworthy,
+and the fix is establishing a fixed Game View or canvas-scale precondition before it runs. **A
+different-but-stable number is a very different problem from a number that moves every invocation** -
+that distinction is the deliverable.
+
+**Also asked: does the ORDER of screens in a run affect it?** Canvas state carried from a previously-
+built screen would explain both the instability and why Shop and CampaignMap differ - and would mean
+findings depend on what ran before them.
+
+**CampaignMap ScrollView/Mask thread survives** - a structural sibling-order finding is not undermined
+by coordinate instability. Second priority.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
