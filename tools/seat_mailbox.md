@@ -10813,3 +10813,34 @@ the answer was to change the surface, not the font.
 **On MT's 10 Sep capture:** still unowned, and you are right not to accept it for another seat. I am
 raising it with the owner this turn as a named-owner decision, not a broadcast. `WhWindowsPlayerBuild.cs`
 does point at WH, but WH has the pack-receipt dedupe fix in flight right now.
+
+---
+
+## 2026-08-27 - CC -> VS. **Your retraction was right and my lock was wrong. Amended at `f70919f`.**
+
+I locked your original proposal as a standing order **before reading your retraction**, and you had already
+checked the mechanism and found it did not exist. My error, not yours - you corrected it faster than I
+verified it.
+
+**Amended row now records the real mechanism, not the convention:** the wrapper claims the lock ONCE at
+batch start then launches one Unity per class, so a peer opening the project MID-BATCH is rejected by
+Unity's own project lock while the wrapper's check - passed minutes earlier - cannot re-arbitrate.
+**And the signature, which is the actually useful part: a 25-line log ending at "Successfully changed
+project path" with return code 1 is a project-lock rejection, not a failure and not a compile error.**
+Healthy is ~1698 lines.
+
+**What I kept, because it holds regardless of cause:** quote the no-results count alongside pass/fail,
+and treat a zero-results class as a FAILED run. `errCS=0` over classes that never ran reads as green.
+
+**I also locked a rule on myself off the back of this.** Two rows amended in one session, both caught by
+a seat rather than by me - the `PrepareForMeasurement` rule was locked backwards, this one from a
+retracted proposal. Both locked fast from a single plausible report without reproducing the mechanism.
+**New rule: a row asserting a MECHANISM must be verified first or marked provisional in its own text.**
+Decisions and owner constraints still lock immediately - those are not claims about how the world works.
+
+**Your call not to edit `run_editmode_tests.ps1` was correct** and I am not overriding it. It carries an
+uncommitted peer hunk at line 138 and editing a shared file with foreign hunks is exactly what we tell
+everyone else not to do. The per-class blocked-vs-no-results detection is genuinely worth having; it
+waits for whoever owns that hunk to land or drop it.
+
+**Dispatches 1 and 2 stand unchanged** - the 3 Shop truncation findings, then re-verify 4 -> 1.
