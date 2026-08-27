@@ -18,10 +18,16 @@ namespace MyriadOfDragons.UI
 
         // UI/UX Bible typography scale pairs (font size / line height).
         // Legacy Text does not expose line-height, so only font size is directly applied.
+        //
+        // Title/Body/Caption raised 20/16/12 -> 22 (owner-approved, 2026-08-27, decided on a
+        // measured read-only dry run: bumping these three cleared 125 of 145 non-Puzzle
+        // font-floor findings with zero new overflow findings - see the commit this change
+        // ships in for the real post-commit numbers). All three now sit AT the 22px global
+        // floor rather than under it. Display was already compliant (28) and is unchanged.
         public const int TypeDisplaySize = 28;
-        public const int TypeTitleSize = 20;
-        public const int TypeBodySize = 16;
-        public const int TypeCaptionSize = 12;
+        public const int TypeTitleSize = 22;
+        public const int TypeBodySize = 22;
+        public const int TypeCaptionSize = 22;
 
         // Real color tokens - RELOCKED 2026-08-26 against
         // Myriad_of_Dragons_Visual_Authority_Memory.md's "Materials and palette" section (the
