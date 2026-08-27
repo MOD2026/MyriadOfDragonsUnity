@@ -103,17 +103,21 @@ namespace MyriadOfDragons.UI
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
                 new Vector2(640f, 48f));
             title.fontSize = 32;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.28f, 0.48f, 0.72f, 0.95f);
 
             Text season = UISharedFoundation.CreateText(topBar.transform, "SeasonLength",
                 BattlePassOpenValues.SeasonLengthCopy, UITextRole.Title, TextAnchor.MiddleCenter,
                 new Color(0.75f, 0.88f, 0.7f), true, new Vector2(420f, 32f));
-            season.fontSize = 18;
+            season.fontSize = 24;
+            season.fontStyle = FontStyle.Bold;
             SetNorm(season.rectTransform, 0.32f, 0.08f, 0.68f, 0.48f);
 
             Text timer = UISharedFoundation.CreateText(topBar.transform, "SeasonTimer",
                 MetagameShellProfileBinding.UtcDayKeyLine(), UITextRole.Body, TextAnchor.MiddleLeft,
                 new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 28f));
+            timer.fontSize = 28;
+            timer.fontStyle = FontStyle.Bold;
             SetNorm(timer.rectTransform, 0.18f, 0.08f, 0.32f, 0.48f);
         }
 
@@ -123,15 +127,11 @@ namespace MyriadOfDragons.UI
             xp.transform.SetParent(_canvasObj.transform, false);
             SetNorm(xp.GetComponent<RectTransform>(), 0.18f, 0.78f, 0.82f, 0.86f);
 
-            // SeasonXpRow label column — dual gradient (sprite-backed).
-            UISharedFoundation.AddLocalGradientScrim(
-                xp.transform, new Vector2(98f, 43f), new Vector2(196f, 48f),
-                UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
-            UISharedFoundation.AddLocalGradientScrim(
-                xp.transform, new Vector2(98f, 43f), new Vector2(196f, 48f),
-                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+            // SeasonXpRow label column.
             Text xpLabel = UISharedFoundation.CreateText(xp.transform, "Label", "SEASON XP", UITextRole.Caption,
                 TextAnchor.MiddleLeft, Color.white, true, new Vector2(160f, 24f));
+            xpLabel.fontSize = 24;
+            xpLabel.fontStyle = FontStyle.Bold;
             UISharedFoundation.ApplyTextShadow(xpLabel);
             SetNorm(xpLabel.rectTransform, 0.00f, 0.15f, 0.16f, 0.85f);
 
@@ -145,6 +145,8 @@ namespace MyriadOfDragons.UI
                 MetagameShellProfileBinding.PassTierProgressLine(),
                 UITextRole.Body, TextAnchor.MiddleRight, new Color(0.9f, 0.95f, 0.85f), true,
                 new Vector2(280f, 28f));
+            values.fontSize = 28;
+            values.fontStyle = FontStyle.Bold;
             _xpValuesText = values;
             SetNorm(values.rectTransform, 0.74f, 0.15f, 1f, 0.85f);
         }
@@ -173,6 +175,8 @@ namespace MyriadOfDragons.UI
 
             Text labelText = UISharedFoundation.CreateText(row.transform, "TrackLabel", label, UITextRole.Title,
                 TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(180f, 40f));
+            labelText.fontSize = 28;
+            labelText.fontStyle = FontStyle.Bold;
             SetNorm(labelText.rectTransform, 0.00f, 0.15f, 0.14f, 0.85f);
 
             float wellWidth = 0.86f / BattlePassOpenValues.ShellTierWellCount;
@@ -192,44 +196,20 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
 
-                // Stretch-matched plates above framed art. Dual gradients (sprite-backed) — flat
-                // SemiTransparentScrimPanel has no sprite and does not paint in this Unity build.
-                GameObject indexPlate = new GameObject("TierIndexPlate", typeof(RectTransform));
-                indexPlate.transform.SetParent(well.transform, false);
-                SetNorm(indexPlate.GetComponent<RectTransform>(), 0.05f, 0.72f, 0.95f, 0.98f);
-                UISharedFoundation.AddLocalGradientScrim(
-                    indexPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
-                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
-                UISharedFoundation.AddLocalGradientScrim(
-                    indexPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
-                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
-                Text headerN = UISharedFoundation.CreateText(indexPlate.transform, "TierIndex", $"T{i + 1}",
+                Text headerN = UISharedFoundation.CreateText(well.transform, "TierIndex", $"T{i + 1}",
                     UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true, new Vector2(80f, 24f));
+                headerN.fontSize = 24;
+                headerN.fontStyle = FontStyle.Bold;
                 UISharedFoundation.ApplyTextShadow(headerN);
-                RectTransform headerRect = headerN.rectTransform;
-                headerRect.anchorMin = Vector2.zero;
-                headerRect.anchorMax = Vector2.one;
-                headerRect.offsetMin = Vector2.zero;
-                headerRect.offsetMax = Vector2.zero;
+                SetNorm(headerN.rectTransform, 0.05f, 0.72f, 0.95f, 0.98f);
 
-                GameObject rewardPlate = new GameObject("RewardAmountPlate", typeof(RectTransform));
-                rewardPlate.transform.SetParent(well.transform, false);
-                SetNorm(rewardPlate.GetComponent<RectTransform>(), 0.05f, 0.08f, 0.95f, 0.45f);
-                UISharedFoundation.AddLocalGradientScrim(
-                    rewardPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
-                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
-                UISharedFoundation.AddLocalGradientScrim(
-                    rewardPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
-                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
-                Text amount = UISharedFoundation.CreateText(rewardPlate.transform, "RewardAmount",
+                Text amount = UISharedFoundation.CreateText(well.transform, "RewardAmount",
                     MetagameShellProfileBinding.PassSeasonXpLine(), UITextRole.Body, TextAnchor.MiddleCenter,
                     Color.white, true, new Vector2(100f, 28f));
+                amount.fontSize = 28;
+                amount.fontStyle = FontStyle.Bold;
                 UISharedFoundation.ApplyTextShadow(amount);
-                RectTransform amountRect = amount.rectTransform;
-                amountRect.anchorMin = Vector2.zero;
-                amountRect.anchorMax = Vector2.one;
-                amountRect.offsetMin = Vector2.zero;
-                amountRect.offsetMax = Vector2.zero;
+                SetNorm(amount.rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
             }
         }
 
@@ -249,16 +229,23 @@ namespace MyriadOfDragons.UI
                 SetStatus(result.Message);
             });
             SetNorm(unlock.GetComponent<RectTransform>(), 0.00f, 0.25f, 0.32f, 0.90f);
-            UISharedFoundation.CreateText(unlock.transform, "Text", "UNLOCK PREMIUM", UITextRole.Body,
+            Text unlockText = UISharedFoundation.CreateText(unlock.transform, "Text", "UNLOCK PREMIUM", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
+            unlockText.fontSize = 28;
+            unlockText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(unlockText.rectTransform);
 
             Text access = UISharedFoundation.CreateText(bar.transform, "PremiumAccessCopy",
                 $"Premium track · unlock price not set · {MetagameShellProfileBinding.WalletLine()}",
                 UITextRole.Body, TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(800f, 36f));
+            access.fontSize = 28;
+            access.fontStyle = FontStyle.Bold;
             SetNorm(access.rectTransform, 0.36f, 0.45f, 0.98f, 0.90f);
 
             _statusText = UISharedFoundation.CreateText(bar.transform, "StatusLine", BattlePassOpenValues.StatusNote,
                 UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.85f, 0.75f, 0.5f), true, new Vector2(1600f, 28f));
+            _statusText.fontSize = 24;
+            _statusText.fontStyle = FontStyle.Bold;
             SetNorm(_statusText.rectTransform, 0.00f, 0.00f, 1f, 0.32f);
         }
 
@@ -277,8 +264,11 @@ namespace MyriadOfDragons.UI
             rect.pivot = new Vector2(0f, 0.5f);
             rect.anchoredPosition = anchoredPos;
             rect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
+            Text backText = UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
                 Color.white, true, new Vector2(140f, 44f));
+            backText.fontSize = 28;
+            backText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(backText.rectTransform);
         }
 
         private void SetStatus(string message)
