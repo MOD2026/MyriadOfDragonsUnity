@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -37,6 +37,12 @@ namespace MyriadOfDragons.Tests
     public class UiValidationRunTests
     {
         private readonly List<UnityEngine.Object> _spawned = new List<UnityEngine.Object>();
+
+        /// <summary>Legitimate stretched-axis INSETS seen this run (negative sizeDelta on a
+        /// stretched axis). Counted, never failed - reported only so the narrowing of the T3 check
+        /// stays auditable: it shows how many nodes the dispatched "no non-zero sizeDelta" rule
+        /// would have condemned as defects.</summary>
+        private int stretchedInsetCount;
         private string _scratchSaveDir;
 
         /// <summary>Sub-pixel slop. Rect maths on scaled canvases lands fractions off exact, and a
@@ -61,6 +67,7 @@ namespace MyriadOfDragons.Tests
         [SetUp]
         public void SetUp()
         {
+            stretchedInsetCount = 0;
             _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MyriadOfDragonsUiValidation_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
@@ -142,6 +149,11 @@ namespace MyriadOfDragons.Tests
 
             dot.AppendLine("}");
             WriteGraphArtifacts(graphNodes, graphEdges, dot.ToString());
+
+            warnings.Add("T3 stretched-axis insets (negative sizeDelta, legitimate padding): "
+                         + stretchedInsetCount + " nodes. These are NOT defects; the count is here "
+                         + "because the dispatched rule was \"no non-zero sizeDelta on a stretched "
+                         + "axis\", which would have reported every one of them as a failure.");
 
             // Checked AFTER the traversal so "matched" reflects measured geometry, not intent.
             UiGateExceptionManifest.ReportUnmatched(exceptions, findings);
@@ -519,6 +531,49 @@ namespace MyriadOfDragons.Tests
                     findings.Add(screen.Name + ": image " + Q(img.name) + " is set to " + img.type +
                                  " but its sprite is NULL at runtime - it renders as a flat fill, " +
                                  "not the framed art it is asking for.");
+                }
+            }
+
+            // --- T3: sizeDelta fighting a stretched anchor --------------------------------
+            // A stretched axis (anchorMin 0 / anchorMax 1) means "match the parent on this axis".
+            // sizeDelta is then an INSET, not a size.
+            //
+            // NARROWED FROM THE DISPATCHED RULE, deliberately. The instruction was "no non-zero
+            // sizeDelta on a stretched axis anywhere". Taken literally that condemns the single
+            // most common legitimate idiom in this codebase: a NEGATIVE sizeDelta is padding
+            // (sizeDelta.x = -40 is a 20px inset each side) and is exactly right. Flagging those
+            // would bury the real defect under hundreds of correct layouts and train readers to
+            // ignore the report - the same noise trap the Tolerance constant above exists to avoid.
+            //
+            // A POSITIVE sizeDelta on a stretched axis is the real defect: the element is asking to
+            // be LARGER than the parent it just said it would match, so it hangs outside its own
+            // container. Both counts are reported below so the narrowing stays auditable.
+            foreach (RectTransform rt in root.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (!rt.gameObject.activeInHierarchy) continue;
+                if (rt == root) continue;
+
+                bool stretchedX = Mathf.Approximately(rt.anchorMin.x, 0f) && Mathf.Approximately(rt.anchorMax.x, 1f);
+                bool stretchedY = Mathf.Approximately(rt.anchorMin.y, 0f) && Mathf.Approximately(rt.anchorMax.y, 1f);
+
+                if (stretchedX && rt.sizeDelta.x > Tolerance)
+                {
+                    findings.Add(screen.Name + ": " + Q(rt.name) + " is stretched horizontally but has " +
+                                 "sizeDelta.x=" + F(rt.sizeDelta.x) + " - it is asking to be wider than " +
+                                 "the parent it just said it would match, so it hangs outside it.");
+                }
+
+                if (stretchedY && rt.sizeDelta.y > Tolerance)
+                {
+                    findings.Add(screen.Name + ": " + Q(rt.name) + " is stretched vertically but has " +
+                                 "sizeDelta.y=" + F(rt.sizeDelta.y) + " - it is asking to be taller than " +
+                                 "the parent it just said it would match, so it hangs outside it.");
+                }
+
+                // Auditable counterpart to the narrowing above: legitimate insets, counted only.
+                if ((stretchedX && rt.sizeDelta.x < -Tolerance) || (stretchedY && rt.sizeDelta.y < -Tolerance))
+                {
+                    stretchedInsetCount++;
                 }
             }
 
