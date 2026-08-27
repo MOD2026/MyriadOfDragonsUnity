@@ -192,9 +192,9 @@ namespace MyriadOfDragons.Tests
 
             StringAssert.Contains("COMMAND CIRCUIT", all);
             StringAssert.Contains("War Room", all);
-            StringAssert.Contains("ORDER THE RANKS", all);
-            StringAssert.Contains("MUSTER THE RANKS", all);
-            StringAssert.Contains("READ THE FIELD", all);
+            StringAssert.Contains("Order the Ranks", all);
+            StringAssert.Contains("Muster the Ranks", all);
+            StringAssert.Contains("Read the Field", all);
         }
 
         [Test]

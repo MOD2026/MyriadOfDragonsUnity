@@ -111,6 +111,8 @@ namespace MyriadOfDragons.UI
             Text title = UISharedFoundation.CreateText(
                 header, "Title", "COMMAND CIRCUIT", UITextRole.Title, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 46f));
+            title.fontSize = 28;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.22f, 0.52f, 0.78f, 0.94f);
 
             // ST's locked framing (2026-08-26). Institutionally attributed to the War Room -
@@ -121,12 +123,20 @@ namespace MyriadOfDragons.UI
                 + "and command of the available ranks.",
                 UITextRole.Caption, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(1500f, 34f));
+            framing.fontSize = 24;
+            framing.fontStyle = FontStyle.Bold;
             SetNorm(framing.rectTransform, 0.14f, 0.10f, 0.86f, 0.46f);
 
             // BACK is pinned hard left so it cannot cover the title, which is exactly what it did.
             Button back = UISharedFoundation.CreateButton(
                 header, "Btn_Back", "BACK", new Vector2(180f, 70f),
                 UIFrozenTokens.ColorPanel, Close, null, true);
+            Text backText = back.GetComponentInChildren<Text>();
+            if (backText != null)
+            {
+                backText.fontSize = 28;
+                backText.fontStyle = FontStyle.Bold;
+            }
             SetNorm(back.GetComponent<RectTransform>(), 0.01f, 0.24f, 0.13f, 0.80f);
         }
 
@@ -171,11 +181,11 @@ namespace MyriadOfDragons.UI
 
             // Titles and subtitles are ST's locked copy, not invented here.
             BuildTrialRow(body.transform, SoloCircuitTrial.Formation,
-                "ORDER THE RANKS", "Victory begins with where each force stands.");
+                "Order the Ranks", "Victory begins with where each force stands.");
             BuildTrialRow(body.transform, SoloCircuitTrial.Collection,
-                "MUSTER THE RANKS", "A capable commander understands every force available.");
+                "Muster the Ranks", "A capable commander understands every force available.");
             BuildTrialRow(body.transform, SoloCircuitTrial.TacticalBrief,
-                "READ THE FIELD", "Study the position before issuing the decisive order.");
+                "Read the Field", "Study the position before issuing the decisive order.");
             BuildCycleRow(body.transform);
         }
 
@@ -190,6 +200,8 @@ namespace MyriadOfDragons.UI
             Text title = UISharedFoundation.CreateText(
                 card, "Label", label, UITextRole.Title, TextAnchor.UpperLeft,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 40f));
+            title.fontSize = 28;
+            title.fontStyle = FontStyle.Bold;
             // 0.88 not 0.94: once ApplyFramedPanel gave these cards a real 9-slice
             // border, the title band ran under the frame's top edge and the text clipped
             // it. The frame did not exist when I first picked these numbers.
@@ -198,6 +210,8 @@ namespace MyriadOfDragons.UI
             Text flavourText = UISharedFoundation.CreateText(
                 card, "Flavour", flavour, UITextRole.Caption, TextAnchor.UpperLeft,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 32f));
+            flavourText.fontSize = 24;
+            flavourText.fontStyle = FontStyle.Bold;
             SetNorm(flavourText.rectTransform, 0.05f, 0.34f, 0.62f, 0.58f);
 
             // The RULE stays separate from the flavour line and is generated from the same
@@ -206,12 +220,20 @@ namespace MyriadOfDragons.UI
             Text status = UISharedFoundation.CreateText(
                 card, "Status", DescribeTrial(trial), UITextRole.Body, TextAnchor.UpperLeft,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(900f, 36f));
+            status.fontSize = 24;
+            status.fontStyle = FontStyle.Bold;
             SetNorm(status.rectTransform, 0.05f, 0.10f, 0.62f, 0.32f);
 
             Button play = UISharedFoundation.CreateButton(
                 card, "Btn_Play", IsCleared(trial) ? "CLEARED" : "PLAY", new Vector2(220f, 72f),
                 IsCleared(trial) ? UIFrozenTokens.ColorHeader : UIFrozenTokens.ColorAccentEmerald,
                 () => AttemptTrial(trial), null, true);
+            Text playText = play.GetComponentInChildren<Text>();
+            if (playText != null)
+            {
+                playText.fontSize = 28;
+                playText.fontStyle = FontStyle.Bold;
+            }
             SetNorm(play.GetComponent<RectTransform>(), 0.68f, 0.28f, 0.94f, 0.72f);
 
             // Chrome applied AFTER the card's children are banded and its own rect is final -
@@ -247,9 +269,11 @@ namespace MyriadOfDragons.UI
                 SoloCollectionCircuit.CircuitsRequiredForCycleBonus +
                 "   -   a missed day starts the cycle over.";
 
-            UISharedFoundation.CreateText(
+            Text cycleText = UISharedFoundation.CreateText(
                 card, "CycleText", text, UITextRole.Body, TextAnchor.MiddleCenter,
                 UIFrozenTokens.ColorTextPrimary, false, new Vector2(1340f, 100f));
+            cycleText.fontSize = 24;
+            cycleText.fontStyle = FontStyle.Bold;
 
             // Chrome to match the trial cards. Added after the text is placed, for the same
             // border-fit reason - and added at all because the capture showed this row sitting
