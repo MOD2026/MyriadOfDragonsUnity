@@ -2840,13 +2840,17 @@ namespace MyriadOfDragons.UI
                 RectTransform totalBox = CreateAnchoredPanel(canvasTransform, $"LaneTotal_{side}_{lane}",
                     new Color(0.09f, 0.08f, 0.13f, V3PanelAlpha), new Vector2(LaneTotalsMin.x, bottom), new Vector2(LaneTotalsMax.x, top));
                 AddBronzeAccentStripe(totalBox);
-                Text total = CreateText(totalBox, "ATK 0\nOVERFLOW 0", 16, Color.white, font);
+                // Font floor fix (register, 2026-08-27): the exception was rejected - this is
+                // real permanent combat HUD text, not placeholder copy, so the fix is a shorter
+                // display string, not a smaller font. "OVERFLOW" -> "OVF" (display text only; the
+                // mechanic's own name is untouched everywhere else - code, tests, other UI).
+                Text total = CreateText(totalBox, "ATK 0\nOVF 0", 22, Color.white, font);
                 total.raycastTarget = false;
                 total.alignment = TextAnchor.MiddleCenter;
                 total.horizontalOverflow = HorizontalWrapMode.Wrap;
                 total.resizeTextForBestFit = true;
                 total.resizeTextMinSize = 11;
-                total.resizeTextMaxSize = 16;
+                total.resizeTextMaxSize = 22;
                 AnchorBand(total.rectTransform, 0.05f, 0.95f, 0.06f, 0.06f);
 
                 if (isEnemySide)
@@ -6763,7 +6767,10 @@ namespace MyriadOfDragons.UI
                 if (totalTexts.TryGetValue(lane, out Text totalText) && totalText != null)
                 {
                     int overflow = GetLatestLaneOverflow(ledger, lane, isEnemySide);
-                    totalText.text = $"ATK {totalAttack}\nOVERFLOW {overflow}";
+                    // "OVERFLOW" -> "OVF": display text only, font floor fix - see the matching
+                    // comment at this label's build site. The mechanic itself is still called
+                    // Overflow everywhere else (GetLatestLaneOverflow, tests, docs).
+                    totalText.text = $"ATK {totalAttack}\nOVF {overflow}";
                 }
             }
         }
