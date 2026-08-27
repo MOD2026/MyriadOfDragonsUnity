@@ -2482,12 +2482,12 @@ namespace MyriadOfDragons.UI
 
             UISharedFoundation.AddLocalGradientScrim(
                 nodeObj.transform,
-                new Vector2(0f, -90f),
-                new Vector2(200f, 50f),
+                new Vector2(0f, -95f),
+                new Vector2(200f, 75f),
                 UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
 
-            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, -78), 22, TextAnchor.MiddleCenter, new Vector2(200f, 26f));
-            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -104), 22, TextAnchor.MiddleCenter, new Vector2(200f, 26f));
+            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, -70), 22, TextAnchor.MiddleCenter, new Vector2(200f, 24f));
+            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -108), 22, TextAnchor.MiddleCenter, new Vector2(200f, 52f));
         }
 
         /// <summary>Campaign launch feedback contract: invokes the real launch gate
