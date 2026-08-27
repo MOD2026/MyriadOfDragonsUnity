@@ -678,8 +678,10 @@ namespace MyriadOfDragons.Tests
                     Rect box = ScreenRect(plateRt, cam);
                     if (box.width <= Tolerance || box.height <= Tolerance) continue;
 
+                    CanvasRenderer plateCr = plateRt.GetComponent<CanvasRenderer>();
                     var sb = new StringBuilder();
                     sb.Append("[UiValidation:DIAG-PLATE] ").Append(screen.Name).Append(' ').Append(Q(plateRt.name))
+                      .Append(" materialCount=").Append(plateCr != null ? plateCr.materialCount : -1)
                       .Append(" box=(").Append(F(box.xMin)).Append(',').Append(F(box.yMin)).Append(")-(")
                       .Append(F(box.xMax)).Append(',').Append(F(box.yMax)).Append(')');
 
