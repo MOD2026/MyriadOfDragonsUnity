@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MyriadOfDragons.Empire;
+using MyriadOfDragons.Metagame;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -47,6 +48,7 @@ namespace MyriadOfDragons.UI
         private bool _busy;
         private readonly HashSet<string> _completedObjectives = new HashSet<string>();
         private Transform _objectiveGrid;
+        private bool _actionsGateOpen;
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
@@ -57,6 +59,16 @@ namespace MyriadOfDragons.UI
         {
             _onBack = onBack;
             _gateway = gateway ?? new UnityCloudCodeGuildExpeditionGateway();
+            // Deferred-feature gate (real bug fix, CC 2026-08-27): unlike Guild Hall/Mail, this
+            // presenter's default gateway is a REAL, deployed CloudCode module
+            // (nonprod-validation - see GuildExpeditionGateway.cs), so a real player reaching
+            // this screen previously got raw backend failure text ("Consume failed: unknown")
+            // instead of an honest "not live yet" message. Same refuse-before-any-real-call
+            // pattern as GuildHallEntryOpenValues. An explicitly injected gateway (tests, the
+            // UiScreenRegistry geometry harness never presses these buttons) is a deliberate
+            // wiring check, not a live player path, and bypasses the gate - the only production
+            // call site (GuildHallEntryPresenter.OpenGuildExpedition) never injects one.
+            _actionsGateOpen = gateway != null || GuildExpeditionOpenValues.AreActionsConfigured;
             _selectedObjectiveId = ScaffoldObjectiveIds[0];
             _selectedMilestone = MilestoneThresholds[0];
             BuildUI();
@@ -137,7 +149,8 @@ namespace MyriadOfDragons.UI
             title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.22f, 0.15f, 0.78f, 0.9f);
 
-            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", "Ready.",
+            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine",
+                _actionsGateOpen ? "Ready." : GuildExpeditionOpenValues.PlayerStatus,
                 UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(420f, 40f));
             _statusText.fontSize = 22;
@@ -251,6 +264,11 @@ namespace MyriadOfDragons.UI
 
         private async Task<GuildExpeditionAttemptResult> ConsumeAttemptAsync()
         {
+            if (!_actionsGateOpen)
+            {
+                SetStatus(GuildExpeditionOpenValues.PlayerStatus);
+                return new GuildExpeditionAttemptResult { errorCode = "NOT_LIVE" };
+            }
             if (!BeginBusy("Consuming attempt…"))
                 return new GuildExpeditionAttemptResult { errorCode = "BUSY" };
             try
@@ -282,6 +300,11 @@ namespace MyriadOfDragons.UI
 
         private async Task<GuildExpeditionObjectiveResult> SubmitObjectiveAsync(string objectiveId)
         {
+            if (!_actionsGateOpen)
+            {
+                SetStatus(GuildExpeditionOpenValues.PlayerStatus);
+                return new GuildExpeditionObjectiveResult { errorCode = "NOT_LIVE" };
+            }
             if (!BeginBusy("Submitting objective…"))
                 return new GuildExpeditionObjectiveResult { errorCode = "BUSY" };
             try
@@ -321,6 +344,11 @@ namespace MyriadOfDragons.UI
 
         private async Task<GuildExpeditionMilestoneResult> ClaimMilestoneAsync(int threshold)
         {
+            if (!_actionsGateOpen)
+            {
+                SetStatus(GuildExpeditionOpenValues.PlayerStatus);
+                return new GuildExpeditionMilestoneResult { errorCode = "NOT_LIVE" };
+            }
             if (!BeginBusy($"Claiming milestone {threshold}…"))
                 return new GuildExpeditionMilestoneResult { errorCode = "BUSY" };
             try

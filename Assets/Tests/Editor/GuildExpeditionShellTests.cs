@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using MyriadOfDragons.Empire;
+using MyriadOfDragons.Metagame;
 using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
@@ -99,6 +100,43 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(claimed.success);
             Assert.AreEqual(400, claimed.threshold);
             Assert.AreEqual(1, fake.ClaimCalls);
+        }
+
+        /// <summary>
+        /// Real bug fix (CC 2026-08-27): a real player reaching this screen via the only
+        /// production call site (GuildHallEntryPresenter.OpenGuildExpedition, which never
+        /// injects a gateway) previously hit the real, deployed CloudCode module directly and
+        /// could see raw backend failure text ("Consume failed: unknown", "Consume: null
+        /// response.") instead of an honest "not live yet" message. This proves the gate: with
+        /// NO gateway injected (the real production path), the StatusLine already reads the
+        /// deferred-feature message before any action is taken, and every action refuses with
+        /// errorCode NOT_LIVE - the real gateway is never constructed into a live call.
+        /// </summary>
+        [Test]
+        public async Task Presenter_NoGatewayInjected_RefusesBeforeAnyRealCall()
+        {
+            var go = new GameObject("GuildExpeditionRealPath");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<GuildExpeditionPresenter>();
+            presenter.Initialize(onBack: null); // No gateway - exactly what GuildHallEntryPresenter does.
+
+            Assert.AreEqual(GuildExpeditionOpenValues.PlayerStatus, presenter.StatusTextForTests,
+                "STATE UNREACHED: the real production path must show the deferred-feature status " +
+                "before any action is taken, not 'Ready.'.");
+
+            GuildExpeditionAttemptResult attempt = await presenter.ConsumeAttemptForTests();
+            Assert.IsFalse(attempt.success);
+            Assert.AreEqual("NOT_LIVE", attempt.errorCode);
+            Assert.AreEqual(GuildExpeditionOpenValues.PlayerStatus, presenter.StatusTextForTests,
+                "STATE UNREACHED: ConsumeAttempt must refuse with the player-facing message, not a raw backend result.");
+
+            GuildExpeditionObjectiveResult submit = await presenter.SubmitSelectedObjectiveForTests();
+            Assert.IsFalse(submit.success);
+            Assert.AreEqual("NOT_LIVE", submit.errorCode);
+
+            GuildExpeditionMilestoneResult claim = await presenter.ClaimSelectedMilestoneForTests();
+            Assert.IsFalse(claim.success);
+            Assert.AreEqual("NOT_LIVE", claim.errorCode);
         }
 
         [Test]
