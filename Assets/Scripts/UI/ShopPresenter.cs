@@ -363,7 +363,7 @@ namespace MyriadOfDragons.UI
                 "Stamina", $"{player.stamina}/{player.maxStamina}", ShopV1UiLibrary.ShellStaminaPillWellPx);
 
             GameObject statusObj = CreateTextElement(canvasObj.transform, "ShopStatus", "Tap BUY on a supply to purchase.",
-                new Vector2(0, -480), 20, TextAnchor.MiddleCenter);
+                new Vector2(0, -480), 22, TextAnchor.MiddleCenter);
             statusText = statusObj.GetComponent<Text>();
             statusText.color = new Color(0.9f, 0.82f, 0.64f);
             statusObj.GetComponent<RectTransform>().sizeDelta = new Vector2(1200f, 40f);
@@ -374,7 +374,7 @@ namespace MyriadOfDragons.UI
                 "PityProgress",
                 CollectionPackPityCopy.FormatShopBanner(player),
                 new Vector2(0, 360),
-                17,
+                22,
                 TextAnchor.MiddleCenter);
             pityBannerText = pityObj.GetComponent<Text>();
             pityBannerText.color = new Color(1f, 0.75f, 0.35f);
@@ -495,15 +495,15 @@ namespace MyriadOfDragons.UI
                 cardObj.transform,
                 "Copy",
                 $"Stamina Potion\n+{ShopStaminaCatalog.StaminaGrantPerPotion}  ·  {priceLabel}",
-                18,
+                22,
                 TextAnchor.MiddleLeft);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(copyObj.GetComponent<RectTransform>(), ShopV1UiLibrary.StaminaCopyWell);
             Text copyText = copyObj.GetComponent<Text>();
             copyText.horizontalOverflow = HorizontalWrapMode.Wrap;
             copyText.verticalOverflow = VerticalWrapMode.Truncate;
             copyText.resizeTextForBestFit = true;
-            copyText.resizeTextMinSize = 12;
-            copyText.resizeTextMaxSize = 20;
+            copyText.resizeTextMinSize = 22;
+            copyText.resizeTextMaxSize = 24;
 
             // Right BUY plate — hit target only; chrome is already in the tier sprite. Never call
             // ApplyNavTileButton here (it injects ui_button_secondary_* and draws a second empty box).
@@ -513,7 +513,7 @@ namespace MyriadOfDragons.UI
             Image buyImg = buyBtnObj.GetComponent<Image>();
             ApplyShellWellHitTarget(buyBtnObj.GetComponent<Button>(), buyImg);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(buyBtnObj.GetComponent<RectTransform>(), ShopV1UiLibrary.StaminaBuyWell);
-            CreateWellText(buyBtnObj.transform, "PriceText", "BUY", 20, TextAnchor.MiddleCenter);
+            CreateWellText(buyBtnObj.transform, "PriceText", "BUY", 22, TextAnchor.MiddleCenter);
             buyBtnObj.GetComponent<Button>().onClick.AddListener(() => AttemptPurchase(item));
         }
 
@@ -572,31 +572,31 @@ namespace MyriadOfDragons.UI
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(nameObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ProductNameWell);
             Text nameText = nameObj.GetComponent<Text>();
             nameText.resizeTextForBestFit = true;
-            nameText.resizeTextMinSize = 12;
+            nameText.resizeTextMinSize = 22;
             nameText.resizeTextMaxSize = 24;
             nameText.fontStyle = FontStyle.Bold;
 
             string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
-            GameObject priceObj = CreateWellText(cardObj.transform, "PriceLabel", priceLabel, 20, TextAnchor.MiddleCenter);
+            GameObject priceObj = CreateWellText(cardObj.transform, "PriceLabel", priceLabel, 22, TextAnchor.MiddleCenter);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(priceObj.GetComponent<RectTransform>(), ShopV1UiLibrary.PriceWell);
             Text priceText = priceObj.GetComponent<Text>();
             priceText.resizeTextForBestFit = true;
-            priceText.resizeTextMinSize = 12;
-            priceText.resizeTextMaxSize = 22;
+            priceText.resizeTextMinSize = 22;
+            priceText.resizeTextMaxSize = 24;
 
             bool showPity = CollectionPackCatalog.TryGetSku(item.id, out CollectionPackSku sku) && sku.HighDrawCount > 0;
             GameObject pityObj = CreateWellText(
                 cardObj.transform,
                 "PityLine",
                 showPity ? CollectionPackPityCopy.FormatPackTileLine(player) : string.Empty,
-                14,
+                22,
                 TextAnchor.MiddleCenter);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(pityObj.GetComponent<RectTransform>(), ShopV1UiLibrary.PityWell);
             Text pityLine = pityObj.GetComponent<Text>();
             pityLine.color = new Color(1f, 0.75f, 0.35f);
             pityLine.resizeTextForBestFit = true;
-            pityLine.resizeTextMinSize = 10;
-            pityLine.resizeTextMaxSize = 16;
+            pityLine.resizeTextMinSize = 22;
+            pityLine.resizeTextMaxSize = 22;
             pityObj.SetActive(showPity);
             if (showPity)
                 packPityLineTexts.Add(pityLine);

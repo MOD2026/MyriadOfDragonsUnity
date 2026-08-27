@@ -2325,7 +2325,7 @@ namespace MyriadOfDragons.UI
                 topInsetPx: 2f, plateHeightPx: 36f, fontSize: 28, fontStyle: FontStyle.Bold);
             CreateHeaderStackText(topBar.transform, "ProgressHint",
                 BuildMvpProgressHint(displayChapter, SaveSystem.CurrentProfile, visibleStages),
-                topInsetPx: 40f, plateHeightPx: 28f, fontSize: 18, fontStyle: FontStyle.Normal);
+                topInsetPx: 40f, plateHeightPx: 28f, fontSize: 22, fontStyle: FontStyle.Normal);
 
             // Campaign launch feedback contract, requirement 1: a persistent status surface
             // (Stamina: current/max + the per-attempt entry cost), reused for requirement 2's
@@ -2365,7 +2365,7 @@ namespace MyriadOfDragons.UI
             statusObj.transform.SetParent(statusPlate.transform, false);
             statusText = statusObj.AddComponent<Text>();
             statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            statusText.fontSize = 18;
+            statusText.fontSize = 22;
             statusText.alignment = TextAnchor.MiddleCenter;
             statusText.color = Color.white;
             statusText.supportRichText = true;
@@ -2480,8 +2480,8 @@ namespace MyriadOfDragons.UI
             RectTransform rect = nodeObj.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(220, 220);
 
-            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, -78), 18, TextAnchor.MiddleCenter);
-            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -104), 14, TextAnchor.MiddleCenter);
+            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, -78), 22, TextAnchor.MiddleCenter);
+            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -104), 22, TextAnchor.MiddleCenter);
         }
 
         /// <summary>Campaign launch feedback contract: invokes the real launch gate

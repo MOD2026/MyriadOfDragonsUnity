@@ -22,10 +22,10 @@ namespace MyriadOfDragons.UI
         public const string GemPackTileName = "shop_gem_pack_tile_shared_v1";
 
         /// <summary>GEM_PACK_WELL_MAP.md — normalised (x, y, w, h) top-left on the shared tile.</summary>
-        public static readonly Vector4 ProductArtWell = new Vector4(0.184f, 0.060f, 0.632f, 0.480f);
-        public static readonly Vector4 ProductNameWell = new Vector4(0.080f, 0.550f, 0.840f, 0.115f);
-        public static readonly Vector4 PriceWell = new Vector4(0.080f, 0.675f, 0.400f, 0.135f);
-        public static readonly Vector4 PityWell = new Vector4(0.490f, 0.675f, 0.430f, 0.135f);
+        public static readonly Vector4 ProductArtWell = new Vector4(0.184f, 0.060f, 0.632f, 0.460f);
+        public static readonly Vector4 ProductNameWell = new Vector4(0.080f, 0.525f, 0.840f, 0.110f);
+        public static readonly Vector4 PriceWell = new Vector4(0.080f, 0.640f, 0.840f, 0.065f);
+        public static readonly Vector4 PityWell = new Vector4(0.080f, 0.710f, 0.840f, 0.105f);
         public static readonly Vector4 BuyActionWell = new Vector4(0.141f, 0.825f, 0.718f, 0.115f);
 
         /// <summary>Measured on shop_stamina_tier*_v1 (467×257) — left icon circle, center copy,

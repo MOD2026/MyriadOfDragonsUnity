@@ -367,8 +367,9 @@ namespace MyriadOfDragons.UI
             header.color = new Color(0.94f, 0.75f, 0.4f);
             SetLocalNormalisedRect(header.rectTransform, 0.03f, 0.92f, 0.5f, 0.995f);
 
-            deckStatsText = CreateTextElement(panelObj.transform, "DeckStats", "", Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(720, 72));
+            deckStatsText = CreateTextElement(panelObj.transform, "DeckStats", "", Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(720, 72));
             deckStatsText.color = new Color(0.86f, 0.9f, 0.82f);
+            deckStatsText.fontStyle = FontStyle.Bold;
             SetLocalNormalisedRect(deckStatsText.rectTransform, 0.03f, 0.06f, 0.97f, 0.17f);
 
             GameObject scrollObj = new GameObject("DeckScroll", typeof(RectTransform), typeof(ScrollRect));
@@ -414,8 +415,9 @@ namespace MyriadOfDragons.UI
             deckEmptyText = CreateTextElement(panelObj.transform, "EmptyDeckState", "No cards in the deck yet. Tap an owned card to add it.", new Vector2(0, 36), 22, TextAnchor.MiddleCenter, new Vector2(600, 70));
             deckEmptyText.enabled = false;
 
-            deckStatusText = CreateTextElement(panelObj.transform, "DeckStatus", "", Vector2.zero, 19, TextAnchor.MiddleCenter, new Vector2(720, 46));
+            deckStatusText = CreateTextElement(panelObj.transform, "DeckStatus", "", Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(720, 46));
             deckStatusText.color = new Color(0.9f, 0.82f, 0.64f);
+            deckStatusText.fontStyle = FontStyle.Bold;
             SetLocalNormalisedRect(deckStatusText.rectTransform, 0.03f, 0.0f, 0.97f, 0.05f);
 
         }
