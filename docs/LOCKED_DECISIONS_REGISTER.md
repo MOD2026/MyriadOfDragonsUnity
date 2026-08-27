@@ -2707,6 +2707,34 @@ engine, deterministic milestone track with no paid keys and no random paid odds,
 a boss stage unlocked by progress, idempotent claims, fixed end time, **no Event Medals** (they stay
 dormant), and explicitly prototype-only while the save is client-authoritative.
 
+## ALL THREE BROKEN SCRIM SITES CLOSED 2026-08-27 (`435208e`)
+
+DailyLoginQuests was the last one. **Every player-blocking scrim is now fixed.**
+
+| Site | Fixed by | Result |
+|---|---|---|
+| MemoryExpedition (12 tiles) | `4708e36` | 26 scrims / 14 buttons, **0 overlaps** |
+| SpellLoadoutPicker (4 slots) | `4708e36` | 18 scrims / 6 buttons, **0 overlaps** |
+| DailyLoginQuests (6 wells) | `435208e` | **0 collisions**, measured |
+
+**DailyLogin's fix used a different and arguably better technique than the other two:** rather than
+computing a size, it gave `DayIndexPlate` **normalised anchors** (0.05-0.95 horizontal, 0.55-0.95
+vertical) inside each `LoginWell` and attached both gradient passes via `StretchFull`. **The scrim is
+then bounded by parent geometry by construction, at any canvas scale** - no measurement, no formula,
+nothing to get wrong later. Measured proof: each scrim at x 41.35 / 84.53 / 127.71 / 170.89 / 214.07 /
+257.25, width 34.20 inside a 38.00-wide well, and 123px clear of `Btn_Back` at y 428-484.
+
+**Worth noting for future scrim work: three sites, three different correct approaches** - read
+`.rect.size` directly, compute from real parent geometry, or stretch-anchor inside the parent. **The
+last is the most robust because it cannot drift.** Prefer it where the scrim should simply fill its
+parent.
+
+**DailyLoginQuests font floor also done** - all 12 text instances at 24px minimum, 28px for
+interactive and display labels, weight 500+. `StatusText` was the worst at 18px.
+
+**FONT FLOOR REMAINING: GameBootstrap (37 labels), SpellLoadoutPicker (23).** BattlePass (42), Empire
+(28) and DailyLoginQuests (26) are done.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
