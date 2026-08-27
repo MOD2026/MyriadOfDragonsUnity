@@ -117,12 +117,16 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 1f);
             backRect.anchoredPosition = new Vector2(30f, -5f);
             backRect.sizeDelta = new Vector2(160f, 40f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 34f));
+            Text backText = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 34f));
+            backText.fontSize = 28;
+            backText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(backText.rectTransform);
             backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "EMPIRE", UITextRole.Display,
                 TextAnchor.MiddleLeft, new Color(0.95f, 0.92f, 0.82f), true, new Vector2(220f, 60f));
             title.fontSize = 32;
+            title.fontStyle = FontStyle.Bold;
             RectTransform titleRect = title.rectTransform;
             titleRect.anchorMin = new Vector2(0f, 0.5f);
             titleRect.anchorMax = new Vector2(0f, 0.5f);
@@ -132,7 +136,8 @@ namespace MyriadOfDragons.UI
 
             _avatarSummaryText = UISharedFoundation.CreateText(topBar.transform, "AvatarSummary", "Avatar L1",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(360f, 36f));
-            _avatarSummaryText.fontSize = 18;
+            _avatarSummaryText.fontSize = 24;
+            _avatarSummaryText.fontStyle = FontStyle.Bold;
             RectTransform avatarRect = _avatarSummaryText.rectTransform;
             avatarRect.anchorMin = new Vector2(0f, 0.5f);
             avatarRect.anchorMax = new Vector2(0f, 0.5f);
@@ -160,8 +165,11 @@ namespace MyriadOfDragons.UI
                 hitRect.pivot = new Vector2(0f, 0.5f);
                 hitRect.anchoredPosition = new Vector2(820f, 0f);
                 hitRect.sizeDelta = new Vector2(140f, 52f);
-                UISharedFoundation.CreateText(avatarBtnObj.transform, "ActionLabel", "AVATAR",
+                Text avatarLabel = UISharedFoundation.CreateText(avatarBtnObj.transform, "ActionLabel", "AVATAR",
                     UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 36f));
+                avatarLabel.fontSize = 28;
+                avatarLabel.fontStyle = FontStyle.Bold;
+                UISharedFoundation.StretchFull(avatarLabel.rectTransform);
                 avatarBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             }
 
@@ -179,8 +187,11 @@ namespace MyriadOfDragons.UI
             expeditionRect.pivot = new Vector2(0f, 0.5f);
             expeditionRect.anchoredPosition = new Vector2(_onOpenAvatar != null ? 980f : 820f, 0f);
             expeditionRect.sizeDelta = new Vector2(170f, 52f);
-            UISharedFoundation.CreateText(expeditionBtnObj.transform, "ActionLabel", "EXPEDITION",
+            Text expLabel = UISharedFoundation.CreateText(expeditionBtnObj.transform, "ActionLabel", "EXPEDITION",
                 UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(150f, 36f));
+            expLabel.fontSize = 28;
+            expLabel.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(expLabel.rectTransform);
             expeditionBtnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             GameObject resourceGroup = new GameObject("ResourceGroup", typeof(RectTransform), typeof(HorizontalLayoutGroup));
@@ -231,7 +242,8 @@ namespace MyriadOfDragons.UI
             Text subtitle = UISharedFoundation.CreateText(empireRoot.transform, "EmpireSubtitle",
                 "Castle · Barracks · Gate", UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"),
                 true, new Vector2(800f, 36f));
-            subtitle.fontSize = 20;
+            subtitle.fontSize = 24;
+            subtitle.fontStyle = FontStyle.Bold;
             SetNormalizedRect(subtitle.rectTransform, 0.03f, 0.93f, 0.50f, 0.99f);
 
             BuildVariantStrip(empireRoot.transform);
@@ -246,17 +258,20 @@ namespace MyriadOfDragons.UI
 
             _empireStatusText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireStatus", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(1200f, 48f));
-            _empireStatusText.fontSize = 18;
+            _empireStatusText.fontSize = 24;
+            _empireStatusText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.12f, 0.68f, 0.20f);
 
             _projectDetailText = UISharedFoundation.CreateText(empireRoot.transform, "ActiveProjectDetail", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 40f));
-            _projectDetailText.fontSize = 16;
+            _projectDetailText.fontSize = 24;
+            _projectDetailText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(_projectDetailText.rectTransform, 0.03f, 0.05f, 0.68f, 0.11f);
 
             _empireMessageText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireMessage", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#E8A87C"), true, new Vector2(500f, 48f));
-            _empireMessageText.fontSize = 16;
+            _empireMessageText.fontSize = 24;
+            _empireMessageText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.00f, 0.68f, 0.05f);
 
             _empireCollectButtonRoot = CreateActionButton(empireRoot.transform, "CollectConstructionButton",
@@ -682,8 +697,11 @@ namespace MyriadOfDragons.UI
             else
                 chip.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(chip.GetComponent<RectTransform>(), left, 0.08f, right, 0.92f);
-            UISharedFoundation.CreateText(chip.transform, "Label", label, UITextRole.Caption, TextAnchor.MiddleCenter,
+            Text chipLabel = UISharedFoundation.CreateText(chip.transform, "Label", label, UITextRole.Caption, TextAnchor.MiddleCenter,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 28f));
+            chipLabel.fontSize = 28;
+            chipLabel.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(chipLabel.rectTransform);
             chip.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
         }
 
@@ -757,50 +775,31 @@ namespace MyriadOfDragons.UI
                 art.sprite = artSprite;
                 art.preserveAspect = true;
                 art.raycastTarget = false;
-                SetNormalizedRect(art.rectTransform, 0.10f, 0.42f, 0.90f, 0.96f);
+                SetNormalizedRect(art.rectTransform, 0.04f, 0.08f, 0.32f, 0.92f);
             }
             else if (!string.IsNullOrEmpty(artPath))
             {
                 Debug.LogWarning($"[Empire] Failed to load structure art sprite '{artPath}'.");
             }
 
-            // FONT SIZES FIT THE BAND, not the other way round. Adding the building thumbnail
-            // (e208114) correctly took most of this tile's height, which left the two text bands
-            // ~10px tall while the labels still asked for 17px - the geometry audit caught
-            // "STORAGE" overflowing by 6.8px. This strip is a compact entry point, so the text
-            // shrinks to fit rather than the art giving its space back.
             Text label = UISharedFoundation.CreateText(tile.transform, "StructureName",
-                def.DisplayName.ToUpperInvariant(), UITextRole.Caption, TextAnchor.MiddleCenter,
+                def.DisplayName.ToUpperInvariant(), UITextRole.Caption, TextAnchor.MiddleLeft,
                 HexColor("#F2E5C9"), true, new Vector2(200f, 24f));
-            // Use the shared token rather than a magic number where it FITS. The UI audit
-            // (2979e1b) names "font sizes set by the token system then overwritten by hand" as a
-            // root cause, and this strip was an instance of it.
-            label.fontSize = UIFrozenTokens.TypeCaptionSize;
+            label.fontSize = 24;
+            label.fontStyle = FontStyle.Bold;
             label.resizeTextForBestFit = false;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.raycastTarget = false;
-            SetNormalizedRect(label.rectTransform, 0.02f, 0.20f, 0.98f, 0.40f);
+            SetNormalizedRect(label.rectTransform, 0.34f, 0.48f, 0.98f, 0.92f);
 
-            // Reads the real stored level now that the fields exist. Before today these five had
-            // no level field and this line could only have shown a placeholder.
             Text level = UISharedFoundation.CreateText(tile.transform, "StructureLevel",
                 "LEVEL " + EmpireBuildingLevels.LevelOf(SaveManager.SaveData, kind),
-                UITextRole.Caption, TextAnchor.MiddleCenter, HexColor("#9FD3A0"), true,
+                UITextRole.Caption, TextAnchor.MiddleLeft, HexColor("#9FD3A0"), true,
                 new Vector2(200f, 22f));
-            // DOCUMENTED DEVIATION, not an oversight. The shared type scale is
-            // 28/20/16/12 (UIFrozenTokens) and has NO step below TypeCaptionSize = 12; the colour-
-            // token foundation (f80a804) added colours and a frame primitive but did not extend it.
-            // This band is roughly 12px, so a 12pt line overflows it - the label above uses the
-            // token because its band is ~15px and it fits, which was measured, not assumed.
-            //
-            // Left as a raw value deliberately: relabelling it as token-compliant would be false,
-            // and shrinking the thumbnail to fit a 12pt secondary line would undo the point of
-            // showing building art in a compact strip. If the type scale ever gains a smaller step,
-            // this is the line to move onto it - and UiGeometryRegressionTests will catch it
-            // immediately if that step is still too large.
-            level.fontSize = 10;
+            level.fontSize = 24;
+            level.fontStyle = FontStyle.Bold;
             level.raycastTarget = false;
-            SetNormalizedRect(level.rectTransform, 0.02f, 0.02f, 0.98f, 0.19f);
+            SetNormalizedRect(level.rectTransform, 0.34f, 0.08f, 0.98f, 0.48f);
         }
 
         public int StructureTileCountForTests =>
@@ -816,16 +815,10 @@ namespace MyriadOfDragons.UI
             rowBg.raycastTarget = true;
             Button rowButton = row.GetComponent<Button>();
             rowButton.targetGraphic = rowBg;
-            // None, not Unity's default ColorTint (CR, 2026-08-27, interaction-states sweep): this
-            // is the one real button in this file that never called an ApplyXActionButton helper
-            // (it uses ApplyFramedPanel below instead), so it never got a transition override and
-            // was left on ColorTint, which silently fights InteractionStateController over
-            // Image.color - the exact conflict class CC flagged as likely systemic.
             rowButton.transition = Selectable.Transition.None;
             EmpireBuildingKind captured = kind;
             rowButton.onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(row.GetComponent<RectTransform>(), 0.03f, bottom, 0.97f, top);
-            // Applied AFTER final positioning - see BuildConstructionPanel's same fix for why.
             UISharedFoundation.ApplyFramedPanel(rowBg, null,
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                 kind: UISharedFoundation.FramedPanelKind.ListRow);
@@ -833,7 +826,8 @@ namespace MyriadOfDragons.UI
 
             Text rowText = UISharedFoundation.CreateText(row.transform, "RowSummary", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 80f));
-            rowText.fontSize = 20;
+            rowText.fontSize = 24;
+            rowText.fontStyle = FontStyle.Bold;
             rowText.horizontalOverflow = HorizontalWrapMode.Wrap;
             rowText.verticalOverflow = VerticalWrapMode.Overflow;
             rowText.raycastTarget = false;
@@ -864,9 +858,9 @@ namespace MyriadOfDragons.UI
 
             Text buttonLabel = UISharedFoundation.CreateText(buttonRoot.transform, "ActionLabel", label,
                 UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(220f, 36f));
-            buttonLabel.fontSize = 16;
+            buttonLabel.fontSize = 28;
             buttonLabel.fontStyle = FontStyle.Bold;
-            SetNormalizedRect(buttonLabel.rectTransform, 0.05f, 0.05f, 0.95f, 0.95f);
+            UISharedFoundation.StretchFull(buttonLabel.rectTransform);
             buttonRoot.AddComponent<InteractionStateController>().Tier =
                 primary ? UIDesignTokens.FrameTier.Tier1Hero : UIDesignTokens.FrameTier.Tier2Section;
             return buttonRoot;
