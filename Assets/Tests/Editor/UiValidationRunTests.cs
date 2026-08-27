@@ -717,6 +717,53 @@ namespace MyriadOfDragons.Tests
                             col.Append(" y").Append(y).Append('=').Append(C3(c));
                         }
                         Debug.Log(col.ToString());
+
+                        // CC's decisive toggle test (2026-08-27): disable the plate's OWN Image
+                        // and re-walk the identical column, THROUGH THE SAME cam PrepareForMeasurement
+                        // already configured - not a second hand-built camera/canvas, which is what
+                        // diverged and produced a misleading 108px-vs-21px box earlier tonight. A
+                        // fresh short-lived RenderTexture is required because PrepareForMeasurement
+                        // releases its own after returning; everything else (cam position, ortho
+                        // size, canvas.worldCamera) is the untouched real setup. State is fully
+                        // restored (plate + Text re-enabled, temp RT destroyed) before returning.
+                        if (cam != null)
+                        {
+                            var toggleRt = new RenderTexture(background.width, background.height, 24);
+                            RenderTexture prevActive = RenderTexture.active;
+                            RenderTexture prevTarget = cam.targetTexture;
+                            cam.targetTexture = toggleRt;
+
+                            var hiddenNow = new List<Text>();
+                            foreach (Text t in root.GetComponentsInChildren<Text>(true))
+                            {
+                                if (!t.enabled) continue;
+                                t.enabled = false;
+                                hiddenNow.Add(t);
+                            }
+
+                            plateImg.enabled = false;
+                            cam.Render();
+                            RenderTexture.active = toggleRt;
+                            var disabledFrame = new Texture2D(toggleRt.width, toggleRt.height, TextureFormat.RGB24, false);
+                            disabledFrame.ReadPixels(new Rect(0, 0, toggleRt.width, toggleRt.height), 0, 0);
+                            disabledFrame.Apply();
+
+                            var colOff = new StringBuilder();
+                            colOff.Append("[UiValidation:DIAG-TOGGLE-OFF] ").Append(screen.Name).Append(' ').Append(Q(plateRt.name))
+                                  .Append(" x=").Append(cx).Append(" walk y=").Append(yStart).Append("..").Append(yEnd).Append(':');
+                            for (int y = yStart; y <= yEnd; y++)
+                                colOff.Append(" y").Append(y).Append('=').Append(C3(disabledFrame.GetPixel(cx, y)));
+                            Debug.Log(colOff.ToString());
+
+                            // restore, in order: plate back on, text back on, RT/target torn down
+                            plateImg.enabled = true;
+                            foreach (Text t in hiddenNow) t.enabled = true;
+                            RenderTexture.active = prevActive;
+                            cam.targetTexture = prevTarget;
+                            UnityEngine.Object.DestroyImmediate(disabledFrame);
+                            toggleRt.Release();
+                            UnityEngine.Object.DestroyImmediate(toggleRt);
+                        }
                     }
                 }
             }
