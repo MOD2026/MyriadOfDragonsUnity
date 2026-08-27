@@ -1,14 +1,3 @@
 {
-  "exceptions": [
-    {
-      "id": "BATTLEPASS-STATUSLINE-DEVCOPY-001",
-      "screen": "BattlePass",
-      "controlA": "StatusLine",
-      "controlB": "PremiumBar",
-      "relationship": "OVERFLOW",
-      "reason": "StatusLine renders BattlePassOpenValues.StatusNote, a ~350-char developer diagnostic string (not player copy) describing which BattlePass numbers are still undecided. Only PremiumBar can grow (Btn_UnlockPremium occupies x 0.00-0.32, y 0.25-0.90), and growing it 72% would restructure the screen to fit placeholder text that exists only until real numbers are locked. Fitting production geometry to a dev diagnostic is the wrong fix; the correct fix is shortening StatusNote to real player copy once BattlePass numbers lock, which is a content/design decision requiring the numbers to exist first.",
-      "owner": "CC",
-      "expires": "2026-09-10"
-    }
-  ]
+  "exceptions": []
 }
