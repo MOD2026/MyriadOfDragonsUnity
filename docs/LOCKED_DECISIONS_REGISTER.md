@@ -2480,6 +2480,54 @@ VIP, DailyLogin, MemoryExpedition.
    placement was wrong.** Do not assume either way - but the validator room needs to know this
    possibility exists, because it changes what they are looking for.
 
+## Enemy HUD animation - DESIGN LOCKED 2026-08-27, with one open owner question
+
+BS answered the top-right animation ask. Region is 538x97 at 1920x1080 - wide and short - and was
+just measured clean under compression, so this is a clean slate.
+
+**WHAT IT COMMUNICATES, ranked:** (1) health proportion + danger state - the one glanceable fact that
+changes spell decisions; (2) damage just received - confirms the player's action mattered; (3) an
+incoming cast, only during the cast window; (4) alive/reacting; (5) raw health number, least useful
+without its maximum.
+
+**FORM: a compact animated crest, NOT a portrait or a rigged character.** Left: 64-76px circular or
+hexagonal crest. Middle: horizontal health bar at ~65-70% of the width. Right: small danger glyph.
+**A crest plus bar survives procedural construction, scales cleanly, and is testable through
+PROPERTIES rather than coroutine completion** - which matters because EditMode cannot run coroutines.
+
+**MOTION ONLY ON EVENTS, never per tick:** damage = 120ms red/amber flash + 100-140ms fill
+interpolation; committed AvatarStrike or major cast = 180-240ms crest charge/glow (**only when
+actually committed, not when the AI merely considers it**); crossing below 30% health = ONE 500ms
+danger pulse then a restrained idle; defeat = one 300-400ms collapse/fade. Persistent state stays
+static: health proportion, danger threshold, alive/defeated.
+
+**HARD LIMITS:** no continuous large-scale pulsing; no movement beyond ~2-3% of the region; no screen
+shake; **no high-saturation amber competing with lane effects**; nothing obscuring the bar or value;
+no idle loop faster than one cycle per 2.5-3s. Idle palette desaturated slate/ivory; **danger uses a
+muted crimson rather than amber, so enemy feedback does not merge with the decorative ember
+particles** in our backdrops.
+
+**PLAYER HUD: deliberately ASYMMETRIC.** Same health-bar grammar and thresholds for consistency, but
+lower animation amplitude and fewer event flashes. Enemy feedback should earn a short glance; player
+feedback should preserve focus on spell controls and lanes.
+
+### TWO CC CORRECTIONS
+
+**1. BS specified the numeric value at T1 = 22px. That VIOLATES our own locked floor of 24px
+absolute.** Any retained number renders at **24px minimum**, weight 500.
+
+**2. OPEN OWNER QUESTION - BS recommends KEEPING a compact numeric percentage, which is partly
+contrary to the owner's instruction of "animation and not text".** BS's argument: the bar gives
+instant proportion, the percentage preserves precision, and a purely animated glow is not reliable
+enough for tactical decisions in a 12-tick fight. **CC is not overriding an owner instruction on
+advice - flagged for the owner to decide.** Everything else in this design is independent of that
+choice and can proceed either way.
+
+**Benchmark: UNCONFIRMED numeric values across all five games checked** (Hearthstone, Clash Royale,
+Marvel Snap, Arknights, Royal Match) - no shipped title publishes animation timings. Qualitative
+pattern confirmed: opponent state read through persistent visual + numeric indicators that react to
+damage, not through text alone.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
