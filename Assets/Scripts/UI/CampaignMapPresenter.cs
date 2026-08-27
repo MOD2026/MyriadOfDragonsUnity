@@ -2480,8 +2480,14 @@ namespace MyriadOfDragons.UI
             RectTransform rect = nodeObj.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(220, 220);
 
-            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, -78), 22, TextAnchor.MiddleCenter);
-            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -104), 22, TextAnchor.MiddleCenter);
+            UISharedFoundation.AddLocalGradientScrim(
+                nodeObj.transform,
+                new Vector2(0f, -90f),
+                new Vector2(200f, 50f),
+                UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+
+            CreateTextElement(nodeObj.transform, "StageNum", stage.stageId, new Vector2(0, -78), 22, TextAnchor.MiddleCenter, new Vector2(200f, 26f));
+            CreateTextElement(nodeObj.transform, "Title", stage.title, new Vector2(0, -104), 22, TextAnchor.MiddleCenter, new Vector2(200f, 26f));
         }
 
         /// <summary>Campaign launch feedback contract: invokes the real launch gate
@@ -2736,7 +2742,7 @@ namespace MyriadOfDragons.UI
             rect.offsetMax = Vector2.zero;
         }
 
-        private void CreateTextElement(Transform parent, string objectName, string content, Vector2 position, int fontSize, TextAnchor alignment)
+        private void CreateTextElement(Transform parent, string objectName, string content, Vector2 position, int fontSize, TextAnchor alignment, Vector2? customSize = null)
         {
             GameObject textObj = new GameObject(objectName);
             textObj.transform.SetParent(parent, false);
@@ -2745,6 +2751,7 @@ namespace MyriadOfDragons.UI
             txt.text = content;
             txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             txt.fontSize = fontSize;
+            txt.fontStyle = FontStyle.Bold;
             txt.alignment = alignment;
             txt.color = Color.white;
             txt.supportRichText = true;
@@ -2756,7 +2763,7 @@ namespace MyriadOfDragons.UI
 
             RectTransform rect = textObj.GetComponent<RectTransform>();
             rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(700, 100);
+            rect.sizeDelta = customSize ?? new Vector2(700, 100);
         }
     }
 }

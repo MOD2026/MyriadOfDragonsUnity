@@ -303,7 +303,9 @@ namespace MyriadOfDragons.UI
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             Text header = CreateTextElement(panelObj.transform, "Header", "OWNED CARDS", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(400, 54));
-            header.color = new Color(0.57f, 0.91f, 0.9f);
+            header.color = Color.white;
+            header.fontStyle = FontStyle.Bold;
+            UISharedFoundation.AddLocalGradientScrim(header.transform, Vector2.zero, new Vector2(400f, 54f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             SetLocalNormalisedRect(header.rectTransform, 0.03f, 0.92f, 0.5f, 0.995f);
 
             GameObject scrollObj = new GameObject("CollectionScroll", typeof(RectTransform), typeof(ScrollRect));
@@ -364,7 +366,9 @@ namespace MyriadOfDragons.UI
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             Text header = CreateTextElement(panelObj.transform, "Header", "ACTIVE DECK", Vector2.zero, 26, TextAnchor.MiddleLeft, new Vector2(360, 54));
-            header.color = new Color(0.94f, 0.75f, 0.4f);
+            header.color = Color.white;
+            header.fontStyle = FontStyle.Bold;
+            UISharedFoundation.AddLocalGradientScrim(header.transform, Vector2.zero, new Vector2(360f, 54f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             SetLocalNormalisedRect(header.rectTransform, 0.03f, 0.92f, 0.5f, 0.995f);
 
             deckStatsText = CreateTextElement(panelObj.transform, "DeckStats", "", Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(720, 72));
@@ -415,10 +419,10 @@ namespace MyriadOfDragons.UI
             deckEmptyText = CreateTextElement(panelObj.transform, "EmptyDeckState", "No cards in the deck yet. Tap an owned card to add it.", new Vector2(0, 36), 22, TextAnchor.MiddleCenter, new Vector2(600, 70));
             deckEmptyText.enabled = false;
 
-            deckStatusText = CreateTextElement(panelObj.transform, "DeckStatus", "", Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(720, 46));
-            deckStatusText.color = new Color(0.9f, 0.82f, 0.64f);
+            deckStatusText = CreateTextElement(panelObj.transform, "DeckStatus", "", Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(720, 60));
+            deckStatusText.color = Color.white;
             deckStatusText.fontStyle = FontStyle.Bold;
-            SetLocalNormalisedRect(deckStatusText.rectTransform, 0.03f, 0.0f, 0.97f, 0.05f);
+            SetLocalNormalisedRect(deckStatusText.rectTransform, 0.03f, 0.0f, 0.97f, 0.07f);
 
         }
 
@@ -957,7 +961,10 @@ namespace MyriadOfDragons.UI
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
 
-            CreateTextElement(btnObj.transform, "Text", label, Vector2.zero, 24, TextAnchor.MiddleCenter, size);
+            Text btnText = CreateTextElement(btnObj.transform, "Text", label, Vector2.zero, 24, TextAnchor.MiddleCenter, size);
+            btnText.color = Color.white;
+            btnText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.AddLocalGradientScrim(btnObj.transform, Vector2.zero, size, UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             return btnObj;
         }
 

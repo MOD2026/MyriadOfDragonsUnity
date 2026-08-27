@@ -116,7 +116,7 @@ namespace MyriadOfDragons.UI
             backBtn.transform.SetParent(topBar.transform, false);
             Image backImg = backBtn.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNavTileButton(backBtn.GetComponent<Button>(), backImg);
-            backImg.color = new Color(0.3f, 0.2f, 0.2f);
+            backImg.color = new Color(0.12f, 0.14f, 0.18f, 0.95f);
             backBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
                 TeardownUI();
@@ -128,22 +128,24 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text backText = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
             backText.fontSize = 28;
             backText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.ApplyTextShadow(backText);
             UISharedFoundation.StretchFull(backText.rectTransform);
 
             _clockText = UISharedFoundation.CreateText(topBar.transform, "ResetClock",
                 MetagameShellProfileBinding.UtcDayKeyLine(), UITextRole.Body, TextAnchor.MiddleRight,
-                new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 32f));
+                Color.white, true, new Vector2(280f, 32f));
             _clockText.fontSize = 24;
             _clockText.fontStyle = FontStyle.Bold;
             SetNorm(_clockText.rectTransform, 0.72f, 0.2f, 0.97f, 0.8f);
 
             _walletText = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
                 MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
-                new Color(0.75f, 0.8f, 0.7f), true, new Vector2(520f, 28f));
+                Color.white, true, new Vector2(520f, 28f));
             _walletText.fontSize = 24;
             _walletText.fontStyle = FontStyle.Bold;
             SetNorm(_walletText.rectTransform, 0.22f, 0.15f, 0.70f, 0.85f);
@@ -155,15 +157,17 @@ namespace MyriadOfDragons.UI
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.04f, 0.08f, 0.48f, 0.88f);
 
+            UISharedFoundation.AddLocalGradientScrim(panel.transform, Vector2.zero, new Vector2(420f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text header = UISharedFoundation.CreateText(panel.transform, "Header", "DAILY LOGIN",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(420f, 40f));
             header.fontSize = 28;
             header.fontStyle = FontStyle.Bold;
+            UISharedFoundation.ApplyTextShadow(header);
             SetNorm(header.rectTransform, 0.08f, 0.88f, 0.92f, 0.98f);
 
             Text streak = UISharedFoundation.CreateText(panel.transform, "StreakLabel", "STREAK",
-                UITextRole.Title, TextAnchor.MiddleLeft, new Color(0.75f, 0.88f, 0.7f), true,
+                UITextRole.Title, TextAnchor.MiddleLeft, Color.white, true,
                 new Vector2(200f, 28f));
             streak.fontSize = 24;
             streak.fontStyle = FontStyle.Bold;
@@ -252,11 +256,13 @@ namespace MyriadOfDragons.UI
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.52f, 0.08f, 0.96f, 0.88f);
 
+            UISharedFoundation.AddLocalGradientScrim(panel.transform, Vector2.zero, new Vector2(420f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text header = UISharedFoundation.CreateText(panel.transform, "Header", "DAILY QUESTS",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(420f, 40f));
             header.fontSize = 28;
             header.fontStyle = FontStyle.Bold;
+            UISharedFoundation.ApplyTextShadow(header);
             SetNorm(header.rectTransform, 0.08f, 0.88f, 0.92f, 0.98f);
 
             _questCopyTexts = new Text[DailyLoginQuestsOpenValues.DailyQuestSlots];

@@ -1894,22 +1894,40 @@ public class HomePagePresenter : MonoBehaviour
         // Backing fills the pill root
         SetLocalNormalisedRect(backingImage.rectTransform, 0.0f, 0.0f, 1.0f, 1.0f);
 
+        // Text plate with dark scrim backing to guarantee WCAG AA contrast over bright pill art
+        GameObject textPlate = new GameObject("ResourceTextPlate", typeof(RectTransform), typeof(Image));
+        textPlate.transform.SetParent(pillRoot.transform, false);
+        SetLocalNormalisedRect(textPlate.GetComponent<RectTransform>(), 0.05f, 0.05f, 0.95f, 0.95f);
+        Image plateFill = textPlate.GetComponent<Image>();
+        plateFill.sprite = UISharedFoundation.CreateRoundedPanelSprite(
+            new Color(0.03f, 0.035f, 0.05f, 0.95f),
+            new Color(0.03f, 0.035f, 0.05f, 0.95f), cornerRadius: 1);
+        plateFill.type = Image.Type.Simple;
+        plateFill.color = Color.white;
+        plateFill.raycastTarget = false;
+        UISharedFoundation.AddLocalGradientScrim(
+            textPlate.transform,
+            Vector2.zero,
+            new Vector2(130f, 40f),
+            UISharedFoundation.GradientDirection.TopToBottom, 0.98f);
+
         // Shared text-only layout for all three resource pills
         Text pillLabel = UISharedFoundation.CreateText(
-            pillRoot.transform, "ResourceLabel", label,
-            MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(100f, 30f));
-        pillLabel.fontSize = 16;
+            textPlate.transform, "ResourceLabel", label,
+            MyriadOfDragons.UI.UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(50f, 30f));
+        pillLabel.fontSize = 22;
+        pillLabel.fontStyle = FontStyle.Bold;
         pillLabel.raycastTarget = false;
-        SetLocalNormalisedRect(pillLabel.rectTransform, 0.18f, 0.2f, 0.52f, 0.8f);
+        SetLocalNormalisedRect(pillLabel.rectTransform, 0.08f, 0.1f, 0.45f, 0.9f);
 
         // Value (right side, larger, never truncate)
         Text pillValue = UISharedFoundation.CreateText(
-            pillRoot.transform, "ResourceValue", value,
-            MyriadOfDragons.UI.UITextRole.Display, TextAnchor.MiddleRight, HexColor("#F2E5C9"), true, new Vector2(100f, 30f));
+            textPlate.transform, "ResourceValue", value,
+            MyriadOfDragons.UI.UITextRole.Display, TextAnchor.MiddleRight, Color.white, true, new Vector2(80f, 30f));
         pillValue.fontSize = 24;
         pillValue.fontStyle = FontStyle.Bold;
         pillValue.raycastTarget = false;
-        SetLocalNormalisedRect(pillValue.rectTransform, 0.52f, 0.2f, 0.91f, 0.8f);
+        SetLocalNormalisedRect(pillValue.rectTransform, 0.45f, 0.1f, 0.95f, 0.9f);
 
         return pillValue; // Return the value text for runtime updates
     }

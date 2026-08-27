@@ -100,9 +100,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildHeader()
         {
-            GameObject topBar = new GameObject("GuildExpeditionHeader", typeof(RectTransform));
+            GameObject topBar = new GameObject("GuildExpeditionHeader", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(_canvasObj.transform, false);
+            Image topBg = topBar.GetComponent<Image>();
+            topBg.color = UIFrozenTokens.ColorHeader;
+            topBg.raycastTarget = false;
             SetNorm(topBar.GetComponent<RectTransform>(), 0f, 0.90f, 1f, 1f);
+            UISharedFoundation.AddLocalGradientScrim(topBar.transform, Vector2.zero, new Vector2(1920f, 108f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             GameObject backBtn = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
             backBtn.transform.SetParent(topBar.transform, false);
@@ -120,29 +124,40 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text backTxt = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backTxt.fontSize = 22;
+            backTxt.fontStyle = FontStyle.Bold;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "GUILD EXPEDITION",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(720f, 48f));
             title.fontSize = 28;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.22f, 0.15f, 0.78f, 0.9f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", "Ready.",
-                UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
+                UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(420f, 40f));
+            _statusText.fontSize = 22;
+            _statusText.fontStyle = FontStyle.Bold;
             SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
         }
 
         private void BuildBody()
         {
-            GameObject panel = new GameObject("ExpeditionPanel", typeof(RectTransform));
+            GameObject panel = new GameObject("ExpeditionPanel", typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.05f, 0.08f, 0.95f, 0.88f);
+            Image panelImg = panel.GetComponent<Image>();
+            UISharedFoundation.ApplyFramedPanel(panelImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             _detailsText = UISharedFoundation.CreateText(panel.transform, "Details", string.Empty,
-                UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 120f));
+                UITextRole.Body, TextAnchor.UpperLeft, Color.white, true, new Vector2(900f, 120f));
+            _detailsText.fontSize = 22;
+            _detailsText.fontStyle = FontStyle.Bold;
             SetNorm(_detailsText.rectTransform, 0.02f, 0.78f, 0.98f, 0.98f);
 
             GameObject objGrid = new GameObject("ObjectiveGrid", typeof(RectTransform));
@@ -175,9 +190,11 @@ namespace MyriadOfDragons.UI
                     (col + 1) * cw - 0.01f, 1f - row * rh - 0.02f);
                 GuildExpeditionUiLibrary.ApplyStageIcon(well.transform, "StageIcon",
                     GuildExpeditionUiLibrary.StageState.Available, 0.08f, 0.28f, 0.92f, 0.92f);
+                UISharedFoundation.AddLocalGradientScrim(well.transform, Vector2.zero, new Vector2(150f, 40f), UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
                 Text label = UISharedFoundation.CreateText(well.transform, "Label", ShortId(id),
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
-                label.fontSize = 14;
+                label.fontSize = 22;
+                label.fontStyle = FontStyle.Bold;
                 label.raycastTarget = false;
                 SetNorm(label.rectTransform, 0.04f, 0.04f, 0.96f, 0.28f);
             }
@@ -202,8 +219,11 @@ namespace MyriadOfDragons.UI
                     SetStatus($"Milestone: {_selectedMilestone}");
                 });
                 SetNorm(chip.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.02f, 0.95f, 1f - i * h - 0.02f);
-                UISharedFoundation.CreateText(chip.transform, "Label", $"BAND {threshold}",
+                UISharedFoundation.AddLocalGradientScrim(chip.transform, Vector2.zero, new Vector2(180f, 36f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+                Text chipLabel = UISharedFoundation.CreateText(chip.transform, "Label", $"BAND {threshold}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 36f));
+                chipLabel.fontSize = 22;
+                chipLabel.fontStyle = FontStyle.Bold;
             }
 
             CreateActionButton(panel.transform, "Btn_ConsumeAttempt", "CONSUME ATTEMPT", 0.02f, 0.04f, 0.32f, 0.22f,

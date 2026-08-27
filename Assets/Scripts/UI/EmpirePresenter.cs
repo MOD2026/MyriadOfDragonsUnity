@@ -121,10 +121,11 @@ namespace MyriadOfDragons.UI
             backText.fontSize = 28;
             backText.fontStyle = FontStyle.Bold;
             UISharedFoundation.StretchFull(backText.rectTransform);
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 40f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "EMPIRE", UITextRole.Display,
-                TextAnchor.MiddleLeft, new Color(0.95f, 0.92f, 0.82f), true, new Vector2(220f, 60f));
+                TextAnchor.MiddleLeft, Color.white, true, new Vector2(220f, 60f));
             title.fontSize = 32;
             title.fontStyle = FontStyle.Bold;
             RectTransform titleRect = title.rectTransform;
@@ -138,7 +139,7 @@ namespace MyriadOfDragons.UI
                 // Band grown 36 -> 60: at 24px bold this summary wraps to two lines (measured 55px
                 // against a 36px band), so the box grows rather than the type shrinking - the 22px
                 // font floor holds and height overflows are fixed by the surface, not the font.
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(360f, 60f));
+                UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(360f, 60f));
             _avatarSummaryText.fontSize = 24;
             _avatarSummaryText.fontStyle = FontStyle.Bold;
             RectTransform avatarRect = _avatarSummaryText.rectTransform;
@@ -171,8 +172,9 @@ namespace MyriadOfDragons.UI
                 hitRect.pivot = new Vector2(0f, 0.5f);
                 hitRect.anchoredPosition = new Vector2(820f, 0f);
                 hitRect.sizeDelta = new Vector2(140f, 52f);
+                UISharedFoundation.AddLocalGradientScrim(avatarBtnObj.transform, Vector2.zero, new Vector2(140f, 52f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
                 Text avatarLabel = UISharedFoundation.CreateText(avatarBtnObj.transform, "ActionLabel", "AVATAR",
-                    UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(120f, 36f));
+                    UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(120f, 36f));
                 avatarLabel.fontSize = 28;
                 avatarLabel.fontStyle = FontStyle.Bold;
                 UISharedFoundation.StretchFull(avatarLabel.rectTransform);
@@ -196,8 +198,9 @@ namespace MyriadOfDragons.UI
             // wrapped to two and measured 63px against this button's 52px height. Widening lets it
             // sit on one line instead of forcing the button taller, which would fight the top bar.
             expeditionRect.sizeDelta = new Vector2(240f, 52f);
+            UISharedFoundation.AddLocalGradientScrim(expeditionBtnObj.transform, Vector2.zero, new Vector2(240f, 52f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text expLabel = UISharedFoundation.CreateText(expeditionBtnObj.transform, "ActionLabel", "EXPEDITION",
-                UITextRole.Body, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(150f, 36f));
+                UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(150f, 36f));
             expLabel.fontSize = 28;
             expLabel.fontStyle = FontStyle.Bold;
             UISharedFoundation.StretchFull(expLabel.rectTransform);
@@ -249,10 +252,11 @@ namespace MyriadOfDragons.UI
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             Text subtitle = UISharedFoundation.CreateText(empireRoot.transform, "EmpireSubtitle",
-                "Castle · Barracks · Gate", UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"),
+                "Castle · Barracks · Gate", UITextRole.Body, TextAnchor.MiddleLeft, Color.white,
                 true, new Vector2(800f, 36f));
             subtitle.fontSize = 24;
             subtitle.fontStyle = FontStyle.Bold;
+            UISharedFoundation.AddLocalGradientScrim(subtitle.transform, Vector2.zero, new Vector2(400f, 36f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             SetNormalizedRect(subtitle.rectTransform, 0.03f, 0.93f, 0.50f, 0.99f);
 
             BuildVariantStrip(empireRoot.transform);
@@ -266,19 +270,19 @@ namespace MyriadOfDragons.UI
             BuildRemainingStructuresStrip(empireRoot.transform);
 
             _empireStatusText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireStatus", "",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#B8A68F"), true, new Vector2(1200f, 48f));
+                UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(1200f, 48f));
             _empireStatusText.fontSize = 24;
             _empireStatusText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.12f, 0.68f, 0.20f);
 
             _projectDetailText = UISharedFoundation.CreateText(empireRoot.transform, "ActiveProjectDetail", "",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#F2E5C9"), true, new Vector2(900f, 40f));
+                UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(900f, 40f));
             _projectDetailText.fontSize = 24;
             _projectDetailText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(_projectDetailText.rectTransform, 0.03f, 0.05f, 0.68f, 0.11f);
 
             _empireMessageText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireMessage", "",
-                UITextRole.Body, TextAnchor.MiddleLeft, HexColor("#E8A87C"), true, new Vector2(500f, 48f));
+                UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(500f, 48f));
             _empireMessageText.fontSize = 24;
             _empireMessageText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.00f, 0.68f, 0.05f);
@@ -699,17 +703,19 @@ namespace MyriadOfDragons.UI
             GameObject chip = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             chip.transform.SetParent(parent, false);
             Image img = chip.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNeutralActionButton(chip.GetComponent<Button>(), img, HexColor("#1A3A4A"));
+            HomeV3UiLibrary.ApplyNeutralActionButton(chip.GetComponent<Button>(), img, HexColor("#0F1A24"));
             EmpireBuildingKind captured = kind;
             if (onClickOverride != null)
                 chip.GetComponent<Button>().onClick.AddListener(() => onClickOverride());
             else
                 chip.GetComponent<Button>().onClick.AddListener(() => OpenBuildingDetail(captured));
             SetNormalizedRect(chip.GetComponent<RectTransform>(), left, 0.08f, right, 0.92f);
+            UISharedFoundation.AddLocalGradientScrim(chip.transform, Vector2.zero, new Vector2(160f, 40f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text chipLabel = UISharedFoundation.CreateText(chip.transform, "Label", label, UITextRole.Caption, TextAnchor.MiddleCenter,
-                HexColor("#F2E5C9"), true, new Vector2(200f, 28f));
+                Color.white, true, new Vector2(200f, 28f));
             chipLabel.fontSize = 28;
             chipLabel.fontStyle = FontStyle.Bold;
+            UISharedFoundation.ApplyTextShadow(chipLabel);
             UISharedFoundation.StretchFull(chipLabel.rectTransform);
             chip.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
         }
@@ -887,16 +893,18 @@ namespace MyriadOfDragons.UI
             }
             else
             {
-                bg.color = HexColor("#1A3A4A");
+                bg.color = HexColor("#0F1A24");
                 HomeV3UiLibrary.ApplyNavTileButton(button, bg);
             }
             button.onClick.AddListener(onClick);
             SetNormalizedRect(buttonRoot.GetComponent<RectTransform>(), left, bottom, right, top);
+            UISharedFoundation.AddLocalGradientScrim(buttonRoot.transform, Vector2.zero, new Vector2(200f, 50f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             Text buttonLabel = UISharedFoundation.CreateText(buttonRoot.transform, "ActionLabel", label,
-                UITextRole.Display, TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(220f, 36f));
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 36f));
             buttonLabel.fontSize = 28;
             buttonLabel.fontStyle = FontStyle.Bold;
+            UISharedFoundation.ApplyTextShadow(buttonLabel);
             UISharedFoundation.StretchFull(buttonLabel.rectTransform);
             buttonRoot.AddComponent<InteractionStateController>().Tier =
                 primary ? UIDesignTokens.FrameTier.Tier1Hero : UIDesignTokens.FrameTier.Tier2Section;

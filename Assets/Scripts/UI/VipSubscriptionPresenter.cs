@@ -87,9 +87,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildHeader()
         {
-            GameObject topBar = new GameObject("VipHeader", typeof(RectTransform));
+            GameObject topBar = new GameObject("VipHeader", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(_canvasObj.transform, false);
+            Image topBg = topBar.GetComponent<Image>();
+            topBg.color = UIFrozenTokens.ColorHeader;
+            topBg.raycastTarget = false;
             SetNorm(topBar.GetComponent<RectTransform>(), 0f, 0.90f, 1f, 1f);
+            UISharedFoundation.AddLocalGradientScrim(topBar.transform, Vector2.zero, new Vector2(1920f, 108f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             GameObject backBtn = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
             backBtn.transform.SetParent(topBar.transform, false);
@@ -107,37 +111,51 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text backTxt = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backTxt.fontSize = 22;
+            backTxt.fontStyle = FontStyle.Bold;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "VIP",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(640f, 48f));
             title.fontSize = 30;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
-            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", VipSubscriptionOpenValues.StatusNote,
-                UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
+            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", VipSubscriptionOpenValues.PlayerStatus,
+                UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(520f, 40f));
+            _statusText.fontSize = 22;
+            _statusText.fontStyle = FontStyle.Bold;
             SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
         }
 
         private void BuildIdentityColumn()
         {
-            GameObject col = new GameObject("IdentityColumn", typeof(RectTransform));
+            GameObject col = new GameObject("IdentityColumn", typeof(RectTransform), typeof(Image));
             col.transform.SetParent(_canvasObj.transform, false);
             SetNorm(col.GetComponent<RectTransform>(), 0.02f, 0.16f, 0.26f, 0.86f);
+            Image colImg = col.GetComponent<Image>();
+            UISharedFoundation.ApplyFramedPanel(colImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+            UISharedFoundation.AddLocalGradientScrim(col.transform, Vector2.zero, new Vector2(400f, 750f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             _entitlementStateText = UISharedFoundation.CreateText(col.transform, "EntitlementState",
                 "Not subscribed",
                 UITextRole.Title, TextAnchor.UpperLeft,
-                new Color(0.95f, 0.9f, 0.79f), true, new Vector2(400f, 48f));
+                Color.white, true, new Vector2(400f, 48f));
+            _entitlementStateText.fontSize = 22;
+            _entitlementStateText.fontStyle = FontStyle.Bold;
             SetNorm(_entitlementStateText.rectTransform, 0.04f, 0.78f, 0.96f, 0.96f);
 
             Text desc = UISharedFoundation.CreateText(col.transform, "Description",
                 "Convenience only — scheduled Stamina claims. No combat power, deck power, or exclusive progression.",
-                UITextRole.Body, TextAnchor.UpperLeft, new Color(0.85f, 0.82f, 0.7f), true,
+                UITextRole.Body, TextAnchor.UpperLeft, Color.white, true,
                 new Vector2(400f, 120f));
+            desc.fontSize = 22;
+            desc.fontStyle = FontStyle.Bold;
             SetNorm(desc.rectTransform, 0.04f, 0.42f, 0.96f, 0.76f);
 
             string[] planLabels =
@@ -159,10 +177,14 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(socket.transform, "StateIcon",
-                    VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.08f, 0.08f, 0.92f, 0.92f);
-                UISharedFoundation.CreateText(socket.transform, "PlanPrice", planLabels[i],
-                    UITextRole.Caption, TextAnchor.LowerCenter, new Color(0.95f, 0.9f, 0.7f), true,
-                    new Vector2(100f, 24f));
+                    VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.08f, 0.28f, 0.92f, 0.92f);
+                UISharedFoundation.AddLocalGradientScrim(socket.transform, Vector2.zero, new Vector2(120f, 60f), UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+                Text planText = UISharedFoundation.CreateText(socket.transform, "PlanPrice", planLabels[i],
+                    UITextRole.Caption, TextAnchor.LowerCenter, Color.white, true,
+                    new Vector2(100f, 30f));
+                planText.fontSize = 22;
+                planText.fontStyle = FontStyle.Bold;
+                UISharedFoundation.ApplyTextShadow(planText);
                 socket.GetComponent<Button>().onClick.AddListener(() =>
                 {
                     VipSubscriptionActionResult result = VipSubscriptionOpenValues.TrySubscribe((VipPlanKind)planIndex);
@@ -230,13 +252,20 @@ namespace MyriadOfDragons.UI
 
         private void BuildMilestoneStrip()
         {
-            GameObject strip = new GameObject("MilestoneStrip", typeof(RectTransform));
+            GameObject strip = new GameObject("MilestoneStrip", typeof(RectTransform), typeof(Image));
             strip.transform.SetParent(_canvasObj.transform, false);
             SetNorm(strip.GetComponent<RectTransform>(), 0.70f, 0.16f, 0.97f, 0.86f);
+            Image stripImg = strip.GetComponent<Image>();
+            UISharedFoundation.ApplyFramedPanel(stripImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+            UISharedFoundation.AddLocalGradientScrim(strip.transform, Vector2.zero, new Vector2(500f, 750f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+
             _milestoneText = UISharedFoundation.CreateText(strip.transform, "MilestoneStatus",
                 BuildMilestoneCopy(),
                 UITextRole.Body, TextAnchor.UpperLeft,
-                new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 400f));
+                Color.white, true, new Vector2(360f, 400f));
+            _milestoneText.fontSize = 22;
+            _milestoneText.fontStyle = FontStyle.Bold;
             SetNorm(_milestoneText.rectTransform, 0.06f, 0.08f, 0.94f, 0.94f);
         }
 
@@ -308,7 +337,13 @@ namespace MyriadOfDragons.UI
         private void SetStatus(string message)
         {
             if (_statusText != null)
-                _statusText.text = message ?? string.Empty;
+                // The OpenValues diagnostic is mapped to its short player-facing form:
+                // ActionResult.Message carries the full StatusNote when values are not
+                // locked, which overflows this band. Repointing only the initial
+                // CreateText would leave the long string one click away from returning.
+                _statusText.text = message == VipSubscriptionOpenValues.StatusNote
+                    ? VipSubscriptionOpenValues.PlayerStatus
+                    : (message ?? string.Empty);
         }
 
         private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)

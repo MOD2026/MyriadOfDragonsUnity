@@ -486,17 +486,16 @@ namespace MyriadOfDragons.UI
             float left = 0.06f + span * index;
             SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, 0.28f, left + span - 0.01f, 0.78f);
 
-            // ONE primary heavy frame: Available OPEN. Locked/completed stay borderless grouping.
-            if (slot.State == TacticalPuzzleSlotState.Available)
-            {
-                UISharedFoundation.ApplyFramedPanel(img, null,
-                    UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
-                    kind: UISharedFoundation.FramedPanelKind.ContentPanel);
-            }
+            UISharedFoundation.ApplyFramedPanel(img, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
+                kind: UISharedFoundation.FramedPanelKind.ContentPanel);
+            UISharedFoundation.AddLocalGradientScrim(tile.transform, Vector2.zero, new Vector2(260f, 400f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             Text label = UISharedFoundation.CreateText(tile.transform, "Label", slot.Label,
-                UITextRole.Title, TextAnchor.UpperCenter, new Color(0.95f, 0.9f, 0.79f), true,
+                UITextRole.Title, TextAnchor.UpperCenter, Color.white, true,
                 new Vector2(260f, 60f));
+            label.fontSize = 22;
+            label.fontStyle = FontStyle.Bold;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             SetNorm(label.rectTransform, 0.06f, 0.62f, 0.94f, 0.94f);
 
@@ -507,8 +506,10 @@ namespace MyriadOfDragons.UI
                 _ => TacticalPuzzleCopy.LockedLine,
             };
             Text state = UISharedFoundation.CreateText(tile.transform, "State", stateLine,
-                UITextRole.Caption, TextAnchor.UpperCenter, new Color(0.82f, 0.8f, 0.7f), true,
+                UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true,
                 new Vector2(260f, 70f));
+            state.fontSize = 22;
+            state.fontStyle = FontStyle.Bold;
             state.horizontalOverflow = HorizontalWrapMode.Wrap;
             SetNorm(state.rectTransform, 0.06f, 0.28f, 0.94f, 0.60f);
 

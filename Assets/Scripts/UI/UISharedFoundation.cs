@@ -820,8 +820,8 @@ namespace MyriadOfDragons.UI
             // sizeDelta ADDITIVE - the identical bug class that made HomeFeed's cards 786px too
             // tall (content.sizeDelta.y on a stretched axis), caught before any of the 15 screens
             // needing scrims used this.
-            rect.anchorMin = new Vector2(0f, 0f);
-            rect.anchorMax = new Vector2(0f, 0f);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = size;
             rect.anchoredPosition = anchoredPosition;

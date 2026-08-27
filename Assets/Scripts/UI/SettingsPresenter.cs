@@ -220,8 +220,11 @@ namespace MyriadOfDragons.UI
             rect.anchoredPosition = anchoredPos;
             rect.sizeDelta = new Vector2(160f, 60f);
 
-            UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
+            UISharedFoundation.AddLocalGradientScrim(btnObj.transform, Vector2.zero, new Vector2(160f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text backText = UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
                 Color.white, true, new Vector2(140f, 50f));
+            backText.fontSize = 22;
+            backText.fontStyle = FontStyle.Bold;
             btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             return btn;
         }
@@ -243,8 +246,11 @@ namespace MyriadOfDragons.UI
             rect.sizeDelta = new Vector2(180f, 52f);
             rect.anchoredPosition = anchoredPos;
 
-            UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
-                new Color(0.95f, 0.9f, 0.79f), true, new Vector2(160f, 44f));
+            UISharedFoundation.AddLocalGradientScrim(btnObj.transform, Vector2.zero, new Vector2(180f, 52f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text btnText = UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
+                Color.white, true, new Vector2(160f, 44f));
+            btnText.fontSize = 22;
+            btnText.fontStyle = FontStyle.Bold;
             btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             return btn;
         }

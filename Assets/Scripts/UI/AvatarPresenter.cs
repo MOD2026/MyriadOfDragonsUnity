@@ -83,9 +83,11 @@ namespace MyriadOfDragons.UI
             // global 22px floor - explicit override here rather than waiting on that frozen
             // constant, which is a separate, larger decision (touches every screen, not just this
             // button). 34px box comfortably fits a 22px line.
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 40f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text backLabel = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter,
                 Color.white, true, new Vector2(140f, 34f));
             backLabel.fontSize = 22;
+            backLabel.fontStyle = FontStyle.Bold;
             backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             UISharedFoundation.CreateText(topBar.transform, "Title", "AVATAR", UITextRole.Display, TextAnchor.MiddleCenter,

@@ -377,8 +377,10 @@ namespace MyriadOfDragons.UI
                 22,
                 TextAnchor.MiddleCenter);
             pityBannerText = pityObj.GetComponent<Text>();
-            pityBannerText.color = new Color(1f, 0.75f, 0.35f);
+            pityBannerText.color = Color.white;
+            pityBannerText.fontStyle = FontStyle.Bold;
             pityObj.GetComponent<RectTransform>().sizeDelta = new Vector2(1400f, 36f);
+            UISharedFoundation.AddLocalGradientScrim(pityObj.transform, Vector2.zero, new Vector2(1400f, 36f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             // 4. Shop Items — packs over left shell wells; stamina ladder over right sidebar rows.
             BuildShopGrid();
@@ -530,7 +532,7 @@ namespace MyriadOfDragons.UI
 
             Image cardBg = cardObj.GetComponent<Image>();
             cardBg.sprite = null;
-            cardBg.color = new Color(0.08f, 0.1f, 0.14f, 0f);
+            cardBg.color = new Color(0.08f, 0.1f, 0.14f, 0.95f);
             cardBg.raycastTarget = false;
 
             SetScreenRectFromTopLeftPixels(cardObj.GetComponent<RectTransform>(), leftPx, topPx, rightPx, bottomPx);
@@ -570,19 +572,24 @@ namespace MyriadOfDragons.UI
 
             GameObject nameObj = CreateWellText(cardObj.transform, "Title", item.title, 22, TextAnchor.MiddleCenter);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(nameObj.GetComponent<RectTransform>(), ShopV1UiLibrary.ProductNameWell);
+            UISharedFoundation.AddLocalGradientScrim(nameObj.transform, Vector2.zero, new Vector2(240f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text nameText = nameObj.GetComponent<Text>();
             nameText.resizeTextForBestFit = true;
             nameText.resizeTextMinSize = 22;
             nameText.resizeTextMaxSize = 24;
             nameText.fontStyle = FontStyle.Bold;
+            nameText.color = Color.white;
 
             string priceLabel = item.goldCost > 0 ? $"{item.goldCost} Gold" : $"{item.gemCost} Gems";
             GameObject priceObj = CreateWellText(cardObj.transform, "PriceLabel", priceLabel, 22, TextAnchor.MiddleCenter);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(priceObj.GetComponent<RectTransform>(), ShopV1UiLibrary.PriceWell);
+            UISharedFoundation.AddLocalGradientScrim(priceObj.transform, Vector2.zero, new Vector2(240f, 40f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text priceText = priceObj.GetComponent<Text>();
             priceText.resizeTextForBestFit = true;
             priceText.resizeTextMinSize = 22;
             priceText.resizeTextMaxSize = 24;
+            priceText.fontStyle = FontStyle.Bold;
+            priceText.color = Color.white;
 
             bool showPity = CollectionPackCatalog.TryGetSku(item.id, out CollectionPackSku sku) && sku.HighDrawCount > 0;
             GameObject pityObj = CreateWellText(
@@ -592,11 +599,14 @@ namespace MyriadOfDragons.UI
                 22,
                 TextAnchor.MiddleCenter);
             ShopV1UiLibrary.SetNormalizedWellFromTopLeft(pityObj.GetComponent<RectTransform>(), ShopV1UiLibrary.PityWell);
+            UISharedFoundation.AddLocalGradientScrim(pityObj.transform, Vector2.zero, new Vector2(240f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text pityLine = pityObj.GetComponent<Text>();
-            pityLine.color = new Color(1f, 0.75f, 0.35f);
+            pityLine.color = Color.white;
+            pityLine.fontStyle = FontStyle.Bold;
             pityLine.resizeTextForBestFit = true;
             pityLine.resizeTextMinSize = 22;
             pityLine.resizeTextMaxSize = 22;
+            UISharedFoundation.ApplyTextShadow(pityLine);
             pityObj.SetActive(showPity);
             if (showPity)
                 packPityLineTexts.Add(pityLine);
@@ -625,10 +635,12 @@ namespace MyriadOfDragons.UI
             txt.text = content;
             txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             txt.fontSize = fontSize;
+            txt.fontStyle = FontStyle.Bold;
             txt.alignment = alignment;
             txt.color = Color.white;
             txt.supportRichText = true;
             txt.raycastTarget = false;
+            UISharedFoundation.ApplyTextShadow(txt);
 
             RectTransform rect = textObj.GetComponent<RectTransform>();
             rect.anchorMin = Vector2.zero;

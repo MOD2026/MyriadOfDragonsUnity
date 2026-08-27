@@ -97,9 +97,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildHeader()
         {
-            GameObject topBar = new GameObject("BazaarHeader", typeof(RectTransform));
+            GameObject topBar = new GameObject("BazaarHeader", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(_canvasObj.transform, false);
+            Image topBg = topBar.GetComponent<Image>();
+            topBg.color = UIFrozenTokens.ColorHeader;
+            topBg.raycastTarget = false;
             SetNorm(topBar.GetComponent<RectTransform>(), 0f, 0.90f, 1f, 1f);
+            UISharedFoundation.AddLocalGradientScrim(topBar.transform, Vector2.zero, new Vector2(1920f, 108f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             GameObject backBtn = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
             backBtn.transform.SetParent(topBar.transform, false);
@@ -117,19 +121,25 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text backTxt = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backTxt.fontSize = 22;
+            backTxt.fontStyle = FontStyle.Bold;
             backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "BAZAAR",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(640f, 48f));
             title.fontSize = 30;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", "Ready.",
-                UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
+                UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(520f, 40f));
+            _statusText.fontSize = 22;
+            _statusText.fontStyle = FontStyle.Bold;
             SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
         }
 

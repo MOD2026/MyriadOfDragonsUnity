@@ -52,9 +52,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildHeader()
         {
-            GameObject topBar = new GameObject("MailInboxHeader", typeof(RectTransform));
+            GameObject topBar = new GameObject("MailInboxHeader", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(_canvasObj.transform, false);
+            Image topBg = topBar.GetComponent<Image>();
+            topBg.color = UIFrozenTokens.ColorHeader;
+            topBg.raycastTarget = false;
             SetNorm(topBar.GetComponent<RectTransform>(), 0f, 0.90f, 1f, 1f);
+            UISharedFoundation.AddLocalGradientScrim(topBar.transform, Vector2.zero, new Vector2(1920f, 108f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             GameObject backBtn = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
             backBtn.transform.SetParent(topBar.transform, false);
@@ -72,23 +76,31 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text backTxt = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backTxt.fontSize = 22;
+            backTxt.fontStyle = FontStyle.Bold;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "MAIL",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(640f, 48f));
             title.fontSize = 30;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
             Text wallet = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
                 MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
-                new Color(0.8f, 0.85f, 0.7f), true, new Vector2(420f, 28f));
+                Color.white, true, new Vector2(420f, 28f));
+            wallet.fontSize = 22;
+            wallet.fontStyle = FontStyle.Bold;
             SetNorm(wallet.rectTransform, 0.18f, 0.12f, 0.48f, 0.88f);
 
-            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", MailInboxOpenValues.StatusNote,
-                UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
+            _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", MailInboxOpenValues.PlayerStatus,
+                UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(520f, 40f));
+            _statusText.fontSize = 22;
+            _statusText.fontStyle = FontStyle.Bold;
             SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
         }
 
@@ -112,8 +124,14 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                     kind: UISharedFoundation.FramedPanelKind.ListRow);
+                // Trimmed to the leading phrase only: the old
+                // "Empty inbox - mail backend not live" wrapped to two lines (50px in a 28px
+                // band) and failed the geometry gate - the trailing "mail backend not live" was
+                // dev phrasing in a player-facing slot, same class as the StatusNote split.
+                // "Empty inbox" is kept verbatim rather than reworded because MailShellTests
+                // asserts on that exact phrase; rewording it to "No mail yet" broke that test.
                 string subject = i == 0
-                    ? "Empty inbox — mail backend not live"
+                    ? "Empty inbox"
                     : MetagameShellProfileBinding.EmptyBackendLabel;
                 UISharedFoundation.CreateText(well.transform, "Subject", subject,
                     UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(280f, 28f));
@@ -122,13 +140,20 @@ namespace MyriadOfDragons.UI
 
         private void BuildDetail()
         {
-            GameObject detail = new GameObject("MessageDetail", typeof(RectTransform));
+            GameObject detail = new GameObject("MessageDetail", typeof(RectTransform), typeof(Image));
             detail.transform.SetParent(_canvasObj.transform, false);
             SetNorm(detail.GetComponent<RectTransform>(), 0.38f, 0.12f, 0.97f, 0.86f);
+            Image detailImg = detail.GetComponent<Image>();
+            UISharedFoundation.ApplyFramedPanel(detailImg, null,
+                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
+            UISharedFoundation.AddLocalGradientScrim(detail.transform, Vector2.zero, new Vector2(1100f, 800f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+
             Text body = UISharedFoundation.CreateText(detail.transform, "Body",
                 "No messages.\nClaim attachment stays OPEN until a mail backend exists.\n\n" +
                 MetagameShellProfileBinding.WalletLine(),
-                UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 360f));
+                UITextRole.Body, TextAnchor.UpperLeft, Color.white, true, new Vector2(900f, 360f));
+            body.fontSize = 22;
+            body.fontStyle = FontStyle.Bold;
             SetNorm(body.rectTransform, 0.04f, 0.28f, 0.96f, 0.95f);
             GameObject claim = new GameObject("Btn_ClaimAttachment", typeof(RectTransform), typeof(Image), typeof(Button));
             claim.transform.SetParent(detail.transform, false);
@@ -143,7 +168,13 @@ namespace MyriadOfDragons.UI
         private void SetStatus(string message)
         {
             if (_statusText != null)
-                _statusText.text = message ?? string.Empty;
+                // The OpenValues diagnostic is mapped to its short player-facing form:
+                // ActionResult.Message carries the full StatusNote when values are not
+                // locked, which overflows this band. Repointing only the initial
+                // CreateText would leave the long string one click away from returning.
+                _statusText.text = message == MailInboxOpenValues.StatusNote
+                    ? MailInboxOpenValues.PlayerStatus
+                    : (message ?? string.Empty);
         }
 
         private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)

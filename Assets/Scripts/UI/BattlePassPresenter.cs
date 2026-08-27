@@ -89,9 +89,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildHeader()
         {
-            GameObject topBar = new GameObject("BattlePassHeader", typeof(RectTransform));
+            GameObject topBar = new GameObject("BattlePassHeader", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(_canvasObj.transform, false);
+            Image topBg = topBar.GetComponent<Image>();
+            topBg.color = UIFrozenTokens.ColorHeader;
+            topBg.raycastTarget = false;
             SetNorm(topBar.GetComponent<RectTransform>(), 0f, 0.88f, 1f, 1f);
+            UISharedFoundation.AddLocalGradientScrim(topBar.transform, Vector2.zero, new Vector2(1920f, 130f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             CreateHeaderButton(topBar.transform, "Btn_Back", "< BACK", new Vector2(30f, 0f), () =>
             {
@@ -100,7 +104,7 @@ namespace MyriadOfDragons.UI
             });
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "BATTLE PASS",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(640f, 48f));
             title.fontSize = 32;
             title.fontStyle = FontStyle.Bold;
@@ -108,14 +112,14 @@ namespace MyriadOfDragons.UI
 
             Text season = UISharedFoundation.CreateText(topBar.transform, "SeasonLength",
                 BattlePassOpenValues.SeasonLengthCopy, UITextRole.Title, TextAnchor.MiddleCenter,
-                new Color(0.75f, 0.88f, 0.7f), true, new Vector2(420f, 32f));
+                Color.white, true, new Vector2(420f, 32f));
             season.fontSize = 24;
             season.fontStyle = FontStyle.Bold;
             SetNorm(season.rectTransform, 0.32f, 0.08f, 0.68f, 0.48f);
 
             Text timer = UISharedFoundation.CreateText(topBar.transform, "SeasonTimer",
                 MetagameShellProfileBinding.UtcDayKeyLine(), UITextRole.Body, TextAnchor.MiddleLeft,
-                new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 28f));
+                Color.white, true, new Vector2(280f, 28f));
             timer.fontSize = 28;
             timer.fontStyle = FontStyle.Bold;
             // Widened 0.18 -> 0.12 (scoped exception, SeasonTimer only): "UTC reset ..." at 28px
@@ -129,9 +133,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildSeasonXp()
         {
-            GameObject xp = new GameObject("SeasonXpRow", typeof(RectTransform));
+            GameObject xp = new GameObject("SeasonXpRow", typeof(RectTransform), typeof(Image));
             xp.transform.SetParent(_canvasObj.transform, false);
+            Image xpImg = xp.GetComponent<Image>();
+            xpImg.color = UIFrozenTokens.ColorHeader;
+            xpImg.raycastTarget = false;
             SetNorm(xp.GetComponent<RectTransform>(), 0.18f, 0.78f, 0.82f, 0.86f);
+            UISharedFoundation.AddLocalGradientScrim(xp.transform, Vector2.zero, new Vector2(1200f, 80f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             // SeasonXpRow label column.
             Text xpLabel = UISharedFoundation.CreateText(xp.transform, "Label", "SEASON XP", UITextRole.Caption,
@@ -149,7 +157,7 @@ namespace MyriadOfDragons.UI
 
             Text values = UISharedFoundation.CreateText(xp.transform, "XpValues",
                 MetagameShellProfileBinding.PassTierProgressLine(),
-                UITextRole.Body, TextAnchor.MiddleRight, new Color(0.9f, 0.95f, 0.85f), true,
+                UITextRole.Body, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(280f, 28f));
             values.fontSize = 28;
             values.fontStyle = FontStyle.Bold;
@@ -180,10 +188,12 @@ namespace MyriadOfDragons.UI
             SetNorm(row.GetComponent<RectTransform>(), 0f, yMin, 1f, yMax);
 
             Text labelText = UISharedFoundation.CreateText(row.transform, "TrackLabel", label, UITextRole.Title,
-                TextAnchor.MiddleCenter, new Color(0.95f, 0.9f, 0.79f), true, new Vector2(180f, 40f));
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 40f));
             labelText.fontSize = 28;
             labelText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.ApplyTextShadow(labelText);
             SetNorm(labelText.rectTransform, 0.00f, 0.15f, 0.14f, 0.85f);
+            UISharedFoundation.AddLocalGradientScrim(labelText.transform, Vector2.zero, new Vector2(240f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             float wellWidth = 0.86f / BattlePassOpenValues.ShellTierWellCount;
             for (int i = 0; i < BattlePassOpenValues.ShellTierWellCount; i++)
@@ -262,7 +272,7 @@ namespace MyriadOfDragons.UI
             btnObj.transform.SetParent(parent, false);
             Image img = btnObj.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNavTileButton(btnObj.GetComponent<Button>(), img);
-            img.color = new Color(0.3f, 0.2f, 0.2f);
+            img.color = new Color(0.12f, 0.14f, 0.18f, 0.95f);
             btnObj.GetComponent<Button>().onClick.AddListener(() => onClick?.Invoke());
             RectTransform rect = btnObj.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0f, 0.5f);
@@ -270,10 +280,12 @@ namespace MyriadOfDragons.UI
             rect.pivot = new Vector2(0f, 0.5f);
             rect.anchoredPosition = anchoredPos;
             rect.sizeDelta = new Vector2(160f, 56f);
+            UISharedFoundation.AddLocalGradientScrim(btnObj.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text backText = UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
                 Color.white, true, new Vector2(140f, 44f));
             backText.fontSize = 28;
             backText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.ApplyTextShadow(backText);
             UISharedFoundation.StretchFull(backText.rectTransform);
         }
 

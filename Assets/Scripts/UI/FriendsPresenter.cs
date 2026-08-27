@@ -88,9 +88,13 @@ namespace MyriadOfDragons.UI
 
         private void BuildHeader()
         {
-            GameObject topBar = new GameObject("FriendsHeader", typeof(RectTransform));
+            GameObject topBar = new GameObject("FriendsHeader", typeof(RectTransform), typeof(Image));
             topBar.transform.SetParent(_canvasObj.transform, false);
+            Image topBg = topBar.GetComponent<Image>();
+            topBg.color = UIFrozenTokens.ColorHeader;
+            topBg.raycastTarget = false;
             SetNorm(topBar.GetComponent<RectTransform>(), 0f, 0.90f, 1f, 1f);
+            UISharedFoundation.AddLocalGradientScrim(topBar.transform, Vector2.zero, new Vector2(1920f, 108f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             GameObject backBtn = new GameObject("Btn_Back", typeof(RectTransform), typeof(Image), typeof(Button));
             backBtn.transform.SetParent(topBar.transform, false);
@@ -108,23 +112,31 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text backTxt = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backTxt.fontSize = 22;
+            backTxt.fontStyle = FontStyle.Bold;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "FRIENDS",
-                UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
+                UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(640f, 48f));
             title.fontSize = 30;
+            title.fontStyle = FontStyle.Bold;
             SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
 
             Text identity = UISharedFoundation.CreateText(topBar.transform, "SelfIdentity",
                 MetagameShellProfileBinding.SelfIdentityLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
-                new Color(0.8f, 0.85f, 0.7f), true, new Vector2(280f, 28f));
+                Color.white, true, new Vector2(280f, 28f));
+            identity.fontSize = 22;
+            identity.fontStyle = FontStyle.Bold;
             SetNorm(identity.rectTransform, 0.18f, 0.15f, 0.40f, 0.85f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", FriendsOpenValues.StatusNote,
-                UITextRole.Caption, TextAnchor.MiddleRight, new Color(0.85f, 0.75f, 0.5f), true,
+                UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
                 new Vector2(520f, 40f));
+            _statusText.fontSize = 22;
+            _statusText.fontStyle = FontStyle.Bold;
             SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
         }
 
@@ -148,8 +160,11 @@ namespace MyriadOfDragons.UI
                     else SetStatus(FriendsOpenValues.TrySelectTab(idx).Message);
                 });
                 SetNorm(tab.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.05f, 0.95f, 1f - i * h - 0.05f);
+                // 120 -> 150 width: "REQUESTS" wrapped to two lines (50px in a 28px band) at
+                // 120px. Widened, not shrunk - the tab itself spans 0.05-0.95 of a NavRail that is
+                // 0.05-0.14 of 1920 (~172.8px), so ~155.5px is available and 150 stays inside it.
                 UISharedFoundation.CreateText(tab.transform, "Text", tabs[i].ToUpperInvariant(), UITextRole.Caption,
-                    TextAnchor.MiddleCenter, Color.white, true, new Vector2(120f, 28f));
+                    TextAnchor.MiddleCenter, Color.white, true, new Vector2(150f, 28f));
             }
         }
 

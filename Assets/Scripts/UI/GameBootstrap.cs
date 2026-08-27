@@ -30,6 +30,23 @@ namespace MyriadOfDragons.UI
         {
             var go = new GameObject("GameBootstrap");
             go.AddComponent<GameBootstrap>();
+
+            // Home is the app's first surface, not battle. Until 2026-08-27 this method added
+            // GameBootstrap and nothing else, so a player build went Awake() -> Initialize() ->
+            // StartNewMatch() and landed straight in a match with no way back to Home:
+            // HomePagePresenter was complete and covered by dozens of EditMode tests, but every
+            // single construction site was a test - nothing in Assets/Scripts ever instantiated
+            // it, so Home simply did not exist at runtime.
+            //
+            // Order matters and is deliberate: GameBootstrap is added FIRST so its Awake() has
+            // already run Initialize() (which assigns Instance) by the time HomePagePresenter's
+            // Start() runs at the end of this frame. Home's Start() calls
+            // GameBootstrap.Instance?.SetBattleCanvasVisible(false) - with the reverse order that
+            // null-conditional would silently no-op and the build would still open on battle,
+            // which is exactly the failure this fixes and would look identical from outside.
+            // Battle still initializes underneath, hidden; that is what SetBattleCanvasVisible is
+            // for, and StartNewMatch stays where it is.
+            go.AddComponent<HomePagePresenter>();
         }
     }
 
@@ -231,10 +248,10 @@ namespace MyriadOfDragons.UI
         private static readonly Color AccentBorderColor = new Color(0.85f, 0.72f, 0.4f, 0.5f);
         private static readonly Color GoldTextColor = new Color(0.9f, 0.78f, 0.45f);
         private static readonly Color SelectedColor = new Color(1.0f, 0.85f, 0.4f);
-        private static readonly Color ButtonNormalTop = new Color(0.62f, 0.14f, 0.16f);
-        private static readonly Color ButtonNormalBottom = new Color(0.38f, 0.06f, 0.08f);
+        private static readonly Color ButtonNormalTop = new Color(0.35f, 0.08f, 0.10f);
+        private static readonly Color ButtonNormalBottom = new Color(0.20f, 0.03f, 0.04f);
         private static readonly Color ButtonDisabledColor = new Color(0.25f, 0.22f, 0.28f);
-        private static readonly Color ButtonTextNormalColor = new Color(0.97f, 0.89f, 0.68f);
+        private static readonly Color ButtonTextNormalColor = Color.white;
         private static readonly Color ButtonTextSelectedColor = new Color(0.15f, 0.1f, 0.05f);
         private static readonly Color ButtonTextDisabledColor = new Color(0.55f, 0.5f, 0.5f);
         private static readonly Color HealthBarFillColor = new Color(0.8f, 0.2f, 0.18f);
@@ -7334,8 +7351,11 @@ namespace MyriadOfDragons.UI
             fill.type = Image.Type.Sliced;
             fill.raycastTarget = false;
 
-            Text text = CreateText(go.transform, label, 14, ButtonTextNormalColor, font);
+            Text text = CreateText(go.transform, label, 22, ButtonTextNormalColor, font);
+            text.fontStyle = FontStyle.Bold;
             StretchFull(text.rectTransform);
+            UISharedFoundation.ApplyTextShadow(text);
+            UISharedFoundation.AddLocalGradientScrim(go.transform, Vector2.zero, new Vector2(200f, 50f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             return button;
         }
