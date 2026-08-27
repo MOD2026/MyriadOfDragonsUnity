@@ -3545,6 +3545,7 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(
                 _resetLineupButton, _resetLineupButton.GetComponent<Image>());
             FitButtonChrome(_resetLineupButton); // also fits CreateButton's own "Fill" child
+            _resetLineupButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             // Release feature: this control is Auto Formation now, not "Recommended" - same
             // Button/GameObject/slot (no new control created), relabeled and repointed to
@@ -3565,6 +3566,7 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(
                 _recommendedLineupButton, _recommendedLineupButton.GetComponent<Image>());
             FitButtonChrome(_recommendedLineupButton); // also fits CreateButton's own "Fill" child
+            _recommendedLineupButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             // Centered, not left-packed - a short hand (e.g. the tutorial's 3 cards) used to leave
             // a wide empty gap to its right when packed against the left edge ("giant empty
@@ -3643,6 +3645,8 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyPrimaryActionButton(
                 _primaryActionButton, _primaryActionButton.GetComponent<Image>());
             FitButtonChrome(_primaryActionButton); // also fits CreateButton's own "Fill" child
+            // "THE screen's primary CTA" per the comment above - Tier1Hero.
+            _primaryActionButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
 
             _primaryActionLabel = _primaryActionButton.GetComponentInChildren<Text>();
             _primaryActionLabel.fontSize = 30;
@@ -3849,6 +3853,11 @@ namespace MyriadOfDragons.UI
             // own doc comment for why that approach was tried and discarded earlier tonight), so
             // running it once here resolves every child's real rect before fitting.
             ForceLayoutThenFitButtons((RectTransform)_spellBar.transform, _spellButtons);
+
+            foreach (Button spellBtn in _spellButtons)
+            {
+                spellBtn.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
+            }
 
             _spellBar.gameObject.SetActive(false);
         }
@@ -4451,9 +4460,16 @@ namespace MyriadOfDragons.UI
             Button done = CreateButton(panel, "Done", font, CloseLanePicker);
             AnchorBand(done.GetComponent<RectTransform>(), 0.02f, 0.11f, 0.35f, 0.35f);
             FitButtonChrome(done);
+            done.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
             _lanePickerOverlay.SetActive(false);
         }
+
+        /// <summary>Test-only view of the lane picker's deployed row, so a test can measure what
+        /// the row ACTUALLY rendered. Exists because the SlotWeight double-width rule was dead for
+        /// an unknown length of time and no test could see it - the row is built procedurally and
+        /// nothing else exposes its children.</summary>
+        public RectTransform LanePickerDeployedRowForTests => _lanePickerDeployedRow;
 
         private void OpenLanePicker(Lane lane)
         {
@@ -4660,10 +4676,14 @@ namespace MyriadOfDragons.UI
             _cardDetailActionLabel = _cardDetailActionButton.GetComponentInChildren<Text>();
             AnchorBand(_cardDetailActionButton.GetComponent<RectTransform>(), 0.095f, 0.165f, 0.22f, 0.22f);
             FitButtonChrome(_cardDetailActionButton);
+            // Toggled true/false elsewhere (silence/evolve availability) - the new sync in
+            // InteractionStateController.ApplyAt picks that up automatically as Disabled feedback.
+            _cardDetailActionButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
             Button closeButton = CreateButton(panel, "Close", font, CloseCardDetail);
             AnchorBand(closeButton.GetComponent<RectTransform>(), 0.02f, 0.085f, 0.34f, 0.34f);
             FitButtonChrome(closeButton);
+            closeButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             _cardDetailOverlay.SetActive(false);
         }
@@ -4723,6 +4743,7 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyPrimaryActionButton(
                 _playAgainButton, _playAgainButton.GetComponent<Image>());
             FitButtonChrome(_playAgainButton); // also fits CreateButton's own "Fill" child
+            _playAgainButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
 
             _returnToCityButton = CreateButton(panel, "Return to City", font, OnReturnToCityPressed);
             AnchorBand(_returnToCityButton.GetComponent<RectTransform>(), 0.2f, 0.38f, 0.05f, 0.53f);
@@ -4731,6 +4752,7 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(
                 _returnToCityButton, _returnToCityButton.GetComponent<Image>());
             FitButtonChrome(_returnToCityButton); // also fits CreateButton's own "Fill" child
+            _returnToCityButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
             _resultOverlay.SetActive(false);
         }

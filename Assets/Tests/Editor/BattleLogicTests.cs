@@ -1216,6 +1216,65 @@ namespace MyriadOfDragons.Tests
 
         // ---------- Formation phase + automated combat + Avatar spells ----------
 
+        [Test]
+        public void LanePicker_TwoSlotCard_RendersAtDoubleTheWidthOfAOneSlotCard()
+        {
+            // The rule exists in the code's own words - "a two-slot card is rendered double width,
+            // so the board reads honestly" - but was DEAD: the row sets childControlWidth = false,
+            // so SetPreferredWidth(118 * SlotWeight) was ignored and the rarity-derived sizeDelta
+            // CreateCardButton wrote is what rendered. Nothing could see it, because nothing measured
+            // this row. Sixth instance of the silent-no-op class.
+            //
+            // ASSERTS A RELATIONSHIP, NOT A MAGNITUDE (project rule 5). The two cards carry different
+            // frame aspects (0.870 Legendary vs 0.739 otherwise), so with the bug the ratio is ~1.18
+            // and with the rule applied it is ~2.35. A 1.8 threshold separates them cleanly and does
+            // not pin either constant, so a legitimate art-aspect retune cannot fail this.
+            SaveValidDeckForNormalMatch();
+
+            var go = new GameObject("LanePickerWidthBootstrap");
+            _spawned.Add(go);
+            GameBootstrap bootstrap = go.AddComponent<GameBootstrap>();
+            bootstrap.Initialize();
+            foreach (string name in new[] { "Canvas", "EventSystem", "CardDatabase", "BattleController" })
+            {
+                foreach (GameObject candidate in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    if (candidate.name == name && !_spawned.Contains(candidate)) _spawned.Add(candidate);
+                }
+            }
+
+            CardDatabase db = LoadDatabase();
+            Card twoSlot = db.AllCards.FirstOrDefault(c => c.SlotWeight == 2);
+            Card oneSlot = db.AllCards.FirstOrDefault(c => c.SlotWeight == 1);
+            if (twoSlot == null || oneSlot == null) Assert.Ignore("Catalog has no 1-slot/2-slot pair to compare.");
+
+            // Placed directly rather than via TryPlayCard: this is a RENDERING test, and driving it
+            // through Resource costs and hand contents would make it fail for reasons that have
+            // nothing to do with the width rule.
+            LaneState lane = bootstrap.Battle.PlayerState.Lanes[Lane.Front];
+            lane.Cards.Clear();
+            lane.Cards.Add(new BattleCardInstance(twoSlot, true, 0, 0));
+            lane.Cards.Add(new BattleCardInstance(oneSlot, true, 0, 0));
+
+            bootstrap.OpenLanePickerAndGetTitleForTests(Lane.Front);
+
+            RectTransform row = bootstrap.LanePickerDeployedRowForTests;
+            Assert.NotNull(row, "Setup guard: the deployed row must exist once the picker is open.");
+            Assert.AreEqual(2, row.childCount,
+                "Setup guard: expected exactly the two cards placed above - a stray child would make "
+                + "the width comparison below measure the wrong pair.");
+
+            float twoSlotWidth = ((RectTransform)row.GetChild(0)).rect.width;
+            float oneSlotWidth = ((RectTransform)row.GetChild(1)).rect.width;
+            Assert.Greater(oneSlotWidth, 0f, "Setup guard: a zero-width card means nothing rendered at all.");
+
+            Assert.Greater(twoSlotWidth / oneSlotWidth, 1.8f,
+                "A two-slot card must visibly consume the space it costs. Measured " + twoSlotWidth
+                + " vs " + oneSlotWidth + " (ratio " + (twoSlotWidth / oneSlotWidth).ToString("0.00")
+                + "). A ratio near 1.18 means the SlotWeight rule is being ignored and only the "
+                + "rarity frame aspect is showing through.");
+        }
+
         private BattleController StartFormationMatch(int enemyHealth = 2000)
         {
             CardDatabase db = LoadDatabase();
