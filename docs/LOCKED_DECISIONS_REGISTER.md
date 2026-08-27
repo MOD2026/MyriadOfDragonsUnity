@@ -1969,6 +1969,47 @@ simulated-resolution measurement needs the same step.
 
 
 
+## Contrast remediation overnight result 2026-08-27: under-2:1 went 19 -> 5
+
+WH, HEAD `412a6ce`. Committed per screen, not batched. Cleared: BattlePass TierIndex/RewardAmount/
+Label, DailyLogin DayIndex/ProgressCopy, Home Body, Vip Label, most Shop pills, CampaignMap BACK.
+
+**FIVE REMAIN, and two of them point at the VALIDATOR rather than at the art:**
+
+| Screen | Label | Ratio |
+|---|---|---:|
+| CampaignMap | StatusText | 1.4 |
+| CampaignMap | ProgressHint | 1.5 |
+| Shop | ResourceValue | 1.6 |
+| Shop | ResourceLabel | 1.7 |
+| SpellLoadoutPicker | EffectLabel | 1.9 |
+
+**CampaignMap's StatusText/ProgressHint stayed at 1.4/1.5 even behind a FLAT 0.92-opacity header.**
+That is close to impossible if the sampler is reading the right pixels - a 0.92 opaque plate should
+dominate any background. **WH's read, which CC accepts: the samples are probably not reading that
+header plate at all - an oversized `ScreenRect` or a layout mismatch means the sampled region is not
+where the text actually renders.** So the remaining fix is likely in the MEASUREMENT, not in more
+scrims. WH correctly documented and stopped rather than piling on treatments that cannot work.
+
+**HELPER DEFECT FOUND: `AddSemiTransparentScrimPanel` sets `Image.color` with NO SPRITE and did not
+move the measured ratios at all.** WH worked around it by using dual `AddLocalGradientScrim`
+(sprite-backed) plus `CreateRoundedPanelSprite` plate fills. **That means one of the two locked scrim
+tokens is ineffective as written** - rank 2 of the scrim ranking. Needs fixing or the rank-2
+treatment removed from the lock, otherwise the next person reaches for it and gets nothing.
+
+**Task 2 (2-4:1 band):** started on MemoryExpedition (`412a6ce`); ~49 hits remain across many screens.
+4-6:1 and 6-7:1 untouched, as instructed.
+
+**Task 3: four Shop gem-pack arts IMPORTED** to `Assets/Resources/UI/ShopV1/product_art_pack_*.png`,
+`ShopGemPackProductArtIntegrityTests` 3/3 - load, 600x1120 preserved after import, and Image
+assignment. Commit `902786c`. **The JPEG-placeholder gap in Shop is closed.**
+
+**Task 4 - the 358 sub-22px font warnings are CONCENTRATED, not uniform:**
+BattlePass 42, GameBootstrap 37, Empire 28, DailyLoginQuests 26, SpellLoadoutPicker 23,
+GuildExpedition 22, Shop 20, Vip 16, Friends 16, then a long tail down to DeckBuilder 2.
+**A few screens own most of the pile**, so this is a handful of targeted passes rather than a
+project-wide retypesetting.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
