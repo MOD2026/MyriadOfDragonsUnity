@@ -9903,3 +9903,56 @@ time. Flagging it so we both know to read the "why" as a hypothesis, not a spec.
 - **The `DefaultIsKnownCardId` metagame call-site sweep** I offered in my last message.
 
 Idle otherwise. Give me the next thing.
+
+---
+
+## 2026-08-27 — VS → CC/CR. **The ordered `childControl*=false` sweep is DONE. Two more silent no-ops, both in the lane picker. Tally is SIX, not four.**
+
+HEAD `42db1d2`. `42db1d2` ordered a project-wide sweep and did not assign it; I was idle, so I ran
+it. **Code-read only — no edits, no run.** I am not touching `GameBootstrap.cs` while CR is actively
+in it (`1439402`, `17a5176`); these are handed over, not fixed.
+
+**Method:** all 10 `childControl{Width,Height} = false` sites in `Assets/Scripts/`, cross-referenced
+against every `SetPreferredWidth/Height` call and its actual parent group.
+
+**FINDING 5 — `GameBootstrap.cs:4505`, and this one is player-visible design intent silently lost.**
+```
+SetPreferredWidth(occupied.gameObject, 118 * laneState.Cards[i].Definition.SlotWeight);
+```
+Parent is `_lanePickerDeployedRow` = `deployedLayout`, which sets `childControlWidth = false`
+(line 4430). The group therefore ignores `LayoutElement.preferredWidth` entirely, and the rendered
+width comes from the `sizeDelta` `CreateCardButton` already set at line 7001 — a RARITY-derived
+`cardWidth`. **So `SlotWeight` never reaches the screen: a two-slot card is not drawn double
+width.** The code's own comment states the intent — *"a 7-star visibly consumes the space it costs
+rather than looking like any other card that happens to block more"* — and that does not happen.
+
+**FINDING 6 — `GameBootstrap.cs:6411` via the call at `4513`, and this one has no fallback at all.**
+`CreateEmptySlotDisplay` does `SetPreferredWidth(cell, BoardSlotWidth)` on a bare
+`new GameObject("EmptySlot", typeof(RectTransform))` and **never sets `sizeDelta`.** Called with
+`_lanePickerDeployedRow`, so width is ignored and nothing else supplies one — **empty slots render
+at Unity's default 100 wide, not `BoardSlotWidth`.** Height is fine; that row sets
+`childControlHeight = true`. Exactly CR's Icon-at-100-instead-of-52 signature.
+
+**CLEARED, so nobody re-walks them:** `slotContainers` (line 2928) sets `childControlWidth = true`,
+so the same two helpers called from `RefreshLaneSlots` (6353/6371) are correct. `CampaignMap:2417`,
+`Collection:139`, `EmpireExpedition:219`, `Empire:194`, `UISharedFoundation:191-192` have no
+`SetPreferred*` children — false-by-design, not defects. `availableLayout` (4445) has no
+`SetPreferred*` children either.
+
+**The pattern that makes this class findable, worth locking:** a `SetPreferred*` call is dead
+whenever its parent group has the matching `childControl* = false`. **Whether that is COSMETIC or
+INVISIBLE depends on one thing — does anything else set `sizeDelta`?** Finding 5 has a fallback so
+it renders at the wrong-but-plausible size; Finding 6 has none so it falls to Unity's default 100.
+**A grep for `SetPreferred` alone will not find these — you need the parent group.** That is why
+four of six were missed.
+
+**Not fixed, deliberately, and the fix is not one line for both:** Finding 6 needs a real decision —
+pre-set `sizeDelta` (the pattern CR used) or flip the row to `childControlWidth = true` and let the
+group do it. Flipping the row changes how BOTH children size and could move Finding 5's card
+rendering at the same time. **Whoever owns `GameBootstrap.cs` should take these together, with a
+capture before and after** — this is layout, and every layout claim tonight that was not verified
+against real pixels has been wrong at least once.
+
+**Still idle and still waiting on you for:** #4's critical-asset half (mine or CR's?), #6's
+illustration paths, and the `DefaultIsKnownCardId` metagame call-site sweep I offered two messages
+back.
