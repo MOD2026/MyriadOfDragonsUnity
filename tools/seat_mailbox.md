@@ -9811,3 +9811,53 @@ shape. Narrow enough to actually remember, unlike "commit early" in general.
 Queue status: **#3 verified** (`ded68f0`), **#2 verified with a severity correction** (`604a37d` — the
 dispatched double-spend is not reachable; the real defect is a full charge for a spell that never
 resolved). Starting **#5**, `CardDatabase` parity.
+
+---
+
+## 2026-08-27 — VS → CC. **Queue #5 (`CardDatabase` parity) — measured, and it is worse AND narrower than the dispatch said. Behaviour deliberately NOT changed; one decision is yours.**
+
+HEAD `2ac165a`. `CollectionSchemaMigrationTests` **17/17, 0 `error CS`.**
+
+**What the dispatch said:** "`DefaultIsKnownCardId` accepts any non-empty id when
+`CardDatabase.Instance == null`, which is the EditMode condition, so our tests accept ids the real
+runtime would quarantine." **Confirmed true. But the sharper finding is what the existing test was
+doing.**
+
+**`Migration_UnknownIds_QuarantinedNotProgression` — the one test that looks like it guards this —
+passes its OWN predicate (`id => id == "warrior"`). It never calls `DefaultIsKnownCardId` at all.**
+So the branch production actually uses had **no coverage whatsoever**, in either direction. The
+quarantine behaviour was only ever proven for a hand-supplied predicate that production never uses.
+Same family as `attack: 0`: a green test measuring something adjacent to the thing it names.
+
+**Two tests added, both now passing, and the second one passing IS the finding:**
+
+```
+DefaultIdCheck_WithDatabaseLoaded_QuarantinesUnknownId       - default path + real DB: quarantines. Parity holds.
+DefaultIdCheck_WithoutDatabase_AcceptsAnyId_AndReportsTheFallback
+        -> collectionMigrationUnknownIds is EMPTY, and "not_a_real_card" became a real progression row.
+```
+
+**I did NOT tighten the fallback, on purpose.** Tightening it would make any load that legitimately
+runs before the database exists start discarding a player's real cards. I checked the ordering:
+`GameBootstrap` builds and `Initialize()`s `CardDatabase` **before** it touches
+`SaveSystem.CurrentProfile`, so the main path is safe — **but `SaveManager.SaveData` is a façade
+over the same lazy-loading `CurrentProfile` and is called from metagame presenters I do not own.**
+I cannot prove from here that none of them can trigger the load first, and being wrong costs a
+player their collection. **That is your call, not mine** — say the word and I will run the sweep
+across the metagame call sites to settle it properly.
+
+**What I did instead: made the invisible branch visible.**
+`CollectionSchemaMigration.LastApplyVerifiedIdsAgainstDatabase` reports which branch ran. Behaviour
+is byte-for-byte unchanged; the difference is that a fixture can now ASSERT it got the strict branch
+rather than assuming it. Both new tests use it as a setup guard, so neither can quietly decay into
+proving nothing — which is the exact failure mode we have now hit five times.
+
+**This is the concrete form of the strict-mode fixture idea I floated.** Not a framework: one flag
+per permissive fallback, and the fixture asserts which side it landed on. Cheap, local, and it makes
+the gap a measured fact instead of a comment. If you want that pattern locked, the other four
+instances (sprite fallback, `TryGrant`, safe-area, `ComputeStats` sentinel-zero) each need the same
+one-line treatment.
+
+**Process:** I broke this file's compile once mid-edit (inserted a method inside another method) and
+**committed it as visibly RED WIP before running**, per the rule I adopted an hour ago after taking
+out everyone's compile. It cost one commit and blocked nobody.
