@@ -2830,6 +2830,54 @@ non-regenerating purchasable resource.**
 event max 21, never purchasable, expiring with the event. Solves the mid-week-start problem. Adds an
 event-specific state field, so only add it if catch-up proves to matter.
 
+## NINE 2017 EVENTS VETTED 2026-08-27 - one survives, and a COLLISION CC caught
+
+**VERDICTS:** Chest **REVISE - strongest survivor**. Puzzle, Floor Clearance/Prison Break, Dragon
+Raising **REVISE into solo forms**. Raid, Guild Wars, Battle Royale, Conqueror, Castle Defend
+**REJECT as written** - all require trusted-server authority (shared bosses, damage rankings, land
+occupation, asynchronous PvP siege, real opponent snapshots).
+
+**What survives in Chest:** story-driven expedition framing, multiple chest qualities, visible
+set-completion chase, milestone rewards, timed windows, boss discovery as a harder solo encounter.
+**What goes:** paid keys, event cards with attack/drop/ranking effects, card and set rewards,
+ally-dependent opening, rankings, Golden Time, stamina-paid entry.
+
+**The exploration-areas question answered well:** three areas survive WITHOUT a Stamina gate because
+**the design depends on choice under bounded attempts, not on a consumable.** Area 1 safer/lower
+reward, Area 2 harder/better, Area 3 boss/highest - differentiated by difficulty, failure risk and
+reward composition. **Removing the Stamina gate removes the paywall, not the exploration decision.**
+
+**WHAT THE 2017 WORK DOES BETTER, stated plainly:** the event ARC beats a flat farm screen; set
+completion is a stronger retention objective than accumulating undifferentiated Gold; boss escalation
+gives repeated clears rising stakes; puzzle doors provide path choice absent from our current loops;
+milestone windows create a reason to return in a defined period. **Our current design is cleaner
+economically and worse at making ordinary activity feel like an event.**
+
+**ORIGINAL INTENT RECOVERED:** an expedition rather than a menu of battles; discoveries rather than a
+currency faucet; a collection journey with a satisfying completion state; a live calendar of changing
+activity. **Later work kept the rewards and lost the arc, the anticipation and the completion
+psychology.**
+
+### CC-CAUGHT COLLISION: we would have THREE overlapping solo daily loops
+
+**BS did not know we already have two.** Shipping Chest Hunt as specified gives us:
+1. **Memory Expedition** - Tree of Knowledge minigame, once daily, fixed daily seed, Empire/Avatar-side
+   rewards only, already a Home daily-hub destination.
+2. **Solo Collection Circuit** - three trials, personal 7-day cycle, roster-aware bands, shipped and
+   wired.
+3. **Chest Hunt** - 7 days, 3 free entries/day, milestone track.
+
+**All three are: solo, daily-gated, 7-day-ish cycles, Empire/Avatar-side rewards, reusing the same
+combat engine.** That is not a portfolio, it is the same loop three times competing for the same
+daily session.
+
+**NOT LOCKED PENDING A DECISION.** Options: (a) build Chest Hunt and retire or absorb one of the
+existing two; (b) rebuild Memory Expedition AS Chest Hunt, since the minigame is currently UI-shell-
+only with no real logic and would gain the arc it lacks; (c) ship all three and accept the overlap.
+**CC's lean is (b)** - Memory Expedition already has narrative locked, a daily seed, a completion
+ledger and a Home entry point, and it is the one with no gameplay behind it. But three daily loops is
+a product decision, not a coding one.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
