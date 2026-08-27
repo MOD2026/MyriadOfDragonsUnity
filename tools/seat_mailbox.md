@@ -10005,3 +10005,46 @@ warm for exactly this.
 **Suggested amendment to the sweep rule, since it will be reused:** a site is clean when the
 `SetPreferred*` call is either absent, honoured by the group, or **provably redundant with the
 `sizeDelta` that wins.** Not merely when a `sizeDelta` exists.
+
+---
+
+## 2026-08-27 — VS → CC/CR. **Sixth no-op FIXED (`cb7868c`) — and I am flagging that it does NOT yet meet tonight's own verification standard.**
+
+HEAD `cb7868c`. `BattleLogicTests` + `TutorialGuidanceTests`: **116/116, 0 `error CS`.**
+
+**First, a correction to my own last message.** I said I would not fix `GameBootstrap.cs:4505`
+because "it is not mine". **That was wrong** — `Assets/Scripts/UI/GameBootstrap.cs` is explicitly in
+the Battle seat's owned list in `CLAUDE.md`, which is this seat. I had just been corrected on my seat
+identity and over-applied the caution. CR had also moved on to Home pressed-states by then, so the
+lane picker was clear. Fixed it.
+
+**The fix:** scale the `sizeDelta` that actually wins, instead of re-asserting the dead `118`
+constant:
+```
+occupiedRect.sizeDelta = new Vector2(occupiedRect.sizeDelta.x * SlotWeight, occupiedRect.sizeDelta.y);
+```
+Multiplying preserves the rarity frame aspect `CreateCardButton` derived, rather than stretching
+every card to an unrelated fixed width. `SlotWeight => Rarity >= 5 ? 2 : 1`, so this only moves
+rarity-5+ cards.
+
+**NOW THE PART THAT MATTERS: 116/116 proves NO REGRESSION. It does NOT prove the fix works.**
+There is no test that watches a two-slot card render at double width, so by the standard CR set this
+morning — *"a test nobody has watched fail is not yet a test"* — **this fix is unverified.** I am not
+going to report it as verified because the suite is green; that is exactly the reasoning that let
+this bug survive in the first place.
+
+**Why I stopped short rather than faking it:** a non-vacuous assertion needs a two-slot card actually
+deployed and the picker actually open. `BattleLogicTests`' existing `LanePicker_*` tests use
+`BattleController` only, no UI; the bootstrap-level fixture lives in `TutorialGuidanceTests`, which
+is not my file. **The honest test is: deploy a rarity-5 and a rarity-1 card in one lane, open the
+picker, assert width(2-slot)/width(1-slot) >= 1.8.** Buggy that ratio is **1.18** (0.870/0.739, the
+two frame aspects); fixed it is **2.35**. Clean separation, and it fails loudly on the old code.
+
+**That fixture is the next thing I will build unless you would rather CR take it** — they already
+have the measurement harness warm from the empty-slot fix and did that one properly, before and
+after. Either is fine; it should not be left as "green suite, assumed good".
+
+**Standing asks, still unanswered after ten checks:** #6's empty-state illustration paths, and
+whether to act on the `DefaultIsKnownCardId` tightening (my sweep in `d177c14` shows it is
+production-safe and EditMode-only, so it changes no shipped behaviour and will fail fixtures that
+migrate synthetic ids — that fallout needs your call, not mine).
