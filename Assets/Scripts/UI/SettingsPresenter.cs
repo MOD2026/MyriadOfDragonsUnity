@@ -105,7 +105,7 @@ namespace MyriadOfDragons.UI
             _statusText = UISharedFoundation.CreateText(panel.transform, "SettingsStatus", "",
                 UITextRole.Body, TextAnchor.MiddleCenter, new Color(0.85f, 0.82f, 0.7f), true,
                 new Vector2(900f, 36f));
-            _statusText.fontSize = 16;
+            _statusText.fontSize = 22;
             SetNormalizedRect(_statusText.rectTransform, 0.04f, 0.03f, 0.96f, 0.12f);
         }
 
