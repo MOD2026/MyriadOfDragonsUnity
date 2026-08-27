@@ -3761,6 +3761,15 @@ namespace MyriadOfDragons.UI
                 spellRowLayout.childAlignment = TextAnchor.MiddleLeft;
                 spellRowLayout.childForceExpandWidth = false;
                 spellRowLayout.childForceExpandHeight = true;
+                // Same no-op-LayoutElement bug as the row height fix above, on the width axis
+                // (CR, 2026-08-27, found while checking for other instances per CC's ask): with
+                // childControlWidth=false, Icon's/Text's SetPreferredWidth(52)/(260) calls below
+                // are never applied by this row - a child keeps whatever sizeDelta it already has,
+                // which for a freshly created GameObject is Unity's default 100x100. Rather than
+                // flip this to true (which would make the row responsible for every child's width,
+                // including Text's own nested VerticalLayoutGroup), both children get their
+                // sizeDelta.x pre-set directly below - the same "locally-known target size"
+                // pattern already used for hand-cards/mini-cards tonight.
                 spellRowLayout.childControlWidth = false;
                 spellRowLayout.childControlHeight = true;
 
@@ -3772,6 +3781,7 @@ namespace MyriadOfDragons.UI
                 var iconGo = new GameObject("Icon", typeof(RectTransform));
                 iconGo.transform.SetParent(spell.transform, false);
                 SetPreferredWidth(iconGo, 52f);
+                ((RectTransform)iconGo.transform).sizeDelta = new Vector2(52f, 0f);
                 var icon = iconGo.AddComponent<Image>();
                 icon.raycastTarget = false;
                 icon.preserveAspect = true;
@@ -3779,6 +3789,12 @@ namespace MyriadOfDragons.UI
                 var textColGo = new GameObject("Text", typeof(RectTransform));
                 textColGo.transform.SetParent(spell.transform, false);
                 SetPreferredWidth(textColGo, 260f);
+                // Pre-set directly (see spellRowLayout.childControlWidth's own comment above for
+                // why the LayoutElement alone isn't enough here): sizeDelta.x, not just the
+                // LayoutElement, since childControlWidth=false on the row means the row will not
+                // apply the LayoutElement's value at all - it only respects whatever sizeDelta the
+                // child already has.
+                ((RectTransform)textColGo.transform).sizeDelta = new Vector2(260f, 0f);
                 var textColLayout = textColGo.AddComponent<VerticalLayoutGroup>();
                 textColLayout.childAlignment = TextAnchor.MiddleLeft;
                 textColLayout.childForceExpandWidth = true;
