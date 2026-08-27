@@ -139,7 +139,7 @@ namespace MyriadOfDragons.Tests
 
                 screensBuilt++;
                 Camera measureCam = PrepareForMeasurement(canvasObj, out Texture2D rendered, out Texture2D background, out RenderTexture measurementRt);
-                InspectScreen(screen, canvasObj, measureCam, background, findings, warnings, exceptions, graphNodes, dot);
+                InspectScreen(screen, canvasObj, measureCam, background, rendered, findings, warnings, exceptions, graphNodes, dot);
                 if (rendered != null) UnityEngine.Object.DestroyImmediate(rendered);
                 if (background != null) UnityEngine.Object.DestroyImmediate(background);
                 if (measureCam != null) measureCam.targetTexture = null;
@@ -391,7 +391,7 @@ namespace MyriadOfDragons.Tests
         }
 
         private void InspectScreen(
-            UiScreenEntry screen, GameObject canvasObj, Camera cam, Texture2D background,
+            UiScreenEntry screen, GameObject canvasObj, Camera cam, Texture2D background, Texture2D rendered,
             List<string> findings, List<string> warnings,
             List<UiGateException> exceptions, List<string> graphNodes, StringBuilder dot)
         {
@@ -626,13 +626,27 @@ namespace MyriadOfDragons.Tests
                     }
 
                     float p5 = FifthPercentileContrast(background, box, text.color, out int samples,
-                                                       out float worst, out float fractionMeetingFloor,
+                                                       out float wholeBoxWorst, out float fractionMeetingFloor,
                                                        text.fontSize >= 55 ? 4.5f : 7f);
                     if (samples < 20) continue;   // too little background to judge honestly
 
                     bool large = text.fontSize >= 55;
                     float floor = large ? 4.5f : 7f;
                     float absoluteFloor = large ? 3f : 4.5f;
+
+                    // Glyph-restricted minimum (CC, 2026-08-27, BS methodology finding): `worst`
+                    // used to come from FifthPercentileContrast, which samples the label's WHOLE
+                    // ScreenRect - including margin no glyph ever touches. p5/fractionMeetingFloor
+                    // above are outlier-robust (a percentile) so that margin barely moves them,
+                    // but "worst" is the true minimum: one stray bright pixel sitting in unused
+                    // rect padding condemns the label even though no player ever sees a glyph
+                    // there. Restricted to where `rendered` (real text visible) actually differs
+                    // from `background` (text hidden) - i.e. real ink - plus a small dilation for
+                    // anti-aliased edge pixels, so a genuinely low-contrast glyph is still caught
+                    // and empty margin no longer is.
+                    float worst = rendered != null
+                        ? WorstContrastInGlyphRegion(rendered, background, box, text.color, wholeBoxWorst)
+                        : wholeBoxWorst;
 
                     if (p5 < floor)
                     {
@@ -1056,6 +1070,84 @@ namespace MyriadOfDragons.Tests
         /// against the text colour, and reliably occupies more than 5% of a label's area - so the
         /// 5th percentile lands inside the anti-aliasing every time.
         /// </summary>
+        /// <summary>The true minimum contrast, restricted to where a glyph actually renders
+        /// (CC, 2026-08-27, BS methodology finding) - not the label's whole ScreenRect, which
+        /// includes margin no character ever touches. Ink is detected by comparing the REAL
+        /// render (<paramref name="renderedFrame"/>, text visible) against the same pixel in
+        /// <paramref name="backgroundFrame"/> (text hidden): background art is identical in both
+        /// frames by construction, so any difference beyond noise is glyph ink or its AA fringe,
+        /// never scenery. A small dilation (the worst ink pixel's own immediate neighbours) is
+        /// checked too, since anti-aliasing lives right at a glyph's edge and a coarse stride can
+        /// straddle it. Falls back to <paramref name="fallbackWorst"/> (the caller's own
+        /// whole-box worst) if no ink is detected at all, so a real defect is never silently
+        /// dropped just because detection missed it.</summary>
+        private static float WorstContrastInGlyphRegion(
+            Texture2D renderedFrame, Texture2D backgroundFrame, Rect box, Color textColour, float fallbackWorst)
+        {
+            int xMin = Mathf.Clamp(Mathf.FloorToInt(box.xMin), 0, backgroundFrame.width - 1);
+            int xMax = Mathf.Clamp(Mathf.CeilToInt(box.xMax), 0, backgroundFrame.width - 1);
+            int yMin = Mathf.Clamp(Mathf.FloorToInt(box.yMin), 0, backgroundFrame.height - 1);
+            int yMax = Mathf.Clamp(Mathf.CeilToInt(box.yMax), 0, backgroundFrame.height - 1);
+            if (xMax <= xMin || yMax <= yMin) return fallbackWorst;
+
+            // Cap the work like FifthPercentileContrast does - this only needs to FIND ink, not
+            // characterise a distribution, so it can afford to be finer without being unbounded.
+            int strideX = Mathf.Max(1, (xMax - xMin) / 200);
+            int strideY = Mathf.Max(1, (yMax - yMin) / 80);
+
+            float textLum = RelativeLuminance(textColour);
+            float worst = float.MaxValue;
+            int worstX = -1, worstY = -1;
+            int glyphSamples = 0;
+
+            for (int y = yMin; y <= yMax; y += strideY)
+            {
+                for (int x = xMin; x <= xMax; x += strideX)
+                {
+                    Color renderedPx = renderedFrame.GetPixel(x, y);
+                    Color bgPx = backgroundFrame.GetPixel(x, y);
+                    float diff = Mathf.Abs(renderedPx.r - bgPx.r) + Mathf.Abs(renderedPx.g - bgPx.g) +
+                                 Mathf.Abs(renderedPx.b - bgPx.b);
+                    if (diff < 0.05f) continue;   // no ink here - identical in both frames
+
+                    glyphSamples++;
+                    float bg = RelativeLuminance(bgPx);
+                    float hi = Mathf.Max(textLum, bg);
+                    float lo = Mathf.Min(textLum, bg);
+                    float c = (hi + 0.05f) / (lo + 0.05f);
+                    if (c < worst) { worst = c; worstX = x; worstY = y; }
+                }
+            }
+
+            if (glyphSamples == 0) return fallbackWorst;
+
+            // Dilation: the worst ink pixel's own immediate 2px neighbourhood, checked at full
+            // resolution regardless of the stride above - AA fringes are 1-2px wide by
+            // construction, so this is where the stride is most likely to have stepped over the
+            // real minimum.
+            for (int dy = -2; dy <= 2; dy++)
+            {
+                for (int dx = -2; dx <= 2; dx++)
+                {
+                    int nx = Mathf.Clamp(worstX + dx, xMin, xMax);
+                    int ny = Mathf.Clamp(worstY + dy, yMin, yMax);
+                    Color renderedPx = renderedFrame.GetPixel(nx, ny);
+                    Color bgPx = backgroundFrame.GetPixel(nx, ny);
+                    float diff = Mathf.Abs(renderedPx.r - bgPx.r) + Mathf.Abs(renderedPx.g - bgPx.g) +
+                                 Mathf.Abs(renderedPx.b - bgPx.b);
+                    if (diff < 0.05f) continue;
+
+                    float bg = RelativeLuminance(bgPx);
+                    float hi = Mathf.Max(textLum, bg);
+                    float lo = Mathf.Min(textLum, bg);
+                    float c = (hi + 0.05f) / (lo + 0.05f);
+                    if (c < worst) worst = c;
+                }
+            }
+
+            return worst;
+        }
+
         private static float FifthPercentileContrast(
             Texture2D frame, Rect box, Color textColour, out int samples,
             out float worst, out float fractionMeetingFloor, float floor)
