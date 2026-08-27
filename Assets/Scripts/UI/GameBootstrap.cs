@@ -344,8 +344,17 @@ namespace MyriadOfDragons.UI
         private readonly Dictionary<Lane, Button> _playerLaneButtons = new Dictionary<Lane, Button>();
         private readonly Dictionary<Lane, Text> _enemyLaneTotalTexts = new Dictionary<Lane, Text>();
         private readonly Dictionary<Lane, Text> _playerLaneTotalTexts = new Dictionary<Lane, Text>();
-        private Image _enemyHealthFill;
         private Text _enemyAvatarText;
+        private const int EnemyHealthSegmentCount = 20;
+        private Image[] _enemyHealthSegments;
+        private Image _enemyCrestImage;
+        private RectTransform _enemyLethalMarker;
+        private int _enemyLastObservedHp = -1;
+        /// <summary>The EnemyHud panel itself - kept as a direct reference (rather than counting
+        /// transform.parent hops up from a specific child, which broke once when the segmented
+        /// bar added an extra nesting level the old smooth-fill bar didn't have) for floating
+        /// damage text and anything else that needs to land on the enemy panel as a whole.</summary>
+        private Transform _enemyHudPanel;
         private Image _playerHealthFill;
         private Text _playerAvatarText;
 
@@ -559,6 +568,17 @@ namespace MyriadOfDragons.UI
         /// caption above onto its own surface.</summary>
         public bool DeckBlockedOverlayActiveForTests => _deckBlockedOverlay != null && _deckBlockedOverlay.activeSelf;
         public string DeckBlockedOverlayTextForTests => _deckBlockedText != null ? _deckBlockedText.text : null;
+
+        /// <summary>Exposed for tests: the enemy HUD's real rendered state - counts segments by
+        /// their ACTUAL colour (matching HealthBarFillColor) rather than recomputing the fill
+        /// formula, so a test checking this can't pass just because the math agrees with itself;
+        /// it has to agree with what RefreshEnemyHealthSegments actually painted.</summary>
+        public int EnemyHealthSegmentsFilledForTests =>
+            _enemyHealthSegments?.Count(seg => seg != null && seg.color == HealthBarFillColor) ?? 0;
+        public int EnemyHealthSegmentCountForTests => _enemyHealthSegments?.Length ?? 0;
+        public bool EnemyLethalMarkerPresentForTests => _enemyLethalMarker != null;
+        public float EnemyLethalMarkerFractionForTests => _enemyLethalMarker != null ? _enemyLethalMarker.anchorMin.x : -1f;
+        public Sprite EnemyCrestSpriteForTests => _enemyCrestImage != null ? _enemyCrestImage.sprite : null;
 
         /// <summary>Block P Soft — locked mode strings for Campaign vs ordinary Battle (not Tutorial).</summary>
         public const string NormalBattleModeLabel = "Normal Battle";
@@ -3096,18 +3116,167 @@ namespace MyriadOfDragons.UI
             // ----- Enemy cluster (right) -----
             RectTransform enemyCluster = CreateAnchoredPanel(canvasTransform, "EnemyHud", Color.clear,
                 EnemyHudMin, EnemyHudMax);
-            CreatePortrait(enemyCluster, "Orc_King", 0.06f, 0.94f, 0.02f, 0.30f, _aiProfile.DisplayName, font,
-                out _, out _enemyNameLabel);
+            _enemyHudPanel = enemyCluster;
+            _enemyCrestImage = CreateEnemyCrest(enemyCluster, _aiProfile.DifficultyTier, 0.06f, 0.94f, 0.02f, 0.30f,
+                _aiProfile.DisplayName, font, out _enemyNameLabel);
 
-            Image enemyHealthBar = CreateBar(enemyCluster, HealthBarEmptyColor, HealthBarFillColor, font, 20,
-                out _enemyHealthFill, out _enemyAvatarText, "Health_Empty");
-            AnchorBand(enemyHealthBar.rectTransform, 0.56f, 0.86f, 0.34f, 0.02f);
-            UISharedFoundation.FitSlicedBorderToRect(enemyHealthBar);
+            BuildEnemyHealthSegments(enemyCluster, font, out _enemyHealthSegments, out _enemyAvatarText, out _enemyLethalMarker);
 
             Image enemyResourceBar = CreateBar(enemyCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 20,
                 out _enemyResourceFill, out _enemyResourceText, "Mana_Fill");
             AnchorBand(enemyResourceBar.rectTransform, 0.14f, 0.44f, 0.34f, 0.02f);
             UISharedFoundation.FitSlicedBorderToRect(enemyResourceBar);
+        }
+
+        /// <summary>Owner instruction, 2026-08-27: "the battle screen's top-right must be
+        /// ANIMATION, not text" - the enemy crest + segmented health bar replace the old flat
+        /// portrait+smooth-fill panel. Crest selection is the design, not a guess: the five
+        /// imported crests (Assets/Resources/UI/EnemyCrestsV1/enemy_crest_{tier}_v1, verified
+        /// real RGBA PNGs, not the empty-state batch's baked-background RGB) map 1:1 onto
+        /// AIOpponentScaling's five AIDifficultyTier values - the art was commissioned against
+        /// those tiers. Falls back to rendering nothing (same convention as CreatePortrait) if a
+        /// crest is missing, rather than a broken/blank Image.</summary>
+        private static Image CreateEnemyCrest(Transform parent, AIDifficultyTier tier, float y0, float y1, float x0, float x1,
+            string displayName, Font nameFont, out Text nameLabelOut)
+        {
+            string crestName = $"enemy_crest_{tier.ToString().ToLowerInvariant()}_v1";
+            Sprite crestSprite = Resources.Load<Sprite>($"UI/EnemyCrestsV1/{crestName}");
+            if (crestSprite == null) { nameLabelOut = null; return null; }
+
+            var crestGo = new GameObject($"Crest_{tier}", typeof(RectTransform));
+            crestGo.transform.SetParent(parent, false);
+            var crestRect = (RectTransform)crestGo.transform;
+            crestRect.anchorMin = new Vector2(x0, y0);
+            crestRect.anchorMax = new Vector2(x1, y1);
+            crestRect.offsetMin = new Vector2(4, 2);
+            crestRect.offsetMax = new Vector2(-4, -2);
+
+            var crestImg = crestGo.AddComponent<Image>();
+            crestImg.sprite = crestSprite;
+            crestImg.preserveAspect = true;
+            crestImg.raycastTarget = false;
+
+            nameLabelOut = CreateText(parent, displayName ?? "", 18, GoldTextColor, nameFont);
+            nameLabelOut.fontStyle = FontStyle.Bold;
+            nameLabelOut.raycastTarget = false;
+            AnchorBand(nameLabelOut.rectTransform, y0 - 0.10f, y0, x0, 1f - x1);
+
+            return crestImg;
+        }
+
+        /// <summary>Owner instruction: segments communicate PROPORTION, a damage flash
+        /// communicates the HIT - two different questions, so two different mechanisms, both
+        /// required. Spell damage is fixed at magnitude x4 (SPELL_CATALOG_v1), so the same 24-
+        /// damage spell moves ~4.8 of 20 segments at 100 max HP but only ~0.9 at 540 - a smooth
+        /// continuous fill communicates neither fact as legibly as a discrete count does. Segment
+        /// fill/flash/lethal-marker POSITION are all pure functions (ComputeFilledHealthSegments/
+        /// ComputeLethalMarkerFraction below) so they're testable without Play Mode; only the
+        /// flash's colour animation itself is a coroutine, matching this file's own established
+        /// VFX precedent (PlayEffect/PlayFloatingText) - untestable in EditMode by the same rule
+        /// that makes CombatLoop untestable, and accepted for the same reason: it is cosmetic
+        /// polish on top of state that IS independently tested, not game logic living only there.</summary>
+        private void BuildEnemyHealthSegments(Transform parent, Font font,
+            out Image[] segments, out Text label, out RectTransform lethalMarker)
+        {
+            var barGo = new GameObject("HealthSegments", typeof(RectTransform));
+            barGo.transform.SetParent(parent, false);
+            AnchorBand((RectTransform)barGo.transform, 0.56f, 0.86f, 0.34f, 0.02f);
+
+            var rowGo = new GameObject("SegmentRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            rowGo.transform.SetParent(barGo.transform, false);
+            StretchFull((RectTransform)rowGo.transform);
+            var rowLayout = rowGo.GetComponent<HorizontalLayoutGroup>();
+            rowLayout.spacing = 1.5f;
+            rowLayout.childForceExpandWidth = true;
+            rowLayout.childForceExpandHeight = true;
+            rowLayout.childControlWidth = true;
+            rowLayout.childControlHeight = true;
+
+            segments = new Image[EnemyHealthSegmentCount];
+            for (int i = 0; i < EnemyHealthSegmentCount; i++)
+            {
+                var segGo = new GameObject($"Segment_{i}", typeof(RectTransform), typeof(Image));
+                segGo.transform.SetParent(rowGo.transform, false);
+                Image seg = segGo.GetComponent<Image>();
+                seg.color = HealthBarEmptyColor;
+                seg.raycastTarget = false;
+                segments[i] = seg;
+            }
+
+            // Lethal marker: a thin vertical line at the HP fraction the enemy will be reduced
+            // to if the player's current board damage lands this clash (SumLivingAttack over the
+            // player's own lanes - the same live Attack total the lane-total column already
+            // shows, so this never invents a second source of truth for "how hard the board
+            // hits"). Positioned as a sibling ON TOP of the segment row so it draws over every
+            // segment regardless of fill state.
+            var markerGo = new GameObject("LethalMarker", typeof(RectTransform), typeof(Image));
+            markerGo.transform.SetParent(barGo.transform, false);
+            lethalMarker = (RectTransform)markerGo.transform;
+            lethalMarker.anchorMin = new Vector2(0f, -0.25f);
+            lethalMarker.anchorMax = new Vector2(0f, 1.25f);
+            lethalMarker.pivot = new Vector2(0.5f, 0.5f);
+            lethalMarker.sizeDelta = new Vector2(3f, 0f);
+            Image markerImg = markerGo.GetComponent<Image>();
+            markerImg.color = new Color(1f, 0.85f, 0.1f, 0.95f);
+            markerImg.raycastTarget = false;
+
+            label = CreateText(barGo.transform, "", 20, Color.white, font);
+            label.fontStyle = FontStyle.Bold;
+            label.raycastTarget = false;
+            var labelOutline = label.gameObject.AddComponent<Outline>();
+            labelOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            labelOutline.effectDistance = new Vector2(1.4f, -1.4f);
+            StretchFull(label.rectTransform);
+        }
+
+        /// <summary>How many of <paramref name="segmentCount"/> segments should read as filled
+        /// for the given HP fraction - rounds to the nearest segment rather than always flooring,
+        /// so a 95%-full bar reads as visibly near-full instead of looking identical to 90%.
+        /// Pure function, no MonoBehaviour/Play Mode dependency - testable directly.</summary>
+        public static int ComputeFilledHealthSegments(int currentHp, int maxHp, int segmentCount)
+        {
+            if (maxHp <= 0 || segmentCount <= 0) return 0;
+            float fraction = Mathf.Clamp01((float)currentHp / maxHp);
+            return Mathf.Clamp(Mathf.RoundToInt(fraction * segmentCount), currentHp > 0 ? 1 : 0, segmentCount);
+        }
+
+        /// <summary>Where the lethal marker sits, as a 0..1 fraction of the bar's width from the
+        /// LEFT (matching CreateBar's own fillOrigin=Left convention) - the HP the enemy would be
+        /// left at after the player's current live board Attack lands this clash. Clamped to 0
+        /// when the hit would be lethal (attack >= currentHp), so the marker never reads as a
+        /// negative position off the start of the bar.</summary>
+        public static float ComputeLethalMarkerFraction(int currentHp, int maxHp, int incomingAttack)
+        {
+            if (maxHp <= 0) return 0f;
+            int hpAfterHit = Mathf.Max(0, currentHp - Mathf.Max(0, incomingAttack));
+            return Mathf.Clamp01((float)hpAfterHit / maxHp);
+        }
+
+        /// <summary>Sum of a side's own currently-living Attack across every lane - the exact
+        /// same figure RefreshLaneSlots already computes per lane for the lane-total column
+        /// (totalAttack there), just summed across all three instead of kept separate. Reused
+        /// rather than re-derived so "how hard the board hits" has one source of truth.</summary>
+        public static int SumLivingAttack(PlayerBattleState side)
+        {
+            int total = 0;
+            foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
+            {
+                foreach (BattleCardInstance instance in side.Lanes[lane].Cards)
+                {
+                    if (instance.IsAlive) total += instance.Attack;
+                }
+            }
+            return total;
+        }
+
+        /// <summary>Cosmetic-only fade timing for the damage flash - a plain function of elapsed
+        /// time so the CURVE is testable even though the coroutine driving it (like every other
+        /// VFX in this file) is not. 1 at the moment of the hit, fading to 0 over
+        /// <paramref name="duration"/>.</summary>
+        public static float ComputeDamageFlashAlpha(float elapsedSeconds, float duration)
+        {
+            if (duration <= 0f) return 0f;
+            return Mathf.Clamp01(1f - elapsedSeconds / duration);
         }
 
         /// <summary>A background+fill bar with a bold centered text label on top, for HP/Resource -
@@ -5290,7 +5459,7 @@ namespace MyriadOfDragons.UI
             }
             if (result.DamageDealtToSideB > 0)
             {
-                PlayFloatingText(_enemyHealthFill.transform.parent.parent, $"-{result.DamageDealtToSideB}", HealthBarFillColor);
+                PlayFloatingText(_enemyHudPanel, $"-{result.DamageDealtToSideB}", HealthBarFillColor);
             }
         }
 
@@ -5544,7 +5713,7 @@ namespace MyriadOfDragons.UI
 
             if (avatarDamage > 0)
             {
-                PlayFloatingText(_enemyHealthFill.transform.parent.parent, $"-{avatarDamage}", HealthBarFillColor);
+                PlayFloatingText(_enemyHudPanel, $"-{avatarDamage}", HealthBarFillColor);
             }
         }
 
@@ -6157,6 +6326,71 @@ namespace MyriadOfDragons.UI
         /// Campaign guidance caption) never update unless a test calls this too.</summary>
         public void RefreshAllForTests() => RefreshAll();
 
+        /// <summary>Drives the enemy segmented health bar from real battle state - fill count,
+        /// lethal marker position, and (on a real drop since the last refresh) the damage flash.
+        /// The comparison against `_enemyLastObservedHp` IS the "did a hit land" signal; nothing
+        /// here infers damage from anything but the actual HP value RefreshAll is already
+        /// reading, so this can never disagree with what `_enemyAvatarText` shows next to it.</summary>
+        private void RefreshEnemyHealthSegments(PlayerBattleState enemy)
+        {
+            if (_enemyHealthSegments == null) return;
+
+            int filled = ComputeFilledHealthSegments(enemy.AvatarHealth, enemy.MaxAvatarHealth, EnemyHealthSegmentCount);
+            bool tookDamage = _enemyLastObservedHp >= 0 && enemy.AvatarHealth < _enemyLastObservedHp;
+            int previousFilled = _enemyLastObservedHp >= 0
+                ? ComputeFilledHealthSegments(_enemyLastObservedHp, enemy.MaxAvatarHealth, EnemyHealthSegmentCount)
+                : filled;
+
+            for (int i = 0; i < _enemyHealthSegments.Length; i++)
+            {
+                _enemyHealthSegments[i].color = i < filled ? HealthBarFillColor : HealthBarEmptyColor;
+            }
+
+            if (tookDamage && Application.isPlaying)
+            {
+                // Flash exactly the segments that just emptied - the discrete "which of the 20
+                // changed" set, not a generic whole-bar pulse, so the flash itself communicates
+                // how much was lost rather than just that something was.
+                for (int i = filled; i < previousFilled && i < _enemyHealthSegments.Length; i++)
+                {
+                    StartCoroutine(FlashSegment(_enemyHealthSegments[i]));
+                }
+            }
+
+            _enemyLastObservedHp = enemy.AvatarHealth;
+
+            if (_enemyLethalMarker != null)
+            {
+                int incomingAttack = SumLivingAttack(_battleController.PlayerState);
+                float lethalFraction = ComputeLethalMarkerFraction(enemy.AvatarHealth, enemy.MaxAvatarHealth, incomingAttack);
+                _enemyLethalMarker.anchorMin = new Vector2(lethalFraction, _enemyLethalMarker.anchorMin.y);
+                _enemyLethalMarker.anchorMax = new Vector2(lethalFraction, _enemyLethalMarker.anchorMax.y);
+            }
+        }
+
+        private const float DamageFlashDuration = 0.4f;
+
+        /// <summary>One segment's own flash-and-settle - same coroutine-VFX precedent as
+        /// FadeScaleAndDestroy, except the segment is never destroyed (it's a persistent part of
+        /// the bar, just recoloured). ComputeDamageFlashAlpha supplies the testable curve; this
+        /// method only drives it against real time, which is the untestable part by the same
+        /// EditMode/Play Mode rule as every other coroutine here.</summary>
+        private static IEnumerator FlashSegment(Image segment)
+        {
+            if (segment == null) yield break;
+            Color restColor = HealthBarEmptyColor;
+            Color flashColor = Color.white;
+            float elapsed = 0f;
+            while (elapsed < DamageFlashDuration && segment != null)
+            {
+                float a = ComputeDamageFlashAlpha(elapsed, DamageFlashDuration);
+                segment.color = Color.Lerp(restColor, flashColor, a);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            if (segment != null) segment.color = restColor;
+        }
+
         private void RefreshAll()
         {
             RefreshLaneSlots(_battleController.EnemyState, _enemyLaneSlots, _enemyLaneTotalTexts, isEnemySide: true);
@@ -6165,7 +6399,7 @@ namespace MyriadOfDragons.UI
             PlayerBattleState enemy = _battleController.EnemyState;
             PlayerBattleState player = _battleController.PlayerState;
 
-            _enemyHealthFill.fillAmount = enemy.MaxAvatarHealth > 0 ? (float)enemy.AvatarHealth / enemy.MaxAvatarHealth : 0f;
+            RefreshEnemyHealthSegments(enemy);
             // Badge text is HP only now (2026-08-06, corner-badge rework) - the old long form
             // ("Wyvern Tamer Kaelen (Veteran) - HP: 299/299") was sized for a full-width bar and
             // does not fit a compact badge. Name + difficulty moved to the portrait's own name

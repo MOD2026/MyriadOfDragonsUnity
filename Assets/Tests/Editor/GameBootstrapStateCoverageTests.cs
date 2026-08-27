@@ -202,5 +202,91 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(string.IsNullOrEmpty(bootstrap.ResultTextForTests),
                 "STATE UNREACHED: Resolved's result overlay carried no text.");
         }
+
+        // ---------- Enemy HUD (owner instruction, 2026-08-27: "animation, not text") ----------
+        // Four more declared states, same discipline as the five above - a real GameBootstrap
+        // instance, real battle state (AvatarHealth is a public field on the real
+        // PlayerBattleState, set directly here rather than mocked), and the REAL RefreshAll path
+        // driving the HUD, then asserting what actually rendered (EnemyHealthSegmentsFilledForTests
+        // counts segments by their ACTUAL colour, not by recomputing the fill formula).
+
+        [Test]
+        public void EnemyHud_FullHealth_AllSegmentsFilledAndCrestPresent()
+        {
+            SaveValidDeckForNormalMatch();
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Coverage_HudFull");
+
+            Assert.AreEqual(bootstrap.Battle.EnemyState.MaxAvatarHealth, bootstrap.Battle.EnemyState.AvatarHealth,
+                "Setup: expected the enemy to start at full health.");
+            Assert.AreEqual(20, bootstrap.EnemyHealthSegmentCountForTests, "STATE UNREACHED: the 20-segment bar was not built.");
+            Assert.AreEqual(20, bootstrap.EnemyHealthSegmentsFilledForTests,
+                "STATE UNREACHED: full health did not render as all 20 segments filled.");
+            Assert.IsNotNull(bootstrap.EnemyCrestSpriteForTests,
+                "STATE UNREACHED: no crest sprite loaded for this encounter's difficulty tier - " +
+                "check Resources/UI/EnemyCrestsV1 against AiArchetypeForTests' real AIDifficultyTier.");
+        }
+
+        [Test]
+        public void EnemyHud_PartialHealth_SegmentsMatchRealFraction()
+        {
+            SaveValidDeckForNormalMatch();
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Coverage_HudPartial");
+
+            int maxHp = bootstrap.Battle.EnemyState.MaxAvatarHealth;
+            bootstrap.Battle.EnemyState.AvatarHealth = Mathf.Max(1, maxHp / 3); // ~33%, mid-bar
+            bootstrap.RefreshAllForTests();
+
+            int expected = GameBootstrap.ComputeFilledHealthSegments(
+                bootstrap.Battle.EnemyState.AvatarHealth, maxHp, bootstrap.EnemyHealthSegmentCountForTests);
+            Assert.AreEqual(expected, bootstrap.EnemyHealthSegmentsFilledForTests,
+                "STATE UNREACHED: partial health did not render the segment count the real formula predicts.");
+            Assert.Greater(bootstrap.EnemyHealthSegmentsFilledForTests, 0,
+                "STATE UNREACHED: partial (non-lethal) health rendered as fully empty.");
+            Assert.Less(bootstrap.EnemyHealthSegmentsFilledForTests, 20,
+                "STATE UNREACHED: partial health rendered as fully filled.");
+        }
+
+        [Test]
+        public void EnemyHud_LethalThreshold_MarkerReflectsRealBoardDamage()
+        {
+            SaveValidDeckForNormalMatch();
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Coverage_HudLethal");
+
+            bootstrap.AutoFormationForTests(); // real cards, real Attack values, all 3 lanes
+            int realIncomingAttack = 0;
+            foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
+            {
+                foreach (BattleCardInstance c in bootstrap.Battle.PlayerState.Lanes[lane].Cards)
+                {
+                    if (c.IsAlive) realIncomingAttack += c.Attack;
+                }
+            }
+            Assert.Greater(realIncomingAttack, 0, "Setup: expected Auto Formation to field cards with real Attack.");
+
+            int maxHp = bootstrap.Battle.EnemyState.MaxAvatarHealth;
+            // Put the enemy just above the real board's lethal range, so the marker sits inside
+            // the bar (not clamped to either end) and is genuinely checking a real threshold.
+            bootstrap.Battle.EnemyState.AvatarHealth = Mathf.Clamp(realIncomingAttack + 5, 1, maxHp);
+            bootstrap.RefreshAllForTests();
+
+            Assert.IsTrue(bootstrap.EnemyLethalMarkerPresentForTests, "STATE UNREACHED: no lethal marker was built.");
+            float expectedFraction = GameBootstrap.ComputeLethalMarkerFraction(
+                bootstrap.Battle.EnemyState.AvatarHealth, maxHp, realIncomingAttack);
+            Assert.AreEqual(expectedFraction, bootstrap.EnemyLethalMarkerFractionForTests, 0.001f,
+                "STATE UNREACHED: the marker's real rendered position did not match the real board's lethal threshold.");
+        }
+
+        [Test]
+        public void EnemyHud_ZeroHealth_AllSegmentsEmpty()
+        {
+            SaveValidDeckForNormalMatch();
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Coverage_HudZero");
+
+            bootstrap.Battle.EnemyState.AvatarHealth = 0;
+            bootstrap.RefreshAllForTests();
+
+            Assert.AreEqual(0, bootstrap.EnemyHealthSegmentsFilledForTests,
+                "STATE UNREACHED: zero health did not render as zero filled segments.");
+        }
     }
 }
