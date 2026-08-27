@@ -82,6 +82,7 @@ namespace MyriadOfDragons.UI
             backRect.sizeDelta = new Vector2(160f, 56f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "GUILD HALL",
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
@@ -127,6 +128,7 @@ namespace MyriadOfDragons.UI
             SetNorm(entry.GetComponent<RectTransform>(), 0.58f, 0.08f, 0.95f, 0.24f);
             UISharedFoundation.CreateText(entry.transform, "Text", "EXPEDITION", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
+            entry.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
         }
 
         /// <summary>Opens the live Guild Expedition gateway shell from Guild Hall entry.</summary>

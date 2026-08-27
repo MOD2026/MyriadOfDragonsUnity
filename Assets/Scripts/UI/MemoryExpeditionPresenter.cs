@@ -96,6 +96,7 @@ namespace MyriadOfDragons.UI
             backRect.sizeDelta = new Vector2(160f, 56f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "MEMORY EXPEDITION",
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
@@ -173,6 +174,12 @@ namespace MyriadOfDragons.UI
                     img.color = UIFrozenTokens.ColorPanel;
                     Button btn = tile.GetComponent<Button>();
                     btn.targetGraphic = img;
+                    // None, not Unity's default ColorTint - no ApplyXActionButton helper is called
+                    // for this tile (token color only, see comment above). Safe to cache a static
+                    // base color here: RefreshTiles only ever mutates the child label's text, never
+                    // this tile's own Image.color, so nothing external fights the controller for it.
+                    btn.transition = Selectable.Transition.None;
+                    tile.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
                     int captured = tileIndex;
                     btn.onClick.AddListener(() => TapTile(captured));
                     SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, bottom + 0.01f, right - 0.01f, top - 0.01f);
@@ -210,6 +217,7 @@ namespace MyriadOfDragons.UI
             SetNorm(claim.GetComponent<RectTransform>(), 0.1f, 0.15f, 0.9f, 0.85f);
             UISharedFoundation.CreateText(claim.transform, "Text", "CLAIM REWARDS", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(320f, 40f));
+            claim.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
         }
 
         private MemoryExpeditionTapResult TapTile(int tileIndex)

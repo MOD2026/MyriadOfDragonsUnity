@@ -119,6 +119,7 @@ namespace MyriadOfDragons.UI
             backRect.sizeDelta = new Vector2(160f, 56f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "BAZAAR",
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
@@ -150,6 +151,7 @@ namespace MyriadOfDragons.UI
                 SetNorm(tab.GetComponent<RectTransform>(), i * w + 0.01f, 0.1f, (i + 1) * w - 0.01f, 0.9f);
                 UISharedFoundation.CreateText(tab.transform, "Text", labels[i].ToUpperInvariant(), UITextRole.Caption,
                     TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 36f));
+                tab.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             }
         }
 
@@ -171,12 +173,17 @@ namespace MyriadOfDragons.UI
                 Image img = well.GetComponent<Image>();
                 Button btn = well.GetComponent<Button>();
                 btn.targetGraphic = img;
+                // None, not Unity's default ColorTint - this well never calls an ApplyXActionButton
+                // helper (it uses ApplyFramedPanel below instead), same live conflict class as
+                // EmpirePresenter's CreateBuildingRow.
+                btn.transition = Selectable.Transition.None;
                 btn.onClick.AddListener(() => SelectListingWell(slot));
                 SetNorm(well.GetComponent<RectTransform>(), col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f, (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
                 // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                     kind: UISharedFoundation.FramedPanelKind.ListRow);
+                well.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
                 Text t = UISharedFoundation.CreateText(well.transform, "Placeholder",
                     "Empty",
                     UITextRole.Caption, TextAnchor.MiddleCenter, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(160f, 40f));
@@ -202,6 +209,7 @@ namespace MyriadOfDragons.UI
             SetNorm(action.GetComponent<RectTransform>(), 0.05f, 0.05f, 0.95f, 0.22f);
             UISharedFoundation.CreateText(action.transform, "Text", "CONFIRM", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(280f, 40f));
+            action.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
         }
 
         private void SelectTab(int tabIndex)

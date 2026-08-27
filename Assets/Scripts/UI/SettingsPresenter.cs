@@ -222,6 +222,7 @@ namespace MyriadOfDragons.UI
 
             UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
                 Color.white, true, new Vector2(140f, 50f));
+            btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             return btn;
         }
 
@@ -244,6 +245,7 @@ namespace MyriadOfDragons.UI
 
             UISharedFoundation.CreateText(btnObj.transform, "Text", label, UITextRole.Body, TextAnchor.MiddleCenter,
                 new Color(0.95f, 0.9f, 0.79f), true, new Vector2(160f, 44f));
+            btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
             return btn;
         }
 
