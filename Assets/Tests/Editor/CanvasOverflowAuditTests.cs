@@ -118,7 +118,7 @@ namespace MyriadOfDragons.Tests
                 "the sweep found nothing to measure and the check is vacuous.");
 
             Assert.IsEmpty(findings,
-                "Canvas overflow (" + findings.Count + " across " + audited.Count + " scalers):\n  - " +
+                "Design-space compression (" + findings.Count + " across " + audited.Count + " scalers):\n  - " +
                 string.Join("\n  - ", findings));
         }
 
@@ -147,25 +147,42 @@ namespace MyriadOfDragons.Tests
                     float renderedH = refH * factor;
 
                     // Sub-pixel slack. A rendered size a fraction over the screen is rounding, not
-                    // a cropped HUD, and failing on it would train readers to ignore this check.
+                    // real compression, and failing on it would train readers to ignore this check.
                     const float Slack = 1f;
 
+                    // Wording note (CC 2026-08-27, after CR's correction): a ScreenSpaceOverlay
+                    // canvas's own RectTransform always equals the real screen exactly - nothing
+                    // anchored to it can literally render off-display. What "renderedW > screenW"
+                    // actually means is that the AUTHORED reference size no longer fits into that
+                    // real canvas rect at this match value, so Unity's own rect-to-screen mapping
+                    // compresses the effective design-space size down to fit (screenW / factor
+                    // units instead of refW). That is real - a fixed-pixel sibling sized for refW
+                    // can crowd or touch its neighbours on a device that compresses this hard - but
+                    // it is compression/crowding risk, not off-screen clipping. See CanvasOverflowAuditTests
+                    // history: the original framing here said "overflow"/"renders past the screen",
+                    // which is what a red test that misdescribes itself looks like.
                     if (renderedW > screenW + Slack)
                     {
-                        findings.Add(screenName + " " + scaler.name + " on " + device + ": renders " +
-                                     Mathf.RoundToInt(renderedW) + "px wide into a " +
-                                     Mathf.RoundToInt(screenW) + "px screen (overflowX " +
-                                     Mathf.RoundToInt(renderedW - screenW) + "px, match=" +
-                                     scaler.matchWidthOrHeight + ", ref " + refW + "x" + refH + ").");
+                        float effectiveDesignW = screenW / factor;
+                        float lossPctW = (refW - effectiveDesignW) / refW * 100f;
+                        findings.Add(screenName + " " + scaler.name + " on " + device + ": " +
+                                     Mathf.RoundToInt(refW) + " authored design-space units compress to " +
+                                     Mathf.RoundToInt(effectiveDesignW) + " on this profile (" +
+                                     lossPctW.ToString("F0") + "% loss, match=" + scaler.matchWidthOrHeight +
+                                     ", ref " + refW + "x" + refH + ") - not off-screen clipping, but a real " +
+                                     "crowding risk for any fixed-pixel-wide sibling.");
                     }
 
                     if (renderedH > screenH + Slack)
                     {
-                        findings.Add(screenName + " " + scaler.name + " on " + device + ": renders " +
-                                     Mathf.RoundToInt(renderedH) + "px tall into a " +
-                                     Mathf.RoundToInt(screenH) + "px screen (overflowY " +
-                                     Mathf.RoundToInt(renderedH - screenH) + "px, match=" +
-                                     scaler.matchWidthOrHeight + ", ref " + refW + "x" + refH + ").");
+                        float effectiveDesignH = screenH / factor;
+                        float lossPctH = (refH - effectiveDesignH) / refH * 100f;
+                        findings.Add(screenName + " " + scaler.name + " on " + device + ": " +
+                                     Mathf.RoundToInt(refH) + " authored design-space units compress to " +
+                                     Mathf.RoundToInt(effectiveDesignH) + " on this profile (" +
+                                     lossPctH.ToString("F0") + "% loss, match=" + scaler.matchWidthOrHeight +
+                                     ", ref " + refW + "x" + refH + ") - not off-screen clipping, but a real " +
+                                     "crowding risk for any fixed-pixel-tall sibling.");
                     }
                 }
             }
