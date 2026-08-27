@@ -2511,17 +2511,37 @@ particles** in our backdrops.
 lower animation amplitude and fewer event flashes. Enemy feedback should earn a short glance; player
 feedback should preserve focus on spell controls and lanes.
 
-### TWO CC CORRECTIONS
+### RESOLVED BY ADVERSARIAL VETTING: NO NUMBER. 20-segment bar instead.
 
-**1. BS specified the numeric value at T1 = 22px. That VIOLATES our own locked floor of 24px
-absolute.** Any retained number renders at **24px minimum**, weight 500.
+**BS was asked to argue AGAINST its own recommendation first, and reversed.** Its original answer kept
+a compact percentage - partly contrary to the owner's "animation and not text". Forced to attack that
+position, it concluded the number should GO.
 
-**2. OPEN OWNER QUESTION - BS recommends KEEPING a compact numeric percentage, which is partly
-contrary to the owner's instruction of "animation and not text".** BS's argument: the bar gives
-instant proportion, the percentage preserves precision, and a purely animated glow is not reliable
-enough for tactical decisions in a 12-tick fight. **CC is not overriding an owner instruction on
-advice - flagged for the owner to decide.** Everything else in this design is independent of that
-choice and can proceed either way.
+**The decisive argument:** in a 538x97 corner during a 12-tick auto-resolving fight, players will not
+reliably parse 34% versus 41% - they glance at bar length, colour and motion. And **precision is only
+worth having if it changes an available action.** Spell costs, cooldowns and the tick-3 AvatarStrike
+gate determine what can be cast; a one-digit difference alters none of them. So the number is
+informational rather than actionable, and it makes a living opponent read as a spreadsheet row.
+
+**WHAT CARRIES THE PRECISION INSTEAD - this was the actual crux, and it is answered:**
+- **20 equal segments, each 5% of max health**, boundaries visible at all times, continuous fill
+  between them. A player distinguishes ~35% / 40% / 45% by counting segments, **without reading
+  digits.**
+- **Fixed threshold at 30%:** muted crimson tint + one-shot danger pulse on crossing.
+- **Second subdued threshold at 60%**, healthy versus pressured.
+- Damage: 120ms flash + 100-140ms fill interpolation. **No per-tick pulsing.**
+- **Never raw HP text.**
+- **Optional lethal marker** ONLY if the combat engine already knows the currently available spell
+  would be lethal - a deterministic icon or segment highlight, **never a number and never a
+  speculative forecast.** Do not invent the calculation.
+
+**CC MATH CHECK on the segment count:** bar at ~65-70% of 538px = ~350-375px wide, so 20 segments give
+**~17.5px each**. At the compressed 1728 design width that falls to ~16px. Readable as tick marks with
+a divider, but **tight** - if segments prove indistinct in the first capture, reduce to 10 segments at
+10% each rather than shrinking the dividers.
+
+**This also removes the conflict with the owner's instruction entirely** - no owner decision is now
+needed, and the 22px-vs-24px floor violation is moot since no text remains in the region.
 
 **Benchmark: UNCONFIRMED numeric values across all five games checked** (Hearthstone, Clash Royale,
 Marvel Snap, Arknights, Royal Match) - no shipped title publishes animation timings. Qualitative
