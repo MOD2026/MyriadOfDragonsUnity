@@ -96,6 +96,26 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void UiValidationRun_EnforcesTheGateHardFailList()
         {
+            // FAIL CLOSED (CC, 2026-08-27, BS/TestMonkey-informed - GDC 2023 Tools Summit, Ben
+            // Hines, Visual Tests suite). Every finding below assumes the capture pipeline's
+            // screen-space maths agrees with the pixels it samples against. That assumption was
+            // WRONG for hours tonight - ScreenRect() computed a box in empty space while the real
+            // UI rendered correctly elsewhere, and a maths round-trip through the SAME broken
+            // camera would have agreed with itself the entire time; only opening the actual
+            // picture caught it. So: before trusting a single measurement this run, render known
+            // markers, find them in the real pixels, and compare against what the geometry path
+            // computes for those same points. If they disagree, the harness is unfit to judge
+            // anything and must say so instead of quietly reporting hundreds of plausible numbers
+            // nobody can act on - that is exactly how this file produced 79, then 110, then 601
+            // (really ~140+132) findings that took a full night to trust.
+            if (!RunCalibrationCheck(out string calibrationFailure))
+            {
+                Assert.Fail("VALIDATOR INVALID - CAPTURE/MEASUREMENT COORDINATE SPACES DO NOT MATCH: " +
+                            calibrationFailure +
+                            "\nEvery other finding and warning in this run is suppressed - an uncalibrated " +
+                            "harness reporting plausible numbers is worse than no report at all.");
+            }
+
             var findings = new List<string>();
             // Warnings NEVER fail the run. Section 4e: the 8/10/4 limits are an owner lock
             // that BS argues is a design-review threshold rather than a correctness invariant,
@@ -176,6 +196,170 @@ namespace MyriadOfDragons.Tests
             Assert.IsEmpty(findings,
                 "UI Verification Gate v1 section 2 violations (" + findings.Count + " across " +
                 screensBuilt + " screens):\n  - " + string.Join("\n  - ", findings));
+        }
+
+        /// <summary>
+        /// Builds a throwaway canvas carrying only known-colour markers - four 20x20 squares at
+        /// the screen corners, one at dead centre, and one known 100x100 rect at a fixed offset -
+        /// runs it through the EXACT SAME PrepareForMeasurement/ScreenRect pipeline every real
+        /// screen uses, then checks two independent things against each other: where the geometry
+        /// path SAYS each marker is, and where it ACTUALLY rendered in the captured pixels. This
+        /// is deliberately not a maths round-trip (compute a rect, convert it, convert it back,
+        /// compare) - a round-trip through the SAME broken camera agrees with itself, which is
+        /// exactly what happened for hours before an annotated screenshot caught it. A rendered
+        /// marker cannot lie the same way: it is either where the pixels say it is, or it is not.
+        /// Also checks the capture-context invariants (target texture identity, capture
+        /// resolution, aspect) and that a full-screen root measures the full frame - the same
+        /// class of check that would have failed the 2.23x scale-factor bug on its first run.
+        /// </summary>
+        private bool RunCalibrationCheck(out string failureReason)
+        {
+            failureReason = null;
+            var spawned = new List<UnityEngine.Object>();
+            try
+            {
+                var canvasGo = new GameObject("CalibrationCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+                spawned.Add(canvasGo);
+                var canvas = canvasGo.GetComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                var scaler = canvasGo.GetComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(CaptureWidth, CaptureHeight);
+                scaler.matchWidthOrHeight = UISharedFoundation.MatchWidthOrHeight;
+                var rootRect = canvasGo.GetComponent<RectTransform>();
+
+                const float markerSize = 20f;
+                const float knownRectSize = 100f;
+                Vector2 knownRectOffset = new Vector2(300f, 200f); // from screen centre
+
+                RectTransform bottomLeft = AddCalibrationMarker(canvasGo.transform, "BL", Vector2.zero, Vector2.zero, new Vector2(markerSize, markerSize), Color.red);
+                RectTransform bottomRight = AddCalibrationMarker(canvasGo.transform, "BR", Vector2.right, Vector2.right, new Vector2(markerSize, markerSize), Color.red);
+                RectTransform topLeft = AddCalibrationMarker(canvasGo.transform, "TL", new Vector2(0, 1), new Vector2(0, 1), new Vector2(markerSize, markerSize), Color.red);
+                RectTransform topRight = AddCalibrationMarker(canvasGo.transform, "TR", Vector2.one, Vector2.one, new Vector2(markerSize, markerSize), Color.red);
+                RectTransform center = AddCalibrationMarker(canvasGo.transform, "Center", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(markerSize, markerSize), Color.green);
+                RectTransform knownRect = AddCalibrationMarker(canvasGo.transform, "Known100", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(knownRectSize, knownRectSize), Color.blue);
+                knownRect.anchoredPosition = knownRectOffset;
+
+                Camera cam = PrepareForMeasurement(canvasGo, out Texture2D rendered, out Texture2D background, out RenderTexture rt);
+                try
+                {
+                    if (cam == null || background == null)
+                        { failureReason = "PrepareForMeasurement returned null for a canvas that built successfully."; return false; }
+
+                    // --- capture-context invariants -----------------------------------------
+                    if (!ReferenceEquals(cam.targetTexture, rt))
+                        { failureReason = "cam.targetTexture is not the RenderTexture this run captured into - a later measurement could read a different camera state than the one that was actually rendered."; return false; }
+                    if (cam.pixelWidth != CaptureWidth || cam.pixelHeight != CaptureHeight)
+                        { failureReason = "cam.pixelWidth/pixelHeight is " + cam.pixelWidth + "x" + cam.pixelHeight + ", not " + CaptureWidth + "x" + CaptureHeight + " - screen-space maths and the captured pixels are not the same resolution."; return false; }
+                    float expectedAspect = (float)CaptureWidth / CaptureHeight;
+                    if (Mathf.Abs(cam.aspect - expectedAspect) > 0.01f)
+                        { failureReason = "cam.aspect is " + cam.aspect.ToString("0.0000") + ", expected " + expectedAspect.ToString("0.0000") + " (16:9) - this is exactly the shape of bug that produced a 2.23x scale error tonight."; return false; }
+
+                    // --- full-canvas assertion -----------------------------------------------
+                    Rect fullCanvasBox = ScreenRect(rootRect, cam);
+                    if (Mathf.Abs(fullCanvasBox.xMin) > 2f || Mathf.Abs(fullCanvasBox.yMin) > 2f ||
+                        Mathf.Abs(fullCanvasBox.xMax - CaptureWidth) > 2f || Mathf.Abs(fullCanvasBox.yMax - CaptureHeight) > 2f)
+                    {
+                        failureReason = "a full-screen root RectTransform measured (" + F(fullCanvasBox.xMin) + "," + F(fullCanvasBox.yMin) +
+                                         ")-(" + F(fullCanvasBox.xMax) + "," + F(fullCanvasBox.yMax) + "), not (0,0)-(" +
+                                         CaptureWidth + "," + CaptureHeight + ") within 2px.";
+                        return false;
+                    }
+
+                    // --- rendered markers vs. the geometry path, for each marker --------------
+                    if (!CheckMarkerAgainstPixels(background, bottomLeft, cam, Color.red, "bottom-left corner", ref failureReason)) return false;
+                    if (!CheckMarkerAgainstPixels(background, bottomRight, cam, Color.red, "bottom-right corner", ref failureReason)) return false;
+                    if (!CheckMarkerAgainstPixels(background, topLeft, cam, Color.red, "top-left corner", ref failureReason)) return false;
+                    if (!CheckMarkerAgainstPixels(background, topRight, cam, Color.red, "top-right corner", ref failureReason)) return false;
+                    if (!CheckMarkerAgainstPixels(background, center, cam, Color.green, "centre", ref failureReason)) return false;
+                    if (!CheckMarkerAgainstPixels(background, knownRect, cam, Color.blue, "known 100x100 rect", ref failureReason)) return false;
+
+                    return true;
+                }
+                finally
+                {
+                    if (rendered != null) UnityEngine.Object.DestroyImmediate(rendered);
+                    if (background != null) UnityEngine.Object.DestroyImmediate(background);
+                    if (cam != null) cam.targetTexture = null;
+                    if (rt != null) { rt.Release(); UnityEngine.Object.DestroyImmediate(rt); }
+                }
+            }
+            finally
+            {
+                foreach (UnityEngine.Object o in spawned) if (o != null) UnityEngine.Object.DestroyImmediate(o);
+                CleanupAfterScreen();
+            }
+        }
+
+        private static RectTransform AddCalibrationMarker(
+            Transform parent, string name, Vector2 anchor, Vector2 pivot, Vector2 size, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = anchor;
+            rt.anchorMax = anchor;
+            rt.pivot = pivot;
+            rt.sizeDelta = size;
+            rt.anchoredPosition = Vector2.zero;
+            var img = go.GetComponent<Image>();
+            img.sprite = null;   // default white sprite - colour renders pure, unmixed
+            img.color = color;
+            return rt;
+        }
+
+        /// <summary>Finds the marker's real raster bounding box (pure-colour pixels in
+        /// <paramref name="frame"/>) and compares it against the SAME marker's box as computed by
+        /// ScreenRect - the geometry path every real finding in this file trusts. Any mismatch
+        /// beyond a few pixels means the geometry path and the actual pixels disagree, which is
+        /// the exact failure mode that cost a night on SpellLoadoutPicker's EffectLabelPlate.</summary>
+        private static bool CheckMarkerAgainstPixels(
+            Texture2D frame, RectTransform markerRect, Camera cam, Color expectedColor, string label, ref string failureReason)
+        {
+            Rect computed = ScreenRect(markerRect, cam);
+
+            int scanMinX = Mathf.Clamp(Mathf.FloorToInt(computed.xMin) - 15, 0, frame.width - 1);
+            int scanMaxX = Mathf.Clamp(Mathf.CeilToInt(computed.xMax) + 15, 0, frame.width - 1);
+            int scanMinY = Mathf.Clamp(Mathf.FloorToInt(computed.yMin) - 15, 0, frame.height - 1);
+            int scanMaxY = Mathf.Clamp(Mathf.CeilToInt(computed.yMax) + 15, 0, frame.height - 1);
+
+            int foundMinX = int.MaxValue, foundMaxX = int.MinValue, foundMinY = int.MaxValue, foundMaxY = int.MinValue;
+            for (int y = scanMinY; y <= scanMaxY; y++)
+            {
+                for (int x = scanMinX; x <= scanMaxX; x++)
+                {
+                    Color px = frame.GetPixel(x, y);
+                    if (Mathf.Abs(px.r - expectedColor.r) < 0.15f && Mathf.Abs(px.g - expectedColor.g) < 0.15f &&
+                        Mathf.Abs(px.b - expectedColor.b) < 0.15f)
+                    {
+                        if (x < foundMinX) foundMinX = x;
+                        if (x > foundMaxX) foundMaxX = x;
+                        if (y < foundMinY) foundMinY = y;
+                        if (y > foundMaxY) foundMaxY = y;
+                    }
+                }
+            }
+
+            if (foundMaxX < foundMinX)
+            {
+                failureReason = "the " + label + " marker (expected colour " + C3(expectedColor) + ") was not found anywhere within 15px of its computed box (" +
+                                 F(computed.xMin) + "," + F(computed.yMin) + ")-(" + F(computed.xMax) + "," + F(computed.yMax) +
+                                 ") - the geometry path and the actual render agree on NOTHING for this marker.";
+                return false;
+            }
+
+            const float tolerance = 3f;
+            if (Mathf.Abs(foundMinX - computed.xMin) > tolerance || Mathf.Abs(foundMaxX - computed.xMax) > tolerance ||
+                Mathf.Abs(foundMinY - computed.yMin) > tolerance || Mathf.Abs(foundMaxY - computed.yMax) > tolerance)
+            {
+                failureReason = "the " + label + " marker rendered at (" + foundMinX + "," + foundMinY + ")-(" + foundMaxX + "," + foundMaxY +
+                                 ") but the geometry path computed (" + F(computed.xMin) + "," + F(computed.yMin) + ")-(" +
+                                 F(computed.xMax) + "," + F(computed.yMax) + ") - beyond the " + tolerance +
+                                 "px tolerance. The capture and the measurement do not describe the same screen.";
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -594,18 +778,25 @@ namespace MyriadOfDragons.Tests
                 }
             }
 
-            // --- RENDERED contrast (locked 2026-08-27, 5c46c28) ---------------------------
-            // Floors: 7:1 body and interactive labels, 4.5:1 large text (55px+). Accepted on the
-            // 5th PERCENTILE, never the average - the lock is explicit that bright and dark pixels
-            // average to an acceptable value while a word crossing a bright patch is unreadable,
-            // and the 5th percentile catches that without one anti-aliased edge pixel condemning
-            // the whole label.
+            // --- RENDERED contrast (floor decision, CC + owner, 2026-08-27) ------------------
+            // Floors: 4.5:1 body/interactive, 3:1 large text (55px+) - WCAG AA, not AAA. The
+            // original lock cited 7:1/4.5:1 (AAA values) without naming the tier; measured
+            // side-by-side on identical code, AAA produced 145 primary findings and AA produced
+            // 81. AAA over painted fantasy art would sit permanently red and never get actioned -
+            // a gate nobody can satisfy is a gate everyone learns to ignore, precisely the failure
+            // mode this file is now built to fail closed against instead of quietly tolerating.
+            // AA is the testable baseline real accessibility guidance recommends and what shipped
+            // titles are actually held to. Accepted on the 5th PERCENTILE, never the average - the
+            // lock is explicit that bright and dark pixels average to an acceptable value while a
+            // word crossing a bright patch is unreadable, and the 5th percentile catches that
+            // without one anti-aliased edge pixel condemning the whole label.
             //
             // COLLECTED AS WARNINGS FOR NOW, NOT FAILURES, AND THAT IS DELIBERATE - see the report
             // to CC. The lock says insufficient contrast is a BUILD FAILURE and I am not
             // softening it; I am refusing to arm an UNVALIDATED measurement as a build gate after
-            // this same file produced 79 and then 110 fabricated findings tonight. One run to
-            // check the numbers against the captures, then it flips to findings.
+            // this same file produced 79 and then 110 fabricated findings tonight. It flips to
+            // findings once the fail-closed calibration check (RunCalibrationCheck) proves the
+            // harness trustworthy on every run, not just this one.
             if (background != null)
             {
                 foreach (Text text in root.GetComponentsInChildren<Text>(true))
@@ -627,11 +818,15 @@ namespace MyriadOfDragons.Tests
 
                     float p5 = FifthPercentileContrast(background, box, text.color, out int samples,
                                                        out float wholeBoxWorst, out float fractionMeetingFloor,
-                                                       text.fontSize >= 55 ? 4.5f : 7f);
+                                                       text.fontSize >= 55 ? 3.0f : 4.5f);
                     if (samples < 20) continue;   // too little background to judge honestly
 
                     bool large = text.fontSize >= 55;
-                    float floor = large ? 4.5f : 7f;
+                    float floor = large ? 3.0f : 4.5f;
+                    // Deliberately NOT lowered alongside floor - WCAG defines no tier below AA,
+                    // and inventing one would make this count mean something nobody can defend.
+                    // It already sits at AA's own body/large values, so today's floor swap does
+                    // not move it; these 132 findings are now themselves AA findings.
                     float absoluteFloor = large ? 3f : 4.5f;
 
                     // Glyph-restricted minimum (CC, 2026-08-27, BS methodology finding): `worst`
