@@ -2785,6 +2785,51 @@ Sampled positions **inside the plate's own footprint** return real map-art colou
 compositing through or over the plate on CampaignMap specifically.** That is a different defect and
 may be why CampaignMap reads worse than Shop rather than merely differently.
 
+## Chest Hunt EVENT ENTRY COST - LOCKED 2026-08-27: FREE daily entries, no Stamina
+
+**DECISION: 3 free entries per UTC day, no Stamina cost, and NO purchase may add entries.**
+
+**Stamina gating REJECTED.** In this project Stamina has **no free regeneration** - Shop refill only,
+30/60/120/240 Gems, max 4 purchases per rolling 24h. Gating a time-limited event on it is not pacing,
+it is **a purchase gate on expiring content**: a player who cannot spend Gems misses the event window
+entirely with no catch-up.
+
+**PAID OVERAGE (free allowance + Stamina-bought extra attempts) REJECTED, and the reasoning is worth
+keeping.** CC suspected this was splitting hairs; it is not. In an evergreen dungeon, paid overage is
+optional acceleration. **In a 7-day event with a FINITE completion reward it is paying for additional
+access to the outcome** - the issue is access fairness under a deadline, not combat power. It also
+forces a bad choice against the existing 4-purchase Stamina cap: spend the scarce daily allowance on
+ordinary progression, or on the expiring event.
+
+**LOCKED SHAPE:**
+- 7 days, one entry point from Quests/Events
+- **3 free entries per UTC day, max 21 clears**
+- No Stamina cost; no purchase adds entries
+- An entry is consumed only if the battle **actually starts** (a failed attempt costs one; a refused
+  launch does not)
+- Progress and claims **idempotent**
+- Completion once only: **10,000 Gold + 1 Stamina claim**, the claim counting against the existing
+  4/24h window, no bypass
+- **No Event Medals, no cards, no deck materials, no Permits**
+- Explicitly prototype-only while the save is client-authoritative
+
+**CC CORRECTION TO BS's REASONING:** BS ranked a pure daily-cap model second because it "introduces a
+second daily-limit convention instead of reusing Stamina's existing limiter." **That objection is
+wrong - the convention already exists and is well established:** `SoloCollectionCircuit.UtcDayKey`,
+`SoloCircuitCompletion`, `BoundCaptiveFodder`'s `CapturedUtcDayKey`/`LastCaptureUtcDayKey`, Memory
+Expedition's once-daily fixed seed, and DailyLoginQuests all use UTC-day-keyed daily reset. **Reusing
+that pattern is the cheap path, not a new convention.** The two top options collapse into one.
+
+**CC CHECK ON BS's BENCHMARK - the precedents it cited do NOT transfer, and BS said so correctly:**
+Genshin's Resin and Arknights' Sanity both **regenerate passively**, so their paid-acceleration models
+are not comparable to a no-regen Stamina. Marvel Snap Draft's ticket model is a **monetised
+competitive mode**, not a guaranteed solo event. **Nobody's precedent justifies gating this on a
+non-regenerating purchasable resource.**
+
+**Catch-up option held in reserve, not locked:** one free ticket per UTC day bankable up to 7, hard
+event max 21, never purchasable, expiring with the event. Solves the mid-week-start problem. Adds an
+event-specific state field, so only add it if catch-up proves to matter.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
