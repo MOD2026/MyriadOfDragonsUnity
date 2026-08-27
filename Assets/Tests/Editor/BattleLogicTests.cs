@@ -1268,8 +1268,21 @@ namespace MyriadOfDragons.Tests
                 "Setup guard: expected exactly the two cards placed above - a stray child would make "
                 + "the width comparison below measure the wrong pair.");
 
-            float twoSlotWidth = ((RectTransform)row.GetChild(0)).rect.width;
-            float oneSlotWidth = ((RectTransform)row.GetChild(1)).rect.width;
+            // FLAKE FIX (CR measured fail/pass/pass on identical HEAD, 2026-08-27). The first version
+            // of this test read `.rect.width`, which reflects the LAST LAYOUT PASS, not the value
+            // RefreshLanePicker just wrote. Whether a pass had run by this point was timing-dependent,
+            // so the test intermittently read the pre-scale width and failed - while the fix was
+            // working every time. CR's scratch diagnostic measured `sizeDelta.x` directly and got 2.0x
+            // on every run, which is what isolated the difference.
+            //
+            // Assert on sizeDelta: under childControlWidth = false the group never touches width, so
+            // sizeDelta.x IS the rendered width - it is the value the fix writes and the value the
+            // screen shows, with no pass in between. Force a rebuild first anyway so the rect check
+            // below is deterministic rather than dependent on whatever ran earlier.
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(row);
+
+            float twoSlotWidth = ((RectTransform)row.GetChild(0)).sizeDelta.x;
+            float oneSlotWidth = ((RectTransform)row.GetChild(1)).sizeDelta.x;
             Assert.Greater(oneSlotWidth, 0f, "Setup guard: a zero-width card means nothing rendered at all.");
 
             Assert.Greater(twoSlotWidth / oneSlotWidth, 1.8f,
