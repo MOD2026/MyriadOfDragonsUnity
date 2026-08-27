@@ -757,12 +757,72 @@ namespace MyriadOfDragons.Tests
                                 colOff.Append(" y").Append(y).Append('=').Append(C3(disabledFrame.GetPixel(cx, y)));
                             Debug.Log(colOff.ToString());
 
-                            // restore, in order: plate back on, text back on, RT/target torn down
+                            // CC's direct-observation follow-up (2026-08-27): paint the plate
+                            // magenta and find it in the frame, instead of inferring its footprint
+                            // from colour values. Reuses the SAME toggleRt/cam/hidden-text setup
+                            // above - same real pipeline, no new harness. Text stays hidden from
+                            // the block above (restored further down, after this pass too).
+                            Color originalColor = plateImg.color;
+                            Sprite originalSprite = plateImg.sprite;
                             plateImg.enabled = true;
+                            // Image.color MULTIPLIES the sprite's own baked per-pixel RGB - this
+                            // sprite's texture bakes the near-black authored fill directly into its
+                            // texels (CreateRoundedPanelSprite), so magenta * near-black stays
+                            // near-black and would never show up as magenta. Swap to the default
+                            // white sprite so the tint renders as pure, unmixed magenta.
+                            plateImg.sprite = null;
+                            plateImg.color = new Color(1f, 0f, 1f, 1f);
+                            // Lesson from the materialCount retraction earlier tonight: a Graphic
+                            // property change needs an explicit rebuild before it reaches the
+                            // CanvasRenderer - a bare cam.Render() is not enough on its own.
+                            Canvas.ForceUpdateCanvases();
+                            cam.Render();
+                            RenderTexture.active = toggleRt;
+                            var magentaFrame = new Texture2D(toggleRt.width, toggleRt.height, TextureFormat.RGB24, false);
+                            magentaFrame.ReadPixels(new Rect(0, 0, toggleRt.width, toggleRt.height), 0, 0);
+                            magentaFrame.Apply();
+
+                            int foundMinX = int.MaxValue, foundMaxX = int.MinValue;
+                            int foundMinY = int.MaxValue, foundMaxY = int.MinValue;
+                            int magentaCount = 0;
+                            for (int y = 0; y < magentaFrame.height; y++)
+                            {
+                                for (int x = 0; x < magentaFrame.width; x++)
+                                {
+                                    Color px = magentaFrame.GetPixel(x, y);
+                                    if (px.r > 0.8f && px.g < 0.2f && px.b > 0.8f)
+                                    {
+                                        magentaCount++;
+                                        if (x < foundMinX) foundMinX = x;
+                                        if (x > foundMaxX) foundMaxX = x;
+                                        if (y < foundMinY) foundMinY = y;
+                                        if (y > foundMaxY) foundMaxY = y;
+                                    }
+                                }
+                            }
+
+                            if (magentaCount == 0)
+                            {
+                                Debug.Log("[UiValidation:DIAG-MAGENTA] " + screen.Name + " " + Q(plateRt.name) +
+                                          " NO MAGENTA PIXELS FOUND ANYWHERE IN THE FRAME - plate has a material but drew nothing visible. " +
+                                          "computedBox=(" + F(box.xMin) + "," + F(box.yMin) + ")-(" + F(box.xMax) + "," + F(box.yMax) + ")");
+                            }
+                            else
+                            {
+                                Debug.Log("[UiValidation:DIAG-MAGENTA] " + screen.Name + " " + Q(plateRt.name) +
+                                          " realFootprint=(" + foundMinX + "," + foundMinY + ")-(" + foundMaxX + "," + foundMaxY +
+                                          ") pixelCount=" + magentaCount +
+                                          " computedBox=(" + F(box.xMin) + "," + F(box.yMin) + ")-(" + F(box.xMax) + "," + F(box.yMax) + ")");
+                            }
+
+                            // restore, in order: sprite, colour, plate, text back on, RT/target torn down
+                            plateImg.sprite = originalSprite;
+                            plateImg.color = originalColor;
                             foreach (Text t in hiddenNow) t.enabled = true;
                             RenderTexture.active = prevActive;
                             cam.targetTexture = prevTarget;
                             UnityEngine.Object.DestroyImmediate(disabledFrame);
+                            UnityEngine.Object.DestroyImmediate(magentaFrame);
                             toggleRt.Release();
                             UnityEngine.Object.DestroyImmediate(toggleRt);
                         }
