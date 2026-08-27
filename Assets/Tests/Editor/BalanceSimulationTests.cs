@@ -613,6 +613,74 @@ namespace MyriadOfDragons.Tests
             }
         }
 
+        /// <summary>
+        /// DIAGNOSTIC, TEST COVERAGE ONLY (CC dispatch 2026-08-27, Step 3): does each of the four
+        /// AIArchetype values behave sanely against the REAL SoloAIScalingSystem asymmetric path -
+        /// the exact HP-only crossover a real PvE match applies (see SweepArchetypeDetailed's own
+        /// enemyAvatarHealthOverride doc) - or does exercising the three archetypes a real player
+        /// has never faced surface a bug?
+        ///
+        /// Correction to this file's own prior note (line ~500-501): "Aggressive/Defensive/Tactical
+        /// are fully implemented and exercised throughout this test file" overstates it.
+        /// BattleLogicTests.SimpleAI_AggressiveFillsFrontLane_DefensivePrefersMiddle exercises
+        /// Aggressive/Defensive for exactly one AI turn's lane placement (no full match, no
+        /// SoloAIScalingSystem). Balance_ArchetypeDeepSweep_AcrossFourProfilesAtHighSampleSize does
+        /// sweep all four including Tactical through full matches - but through
+        /// SweepArchetypeDetailed's SYMMETRIC mirror path (enemyAvatarHealthOverride left null),
+        /// never through SoloAIScalingSystem. AIArchetype.Tactical specifically has never been
+        /// driven through a full match with the real asymmetric HP scaling a player would actually
+        /// meet, by any test in this suite, before this one.
+        ///
+        /// Reuses SweepArchetypeDetailed exactly as Balance_WinRateAcrossDifficultyTiers_RealScalingApplied
+        /// does (same enemyAvatarHealthOverride mechanism, same real SoloAIScalingSystem.GenerateAIOpponent
+        /// call) rather than building a second harness - the only difference is sweeping archetype
+        /// instead of holding it at the production default (Balanced).
+        ///
+        /// This is coverage, not a design decision: GameBootstrap still only ever calls
+        /// GenerateAIOpponent with its default archetype (Balanced, GameBootstrap.cs:951), so this
+        /// test does not change what a real match plays. Wiring a different archetype into
+        /// production is explicitly out of scope tonight.
+        /// </summary>
+        [Test]
+        public void Balance_AllFourArchetypes_BehaveSanelyAgainstRealAsymmetricScaling()
+        {
+            const int SampleSize = 800;
+
+            List<Card> pool = LoadDatabase().AllCards.ToList();
+            var empire = new PlayerEmpireData();
+            empire.SetLevelsForTesting(avatarLevel: 40, castleLevel: 22, barracksLevel: 25);
+            empire.InitializeTCGModifiers();
+
+            var scaling = new SoloAIScalingSystem();
+            AIBattleProfile profile = scaling.GenerateAIOpponent(empire);
+
+            foreach (AIArchetype archetype in System.Enum.GetValues(typeof(AIArchetype)))
+            {
+                DetailedSimResult r = SweepArchetypeDetailed(
+                    pool, empire, archetype, SampleSize,
+                    enemyAvatarHealthOverride: profile.MaxAvatarHealth);
+
+                Debug.Log($"[ArchetypeRealScaling] enemy={archetype,-10} tier={profile.DifficultyTier} " +
+                          $"enemyHP={profile.MaxAvatarHealth} winRate={r.PlayerWinRate:P1} " +
+                          $"avgTicks={r.AverageTicks:F1} winnerHP={r.AvgWinnerHealthFraction:P0} " +
+                          $"playerLanesCleared={r.AvgPlayerLanesClearedPerMatch:F2} " +
+                          $"enemyLanesCleared={r.AvgEnemyLanesClearedPerMatch:F2} (n={r.Matches})");
+
+                Assert.Greater(r.Matches, 0,
+                    $"{archetype}: produced no usable matches against the real asymmetric profile.");
+                // Sane, not tuned: a real bug in an untested archetype's placement policy (e.g. a
+                // path that never deploys, or that always feeds the player a free win/loss) would
+                // show up as a rate pinned at or near 0% or 100%, not as a mid-range number a
+                // magnitude assertion would otherwise be told not to care about.
+                Assert.Greater(r.PlayerWinRate, 0.02f,
+                    $"{archetype}: player win rate {r.PlayerWinRate:P1} is pinned near zero - " +
+                    "possible bug in this archetype's deployment policy under real HP scaling.");
+                Assert.Less(r.PlayerWinRate, 0.98f,
+                    $"{archetype}: player win rate {r.PlayerWinRate:P1} is pinned near total - " +
+                    "possible bug leaving this archetype unable to contest the match at all.");
+            }
+        }
+
         [Test]
         public void Balance_MatchesAreUsuallyDecidedByAKnockout_NotByTheTickCap()
         {
