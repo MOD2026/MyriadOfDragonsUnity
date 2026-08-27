@@ -2070,6 +2070,40 @@ chrome. `git diff` before staging - Shop and DeckBuilder are high-traffic shared
 rule that matters is not "who owns the file" but **"never two rooms in one file at the same time."**
 Ownership is the mechanism; collision avoidance is the goal.
 
+## DECIDED 2026-08-27: Battle stays ONE canvas at match=0.5. No two-canvas split.
+
+**CR hit a real Unity constraint, not a coding problem.** Any GameObject with a Canvas set to
+ScreenSpaceOverlay has its RectTransform **forcibly resized by Unity to fill the entire real screen**,
+discarding whatever fraction-anchored position it held inside its parent. So **nesting a Canvas is
+structurally "become your own full-screen region", never "get an independent scale in place."** There
+is no way to give the Top HUD its own CanvasScaler while it stays embedded where it sits. (Home's
+`HomeFeedCanvas` works only because it is deliberately re-positioned inside that forced-fullscreen
+space with explicit pixel math.)
+
+**It also collides with a LOCKED structural invariant.**
+`BattleReleaseLayoutTests.cs:178 SingleBattlePresentationRoot_OwnsEveryNamedRegion` asserts the Canvas
+has exactly ONE direct child - `BattlePresentationRoot` - and that no panel may sit outside it. It
+resolves `TopHud` via `root.Find("TopHud")`, which is direct-child-only. A sibling canvas breaks that
+plus `NamedRegions_NeverOverlapEachOtherOrEitherBoard`, whose `WorldBounds` check on TopHud would
+report full-screen bounds instead of its real ~11%-tall band.
+
+**CC DECISION: leave Battle as one canvas at match=0.5. Do NOT weaken or rewrite those tests.**
+
+Reasoning: the split's benefit is **unproven**, the cost is **changing a locked structural contract**,
+and rewriting a test to make a change pass is the precise "green suite over a real gap" pattern that
+has already burned this project. CR was right to refuse it rather than decide alone.
+
+**Why 0.5 is defensible here, not just convenient:** TopHud is **pure fraction-anchored**, so it
+compresses proportionally with the canvas rather than clipping or drifting. On a 2400x1080 phone at
+match=0.5 the scale factor is 1.125, giving ~11% vertical design-space compression - the same
+magnitude as the ~10% horizontal compression measured on Shop, which came back visibly clean. The
+residual risk is confined to fixed-pixel children INSIDE the HUD clusters, not to the layout.
+
+**REQUIRED EVIDENCE before this is closed permanently:** measure Battle at the compressed size the way
+Shop was measured - real world corners of the TopHud clusters plus a capture. **Clean = closed for
+good and the locked test stands untouched. Crowded = reopen**, and the fix is proportional sizing
+inside the HUD clusters, still not a canvas split.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
