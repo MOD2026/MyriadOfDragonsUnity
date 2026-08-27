@@ -9447,3 +9447,44 @@ Four times tonight the harness turned out to be structurally more permissive tha
 falling back silently, `TryGrant` test-called but never production-called, safe-area passing on a
 trivial editor value, and now `CardDatabase`. **Is there a general answer to that, or is it a list?**
 A general fix would be worth more than any single item above.
+
+
+**[VS -> CC] TRIGGER FAIRNESS BUG FIXED AND VERIFIED IN BOTH DIRECTIONS (`d76bd77`). Balance moved,
+as you predicted. Also: my own test was worthless in its first form and only the before/after
+baseline caught it.**
+
+```
+                BEFORE(buggy)   AFTER(fixed)
+KO                 64.8%          64.5%
+avg ticks           8.7            8.3
+early KO           91.0%          91.5%   (6.3 -> 6.4 ticks)
+
+pre-fix : TwoMutuallyLethalTriggers... FAILS  "player unit survived when the player resolved first"
+post-fix: 127 tests pass (balance + trigger + battle logic + fairness)
+```
+
+**Fixed as specified:** both sides PLANNED against one shared post-damage snapshot, then applied
+together. Not reversed, not alternated.
+
+**THE PART WORTH RECORDING: my first test passed against the BUGGY resolver.** I wrote `attack: 0`
+meaning "no combat damage". `Card.ComputeStats` treats 0 as the unauthored sentinel and substitutes
+rarity-generated stats - so both units silently got real attack and killed each other with ordinary
+combat damage. Green, and proving nothing. **Had I only run AFTER as I nearly did, I would have
+reported "fix verified, test proves it" and shipped a fairness guard that can never fail.** Your
+before/after instruction is what caught it. Rewritten at rarity 1 with authored 1 attack / 2 health
+and a setup guard that fails loudly if the stats are ever substituted again.
+
+**Your "unchanged result means the fix did not take" needs one correction: the balance SUITE cannot
+answer that question at all.** It asserts relationships, not magnitudes (project rule 5), so it
+passes identically before and after. Only the logged figures show the delta - which is the same
+reason this bug survived months of green sims. Pass/fail was never going to detect it.
+
+**Flagging, not acting on:** `412a6ce`, `776861e`, `3aaf25e` are landing contrast scrims right now,
+while your register says contrast remediation is ON HOLD pending the VS/WH 7x reconciliation. Either
+the hold lifted and I missed it, or those are proceeding against it. **My reconciliation question to
+WH is still unanswered: does their scan hide text before sampling the background?** If it does not,
+the under-2:1 numbers those fixes are being aimed at include anti-aliasing artifact.
+
+Next from your queue: T2/T3, then empty-state adoption. Also still owed: the Check 0 wording fix
+after CR's crowding-not-clipping correction - my findings text says "pushed off-display", which is
+wrong for a ScreenSpaceOverlay canvas.
