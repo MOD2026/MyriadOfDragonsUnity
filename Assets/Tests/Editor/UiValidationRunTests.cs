@@ -138,10 +138,16 @@ namespace MyriadOfDragons.Tests
                 }
 
                 screensBuilt++;
-                Camera measureCam = PrepareForMeasurement(canvasObj, out Texture2D rendered, out Texture2D background);
+                Camera measureCam = PrepareForMeasurement(canvasObj, out Texture2D rendered, out Texture2D background, out RenderTexture measurementRt);
                 InspectScreen(screen, canvasObj, measureCam, background, findings, warnings, exceptions, graphNodes, dot);
                 if (rendered != null) UnityEngine.Object.DestroyImmediate(rendered);
                 if (background != null) UnityEngine.Object.DestroyImmediate(background);
+                if (measureCam != null) measureCam.targetTexture = null;
+                if (measurementRt != null)
+                {
+                    measurementRt.Release();
+                    UnityEngine.Object.DestroyImmediate(measurementRt);
+                }
                 CleanupAfterScreen();
             }
 
@@ -188,10 +194,11 @@ namespace MyriadOfDragons.Tests
         /// validator could fail a screen that looks right in the very image a human signs off on,
         /// and there would be no way to tell which one was lying.
         /// </summary>
-        private Camera PrepareForMeasurement(GameObject canvasObj, out Texture2D rendered, out Texture2D background)
+        private Camera PrepareForMeasurement(GameObject canvasObj, out Texture2D rendered, out Texture2D background, out RenderTexture measurementRt)
         {
             rendered = null;
             background = null;
+            measurementRt = null;
             Canvas canvas = canvasObj.GetComponent<Canvas>();
             if (canvas == null) return null;
 
@@ -254,9 +261,19 @@ namespace MyriadOfDragons.Tests
 
             foreach (Text t in hidden) t.enabled = true;
 
-            cam.targetTexture = null;
-            rt.Release();
-            UnityEngine.Object.DestroyImmediate(rt);
+            // ROOT CAUSE, found 2026-08-27 after an all-night measurement-vs-render mismatch on
+            // SpellLoadoutPicker's EffectLabelPlate (confirmed by annotated capture - the plate
+            // renders correctly, ScreenRect() computed a box in empty space instead): this used to
+            // null cam.targetTexture and destroy `rt` HERE, before returning cam to the caller.
+            // Every ScreenRect() call happens AFTER this method returns, and
+            // RectTransformUtility.WorldToScreenPoint reads cam.pixelWidth/pixelHeight (and the
+            // orthographic projection derived from them) at CALL time, not render time - with no
+            // target texture attached those report the editor game-view size, not 1920x1080, while
+            // every pixel sampled still comes from the 1920x1080 rendered/background textures.
+            // Fixed by keeping the RenderTexture attached for the caller's entire measurement
+            // pass; it is released by the caller once InspectScreen is done with this screen, not
+            // here.
+            measurementRt = rt;
             return cam;
         }
 
