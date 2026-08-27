@@ -245,14 +245,18 @@ namespace MyriadOfDragons.UI
             Text labelText = UISharedFoundation.CreateText(
                 textPlate.transform, "ResourceLabel", label, UITextRole.Body, TextAnchor.MiddleLeft,
                 Color.white, true, new Vector2(80f, 30f));
-            labelText.fontSize = 16;
+            labelText.fontSize = 22;
+            labelText.fontStyle = FontStyle.Bold;
             labelText.raycastTarget = false;
             UISharedFoundation.ApplyTextShadow(labelText);
+
+            float labelWidth = Mathf.Max(40f, labelText.preferredWidth);
             RectTransform labelRect = labelText.rectTransform;
-            labelRect.anchorMin = new Vector2(0.02f, 0.1f);
-            labelRect.anchorMax = new Vector2(0.48f, 0.9f);
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
+            labelRect.anchorMin = new Vector2(0f, 0.1f);
+            labelRect.anchorMax = new Vector2(0f, 0.9f);
+            labelRect.pivot = new Vector2(0f, 0.5f);
+            labelRect.anchoredPosition = new Vector2(8f, 0f);
+            labelRect.sizeDelta = new Vector2(labelWidth, 0f);
 
             Text valueText = UISharedFoundation.CreateText(
                 textPlate.transform, "ResourceValue", value, UITextRole.Display, TextAnchor.MiddleRight,
@@ -261,11 +265,13 @@ namespace MyriadOfDragons.UI
             valueText.fontStyle = FontStyle.Bold;
             valueText.raycastTarget = false;
             UISharedFoundation.ApplyTextShadow(valueText);
+
             RectTransform valueRect = valueText.rectTransform;
-            valueRect.anchorMin = new Vector2(0.48f, 0.1f);
-            valueRect.anchorMax = new Vector2(0.98f, 0.9f);
-            valueRect.offsetMin = Vector2.zero;
-            valueRect.offsetMax = Vector2.zero;
+            valueRect.anchorMin = new Vector2(0f, 0.1f);
+            valueRect.anchorMax = new Vector2(1f, 0.9f);
+            valueRect.pivot = new Vector2(1f, 0.5f);
+            valueRect.offsetMin = new Vector2(8f + labelWidth + 8f, 0f);
+            valueRect.offsetMax = new Vector2(-8f, 0f);
 
             return valueText;
         }
