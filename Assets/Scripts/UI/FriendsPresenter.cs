@@ -21,7 +21,11 @@ namespace MyriadOfDragons.UI
         private Action _onBack;
         private Text _statusText;
         private Text[] _rowTexts;
-        private InputField _addFriendInput;
+        // Add Friend has no player-facing UI: the account-id input and Btn_AddFriend were
+        // retired as a deferred feature (social routes are not configured - see
+        // FriendsOpenValues.AreSocialRoutesConfigured). The gateway path is preserved and
+        // driven by AddFriendForTests, so this holds the target that the input used to.
+        private string _pendingAddFriendTarget = string.Empty;
         private IFriendsGateway _gateway;
         private CancellationTokenSource _cts;
         private List<FriendSummaryDto> _friends = new();
@@ -29,7 +33,6 @@ namespace MyriadOfDragons.UI
 
         public GameObject CanvasObjectForTests => _canvasObj;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
-        public InputField AddFriendInputForTests => _addFriendInput;
         public int FriendCountForTests => _friends.Count;
         public string SelectedCounterpartIdForTests => _selectedCounterpartId ?? string.Empty;
 
@@ -53,7 +56,7 @@ namespace MyriadOfDragons.UI
 
         public Task<FriendGatewayResult> AddFriendForTests(string targetAccountId)
         {
-            if (_addFriendInput != null) _addFriendInput.text = targetAccountId ?? string.Empty;
+            _pendingAddFriendTarget = targetAccountId ?? string.Empty;
             return SendAddFriendAsync();
         }
 
@@ -145,7 +148,9 @@ namespace MyriadOfDragons.UI
             GameObject rail = new GameObject("NavRail", typeof(RectTransform));
             rail.transform.SetParent(_canvasObj.transform, false);
             SetNorm(rail.GetComponent<RectTransform>(), 0.05f, 0.08f, 0.14f, 0.88f);
-            string[] tabs = { "Friends", "Requests", "Find" };
+            // Requests/Find retired: FriendsOpenValues.TrySelectTab is an unconditional
+            // Refuse, so both were dead controls that could never select anything.
+            string[] tabs = { "Friends" };
             float h = 1f / tabs.Length;
             for (int i = 0; i < tabs.Length; i++)
             {
@@ -160,9 +165,6 @@ namespace MyriadOfDragons.UI
                     else SetStatus(FriendsOpenValues.TrySelectTab(idx).Message);
                 });
                 SetNorm(tab.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.05f, 0.95f, 1f - i * h - 0.05f);
-                // 120 -> 150 width: "REQUESTS" wrapped to two lines (50px in a 28px band) at
-                // 120px. Widened, not shrunk - the tab itself spans 0.05-0.95 of a NavRail that is
-                // 0.05-0.14 of 1920 (~172.8px), so ~155.5px is available and 150 stays inside it.
                 UISharedFoundation.CreateText(tab.transform, "Text", tabs[i].ToUpperInvariant(), UITextRole.Caption,
                     TextAnchor.MiddleCenter, Color.white, true, new Vector2(150f, 28f));
             }
@@ -313,21 +315,6 @@ namespace MyriadOfDragons.UI
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 100f));
             SetNorm(summary.rectTransform, 0.08f, 0.62f, 0.92f, 0.85f);
 
-            _addFriendInput = UISharedFoundation.CreateInputField(drawer.transform, "AddFriendInput",
-                "Account id…", new Color(0.9f, 0.88f, 0.75f), new Vector2(280f, 44f), characterLimit: 50);
-            SetNorm(_addFriendInput.GetComponent<RectTransform>(), 0.08f, 0.45f, 0.92f, 0.58f);
-            GameObject addBtn = new GameObject("Btn_AddFriend", typeof(RectTransform), typeof(Image), typeof(Button));
-            addBtn.transform.SetParent(drawer.transform, false);
-            Image addImg = addBtn.GetComponent<Image>();
-            HomeV3UiLibrary.ApplyNeutralActionButton(addBtn.GetComponent<Button>(), addImg, new Color(0.24f, 0.36f, 0.24f));
-            addBtn.GetComponent<Button>().onClick.AddListener(() => _ = SendAddFriendAsync());
-            SetNorm(addBtn.GetComponent<RectTransform>(), 0.1f, 0.32f, 0.9f, 0.44f);
-            FriendsUiLibrary.ApplyAtlasIcon(addBtn.transform, "ActionIcon",
-                FriendsUiLibrary.LoadProfileActionCell(FriendsUiLibrary.ActionAdd),
-                0.04f, 0.12f, 0.22f, 0.88f);
-            UISharedFoundation.CreateText(addBtn.transform, "Text", "ADD FRIEND", UITextRole.Body,
-                TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
-
             GameObject msg = new GameObject("Btn_Gift", typeof(RectTransform), typeof(Image), typeof(Button));
             msg.transform.SetParent(drawer.transform, false);
             Image mImg = msg.GetComponent<Image>();
@@ -343,7 +330,7 @@ namespace MyriadOfDragons.UI
 
         private async Task<FriendGatewayResult> SendAddFriendAsync()
         {
-            string targetAccountId = _addFriendInput != null ? _addFriendInput.text.Trim() : string.Empty;
+            string targetAccountId = (_pendingAddFriendTarget ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(targetAccountId))
             {
                 SetStatus("Add friend: type an account id first.");
@@ -356,7 +343,7 @@ namespace MyriadOfDragons.UI
                 if (result != null && result.success)
                 {
                     SetStatus($"Request sent to {targetAccountId}.");
-                    if (_addFriendInput != null) _addFriendInput.text = string.Empty;
+                    _pendingAddFriendTarget = string.Empty;
                     await RefreshFriendsAsync().ConfigureAwait(true);
                 }
                 else

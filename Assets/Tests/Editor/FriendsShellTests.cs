@@ -65,8 +65,6 @@ namespace MyriadOfDragons.Tests
             Assert.NotNull(canvas.transform.Find("NavRail/Nav_Friends"));
             Assert.IsNotNull(canvas.transform.Find("FriendsList/FriendRow_0/RelIcon")?.GetComponent<Image>()?.sprite,
                 "Friend rows must show relationship atlas icons.");
-            Assert.IsNotNull(canvas.transform.Find("ProfileDrawer/Btn_AddFriend/ActionIcon")?.GetComponent<Image>()?.sprite,
-                "Add Friend must show profile-action atlas icon.");
             Assert.IsNotNull(canvas.transform.Find("ProfileDrawer/Btn_Gift/ActionIcon")?.GetComponent<Image>()?.sprite,
                 "Gift must show profile-action atlas icon.");
             StringAssert.Contains("You:",
