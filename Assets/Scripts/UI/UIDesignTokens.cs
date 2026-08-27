@@ -84,18 +84,7 @@ namespace MyriadOfDragons.UI
             }
         }
 
-        /// <summary>Semi-transparent scrim-panel opacity by tier (register: "Contrast + scrims -
-        /// LOCKED 2026-08-27" - scrim rank 2, preferred for dense/interactive copy: black/navy at
-        /// 60% Tier3, 80% Tier2, 95% Tier1).</summary>
-        public static float ScrimPanelOpacity(FrameTier tier)
-        {
-            switch (tier)
-            {
-                case FrameTier.Tier1Hero: return 0.95f;
-                case FrameTier.Tier2Section: return 0.80f;
-                case FrameTier.Tier3Utility: return 0.60f;
-                default: return 0.60f;
-            }
-        }
+        // ScrimPanelOpacity removed 2026-08-27 alongside AddSemiTransparentScrimPanel
+        // (UISharedFoundation.cs) - see that removal's comment for why.
     }
 }

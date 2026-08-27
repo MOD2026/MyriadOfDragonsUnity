@@ -814,11 +814,40 @@ public class HomePagePresenter : MonoBehaviour
         SetLocalNormalisedRect(title.rectTransform, 0.06f, 0.72f, 0.7f, 0.9f);
 
         // Local scrim under body copy only (card already framed; muted taupe on art read <2:1).
-        UISharedFoundation.AddSemiTransparentScrimPanel(
-            cardObj.transform,
-            new Vector2(width * 0.5f, height * 0.49f),
-            new Vector2(width * 0.88f, height * 0.40f),
-            UIDesignTokens.FrameTier.Tier3Utility);
+        // AddSemiTransparentScrimPanel (flat Image.color, no sprite) moved zero measured contrast
+        // ratios wherever it was used and was removed 2026-08-27 (CC) - swapped to the proven
+        // pattern from CampaignMapPresenter's StatusTextPlate: a solid CreateRoundedPanelSprite
+        // fill plus two opposite-direction AddLocalGradientScrim calls stacked on the same rect,
+        // whose overlapping alpha reads as a near-flat high-opacity fill.
+        {
+            Vector2 scrimCenter = new Vector2(width * 0.5f, height * 0.49f);
+            Vector2 scrimSize = new Vector2(width * 0.88f, height * 0.40f);
+            GameObject scrimPlate = new GameObject("BodyScrimPlate", typeof(RectTransform));
+            scrimPlate.transform.SetParent(cardObj.transform, false);
+            RectTransform scrimPlateRect = scrimPlate.GetComponent<RectTransform>();
+            scrimPlateRect.anchorMin = new Vector2(0f, 0f);
+            scrimPlateRect.anchorMax = new Vector2(0f, 0f);
+            scrimPlateRect.pivot = new Vector2(0.5f, 0.5f);
+            scrimPlateRect.sizeDelta = scrimSize;
+            scrimPlateRect.anchoredPosition = scrimCenter;
+            Image scrimFill = scrimPlate.AddComponent<Image>();
+            scrimFill.sprite = UISharedFoundation.CreateRoundedPanelSprite(
+                new Color(0.03f, 0.035f, 0.05f, 0.60f),
+                new Color(0.03f, 0.035f, 0.05f, 0.60f), cornerRadius: 1);
+            scrimFill.type = Image.Type.Simple;
+            scrimFill.color = Color.white;
+            scrimFill.raycastTarget = false;
+            UISharedFoundation.AddLocalGradientScrim(
+                scrimPlate.transform, scrimSize * 0.5f, scrimSize,
+                UISharedFoundation.GradientDirection.TopToBottom, 0.60f);
+            UISharedFoundation.AddLocalGradientScrim(
+                scrimPlate.transform, scrimSize * 0.5f, scrimSize,
+                UISharedFoundation.GradientDirection.BottomToTop, 0.60f);
+            // Behind title too, matching the removed helper's GetOrCreateScrimContainer
+            // first-sibling guarantee - title is created earlier in this method and would
+            // otherwise end up behind this plate purely by insertion order.
+            scrimPlate.transform.SetAsFirstSibling();
+        }
 
         Text body = UISharedFoundation.CreateText(cardObj.transform, "Body", card.Body, UITextRole.Body,
             TextAnchor.UpperLeft, HexColor("#F2E5C9"), true, new Vector2(1400f, 200f));

@@ -132,6 +132,7 @@ namespace MyriadOfDragons.UI
             else
             {
                 bg.color = fallback;
+                WarnOnceMissingSprite(spritePath, "CreateFullscreenBackground");
             }
 
             StretchFull(bg.rectTransform);
@@ -154,6 +155,7 @@ namespace MyriadOfDragons.UI
             else
             {
                 headerImage.color = fallback;
+                WarnOnceMissingSprite(panelSpritePath, "CreateHeaderShell");
             }
 
             RectTransform rect = headerObj.GetComponent<RectTransform>();
@@ -223,6 +225,12 @@ namespace MyriadOfDragons.UI
                 highlightedSprite = Resources.Load<Sprite>(HomeNavHoverPath);
                 pressedSprite = Resources.Load<Sprite>(HomeNavPressedPath);
                 disabledSprite = Resources.Load<Sprite>(HomeNavDisabledPath);
+                // Nav skin sprites are one of the two call-time-critical classes (CC 2026-08-27):
+                // a silent fallback here is indistinguishable from success and leaves the player
+                // staring at the thing they're supposed to press.
+                if (highlightedSprite == null) WarnOnceMissingSprite(HomeNavHoverPath, "CreateButton (nav skin, highlighted)", critical: true);
+                if (pressedSprite == null) WarnOnceMissingSprite(HomeNavPressedPath, "CreateButton (nav skin, pressed)", critical: true);
+                if (disabledSprite == null) WarnOnceMissingSprite(HomeNavDisabledPath, "CreateButton (nav skin, disabled)", critical: true);
             }
 
             if (sprite != null)
@@ -234,6 +242,13 @@ namespace MyriadOfDragons.UI
             else
             {
                 image.color = tint;
+                // Only warn when a real path was actually attempted - spritePath is legitimately
+                // null for callers with no art authored yet, same reasoning as ApplyFramedPanel's
+                // identical guard just below.
+                if (!string.IsNullOrEmpty(spritePath))
+                {
+                    WarnOnceMissingSprite(spritePath, "CreateButton", critical: useHomeNavSkin);
+                }
             }
 
             RectTransform rect = buttonObj.GetComponent<RectTransform>();
@@ -363,6 +378,30 @@ namespace MyriadOfDragons.UI
             image.pixelsPerUnitMultiplier = Mathf.Clamp(Mathf.Max(1f, neededForWidth, neededForHeight), 1f, 4f);
         }
 
+        private static readonly System.Collections.Generic.HashSet<string> _warnedMissingSpritePaths =
+            new System.Collections.Generic.HashSet<string>();
+
+        /// <summary>Standardized once-per-path fallback logging for every Resources.Load&lt;Sprite&gt;
+        /// call site that silently falls back to a flat colour on failure (external audit finding,
+        /// CC 2026-08-27): CreateFullscreenBackground, CreateButton, CreateHeaderShell and
+        /// ApplyFramedPanel each warned inconsistently or not at all before this - a screen with a
+        /// missing sprite passed every test because the CODE ran; only the player saw the flat
+        /// colour. Warn-once per path (not per call site), same reasoning as HomeV3UiLibrary's own
+        /// _warnedPrimaryButtonArtMissing-style gates.
+        ///
+        /// <paramref name="critical"/> upgrades this to Debug.LogError instead of LogWarning for
+        /// asset classes where silent degradation is unacceptable (primary CTA art, nav skins) -
+        /// Unity's EditMode test runner fails a test on any unhandled LogType.Error by default, so
+        /// a critical miss now fails a build rather than only ever logging.</summary>
+        public static void WarnOnceMissingSprite(string path, string context, bool critical = false)
+        {
+            if (string.IsNullOrEmpty(path) || !_warnedMissingSpritePaths.Add(path)) return;
+            string message = $"[UISharedFoundation] {context}: failed to load sprite '{path}' - " +
+                "falling back to a flat colour fill (warned once, not per call site).";
+            if (critical) Debug.LogError(message);
+            else Debug.LogWarning(message);
+        }
+
         // An earlier version of this fix tried a resize-watcher (OnRectTransformDimensionsChange)
         // so a caller applying chrome before finishing positioning (e.g. EmpirePresenter.cs:207)
         // would still end up correct with zero per-call-site changes. Tested directly
@@ -448,21 +487,10 @@ namespace MyriadOfDragons.UI
 
                 // Only warn when there WAS a real path to try and it genuinely failed to load -
                 // DefaultFramedPanelResourcePath legitimately returns null for a kind with no art
-                // authored yet, and that's not a bug. ~24+ call sites share this fallback, so this
-                // is warn-ONCE-per-path (not per call site) - same reasoning as HomeV3UiLibrary's
-                // _warnedSecondaryButtonArtMissing/_warnedPrimaryButtonArtMissing gate.
-                if (!string.IsNullOrEmpty(path) && _warnedFramedPanelPathsMissing.Add(path))
-                {
-                    Debug.LogWarning($"[UISharedFoundation] Failed to load framed panel sprite " +
-                        $"'{path}' - falling back to the procedural rounded panel for every " +
-                        $"ApplyFramedPanel/CreateFramedPanel call using this path this session " +
-                        $"(warned once, not per call site).");
-                }
+                // authored yet, and that's not a bug. ~24+ call sites share this fallback.
+                WarnOnceMissingSprite(path, "ApplyFramedPanel/CreateFramedPanel (falls back to the procedural rounded panel)");
             }
         }
-
-        private static readonly System.Collections.Generic.HashSet<string> _warnedFramedPanelPathsMissing =
-            new System.Collections.Generic.HashSet<string>();
 
         private const string ContentPanelDiamondResourcePath = "UI/SharedFoundation/ui_content_panel_diamond_overlay_v1";
 
@@ -794,32 +822,11 @@ namespace MyriadOfDragons.UI
             return img;
         }
 
-        /// <summary>Scrim rank 2 (register: preferred for dense/interactive copy): a flat black/
-        /// navy panel at the tier's locked opacity (60% Tier3, 80% Tier2, 95% Tier1 -
-        /// <see cref="UIDesignTokens.ScrimPanelOpacity"/>). Same first-sibling insertion as
-        /// <see cref="AddLocalGradientScrim"/>, for the same reason.</summary>
-        public static Image AddSemiTransparentScrimPanel(Transform parent, Vector2 anchoredPosition, Vector2 size,
-            UIDesignTokens.FrameTier tier, Color? tint = null)
-        {
-            GameObject go = new GameObject("ScrimPanel", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(GetOrCreateScrimContainer(parent), false);
-
-            Image img = go.GetComponent<Image>();
-            Color baseColor = tint ?? new Color(0.03f, 0.035f, 0.05f);
-            img.color = new Color(baseColor.r, baseColor.g, baseColor.b, UIDesignTokens.ScrimPanelOpacity(tier));
-            img.raycastTarget = false;
-
-            RectTransform rect = go.GetComponent<RectTransform>();
-            // See AddLocalGradientScrim's identical comment - explicit point anchor, absolute
-            // sizeDelta, no dependency on Unity's implicit default.
-            rect.anchorMin = new Vector2(0f, 0f);
-            rect.anchorMax = new Vector2(0f, 0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = size;
-            rect.anchoredPosition = anchoredPosition;
-            AssertSizeDeltaSafe(rect, "AddSemiTransparentScrimPanel");
-            return img;
-        }
+        // AddSemiTransparentScrimPanel (flat Image.color, no sprite) was removed 2026-08-27 (CC):
+        // it moved zero measured contrast ratios everywhere it was actually used, and there is no
+        // reason to maintain two supported scrim paths when only the sprite-backed
+        // AddLocalGradientScrim has proven itself. Its one caller (HomePagePresenter.cs) was
+        // switched to AddLocalGradientScrim in the same pass.
 
         private const string ScrimContainerName = "ScrimLayer";
 
