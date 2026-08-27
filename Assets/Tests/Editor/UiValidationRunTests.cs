@@ -661,6 +661,43 @@ namespace MyriadOfDragons.Tests
                 }
             }
 
+            // Diagnostic only (CC, 2026-08-27) - spatial alpha check for the "*Plate" contrast
+            // scrims: samples a 3x3 grid across the PLATE's own rect (not the text box) to tell
+            // a uniform compositing/shader problem (grid reads the same everywhere) apart from an
+            // edge/corner falloff in CreateRoundedPanelSprite's own alpha ramp (grid reads near-
+            // authored at centre, lighter toward the corners). No behaviour change.
+            if (background != null)
+            {
+                foreach (RectTransform plateRt in root.GetComponentsInChildren<RectTransform>(true))
+                {
+                    if (!plateRt.gameObject.activeInHierarchy || !plateRt.name.EndsWith("Plate")) continue;
+                    Image plateImg = plateRt.GetComponent<Image>();
+                    if (plateImg == null || !plateImg.enabled) continue;
+
+                    Rect box = ScreenRect(plateRt, cam);
+                    if (box.width <= Tolerance || box.height <= Tolerance) continue;
+
+                    var sb = new StringBuilder();
+                    sb.Append("[UiValidation:DIAG-PLATE] ").Append(screen.Name).Append(' ').Append(Q(plateRt.name))
+                      .Append(" box=(").Append(F(box.xMin)).Append(',').Append(F(box.yMin)).Append(")-(")
+                      .Append(F(box.xMax)).Append(',').Append(F(box.yMax)).Append(')');
+
+                    for (int gy = 0; gy < 3; gy++)
+                    {
+                        float ty = gy / 2f; // 0, 0.5, 1
+                        for (int gx = 0; gx < 3; gx++)
+                        {
+                            float tx = gx / 2f;
+                            int px = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(box.xMin, box.xMax, tx)), 0, background.width - 1);
+                            int py = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(box.yMin, box.yMax, ty)), 0, background.height - 1);
+                            Color c = background.GetPixel(px, py);
+                            sb.Append(" [").Append(gx).Append(',').Append(gy).Append("]=").Append(C3(c));
+                        }
+                    }
+                    Debug.Log(sb.ToString());
+                }
+            }
+
             // --- T1: sliced border fit actually APPLIED (locked 9ca3e0b) --------------------
             // Mirrors UISharedFoundation.FitSlicedBorderToRect's own arithmetic: a 9-slice sprite
             // whose borders plus a minimum centre strip exceed the rect cannot draw its centre, so
