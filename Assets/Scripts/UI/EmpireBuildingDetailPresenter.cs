@@ -142,7 +142,10 @@ namespace MyriadOfDragons.UI
             Text purpose = UISharedFoundation.CreateText(panel, "BuildingPurpose",
                 def.Phase1Function, UITextRole.Body, TextAnchor.UpperLeft,
                 new Color(0.85f, 0.82f, 0.72f), true, new Vector2(900f, 90f));
-            purpose.fontSize = 18;
+            // Font floor fix (register, 2026-08-27, scoped exception - EmpireBuildingDetailPresenter
+            // is not owned by this seat, this one element only): 18 -> 22. Band is ~81.6px real
+            // height (0.09 fraction of a ~907px panel), real headroom for this element's content.
+            purpose.fontSize = 22;
             purpose.horizontalOverflow = HorizontalWrapMode.Wrap;
             purpose.verticalOverflow = VerticalWrapMode.Overflow;
             SetNorm(purpose.rectTransform, 0.04f, 0.66f, 0.62f, 0.75f);

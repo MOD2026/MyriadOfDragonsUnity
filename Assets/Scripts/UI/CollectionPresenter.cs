@@ -296,7 +296,10 @@ namespace MyriadOfDragons.UI
             artRect.anchoredPosition = new Vector2(0f, 75f);
             artRect.sizeDelta = new Vector2(300f, 300f);
 
-            _detailBodyText = CreateTextElement(_detailPanel.transform, "DetailBody", "Tap any owned card in the grid to inspect details.", new Vector2(0f, -120f), 20, TextAnchor.UpperCenter, new Vector2(420f, 200f));
+            // Font floor fix (register, 2026-08-27, scoped exception - CollectionPresenter is not
+            // owned by this seat, this one element only): 20 -> 22. Box already has real headroom
+            // (200px tall) for a short 1-2 sentence body, no growth needed.
+            _detailBodyText = CreateTextElement(_detailPanel.transform, "DetailBody", "Tap any owned card in the grid to inspect details.", new Vector2(0f, -120f), 22, TextAnchor.UpperCenter, new Vector2(420f, 200f));
 
             GameObject actionsObj = new GameObject("DetailActions", typeof(RectTransform));
             actionsObj.transform.SetParent(_detailPanel.transform, false);
@@ -835,7 +838,9 @@ namespace MyriadOfDragons.UI
             button.transition = Selectable.Transition.None;
             root.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
-            CreateTextElement(root.transform, "Label", label, Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            Text txt = CreateTextElement(root.transform, "Label", label, Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            txt.fontStyle = FontStyle.Bold;
+            UISharedFoundation.AddLocalGradientScrim(root.transform, Vector2.zero, size, UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             return root;
         }
 
@@ -847,13 +852,15 @@ namespace MyriadOfDragons.UI
             root.transform.localScale = Vector3.one;
 
             Image bg = root.GetComponent<Image>();
-            bg.color = new Color(0.22f, 0.28f, 0.36f, 1f);
+            bg.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
 
             RectTransform rect = root.GetComponent<RectTransform>();
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
 
-            Text label = CreateTextElement(root.transform, "Label", FormatClassFilterLabel(), Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            UISharedFoundation.AddLocalGradientScrim(root.transform, Vector2.zero, size, UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text label = CreateTextElement(root.transform, "Label", FormatClassFilterLabel(), Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            label.fontStyle = FontStyle.Bold;
             Button button = root.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(button, root.GetComponent<Image>());
             button.onClick.AddListener(CycleClassFilter);
@@ -895,13 +902,15 @@ namespace MyriadOfDragons.UI
             root.transform.localScale = Vector3.one;
 
             Image bg = root.GetComponent<Image>();
-            bg.color = new Color(0.22f, 0.28f, 0.36f, 1f);
+            bg.color = new Color(0.12f, 0.16f, 0.22f, 0.95f);
 
             RectTransform rect = root.GetComponent<RectTransform>();
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
 
-            Text label = CreateTextElement(root.transform, "Label", FormatSortLabel(), Vector2.zero, 18, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            UISharedFoundation.AddLocalGradientScrim(root.transform, Vector2.zero, size, UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            Text label = CreateTextElement(root.transform, "Label", FormatSortLabel(), Vector2.zero, 22, TextAnchor.MiddleCenter, new Vector2(size.x - 10f, size.y - 8f));
+            label.fontStyle = FontStyle.Bold;
             Button button = root.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(button, root.GetComponent<Image>());
             button.onClick.AddListener(CycleSortMode);

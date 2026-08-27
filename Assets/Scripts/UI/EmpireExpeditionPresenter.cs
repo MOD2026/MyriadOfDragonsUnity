@@ -126,8 +126,11 @@ namespace MyriadOfDragons.UI
             Button autoBtn = autoBtnObj.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(autoBtn, autoImg);
             autoBtn.targetGraphic = autoImg;
+            UISharedFoundation.AddLocalGradientScrim(autoBtnObj.transform, Vector2.zero, new Vector2(240f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text autoLabel = UISharedFoundation.CreateText(autoBtnObj.transform, "Text", "AUTO-FIGHT: OFF",
                 UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 40f));
+            autoLabel.fontSize = 22;
+            autoLabel.fontStyle = FontStyle.Bold;
             autoBtn.onClick.AddListener(() =>
             {
                 _autoFightToggle = !_autoFightToggle;
@@ -159,7 +162,9 @@ namespace MyriadOfDragons.UI
             _guildBonusText = UISharedFoundation.CreateText(rail.transform, "GuildBonusLine",
                 EmpireExpeditionClearTransaction.FormatGuildBonusDisplayLine(_guildBonusQuery),
                 UITextRole.Body, TextAnchor.MiddleLeft, new Color(0.75f, 0.88f, 0.7f), true, new Vector2(1600f, 36f));
-            _guildBonusText.fontSize = 20;
+            // Font floor fix (register, 2026-08-27, scoped exception - EmpireExpeditionPresenter
+            // is not owned by this seat, this one element only): 20 -> 22.
+            _guildBonusText.fontSize = 22;
             RectTransform guildRect = _guildBonusText.rectTransform;
             guildRect.anchorMin = new Vector2(0.02f, 0.55f);
             guildRect.anchorMax = new Vector2(0.98f, 0.95f);
@@ -169,9 +174,14 @@ namespace MyriadOfDragons.UI
             _statusText = UISharedFoundation.CreateText(rail.transform, "StatusLine",
                 EmpireExpeditionOpenValues.StatusNote,
                 UITextRole.Body, TextAnchor.MiddleLeft, new Color(0.9f, 0.82f, 0.64f), true, new Vector2(1600f, 36f));
-            _statusText.fontSize = 18;
+            // Font floor fix (register, 2026-08-27, scoped exception - EmpireExpeditionPresenter
+            // is not owned by this seat, this one element only): 18 -> 22.
+            _statusText.fontSize = 22;
             RectTransform statusRect = _statusText.rectTransform;
-            statusRect.anchorMin = new Vector2(0.02f, 0.05f);
+            // 0.05 -> 0.0: uses the rail's remaining bottom headroom (4.32px), same "consume dead
+            // space, not a neighbour's room" reasoning as the 2026-08-25 fix below. GuildBonusLine
+            // (0.55-0.95) is untouched.
+            statusRect.anchorMin = new Vector2(0.02f, 0.0f);
             // 0.50 -> 0.55: measured 2026-08-25, StatusNote wraps to two 18pt lines needing 41.0px
             // but the 0.05-0.50 band is only 38.88px (rail is 0.80-0.88 = 86.4px at 1080), so it
             // bled 2.1px. There was already a 4.32px dead gap between this band's top (0.50) and
@@ -256,19 +266,25 @@ namespace MyriadOfDragons.UI
             layout.minHeight = 480f;
             layout.flexibleHeight = 1f;
 
+            UISharedFoundation.AddLocalGradientScrim(nodeObj.transform, Vector2.zero, new Vector2(340f, 520f), UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+
             Text idText = UISharedFoundation.CreateText(nodeObj.transform, "StageId", stage.StageId, UITextRole.Body,
-                TextAnchor.MiddleCenter, new Color(0.9f, 0.95f, 0.85f), true, new Vector2(220f, 40f));
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 40f));
             idText.fontSize = 28;
+            idText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(idText.rectTransform, 0.08f, 0.72f, 0.92f, 0.94f);
 
             Text titleText = UISharedFoundation.CreateText(nodeObj.transform, "Title", stage.Title, UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 40f));
             titleText.fontSize = 22;
+            titleText.fontStyle = FontStyle.Bold;
             titleText.horizontalOverflow = HorizontalWrapMode.Wrap;
             SetNormalizedRect(titleText.rectTransform, 0.08f, 0.36f, 0.92f, 0.70f);
 
             Text hintText = UISharedFoundation.CreateText(nodeObj.transform, "Hint", "CLEAR (shell)", UITextRole.Caption,
-                TextAnchor.MiddleCenter, new Color(0.85f, 0.75f, 0.45f), true, new Vector2(220f, 30f));
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 30f));
+            hintText.fontSize = 22;
+            hintText.fontStyle = FontStyle.Bold;
             SetNormalizedRect(hintText.rectTransform, 0.08f, 0.08f, 0.92f, 0.30f);
         }
 
