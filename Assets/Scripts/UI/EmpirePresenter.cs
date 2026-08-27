@@ -212,7 +212,14 @@ namespace MyriadOfDragons.UI
             resRect.anchorMin = new Vector2(1f, 0.5f);
             resRect.anchorMax = new Vector2(1f, 0.5f);
             resRect.pivot = new Vector2(1f, 0.5f);
-            resRect.anchoredPosition = new Vector2(-30f, 0f);
+            // -30 -> -90: measured 2026-08-28 (UiGeometryRegressionTests, OFFCANVAS) - the gold
+            // pill's own ResourceTextPlate scrim (HomeV3UiLibrary.CreateResourcePill, not owned
+            // by this seat) rendered its right edge 49.8px past the real canvas edge at -30. The
+            // scrim itself is correctly centered within the pill's own local bounds; this group's
+            // real WORLD position was simply anchored too close to the screen edge for that pill
+            // width (190) to clear it. Shifted 60px further inward for real margin (measured
+            // after: right edge safely inside canvas, see commit evidence).
+            resRect.anchoredPosition = new Vector2(-90f, 0f);
             resRect.sizeDelta = new Vector2(220f, 60f);
             HorizontalLayoutGroup hlg = resourceGroup.GetComponent<HorizontalLayoutGroup>();
             hlg.childAlignment = TextAnchor.MiddleRight;

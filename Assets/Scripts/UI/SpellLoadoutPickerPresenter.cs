@@ -145,11 +145,19 @@ namespace MyriadOfDragons.UI
             UISharedFoundation.ApplyTextShadow(_statusText);
             SetNorm(_statusText.rectTransform, 0.70f, 0.1f, 0.98f, 0.9f);
             // Header strip ~1920x108; plate only the status column.
+            // (1920*0.84, 54) -> (652.8, 0): measured 2026-08-28 (UiGeometryRegressionTests,
+            // OFFCANVAS). AddLocalGradientScrim's anchor is topBar's own CENTER, not its
+            // bottom-left corner, so 1920*0.84 (=1612.8, StatusLine's own bottom-left-style
+            // center, matching its 0.70-0.98 band) and 54 (=108/2, topBar's own bottom-left-style
+            // vertical center) were both raw bottom-left fractions applied as center-relative
+            // offsets - the fix re-bases each by subtracting topBar's own half-extent
+            // (1612.8-960=652.8; 54-54=0), landing the scrim at the SAME real position originally
+            // intended (centered on StatusLine) instead of far outside topBar's own bounds.
             UISharedFoundation.AddLocalGradientScrim(
-                topBar.transform, new Vector2(1920f * 0.84f, 54f), new Vector2(480f, 72f),
+                topBar.transform, new Vector2(652.8f, 0f), new Vector2(480f, 72f),
                 UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             UISharedFoundation.AddLocalGradientScrim(
-                topBar.transform, new Vector2(1920f * 0.84f, 54f), new Vector2(480f, 72f),
+                topBar.transform, new Vector2(652.8f, 0f), new Vector2(480f, 72f),
                 UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
         }
 
@@ -288,17 +296,28 @@ namespace MyriadOfDragons.UI
                 effectHeader.fontStyle = FontStyle.Bold;
                 UISharedFoundation.ApplyTextShadow(effectHeader);
                 SetNorm(effectHeader.rectTransform, 0.02f, 0.88f, 0.98f, 0.98f);
-                float colW = (0.94f * 1920f) / Mathf.Max(1, colsThisRow);
-                float colH = rows == 1 ? 0.60f * 1080f : 0.28f * 1080f;
+                // Real resolved size, not a formula assuming a fixed 1920x1080 canvas - same fix,
+                // same root cause as EffectLabelPlate's own scrim below (CC 2026-08-27). Measured
+                // 2026-08-28 (UiGeometryRegressionTests, OFFCANVAS, Column_LaneDamage: top edge
+                // 58.32px past canvas top) that the old (colW*0.5, colH*0.93) literal - computed
+                // from hardcoded 1920x1080 constants and applied as a center-relative offset
+                // (AddLocalGradientScrim's anchor is colGo's own CENTER, not its bottom-left
+                // corner) - drifted past colGo's real bounds whenever the real canvas size
+                // differed even slightly from that assumption (confirmed by
+                // SpellLoadoutPickerLayoutTests, which builds at a different canvas size and
+                // caught the same literal overlapping Btn_Back). Backs EffectHeader, which sits
+                // at 0.88-0.98 of colGo (center 0.93, width 0.02-0.98) - the 0 and 0.43/0.96/0.12
+                // fractions below re-derive that same visual target from colGo's own real size.
+                Vector2 colSize = colGo.GetComponent<RectTransform>().rect.size;
                 UISharedFoundation.AddLocalGradientScrim(
                     colGo.transform,
-                    new Vector2(colW * 0.5f, colH * 0.93f),
-                    new Vector2(colW * 0.96f, colH * 0.12f),
+                    new Vector2(0f, colSize.y * 0.43f),
+                    new Vector2(colSize.x * 0.96f, colSize.y * 0.12f),
                     UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
                 UISharedFoundation.AddLocalGradientScrim(
                     colGo.transform,
-                    new Vector2(colW * 0.5f, colH * 0.93f),
-                    new Vector2(colW * 0.96f, colH * 0.12f),
+                    new Vector2(0f, colSize.y * 0.43f),
+                    new Vector2(colSize.x * 0.96f, colSize.y * 0.12f),
                     UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
 
                 List<AvatarSpell> spells = SpellLoadoutSelection.SpellsForEffect(_pool, effect);

@@ -117,11 +117,17 @@ namespace MyriadOfDragons.UI
                 Color.white, true, new Vector2(420f, 28f));
             UISharedFoundation.ApplyTextShadow(wallet);
             SetNorm(wallet.rectTransform, 0.16f, 0.12f, 0.48f, 0.88f);
+            // y: 40 -> 0. Measured 2026-08-28 (UiGeometryRegressionTests, OFFCANVAS): at 40,
+            // this scrim's own top edge (anchor is topBar's CENTER, not its bottom-left corner -
+            // 40 + half-height 32 = 72 above center) sat 18px above topBar's real top edge (its
+            // own half-height is only 54), which is also the canvas top edge here. 0 centers the
+            // scrim on topBar's own vertical center (close to WalletLine's own vertical center,
+            // ~54 of topBar's 108px height in bottom-left terms), keeping it well inside topBar.
             UISharedFoundation.AddLocalGradientScrim(
-                topBar.transform, new Vector2(1920f * 0.32f, 40f), new Vector2(520f, 64f),
+                topBar.transform, new Vector2(1920f * 0.32f, 0f), new Vector2(520f, 64f),
                 UISharedFoundation.GradientDirection.TopToBottom, 0.9f);
             UISharedFoundation.AddLocalGradientScrim(
-                topBar.transform, new Vector2(1920f * 0.32f, 40f), new Vector2(520f, 64f),
+                topBar.transform, new Vector2(1920f * 0.32f, 0f), new Vector2(520f, 64f),
                 UISharedFoundation.GradientDirection.BottomToTop, 0.9f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", string.Empty,
