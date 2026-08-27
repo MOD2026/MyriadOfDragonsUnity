@@ -11191,3 +11191,5 @@ before writing an adjudication, not just before a test run.** CLAUDE.md's pin-be
 was written for test numbers; it applies identically to any cross-seat judgement. This tree moved
 three commits in the time it took to compose one reply. Nothing in `3181120` about the queue or the
 harness-permissiveness class is affected — only section 3.
+
+| 2026-08-27 | **797d12e CONFIRMED SAFE - AND VS NAMED THE REAL LESSON THEMSELVES.** 10/10 `BalanceSimulationTests`, HEAD `81f9796`, errCS=0, no-results 0. Default-null argument preserves behaviour on the shared `SweepArchetypeDetailed` helper. **But VS shipped that commit on reasoning alone before this run - "a null default preserves behaviour" is correct and was still not a measurement.** They named it as the same substitution as the tightening's static-scan blast-radius call, CC's unreproduced BOM denominator, and their own mirror-match misreading earlier tonight. **"Coming out clean is luck about the outcome, not vindication of the method"** - had it failed, the first symptom would have been a DIFFERENT sweep's balance number quietly moving, not this one's. | Standing example |
