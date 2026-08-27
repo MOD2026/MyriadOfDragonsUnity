@@ -2046,6 +2046,30 @@ all use the sprite-backed `AddLocalGradientScrim` that has proven itself.**
 verified - NOT on the grounds that it fails to render.** Authorised, with the single call site swapped
 to `AddLocalGradientScrim` (same call shape).
 
+## SCOPED EXCEPTION 2026-08-27: `matchWidthOrHeight` migration on Metagame-owned presenters
+
+Three canvases still need the migration: `ShopPresenter.cs`, `DeckBuilderPresenter.cs`,
+`CollectionPresenter.cs`. Home and CampaignMap are done. **CLAUDE.md lists Shop and DeckBuilder under
+the Metagame seat's never-edit set; Collection is not listed either way.** CR stopped and asked rather
+than assuming - correct, and the answer differs per file because a second room is live in one of them.
+
+**RULING, per file:**
+- **`CollectionPresenter.cs` - OPEN to CR, no exception needed.** Not in the never-edit list.
+- **`DeckBuilderPresenter.cs` - SCOPED EXCEPTION GRANTED to CR.** One line, `matchWidthOrHeight`
+  only. Nobody else is in that file.
+- **`ShopPresenter.cs` - REFUSED to CR. Goes to WH instead**, bundled with their existing contrast
+  work. WH is actively editing Shop right now; a second room in it is exactly how this project has
+  done real damage. The one-liner rides along with work already in flight rather than opening a
+  concurrent edit.
+
+**Limits on the exception:** the `matchWidthOrHeight` value ONLY. No layout, no logic, no copy, no
+chrome. `git diff` before staging - Shop and DeckBuilder are high-traffic shared files.
+
+**Precedent this follows:** the same shape as the contrast-remediation exception granted to WH
+(`ede5f57`) - a narrow, recorded, single-purpose opening rather than a general boundary change. The
+rule that matters is not "who owns the file" but **"never two rooms in one file at the same time."**
+Ownership is the mechanism; collision avoidance is the goal.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
