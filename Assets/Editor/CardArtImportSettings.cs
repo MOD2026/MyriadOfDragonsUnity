@@ -34,7 +34,10 @@ namespace MyriadOfDragons.EditorTools
             string path = assetPath.Replace('\\', '/');
             bool isManagedArt = path.Contains("/Resources/CardArt/")
                 || path.Contains("/Resources/UI/")
-                || path.Contains("/Resources/Branding/");
+                || path.Contains("/Resources/Branding/")
+                || path.Contains("/Resources/Cinematics/")
+                || path.Contains("/Resources/Story/")
+                || path.Contains("/Resources/VFX/");
 
             if (!isManagedArt) return;
 
@@ -64,6 +67,32 @@ namespace MyriadOfDragons.EditorTools
                 float cap = width * 0.26f;
                 importer.spriteBorder = new Vector4(cap, 0f, cap, 0f);
             }
+
+            if (path.Contains("/Resources/UI/Icons/"))
+            {
+                importer.maxTextureSize = 512;
+            }
+            else if (path.Contains("/Resources/UI/LoadingSigilV1/"))
+            {
+                importer.maxTextureSize = 256;
+            }
+            else if (path.Contains("/Resources/UI/EnemyCrestsV1/"))
+            {
+                importer.maxTextureSize = 512;
+            }
+            else if (path.Contains("/Resources/UI/EmptyStatesV1/"))
+            {
+                importer.maxTextureSize = 1024;
+            }
+
+            TextureImporterPlatformSettings androidSettings = importer.GetPlatformTextureSettings("Android");
+            androidSettings.name = "Android";
+            androidSettings.overridden = true;
+            androidSettings.format = TextureImporterFormat.ASTC_6x6;
+            androidSettings.textureCompression = TextureImporterCompression.Compressed;
+            androidSettings.compressionQuality = (int)TextureCompressionQuality.Normal;
+            androidSettings.maxTextureSize = importer.maxTextureSize;
+            importer.SetPlatformTextureSettings(androidSettings);
         }
 
         /// <summary>
