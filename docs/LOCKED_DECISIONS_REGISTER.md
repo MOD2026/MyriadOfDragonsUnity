@@ -2548,6 +2548,43 @@ Marvel Snap, Arknights, Royal Match) - no shipped title publishes animation timi
 pattern confirmed: opponent state read through persistent visual + numeric indicators that react to
 damage, not through text alone.
 
+## BENCHMARK RUN on the segmented-bar decision - CC had locked it WITHOUT one
+
+**CC violated the standing hard gate: no BS reply gets locked without a real external benchmark.**
+BS returned UNCONFIRMED across all five games and CC accepted that as discharging the obligation. **It
+does not.** The owner caught it. Benchmark run afterwards, findings below.
+
+**SUPPORTS the decision:**
+- Segmented bars are **easier to read** than continuous ones from a UX standpoint - the segments give
+  the player an immediate sense of "a lot" versus "very little" without a reference value, which is
+  precisely the gap a bare bar leaves and precisely why we removed the number.
+- Academic work exists on this specifically (a controlled pilot study, N=32, on segmented versus
+  single health bars and player preference), so it is a real studied design question rather than
+  taste.
+- The governing principle for combat HUDs: **a visualisation must not distract from the primary task
+  while remaining readable and useful to it.** That is exactly our constraint - the corner must earn
+  a glance without pulling attention off the lanes.
+
+**COMPLICATES the decision, and CC should have surfaced this before locking:**
+- **Segmented bars work best when values sit in SMALL RANGES.** Our enemy Avatar health scales
+  **100 to 540+** across progression. A fixed 20-segment bar at 5% each means one segment represents 5
+  HP at the low end and 27 HP at the high end. The percentage reading stays honest, but "one segment"
+  means very different things to a new player and a maxed one.
+- Segment WIDTH can shift with character or value, which undermines the visual consistency a
+  continuous bar guarantees.
+- Segmented bars can be **performance-expensive**, and dynamic segmentation is awkward when health
+  values do not divide evenly into segments.
+
+**CC ASSESSMENT: the decision STANDS, but the fixed 5%-per-segment choice is now the weak point, not
+the segmentation itself.** Because our segments are proportional (5% of max) rather than absolute (one
+segment = N HP), the display stays consistent across the whole progression range - which sidesteps
+the small-range objection. **That was luck rather than design; BS did not argue it and CC did not
+check it.**
+
+**Watch on first capture:** ~17.5px per segment at authored width, ~16px compressed. If indistinct,
+drop to **10 segments at 10%** rather than thinning dividers. Performance is unlikely to matter at 20
+static segments in uGUI, but measure rather than assume.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
