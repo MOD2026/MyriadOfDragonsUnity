@@ -151,7 +151,12 @@ namespace MyriadOfDragons.UI
             // Requests/Find retired: FriendsOpenValues.TrySelectTab is an unconditional
             // Refuse, so both were dead controls that could never select anything.
             string[] tabs = { "Friends" };
-            float h = 1f / tabs.Length;
+            // Fixed tab height, NOT 1f/tabs.Length. With the two dead tabs retired the
+            // proportional split gave the sole survivor the whole 864px rail, which read as a
+            // broken column rather than a nav item. 0.12 of the rail is ~86px tall against a
+            // ~155px usable width - a normal tile, and it stays correct if a real second tab
+            // is ever added.
+            const float h = 0.12f;
             for (int i = 0; i < tabs.Length; i++)
             {
                 int idx = i;
@@ -164,7 +169,7 @@ namespace MyriadOfDragons.UI
                     if (idx == 0) _ = RefreshFriendsAsync();
                     else SetStatus(FriendsOpenValues.TrySelectTab(idx).Message);
                 });
-                SetNorm(tab.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.05f, 0.95f, 1f - i * h - 0.05f);
+                SetNorm(tab.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.01f, 0.95f, 1f - i * h - 0.01f);
                 UISharedFoundation.CreateText(tab.transform, "Text", tabs[i].ToUpperInvariant(), UITextRole.Caption,
                     TextAnchor.MiddleCenter, Color.white, true, new Vector2(150f, 28f));
             }
@@ -314,6 +319,16 @@ namespace MyriadOfDragons.UI
                 UITextRole.Body, TextAnchor.UpperCenter,
                 new Color(0.9f, 0.88f, 0.75f), true, new Vector2(360f, 100f));
             SetNorm(summary.rectTransform, 0.08f, 0.62f, 0.92f, 0.85f);
+
+            // Reframes the band vacated by the retired account-id input and ADD FRIEND button.
+            // The drawer's shell art carries a slot here, so leaving it empty read as a missing
+            // element in the loaded-profile capture. A non-interactive deferred-feature note
+            // fills it honestly and keeps the control count at 9.
+            Text deferred = UISharedFoundation.CreateText(drawer.transform, "DeferredNote",
+                FriendsOpenValues.PlayerStatus,
+                UITextRole.Caption, TextAnchor.MiddleCenter,
+                new Color(0.72f, 0.70f, 0.62f), true, new Vector2(360f, 60f));
+            SetNorm(deferred.rectTransform, 0.08f, 0.34f, 0.92f, 0.56f);
 
             GameObject msg = new GameObject("Btn_Gift", typeof(RectTransform), typeof(Image), typeof(Button));
             msg.transform.SetParent(drawer.transform, false);
