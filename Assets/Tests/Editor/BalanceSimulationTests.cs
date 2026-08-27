@@ -371,11 +371,22 @@ namespace MyriadOfDragons.Tests
         /// exposed, including a true draw correctly folding into "not a win" - see
         /// BattleController.ResolveOnTickCap.
         /// </summary>
+        /// <param name="enemyAvatarHealthOverride">When supplied, the enemy's Avatar HP pool only -
+        /// every other economy field stays the player's own. This mirrors production exactly:
+        /// GameBootstrap builds the enemy economy as
+        /// <c>MatchEconomy(_empireData.ResourceCap, _empireData.Turn1Resource, _aiProfile.MaxAvatarHealth)</c>,
+        /// so SoloAIScalingSystem's Resource ratios never reach a real match and HP is the ONLY
+        /// asymmetry a PvE player actually faces. Left null the sweep stays the symmetric mirror it
+        /// has always been, so every existing caller is unaffected.</param>
         private DetailedSimResult SweepArchetypeDetailed(List<Card> pool, PlayerEmpireData empire,
-            AIArchetype enemyArchetype, int count)
+            AIArchetype enemyArchetype, int count, int? enemyAvatarHealthOverride = null)
         {
             var economy = new BattleController.MatchEconomy(
                 empire.ResourceCap, empire.Turn1Resource, empire.StartingAvatarHealth);
+            var enemyEconomy = enemyAvatarHealthOverride.HasValue
+                ? new BattleController.MatchEconomy(
+                    empire.ResourceCap, empire.Turn1Resource, enemyAvatarHealthOverride.Value)
+                : economy;
 
             int matches = 0;
             int playerWins = 0;
@@ -400,7 +411,7 @@ namespace MyriadOfDragons.Tests
                 List<Card> playerDeck = pool.OrderBy(_ => Random.value).Take(empire.DeckSlotCount).ToList();
                 List<Card> enemyDeck = pool.OrderBy(_ => Random.value).Take(empire.DeckSlotCount).ToList();
 
-                controller.StartMatch(playerDeck, enemyDeck, economy, economy);
+                controller.StartMatch(playerDeck, enemyDeck, economy, enemyEconomy);
                 controller.DealFormationHand(controller.PlayerState);
                 controller.DealFormationHand(controller.EnemyState);
 
@@ -496,6 +507,74 @@ namespace MyriadOfDragons.Tests
         /// n=400 are not distinguishable from noise. This does not decide anything by itself - same
         /// role every other sweep in this file plays before a design decision.
         /// </summary>
+        /// <summary>
+        /// DIAGNOSTIC, measurement-only (CC dispatch 2026-08-27): what player win rate does the
+        /// REAL PvE difficulty path actually produce per AIDifficultyTier?
+        ///
+        /// Exists because a prior reading of Balance_ArchetypeDeepSweep was WRONG and the error is
+        /// worth keeping visible: that sweep passes ONE MatchEconomy to both sides, so its ~52% is
+        /// a fair mirror match returning ~50% BY CONSTRUCTION - design symmetry, not a ceiling on
+        /// achievable clear rates. It also never touches SoloAIScalingSystem. Reading a
+        /// policy-isolation harness as a difficulty measurement is the mistake this replaces.
+        ///
+        /// Production fidelity, deliberately narrow:
+        ///   - The AI profile comes from the real SoloAIScalingSystem.GenerateAIOpponent.
+        ///   - Tier is DERIVED from Avatar level (DetermineTier: &lt;=10 Novice, &lt;=25 Apprentice,
+        ///     &lt;=50 Veteran, &lt;=80 Master, else Titan), so tier cannot be varied independently of
+        ///     player power - that coupling is production's, not this test's, and the win rate
+        ///     therefore reflects tier AND progression together exactly as a real player meets them.
+        ///   - Only MaxAvatarHealth crosses over, because that is the only asymmetry production
+        ///     applies: GameBootstrap hands the enemy the PLAYER'S ResourceCap/Turn1Resource, so
+        ///     SoloAIScalingSystem's Resource ratios never reach a live match at all.
+        ///   - Spells stay OFF for BOTH sides, as everywhere else in this file. That isolates HP
+        ///     scaling, which is the knob under question. It also means these numbers are NOT a
+        ///     full production replica - mirrored PvE spellcasting is live and excluded here.
+        ///
+        /// Reports ranges and relationships; asserts nothing about magnitudes.
+        /// </summary>
+        [Test]
+        public void Balance_WinRateAcrossDifficultyTiers_RealScalingApplied()
+        {
+            const int SampleSize = 2000;
+
+            List<Card> pool = LoadDatabase().AllCards.ToList();
+            var scaling = new SoloAIScalingSystem();
+
+            // One Avatar level per band, chosen inside the band rather than on its edge.
+            (string label, int avatar, int castle)[] rungs =
+            {
+                ("Novice(av5)", 5, 3),
+                ("Apprentice(av20)", 20, 12),
+                ("Veteran(av40)", 40, 22),
+                ("Master(av65)", 65, 28),
+                ("Titan(av90)", 90, 30),
+            };
+
+            foreach ((string label, int avatarLevel, int castleLevel) in rungs)
+            {
+                var empire = new PlayerEmpireData();
+                empire.SetLevelsForTesting(avatarLevel, castleLevel, barracksLevel: 25);
+                empire.InitializeTCGModifiers();
+
+                AIBattleProfile profile = scaling.GenerateAIOpponent(empire);
+
+                DetailedSimResult scaled = SweepArchetypeDetailed(
+                    pool, empire, AIArchetype.Balanced, SampleSize,
+                    enemyAvatarHealthOverride: profile.MaxAvatarHealth);
+
+                // Same rung with the handicap removed, so the delta attributable to HP scaling is
+                // visible rather than inferred from a single number.
+                DetailedSimResult mirror = SweepArchetypeDetailed(
+                    pool, empire, AIArchetype.Balanced, SampleSize);
+
+                Debug.Log($"[TierSweep] {label,-17} tier={profile.DifficultyTier,-11} " +
+                          $"playerHP={empire.StartingAvatarHealth,-5} enemyHP={profile.MaxAvatarHealth,-5} " +
+                          $"scaledWinRate={scaled.PlayerWinRate:P1} mirrorWinRate={mirror.PlayerWinRate:P1} " +
+                          $"delta={(scaled.PlayerWinRate - mirror.PlayerWinRate):P1} " +
+                          $"avgTicks={scaled.AverageTicks:F1} (n={scaled.Matches})");
+            }
+        }
+
         [Test]
         public void Balance_ArchetypeDeepSweep_AcrossFourProfilesAtHighSampleSize()
         {
