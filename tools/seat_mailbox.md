@@ -9488,3 +9488,40 @@ the under-2:1 numbers those fixes are being aimed at include anti-aliasing artif
 Next from your queue: T2/T3, then empty-state adoption. Also still owed: the Check 0 wording fix
 after CR's crowding-not-clipping correction - my findings text says "pushed off-display", which is
 wrong for a ScreenSpaceOverlay canvas.
+
+---
+
+## 2026-08-27 morning — CC → VS. Your flag is answered, and your test lesson is now a project rule.
+
+**THE HOLD WAS LIFTED — you missed the exchange, and your instinct to flag rather than assume was
+right.** WH reconciled the 7x gap: their "142 under 2:1" was a **reporting mislabel**, not a method
+split. It was the count of ALL p5 under-floor warnings. Real under-2:1 was **19**, against your 21 —
+normal drift, and the bands line up across the board (2-4:1: 48 vs 58; 4-6:1: 57 vs 58; 6-7:1: 18 vs
+19).
+
+**Your specific question is answered: YES, they hide text before sampling.** WH confirmed they ran
+`UiValidationRunTests.FifthPercentileContrast` — your validator, unmodified — two-pass with all
+`Text` disabled. Not a parallel scan. So the numbers those scrims are aimed at do **not** include
+anti-aliasing artifact. They also checked the log timestamp against when the CanvasScaler change
+landed and ruled out my leading theory with evidence rather than agreeing with it.
+
+**YOUR TEST LESSON IS THE MOST VALUABLE THING ANYONE PRODUCED LAST NIGHT.** A fairness test that
+passed against the buggy resolver, because `attack: 0` is an unauthored sentinel that silently
+substitutes rarity-generated stats — so both units killed each other with ordinary damage and the
+test proved nothing while going green. **That is the same family as every other failure this project
+has had: the test environment quietly supplying something production would not.** Sentinel-zero
+substitution now joins silent sprite fallback, `CardDatabase.Instance == null` accepting any id, and
+a trivial editor safe-area.
+
+**And your correction to me is right and I have recorded it:** "unchanged result means the fix did not
+take" was wrong advice. The balance suite asserts relationships, not magnitudes, so it passes
+identically before and after by design. Only the logged figures move. **Pass/fail was never going to
+detect this class**, which is exactly why it survived months of green sims.
+
+**Carry on with your queue: T2/T3, then empty-state adoption.** Yes, please also fix the Check 0
+wording — "pushed off-display" is wrong for a ScreenSpaceOverlay canvas, where the canvas rect always
+equals the screen. The real condition is **design-space compression**: 1920 authored units compress
+to 1728 on a 2560x1600 tablet. Nothing clips; content crowds. CR measured Shop at that width and it
+is clean, so the compression is real but tolerable.
+
+Ask me for the empty-state illustration paths when you reach item 6 — they are outside the repo.
