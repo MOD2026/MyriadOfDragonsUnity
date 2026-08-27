@@ -118,7 +118,13 @@ namespace MyriadOfDragons.UI
                 new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 28f));
             timer.fontSize = 28;
             timer.fontStyle = FontStyle.Bold;
-            SetNorm(timer.rectTransform, 0.18f, 0.08f, 0.32f, 0.48f);
+            // Widened 0.18 -> 0.12 (scoped exception, SeasonTimer only): "UTC reset ..." at 28px
+            // bold did not fit the old 0.14-wide column, wrapped to two lines and measured 63px
+            // against a 51.8px band. Grow-the-box per the locked rule; the 28px size is untouched.
+            // Widened rather than heightened because Title owns 0.28-0.72 x at 0.48-0.95 y, so
+            // growing upward would have overlapped it. Left edge stops clear of Btn_Back, which
+            // ends near 0.099 (anchored x=30, width 160 in a 1920 header).
+            SetNorm(timer.rectTransform, 0.12f, 0.08f, 0.32f, 0.48f);
         }
 
         private void BuildSeasonXp()
