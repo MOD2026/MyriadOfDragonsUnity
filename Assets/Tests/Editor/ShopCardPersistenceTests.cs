@@ -340,5 +340,15 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(gemsAfterFirst - singleSigil.GemCost, profile.gems, "Distinct receiptId must spend gems.");
             Assert.AreEqual(copiesAfterFirst + 1, TotalCopyCount(profile), "Distinct receiptId must grant an additional card copy.");
         }
+
+        [Test]
+        public void TryOpenGemPack_NullOrEmptyReceiptId_ThrowsArgumentException()
+        {
+            PlayerProfile profile = NewMigratedProfile(gems: 5000);
+            Assert.Throws<System.ArgumentException>(() =>
+                ShopPresenter.TryOpenGemPack(profile, CollectionPackCatalog.SingleSigilSkuId, null, out _));
+            Assert.Throws<System.ArgumentException>(() =>
+                ShopPresenter.TryOpenGemPack(profile, CollectionPackCatalog.SingleSigilSkuId, string.Empty, out _));
+        }
     }
 }

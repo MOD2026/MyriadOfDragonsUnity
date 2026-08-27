@@ -184,12 +184,12 @@ namespace MyriadOfDragons.UI
         {
             result = null;
             if (profile == null) return false;
+            if (string.IsNullOrEmpty(receiptId))
+                throw new System.ArgumentException("receiptId must be a valid non-empty transaction id to ensure idempotency.", nameof(receiptId));
 
             var rng = _packRngSeedForTests.HasValue
                 ? new System.Random(_packRngSeedForTests.Value)
                 : new System.Random();
-            if (string.IsNullOrEmpty(receiptId))
-                receiptId = System.Guid.NewGuid().ToString("N");
             result = new PackReceiptResult();
             if (!CollectionPackReceiptService.TryOpenPack(profile, skuId, rng, receiptId, out result))
             {
@@ -199,9 +199,6 @@ namespace MyriadOfDragons.UI
 
             return true;
         }
-
-        public static bool TryOpenGemPack(PlayerProfile profile, string skuId, out PackReceiptResult result) =>
-            TryOpenGemPack(profile, skuId, null, out result);
 
         private void SetupShopItems()
         {

@@ -62,6 +62,13 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(go);
             var shop = go.AddComponent<ShopPresenter>();
             shop.Initialize(SaveSystem.CurrentProfile ?? SaveManager.SaveData, onBackToHome: null);
+            var canvas = GameObject.Find("ShopCanvas");
+            if (canvas != null)
+            {
+                var cr = canvas.GetComponent<RectTransform>();
+                cr.sizeDelta = new Vector2(1920f, 1080f);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(cr);
+            }
             return shop;
         }
 
@@ -149,6 +156,37 @@ namespace MyriadOfDragons.Tests
                 "Header Back must not get ApplyNavTileButton secondary chrome (empty box beside Back).");
             Assert.IsNotNull(canvas.Find("HeaderBar/Btn_Back/Text")?.GetComponent<Text>());
             Assert.IsNotNull(canvas.Find("HeaderBar/Title")?.GetComponent<Text>());
+        }
+
+        [Test]
+        public void GemPackTiles_TitleAndPityLine_NeverTruncate_BoxAccommodatesPreferredHeight()
+        {
+            OpenShop();
+            Transform canvas = GameObject.Find("ShopCanvas").transform;
+
+            int testedPacks = 0;
+            foreach (Transform child in canvas.Find("ShopGrid"))
+            {
+                if (child.name.StartsWith("ShopCard_res_")) continue;
+                if (!child.name.StartsWith("ShopCard_")) continue;
+                testedPacks++;
+
+                Text title = child.Find("Title")?.GetComponent<Text>();
+                Assert.IsNotNull(title, $"{child.name}: Title text component missing");
+                Vector2 titleSize = title.rectTransform.rect.size;
+                Assert.GreaterOrEqual(titleSize.y + 0.5f, title.preferredHeight,
+                    $"{child.name}: Title box height ({titleSize.y:F1}px) must be >= preferredHeight ({title.preferredHeight:F1}px)");
+
+                Text pity = child.Find("PityLine")?.GetComponent<Text>();
+                if (pity != null && pity.gameObject.activeSelf && !string.IsNullOrEmpty(pity.text))
+                {
+                    Vector2 pitySize = pity.rectTransform.rect.size;
+                    Assert.GreaterOrEqual(pitySize.y + 0.5f, pity.preferredHeight,
+                        $"{child.name}: PityLine box height ({pitySize.y:F1}px) must be >= preferredHeight ({pity.preferredHeight:F1}px)");
+                }
+            }
+
+            Assert.Greater(testedPacks, 0);
         }
     }
 }
