@@ -2183,6 +2183,50 @@ SpellList is competing with vertically and whether the band can simply grow.
 genre-standard for a small fixed ability set, uses the axis we have surplus of at 1920+ wide, and
 removes the vertical pressure entirely.
 
+## SPELLS band resize APPROVED 2026-08-27 + a fourth silent no-op
+
+**Approved: shift the ActivityRail/SpellRail boundary by 0.05** (`ActivityRailMin.y` 0.520 -> 0.570,
+`SpellRailMax.y` 0.500 -> 0.550, preserving the 0.020 gap). SpellList then gets ~270 units against 266
+needed, at **both** authored and phone-compressed profiles - the fraction gain scales with the same
+compression, so both clear. Two constants, no structural change, no ScrollRect, nothing hidden from
+the player under time pressure.
+
+**The argument for taking space from ActivityRail rather than anywhere else is the important part:**
+ActivityRail is entirely `Stretch()`-anchored to fractions with **zero fixed-pixel elements** (one
+34px fontSize with a documented 32px legibility floor is the only absolute). It is therefore
+**scale-invariant and has slack**. SpellRail carries all the fixed-pixel content. **Take the slack
+from the side that has slack.** Not something a screenshot could have revealed.
+
+**HORIZONTAL layout measured and REJECTED on evidence:** SpellRail's column is only 0.225 of canvas
+width (~432px authored, ~483px compressed). One row needs ~332-340px; four side by side need ~1360px,
+over 3x the available width. Not viable without relocating the spell bar entirely.
+
+**MEASUREMENT CORRECTION, self-caught:** the earlier "~150-unit deficit" was a `GetWorldCorners()`
+artifact on a canvas whose `transform.localScale` was not 1. Real deficits are **10.6 units (~4%)
+authored and 37.5 (~14%) compressed** - real, but far more modest.
+
+**FOURTH SILENT NO-OP found in the same row:** `spellRowLayout.childControlWidth = false` made
+`SetPreferredWidth(52)/(260)` dead too - Icon rendered at Unity's default 100 wide instead of 52.
+Fixed by pre-setting `sizeDelta` directly (the same locally-known-target-size pattern as hand-cards).
+`17a5176`.
+
+**Running tally of layout calls that looked applied and did nothing: FOUR.** `ApplyFramedPanel`
+against a stale 100x100 rect; `AddSemiTransparentScrimPanel` moving zero ratios; `SetPreferredHeight`
+under `childControlHeight = false`; `SetPreferredWidth` under `childControlWidth = false`. **Two of the
+four were in a single row**, so a project-wide sweep for remaining `childControl*= false` groups is
+ordered - there is no reason to believe we have found them all.
+
+**TRAP WORTH RECORDING: `CreateButton` creates its own internal empty-label child named "Text".** A
+diagnostic doing `Find("Text")` silently resolves to THAT rather than the real text column, and will
+report confident nonsense. CR lost time to this before catching it, reverted the wrong-path code, and
+kept only the verified fix. **A diagnostic that lies is worse than no diagnostic.**
+
+**CONDITIONS ON THE APPROVAL:** (1) capture ActivityRail after the shift - a 14% squeeze on a band
+whose text already sits near its 32px floor is where trouble would appear; (2) add a regression test
+asserting rows-plus-spacing FIT within SpellList's real height. +4 units on 266 is ~1.5% headroom; a
+longer spell name, a font bump, or a fifth spell silently re-breaks it in combat. **Assert the
+relationship, not the magic numbers.**
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
