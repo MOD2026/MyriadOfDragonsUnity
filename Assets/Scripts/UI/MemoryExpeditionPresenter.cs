@@ -182,13 +182,21 @@ namespace MyriadOfDragons.UI
                     tile.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
                     int captured = tileIndex;
                     btn.onClick.AddListener(() => TapTile(captured));
-                    SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, bottom + 0.01f, right - 0.01f, top - 0.01f);
+                    RectTransform tileRect = tile.GetComponent<RectTransform>();
+                    SetNorm(tileRect, left + 0.01f, bottom + 0.01f, right - 0.01f, top - 0.01f);
 
+                    // Real resolved size, not a formula assuming a fixed 1920x1080 canvas (CC
+                    // 2026-08-27, "800x800 @ (200,200)" was found identical at three call sites -
+                    // a scrim's parent must be measured, not assumed. An earlier attempt at this
+                    // fix computed from a hardcoded 1920x1080 literal and was WRONG by exactly the
+                    // canvas's own real-vs-assumed scale ratio - .rect is the actual resolved size
+                    // right now, correct regardless of what the canvas turns out to be.
+                    Vector2 tileSize = tileRect.rect.size;
                     UISharedFoundation.AddLocalGradientScrim(
-                        tile.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                        tile.transform, tileSize * 0.5f, tileSize,
                         UISharedFoundation.GradientDirection.TopToBottom, 0.85f);
                     UISharedFoundation.AddLocalGradientScrim(
-                        tile.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                        tile.transform, tileSize * 0.5f, tileSize,
                         UISharedFoundation.GradientDirection.BottomToTop, 0.85f);
                     Text label = UISharedFoundation.CreateText(tile.transform, "Face", "?",
                         UITextRole.Title, TextAnchor.MiddleCenter, Color.white, true,

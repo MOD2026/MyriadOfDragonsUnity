@@ -776,7 +776,23 @@ namespace MyriadOfDragons.UI
         /// over art): a local black-to-transparent gradient sized and positioned to sit behind a
         /// text block. Inserted as <paramref name="parent"/>'s FIRST sibling so it always renders
         /// behind whatever else that parent already contains, regardless of call order relative to
-        /// the text it protects.</summary>
+        /// the text it protects.
+        ///
+        /// <paramref name="size"/> and <paramref name="anchoredPosition"/> are ABSOLUTE - this
+        /// helper does not measure <paramref name="parent"/> for you and has no way to know if a
+        /// value is wrong for it. Real defect found and fixed (CC/CR, 2026-08-27): the identical
+        /// literal `(200,200) / (800,800)` appeared at three separate call sites, all three inside
+        /// a per-element loop (MemoryExpedition's tile grid, DailyLoginQuests' day plates,
+        /// SpellLoadoutPicker's slot summary) - copy-pasted from a screen where those numbers were
+        /// once correct, then reused against a much smaller <paramref name="parent"/> without
+        /// recomputing. The result renders many times larger than the text it was meant to sit
+        /// behind and covers unrelated interactive controls, invisible to any test that only
+        /// checks a button exists. Every OTHER call site in the project computes size and position
+        /// from <paramref name="parent"/>'s own real pixel dimensions (its SetNorm/sizeDelta chain)
+        /// and is correct - a loop is exactly where a literal copy-pasted from elsewhere goes
+        /// unnoticed, because it "looks like" a real value and nothing forces it to match the
+        /// parent it is actually attached to. Compute both parameters from real geometry every
+        /// time; never carry a size/position pair over from a different call site.</summary>
         public static Image AddLocalGradientScrim(Transform parent, Vector2 anchoredPosition, Vector2 size,
             GradientDirection direction, float opacity = 0.62f, Color? tint = null)
         {

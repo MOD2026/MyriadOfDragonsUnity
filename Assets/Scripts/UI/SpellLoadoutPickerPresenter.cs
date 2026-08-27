@@ -174,7 +174,8 @@ namespace MyriadOfDragons.UI
 
                 GameObject labelPlate = new GameObject("EffectLabelPlate", typeof(RectTransform));
                 labelPlate.transform.SetParent(cell.transform, false);
-                SetNorm(labelPlate.GetComponent<RectTransform>(), 0.40f, 0.50f, 0.98f, 0.98f);
+                RectTransform labelPlateRect = labelPlate.GetComponent<RectTransform>();
+                SetNorm(labelPlateRect, 0.40f, 0.50f, 0.98f, 0.98f);
                 Image labelFill = labelPlate.AddComponent<Image>();
                 labelFill.sprite = UISharedFoundation.CreateRoundedPanelSprite(
                     new Color(0.03f, 0.035f, 0.05f, 0.95f),
@@ -182,11 +183,18 @@ namespace MyriadOfDragons.UI
                 labelFill.type = Image.Type.Simple;
                 labelFill.color = Color.white;
                 labelFill.raycastTarget = false;
+                // Real resolved size, not a formula assuming a fixed 1920x1080 canvas (CC
+                // 2026-08-27, "800x800 @ (200,200)" found identical at three call sites - a
+                // scrim's parent must be measured, not assumed. An earlier attempt at this fix
+                // computed from a hardcoded 1920x1080 literal and was wrong by exactly the
+                // canvas's own real-vs-assumed scale ratio - .rect is the actual resolved size
+                // right now, correct regardless of what the canvas turns out to be.
+                Vector2 labelPlateSize = labelPlateRect.rect.size;
                 UISharedFoundation.AddLocalGradientScrim(
-                    labelPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    labelPlate.transform, labelPlateSize * 0.5f, labelPlateSize,
                     UISharedFoundation.GradientDirection.TopToBottom, 0.98f);
                 UISharedFoundation.AddLocalGradientScrim(
-                    labelPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                    labelPlate.transform, labelPlateSize * 0.5f, labelPlateSize,
                     UISharedFoundation.GradientDirection.BottomToTop, 0.98f);
                 Text header = UISharedFoundation.CreateText(labelPlate.transform, "EffectLabel", $"SLOT {i + 1}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true,
