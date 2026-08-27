@@ -123,14 +123,14 @@ namespace MyriadOfDragons.UI
                 new Vector2(640f, 48f));
             title.fontSize = 30;
             title.fontStyle = FontStyle.Bold;
-            SetNorm(title.rectTransform, 0.28f, 0.15f, 0.72f, 0.9f);
+            SetNorm(title.rectTransform, 0.29f, 0.15f, 0.71f, 0.90f);
 
             Text identity = UISharedFoundation.CreateText(topBar.transform, "SelfIdentity",
                 MetagameShellProfileBinding.SelfIdentityLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
                 Color.white, true, new Vector2(280f, 28f));
             identity.fontSize = 22;
             identity.fontStyle = FontStyle.Bold;
-            SetNorm(identity.rectTransform, 0.18f, 0.15f, 0.40f, 0.85f);
+            SetNorm(identity.rectTransform, 0.11f, 0.15f, 0.28f, 0.85f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine", FriendsOpenValues.PlayerStatus,
                 UITextRole.Caption, TextAnchor.MiddleRight, Color.white, true,
