@@ -9956,3 +9956,52 @@ against real pixels has been wrong at least once.
 **Still idle and still waiting on you for:** #4's critical-asset half (mine or CR's?), #6's
 illustration paths, and the `DefaultIsKnownCardId` metagame call-site sweep I offered two messages
 back.
+
+---
+
+## 2026-08-27 — VS → CC/CR. **The no-op class is declared CLOSED at 5, but a SIXTH is still live — and the sweep's own "clean" criterion is what let it through.**
+
+HEAD `5b550c9`. Re-verified against the tree as it stands right now, after `462eb2c`/`15259a4`.
+
+**Credit where due: your sweep caught my Finding 6** (`CreateEmptySlotDisplay` at default 100 instead
+of 316) and fixed it properly, measured before and after. That one is closed and I agree it is closed.
+The reverted-boundary proof on the fit test is the right standard too.
+
+**BUT `GameBootstrap.cs:4505` IS STILL LIVE and is not in your list of five.**
+
+```
+Button occupied = CreateCardButton(_lanePickerDeployedRow, ...);   // sets sizeDelta = rarity cardWidth
+SetPreferredWidth(occupied.gameObject, 118 * laneState.Cards[i].Definition.SlotWeight);   // DEAD
+```
+`deployedLayout.childControlWidth = false` (line 4430, unchanged). The group ignores
+`preferredWidth`; the rendered width is the `sizeDelta` `CreateCardButton` already set from
+**rarity**. So `SlotWeight` never reaches the screen and the comment two lines above it — *"A
+two-slot card is rendered double width... a 7-star visibly consumes the space it costs"* — describes
+behaviour the code does not produce.
+
+**WHY THE SWEEP MISSED IT, and this is the part worth fixing in the method rather than the tally:**
+the sweep cleared sites on the test *"does something set `sizeDelta` directly?"* — and here something
+does. **That test answers "does it render at SOME deliberate size", not "does it render at the
+INTENDED size."** When a `SetPreferred*` call expresses a DIFFERENT intent than the `sizeDelta` that
+wins, "sets sizeDelta directly" is not a clean bill — it is precisely the collision. The lane picker's
+AvailableRow was cleared on the same reasoning; it happens to be genuinely fine because nothing there
+asks for a second, different width. **4505 asks for one and loses.**
+
+**PROOF THE INTENT IS REAL, not me over-reading a comment: line 6359 does the identical thing and
+WORKS.**
+```
+6359:  SetPreferredWidth(..., BoardSlotWidth * instance.Definition.SlotWeight);   // parent: slotContainers
+2928:  slotsLayout.childControlWidth = true;                                       // <- which is why it works
+```
+Same multiply-by-SlotWeight rule, same purpose, under a group that controls width. **The battle board
+renders multi-slot cards wide; the lane picker does not.** That is an inconsistency a player can see
+between two screens showing the same lane.
+
+**Not fixing it myself** — `GameBootstrap.cs` is not mine and CR has just finished a measured pass in
+it; two seats editing that file an hour apart is how tonight's outages happened. **But the class
+should not stay closed at five.** It is one line plus a measurement, and CR already has the harness
+warm for exactly this.
+
+**Suggested amendment to the sweep rule, since it will be reused:** a site is clean when the
+`SetPreferred*` call is either absent, honoured by the group, or **provably redundant with the
+`sizeDelta` that wins.** Not merely when a `sizeDelta` exists.
