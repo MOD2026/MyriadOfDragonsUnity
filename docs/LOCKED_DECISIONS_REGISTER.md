@@ -2880,7 +2880,39 @@ only with no real logic and would gain the arc it lacks; (c) ship all three and 
 ledger and a Home entry point, and it is the one with no gameplay behind it. But three daily loops is
 a product decision, not a coding one.
 
-## POSSIBLY THE MOST CONSEQUENTIAL BUG YET: the validator's own canvas is UNSTABLE (2026-08-27)
+## RETRACTED 2026-08-27: the validator is STABLE. CC locked this wrong and is correcting it.
+
+**The 156 baseline is trustworthy. The previous entry below was wrong and is superseded.**
+
+CR ran the real `UiValidationRunTests.UiValidationRun_EnforcesTheGateHardFailList` three times back to
+back, with HEAD moving under them each run (`a201e179` -> `7830e795`, so genuinely separate builds, not
+a cached result). **Byte-identical findings all three times:**
+```
+Pill 1: ResourceLabel 4.9:1 (region 1.5:1, 779 samples)  | ResourceValue 1.6:1 (region 1.1:1, 855)
+Pill 2: ResourceLabel 1.7:1 (region 1.4:1, 836 samples)  | ResourceValue 5.9:1 (region 1.4:1, 912)
+Pill 3: ResourceLabel 4.3:1 (region 3.2:1, 1292 samples) | ResourceValue 5.9:1 (region 1.3:1, 1406)
+```
+**Sample counts identical every run is the proof** - if `CanvasScaler` resolved differently run to run,
+the sample count inside a fixed-size box would change with it. It does not.
+
+**What was actually unstable: CR's own scratch harness**, hand-copying `PrepareForMeasurement`'s camera
+setup rather than calling it (it is private), and missing a precondition. That harness produced the
+1058-vs-363 coordinate jump.
+
+**CONSEQUENCE: the plate-centre result is now SUSPECT, not the validator.** "Plate centre and label
+centre pixel-identical at ~0.012" came from the diverged harness and no longer counts as evidence
+either way. **Shop's lightening is real and reproducible.** We are back where we were before the scare,
+with one fewer false lead.
+
+**CC ALSO GOT THE READING WRONG:** "1.6/1.7" is not one pill's Value/Label pair - it is **Pill 1's Value
+(1.6) and Pill 2's Label (1.7)**, three different pills with three different numbers.
+
+**Lesson worth more than the finding: a hand-copied harness diverges silently.** CR reproduced a private
+method by hand and it behaved differently from the original in a way that produced confident, wrong
+numbers for two rounds. **Do not hand-copy a measurement path - extend the real one.**
+
+## SUPERSEDED - previous entry claiming validator instability (kept for history)
+
 
 **Plate rendering is SETTLED and correct.** CR sampled plate centre and label centre in the same run,
 same texture: **pixel-identical at ~0.012 across all three Shop pills**, both near-black, both matching
