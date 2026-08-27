@@ -668,6 +668,7 @@ namespace MyriadOfDragons.Tests
             // authored at centre, lighter toward the corners). No behaviour change.
             if (background != null)
             {
+                bool loggedColumnWalkThisScreen = false;
                 foreach (RectTransform plateRt in root.GetComponentsInChildren<RectTransform>(true))
                 {
                     if (!plateRt.gameObject.activeInHierarchy || !plateRt.name.EndsWith("Plate")) continue;
@@ -695,6 +696,28 @@ namespace MyriadOfDragons.Tests
                         }
                     }
                     Debug.Log(sb.ToString());
+
+                    // CC's decisive follow-up (2026-08-27): 1px vertical column walk down the
+                    // plate's OWN computed box, extended 10px above/below, to find where the
+                    // plate's real rendered dark run actually starts/ends versus where ScreenRect
+                    // claims it starts/ends - one plate per screen, so the log stays readable.
+                    if (!loggedColumnWalkThisScreen)
+                    {
+                        loggedColumnWalkThisScreen = true;
+                        int cx = Mathf.Clamp(Mathf.RoundToInt(box.center.x), 0, background.width - 1);
+                        int yStart = Mathf.Clamp(Mathf.FloorToInt(box.yMin) - 10, 0, background.height - 1);
+                        int yEnd = Mathf.Clamp(Mathf.CeilToInt(box.yMax) + 10, 0, background.height - 1);
+                        var col = new StringBuilder();
+                        col.Append("[UiValidation:DIAG-COLUMN] ").Append(screen.Name).Append(' ').Append(Q(plateRt.name))
+                           .Append(" x=").Append(cx).Append(" computedYRange=[").Append(F(box.yMin)).Append(',').Append(F(box.yMax))
+                           .Append("] walk y=").Append(yStart).Append("..").Append(yEnd).Append(':');
+                        for (int y = yStart; y <= yEnd; y++)
+                        {
+                            Color c = background.GetPixel(cx, y);
+                            col.Append(" y").Append(y).Append('=').Append(C3(c));
+                        }
+                        Debug.Log(col.ToString());
+                    }
                 }
             }
 
