@@ -2657,6 +2657,56 @@ sigil to an ornate horned crest with amber engraving, one coherent heraldic fami
 **NOT IMPORTED YET.** Source:
 `C:/Users/zihan/Documents/Codex/2026-08-09/referenced-chatgpt-conversation-this-is-an-3/outputs/Battle_Enemy_Crest_Emblems_V1/`
 
+## 2015 Event Rules vetted 2026-08-27 - Chest Hunt MVP, with one CC-caught collision
+
+Legacy doc (`G:\My Drive\card game\Game Beta (APK)\mandeep\Event Rules.docx`, Oct 2016) reviewed
+against current constraints. **Most of it is unusable as written** - paid Royal Keys granting better
+rewards and new cards, Event Bonus Cards with attack effects sold in packs, artifacts completing into
+sets for new cards (all purchase-to-power or event-rewards-as-deck-materials), plus ally assists,
+Rival rankings, Golden Time leaderboards and trading restrictions (all server-gated).
+
+**THE LOOP WORTH KEEPING, stripped of mechanics:** quest -> discover chest -> choose when to open ->
+improve certainty through effort -> chase a visible completion set -> milestone payoff. It beats a
+plain repeatable farm because it packages activity into a **memorable limited-time objective with a
+beginning, middle and completion state.**
+
+**WHAT THE OLD DESIGN DOES BETTER THAN OUR CURRENT SOLO CONTENT - stated plainly:** a visible
+completion chase gives a concrete reason to continue where ordinary farming does not; chest
+escalation creates anticipation and pacing; boss-linked discovery makes an event feel authored rather
+than procedural; optional reciprocity creates social value without theft or coercion. **The old
+design is not better because of its economy - it is better because it had an ARC.**
+
+**ORIGINAL INTENT THAT LATER WORK DRIFTED FROM:** the point was never "sell keys". It was to make
+routine questing feel like an expedition, turn rewards into a chase, and make players feel they were
+COMPLETING something rather than accumulating currency. **Later design kept the isolated rewards and
+lost the arc.**
+
+**SET COMPLETION WITHOUT CARDS:** Event Relic fragments - temporary, non-deck collection pieces that
+complete visual sets but never become cards, Forge/Dust, Permits, Evolution materials or Market
+Credits. Completion grants 10,000 Gold + 1 Stamina claim, once per event; duplicates convert to small
+Gold only. **CC sanity-check: 10,000 Gold is ~0.56% of the 1,779,550 L1-10 campaign total - small
+enough not to distort the Empire sink.**
+
+### CC-CAUGHT COLLISION: "three Stamina-gated event battles per day" is a soft PAY-TO-PARTICIPATE gate
+
+**Stamina has NO free regeneration.** Register, Currencies table: *"Shop refill only, no free regen"*,
+purchased at 30/60/120/240 Gems, max 4 purchases per rolling 24h. **So gating event entry on Stamina
+means a player must spend a PURCHASABLE currency to take part in a limited-time event.**
+
+That does not violate no-purchase-converts-to-power - the rewards are Gold and Stamina, not deck power
+- but it is **pay-to-participate on time-limited content**, which is a different and arguably worse
+shape for a game positioning itself on fair monetisation. A player who cannot afford Stamina misses
+the event window entirely and cannot catch up afterwards.
+
+**NOT LOCKED. Needs an entry-cost decision before any build:** a free daily event allowance separate
+from Stamina, or event battles that cost no Stamina at all, or an explicit acceptance that events are
+Stamina-gated. **CC is not choosing this alone - it is a monetisation-shape decision.**
+
+**Everything else in the MVP stands:** 7 days, one entry from Quests/Events, reuse the existing combat
+engine, deterministic milestone track with no paid keys and no random paid odds, one normal stage plus
+a boss stage unlocked by progress, idempotent claims, fixed end time, **no Event Medals** (they stay
+dormant), and explicitly prototype-only while the save is client-authoritative.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
