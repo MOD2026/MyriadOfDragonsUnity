@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using MyriadOfDragons.AI;
@@ -818,9 +818,26 @@ namespace MyriadOfDragons.Battle
             if (spell.Effect == SpellEffect.Silence && !IsLegalSilenceTarget(EnemyState, silenceTarget))
                 return false;
 
+            int energyBeforeCast = Energy;
+            int cooldownBeforeCast = spell.CooldownRemaining;
             Energy -= spell.EnergyCost;
             spell.PutOnCooldown();
-            avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane, repositionTarget, silenceTarget);
+            try
+            {
+                avatarDamageDealt = spell.Cast(PlayerState, EnemyState, targetLane, repositionTarget, silenceTarget);
+            }
+            catch
+            {
+                // Energy and cooldown are paid BEFORE Cast runs, so a throw part-way through would
+                // otherwise charge the player in full for a spell that never resolved. Put both back,
+                // then let the exception propagate unchanged.
+                // LIMIT, stated rather than implied: this cannot undo effects Cast had already
+                // applied to lane state before it threw. It restores the COST only.
+                Energy = energyBeforeCast;
+                spell.RollbackCooldown(cooldownBeforeCast);
+                throw;
+            }
+
             _lastSuccessfulPlayerCastTick = TickCount;
 
             // Combat Tick Feed data (2026-08-22): logged only once the cast is confirmed legal
@@ -862,11 +879,25 @@ namespace MyriadOfDragons.Battle
             if (spell.Effect == SpellEffect.Silence && !IsLegalSilenceTarget(PlayerState, silenceTarget))
                 return false;
 
+            int energyBeforeCast = EnemyEnergy;
+            int cooldownBeforeCast = spell.CooldownRemaining;
             EnemyEnergy -= spell.EnergyCost;
             spell.PutOnCooldown();
-            avatarDamageDealt = _shadowModeSuppressEnemySpellEffectForTests
-                ? 0
-                : spell.Cast(EnemyState, PlayerState, targetLane, repositionTarget, silenceTarget);
+            try
+            {
+                avatarDamageDealt = _shadowModeSuppressEnemySpellEffectForTests
+                    ? 0
+                    : spell.Cast(EnemyState, PlayerState, targetLane, repositionTarget, silenceTarget);
+            }
+            catch
+            {
+                // Mirrored PvE path: same cost-before-effect ordering, same rollback. Keeping the
+                // two cast paths symmetric is the point of the mirrored-AI lock.
+                EnemyEnergy = energyBeforeCast;
+                spell.RollbackCooldown(cooldownBeforeCast);
+                throw;
+            }
+
             _lastSuccessfulEnemyCastTick = TickCount;
 
             _spellCastLog.Add(new SpellCastRecord(TickCount, spell.Name, targetLane, avatarDamageDealt, castByPlayer: false));

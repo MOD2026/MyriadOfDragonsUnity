@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -178,6 +178,12 @@ namespace MyriadOfDragons.Battle
 
         public void PutOnCooldown() => CooldownRemaining = CooldownTicks;
 
+        /// <summary>Restores a previously-captured CooldownRemaining. Exists only so a cast that
+        /// throws part-way through Cast can put the spell back the way it found it - a failed cast
+        /// must not burn the cooldown. Not a gameplay affordance; nothing may use this to shorten
+        /// a cooldown that was legitimately paid for.</summary>
+        public void RollbackCooldown(int remaining) => CooldownRemaining = remaining;
+
         /// <summary>
         /// Applies this spell's effect. Does not check energy or cooldown - BattleController.
         /// TryCastSpell owns those rules, so this stays a pure "what the effect does" method.
@@ -191,7 +197,7 @@ namespace MyriadOfDragons.Battle
         /// deployed enemy unit. Null, not-alive, or not-actually-in-opponent's-lanes is a no-op,
         /// same contract as an illegal repositionTarget.
         /// </summary>
-        public int Cast(PlayerBattleState caster, PlayerBattleState opponent, Lane targetLane,
+        public virtual int Cast(PlayerBattleState caster, PlayerBattleState opponent, Lane targetLane,
             RepositionTarget repositionTarget = null, BattleCardInstance silenceTarget = null)
         {
             switch (Effect)

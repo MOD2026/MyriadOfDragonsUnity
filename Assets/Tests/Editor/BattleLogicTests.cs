@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using MyriadOfDragons.AI;
 using MyriadOfDragons.Battle;
@@ -54,7 +54,7 @@ namespace MyriadOfDragons.Tests
             // is the only cleanup that can be trusted.
             foreach (GameObject go in _spawned)
             {
-                if (go != null) Object.DestroyImmediate(go);
+                if (go != null) UnityEngine.Object.DestroyImmediate(go);
             }
             _spawned.Clear();
 
@@ -1365,6 +1365,85 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(spell.IsOffCooldown, "Casting should put the spell on cooldown.");
             Assert.IsFalse(controller.TryCastSpell(cheapestIndex, Lane.Front, out _),
                 "A spell on cooldown must not cast again immediately.");
+        }
+
+        /// <summary>A spell whose effect blows up part-way through, so the cast paths' rollback can
+        /// be exercised. Cast is virtual purely to make this possible - production has no subclass.</summary>
+        private sealed class ThrowingSpell : AvatarSpell
+        {
+            public ThrowingSpell()
+                : base("Throwing Test Spell", "Throws instead of resolving.",
+                    energyCost: 10, cooldownTicks: 3, SpellEffect.LaneDamage, magnitude: 1)
+            {
+            }
+
+            public override int Cast(PlayerBattleState caster, PlayerBattleState opponent, Lane targetLane,
+                RepositionTarget repositionTarget = null, BattleCardInstance silenceTarget = null)
+            {
+                throw new System.InvalidOperationException("effect blew up mid-cast");
+            }
+        }
+
+        [Test]
+        public void CastThatThrows_RefundsEnergyAndCooldown_PlayerPath()
+        {
+            // Energy and cooldown are paid BEFORE Cast runs. A throw part-way through used to leave
+            // the player charged in full for a spell that never resolved, AND locked out of it for
+            // its whole cooldown.
+            BattleController controller = StartFormationMatch();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            var spell = new ThrowingSpell();
+            controller.Spellbook[0] = spell;
+
+            while (controller.Energy < spell.EnergyCost && controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+            }
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match resolved before enough Energy accrued.");
+
+            int energyBefore = controller.Energy;
+            Assert.IsTrue(spell.IsOffCooldown, "Setup guard: the spell must start off cooldown.");
+
+            Assert.Throws<System.InvalidOperationException>(
+                () => controller.TryCastSpell(0, Lane.Front, out _),
+                "The exception must still propagate - rollback restores cost, it does not swallow.");
+
+            Assert.AreEqual(energyBefore, controller.Energy,
+                "Energy was spent on a cast that never resolved.");
+            Assert.IsTrue(spell.IsOffCooldown,
+                "Cooldown was burned by a cast that never resolved.");
+        }
+
+        [Test]
+        public void CastThatThrows_RefundsEnergyAndCooldown_EnemyPath()
+        {
+            // The mirrored PvE path pays the same cost in the same order and must roll back the same
+            // way - asymmetry between the two cast paths is exactly what the mirrored-AI lock forbids.
+            BattleController controller = StartFormationMatch();
+            Assert.IsTrue(controller.TryPlayCard(controller.PlayerState, controller.PlayerState.Hand.First(), Lane.Front));
+            Assert.IsTrue(controller.ConfirmFormation());
+
+            var spell = new ThrowingSpell();
+            controller.SetEnemySpellbookForTests(new List<AvatarSpell> { spell });
+
+            while (controller.EnemyEnergy < spell.EnergyCost && controller.Phase == BattlePhase.Combat)
+            {
+                controller.AdvanceCombatTick();
+            }
+            if (controller.Phase != BattlePhase.Combat) Assert.Ignore("Match resolved before enough Energy accrued.");
+
+            int energyBefore = controller.EnemyEnergy;
+            Assert.IsTrue(spell.IsOffCooldown, "Setup guard: the spell must start off cooldown.");
+
+            Assert.Throws<System.InvalidOperationException>(
+                () => controller.TryCastEnemySpell(0, Lane.Front, out _));
+
+            Assert.AreEqual(energyBefore, controller.EnemyEnergy,
+                "Enemy Energy was spent on a cast that never resolved.");
+            Assert.IsTrue(spell.IsOffCooldown,
+                "Enemy cooldown was burned by a cast that never resolved.");
         }
 
         [Test]

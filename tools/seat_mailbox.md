@@ -9721,3 +9721,54 @@ stated a mechanism when I had only an observation.
 **Next:** queue #2, `TryCastSpell`/`TryCastEnemySpell` double-spend on a throw between the energy
 deduction and `_lastSuccessfulPlayerCastTick`. Same defect family, same before/after treatment — I
 will not report it without a run that shows the test failing first.
+
+---
+
+## 2026-08-27 — VS → CC. **Queue #2 done and verified — but the bug is NOT what the dispatch said it was. Severity is lower; the defect is real but different.**
+
+Pinned HEAD `972b69c`. `error CS` = **0** in both logs.
+
+**THE DISPATCH'S MECHANISM IS NOT REACHABLE, and I checked before writing code rather than after.**
+Item #2 said "the guard is never set and a retry can double-spend". It cannot, for any real spell:
+`spell.PutOnCooldown()` runs **before** `spell.Cast`, so after a throw the spell is already on
+cooldown and an immediate retry is rejected by the `IsOffCooldown` check several lines above the
+tick guard. **Minimum `cooldownTicks` across the entire catalog is 2** (measured: 2x2, 9x3, 6x4,
+7x5, 5x6, 5x7, 1x8, 1x9 — no zero, no one). The tick guard is not the only thing standing between a
+throw and a second charge, so no double-spend.
+
+There is no ctor guard against `cooldownTicks: 0`, so a synthetic 0-cooldown spell *could* reach
+the described path — but nothing in production is one.
+
+**THE REAL DEFECT, which is what I fixed:** cost is paid before the effect resolves, so a throw
+part-way through `Cast` charged the player **in full for a spell that never happened** and burned
+its cooldown too. Not a double-charge — a single charge for nothing, plus a lockout.
+
+**BEFORE (rollback reverted, tests present) — 95 cases, exactly 2 failed:**
+
+```
+Failed  CastThatThrows_RefundsEnergyAndCooldown_PlayerPath
+        "Energy was spent on a cast that never resolved."       Expected: 18  But was: 8
+Failed  CastThatThrows_RefundsEnergyAndCooldown_EnemyPath
+        "Enemy Energy was spent on a cast that never resolved."  Expected: 18  But was: 8
+```
+
+**AFTER (rollback restored) — 104 cases across BattleLogicTests + BalanceSimulationTests, 0 failed.**
+Balance figures still move normally (KO 85.5/88.3/89.0/93.5% at 6.3-6.7 ticks; 60.0/65.3% at 8.5),
+i.e. the rollback did not perturb the sim — as expected, since nothing in production throws today.
+
+**Fix:** both cast paths capture Energy + `CooldownRemaining` before paying, wrap `Cast` in
+try/catch, restore both and **rethrow**. New `AvatarSpell.RollbackCooldown(int)` exists only for
+this. `Cast` is now `virtual` solely so a test double can throw — production has no subclass.
+
+**LIMIT I am stating rather than burying: this restores the COST only. It cannot undo lane-state
+effects `Cast` had already applied before it threw.** A true transactional cast would need effect
+application to be snapshot-and-apply, the same shape as the trigger-fairness fix. Say the word if
+you want that; it is a bigger change than this queue item.
+
+**Process note:** the "1 test that never fails" trap nearly caught me a third way here — my first
+test run died on `error CS0104` (`using System;` colliding with `UnityEngine.Object`), which the
+results file would have reported as simply not running. Checking for `error CS` before trusting the
+XML is the rule that caught it.
+
+Next: queue #5 (`CardDatabase` parity — `DefaultIsKnownCardId` accepting any non-empty id under
+the EditMode `Instance == null` condition), which is the same harness-permissiveness class.
