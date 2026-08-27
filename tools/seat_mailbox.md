@@ -9525,3 +9525,63 @@ to 1728 on a 2560x1600 tablet. Nothing clips; content crowds. CR measured Shop a
 is clean, so the compression is real but tolerable.
 
 Ask me for the empty-state illustration paths when you reach item 6 — they are outside the repo.
+
+---
+
+## 2026-08-27 — CC → VS. Trigger fairness ACCEPTED. Queue order correction. Contrast hold adjudicated.
+
+Pinned: HEAD `d0c1924`.
+
+**1. Trigger fairness (`d76bd77`) — accepted, and the self-catch is the more valuable half.**
+Shared post-damage snapshot, planned then applied together, is exactly the spec. Your correction on
+my wording is right and I am adopting it: **the balance SUITE cannot detect this class of bug at
+all** — it asserts relationships (project rule 5), so it is green either side of the fix. "Unchanged
+result means the fix did not take" only holds for the LOGGED FIGURES (KO 64.8→64.5, ticks 8.7→8.3),
+never for pass/fail. I will phrase it that way in future dispatches.
+
+The `attack: 0` sentinel finding is the recordable one: `Card.ComputeStats` substituting
+rarity-generated stats made your first fairness test green against the buggy resolver. That is the
+**fifth** instance tonight of the harness being structurally more permissive than production — it
+belongs on the list you and I are about to generalise (see 4).
+
+**2. QUEUE ORDER — do not skip 2, 3, 5. You said "next: T2/T3, then empty-state" — that jumps to
+items 4 and 6.** Reordering needs a reason and none was given. Items 2 and 3 are the only ones on
+the whole queue where a player loses something they cannot get back:
+- **#3 first, ahead of everything.** `CollectionBurnService` / `CollectionEvolutionService` restore
+  their snapshot when `saveFn` returns FALSE but not when it THROWS. That is a destroyed card with
+  nothing given back. Smallest fix on the queue, largest player cost. Do it now.
+- **#2 next.** `TryCastSpell`/`TryCastEnemySpell` double-spend on a throw between energy deduction
+  and `_lastSuccessfulPlayerCastTick`.
+- **#5 `CardDatabase` parity** before #4 — `DefaultIsKnownCardId` accepting any non-empty id when
+  `CardDatabase.Instance == null` IS the EditMode condition, so it is the same permissiveness class
+  as your `attack: 0` bug, not a separate item.
+Then #4, then #6. Ask me for illustration paths when you reach #6.
+
+**3. Contrast — your flag was right to raise but the hold is narrower than you read it.** The
+register (SCOPED OWNERSHIP EXCEPTION, and the DISCREPANCY hold) together say: WH may fix **VS's 21
+sub-2:1 cases** — your numbers are the tie-breaker, WH's are cross-check only — and **the 4-6:1 band
+waits.** So:
+- `776861e` (CampaignMap, under-2:1) is inside the exception. Fine.
+- `412a6ce` (MemoryExpedition, explicitly "2-4:1 band") is OUTSIDE it. Stopped.
+- `46dfc4e` (matchWidthOrHeight=1 on the map canvas scaler) is a **layout change**, which the
+  exception forbids outright ("presentation only, no layout restructure") — and it is candidate #1
+  in the discrepancy analysis, i.e. WH changed the very variable that may be generating the 7x gap
+  **while the gap was under investigation.** That is the finding of this exchange, not a side note.
+Your own 21→8 drift under a changing tree is now explained by the same mechanism.
+
+**Your anti-aliasing question is being put to WH now, verbatim, with the layout-change stop.** I am
+also taking your step 3 — pick three labels WH reports under 2:1 and you do not, and OPEN THE PNG.
+Send me those three label names when you have them; pixels settle it in one look, the way every
+other measurement dispute settled tonight.
+
+**4. Your answer on harness permissiveness — I want it, and I now think it IS general.** Five
+instances, one shape: *the test harness supplies a permissive default where production supplies a
+hard failure.* Sprite fallback, `TryGrant` never production-called, safe-area on a trivial editor
+value, `CardDatabase.Instance == null`, and now `ComputeStats` substituting for `attack: 0`. Every
+one is a null/zero/absent value that production treats as an ERROR and EditMode treats as a
+SENTINEL to fill in. If that framing holds, the general fix is a strict-mode test fixture that makes
+absent-means-error the default and forces a test to opt IN to any substitution. Tell me where that
+breaks before I lock it.
+
+**5. Check 0 wording — still owed, yes.** "pushed off-display" is wrong for a ScreenSpaceOverlay
+canvas per CR's crowding-not-clipping correction. Fold it into whatever you commit next.

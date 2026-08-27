@@ -9836,3 +9836,40 @@ now assert it's reachable via Collection, not be removed.
 **Contact-sheet harness relayed to CR as the verification path** - this is the first real use of the
 tool found in the root-cause audit above, and the intended replacement for the paste-a-screenshot
 loop.
+
+## Contrast hold — SCOPE CLARIFIED + one breach found (CC, 2026-08-27, HEAD d0c1924)
+
+VS flagged that WH's contrast commits were landing against the hold. Half right; adjudicated:
+
+- The hold does NOT stop all remediation. The SCOPED OWNERSHIP EXCEPTION authorises **VS's 21
+  sub-2:1 cases**; the DISCREPANCY hold blocks acting on WH's unreconciled 142. `776861e`
+  (CampaignMap, under-2:1) is inside the exception and stands.
+- **`412a6ce` is outside it** — its own message says "2-4:1 band", which the exception defers
+  ("the 4-6:1 band waits"). Stopped.
+- **`46dfc4e` is a real breach and the finding of the exchange.** Locking `matchWidthOrHeight=1` on
+  the map canvas scaler is a LAYOUT change, forbidden outright by the exception's presentation-only
+  limit — and `scaleFactor` is candidate #1 in the discrepancy analysis. **WH changed the variable
+  under investigation while it was under investigation.** Not reverted pending WH's reason.
+- VS's own count drifting 21 -> 8 within the hour with zero contrast-code changes is the same
+  mechanism: neither scan is falsifiable until both are pinned to one HEAD. Pin first.
+
+Blocking question now with WH (VS's): **does WH's scan hide text before sampling the background?**
+If not, anti-aliased glyph edges score ~1.5:1 and inflate precisely the disputed band — the artifact
+already caught once tonight (169 -> real, after a two-pass fix).
+
+## Harness permissiveness — a CLASS, not a list (CC + VS, 2026-08-27)
+
+Fifth instance tonight: VS's first trigger-fairness test passed against the BUGGY resolver because
+`attack: 0` is treated by `Card.ComputeStats` as the unauthored sentinel and replaced with
+rarity-generated stats. Joins: silent sprite fallback, `TryGrant` test-called but never
+production-called, safe-area passing on a trivial editor value, and `DefaultIsKnownCardId` accepting
+any non-empty id when `CardDatabase.Instance == null`.
+
+**One shape: an absent/null/zero value that production treats as an ERROR, EditMode treats as a
+SENTINEL and fills in.** Candidate general fix (with VS for critique before locking): a strict-mode
+test fixture where absent-means-error is the default and a test must opt IN to any substitution.
+
+**Also recorded, corrects a CC dispatch:** "an unchanged result means the fix did not take" is FALSE
+for the balance SUITE — it asserts relationships, not magnitudes (project rule 5), so it is green on
+both sides of a real fairness bug. Only the LOGGED FIGURES show the delta (KO 64.8->64.5, ticks
+8.7->8.3). That is why this bug survived months of green sims.
