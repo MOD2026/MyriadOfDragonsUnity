@@ -128,17 +128,24 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 0.5f);
             backRect.anchoredPosition = new Vector2(30f, 0f);
             backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
+            Text backText = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backText.fontSize = 28;
+            backText.fontStyle = FontStyle.Bold;
+            UISharedFoundation.StretchFull(backText.rectTransform);
 
             _clockText = UISharedFoundation.CreateText(topBar.transform, "ResetClock",
                 MetagameShellProfileBinding.UtcDayKeyLine(), UITextRole.Body, TextAnchor.MiddleRight,
                 new Color(0.85f, 0.82f, 0.7f), true, new Vector2(280f, 32f));
+            _clockText.fontSize = 24;
+            _clockText.fontStyle = FontStyle.Bold;
             SetNorm(_clockText.rectTransform, 0.72f, 0.2f, 0.97f, 0.8f);
 
             _walletText = UISharedFoundation.CreateText(topBar.transform, "WalletLine",
                 MetagameShellProfileBinding.WalletLine(), UITextRole.Caption, TextAnchor.MiddleLeft,
                 new Color(0.75f, 0.8f, 0.7f), true, new Vector2(520f, 28f));
+            _walletText.fontSize = 24;
+            _walletText.fontStyle = FontStyle.Bold;
             SetNorm(_walletText.rectTransform, 0.22f, 0.15f, 0.70f, 0.85f);
         }
 
@@ -152,11 +159,14 @@ namespace MyriadOfDragons.UI
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
                 new Vector2(420f, 40f));
             header.fontSize = 28;
+            header.fontStyle = FontStyle.Bold;
             SetNorm(header.rectTransform, 0.08f, 0.88f, 0.92f, 0.98f);
 
             Text streak = UISharedFoundation.CreateText(panel.transform, "StreakLabel", "STREAK",
                 UITextRole.Title, TextAnchor.MiddleLeft, new Color(0.75f, 0.88f, 0.7f), true,
                 new Vector2(200f, 28f));
+            streak.fontSize = 24;
+            streak.fontStyle = FontStyle.Bold;
             SetNorm(streak.rectTransform, 0.06f, 0.78f, 0.4f, 0.86f);
 
             GameObject nodes = new GameObject("StreakNodes", typeof(RectTransform));
@@ -186,25 +196,23 @@ namespace MyriadOfDragons.UI
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
                     kind: UISharedFoundation.FramedPanelKind.ListRow);
 
-                float nodeW = (0.44f * 1920f) * 0.92f / Mathf.Max(1, DailyLoginQuestsOpenValues.ShellLoginWellCount);
-                float nodeH = (0.80f * 1080f) * 0.48f * 0.8f;
-                float dayPlateH = nodeH * 0.28f;
                 GameObject dayPlate = new GameObject("DayIndexPlate", typeof(RectTransform));
                 dayPlate.transform.SetParent(node.transform, false);
                 RectTransform dayPlateRect = dayPlate.GetComponent<RectTransform>();
-                dayPlateRect.anchorMin = dayPlateRect.anchorMax = new Vector2(0f, 0f);
-                dayPlateRect.pivot = new Vector2(0.5f, 0.5f);
-                dayPlateRect.sizeDelta = new Vector2(nodeW * 0.9f, dayPlateH);
-                dayPlateRect.anchoredPosition = new Vector2(nodeW * 0.5f, nodeH * 0.84f);
-                UISharedFoundation.AddLocalGradientScrim(
-                    dayPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                SetNorm(dayPlateRect, 0.05f, 0.55f, 0.95f, 0.95f);
+                Image scrimTop = UISharedFoundation.AddLocalGradientScrim(
+                    dayPlate.transform, Vector2.zero, Vector2.zero,
                     UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
-                UISharedFoundation.AddLocalGradientScrim(
-                    dayPlate.transform, new Vector2(200f, 200f), new Vector2(800f, 800f),
+                UISharedFoundation.StretchFull(scrimTop.rectTransform);
+                Image scrimBot = UISharedFoundation.AddLocalGradientScrim(
+                    dayPlate.transform, Vector2.zero, Vector2.zero,
                     UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+                UISharedFoundation.StretchFull(scrimBot.rectTransform);
                 Text dayLabel = UISharedFoundation.CreateText(dayPlate.transform, "DayIndex", $"Day {i + 1}",
                     UITextRole.Caption, TextAnchor.UpperCenter, Color.white, true,
                     new Vector2(60f, 22f));
+                dayLabel.fontSize = 24;
+                dayLabel.fontStyle = FontStyle.Bold;
                 UISharedFoundation.ApplyTextShadow(dayLabel);
                 RectTransform dayLabelRect = dayLabel.rectTransform;
                 dayLabelRect.anchorMin = Vector2.zero;
@@ -216,6 +224,8 @@ namespace MyriadOfDragons.UI
                 _loginRewardTexts[i] = UISharedFoundation.CreateText(node.transform, "RewardAmount",
                     $"{gold}g", UITextRole.Body, TextAnchor.MiddleCenter,
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(80f, 24f));
+                _loginRewardTexts[i].fontSize = 24;
+                _loginRewardTexts[i].fontStyle = FontStyle.Bold;
                 SetNorm(_loginRewardTexts[i].rectTransform, 0.05f, 0.08f, 0.95f, 0.45f);
             }
 
@@ -231,7 +241,8 @@ namespace MyriadOfDragons.UI
             _statusText = UISharedFoundation.CreateText(statusBar.transform, "StreakStatus",
                 DailyLoginQuestsOpenValues.StreakPausedCopy, UITextRole.Title, TextAnchor.MiddleCenter,
                 new Color(0.85f, 0.9f, 0.95f), true, new Vector2(700f, 36f));
-            _statusText.fontSize = 18;
+            _statusText.fontSize = 24;
+            _statusText.fontStyle = FontStyle.Bold;
             SetNorm(_statusText.rectTransform, 0.04f, 0.1f, 0.96f, 0.9f);
         }
 
@@ -245,6 +256,7 @@ namespace MyriadOfDragons.UI
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
                 new Vector2(420f, 40f));
             header.fontSize = 28;
+            header.fontStyle = FontStyle.Bold;
             SetNorm(header.rectTransform, 0.08f, 0.88f, 0.92f, 0.98f);
 
             _questCopyTexts = new Text[DailyLoginQuestsOpenValues.DailyQuestSlots];
@@ -266,6 +278,8 @@ namespace MyriadOfDragons.UI
                 _questCopyTexts[i] = UISharedFoundation.CreateText(row.transform, "QuestCopy",
                     $"Quest {i + 1}", UITextRole.Body, TextAnchor.MiddleLeft,
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(360f, 28f));
+                _questCopyTexts[i].fontSize = 24;
+                _questCopyTexts[i].fontStyle = FontStyle.Bold;
                 SetNorm(_questCopyTexts[i].rectTransform, 0.16f, 0.55f, 0.58f, 0.92f);
 
                 GameObject progress = new GameObject("ProgressBar", typeof(RectTransform), typeof(Image));
@@ -288,6 +302,8 @@ namespace MyriadOfDragons.UI
                 _questProgressTexts[i] = UISharedFoundation.CreateText(row.transform, "ProgressCopy",
                     "0 / 1", UITextRole.Caption, TextAnchor.MiddleLeft,
                     Color.white, true, new Vector2(120f, 22f));
+                _questProgressTexts[i].fontSize = 24;
+                _questProgressTexts[i].fontStyle = FontStyle.Bold;
                 UISharedFoundation.ApplyTextShadow(_questProgressTexts[i]);
                 SetNorm(_questProgressTexts[i].rectTransform, 0.54f, 0.18f, 0.68f, 0.48f);
 
@@ -298,8 +314,11 @@ namespace MyriadOfDragons.UI
                 claim.GetComponent<Button>().onClick.AddListener(() =>
                     Apply(DailyLoginQuestsOpenValues.TryClaimQuest(quest)));
                 SetNorm(claim.GetComponent<RectTransform>(), 0.72f, 0.18f, 0.96f, 0.82f);
-                UISharedFoundation.CreateText(claim.transform, "Text", "CLAIM",
+                Text claimText = UISharedFoundation.CreateText(claim.transform, "Text", "CLAIM",
                     UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 32f));
+                claimText.fontSize = 28;
+                claimText.fontStyle = FontStyle.Bold;
+                UISharedFoundation.StretchFull(claimText.rectTransform);
             }
         }
 
