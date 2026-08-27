@@ -124,6 +124,7 @@ namespace MyriadOfDragons.UI
             backRect.sizeDelta = new Vector2(160f, 56f);
             UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
+            backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title",
                 $"SPELL LOADOUT ({_requiredSlots} SLOTS · L{avatarLevel})",
@@ -299,6 +300,7 @@ namespace MyriadOfDragons.UI
                     t.fontSize = 13;
                     t.raycastTarget = false;
                     SetNorm(t.rectTransform, 0.30f, 0.08f, 0.96f, 0.92f);
+                    btn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
                 }
             }
         }
@@ -317,6 +319,7 @@ namespace MyriadOfDragons.UI
             SetNorm(confirm.GetComponent<RectTransform>(), 0.1f, 0.15f, 0.9f, 0.85f);
             UISharedFoundation.CreateText(confirm.transform, "Text", "CONFIRM LOADOUT", UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(360f, 40f));
+            confirm.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier1Hero;
         }
 
         private void SelectSpell(string spellId)
