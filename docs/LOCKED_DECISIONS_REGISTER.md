@@ -2411,6 +2411,35 @@ disagree.
 
 **Class stands at SEVEN.** 141/141 tests, 0 CS errors.
 
+## `CreateCardButton` resolved 2026-08-27 (`b6ee292`) - no design gap, placement only
+
+The affordability-vs-press conflict turned out not to be a conflict. **`InteractionStateController`
+caches `Graphic.color` ONCE at `EnsureCached()` and repaints `_baseColor * pressBrightness` every
+frame - it was already "modulate the current base", never "set absolute colour".** The only real work
+was ORDERING: wire the controller in AFTER every one-time colour decision (affordability tint,
+selected tint, or plain white), not before.
+
+**Verified through the real `RefreshHand` path, not a mirror.** Forced an unaffordable card into hand,
+read the real affordability base (`0.250, 0.220, 0.280` = `ButtonDisabledColor`, confirmed not white),
+pressed it, measured `0.228, 0.200, 0.255` - **exactly base x 0.91, not white x 0.91.** Released back
+to the exact original tint. **Affordability survives a press.**
+
+**Disabled-sync checked rather than assumed:** `RefreshHand` destroys and rebuilds every hand card
+fresh per refresh rather than mutating `.interactable` on a persisting button, and hand cards stay
+`interactable = true` **always** - unaffordable is expressed via tint only, with the cost chip going
+red and the detail overlay stating the real reason. So the two systems were never expressing the same
+thing two ways. **Note this is a deliberate choice and a good one: an unaffordable card remains
+tappable and explains WHY, rather than being inert.** That is better than disabling it, and it does
+not violate the "a disabled control must never animate as if it accepted input" rule because the card
+is not disabled.
+
+**CAUTION WORTH RECORDING: reflection-based field access on Unity engine-adjacent types crashed the
+Editor.** CR used `GetField("Resource")` on `PlayerBattleState` and hit a hard access violation
+(`mono_jit_runtime_invoke` during shutdown). `Resource` is a plain public field; swapping to a direct
+`playerState.Resource = 0` assignment eliminated the crash. **Unclear whether this is a Unity bug or
+misuse, but avoid reflection on engine-adjacent types when a public accessor exists** - and if the
+Editor crashes during a test run, reflection is now a known suspect.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
