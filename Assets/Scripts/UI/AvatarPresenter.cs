@@ -79,8 +79,13 @@ namespace MyriadOfDragons.UI
             backRect.pivot = new Vector2(0f, 1f);
             backRect.anchoredPosition = new Vector2(30f, -5f);
             backRect.sizeDelta = new Vector2(160f, 40f);
-            UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter,
+            // UITextRole.Body's shared default (16px, UIFrozenTokens.TypeBodySize) is under the
+            // global 22px floor - explicit override here rather than waiting on that frozen
+            // constant, which is a separate, larger decision (touches every screen, not just this
+            // button). 34px box comfortably fits a 22px line.
+            Text backLabel = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter,
                 Color.white, true, new Vector2(140f, 34f));
+            backLabel.fontSize = 22;
             backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
             UISharedFoundation.CreateText(topBar.transform, "Title", "AVATAR", UITextRole.Display, TextAnchor.MiddleCenter,
@@ -152,7 +157,7 @@ namespace MyriadOfDragons.UI
                 $"Castle L{castle} · Barracks L{barracks} · Gate L{gate}";
             Text buildingText = UISharedFoundation.CreateText(panel.transform, "BuildingContext", buildings,
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.72f, 0.66f, 0.56f), true, new Vector2(900f, 80f));
-            buildingText.fontSize = 20;
+            buildingText.fontSize = 22;
             SetNorm(buildingText.rectTransform, 0.04f, 0.18f, 0.96f, 0.34f);
 
             if (_onOpenEmpire != null)

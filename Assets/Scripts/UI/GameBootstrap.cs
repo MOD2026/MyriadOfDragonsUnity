@@ -2902,19 +2902,23 @@ namespace MyriadOfDragons.UI
             // file's 14 Image.Type.Sliced sites.
             UISharedFoundation.FitSlicedBorderToRect(icon);
 
-            Text nameText = CreateText(labelBox, lane.ToString().ToUpperInvariant(), 19, GoldTextColor, font);
+            Text nameText = CreateText(labelBox, lane.ToString().ToUpperInvariant(), 22, GoldTextColor, font);
             nameText.fontStyle = FontStyle.Bold;
             nameText.alignment = TextAnchor.MiddleCenter;
             nameText.raycastTarget = false;
             nameText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            AnchorBand(nameText.rectTransform, 0.42f, 0.65f, 0.04f, 0.04f);
+            // Band grown from 0.42-0.65 (0.23) to 0.43-0.69 (0.26) - font floor fix, 22px needs
+            // more room than 19px did. Column is 288px wide (LaneLabelsMin/Max), so width was
+            // never the constraint for a 5-character word like "FRONT"/"MIDDLE"/"BACK".
+            AnchorBand(nameText.rectTransform, 0.43f, 0.69f, 0.04f, 0.04f);
 
             string bonus = LaneBonusLabel(lane);
-            Text modifierText = CreateText(labelBox, bonus, 14, accentColor, font);
+            Text modifierText = CreateText(labelBox, bonus, 22, accentColor, font);
             modifierText.alignment = TextAnchor.MiddleCenter;
             modifierText.raycastTarget = false;
             modifierText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            AnchorBand(modifierText.rectTransform, 0.20f, 0.42f, 0.04f, 0.04f);
+            // Band grown from 0.20-0.42 (0.22) to 0.15-0.43 (0.28) - same reasoning.
+            AnchorBand(modifierText.rectTransform, 0.15f, 0.43f, 0.04f, 0.04f);
         }
 
         /// <summary>
@@ -3088,18 +3092,21 @@ namespace MyriadOfDragons.UI
             CreatePortrait(playerCluster, "Paladin", 0.06f, 0.94f, 0.02f, 0.30f, "Lightbringer", font,
                 out _, out _);
 
-            Image playerHealthBar = CreateBar(playerCluster, HealthBarEmptyColor, PlayerHealthBarFillColor, font, 20,
+            Image playerHealthBar = CreateBar(playerCluster, HealthBarEmptyColor, PlayerHealthBarFillColor, font, 22,
                 out _playerHealthFill, out _playerAvatarText, "Health_Empty");
             AnchorBand(playerHealthBar.rectTransform, 0.56f, 0.86f, 0.34f, 0.02f);
             UISharedFoundation.FitSlicedBorderToRect(playerHealthBar);
 
-            Image playerResourceBar = CreateBar(playerCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 20,
+            Image playerResourceBar = CreateBar(playerCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 22,
                 out _resourceFill, out _resourceText, "Mana_Fill");
             AnchorBand(playerResourceBar.rectTransform, 0.30f, 0.54f, 0.34f, 0.02f);
             UISharedFoundation.FitSlicedBorderToRect(playerResourceBar);
 
-            _handCountText = CreateText(playerCluster, "", 18, GoldTextColor, font);
-            AnchorBand(_handCountText.rectTransform, 0.08f, 0.28f, 0.34f, 0.02f);
+            _handCountText = CreateText(playerCluster, "", 22, GoldTextColor, font);
+            // Band grown from 0.08-0.28 (0.20) to 0.04-0.29 (0.25) - font floor fix, 22px needs
+            // more headroom than 18px did; the small gap below the resource bar (0.30) had margin
+            // to give without touching that bar's own band.
+            AnchorBand(_handCountText.rectTransform, 0.04f, 0.29f, 0.34f, 0.02f);
 
             // ----- Phase cluster (center) -----
             // _turnText already carries the combined phase/clash string exactly as RefreshAll
@@ -3122,7 +3129,7 @@ namespace MyriadOfDragons.UI
 
             BuildEnemyHealthSegments(enemyCluster, font, out _enemyHealthSegments, out _enemyAvatarText, out _enemyLethalMarker);
 
-            Image enemyResourceBar = CreateBar(enemyCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 20,
+            Image enemyResourceBar = CreateBar(enemyCluster, ResourceBarEmptyColor, ResourceBarFillColor, font, 22,
                 out _enemyResourceFill, out _enemyResourceText, "Mana_Fill");
             AnchorBand(enemyResourceBar.rectTransform, 0.14f, 0.44f, 0.34f, 0.02f);
             UISharedFoundation.FitSlicedBorderToRect(enemyResourceBar);
@@ -3156,10 +3163,15 @@ namespace MyriadOfDragons.UI
             crestImg.preserveAspect = true;
             crestImg.raycastTarget = false;
 
-            nameLabelOut = CreateText(parent, displayName ?? "", 18, GoldTextColor, nameFont);
+            nameLabelOut = CreateText(parent, displayName ?? "", 22, GoldTextColor, nameFont);
             nameLabelOut.fontStyle = FontStyle.Bold;
             nameLabelOut.raycastTarget = false;
-            AnchorBand(nameLabelOut.rectTransform, y0 - 0.10f, y0, x0, 1f - x1);
+            // Band grown from 0.10 to 0.16 (font floor fix, 22px needs more room than 18px did)
+            // and widened to the crest's own full width plus a small overflow into the panel's
+            // margin - a difficulty-tier name can run long ("Wyvern Tamer Kaelen") and this
+            // corner cluster is only ~97px tall in total, so there is no room to go purely
+            // taller without the label colliding with the crest above it.
+            AnchorBand(nameLabelOut.rectTransform, y0 - 0.16f, y0, x0 - 0.02f, 1f - x1 - 0.02f);
 
             return crestImg;
         }
@@ -3220,7 +3232,7 @@ namespace MyriadOfDragons.UI
             markerImg.color = new Color(1f, 0.85f, 0.1f, 0.95f);
             markerImg.raycastTarget = false;
 
-            label = CreateText(barGo.transform, "", 20, Color.white, font);
+            label = CreateText(barGo.transform, "", 22, Color.white, font);
             label.fontStyle = FontStyle.Bold;
             label.raycastTarget = false;
             var labelOutline = label.gameObject.AddComponent<Outline>();
@@ -3369,11 +3381,15 @@ namespace MyriadOfDragons.UI
             // rectangle background should not be showing" (2026-08-06). A dark rectangle behind
             // a circular portrait is exactly the boxiness being designed out; an outline keeps
             // the text readable over the arena without drawing a box to do it.
-            Text nameLabel = CreateText(parent, displayName.ToUpperInvariant(), 14,
+            Text nameLabel = CreateText(parent, displayName.ToUpperInvariant(), 22,
                 GoldTextColor, nameFont ?? GetDefaultFont());
             nameLabel.fontStyle = FontStyle.Bold;
             nameLabel.raycastTarget = false;
-            nameLabel.rectTransform.anchorMin = new Vector2(x0, y0 - 0.13f);
+            // Band grown from 0.12 to 0.18 (font floor fix, 22px needs more room than 14px did) -
+            // same reasoning as CreateEnemyCrest's own name label: this corner cluster is only
+            // ~97px tall total, so the label already sits below the portrait's own bottom edge by
+            // design, and just needs more of that same margin, not a taller portrait.
+            nameLabel.rectTransform.anchorMin = new Vector2(x0, y0 - 0.19f);
             nameLabel.rectTransform.anchorMax = new Vector2(x1, y0 - 0.01f);
             nameLabel.rectTransform.offsetMin = Vector2.zero;
             nameLabel.rectTransform.offsetMax = Vector2.zero;
@@ -3690,16 +3706,19 @@ namespace MyriadOfDragons.UI
             // tappable buttons here would be a new control the handoff explicitly forbids.
             RectTransform placementBox = CreateAnchoredPanel(panel, "SelectedCardBox",
                 new Color(0f, 0f, 0f, 0.35f), new Vector2(0.005f, 0.30f), new Vector2(0.15f, 0.98f));
-            _selectedCardText = CreateText(placementBox, "", 16, GoldTextColor, font);
+            _selectedCardText = CreateText(placementBox, "", 22, GoldTextColor, font);
             _selectedCardText.raycastTarget = false;
             _selectedCardText.alignment = TextAnchor.UpperCenter;
             _selectedCardText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _selectedCardText.resizeTextForBestFit = true;
             _selectedCardText.resizeTextMinSize = 10;
-            _selectedCardText.resizeTextMaxSize = 16;
+            // Font floor fix (16->22 max): placementBox is ~199x125px real size, real room for
+            // this multi-line hint at 22px - best-fit still governs the actual rendered size per
+            // line count, this just raises the ceiling it can use.
+            _selectedCardText.resizeTextMaxSize = 22;
             StretchFull(_selectedCardText.rectTransform);
 
-            _deckCountText = CreateText(panel, "", 18, GoldTextColor, font);
+            _deckCountText = CreateText(panel, "", 22, GoldTextColor, font);
             AnchorBand(_deckCountText.rectTransform, 0.06f, 0.28f, 0.005f, 0.85f);
             _deckCountText.alignment = TextAnchor.MiddleLeft;
 
@@ -3716,12 +3735,15 @@ namespace MyriadOfDragons.UI
             // own comment for why these must keep working) - compact, tucked into this panel's
             // own top-left corner rather than a separate always-on-screen band.
             _resetLineupButton = CreateButton(panel, "Reset", font, () => OnLineupButtonPressed(useRecommendedDeck: false));
-            _resetLineupButton.GetComponentInChildren<Text>().fontSize = 14;
+            _resetLineupButton.GetComponentInChildren<Text>().fontSize = 22;
             RectTransform resetRect = _resetLineupButton.GetComponent<RectTransform>();
             resetRect.anchorMin = new Vector2(0.005f, 0.98f);
             resetRect.anchorMax = new Vector2(0.005f, 0.98f);
             resetRect.pivot = new Vector2(0f, 1f);
-            resetRect.sizeDelta = new Vector2(78f, 26f);
+            // Grown from 78x26 to 96x36 - font floor fix, 14->22 no longer fits the old fixed
+            // pixel size. Positioned at the panel's own top-left corner with the panel's full
+            // height below it free, so growing taller collides with nothing.
+            resetRect.sizeDelta = new Vector2(96f, 36f);
             resetRect.anchoredPosition = Vector2.zero;
 
             // Shared chrome, applied AFTER the anchors above are final. Order is load-bearing:
@@ -3741,13 +3763,15 @@ namespace MyriadOfDragons.UI
             // by any control - BattleLogicTests still exercises them directly via
             // UseRecommendedLineupForTests(), which must keep passing unchanged.
             _recommendedLineupButton = CreateButton(panel, "AUTO FORMATION", font, OnAutoFormationPressed);
-            _recommendedLineupButton.GetComponentInChildren<Text>().fontSize = 14;
+            _recommendedLineupButton.GetComponentInChildren<Text>().fontSize = 22;
             RectTransform recRect = _recommendedLineupButton.GetComponent<RectTransform>();
             recRect.anchorMin = new Vector2(0.005f, 0.98f);
             recRect.anchorMax = new Vector2(0.005f, 0.98f);
             recRect.pivot = new Vector2(0f, 1f);
-            recRect.sizeDelta = new Vector2(110f, 26f);
-            recRect.anchoredPosition = new Vector2(82f, 0f);
+            // Grown from 110x26 to 150x36 (font floor fix, matches Reset's own growth) and
+            // repositioned to sit right after Reset's new 96px width plus the same small gap.
+            recRect.sizeDelta = new Vector2(150f, 36f);
+            recRect.anchoredPosition = new Vector2(100f, 0f);
 
             // Also subordinate: AUTO FORMATION is a convenience, not the screen's CTA.
             HomeV3UiLibrary.ApplyNeutralActionButton(
@@ -3882,10 +3906,12 @@ namespace MyriadOfDragons.UI
             railAccent.rectTransform.anchoredPosition = Vector2.zero;
             railAccent.raycastTarget = false;
 
-            Text railTitle = CreateText(rail, "COMBAT RESOLUTION", 19, GoldTextColor, font);
+            Text railTitle = CreateText(rail, "COMBAT RESOLUTION", 22, GoldTextColor, font);
             railTitle.fontStyle = FontStyle.Bold;
             railTitle.raycastTarget = false;
-            AnchorBand(railTitle.rectTransform, 0.92f, 0.99f, 0.04f, 0.04f);
+            // Band grown from 0.92-0.99 (0.07, ~23px) to 0.90-0.99 (0.09, ~30px) - font floor fix,
+            // matching SpellRail's own title band below so both headers use the same margin.
+            AnchorBand(railTitle.rectTransform, 0.90f, 0.99f, 0.04f, 0.04f);
 
             // REPLACES the scrolling COMBAT ACTIVITY text log (owner call 2026-08-26: this space
             // should carry animation, not sentences - "no1 will read that"). That reverses my own
@@ -3920,7 +3946,7 @@ namespace MyriadOfDragons.UI
             spellRailAccent.rectTransform.anchoredPosition = Vector2.zero;
             spellRailAccent.raycastTarget = false;
 
-            Text spellsTitle = CreateText(spellRail, "SPELLS", 19, GoldTextColor, font);
+            Text spellsTitle = CreateText(spellRail, "SPELLS", 22, GoldTextColor, font);
             spellsTitle.fontStyle = FontStyle.Bold;
             spellsTitle.raycastTarget = false;
             AnchorBand(spellsTitle.rectTransform, 0.90f, 0.99f, 0.04f, 0.04f);
@@ -4013,28 +4039,31 @@ namespace MyriadOfDragons.UI
                 // childControlHeight=true fix, not the pre-set-sizeDelta workaround.
                 textColLayout.childControlHeight = true;
 
-                Text spellName = CreateText(textColGo.transform, "", 17, Color.white, font);
+                Text spellName = CreateText(textColGo.transform, "", 22, Color.white, font);
                 spellName.fontStyle = FontStyle.Bold;
                 spellName.raycastTarget = false;
                 spellName.alignment = TextAnchor.MiddleLeft;
-                // Wrap, do not Overflow. Overflow lets "Firestorm"/"Divine Bolt" at 17pt bold spill
-                // outside the 260px column and past the row's own edge - visible in the owner's
-                // Play Mode screenshot. Wrap keeps the text inside the control that owns it; the
-                // row is 62px tall with a 24px name line, so a second line still fits.
+                // Wrap, do not Overflow. Overflow lets "Firestorm"/"Divine Bolt" spill outside the
+                // 260px column and past the row's own edge - visible in the owner's Play Mode
+                // screenshot at the old 17pt size. Wrap keeps the text inside the control that owns
+                // it. Font floor fix (17->22): height grown 24->28 to match; row is 62px tall
+                // (SetPreferredHeight(spell.gameObject, 62f) above) and this + spellLabel's own
+                // 26px below still fits with 8px slack, PROVIDED the name stays one line at this
+                // width - re-verify against the real validator if any name still truncates.
                 spellName.horizontalOverflow = HorizontalWrapMode.Wrap;
                 spellName.verticalOverflow = VerticalWrapMode.Truncate;
-                SetPreferredHeight(spellName.gameObject, 24f);
+                SetPreferredHeight(spellName.gameObject, 28f);
 
                 // Cost/cooldown number - see RefreshPhaseControls for exactly what this shows
                 // (live cost while ready, remaining cooldown ticks while not).
-                Text spellLabel = CreateText(textColGo.transform, "", 15, Color.white, font);
+                Text spellLabel = CreateText(textColGo.transform, "", 22, Color.white, font);
                 spellLabel.raycastTarget = false;
                 spellLabel.alignment = TextAnchor.MiddleLeft;
                 // Same reasoning as the name above. This one carries the cost/cooldown number,
                 // which is short - but Overflow here would still let a long state string escape.
                 spellLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
                 spellLabel.verticalOverflow = VerticalWrapMode.Truncate;
-                SetPreferredHeight(spellLabel.gameObject, 20f);
+                SetPreferredHeight(spellLabel.gameObject, 26f);
 
                 _spellButtons.Add(spell);
                 _spellLabels.Add(spellLabel);
