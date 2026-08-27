@@ -2440,6 +2440,46 @@ Editor.** CR used `GetField("Resource")` on `PlayerBattleState` and hit a hard a
 misuse, but avoid reflection on engine-adjacent types when a public accessor exists** - and if the
 Editor crashes during a test run, reflection is now a known suspect.
 
+## Pressed+disabled COMPLETE across CR's screens 2026-08-27 - and a possible systemic scrim bug
+
+Six screens landed (`91fe285`, `5df6b98`, `581433d`): Collection, SpellLoadoutPicker, Settings,
+GuildHall, MemoryExpedition, Bazaar. Shop/CampaignMap/DeckBuilder/Mail/Friends/Chat untouched per
+ownership. **Every button on every screen CR owns now responds to touch and reads as disabled when it
+is.**
+
+**NINE live conflicts found across the sweep** - 7 silent-no-op layout bugs + 2 ColorTint. Both
+ColorTint instances share one shape: **a button built with `ApplyFramedPanel` instead of an
+`ApplyXActionButton` helper never gets an explicit `transition`, so it silently keeps Unity's
+default.** (`EmpirePresenter.CreateBuildingRow`, Bazaar's `ListingWell`.)
+
+**Grid content checked properly rather than assumed:** Collection uses a `GridLayoutGroup`, which has
+no `childControl*` opt-out at all - it always forces `cellSize` regardless of a child's `sizeDelta`,
+so it is not the same bug shape. CR also verified `MemoryExpedition.RefreshTiles` only mutates a child
+label's text and never the tile's own `Image.color`, so the cached base colour is safe.
+
+## POSSIBLE SYSTEMIC SCRIM-PLACEMENT BUG - highest priority, under investigation
+
+`MemoryExpeditionLayoutTests.MemoryExpedition_NeverDrawsArtOnTopOfAnInteractiveControl` fails on bare
+HEAD: **an 800x800 GradientScrim on a ~94x96 tile, overlapping `Btn_Back` and every tile.**
+
+**This is almost certainly not a MemoryExpedition bug.** That screen received contrast scrims overnight
+(`412a6ce`), and an 800x800 scrim is the exact failure mode predicted when those helpers went into
+use: **`AddLocalGradientScrim` inserts as the parent's first child and renders behind everything in
+the parent passed to it - pass too large a parent and the scrim is sized to that parent, covering
+unrelated content.**
+
+**Every screen scrimmed overnight is suspect:** CampaignMap, Shop, BattlePass, SpellLoadoutPicker,
+VIP, DailyLogin, MemoryExpedition.
+
+**Two reasons this outranks the remaining seven interaction states:**
+1. **An oversized scrim covering `Btn_Back` is PLAYER-BLOCKING** - a control that cannot be pressed
+   because something invisible sits on top of it. Worse than a missing press animation.
+2. **It may explain the contrast-sampler mystery, with the OPPOSITE conclusion.** If scrims landed in
+   the wrong place and size, then labels whose measured contrast did not respond to a plate "behind
+   them" may simply never have had a plate behind them. **That would mean the sampler is fine and the
+   placement was wrong.** Do not assume either way - but the validator room needs to know this
+   possibility exists, because it changes what they are looking for.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
