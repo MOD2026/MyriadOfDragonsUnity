@@ -2735,6 +2735,56 @@ interactive and display labels, weight 500+. `StatusText` was the worst at 18px.
 **FONT FLOOR REMAINING: GameBootstrap (37 labels), SpellLoadoutPicker (23).** BattlePass (42), Empire
 (28) and DailyLoginQuests (26) are done.
 
+## CONTRAST MYSTERY: both hypotheses WRONG. It is a colour-space transform. (2026-08-27)
+
+CR reproduced the validator's exact two-pass measurement against real production builds of CampaignMap
+and Shop. **Both standing theories are dead:**
+
+- **The sampler is NOT reading the wrong region.** CampaignMap `StatusText` screenRect
+  `(46.9,436.4)-(593.1,448.9)`; `StatusTextPlate` measured independently: **IDENTICAL**. Shop's six
+  labels all correctly nested inside their `ResourceTextPlate`.
+- **The plates are NOT misplaced.** Ruled out for both screens.
+
+**THE ACTUAL FINDING: the plate renders 3-5x LIGHTER than its own authored colour.** Both screens
+author `Color(0.03, 0.035, 0.05, 0.95)` - near-black. Sampled: 0.180, 0.176, 0.169, 0.153, 0.145,
+0.086.
+
+**CC ran the arithmetic and it is a SIGNATURE, not a vague drift:**
+```
+linear 0.030 -> sRGB 0.190      (sampled 0.180)
+linear 0.035 -> sRGB 0.206      (sampled 0.176)
+linear 0.050 -> sRGB 0.248
+```
+**That is a linear-to-sRGB conversion of the authored value, within noise.**
+
+**AND THE PROJECT IS IN GAMMA SPACE** - `ProjectSettings.asset` `m_ActiveColorSpace: 0`. So a
+`Color(0.03)` should render at 0.03 with no conversion. **The transform is happening somewhere it
+should not.**
+
+### THE DECISIVE QUESTION - two opposite conclusions hang on it
+
+**If the conversion is in the CAPTURE pipeline:** the player sees a genuinely near-black plate, the
+contrast is fine, and **all ~156 findings were measured in the wrong colour space.** Plates correct,
+metric broken.
+
+**If the conversion is in the TEXTURE GENERATION** (`CreateOrGetGradientSprite`): the plate really
+renders at ~0.19 on a player's screen - dark grey, not near-black - **the findings are real, and every
+scrim placed so far is too light to do its job.**
+
+**CHEAP TEST DISPATCHED:** put a reference `Image` of known colour `(0.03, 0.035, 0.05, 1)` using
+Unity's DEFAULT white sprite - no generated texture - into the same capture. If the reference also
+reads ~0.19, the capture converts and the metric is wrong. If the reference reads ~0.03 while the
+generated gradient reads ~0.19, the conversion is in the texture generation and the plates are
+genuinely too light. **Also check whether `CreateOrGetGradientSprite` passes `linear: true` to its
+`Texture2D` constructor** - that single argument produces exactly this transform.
+
+### SECOND, SEPARATE BUG on CampaignMap - do not conflate
+
+Sampled positions **inside the plate's own footprint** return real map-art colours (0.816, 0.706,
+0.435 - tan and green), non-uniformly, where Shop's flatter background does not. **Something is
+compositing through or over the plate on CampaignMap specifically.** That is a different defect and
+may be why CampaignMap reads worse than Shop rather than merely differently.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
