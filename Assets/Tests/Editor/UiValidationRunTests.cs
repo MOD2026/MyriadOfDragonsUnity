@@ -679,9 +679,12 @@ namespace MyriadOfDragons.Tests
                     if (box.width <= Tolerance || box.height <= Tolerance) continue;
 
                     CanvasRenderer plateCr = plateRt.GetComponent<CanvasRenderer>();
+                    var screenCanvas = root.GetComponent<Canvas>();
                     var sb = new StringBuilder();
                     sb.Append("[UiValidation:DIAG-PLATE] ").Append(screen.Name).Append(' ').Append(Q(plateRt.name))
                       .Append(" materialCount=").Append(plateCr != null ? plateCr.materialCount : -1)
+                      .Append(" canvasScaleFactor=").Append(screenCanvas != null ? screenCanvas.scaleFactor.ToString("0.0000") : "N/A")
+                      .Append(" canvasLocalScale=").Append(root.localScale.ToString("0.0000"))
                       .Append(" box=(").Append(F(box.xMin)).Append(',').Append(F(box.yMin)).Append(")-(")
                       .Append(F(box.xMax)).Append(',').Append(F(box.yMax)).Append(')');
 
