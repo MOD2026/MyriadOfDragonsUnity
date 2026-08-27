@@ -3068,6 +3068,49 @@ so it should render ON TOP of `PillBacking`. **Correct data, correct order, no o
 non-empty, and `canvasRenderer.GetColor()` alpha - a zero-alpha CanvasRenderer or an empty mesh would
 produce exactly this and is invisible to every inspection done so far.
 
+## ROOT CAUSE FOUND 2026-08-27: Shop plates have a CanvasRenderer with ZERO materials
+
+**Nine hypotheses, one root cause.** The decisive comparison, same test session:
+
+```
+Shop ResourceTextPlate (x3):  materialCount=0   GetMaterial()=NULL
+CampaignMap StatusTextPlate:  materialCount=1   GetMaterial()=Default UI Material
+```
+**Every other value identical between them** - `activeInHierarchy` True, `image.enabled` True, sprite
+non-null, `image.color` and `canvasRenderer.GetColor()` both white, `GetAlpha()` 1,
+`cullTransparentMesh` True on both (and irrelevant, since alpha is 1). **A CanvasRenderer with zero
+materials has never had anything submitted to draw** - which is exactly why toggling the Image changed
+not one pixel.
+
+**IT IS A SHOP QUIRK, NOT A PROJECT-WIDE SCRIM FAILURE.** CampaignMap's plate has a real material and
+genuinely draws; its separate problem is coverage and positioning. **The other rooms' scrim work is
+probably intact** - though CC has asked for one more screen to be MEASURED rather than inferred,
+because reasonable inferences have been wrong twice today.
+
+### THE STRUCTURAL PATTERN, which is the durable finding
+
+`HomeV3UiLibrary.CreateResourcePill` builds and configures every child Image including the plate.
+**Then `PlaceHeaderResourcePill` (`ShopPresenter.cs:685`) rewrites the pill root's `anchorMin`,
+`anchorMax`, `offsetMin`, `offsetMax` and `sizeDelta` AFTERWARDS.**
+
+**BUILD-THEN-EXTERNALLY-RESIZE-THE-ANCESTOR is the shape to hunt for.** Unity should rebuild a Graphic
+off a parent resize via layout-dirty propagation; if that is failing here, anything in this codebase
+following the same shape is a candidate for the same failure - **and it would be equally invisible,
+because every inspectable value looks correct.**
+
+CampaignMap's plate is built and positioned in one place with no later external resize of an ancestor,
+which is precisely why it works.
+
+**FIX AUTHORISED, and the fix IS the experiment:** if `SetMaterialDirty()`/`SetVerticesDirty()` after
+the resize takes `materialCount` to 1 AND the Shop contrast numbers move off 1.6/1.7, mechanism and
+repair are confirmed in one pass. If the count goes to 1 and the numbers do NOT move, the material was
+not the whole story. **Reordering to build the plate AFTER the resize is preferred over dirtying** -
+it fixes the cause rather than patching the consequence and leaves no trap for the next person adding
+a child to that pill.
+
+**Why this matters beyond Shop: until now we have never had proof the contrast remediation works at
+all.** If the plate starts drawing and the ratios improve, that is the first direct evidence.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
