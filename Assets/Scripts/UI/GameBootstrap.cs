@@ -126,10 +126,20 @@ namespace MyriadOfDragons.UI
         private static readonly Vector2 PlayerBoardMax = new Vector2(0.715f, 0.535f);
         private static readonly Vector2 LaneTotalsMin = new Vector2(0.715f, 0.225f);
         private static readonly Vector2 LaneTotalsMax = new Vector2(0.755f, 0.875f);
-        private static readonly Vector2 ActivityRailMin = new Vector2(0.760f, 0.520f);
+        // Boundary shifted 0.05 (CR, 2026-08-27, CC-approved): SpellList's 4 fixed-pixel spell
+        // rows need 266 reference-space units but only had ~255 at authored 1920x1080 (short by
+        // 10.6, a real but small deficit) and ~228.5 at a 2400x1080 phone under match=0.5 (short
+        // by 37.5, ~14%) - the compression case first surfaced by the Battle capture pass.
+        // ActivityRail (CombatResolutionStage) donates the space rather than the other way round
+        // because its own content is entirely Stretch()-anchored to fractions with no fixed-pixel
+        // elements (one exception: a 34px result-value text with a documented 32px legibility
+        // floor, checked separately after this shift) - it is scale-invariant and can absorb a
+        // smaller share safely, where SpellRail's fixed-pixel rows cannot. The 0.020 gap between
+        // the two rails is preserved exactly (was 0.520-0.500; is now 0.570-0.550).
+        private static readonly Vector2 ActivityRailMin = new Vector2(0.760f, 0.570f);
         private static readonly Vector2 ActivityRailMax = new Vector2(0.985f, 0.875f);
         private static readonly Vector2 SpellRailMin = new Vector2(0.760f, 0.225f);
-        private static readonly Vector2 SpellRailMax = new Vector2(0.985f, 0.500f);
+        private static readonly Vector2 SpellRailMax = new Vector2(0.985f, 0.550f);
         private static readonly Vector2 HandPanelMin = new Vector2(0.015f, 0.025f);
         private static readonly Vector2 HandPanelMax = new Vector2(0.730f, 0.195f);
         private static readonly Vector2 PrimaryActionMin = new Vector2(0.745f, 0.025f);
@@ -6400,6 +6410,12 @@ namespace MyriadOfDragons.UI
             cell.transform.SetParent(parent, false);
             SetPreferredWidth(cell, BoardSlotWidth);
             SetPreferredHeight(cell, BoardSlotHeight);
+            // Same no-op-LayoutElement bug found in the SPELLS panel (CR, 2026-08-27, part of the
+            // project-wide sweep CC asked for): the Lane Picker's DeployedRow has
+            // childControlWidth=false, so SetPreferredWidth above never applied - measured this
+            // cell at Unity's default 100 wide instead of 316. Pre-set directly, same fix.
+            ((RectTransform)cell.transform).sizeDelta =
+                new Vector2(BoardSlotWidth, ((RectTransform)cell.transform).sizeDelta.y);
 
             // Empty_Slot.png's own real aspect (170x200 = 0.85 w/h, asset audit 2026-08-18) -
             // its own shape, not a rarity frame's.
@@ -6868,6 +6884,18 @@ namespace MyriadOfDragons.UI
         /// caused the "blank hand cards" bug (cards rendering with no visible color/art
         /// distinction). transition = None makes manual colors the only source of truth; the
         /// interactable/selected/disabled visuals below are all handled explicitly instead.
+        /// </summary>
+        /// <summary>
+        /// TEST-WRITER TRAP (CR, 2026-08-27): every button built by this overload owns an internal
+        /// child literally named "Text" (its label, below - StretchFull, empty string for callers
+        /// like the spell rail that build their own name/cost children instead). A caller that ALSO
+        /// parents its own child named "Text" onto this same button (the spell rail's name/cost
+        /// column does exactly that) ends up with TWO "Text" children. `transform.Find("Text")`
+        /// returns the FIRST match, silently resolving to this internal label instead of the
+        /// caller's own child - cost a real hour chasing a phantom layout bug before the actual
+        /// cause (a test's own `Find("Text")`, not production code) was found. If you need a
+        /// specific caller-added child by name, either give it a name this overload cannot also
+        /// produce, or search past index 0 explicitly.
         /// </summary>
         private static Button CreateButton(Transform parent, string label, Font font, UnityEngine.Events.UnityAction onClick)
         {

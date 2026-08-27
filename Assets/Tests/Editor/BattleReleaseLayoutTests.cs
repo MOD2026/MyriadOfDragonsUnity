@@ -356,6 +356,70 @@ namespace MyriadOfDragons.Tests
                 "The action well's own region bounds must stay fixed regardless of board/formation state.");
         }
 
+        /// <summary>Regression for the SpellList row-overflow fix (CR, 2026-08-27): asserts the
+        /// RELATIONSHIP (every spell row, plus the spacing between them, fits inside SpellList's
+        /// own real height) rather than any magic number, per the project rule against hardcoding
+        /// a value that can legitimately change (a longer spell name, a font-size tuning pass, a
+        /// fifth spell) and start failing for a reason unrelated to the real regression this
+        /// guards - rows spilling outside their own container, which in this exact region means
+        /// the player's only combat-time input becoming unreadable or untappable.
+        ///
+        /// Checked at the worst real device profile GameBootstrap's own match=0.5 canvas produces
+        /// (a 2400x1080 phone, which the reworded CanvasOverflowAuditTests reports compresses this
+        /// canvas's design-space height to ~966 of its authored 1080 - an 11% loss, the case that
+        /// first exposed this bug), not just at authored 1920x1080 - a fix that only holds at
+        /// authored size is not a fix, since compression is exactly where this class of bug hides.</summary>
+        [Test]
+        public void SpellList_EveryRowPlusSpacing_FitsItsOwnRealHeight_UnderPhoneCompression()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_SpellListFitBootstrap");
+
+            GameObject canvasGo = GameObject.Find("Canvas");
+            Assert.IsNotNull(canvasGo, "Setup: expected the Battle canvas to exist after Initialize.");
+            RectTransform canvasRect = canvasGo.GetComponent<RectTransform>();
+
+            // Effective design-space size a 2400x1080 phone produces on this canvas's match=0.5
+            // scaler: scaleFactor = 2^lerp(log2(2400/1920), log2(1080/1080), 0.5) ≈ 1.118,
+            // (2400/1.118, 1080/1.118) ≈ (2147, 966). Injected directly (no ForceUpdateCanvases,
+            // which would let the live scaler silently recompute from EditMode's own screen size
+            // and discard this) - same technique proven on the Shop/Battle compression passes.
+            canvasRect.sizeDelta = new Vector2(2147f, 966f);
+            foreach (RectTransform rt in canvasGo.GetComponentsInChildren<RectTransform>(true)
+                         .OrderByDescending(r => r.GetComponentsInParent<Transform>(true).Length))
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            }
+            LayoutRebuilder.ForceRebuildLayoutImmediate(canvasRect);
+
+            RectTransform root = bootstrap.BattlePresentationRootForTests;
+            Transform spellRail = root.Find("SpellRail");
+            Assert.IsNotNull(spellRail, "Setup: expected SpellRail to exist.");
+            Transform spellList = spellRail.Find("SpellList");
+            Assert.IsNotNull(spellList, "Setup: expected SpellRail/SpellList to exist.");
+
+            var spellLayout = spellList.GetComponent<VerticalLayoutGroup>();
+            Assert.IsNotNull(spellLayout, "Setup: expected SpellList to own the spell rows' VerticalLayoutGroup.");
+
+            var rowHeights = new List<float>();
+            foreach (Transform row in spellList)
+            {
+                rowHeights.Add(((RectTransform)row).rect.height);
+            }
+            Assert.Greater(rowHeights.Count, 1, "Setup: expected more than one spell row to make the spacing math meaningful.");
+
+            float totalRowHeight = rowHeights.Sum();
+            float totalSpacing = spellLayout.spacing * (rowHeights.Count - 1);
+            float required = totalRowHeight + totalSpacing;
+            float available = ((RectTransform)spellList).rect.height;
+
+            Assert.LessOrEqual(required, available + 0.5f,
+                $"SpellList's {rowHeights.Count} rows ({totalRowHeight:F1} units) plus spacing " +
+                $"({totalSpacing:F1} units) = {required:F1} units, but SpellList only has " +
+                $"{available:F1} units at phone compression - rows will spill past their own " +
+                "container, which for the SPELLS panel means the player's combat-time input " +
+                "becoming unreadable or untappable under time pressure.");
+        }
+
         private CardDatabase SpawnDatabase()
         {
             var go = new GameObject("Layout_CardDatabase");
