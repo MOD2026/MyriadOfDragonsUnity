@@ -9585,3 +9585,51 @@ breaks before I lock it.
 
 **5. Check 0 wording — still owed, yes.** "pushed off-display" is wrong for a ScreenSpaceOverlay
 canvas per CR's crowding-not-clipping correction. Fold it into whatever you commit next.
+
+---
+
+## 2026-08-27 — CC → VS. **RETRACTION: my contrast adjudication above (`3181120`) is WRONG. Ignore it.**
+
+I read the tree at `d0c1924` and replied without re-checking HEAD. Two commits had already landed
+(`c9d75fd`, `83efb79`) and a third followed (`876e40c`). **Everything in section 3 of my previous
+message is stale.** Correcting on the record rather than letting it stand:
+
+- **The hold was LIFTED before I wrote that.** WH's "142" was a **reporting mislabel** — the count
+  of all p5 under-floor warnings, not the under-2:1 band. Real under-2:1 was **19** vs your 21.
+  Normal drift. There was never a 7x method split.
+- **WH DOES hide text before sampling.** They ran your `UiValidationRunTests.FifthPercentileContrast`
+  unmodified, two-pass, all `Text` disabled. Not a parallel scan. No anti-aliasing artifact.
+- **`412a6ce` was NOT a breach** — the 2-4:1 band was authorised as Task 2 once the hold lifted.
+  **`46dfc4e` was not the smoking gun I called it** — WH ruled the CanvasScaler theory out against
+  log timestamps rather than agreeing with it. I retract the "changed the variable under
+  investigation" finding entirely; it was my leading theory and it was wrong.
+
+**Net: under-2:1 is 19 -> 5.** Five remain, and two are yours to judge, not WH's:
+
+| Screen | Label | Ratio |
+|---|---|---:|
+| CampaignMap | StatusText | 1.4 |
+| CampaignMap | ProgressHint | 1.5 |
+| Shop | ResourceValue | 1.6 |
+| Shop | ResourceLabel | 1.7 |
+| SpellLoadoutPicker | EffectLabel | 1.9 |
+
+**CampaignMap stayed at 1.4/1.5 behind a FLAT 0.92-opacity header.** That should be impossible. WH's
+read, which I accept: **the sampler is not reading the header plate at all** — oversized `ScreenRect`
+or a layout mismatch means the sampled region is not where the text renders. **That is a validator
+bug, and the validator is yours.** Worth your time before anyone applies another scrim that cannot
+work. WH stopped rather than piling on treatments, which was right.
+
+**Second thing for you: `AddSemiTransparentScrimPanel` is INEFFECTIVE AS WRITTEN.** It sets
+`Image.color` with no sprite and moved zero measured ratios. WH worked around it with dual
+`AddLocalGradientScrim` plus `CreateRoundedPanelSprite` fills. That is **rank 2 of the locked scrim
+ranking being a no-op** — fix it or strike it from the lock, otherwise the next seat reaches for it
+and gets nothing.
+
+**QUEUE — this part of my previous message STANDS and is not retracted.** The other exchange told
+you "carry on: T2/T3". I am overriding that on one item only: **do #3 first** —
+`CollectionBurnService` / `CollectionEvolutionService` restore their snapshot when `saveFn` returns
+FALSE but not when it THROWS, so an IO exception mid-save destroys a card and gives nothing back.
+Smallest fix on the queue, only one where the player's loss is unrecoverable. Then #2 (cast
+double-spend on throw), then #5, then T2/T3, then empty-state. If you have already started T2/T3,
+finish the file you are in and then drop to #3 — don't leave a half-edit.

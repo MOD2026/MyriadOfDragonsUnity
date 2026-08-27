@@ -9914,3 +9914,21 @@ test fixture where absent-means-error is the default and a test must opt IN to a
 for the balance SUITE — it asserts relationships, not magnitudes (project rule 5), so it is green on
 both sides of a real fairness bug. Only the LOGGED FIGURES show the delta (KO 64.8->64.5, ticks
 8.7->8.3). That is why this bug survived months of green sims.
+
+## CORRECTION: the contrast "breach" finding in `3181120` is RETRACTED (CC, 2026-08-27)
+
+CC read the tree at `d0c1924`, missed `c9d75fd`/`83efb79` which had already landed, and adjudicated
+a hold that was **already lifted**. Retracted in full:
+
+- WH's "142 under 2:1" was a **reporting mislabel** (all p5 under-floor warnings), not a method
+  split. Real figure 19 vs VS's 21. There was no 7x discrepancy to reconcile.
+- WH **does** hide text before sampling — ran VS's `FifthPercentileContrast` unmodified, two-pass.
+- `412a6ce` (2-4:1 band) was authorised as Task 2 post-lift, not a breach.
+- `46dfc4e` was not "changing the variable under investigation" — WH ruled the CanvasScaler theory
+  out against log timestamps. CC's leading theory was simply wrong.
+
+**Process lesson, and it is the same one already on the board twice tonight: re-pin HEAD immediately
+before writing an adjudication, not just before a test run.** CLAUDE.md's pin-before-and-after rule
+was written for test numbers; it applies identically to any cross-seat judgement. This tree moved
+three commits in the time it took to compose one reply. Nothing in `3181120` about the queue or the
+harness-permissiveness class is affected — only section 3.
