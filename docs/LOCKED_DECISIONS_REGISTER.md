@@ -2148,6 +2148,41 @@ commit early as visibly RED work-in-progress rather than leaving a non-compiling
 shared, actively-compiled tree - **is not surviving contact.** A failing TEST still lets everyone
 compile and work around it; an uncompilable FILE stops all four seats at once.
 
+## SPELLS panel: real cause was a SILENT NO-OP, not compression (2026-08-27, `1439402`)
+
+**CC guessed "proportional sizing" from a screenshot. CR measured and found something different and
+simpler.** `SpellRail`'s `VerticalLayoutGroup` had `childControlHeight = false`, which means a child's
+`LayoutElement.preferredHeight` is **never applied at all** - so `SetPreferredHeight(spell, 62f)` had
+been a **dead line the entire time**, compression or not. Rows rendered at Unity's default 100px. Four
+100px rows need 418 units against ~255 available. **The observed "Mend over its own cost" was ROW-vs-ROW
+collision, not name-vs-cost within a row.**
+
+Fixed by flipping `childControlHeight = true`. Re-measured: rows render at exactly 62 with clean
+6-unit gaps, zero row-vs-row overlap at BOTH authored and phone-compressed (2147x966). 100/100 tests.
+
+**THIRD INSTANCE TODAY of a layout call that looked applied and did nothing:** `ApplyFramedPanel`
+against a stale 100x100 rect, `AddSemiTransparentScrimPanel` moving zero measured ratios, and now
+`SetPreferredHeight` against a layout group that ignores it. **Worth a project-wide sweep for other
+`childControlHeight = false` / `childControlWidth = false` groups** - if `SetPreferredHeight` is a
+no-op there, it is silently a no-op wherever else that combination exists.
+
+**RESIDUAL, and CC rejected both proposed fixes.** Even at the correct 62px, four rows need 266 units
+against 255 authored / **114 phone-compressed** - so rows still spill past SpellList's bottom edge.
+
+- **ScrollRect: REJECTED.** This is the combat screen. Matches cap at 12 ticks, combat auto-advances
+  on a timer, and casting is the player's ONLY input during it. **A spell behind a scroll is a spell
+  the player cannot reach under time pressure.** Home's feed scrolls fine because nothing there is
+  time-critical; this is the opposite case.
+- **Cap with a "more" affordance: REJECTED**, strictly worse - it costs a tap during a timed fight.
+
+**CC's read: the bug is the SPACE ALLOCATION.** A band carrying the player's only combat input holds
+~12% of a 966-unit-tall screen and loses more than half of that under compression. Asked CR what
+SpellList is competing with vertically and whether the band can simply grow.
+
+**Alternative under consideration: a HORIZONTAL row of four spells** rather than a vertical list -
+genre-standard for a small fixed ability set, uses the axis we have surplus of at 1920+ wide, and
+removes the vertical pressure entirely.
+
 ## Trusted-server dependency — blocks 4 systems, still unresolved
 
 Bazaar, Guild Expedition, Raid Troops, and SocialSafety's live client-test all need real server
