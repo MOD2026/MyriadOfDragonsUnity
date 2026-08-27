@@ -3036,7 +3036,35 @@ authored content and a presenter. Chest has a locked design and no code. **That 
 sequence: Puzzle first, Chest second.** Its two known defects (text overlap, zero chrome) are UI work
 on an existing screen rather than a new system.
 
-## BREAKTHROUGH 2026-08-27: the contrast plates are NOT RENDERING AT ALL
+## RETRACTED 2026-08-27: the plates DO render. materialCount=0 was a harness artifact.
+
+**`Canvas.ForceUpdateCanvases()` flips Shop's materialCount from 0 to 1 immediately.** The scratch
+harness read `CanvasRenderer` state before Unity had rebuilt anything. **Confirmed inside the REAL
+pipeline too** (`f8dceca` adds materialCount to the committed DIAG-PLATE line, which runs AFTER
+`PrepareForMeasurement`'s own force-update): **`materialCount=1` on all three Shop plates, same as
+CampaignMap.**
+
+**So the real validator was never affected. Every contrast number reported all night stands.**
+
+**The DailyLoginQuests alarm is retracted too** - same flawed harness. Not "fine", just **unknown**
+again; it needs the same through-the-real-pipeline check Shop just got. **CC had already relayed
+"your scrims never drew" to that room and has walked it back.**
+
+**BUT THE ORIGINAL ANOMALY SURVIVES, and is now sharper.** The enabled-versus-disabled toggle was
+re-run inside the real pipeline with `materialCount=1` confirmed present: **still byte-identical,
+y417-459.** So the plate genuinely has a material and a submitted mesh, and disabling it still changes
+nothing at x=407.
+
+**That eliminates "never rendered" and leaves exactly one untested explanation: the plate's real
+rendered footprint does not include the column being sampled.** Which returns the investigation to
+`ScreenRect`-versus-actual-render-extent - the one thing never directly measured - now with
+materialCount removed as a confound.
+
+**Process note worth keeping: the toggle DATA was always sound** (same real camera both times). **The
+interpretation hung on it was wrong twice.** Distinguishing "my measurement is bad" from "my reading
+of a good measurement is bad" is the discipline that kept this from becoming wreckage.
+
+## SUPERSEDED - previous entry claiming plates never render (kept for history)
 
 **Decisive test:** CR toggled `plateImg.enabled = false` and re-rendered through the REAL camera that
 `PrepareForMeasurement` configures (not a rebuilt one - the previous hand-built harness diverged
