@@ -8,11 +8,19 @@ using UnityEngine.UI;
 
 namespace MyriadOfDragons.UI
 {
-    /// <summary>Utility Settings/Options screen — audio, notifications, language, logout.</summary>
+    /// <summary>Utility Settings/Options screen — audio, notifications, reduced motion, language, logout.</summary>
     public class SettingsPresenter : MonoBehaviour
     {
         /// <summary>Open/close canvas fade duration (seconds). Reduced motion / EditMode snap to zero.</summary>
         public const float TransitionDurationSeconds = 0.18f;
+
+        /// <summary>
+        /// Main-row actionable controls on Settings (Back + Audio + Notifications + Reduced Motion +
+        /// Logout). Language chips are a single preference surface, not extra main rows. Secondary
+        /// IA ceiling is 10; this stays under it.
+        /// </summary>
+        public const int MainActionableControlCeiling = 10;
+        public const int MainActionableControlCount = 5;
 
         private GameObject _canvasObj;
         private CanvasGroup _canvasGroup;
@@ -25,6 +33,7 @@ namespace MyriadOfDragons.UI
 
         private Text _audioValueText;
         private Text _notificationsValueText;
+        private Text _reduceMotionValueText;
         private Text _languageValueText;
         private Text _statusText;
         private readonly System.Collections.Generic.List<Button> _languageOptionButtons =
@@ -207,12 +216,16 @@ namespace MyriadOfDragons.UI
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
 
             float y = 0.96f;
-            const float toggleRowHeight = 0.12f;
-            const float gap = 0.018f;
+            // Slightly tighter than the prior two-toggle layout so Audio + Notifications +
+            // Reduced Motion + Language + Logout + status still fit 1920x1080 without overflow.
+            const float toggleRowHeight = 0.105f;
+            const float gap = 0.014f;
 
             CreateToggleRow(panel.transform, "AudioRow", "AUDIO", ref y, toggleRowHeight, gap, ToggleAudio, out _audioValueText);
             CreateToggleRow(panel.transform, "NotificationsRow", "NOTIFICATIONS", ref y, toggleRowHeight, gap,
                 ToggleNotifications, out _notificationsValueText);
+            CreateToggleRow(panel.transform, "ReducedMotionRow", "REDUCED MOTION", ref y, toggleRowHeight, gap,
+                ToggleReduceMotion, out _reduceMotionValueText);
             CreateLanguageRow(panel.transform, ref y, gap);
             CreateLogoutRow(panel.transform, ref y, toggleRowHeight, gap);
 
@@ -260,7 +273,7 @@ namespace MyriadOfDragons.UI
 
         private void CreateLanguageRow(Transform parent, ref float yTop, float gap)
         {
-            const float sectionHeight = 0.36f;
+            const float sectionHeight = 0.30f;
             GameObject row = new GameObject("LanguageRow", typeof(RectTransform), typeof(Image));
             row.transform.SetParent(parent, false);
             Image rowBg = row.GetComponent<Image>();
@@ -461,6 +474,16 @@ namespace MyriadOfDragons.UI
             RefreshAllRows();
         }
 
+        private void ToggleReduceMotion()
+        {
+            PlayerProfile profile = SaveManager.SaveData;
+            if (profile == null) return;
+            PlayerSettingsService.SetReduceMotionEnabled(profile,
+                !PlayerSettingsService.GetReduceMotionEnabled(profile));
+            PlayerSettingsService.Persist(profile);
+            RefreshAllRows();
+        }
+
         private void OnLogout()
         {
             PlayerProfile profile = SaveManager.SaveData;
@@ -476,6 +499,8 @@ namespace MyriadOfDragons.UI
                 _audioValueText.text = PlayerSettingsService.GetAudioEnabled(profile) ? "ON" : "OFF";
             if (_notificationsValueText != null)
                 _notificationsValueText.text = PlayerSettingsService.GetNotificationsEnabled(profile) ? "ON" : "OFF";
+            if (_reduceMotionValueText != null)
+                _reduceMotionValueText.text = PlayerSettingsService.GetReduceMotionEnabled(profile) ? "ON" : "OFF";
 
             string code = PlayerSettingsService.GetPreferredLanguageCode(profile);
             string display = PlayerSettingsService.GetPreferredLanguageDisplayName(profile);

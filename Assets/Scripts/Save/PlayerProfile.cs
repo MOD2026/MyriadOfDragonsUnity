@@ -216,6 +216,13 @@ namespace MyriadOfDragons.Save
         /// <summary>Push/notification opt-in stored on profile for cross-device sync.</summary>
         public bool settingsNotificationsEnabled = true;
 
+        /// <summary>
+        /// Reduced-motion preference (WH-REDUCED-MOTION-CLUSTER-IMPLEMENT-003, additive, owner-
+        /// authorized). When true, MotionPolicy.ReduceMotion suppresses decorative motion and
+        /// snaps non-essential transitions. Default false preserves existing behaviour for old saves.
+        /// </summary>
+        public bool settingsReduceMotionEnabled = false;
+
         /// <summary>BCP-47 language code consumed by realtime translation (Settings screen).</summary>
         public string preferredLanguageCode = "en";
 

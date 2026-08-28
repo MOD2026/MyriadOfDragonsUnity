@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using MyriadOfDragons.Data;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Metagame;
 using UnityEngine;
@@ -132,6 +133,8 @@ namespace MyriadOfDragons.UI
             TeardownUI();
             _cts = new CancellationTokenSource();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
+            // Honor Settings Reduced Motion before open fade / interaction polish.
+            PlayerSettingsService.ApplyFromProfile(SaveManager.SaveData);
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;

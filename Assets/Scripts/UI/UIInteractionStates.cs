@@ -111,8 +111,10 @@ namespace MyriadOfDragons.UI
         /// <summary>Pure resolution: given the current composed state and how long it has held
         /// that state, returns the visual to apply. No randomness, no hidden state - the same
         /// inputs always produce the same output, which is what makes this testable without
-        /// Update().</summary>
-        public static InteractionVisual Resolve(InteractionStateFlags flags, UIDesignTokens.FrameTier tier, float msSinceChange)
+        /// Update(). When <paramref name="reduceMotion"/> is true, decorative loops/reveals
+        /// resolve immediately to a static look; press/disabled/selected/error feedback stay.</summary>
+        public static InteractionVisual Resolve(InteractionStateFlags flags, UIDesignTokens.FrameTier tier, float msSinceChange,
+            bool reduceMotion = false)
         {
             InteractionVisual v = InteractionVisual.Base;
             bool disabled = (flags & InteractionStateFlags.Disabled) != 0;
@@ -139,8 +141,11 @@ namespace MyriadOfDragons.UI
 
             if (!inert && (flags & InteractionStateFlags.Pressed) != 0)
             {
+                // Press acknowledgement is essential state feedback — keep under reduced motion.
                 PressSpec spec = PressSpecFor(tier);
-                float t = Mathf.Clamp01(msSinceChange / Mathf.Max(1f, spec.DurationMs));
+                float t = reduceMotion
+                    ? 1f
+                    : Mathf.Clamp01(msSinceChange / Mathf.Max(1f, spec.DurationMs));
                 v.Scale = Mathf.Lerp(1f, spec.Scale, t);
                 v.Brightness *= Mathf.Lerp(1f, 1f - spec.Darken, t);
                 v.ShadowStrength *= Mathf.Lerp(1f, 0.8f, t); // "-20%" shadow token
@@ -162,15 +167,24 @@ namespace MyriadOfDragons.UI
 
             if (!inert && (flags & InteractionStateFlags.Pending) != 0)
             {
-                float phase = Mathf.Repeat(msSinceChange, PendingPulsePeriodMs) / PendingPulsePeriodMs;
-                float pulse = 0.5f - 0.5f * Mathf.Cos(phase * Mathf.PI * 2f); // 0..1..0, smooth
-                v.Opacity = Mathf.Min(v.Opacity, Mathf.Lerp(PendingOpacityMin, PendingOpacityMax, pulse));
+                if (reduceMotion)
+                {
+                    // Static pending look — no decorative opacity pulse.
+                    float mid = (PendingOpacityMin + PendingOpacityMax) * 0.5f;
+                    v.Opacity = Mathf.Min(v.Opacity, mid);
+                }
+                else
+                {
+                    float phase = Mathf.Repeat(msSinceChange, PendingPulsePeriodMs) / PendingPulsePeriodMs;
+                    float pulse = 0.5f - 0.5f * Mathf.Cos(phase * Mathf.PI * 2f); // 0..1..0, smooth
+                    v.Opacity = Mathf.Min(v.Opacity, Mathf.Lerp(PendingOpacityMin, PendingOpacityMax, pulse));
+                }
             }
 
             if ((flags & InteractionStateFlags.New) != 0)
             {
                 v.ShowNewBadge = true;
-                if (msSinceChange < NewRevealDurationMs)
+                if (!reduceMotion && msSinceChange < NewRevealDurationMs)
                 {
                     float t = Mathf.Clamp01(msSinceChange / NewRevealDurationMs);
                     v.Brightness = Mathf.Max(v.Brightness, Mathf.Lerp(NewBrightness, 1f, t));
@@ -182,7 +196,12 @@ namespace MyriadOfDragons.UI
             {
                 float cycleMs = ErrorFlashDurationMs;
                 float totalMs = cycleMs * ErrorFlashCount * 2f; // on/off per flash
-                if (msSinceChange < totalMs)
+                if (reduceMotion)
+                {
+                    // One solid error tint — essential feedback without a decorative flash loop.
+                    v.ErrorFlashTint = ErrorRedShift;
+                }
+                else if (msSinceChange < totalMs)
                 {
                     int cycleIndex = (int)(msSinceChange / cycleMs);
                     bool flashOn = cycleIndex % 2 == 0;
@@ -397,7 +416,8 @@ namespace MyriadOfDragons.UI
             }
 
             float msSinceChange = (nowSec - _lastChangeTimeSec) * 1000f;
-            InteractionVisual v = UIInteractionStateTokens.Resolve(_flags, tier, msSinceChange);
+            InteractionVisual v = UIInteractionStateTokens.Resolve(
+                _flags, tier, msSinceChange, MotionPolicy.ReduceMotion);
 
             if (_rect != null) _rect.localScale = new Vector3(v.Scale, v.Scale, 1f);
 

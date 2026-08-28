@@ -31,6 +31,8 @@ namespace MyriadOfDragons.UI
         {
             TeardownUI();
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
+            // Apply Reduced Motion (and audio) so InteractionStateController decorative loops honor Settings.
+            PlayerSettingsService.ApplyFromProfile(SaveManager.SaveData);
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas("AvatarCanvas", new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;

@@ -5,14 +5,15 @@ namespace MyriadOfDragons.UI
     ///
     /// It is a plain static class - no MonoBehaviour, no UnityEngine dependency - for two reasons:
     /// 1. Accessibility. A single <see cref="ReduceMotion"/> switch lets a reduced-motion
-    ///    preference suppress cosmetic animation without editing every animation hook. (There is
-    ///    no settings screen yet, and that screen is Metagame-owned, so nothing sets this from a
-    ///    UI today; it defaults to off so behaviour is unchanged until something opts in.)
+    ///    preference suppress cosmetic animation without editing every animation hook. Settings
+    ///    persists the preference on the profile and applies it via
+    ///    <see cref="PlayerSettingsService.ApplyFromProfile"/> / SetReduceMotionEnabled.
     /// 2. Testability. The decision is a pure method, so the EditMode suite can assert it even
     ///    though it cannot run the coroutines the animations themselves live in.
     ///
-    /// This governs only decorative polish (e.g. the idle hand shimmer). It is deliberately NOT a
-    /// switch for gameplay-critical feedback such as damage numbers.
+    /// This governs only decorative polish (e.g. the idle hand shimmer, pending opacity pulse,
+    /// non-essential screen fades). It is deliberately NOT a switch for essential state feedback
+    /// such as press acknowledgement, disabled/locked look, or gameplay-critical damage numbers.
     /// </summary>
     public static class MotionPolicy
     {

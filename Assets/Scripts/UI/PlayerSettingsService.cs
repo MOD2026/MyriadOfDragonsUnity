@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MyriadOfDragons.UI
 {
-    /// <summary>Reads/writes player settings on the live profile and applies global side effects (audio).</summary>
+    /// <summary>Reads/writes player settings on the live profile and applies global side effects (audio, motion).</summary>
     public static class PlayerSettingsService
     {
         public static bool GetAudioEnabled(PlayerProfile profile) =>
@@ -11,6 +11,9 @@ namespace MyriadOfDragons.UI
 
         public static bool GetNotificationsEnabled(PlayerProfile profile) =>
             profile == null || profile.settingsNotificationsEnabled;
+
+        public static bool GetReduceMotionEnabled(PlayerProfile profile) =>
+            profile != null && profile.settingsReduceMotionEnabled;
 
         public static string GetPreferredLanguageCode(PlayerProfile profile) =>
             PlayerSettingsCatalog.NormalizeLanguageCode(
@@ -37,6 +40,13 @@ namespace MyriadOfDragons.UI
             profile.settingsNotificationsEnabled = enabled;
         }
 
+        public static void SetReduceMotionEnabled(PlayerProfile profile, bool enabled)
+        {
+            if (profile == null) return;
+            profile.settingsReduceMotionEnabled = enabled;
+            ApplyReduceMotionGlobally(enabled);
+        }
+
         public static void SetPreferredLanguageCode(PlayerProfile profile, string languageCode)
         {
             if (profile == null) return;
@@ -56,11 +66,17 @@ namespace MyriadOfDragons.UI
         public static void ApplyFromProfile(PlayerProfile profile)
         {
             ApplyAudioGlobally(GetAudioEnabled(profile));
+            ApplyReduceMotionGlobally(GetReduceMotionEnabled(profile));
         }
 
         public static void ApplyAudioGlobally(bool enabled)
         {
             AudioListener.volume = enabled ? 1f : 0f;
+        }
+
+        public static void ApplyReduceMotionGlobally(bool enabled)
+        {
+            MotionPolicy.ReduceMotion = enabled;
         }
 
         public static void Persist(PlayerProfile profile)
