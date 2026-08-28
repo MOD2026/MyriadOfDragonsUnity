@@ -509,7 +509,13 @@ public class HomePagePresenter : MonoBehaviour
 
         GameObject resourceRow = new GameObject("ResourceRow", typeof(RectTransform));
         resourceRow.transform.SetParent(topHud, false);
-        SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 900, 18, 1328, 90);
+        // Widened 900..1328 -> 728..1560 (VS-UI-HOME-RESOURCEROW-FIT-001). The old 428px row gave
+        // each pill ~141px, whose text plate is 127px, whose label box was 47px and value box
+        // 63px - too narrow for "Stamina" (22px bold) or "100/100" (24px bold), so both wrapped
+        // mid-word at 1920x1080 ("Sta/min/a", "100/1/00"). This is empty TopHud space: IdentityRoot
+        // ends at 704 and Btn_SocialDrawer starts at 1580, so the row keeps 24px and 20px of
+        // clearance from its only two neighbours. No font sizes changed - the 22/24px floor holds.
+        SetScreenRectFromTopLeftPixels(resourceRow.GetComponent<RectTransform>(), 728, 18, 1560, 90);
 
         int goldVal = SaveManager.SaveData != null ? SaveManager.SaveData.gold : hudDefaults.gold;
         int gemsVal = SaveManager.SaveData != null ? SaveManager.SaveData.gems : hudDefaults.gems;
@@ -517,9 +523,9 @@ public class HomePagePresenter : MonoBehaviour
         int maxStamVal = SaveManager.SaveData != null ? SaveManager.SaveData.maxStamina : hudDefaults.maxStamina;
 
         goldHudText = CreateResourcePill(resourceRow.transform, "home_resource_gold_pill_v3",
-            "Gold", $"{goldVal}", 0.0f, 0.33f);
+            "Gold", $"{goldVal}", 0.0f, 0.32f);
         gemsHudText = CreateResourcePill(resourceRow.transform, "home_resource_gems_pill_v3",
-            "Gems", $"{gemsVal}", 0.34f, 0.67f);
+            "Gems", $"{gemsVal}", 0.34f, 0.66f);
         energyHudText = CreateResourcePill(resourceRow.transform, "home_resource_energy_pill_v3",
             "Stamina", $"{stamVal}/{maxStamVal}", 0.68f, 1.0f);
 
@@ -1967,7 +1973,10 @@ public class HomePagePresenter : MonoBehaviour
         pillLabel.fontSize = 22;
         pillLabel.fontStyle = FontStyle.Bold;
         pillLabel.raycastTarget = false;
-        SetLocalNormalisedRect(pillLabel.rectTransform, 0.08f, 0.1f, 0.45f, 0.9f);
+        // Label/value split rebalanced with the widened row: the label needs the larger share
+        // ("Stamina" is the longest string here and sets the floor), and both boxes start/end
+        // closer to the plate edge so neither has to wrap.
+        SetLocalNormalisedRect(pillLabel.rectTransform, 0.05f, 0.1f, 0.52f, 0.9f);
 
         // Value (right side, larger, never truncate)
         Text pillValue = UISharedFoundation.CreateText(
@@ -1976,7 +1985,7 @@ public class HomePagePresenter : MonoBehaviour
         pillValue.fontSize = 24;
         pillValue.fontStyle = FontStyle.Bold;
         pillValue.raycastTarget = false;
-        SetLocalNormalisedRect(pillValue.rectTransform, 0.45f, 0.1f, 0.95f, 0.9f);
+        SetLocalNormalisedRect(pillValue.rectTransform, 0.52f, 0.1f, 0.96f, 0.9f);
 
         return pillValue; // Return the value text for runtime updates
     }
