@@ -1436,6 +1436,26 @@ them; this entry rides along or gets committed separately after.
 
 | 2026-08-28 | CR-ANIMATION-DAMAGE-TEST-SEAM-001 | CC | DISPATCHED | New bounded CR task to advance animation testability without overlapping BS visual work. |
 
+**Evidence (CR, read-only, HEAD `146df973`):** `ShowTurnDamage` (`GameBootstrap.cs:5670`) is already
+trivial (`if (result.DamageDealtToSideA/B > 0)` gates `PlayFloatingText`, no hidden state) - not a
+seam candidate. The real gap is `RefreshEnemyHealthSegments`'s (`:6561`) inline
+`tookDamage = _enemyLastObservedHp >= 0 && enemy.AvatarHealth < _enemyLastObservedHp` - the method's
+own doc comment calls this the load-bearing "did a hit land" signal, but unlike its neighbors in the
+same method (`ComputeFilledHealthSegments`, `ComputeLethalMarkerFraction`, `ComputeDamageFlashAlpha`
+- all already pure/extracted/tested), this one is inline and gated behind `Application.isPlaying`, so
+no EditMode test has ever reached it. **Proposed seam:**
+`public static bool DidAvatarTakeDamage(int previousObservedHp, int currentHp) =>
+previousObservedHp >= 0 && currentHp < previousObservedHp;` - repoint the inline check, zero behavior
+change. Relationship assertions: no-prior-observation (`-1`) -> false; unchanged HP -> false; HP
+dropped -> true; HP increased (heal/regen) -> false, proving the gate is damage-specific not just
+"changed." Frozen-contract check: reads only `PlayerBattleState.AvatarHealth`/`MaxAvatarHealth`
+(public, non-frozen); no `MatchResult`/`OnMatchCompleted`/`Instance`/`SetBattleCanvasVisible` touch;
+no timing/coroutine/VFX changed, only the boolean's definition site moves. **Smallest implementation
+card:** `CR-ANIMATION-DAMAGE-FLASH-GATE-EXTRACT-001`, `GameBootstrap.cs` only, same shape as the two
+completed spell-target extractions.
+
+| 2026-08-28 | CR-ANIMATION-DAMAGE-TEST-SEAM-001 | CR | EVIDENCE COMPLETE | Seam identified and returned above; no edits made (read-only per card). |
+
 ### BS-ANIMATION-DAMAGE-FEEDBACK-PLAN-001 — bounded animation task
 
 - **Owner:** BS, direct owner relay.
@@ -1450,3 +1470,7 @@ them; this entry rides along or gets committed separately after.
 | 2026-08-28 | VS-UI-CAMPAIGN-BACKBTN-SCRIM-001 | CC | QUEUED NEXT | Execute after Home card; independent two-scrim measurement only. |
 
 | 2026-08-28 | WH-UI-SHOP-PACK4-ALIGN-001 | CC | ACTIVE NOW | WH is idle; re-queued the existing authorized Shop row-4 alignment card as the next coding task. No scope expansion. |
+
+| 2026-08-28 | WH-UI-SHOP-PACK4-ALIGN-001 | WH | COMPLETE | Already landed at `a395d29` before this chain turn; 13/13 tests, 0 CS, captures evidenced. |
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | WH | SKIP — ALREADY LANDED | Tree check: `509cf0a` present; no re-edit. |
+| 2026-08-28 | WH CHAIN QUEUE | WH | STOPPED — NO NEXT NAMED CARD | Sequence exhausted: Shop pack-4 done, Empire name-level already landed. Board has no further explicitly named WH clean-file baseline card. `WH-UI-HOME-RESOURCEROW-001` remains BLOCKED on Home WIP. **Next required decision (CC):** name the next WH card (file + scope). WH will not invent a baseline target. |
