@@ -3345,6 +3345,18 @@ namespace MyriadOfDragons.UI
         public static bool DidAvatarTakeDamage(int previousObservedHp, int currentHp) =>
             previousObservedHp >= 0 && currentHp < previousObservedHp;
 
+        /// <summary>Exposed for tests: the real "which slot is the just-played card" decision
+        /// SlideNewestCardIntoLane uses, extracted so it has one definition instead of living
+        /// inline inside a method gated behind Application.isPlaying (unreachable from EditMode).
+        /// Pure and static - two ints in, one int out, no Transform/MonoBehaviour dependency.
+        /// Occupied slots render before the empty-slot filler (see RefreshLaneSlots), so the
+        /// newest real card is always at index <paramref name="cardCount"/> - 1. Returns -1 (no
+        /// valid slide target) when there is no card yet (<paramref name="cardCount"/> &lt;= 0) or
+        /// when <paramref name="cardCount"/> exceeds the container's real child count - a stale/
+        /// mismatched state the original inline guard existed to catch defensively.</summary>
+        public static int ComputeNewestCardSlideIndex(int cardCount, int containerChildCount) =>
+            cardCount <= 0 || cardCount > containerChildCount ? -1 : cardCount - 1;
+
         /// <summary>Sum of a side's own currently-living Attack across every lane - the exact
         /// same figure RefreshLaneSlots already computes per lane for the lane-total column
         /// (totalAttack there), just summed across all three instead of kept separate. Reused
@@ -3605,21 +3617,22 @@ namespace MyriadOfDragons.UI
         /// <summary>
         /// Slides the just-played card from the hand up into its lane slot, instead of it simply
         /// vanishing from the hand and appearing on the board. RefreshAll() has already rebuilt
-        /// the lane by the time this runs, so this animates the *newly created* slot display
-        /// (the last real card in that lane) from an offset start position back to its resting
-        /// place - which is why it's called after RefreshAll(), not before.
+        /// the lane by the time this runs, so this animates the *newly created* slot display -
+        /// ComputeNewestCardSlideIndex picks out which child that is - from an offset start
+        /// position back to its resting place, which is why it's called after RefreshAll(), not
+        /// before.
         /// </summary>
         private void SlideNewestCardIntoLane(Lane lane)
         {
             if (!Application.isPlaying) return;
 
             Transform container = _playerLaneSlots[lane];
+            if (container == null) return;
             int cardCount = _battleController.PlayerState.Lanes[lane].Cards.Count;
-            if (container == null || cardCount <= 0 || cardCount > container.childCount) return;
+            int index = ComputeNewestCardSlideIndex(cardCount, container.childCount);
+            if (index < 0) return;
 
-            // Occupied slots are rendered before the empty-slot filler (see RefreshLaneSlots),
-            // so the newest real card is at index cardCount - 1.
-            Transform newest = container.GetChild(cardCount - 1);
+            Transform newest = container.GetChild(index);
             StartCoroutine(SlideIn((RectTransform)newest, from: new Vector2(0f, -140f), duration: 0.28f));
         }
 
