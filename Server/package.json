@@ -1,0 +1,14 @@
+{
+  "name": "mod-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Authoritative server-side rule checks for Myriad of Dragons (PvP matchmaking / Loot Lock protection).",
+  "type": "commonjs",
+  "main": "matchmakingValidator.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
