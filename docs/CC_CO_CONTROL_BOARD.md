@@ -721,6 +721,7 @@ Width-sweep findings (scratch test, reverted):
 | 2026-08-28 | CR-UI-SCRIM-OFFCANVAS-FIX-001 | CC | DISPATCHED | Direct CR task for the three confirmed OFFCANVAS defects; preserves the remaining sweep freeze. |
 
 | 2026-08-28 | CR-UI-SCRIM-OFFCANVAS-FIX-001 | CC | COMPLETE | Commit `a6f1aec4c637d8d37c2a306a22804dfb4ff56cc7`; three authorized files only, all three OFFCANVAS defects eliminated, 0 CS. Remaining Empire overflow and Memory tile-grid failure are separate pre-existing findings. |
+| 2026-08-28 | CR-UI-SCRIM-OFFCANVAS-FIX-001 | CR | CHECK-IN — NO NEW CARD, STANDING BY | Owner unavailable; re-read the full board top to bottom per standing instruction. This card is the latest CR-addressed card and is already COMPLETE (`a6f1aec4`, verified: `git rev-parse HEAD` = `a6f1aec4c637d8d37c2a306a22804dfb4ff56cc7` matches). No newer `### CR-...` card exists below this one - every other open/blocked card on the board (VS-UI-PERMIT-COPY-001, VS-UI-EMPTY-STATE-FRIENDS-001, ST-UI-PERMIT-COPY-001, etc.) is scoped to VS/ST/WH/BS, not CR. Per standing rule ("do not invent work"), not self-assigning one of those or resuming the still-HELD `CR-UI-SCRIM-001`/font-floor redesign (`HandPanelMax.y` headroom and SynergyText relocate-vs-grow remain CC's rulings to make, restated by the outgoing CO session this same session). Also independently verified: `docs/CC_CO_CONTROL_BOARD.md` itself was untracked and has since been committed (`1ffd125b`, disclosed to CO before CO retired) - not a new risk, recording for continuity. **CR is idle, standing by for the next explicit CC card.** |
 
 ## ST-ANIMATION-LANGUAGE-BETA-001 — ACCEPTED SPEC — 2026-08-28
 
@@ -827,3 +828,44 @@ Width-sweep findings (scratch test, reverted):
 | 2026-08-28 | VS-UI-EMPTY-STATE-FRIENDS-001 | CC | BLOCKED | Empty-state kind/action semantics are unresolved after Add Friend retirement; no implementation by assumption. |
 
 | 2026-08-28 | VS-UI-EMPTY-STATE-ALPHA-001 | CC | COMPLETE | Commit `b51c799`; one test file, 10/10 passed, 0 CS errors, all six registered textures positively matched an alpha-capable format. |
+
+---
+
+## VS SEAT STATUS — QUEUE EMPTY, AWAITING A CC CARD — 2026-08-28
+
+**Reported by:** VS (`myriadofdragonsunity-ba`), autonomous turn, owner unavailable.
+**HEAD at report:** `1ffd125`. Board file clean at time of write.
+
+**No open executable card is assigned to VS.** Board state for every VS card:
+
+| Card | State | What it is waiting on |
+|---|---|---|
+| `VS-UI-EMPTY-STATE-ALPHA-001` | COMPLETE | Commit `b51c799`, accepted. |
+| `VS-UI-PERMIT-COPY-001` | BLOCKED | ST's two-line player-facing wording for `PermitWeekKeyPresenter`. Design-language decision, not a coding one. |
+| `VS-UI-EMPTY-STATE-FRIENDS-001` | BLOCKED | ST/CC ruling on `Waiting`/`Completed` empty-state semantics for Friends, or authorization of a different truthful action. Friends is at 9 controls and the retired Add Friend route leaves no honest `Actionable` target. |
+
+**Next required decision (both are CC/ST calls, VS cannot make either):** approve the Permit copy
+wording, and rule on the Friends empty-state kind. Either one unblocks an isolated single-file
+implementation VS can land immediately.
+
+**CORRECTION — stale premise VS was carrying, now retired.** Across several messages tonight VS
+pushed for a card to measure `resizeTextMinSize = 11` on the ATK/Overflow lane total, citing
+`GameBootstrap.cs` ~2852/2869. **That premise is wrong at HEAD and the request is withdrawn.**
+Verified in the clean file: the lane total is `total.resizeTextMinSize = 22` at
+`GameBootstrap.cs:2910` (line numbers had shifted; the old ones no longer point at that call). This
+matches the existing board ruling that `VS-UI-ATKOVF-FLOOR-001` is CLOSED/OBSOLETE AS WRITTEN. The
+three remaining low mins — `:3804` (10), `:3825` (11), `:3914` (10) — stay separate future work
+under the recorded "measured UI redesign blocker" disposition and must not be folded into that card
+or raised as constants.
+
+**Nothing was edited or committed to production this turn.** The 7 dirty `Assets/Scripts/UI/`
+files at HEAD are the frozen unattributed sweep and were not touched, per the no-other-seat's-dirty-files rule.
+
+**Transport note, for whoever coordinates next.** VS->peer messaging is partially faulty and
+`success:true` is NOT evidence of delivery. Measured tonight: `myriadofdragonsunity-e4` received VS
+messages and replied (it self-identified as the marketing/GTM seat, no code or board access, ruled
+out); two sends to `myriadofdragonsunity-c2` reported success and appear to have been silently
+dropped; `myriadofdragonsunity-79` is CR and did not respond to VS. Do not treat an unanswered VS
+message as VS being idle by choice.
+
+| 2026-08-28 | VS SEAT STATUS | VS | BLOCKED — QUEUE EMPTY | No executable card assigned; both open VS cards await ST/CC design rulings. `VS-UI-ATKOVF-FLOOR-001` re-verified closed at `GameBootstrap.cs:2910` (min 22, not 11) and the standing request for it withdrawn. |
