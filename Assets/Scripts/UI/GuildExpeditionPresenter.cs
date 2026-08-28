@@ -202,14 +202,18 @@ namespace MyriadOfDragons.UI
                     col * cw + 0.01f, 1f - (row + 1) * rh + 0.02f,
                     (col + 1) * cw - 0.01f, 1f - row * rh - 0.02f);
                 GuildExpeditionUiLibrary.ApplyStageIcon(well.transform, "StageIcon",
-                    GuildExpeditionUiLibrary.StageState.Available, 0.08f, 0.28f, 0.92f, 0.92f);
-                UISharedFoundation.AddLocalGradientScrim(well.transform, Vector2.zero, new Vector2(150f, 40f), UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+                    GuildExpeditionUiLibrary.StageState.Available, 0.08f, 0.38f, 0.92f, 0.94f);
+                // NOT restored (CR-UI-SWEEP-RECON-002): well's real size (~108x39) is smaller
+                // than this scrim's literal 150x40 - restoring it was MEASURED to overlap the
+                // Objective_N button itself (GuildExpeditionLayoutTests,
+                // NeverDrawsArtOnTopOfAnInteractiveControl), a real tap-target defect. Lane B's
+                // own escape clause applies; stays removed.
                 Text label = UISharedFoundation.CreateText(well.transform, "Label", ShortId(id),
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
                 label.fontSize = 22;
                 label.fontStyle = FontStyle.Bold;
                 label.raycastTarget = false;
-                SetNorm(label.rectTransform, 0.04f, 0.04f, 0.96f, 0.28f);
+                SetNorm(label.rectTransform, 0.02f, 0.02f, 0.98f, 0.36f);
             }
             RefreshObjectiveStageIcons();
 
@@ -237,6 +241,7 @@ namespace MyriadOfDragons.UI
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 36f));
                 chipLabel.fontSize = 22;
                 chipLabel.fontStyle = FontStyle.Bold;
+                UISharedFoundation.StretchFull(chipLabel.rectTransform);
             }
 
             CreateActionButton(panel.transform, "Btn_ConsumeAttempt", "CONSUME ATTEMPT", 0.02f, 0.04f, 0.32f, 0.22f,

@@ -133,8 +133,9 @@ namespace MyriadOfDragons.UI
                 string subject = i == 0
                     ? "Empty inbox"
                     : MetagameShellProfileBinding.EmptyBackendLabel;
-                UISharedFoundation.CreateText(well.transform, "Subject", subject,
+                Text subjectText = UISharedFoundation.CreateText(well.transform, "Subject", subject,
                     UITextRole.Caption, TextAnchor.MiddleLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(280f, 28f));
+                SetNorm(subjectText.rectTransform, 0.05f, 0.1f, 0.95f, 0.9f);
             }
         }
 
@@ -146,8 +147,14 @@ namespace MyriadOfDragons.UI
             Image detailImg = detail.GetComponent<Image>();
             UISharedFoundation.ApplyFramedPanel(detailImg, null,
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
-            UISharedFoundation.AddLocalGradientScrim(detail.transform, Vector2.zero, new Vector2(1100f, 800f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
-
+            // NOT restored (CR-UI-SWEEP-RECON-002): BuildDetail() is called unconditionally from
+            // BuildUI() with no SetActive(false) gate, so this panel (and therefore this scrim)
+            // is always visible, covering Btn_Back and every MailRow. Restoring it was MEASURED
+            // to fail MailInboxLayoutTests.NeverDrawsArtOnTopOfAnInteractiveControl against all
+            // 6 mail rows plus Btn_Back - a real tap-target defect, likely pre-existing under the
+            // panel's own always-visible structure, not something this scrim alone should paper
+            // over. Lane B's own escape clause applies; stays removed. The always-visible detail
+            // panel itself is a separate, larger finding - not in this card's scope.
             Text body = UISharedFoundation.CreateText(detail.transform, "Body",
                 "No messages.\nClaim attachment stays OPEN until a mail backend exists.\n\n" +
                 MetagameShellProfileBinding.WalletLine(),

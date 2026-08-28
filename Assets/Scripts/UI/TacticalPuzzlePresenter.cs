@@ -382,6 +382,7 @@ namespace MyriadOfDragons.UI
 
             GameObject content = new GameObject("Content", typeof(RectTransform), typeof(Image));
             content.transform.SetParent(_canvasObj.transform, false);
+            content.transform.SetSiblingIndex(1);
             Image contentBg = content.GetComponent<Image>();
             contentBg.raycastTarget = false;
             // Semi-transparent grouping (border rule): not a heavy frame, not floating content.
@@ -486,10 +487,13 @@ namespace MyriadOfDragons.UI
             float left = 0.06f + span * index;
             SetNorm(tile.GetComponent<RectTransform>(), left + 0.01f, 0.28f, left + span - 0.01f, 0.78f);
 
-            UISharedFoundation.ApplyFramedPanel(img, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground,
-                kind: UISharedFoundation.FramedPanelKind.ContentPanel);
-            UISharedFoundation.AddLocalGradientScrim(tile.transform, Vector2.zero, new Vector2(260f, 400f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            // NOT restored (CR-UI-SWEEP-RECON-002): ApplyFramedPanel(img, ...) overwrites `img`'s
+            // sprite with a generic panel sprite - MEASURED to break
+            // TacticalPuzzlePresenterTests.SlotTiles_RenderThePerStateArt, which asserts `img`
+            // carries the real per-state art (tactical_puzzle_tile_available_v1_rgba) and instead
+            // found ui_content_panel_v1. This removal was a real, necessary fix, not scrim
+            // cleanup; restoring it (with or without the paired scrim) regresses real per-state
+            // art rendering. Lane B's own escape clause applies; stays removed.
 
             Text label = UISharedFoundation.CreateText(tile.transform, "Label", slot.Label,
                 UITextRole.Title, TextAnchor.UpperCenter, Color.white, true,

@@ -157,7 +157,10 @@ namespace MyriadOfDragons.UI
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.04f, 0.08f, 0.48f, 0.88f);
 
-            UISharedFoundation.AddLocalGradientScrim(panel.transform, Vector2.zero, new Vector2(420f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            // NOT restored (CR-UI-SWEEP-RECON-002): MEASURED (DailyLoginQuestsLayoutTests,
+            // NeverDrawsArtOnTopOfAnInteractiveControl) to overlap 'LoginWell_5', a real
+            // interactive control - present even at committed HEAD, unrelated to any Lane A
+            // retune in this file. Lane B's own escape clause applies; stays removed.
             Text header = UISharedFoundation.CreateText(panel.transform, "Header", "DAILY LOGIN",
                 UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(420f, 40f));
@@ -256,7 +259,13 @@ namespace MyriadOfDragons.UI
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.52f, 0.08f, 0.96f, 0.88f);
 
-            UISharedFoundation.AddLocalGradientScrim(panel.transform, Vector2.zero, new Vector2(420f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            // NOT restored (CR-UI-SWEEP-RECON-002): MEASURED (DailyLoginQuestsLayoutTests,
+            // NeverDrawsArtOnTopOfAnInteractiveControl) - this panel's own header scrim was the
+            // remaining cause of the same LoginWell_5 overlap after the DailyLoginPanel header
+            // scrim above was also found and removed; both panels' headers use the identical
+            // 420x60 literal and the test's own (non-1920-scaled) canvas compresses the two
+            // panels close enough for a cross-panel collision. Lane B's own escape clause
+            // applies; stays removed.
             Text header = UISharedFoundation.CreateText(panel.transform, "Header", "DAILY QUESTS",
                 UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(420f, 40f));
@@ -286,32 +295,28 @@ namespace MyriadOfDragons.UI
                     new Color(0.95f, 0.9f, 0.79f), true, new Vector2(360f, 28f));
                 _questCopyTexts[i].fontSize = 24;
                 _questCopyTexts[i].fontStyle = FontStyle.Bold;
-                SetNorm(_questCopyTexts[i].rectTransform, 0.16f, 0.55f, 0.58f, 0.92f);
+                SetNorm(_questCopyTexts[i].rectTransform, 0.04f, 0.55f, 0.70f, 0.92f);
 
                 GameObject progress = new GameObject("ProgressBar", typeof(RectTransform), typeof(Image));
                 progress.transform.SetParent(row.transform, false);
                 progress.GetComponent<Image>().color = new Color(0.2f, 0.55f, 0.32f, 0.8f);
                 progress.GetComponent<Image>().raycastTarget = false;
-                SetNorm(progress.GetComponent<RectTransform>(), 0.16f, 0.18f, 0.52f, 0.48f);
+                SetNorm(progress.GetComponent<RectTransform>(), 0.04f, 0.18f, 0.48f, 0.48f);
 
                 // Quest panel 0.44×0.80 of canvas; each row ~0.24 of panel height.
-                float rowW = 0.44f * 1920f;
-                float rowHeightPx = 0.80f * 1080f * 0.24f;
-                UISharedFoundation.AddLocalGradientScrim(
-                    row.transform, new Vector2(rowW * 0.61f, rowHeightPx * 0.33f),
-                    new Vector2(rowW * 0.16f, rowHeightPx * 0.36f),
-                    UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
-                UISharedFoundation.AddLocalGradientScrim(
-                    row.transform, new Vector2(rowW * 0.61f, rowHeightPx * 0.33f),
-                    new Vector2(rowW * 0.16f, rowHeightPx * 0.36f),
-                    UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+                // NOT restored (CR-UI-SWEEP-RECON-002): this scrim's authored position assumed
+                // the progress bar's PRE-retune anchors (0.16-0.52); the bar is now at 0.04-0.48
+                // (Lane A). Restoring it verbatim was tried and MEASURED to produce a real
+                // OFFCANVAS defect (UiGeometryRegressionTests: QuestRow_0/1 GradientScrim right
+                // edge ~84px past the canvas edge) - Lane B's own escape clause applies (a live,
+                // reproducible defect at this exact call site), so it stays removed.
                 _questProgressTexts[i] = UISharedFoundation.CreateText(row.transform, "ProgressCopy",
                     "0 / 1", UITextRole.Caption, TextAnchor.MiddleLeft,
                     Color.white, true, new Vector2(120f, 22f));
                 _questProgressTexts[i].fontSize = 24;
                 _questProgressTexts[i].fontStyle = FontStyle.Bold;
                 UISharedFoundation.ApplyTextShadow(_questProgressTexts[i]);
-                SetNorm(_questProgressTexts[i].rectTransform, 0.54f, 0.18f, 0.68f, 0.48f);
+                SetNorm(_questProgressTexts[i].rectTransform, 0.50f, 0.18f, 0.70f, 0.48f);
 
                 GameObject claim = new GameObject("Btn_Claim", typeof(RectTransform), typeof(Image), typeof(Button));
                 claim.transform.SetParent(row.transform, false);
