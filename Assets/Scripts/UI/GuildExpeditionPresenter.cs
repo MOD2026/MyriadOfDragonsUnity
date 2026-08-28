@@ -44,10 +44,13 @@ namespace MyriadOfDragons.UI
         private IGuildExpeditionGateway _gateway;
         private CancellationTokenSource _cts;
         private string _selectedObjectiveId;
+        private int _selectedObjectiveIndex;
         private int _selectedMilestone = 100;
         private bool _busy;
         private readonly HashSet<string> _completedObjectives = new HashSet<string>();
         private Transform _objectiveGrid;
+        private Transform _milestoneStrip;
+        private Text _objectiveSelectorLabel;
         private bool _actionsGateOpen;
 
         public GameObject CanvasObjectForTests => _canvasObj;
@@ -69,6 +72,7 @@ namespace MyriadOfDragons.UI
             // wiring check, not a live player path, and bypasses the gate - the only production
             // call site (GuildHallEntryPresenter.OpenGuildExpedition) never injects one.
             _actionsGateOpen = gateway != null || GuildExpeditionOpenValues.AreActionsConfigured;
+            _selectedObjectiveIndex = 0;
             _selectedObjectiveId = ScaffoldObjectiveIds[0];
             _selectedMilestone = MilestoneThresholds[0];
             BuildUI();
@@ -175,41 +179,41 @@ namespace MyriadOfDragons.UI
             _detailsText.fontStyle = FontStyle.Bold;
             SetNorm(_detailsText.rectTransform, 0.02f, 0.78f, 0.98f, 0.98f);
 
+            // Conservative IA (WH-UI-GUILD-EXPEDITION-CONSERVATIVE-IA-001): one Objective Selector
+            // replaces 11 Objective_* buttons. Objective_0..10 remain as passive selectable entries
+            // (stage/state displays) driven by the selector — no Btn_Prev/Next/Abandon/Finalize.
+            CreateActionButton(panel.transform, "Btn_ObjectiveSelector", "OBJECTIVE", 0.02f, 0.68f, 0.62f, 0.76f,
+                CycleObjectiveSelection);
+            Transform selectorTf = panel.transform.Find("Btn_ObjectiveSelector");
+            _objectiveSelectorLabel = selectorTf != null
+                ? selectorTf.Find("Text")?.GetComponent<Text>()
+                : null;
+
             GameObject objGrid = new GameObject("ObjectiveGrid", typeof(RectTransform));
             objGrid.transform.SetParent(panel.transform, false);
             _objectiveGrid = objGrid.transform;
-            SetNorm(objGrid.GetComponent<RectTransform>(), 0.02f, 0.28f, 0.62f, 0.76f);
+            SetNorm(objGrid.GetComponent<RectTransform>(), 0.02f, 0.28f, 0.62f, 0.66f);
             int cols = 3;
             int rows = 4;
             for (int i = 0; i < ScaffoldObjectiveIds.Length; i++)
             {
-                int idx = i;
                 int col = i % cols;
                 int row = i / cols;
                 float cw = 1f / cols;
                 float rh = 1f / rows;
                 string id = ScaffoldObjectiveIds[i];
-                GameObject well = new GameObject($"Objective_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
+                // Passive entry (Image only) — selection is via Btn_ObjectiveSelector.
+                GameObject well = new GameObject($"Objective_{i}", typeof(RectTransform), typeof(Image));
                 well.transform.SetParent(objGrid.transform, false);
                 Image img = well.GetComponent<Image>();
-                HomeV3UiLibrary.ApplyNeutralActionButton(well.GetComponent<Button>(), img, new Color(0.16f, 0.22f, 0.28f, 0.55f));
-                well.GetComponent<Button>().onClick.AddListener(() =>
-                {
-                    _selectedObjectiveId = ScaffoldObjectiveIds[idx];
-                    RefreshDetails();
-                    RefreshObjectiveStageIcons();
-                    SetStatus($"Objective: {_selectedObjectiveId}");
-                });
+                img.sprite = null;
+                img.color = new Color(0.16f, 0.22f, 0.28f, 0.55f);
+                img.raycastTarget = false;
                 SetNorm(well.GetComponent<RectTransform>(),
                     col * cw + 0.01f, 1f - (row + 1) * rh + 0.02f,
                     (col + 1) * cw - 0.01f, 1f - row * rh - 0.02f);
                 GuildExpeditionUiLibrary.ApplyStageIcon(well.transform, "StageIcon",
                     GuildExpeditionUiLibrary.StageState.Available, 0.08f, 0.38f, 0.92f, 0.94f);
-                // NOT restored (CR-UI-SWEEP-RECON-002): well's real size (~108x39) is smaller
-                // than this scrim's literal 150x40 - restoring it was MEASURED to overlap the
-                // Objective_N button itself (GuildExpeditionLayoutTests,
-                // NeverDrawsArtOnTopOfAnInteractiveControl), a real tap-target defect. Lane B's
-                // own escape clause applies; stays removed.
                 Text label = UISharedFoundation.CreateText(well.transform, "Label", ShortId(id),
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
                 label.fontSize = 22;
@@ -218,33 +222,45 @@ namespace MyriadOfDragons.UI
                 SetNorm(label.rectTransform, 0.02f, 0.02f, 0.98f, 0.36f);
             }
             RefreshObjectiveStageIcons();
+            RefreshObjectiveSelectorLabel();
 
             GameObject mileStrip = new GameObject("MilestoneStrip", typeof(RectTransform));
             mileStrip.transform.SetParent(panel.transform, false);
+            _milestoneStrip = mileStrip.transform;
             SetNorm(mileStrip.GetComponent<RectTransform>(), 0.64f, 0.28f, 0.98f, 0.76f);
             for (int i = 0; i < MilestoneThresholds.Length; i++)
             {
                 int idx = i;
                 float h = 1f / MilestoneThresholds.Length;
                 int threshold = MilestoneThresholds[i];
+                // Passive state display (WH-UI-GUILD-EXPEDITION-CONSERVATIVE-IA-001): not a
+                // player-facing action. Button retained only so shell tests can Invoke selection;
+                // interactable/raycast off. Claim action is exclusively Btn_ClaimMilestone.
                 GameObject chip = new GameObject($"Milestone_{threshold}", typeof(RectTransform), typeof(Image), typeof(Button));
                 chip.transform.SetParent(mileStrip.transform, false);
                 Image img = chip.GetComponent<Image>();
-                HomeV3UiLibrary.ApplyNeutralActionButton(chip.GetComponent<Button>(), img, new Color(0.22f, 0.28f, 0.18f, 0.9f));
-                chip.GetComponent<Button>().onClick.AddListener(() =>
+                img.sprite = null;
+                img.raycastTarget = false;
+                Button chipBtn = chip.GetComponent<Button>();
+                chipBtn.transition = Selectable.Transition.None;
+                chipBtn.targetGraphic = img;
+                chipBtn.interactable = false;
+                chipBtn.onClick.AddListener(() =>
                 {
                     _selectedMilestone = MilestoneThresholds[idx];
                     RefreshDetails();
+                    RefreshMilestoneDisplays();
                     SetStatus($"Milestone: {_selectedMilestone}");
                 });
                 SetNorm(chip.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.02f, 0.95f, 1f - i * h - 0.02f);
-                UISharedFoundation.AddLocalGradientScrim(chip.transform, Vector2.zero, new Vector2(180f, 36f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
                 Text chipLabel = UISharedFoundation.CreateText(chip.transform, "Label", $"BAND {threshold}",
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 36f));
                 chipLabel.fontSize = 22;
                 chipLabel.fontStyle = FontStyle.Bold;
+                chipLabel.raycastTarget = false;
                 UISharedFoundation.StretchFull(chipLabel.rectTransform);
             }
+            RefreshMilestoneDisplays();
 
             CreateActionButton(panel.transform, "Btn_ConsumeAttempt", "CONSUME ATTEMPT", 0.02f, 0.04f, 0.32f, 0.22f,
                 () => _ = ConsumeAttemptAsync());
@@ -252,6 +268,38 @@ namespace MyriadOfDragons.UI
                 () => _ = SubmitObjectiveAsync(_selectedObjectiveId));
             CreateActionButton(panel.transform, "Btn_ClaimMilestone", "CLAIM MILESTONE", 0.68f, 0.04f, 0.98f, 0.22f,
                 () => _ = ClaimMilestoneAsync(_selectedMilestone), primary: true);
+        }
+
+        private void CycleObjectiveSelection()
+        {
+            _selectedObjectiveIndex = (_selectedObjectiveIndex + 1) % ScaffoldObjectiveIds.Length;
+            _selectedObjectiveId = ScaffoldObjectiveIds[_selectedObjectiveIndex];
+            RefreshDetails();
+            RefreshObjectiveStageIcons();
+            RefreshObjectiveSelectorLabel();
+            SetStatus($"Objective: {_selectedObjectiveId}");
+        }
+
+        private void RefreshObjectiveSelectorLabel()
+        {
+            if (_objectiveSelectorLabel == null) return;
+            _objectiveSelectorLabel.text = $"OBJECTIVE: {ShortId(_selectedObjectiveId)}";
+        }
+
+        private void RefreshMilestoneDisplays()
+        {
+            if (_milestoneStrip == null) return;
+            for (int i = 0; i < MilestoneThresholds.Length; i++)
+            {
+                int threshold = MilestoneThresholds[i];
+                Transform chip = _milestoneStrip.Find($"Milestone_{threshold}");
+                Image img = chip != null ? chip.GetComponent<Image>() : null;
+                if (img == null) continue;
+                bool selected = threshold == _selectedMilestone;
+                img.color = selected
+                    ? new Color(0.32f, 0.42f, 0.24f, 0.95f)
+                    : new Color(0.18f, 0.22f, 0.16f, 0.75f);
+            }
         }
 
         private void CreateActionButton(Transform parent, string name, string label,
@@ -369,7 +417,16 @@ namespace MyriadOfDragons.UI
                 }
 
                 if (result.success)
+                {
                     SetStatus($"Claimed {threshold}: +{result.guildContributionGranted} GC");
+                    // Advance selected band after a successful claim so players can walk the
+                    // passive milestone strip without a separate selector (no Btn_Prev/Next).
+                    int idx = Array.IndexOf(MilestoneThresholds, threshold);
+                    if (idx >= 0 && idx + 1 < MilestoneThresholds.Length)
+                        _selectedMilestone = MilestoneThresholds[idx + 1];
+                    RefreshMilestoneDisplays();
+                    RefreshDetails();
+                }
                 else
                     SetStatus($"Claim failed: {result.errorCode ?? "unknown"}");
                 SetDetails(
@@ -395,7 +452,16 @@ namespace MyriadOfDragons.UI
             for (int i = 0; i < ScaffoldObjectiveIds.Length; i++)
             {
                 Transform well = _objectiveGrid.Find($"Objective_{i}");
-                Image icon = well != null ? well.Find("StageIcon")?.GetComponent<Image>() : null;
+                if (well == null) continue;
+                Image wellImg = well.GetComponent<Image>();
+                if (wellImg != null)
+                {
+                    bool selected = i == _selectedObjectiveIndex;
+                    wellImg.color = selected
+                        ? new Color(0.22f, 0.36f, 0.48f, 0.85f)
+                        : new Color(0.16f, 0.22f, 0.28f, 0.55f);
+                }
+                Image icon = well.Find("StageIcon")?.GetComponent<Image>();
                 if (icon == null) continue;
                 string id = ScaffoldObjectiveIds[i];
                 GuildExpeditionUiLibrary.StageState state = _completedObjectives.Contains(id)
