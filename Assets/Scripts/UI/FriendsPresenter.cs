@@ -21,6 +21,8 @@ namespace MyriadOfDragons.UI
         private Action _onBack;
         private Text _statusText;
         private Text[] _rowTexts;
+        private RectTransform _friendsListRoot;
+        private RectTransform _emptyStateRegion;
         // Add Friend has no player-facing UI: the account-id input and Btn_AddFriend were
         // retired as a deferred feature (social routes are not configured - see
         // FriendsOpenValues.AreSocialRoutesConfigured). The gateway path is preserved and
@@ -180,6 +182,7 @@ namespace MyriadOfDragons.UI
             GameObject list = new GameObject("FriendsList", typeof(RectTransform));
             list.transform.SetParent(_canvasObj.transform, false);
             SetNorm(list.GetComponent<RectTransform>(), 0.15f, 0.08f, 0.68f, 0.88f);
+            _friendsListRoot = list.GetComponent<RectTransform>();
             _rowTexts = new Text[VisibleRowCount];
             for (int i = 0; i < VisibleRowCount; i++)
             {
@@ -205,6 +208,54 @@ namespace MyriadOfDragons.UI
                 SetNorm(t.rectTransform, 0.16f, 0.1f, 0.96f, 0.9f);
                 _rowTexts[i] = t;
             }
+
+            GameObject emptyObj = new GameObject("FriendsEmptyState", typeof(RectTransform));
+            emptyObj.transform.SetParent(list.transform, false);
+            _emptyStateRegion = emptyObj.GetComponent<RectTransform>();
+            SetNorm(_emptyStateRegion, 0f, 0f, 1f, 1f);
+            emptyObj.SetActive(false);
+        }
+
+        /// <summary>
+        /// Shows the shared empty state in place of the six friend rows, or restores the rows.
+        ///
+        /// The rows are DEACTIVATED while the empty state shows, and that is load-bearing twice
+        /// over. FriendsLayoutTests.Friends_NeverDrawsArtOnTopOfAnInteractiveControl fails if the
+        /// illustration is drawn over live buttons - a tap would land on art instead of the row.
+        /// And six rows reading "Empty" that answer a tap with "Empty row 3." are exactly the dead
+        /// end wearing a control's clothes that UIEmptyState refuses. All nine controls are still
+        /// BUILT and are restored the moment a friend exists; none was removed.
+        ///
+        /// Waiting, with no action: Add Friend is retired under Policy B, so there is no truthful
+        /// action to offer here (board ruling, 2026-08-28). Title supplied by CC; nothing invented.
+        /// </summary>
+        private void ApplyEmptyState(bool isEmpty)
+        {
+            if (_friendsListRoot == null || _emptyStateRegion == null) return;
+
+            for (int i = 0; i < VisibleRowCount; i++)
+            {
+                Transform row = _friendsListRoot.Find($"FriendRow_{i}");
+                if (row != null) row.gameObject.SetActive(!isEmpty);
+            }
+
+            _emptyStateRegion.gameObject.SetActive(isEmpty);
+            if (!isEmpty) return;
+
+            for (int i = _emptyStateRegion.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = _emptyStateRegion.GetChild(i).gameObject;
+                if (Application.isPlaying) Destroy(child);
+                else DestroyImmediate(child);
+            }
+
+            UIEmptyState.Build(
+                _emptyStateRegion,
+                EmptyStateKind.Waiting,
+                "No friends yet",
+                explanation: null,
+                statusLine: null,
+                illustrationPath: UIEmptyState.IllustrationNoFriends);
         }
 
         private void SelectFriendRow(int row)
@@ -232,6 +283,8 @@ namespace MyriadOfDragons.UI
                 _friends = result != null && result.success && result.friends != null
                     ? result.friends
                     : new List<FriendSummaryDto>();
+
+                ApplyEmptyState(_friends.Count == 0);
 
                 for (int i = 0; i < _rowTexts.Length; i++)
                 {
