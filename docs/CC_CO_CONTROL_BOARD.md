@@ -679,6 +679,21 @@ Width-sweep findings (scratch test, reverted):
 - **Evidence:** commit `18b491e2ef47e3356e7db3d1baa8e2c3d3decb3b` (1 file, +3/−3); tests `BazaarLayoutTests` 2/2, `BazaarShellTests` 4/4, `MetagameNavigationSpineTests` 1/1, `ScreenContactSheetGenerator` 1/1 (8/8, 0 failed, 0 `error CS`); capture `C:\Users\zihan\AppData\Local\Temp\MyriadOfDragonsContactSheetOutput\Bazaar.png`. Tabs, wells, gateway calls, and 12-control count preserved.
 
 | 2026-08-28 | WH-UI-BAZAAR-ACTION-ALIGN-001 | CC | DISPATCHED | Direct one-file action-slot alignment card created from WH's evidence-backed baseline. |
+
+| 2026-08-28 | WH-UI-BAZAAR-ACTION-ALIGN-001 | CC | COMPLETE | Fix already landed at `18b491e2ef47e3356e7db3d1baa8e2c3d3decb3b`; board update recorded in `06e7c72`; 8/8 tests and 0 CS previously evidenced. |
+
+### WH-UI-BATTLEPASS-3H-BLOCK-001 — baseline plus one isolated fix
+
+- **Owner:** WH, direct owner relay.
+- **State:** DISPATCHED — sustained 3–4 hour bounded work block.
+- **Exact file:** `Assets/Scripts/UI/BattlePassPresenter.cs`; verify clean before inspection.
+- **Phase 1:** loaded-profile baseline at 1920x1080: controls/IA, reachability, geometry, sprites, and capture.
+- **Phase 2:** identify at most one evidence-backed UI defect in this file. If none exists, record NO-OP and perform a second clean-file read-only baseline instead.
+- **Phase 3:** only if a defect is found, make the smallest isolated fix in this file, run focused tests, capture before/after, and commit.
+- **Forbidden:** HomePagePresenter.cs, held sweep files, other presenters, asset moves, stash/reset/blanket staging, and speculative polish.
+- **Acceptance:** exact diff, loaded-profile captures, relevant tests, 0 `error CS`, and isolated commit—or a documented NO-OP plus second baseline if already clean.
+
+| 2026-08-28 | WH-UI-BATTLEPASS-3H-BLOCK-001 | CC | DISPATCHED | New sustained WH task after Bazaar completion; keeps scope bounded while allowing one evidence-backed fix. |
 | 2026-08-28 | WH-UI-BAZAAR-ACTION-ALIGN-001 | WH | COMPLETE | Commit `18b491e`; SelectedPanel/Btn_PrimaryAction aligned into shell receptacle; 8/8 Bazaar/UI tests; 0 CS; loaded-profile capture verified. |
 
 ## VS-UI-FRIENDS-RETIRE-DEFERRED-002 — IMPLEMENTATION IN PROGRESS — 2026-08-28
@@ -832,6 +847,15 @@ Width-sweep findings (scratch test, reverted):
 | 2026-08-28 | VS-UI-ATKOVF-FLOOR-001 | CC | WITHDRAWN/OBSOLETE | VS verified the lane total is already `resizeTextMinSize = 22` at current line ~2910; prior 11px premise was stale. Residual low mins remain under the recorded redesign blocker and are not constant-only work. |
 | 2026-08-28 | ROOM-TRANSPORT-EVIDENCE-001 | CC | RECORDED | `SendMessage success:true` is transport acceptance only, not proof of room delivery; unanswered probes must not be interpreted as deliberate idling. |
 
+### CR-UI-SWEEP-RECON-002 — remaining sweep read-only reconciliation
+
+- **Owner:** CR, direct owner relay.
+- **State:** DISPATCHED — read-only; no implementation authority granted.
+- **Exact scope:** enumerate the currently dirty `Assets/Scripts/UI/` sweep files after HEAD `bc4c01c`, compare each diff to `git show HEAD:` and classify changes as (a) measured anchor/band retune, (b) GradientScrim removal, (c) unrelated/unknown. Exclude clean files already fixed by `a6f1aec`, `GameBootstrap.cs`, and all other seats’ active files from editing.
+- **Acceptance:** return an evidence table naming each dirty file, exact changed lines, likely owner if determinable from history, and whether a measured defect exists. Identify the smallest valid follow-up cards; do not edit, stage, stash, reset, run Unity, or commit.
+
+| 2026-08-28 | CR-UI-SWEEP-RECON-002 | CC | DISPATCHED | CR receives a bounded read-only reconciliation task; no self-assignment of implementation work. |
+
 ---
 
 ## VS SEAT STATUS — QUEUE EMPTY, AWAITING A CC CARD — 2026-08-28
@@ -902,3 +926,90 @@ message as VS being idle by choice.
 **Nothing else edited this turn.** Dirty sweep UI files and other seats' work untouched.
 
 | 2026-08-28 | WH SEAT STATUS | WH | IDLE — QUEUE EMPTY | `WH-UI-BAZAAR-ACTION-ALIGN-001` COMPLETE at `18b491e` (8/8 tests, capture verified). No next WH card on board; awaiting CC dispatch. |
+
+---
+
+## VS-UI-EMPTY-STATE-INTEGRATION-AUDIT-001 — CONTINUED: FULL ASSET->PRESENTER MAP — 2026-08-28
+
+**Reported by:** VS (`myriadofdragonsunity-ba`), autonomous bounded block. **HEAD:** `bc4c01c`.
+**Nothing was edited in `Assets/`. No Unity run. Read-only + docs commit only.**
+
+### Step 1 — Permit card: ST copy does NOT exist. Card stays HELD.
+
+Checked `docs/CC_CO_CONTROL_BOARD.md`, `docs/LOCKED_DECISIONS_REGISTER.md`, `tools/seat_mailbox.md`,
+`tools/all_seats_chat.md`, and all of `docs/*.md`. `ST-UI-PERMIT-COPY-001` is still **DISPATCHED with
+no reply recorded anywhere**. No approved player-facing strings exist for
+`PermitWeekKeyPresenter.BuildBody()`. Per "do not invent player-facing wording,"
+`VS-UI-PERMIT-COPY-001` remains **BLOCKED** and no edit was made.
+
+### Step 2 — the six registered assets, mapped
+
+All six exist on disk under `Assets/Resources/UI/EmptyStatesV1/` and all six are alpha-verified by
+`ImportedArtSetsIntegrityTests` (`b51c799`). **`UIEmptyState` still has zero production callers.**
+
+| # | Asset constant | Natural presenter | Presenter file state | Kind per `EmptyStateKind` | Integrable now? |
+|---|---|---|---|---|---|
+| 1 | `IllustrationCollectionFilter` | `CollectionPresenter.cs` | **CLEAN** at HEAD | `Actionable` (filter) / `Waiting` (no cards owned) | **YES — the only one** |
+| 2 | `IllustrationNoFriends` | `FriendsPresenter.cs` | CLEAN, but card BLOCKED | undecided | No — `VS-UI-EMPTY-STATE-FRIENDS-001` |
+| 3 | `IllustrationNoMail` | `MailInboxPresenter.cs` | **SWEEP-DIRTY** (6-line uncommitted delta, not VS's) | `Waiting` | No — dirty, excluded by rule |
+| 4 | `IllustrationAllQuestsClaimed` | `DailyLoginQuestsPresenter.cs` | **SWEEP-DIRTY** (22-line uncommitted delta, not VS's) | `Completed` | No — dirty, excluded by rule |
+| 5 | `IllustrationNoGuild` | `GuildHallEntryPresenter.cs` | CLEAN | n/a | **No — premature, see below** |
+| 6 | `IllustrationBattlePassNotStarted` | `BattlePassPresenter.cs` | CLEAN | n/a | **No — premature, see below** |
+
+### The finding that matters: two assets have no legitimate consumer, and adding one would be a lie
+
+`GuildHallEntryPresenter` and `BattlePassPresenter` are **art shells whose backing values are
+explicitly still OPEN** (`GuildHallEntryPresenter.cs:8` "Actions refuse while OpenValues stay OPEN";
+`BattlePassPresenter.cs:13` "reward numbers stay OPEN"). Both carry 0 buttons and render a
+`StatusLine`. **Their emptiness is "this feature is not built yet," not "the player has no guild" or
+"the season has not started."** Dressing an unbuilt shell in a player-facing empty state would
+present a development gap as a play-state — precisely the "never invent fake activity" refusal in
+`UIEmptyState`'s own contract. **These two assets should stay unwired until the underlying values are
+locked.** Recording this rather than carding it.
+
+### Also mapped, deliberately excluded
+
+`DeckBuilderPresenter.cs` (CLEAN) has **two** empty surfaces — `collectionEmptyText` (`:353`) and
+`deckEmptyText` (`:419`, "No cards in the deck yet. Tap an owned card to add it."). **No registered
+asset covers an empty deck.** Not carded: it would require a seventh illustration and new wording,
+both out of scope.
+
+### Prepared card — the one bounded, fully unblocked piece of work
+
+### VS-UI-EMPTY-STATE-COLLECTION-001 — route Collection's empty grid through `UIEmptyState` (PREPARED, NOT SELF-AUTHORIZED)
+
+- **Owner:** VS. **State:** PREPARED — awaiting explicit CC authorization. Not started.
+- **Exact file:** `Assets/Scripts/UI/CollectionPresenter.cs` only. One file.
+- **Why this one is safe:** clean at HEAD, reachable and registered
+  (`UiScreenRegistry.cs:108`, `UiSurfaceKind.Secondary`, 10-control limit, presenter has 4 buttons),
+  and — critically — **no new wording is invented.** Both strings already exist as approved,
+  committed, test-asserted constants: `CollectionPresenter.EmptyNoOwnedCopy` (`:42`) and
+  `EmptyNoMatchCopy` (`:44`), asserted at `CollectionClassFilterTests.cs:104,115,125`.
+- **Scope:** replace the bare `_emptyStateText` (`:268-269`) with a `UIEmptyState.Build` region,
+  reusing those two constants verbatim as the `title`/`explanation`, and passing
+  `IllustrationCollectionFilter` for the filtered case.
+- **Control-count impact: ZERO if the `Waiting` shape is used for both cases (4 controls, unchanged).**
+  Choosing `Actionable` for the filtered case would add a "clear filter" button = **5 controls**, still
+  inside the Secondary limit of 10 — **but it needs new wording for the button label, so it is an ST
+  dependency, not a VS decision.** Default to the zero-new-wording `Waiting` shape unless CC rules
+  otherwise.
+- **Contract preservation:** `EmptyStateTextForTests` and both public copy constants must keep their
+  exact current values and behaviour — three existing assertions depend on them.
+- **Acceptance:** `CollectionClassFilterTests` green (all three copy assertions unchanged), 0
+  `error CS` in the log, loaded-profile 1920x1080 before/after capture of the Collection screen in
+  both the no-owned and filtered-to-empty states, contact sheet reviewed, isolated single-file commit.
+- **Forbidden:** any other presenter, the six sweep-dirty files, `UIEmptyState.cs` itself, new
+  player-facing strings, stash/reset/blanket staging.
+
+### Next required decisions (all CC/ST, none are VS's)
+
+1. **ST:** the two Permit strings — the only thing blocking `VS-UI-PERMIT-COPY-001`.
+2. **CC:** authorize `VS-UI-EMPTY-STATE-COLLECTION-001`, and rule `Waiting` (zero new wording, ship
+   now) vs `Actionable` (needs an ST button label first).
+3. **CC:** attribute or land the 7-file unattributed sweep — it is what quarantines the Mail and
+   Daily-Quests integrations, which are otherwise ready.
+4. **ST/CC:** the still-open Friends empty-state kind.
+
+| 2026-08-28 | VS-UI-PERMIT-COPY-001 | VS | STILL BLOCKED | ST copy verified absent from board, register, and both chat archives; no wording invented. |
+| 2026-08-28 | VS-UI-EMPTY-STATE-INTEGRATION-AUDIT-001 | VS | MAP COMPLETE | 6/6 assets mapped: 1 integrable now, 1 blocked on design, 2 quarantined by the dirty sweep, 2 premature against still-OPEN shells. |
+| 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | VS | PREPARED — AWAITING CC | Only fully unblocked integration; reuses existing test-asserted copy constants, zero control-count change. |
