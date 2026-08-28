@@ -132,12 +132,14 @@ namespace MyriadOfDragons.UI
             Text name = UISharedFoundation.CreateText(panel, "BuildingName",
                 $"BUILDING {def.DisplayName.ToUpperInvariant()}", UITextRole.Title, TextAnchor.MiddleLeft,
                 new Color(0.95f, 0.9f, 0.79f), true, new Vector2(700f, 36f));
-            SetNorm(name.rectTransform, 0.04f, 0.78f, 0.62f, 0.86f);
+            // Name/Level bands separated (WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001): prior
+            // (0.78-0.86)/(0.75-0.80) overlapped ~18px of panel height.
+            SetNorm(name.rectTransform, 0.04f, 0.80f, 0.62f, 0.86f);
 
             Text level = UISharedFoundation.CreateText(panel, "BuildingLevel",
                 EmpireBuildingDetailCopy.FormatLevelLine(_kind, profile), UITextRole.Body,
                 TextAnchor.MiddleLeft, new Color(0.75f, 0.88f, 0.7f), true, new Vector2(400f, 32f));
-            SetNorm(level.rectTransform, 0.04f, 0.75f, 0.62f, 0.80f);
+            SetNorm(level.rectTransform, 0.04f, 0.75f, 0.62f, 0.79f);
 
             Text purpose = UISharedFoundation.CreateText(panel, "BuildingPurpose",
                 def.Phase1Function, UITextRole.Body, TextAnchor.UpperLeft,
