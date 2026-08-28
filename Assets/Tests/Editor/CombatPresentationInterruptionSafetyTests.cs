@@ -1,0 +1,174 @@
+using System.IO;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using MyriadOfDragons.Battle;
+using MyriadOfDragons.Save;
+using MyriadOfDragons.UI;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace MyriadOfDragons.Tests
+{
+    /// <summary>
+    /// CR-ANIMATION-BETA-CONTRACT-VERIFY-001, 2026-08-28 - verifies commit 7115462's presentation
+    /// interruption/teardown safety (CombatPresentationPolicy + GameBootstrap's
+    /// _presentationCoroutines/_presentationObjects tracking + CancelPresentationEffects), the part
+    /// CombatPresentationPolicyTests.cs (same commit) does not cover: whether the tracked-effect
+    /// bookkeeping in GameBootstrap itself actually empties on every real teardown path, not just
+    /// whether the pure interruption decision is correct in isolation.
+    ///
+    /// Gameplay state (BattleController/LaneBattleResolver) is untouched by 7115462 - confirmed by
+    /// inspection of the commit diff, not re-tested here to avoid duplicating BattleLogicTests.cs.
+    /// ReducedMotion_ResolvesEveryDurationImmediately (CombatPresentationPolicyTests.cs) already
+    /// proves reduced motion collapses every duration to zero; GameBootstrap's three call sites
+    /// (PlayEffect/PlayFloatingText/ShowClashEffects flash) pass MotionPolicy.ReduceMotion straight
+    /// through with no extra branching, so that relationship is not re-derived here either.
+    /// </summary>
+    public class CombatPresentationInterruptionSafetyTests
+    {
+        private GameObject _bootstrapGo;
+        private GameBootstrap _bootstrap;
+        private string _scratchSaveDir;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _scratchSaveDir = Path.Combine(Path.GetTempPath(), "MoDPresentationSafety_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_scratchSaveDir);
+            SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
+            SaveSystem.ResetCurrentProfileForTests();
+
+            _bootstrapGo = new GameObject("PresentationSafetyBootstrap");
+            _bootstrap = _bootstrapGo.AddComponent<GameBootstrap>();
+            _bootstrap.Initialize();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (GameObject go in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                Object.DestroyImmediate(go);
+            SaveSystem.ClearRootDirectoryOverride();
+            SaveSystem.ResetCurrentProfileForTests();
+            MotionPolicy.ReduceMotion = false;
+            if (_scratchSaveDir != null && Directory.Exists(_scratchSaveDir))
+                Directory.Delete(_scratchSaveDir, recursive: true);
+        }
+
+        private static System.Collections.Generic.List<GameObject> PresentationObjects(GameBootstrap b) =>
+            (System.Collections.Generic.List<GameObject>)typeof(GameBootstrap)
+                .GetField("_presentationObjects", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(b);
+
+        private static System.Collections.Generic.List<Coroutine> PresentationCoroutines(GameBootstrap b) =>
+            (System.Collections.Generic.List<Coroutine>)typeof(GameBootstrap)
+                .GetField("_presentationCoroutines", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(b);
+
+        private static void InvokeCancelPresentationEffects(GameBootstrap b) =>
+            typeof(GameBootstrap).GetMethod("CancelPresentationEffects", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(b, null);
+
+        private static void InvokeShowTurnDamage(GameBootstrap b, TurnResolutionResult result) =>
+            typeof(GameBootstrap).GetMethod("ShowTurnDamage", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(b, new object[] { result });
+
+        // ---------- one presentation resolution per event, no duplicate emission ----------
+
+        [Test]
+        public void OneSidedDamageEvent_TracksExactlyOnePresentationObject_NotZeroNotTwo()
+        {
+            var result = new TurnResolutionResult { DamageDealtToSideA = 5, DamageDealtToSideB = 0 };
+
+            InvokeShowTurnDamage(_bootstrap, result);
+
+            Assert.AreEqual(1, PresentationObjects(_bootstrap).Count,
+                "One damage side firing must produce exactly one tracked presentation effect, not zero and not a duplicate.");
+            Assert.AreEqual(1, PresentationCoroutines(_bootstrap).Count);
+        }
+
+        [Test]
+        public void TwoSidedDamageEvent_TracksExactlyTwoPresentationObjects_OnePerSide()
+        {
+            var result = new TurnResolutionResult { DamageDealtToSideA = 3, DamageDealtToSideB = 7 };
+
+            InvokeShowTurnDamage(_bootstrap, result);
+
+            Assert.AreEqual(2, PresentationObjects(_bootstrap).Count,
+                "Each side that actually took damage gets exactly one effect - neither side is skipped nor doubled.");
+        }
+
+        [Test]
+        public void NoDamageEvent_TracksNoPresentationObjects()
+        {
+            var result = new TurnResolutionResult { DamageDealtToSideA = 0, DamageDealtToSideB = 0 };
+
+            InvokeShowTurnDamage(_bootstrap, result);
+
+            CollectionAssert.IsEmpty(PresentationObjects(_bootstrap),
+                "A tick with no damage must not fabricate a presentation effect.");
+        }
+
+        // ---------- interruption / teardown leaves no tracked transient effects ----------
+
+        /// <summary>Object.Destroy() outside Play mode logs an Editor error rather than destroying
+        /// synchronously - a Unity quirk of exercising this Play-mode-only coroutine cleanup path
+        /// from EditMode, not a production defect. Expected once per tracked object destroyed.</summary>
+        private static void ExpectDestroyEditModeErrors(int count)
+        {
+            for (int i = 0; i < count; i++)
+                LogAssert.Expect(LogType.Error, new Regex("Destroy may not be called from edit mode"));
+        }
+
+        [Test]
+        public void CancelPresentationEffects_ClearsAllTrackedObjects()
+        {
+            InvokeShowTurnDamage(_bootstrap, new TurnResolutionResult { DamageDealtToSideA = 1, DamageDealtToSideB = 1 });
+            Assert.AreEqual(2, PresentationObjects(_bootstrap).Count, "Setup: two effects must be tracked before cancellation.");
+
+            ExpectDestroyEditModeErrors(2);
+            InvokeCancelPresentationEffects(_bootstrap);
+
+            CollectionAssert.IsEmpty(PresentationObjects(_bootstrap), "Cancellation must leave no tracked transient objects.");
+            CollectionAssert.IsEmpty(PresentationCoroutines(_bootstrap), "Cancellation must leave no tracked transient coroutines.");
+        }
+
+        [Test]
+        public void ReplayIntro_CancelsAnyInFlightPresentationEffects()
+        {
+            InvokeShowTurnDamage(_bootstrap, new TurnResolutionResult { DamageDealtToSideA = 4, DamageDealtToSideB = 0 });
+            Assert.AreEqual(1, PresentationObjects(_bootstrap).Count, "Setup: one effect must be tracked before replay.");
+
+            ExpectDestroyEditModeErrors(1);
+            _bootstrap.ReplayIntro();
+
+            CollectionAssert.IsEmpty(PresentationObjects(_bootstrap),
+                "ReplayIntro must not leave a stale in-flight effect from before the reset.");
+            CollectionAssert.IsEmpty(PresentationCoroutines(_bootstrap));
+        }
+
+        [Test]
+        public void HidingTheBattleCanvas_CancelsAnyInFlightPresentationEffects()
+        {
+            InvokeShowTurnDamage(_bootstrap, new TurnResolutionResult { DamageDealtToSideA = 0, DamageDealtToSideB = 6 });
+            Assert.AreEqual(1, PresentationObjects(_bootstrap).Count, "Setup: one effect must be tracked before the canvas hides.");
+
+            ExpectDestroyEditModeErrors(1);
+            _bootstrap.SetBattleCanvasVisible(false);
+
+            CollectionAssert.IsEmpty(PresentationObjects(_bootstrap),
+                "Hiding the battle canvas must not leave a stale effect animating underneath.");
+        }
+
+        [Test]
+        public void ShowingTheBattleCanvasAgain_DoesNotCancelFreshEffects()
+        {
+            _bootstrap.SetBattleCanvasVisible(true);
+            InvokeShowTurnDamage(_bootstrap, new TurnResolutionResult { DamageDealtToSideA = 2, DamageDealtToSideB = 0 });
+
+            Assert.AreEqual(1, PresentationObjects(_bootstrap).Count,
+                "SetBattleCanvasVisible(true) must not cancel presentation - only hiding (false) does.");
+        }
+    }
+}
