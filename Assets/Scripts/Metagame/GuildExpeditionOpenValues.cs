@@ -27,7 +27,8 @@ namespace MyriadOfDragons.Metagame
         /// separate from <see cref="StatusNote"/> for the same reason as
         /// GuildHallEntryOpenValues.PlayerStatus - that string is a developer/transaction
         /// diagnostic, not something a player should ever read.</summary>
-        public static string PlayerStatus => "Guild Expedition isn't live yet.";
+        public static string PlayerStatus =>
+            "Guild Expedition objectives and milestones will become available later.";
 
         public static string StatusNote =>
             "Guild Expedition is wired to the real CloudCode module, but production actions " +

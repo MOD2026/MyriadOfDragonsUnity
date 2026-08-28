@@ -34,8 +34,35 @@ namespace MyriadOfDragons.UI
             "raid.phaseThree",
         };
 
+        /// <summary>Player-facing objective labels (ST-GUILD-EXPEDITION-COPY-001 / WH-UI-GUILD-EXPEDITION-COPY-001).
+        /// Index-aligned with <see cref="ScaffoldObjectiveIds"/> — ids unchanged.</summary>
+        public static readonly string[] PlayerFacingObjectiveLabels =
+        {
+            "Enemy Deck Revealed",
+            "Victory Without Full Intelligence [PROVISIONAL - OPEN]",
+            "Marked Target Defeated",
+            "Joint Supply Delivery [PROVISIONAL - OPEN]",
+            "Formation Protected",
+            "Enemy Formation Cleared",
+            "Obstacle Defeated [PROVISIONAL - OPEN]",
+            "Focus Completed [PROVISIONAL - OPEN]",
+            "Raid: First Phase",
+            "Raid: Second Phase",
+            "Raid: Final Phase",
+        };
+
         /// <summary>Server §5.1 personal milestone bands (Guild Contribution only).</summary>
         public static readonly int[] MilestoneThresholds = { 100, 250, 400, 700, 1000 };
+
+        /// <summary>Player-facing milestone labels — index-aligned with <see cref="MilestoneThresholds"/>.</summary>
+        public static readonly string[] PlayerFacingMilestoneLabels =
+        {
+            "First Milestone",
+            "Second Milestone",
+            "Third Milestone",
+            "Fourth Milestone",
+            "Final Milestone",
+        };
 
         private GameObject _canvasObj;
         private Action _onBack;
@@ -201,7 +228,6 @@ namespace MyriadOfDragons.UI
                 int row = i / cols;
                 float cw = 1f / cols;
                 float rh = 1f / rows;
-                string id = ScaffoldObjectiveIds[i];
                 // Passive entry (Image only) — selection is via Btn_ObjectiveSelector.
                 GameObject well = new GameObject($"Objective_{i}", typeof(RectTransform), typeof(Image));
                 well.transform.SetParent(objGrid.transform, false);
@@ -214,7 +240,7 @@ namespace MyriadOfDragons.UI
                     (col + 1) * cw - 0.01f, 1f - row * rh - 0.02f);
                 GuildExpeditionUiLibrary.ApplyStageIcon(well.transform, "StageIcon",
                     GuildExpeditionUiLibrary.StageState.Available, 0.08f, 0.38f, 0.92f, 0.94f);
-                Text label = UISharedFoundation.CreateText(well.transform, "Label", ShortId(id),
+                Text label = UISharedFoundation.CreateText(well.transform, "Label", PlayerFacingObjectiveLabels[i],
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
                 label.fontSize = 22;
                 label.fontStyle = FontStyle.Bold;
@@ -250,10 +276,10 @@ namespace MyriadOfDragons.UI
                     _selectedMilestone = MilestoneThresholds[idx];
                     RefreshDetails();
                     RefreshMilestoneDisplays();
-                    SetStatus($"Milestone: {_selectedMilestone}");
+                    SetStatus($"Milestone: {PlayerFacingMilestoneLabels[idx]}");
                 });
                 SetNorm(chip.GetComponent<RectTransform>(), 0.05f, 1f - (i + 1) * h + 0.02f, 0.95f, 1f - i * h - 0.02f);
-                Text chipLabel = UISharedFoundation.CreateText(chip.transform, "Label", $"BAND {threshold}",
+                Text chipLabel = UISharedFoundation.CreateText(chip.transform, "Label", PlayerFacingMilestoneLabels[i],
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 36f));
                 chipLabel.fontSize = 22;
                 chipLabel.fontStyle = FontStyle.Bold;
@@ -277,13 +303,13 @@ namespace MyriadOfDragons.UI
             RefreshDetails();
             RefreshObjectiveStageIcons();
             RefreshObjectiveSelectorLabel();
-            SetStatus($"Objective: {_selectedObjectiveId}");
+            SetStatus($"Objective: {PlayerFacingObjectiveLabels[_selectedObjectiveIndex]}");
         }
 
         private void RefreshObjectiveSelectorLabel()
         {
             if (_objectiveSelectorLabel == null) return;
-            _objectiveSelectorLabel.text = $"OBJECTIVE: {ShortId(_selectedObjectiveId)}";
+            _objectiveSelectorLabel.text = PlayerFacingObjectiveLabels[_selectedObjectiveIndex];
         }
 
         private void RefreshMilestoneDisplays()
@@ -474,16 +500,17 @@ namespace MyriadOfDragons.UI
         private void RefreshDetails()
         {
             SetDetails(
-                $"Selected objective: {_selectedObjectiveId}\n" +
-                $"Selected milestone: {_selectedMilestone}\n" +
+                $"Selected objective: {PlayerFacingObjectiveLabels[_selectedObjectiveIndex]}\n" +
+                $"Selected milestone: {MilestoneLabelForThreshold(_selectedMilestone)}\n" +
                 "Catalog = CloudCode StaticExpeditionManifest scaffold (not a tuned week).");
         }
 
-        private static string ShortId(string id)
+        private static string MilestoneLabelForThreshold(int threshold)
         {
-            if (string.IsNullOrEmpty(id)) return id;
-            int dot = id.LastIndexOf('.');
-            return dot >= 0 && dot < id.Length - 1 ? id.Substring(dot + 1) : id;
+            int idx = Array.IndexOf(MilestoneThresholds, threshold);
+            if (idx >= 0 && idx < PlayerFacingMilestoneLabels.Length)
+                return PlayerFacingMilestoneLabels[idx];
+            return threshold.ToString();
         }
 
         private bool BeginBusy(string message)
