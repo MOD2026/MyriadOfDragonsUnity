@@ -682,19 +682,19 @@ Width-sweep findings (scratch test, reverted):
 
 | 2026-08-28 | WH-UI-BAZAAR-ACTION-ALIGN-001 | CC | COMPLETE | Fix already landed at `18b491e2ef47e3356e7db3d1baa8e2c3d3decb3b`; board update recorded in `06e7c72`; 8/8 tests and 0 CS previously evidenced. |
 
-### WH-UI-BATTLEPASS-3H-BLOCK-001 — baseline plus one isolated fix
+### WH-UI-BATTLEPASS-3H-BLOCK-001 — COMPLETE
 
 - **Owner:** WH, direct owner relay.
-- **State:** DISPATCHED — sustained 3–4 hour bounded work block.
-- **Exact file:** `Assets/Scripts/UI/BattlePassPresenter.cs`; verify clean before inspection.
-- **Phase 1:** loaded-profile baseline at 1920x1080: controls/IA, reachability, geometry, sprites, and capture.
-- **Phase 2:** identify at most one evidence-backed UI defect in this file. If none exists, record NO-OP and perform a second clean-file read-only baseline instead.
-- **Phase 3:** only if a defect is found, make the smallest isolated fix in this file, run focused tests, capture before/after, and commit.
-- **Forbidden:** HomePagePresenter.cs, held sweep files, other presenters, asset moves, stash/reset/blanket staging, and speculative polish.
-- **Acceptance:** exact diff, loaded-profile captures, relevant tests, 0 `error CS`, and isolated commit—or a documented NO-OP plus second baseline if already clean.
+- **State:** COMPLETE — baseline + one isolated TrackLabel fix landed.
+- **Exact file:** `Assets/Scripts/UI/BattlePassPresenter.cs` only.
+- **Phase 1 baseline (loaded profile, 1920×1080):** file was clean. Controls: `Btn_Back` + 16 tier wells (8 free + 8 premium) + `Btn_UnlockPremium` = **18** interactive (secondary IA overage noted, not redesigned). Reachability: Quests/Events hub → Dest_BATTLE PASS → back via `Btn_Back`. Shell sprite `UI/BattlePassV1/battle_pass_dual_track_landscape_v1` loaded; framed tier wells + HomeV3 button tokens loaded.
+- **Phase 2 defect (one):** procedural `TrackLabel` ("FREE TRACK" / "PREMIUM TRACK") + GradientScrim double-painted over authored shell track titles.
+- **Phase 3 fix:** removed procedural TrackLabel creation; shell art owns track titles. Wells, unlock, claims, telemetry, and control count unchanged.
+- **Evidence:** commit `28e9c2e64c95b0fe1fbbed70a2f7870e0b4bfcdb` (+5/−11). Tests: `BattlePassShellTests` 8/8, `MetagameNavigationSpineTests` 1/1, `ScreenContactSheetGenerator` 1/1; `BattlePassLayoutTests` 1/2 — **pre-existing** failure `SeasonXpRow/GradientScrim` overlaps `Btn_Back` (1200×80 scrim), **not introduced by TrackLabel removal**. 0 `error CS`. Captures: before `...\BattlePass_before_WH-UI-BATTLEPASS-3H-BLOCK-001.png` (2,292,975 B); after `...\BattlePass_after_WH-UI-BATTLEPASS-3H-BLOCK-001.png` / live `BattlePass.png` (2,293,393 B).
+- **Deferred (not this card):** PremiumAccessCopy vs shell "premium track access [runtime]" overlap; SeasonXpRow scrim vs `Btn_Back` layout-test failure; 18-control IA overage.
 
 | 2026-08-28 | WH-UI-BATTLEPASS-3H-BLOCK-001 | CC | DISPATCHED | New sustained WH task after Bazaar completion; keeps scope bounded while allowing one evidence-backed fix. |
-| 2026-08-28 | WH-UI-BAZAAR-ACTION-ALIGN-001 | WH | COMPLETE | Commit `18b491e`; SelectedPanel/Btn_PrimaryAction aligned into shell receptacle; 8/8 Bazaar/UI tests; 0 CS; loaded-profile capture verified. |
+| 2026-08-28 | WH-UI-BATTLEPASS-3H-BLOCK-001 | WH | COMPLETE | Commit `28e9c2e`; removed procedural TrackLabel double-paint; 11/12 focused tests (1 pre-existing SeasonXp scrim layout fail); 0 CS; before/after captures verified. |
 
 ## VS-UI-FRIENDS-RETIRE-DEFERRED-002 — IMPLEMENTATION IN PROGRESS — 2026-08-28
 
@@ -899,33 +899,22 @@ message as VS being idle by choice.
 
 ---
 
-## WH SEAT STATUS — LAST CARD COMPLETE, AWAITING NEXT CC CARD — 2026-08-28
+## WH SEAT STATUS — BATTLEPASS BLOCK COMPLETE — 2026-08-28
 
-**Reported by:** WH (Cursor), autonomous turn, owner unavailable.
-**HEAD at report:** `bc4c01c` (board tip); production fix already at `18b491e`.
+**Reported by:** WH (Cursor). **HEAD:** `28e9c2e`.
 
-**Latest WH card executed:** `WH-UI-BAZAAR-ACTION-ALIGN-001` — COMPLETE.
+**Latest WH card:** `WH-UI-BATTLEPASS-3H-BLOCK-001` — COMPLETE (TrackLabel double-paint removed).
 
 | Field | Evidence |
 |---|---|
-| Commit | `18b491e2ef47e3356e7db3d1baa8e2c3d3decb3b` — `Assets/Scripts/UI/BazaarPresenter.cs` only |
-| Diff | SelectedPanel `(0.67,0.04,0.96,0.86)`; Details `(0.04,0.53,0.96,0.96)`; Btn_PrimaryAction `(0.02,0.015,0.98,0.115)` |
-| Tests | 8/8 passed (`BazaarLayout` 2, `BazaarShell` 4, `MetagameNav` 1, `ContactSheet` 1); 0 `error CS` |
-| Capture | `C:\Users\zihan\AppData\Local\Temp\MyriadOfDragonsContactSheetOutput\Bazaar.png` |
+| Commit | `28e9c2e64c95b0fe1fbbed70a2f7870e0b4bfcdb` — `BattlePassPresenter.cs` only |
+| Diff | Removed procedural TrackLabel + scrim; shell owns FREE/PREMIUM TRACK titles |
+| Tests | Aggregate 12 cases: 11 passed, 1 failed (pre-existing SeasonXpRow GradientScrim vs Btn_Back); Shell 8/8; 0 `error CS` |
+| Captures | before `BattlePass_before_WH-UI-BATTLEPASS-3H-BLOCK-001.png`; after `BattlePass_after_WH-UI-BATTLEPASS-3H-BLOCK-001.png` |
 
-**No further open executable WH card on the board.** Remaining WH-relevant entries:
+**Next CC decision (optional follow-ups, not started):** SeasonXpRow scrim/`Btn_Back` layout collision; PremiumAccessCopy vs shell watermark; IA 18-control overage. Or dispatch a new WH card.
 
-| Card | State | Note |
-|---|---|---|
-| `WH-UI-BAZAAR-ACTION-ALIGN-001` | COMPLETE | Evidence above. |
-| `WH-UI-HOME-RESOURCEROW-001` | BLOCKED | `HomePagePresenter.cs` still carries unrelated scrim-removal WIP; collision risk unchanged. |
-| `WH-UI-SETTINGS-STATUS-FLOOR-001` | COMPLETE | `ca3fed2` already accepted. |
-
-**Next required decision (CC):** dispatch the next isolated WH card. Safe candidates previously evidenced and still blocked/unowned: Home ResourceRow (only after Home WIP attribution clears), or a fresh clean-presenter baseline (CC must name the file — WH will not invent scope).
-
-**Nothing else edited this turn.** Dirty sweep UI files and other seats' work untouched.
-
-| 2026-08-28 | WH SEAT STATUS | WH | IDLE — QUEUE EMPTY | `WH-UI-BAZAAR-ACTION-ALIGN-001` COMPLETE at `18b491e` (8/8 tests, capture verified). No next WH card on board; awaiting CC dispatch. |
+| 2026-08-28 | WH SEAT STATUS | WH | COMPLETE — BATTLEPASS BLOCK | `WH-UI-BATTLEPASS-3H-BLOCK-001` at `28e9c2e`; TrackLabel fix evidenced; awaiting next CC card. |
 
 ---
 
