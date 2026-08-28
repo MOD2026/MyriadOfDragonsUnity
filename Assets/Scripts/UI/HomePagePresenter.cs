@@ -1934,7 +1934,8 @@ public class HomePagePresenter : MonoBehaviour
         // Backing fills the pill root
         SetLocalNormalisedRect(backingImage.rectTransform, 0.0f, 0.0f, 1.0f, 1.0f);
 
-        // Text plate with dark scrim backing to guarantee WCAG AA contrast over bright pill art
+        // Text plate: an opaque dark fill behind the label/value, for WCAG AA contrast over
+        // bright pill art. No scrim - see the measurement below.
         GameObject textPlate = new GameObject("ResourceTextPlate", typeof(RectTransform), typeof(Image));
         textPlate.transform.SetParent(pillRoot.transform, false);
         SetLocalNormalisedRect(textPlate.GetComponent<RectTransform>(), 0.05f, 0.05f, 0.95f, 0.95f);
@@ -1945,11 +1946,19 @@ public class HomePagePresenter : MonoBehaviour
         plateFill.type = Image.Type.Simple;
         plateFill.color = Color.white;
         plateFill.raycastTarget = false;
-        UISharedFoundation.AddLocalGradientScrim(
-            textPlate.transform,
-            Vector2.zero,
-            new Vector2(130f, 40f),
-            UISharedFoundation.GradientDirection.TopToBottom, 0.98f);
+        // No gradient scrim here, deliberately (VS-UI-HOME-PILL-SCRIM-CLOSEOUT-001). Measured
+        // from a real 1920x1080 render with the glyphs disabled, so nothing but plate background
+        // is sampled: this flat fill alone puts the white label/value text at 19.30:1, 19.29:1 and
+        // 19.22:1 (95th-percentile background luminance) against a 4.5:1 WCAG AA floor. Adding a
+        // plate-sized scrim back moved that to 20.53:1 / 20.52:1 / 20.50:1 - about a point of
+        // headroom on a margin that is already four times the requirement.
+        //
+        // The scrim this replaced was a hardcoded 130x40, which is 2.88px wider than the plate's
+        // real 127.12 (so it bled past both sides) while covering only 40 of its 64.80 height. If
+        // a scrim is ever needed here, size it from the resolved plate rect AND stretch-anchor it
+        // - an absolute sizeDelta measured at build time does not survive a canvas resize
+        // (measured: a plate built against a 640x480 canvas kept a 42.37x28.80 scrim after the
+        // canvas resolved to 1920x1080).
 
         // Shared text-only layout for all three resource pills
         Text pillLabel = UISharedFoundation.CreateText(
