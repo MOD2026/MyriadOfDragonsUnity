@@ -914,7 +914,9 @@ public class HomePagePresenter : MonoBehaviour
         {
             float left = barLeft + index * (destWidth + gap);
             float right = left + destWidth;
-            CreateDestinationButton(bar.transform, label, left, 970f, right, 1080f, action);
+            // DestinationBar-local placement (WH-UI-HOME-DEST-LOCAL-LAYOUT-001): prior call used
+            // root screen Y 970..1080 under a nested 110px bar → ~11px buttons + clipped labels.
+            CreateDestinationButtonInBar(bar.transform, label, left, right, action);
         }
 
         PlaceDestination(0, "HOME", RefreshHomeFeed);
@@ -922,6 +924,32 @@ public class HomePagePresenter : MonoBehaviour
         PlaceDestination(2, "QUESTS", OpenQuestsEventsHub);
         PlaceDestination(3, "COLLECTION", OpenCollectionHub);
         PlaceDestination(4, "EMPIRE", OpenEmpire);
+    }
+
+    /// <summary>DestinationBar-only builder: parent-local top-left pixels in the bar's 1920×110
+    /// design space. Shared drawer/hub callers keep <see cref="CreateDestinationButton"/>.</summary>
+    private void CreateDestinationButtonInBar(Transform parent, string label, float leftPx, float rightPx,
+        UnityEngine.Events.UnityAction action)
+    {
+        const float barDesignWidth = 1920f;
+        const float barDesignHeight = 110f;
+        GameObject btnObj = new GameObject($"Dest_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(parent, false);
+        SetParentLocalRectFromTopLeftPixels(
+            btnObj.GetComponent<RectTransform>(), leftPx, 0f, rightPx, barDesignHeight,
+            barDesignWidth, barDesignHeight);
+        Image img = btnObj.GetComponent<Image>();
+        Button btn = btnObj.GetComponent<Button>();
+        HomeV3UiLibrary.ApplyNeutralActionButton(btn, img, new Color(0.11f, 0.14f, 0.19f, 0.9f));
+        btn.onClick.AddListener(action);
+        btnObj.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
+
+        float labelWidth = Mathf.Max(100f, (rightPx - leftPx) - 24f);
+        Text text = UISharedFoundation.CreateText(btnObj.transform, "Label", label, UITextRole.Body,
+            TextAnchor.MiddleCenter, HexColor("#F2E5C9"), true, new Vector2(labelWidth, 36f));
+        UIDesignTokens.Apply(text, UIDesignTokens.TypeTier.T2Utility);
+        text.fontStyle = FontStyle.Bold;
+        text.raycastTarget = false;
     }
 
     private void CreateDestinationButton(Transform parent, string label, float leftPx, float topPx, float rightPx, float bottomPx,
@@ -978,6 +1006,18 @@ public class HomePagePresenter : MonoBehaviour
     {
         rect.anchorMin = new Vector2(left / 1920f, 1f - bottom / 1080f);
         rect.anchorMax = new Vector2(right / 1920f, 1f - top / 1080f);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
+    /// <summary>Parent-local top-left pixels → anchors on that parent (not 1920×1080 root).
+    /// Used by DestinationBar children only (WH-UI-HOME-DEST-LOCAL-LAYOUT-001).</summary>
+    private static void SetParentLocalRectFromTopLeftPixels(
+        RectTransform rect, float left, float top, float right, float bottom,
+        float parentWidth, float parentHeight)
+    {
+        rect.anchorMin = new Vector2(left / parentWidth, 1f - bottom / parentHeight);
+        rect.anchorMax = new Vector2(right / parentWidth, 1f - top / parentHeight);
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
     }
