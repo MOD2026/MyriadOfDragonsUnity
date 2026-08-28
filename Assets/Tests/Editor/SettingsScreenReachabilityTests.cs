@@ -93,7 +93,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Settings_LanguagePreference_Cycles_AndNotifiesTranslationHook()
+        public void Settings_LanguagePreference_SelectsFromSupportedList_AndNotifiesTranslationHook()
         {
             PlayerProfile profile = NewProfile();
             profile.preferredLanguageCode = "en";
@@ -101,14 +101,23 @@ namespace MyriadOfDragons.Tests
 
             SettingsPresenter settings = SpawnSettings(profile);
             Assert.AreEqual("en", RealtimeTranslationPreferences.CurrentLanguageCode);
+            Assert.IsTrue(settings.StatusTextForTests == null || settings.StatusTextForTests.Length >= 0);
+            Assert.IsNotNull(
+                settings.CanvasObjectForTests.transform.Find("SettingsBody/LanguageRow/LanguageOptions/Btn_Language_es"),
+                "Supported languages must appear as selectable options.");
 
-            FindButton(settings.CanvasObjectForTests, "SettingsBody/LanguageRow/Btn_CycleLanguage").onClick.Invoke();
+            FindButton(settings.CanvasObjectForTests,
+                "SettingsBody/LanguageRow/LanguageOptions/Btn_Language_es").onClick.Invoke();
 
             Assert.AreEqual("es", profile.preferredLanguageCode,
-                "Language CHANGE must advance to the next supported code.");
+                "Selecting Español must set the supported language code.");
             Assert.AreEqual("es", RealtimeTranslationPreferences.CurrentLanguageCode);
             Assert.AreEqual("es", _languageChangedCode,
                 "Translation hook must fire when language preference changes.");
+            StringAssert.Contains("Español",
+                settings.CanvasObjectForTests.transform.Find("SettingsBody/LanguageRow/Value")
+                    .GetComponent<Text>().text,
+                "Current language choice must be visible in the language value label.");
 
             SaveSystem.ResetCurrentProfileForTests();
             PlayerProfile reloaded = SaveSystem.LoadOrCreate();
