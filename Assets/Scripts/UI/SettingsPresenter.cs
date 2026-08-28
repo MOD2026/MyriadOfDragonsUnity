@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using MyriadOfDragons.Data;
 using MyriadOfDragons.Save;
 using UnityEngine;
@@ -9,9 +11,17 @@ namespace MyriadOfDragons.UI
     /// <summary>Utility Settings/Options screen — audio, notifications, language, logout.</summary>
     public class SettingsPresenter : MonoBehaviour
     {
+        /// <summary>Open/close canvas fade duration (seconds). Reduced motion / EditMode snap to zero.</summary>
+        public const float TransitionDurationSeconds = 0.18f;
+
         private GameObject _canvasObj;
+        private CanvasGroup _canvasGroup;
         private Action _onBackToHome;
         private Action<string> _onLogoutCompleted;
+        private CancellationTokenSource _transitionCts;
+        private Task _openTransitionTask = Task.CompletedTask;
+        private bool _backInFlight;
+        private bool _backFadeCompletedBeforeTeardown;
 
         private Text _audioValueText;
         private Text _notificationsValueText;
@@ -27,8 +37,18 @@ namespace MyriadOfDragons.UI
         }
 
         public GameObject CanvasObjectForTests => _canvasObj;
-
+        public float CanvasAlphaForTests => _canvasGroup != null ? _canvasGroup.alpha : -1f;
+        public bool BackFadeCompletedBeforeTeardownForTests => _backFadeCompletedBeforeTeardown;
         public string StatusTextForTests => _statusText != null ? _statusText.text : null;
+
+        /// <summary>Reduced motion collapses requested seconds to 0; otherwise preserves non-negative duration.</summary>
+        public static float ResolveTransitionDurationSeconds(float requestedSeconds, bool reduceMotion) =>
+            reduceMotion ? 0f : Mathf.Max(0f, requestedSeconds);
+
+        public Task WaitForOpenTransitionForTests() => _openTransitionTask ?? Task.CompletedTask;
+
+        public Task PressBackForTests() => HandleBackAsync();
+
 
         private void BuildUI()
         {
@@ -47,6 +67,88 @@ namespace MyriadOfDragons.UI
 
             BuildHeader();
             BuildForm();
+            BeginOpenTransition();
+        }
+
+        private void BeginOpenTransition()
+        {
+            if (_canvasObj == null) return;
+            _canvasGroup = _canvasObj.GetComponent<CanvasGroup>();
+            if (_canvasGroup == null)
+                _canvasGroup = _canvasObj.AddComponent<CanvasGroup>();
+            _canvasGroup.alpha = 0f;
+            _canvasGroup.blocksRaycasts = true;
+            _canvasGroup.interactable = true;
+            _openTransitionTask = FadeCanvasToAsync(1f);
+        }
+
+        private async Task HandleBackAsync()
+        {
+            if (_backInFlight) return;
+            _backInFlight = true;
+            _backFadeCompletedBeforeTeardown = false;
+            try
+            {
+                await FadeCanvasToAsync(0f).ConfigureAwait(true);
+                _backFadeCompletedBeforeTeardown =
+                    _canvasObj != null && _canvasGroup != null && Mathf.Approximately(_canvasGroup.alpha, 0f);
+                Action onBack = _onBackToHome;
+                TeardownUI();
+                onBack?.Invoke();
+            }
+            finally
+            {
+                _backInFlight = false;
+            }
+        }
+
+        private async Task FadeCanvasToAsync(float targetAlpha)
+        {
+            CancelActiveTransition();
+            if (_canvasGroup == null) return;
+
+            _transitionCts = new CancellationTokenSource();
+            CancellationToken ct = _transitionCts.Token;
+            float duration = ResolveTransitionDurationSeconds(
+                TransitionDurationSeconds, MotionPolicy.ReduceMotion);
+            float startAlpha = _canvasGroup.alpha;
+
+            // EditMode cannot drive frame-timed fades; reduced motion also snaps immediately.
+            if (duration <= 0f || !Application.isPlaying)
+            {
+                if (!ct.IsCancellationRequested)
+                    _canvasGroup.alpha = targetAlpha;
+                return;
+            }
+
+            float elapsed = 0f;
+            try
+            {
+                while (elapsed < duration)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    elapsed += Time.unscaledDeltaTime;
+                    float u = Mathf.Clamp01(elapsed / duration);
+                    _canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, u);
+                    await Task.Yield();
+                }
+
+                if (!ct.IsCancellationRequested)
+                    _canvasGroup.alpha = targetAlpha;
+            }
+            catch (OperationCanceledException)
+            {
+                // Teardown / duplicate cancel — safe no-op.
+            }
+        }
+
+        private void CancelActiveTransition()
+        {
+            if (_transitionCts == null) return;
+            try { _transitionCts.Cancel(); }
+            catch (ObjectDisposedException) { /* already disposed */ }
+            _transitionCts.Dispose();
+            _transitionCts = null;
         }
 
         private void BuildHeader()
@@ -64,11 +166,7 @@ namespace MyriadOfDragons.UI
             topRect.sizeDelta = new Vector2(0f, 100f);
 
             Button backBtn = CreateHeaderButton(topBar.transform, "Btn_Back", "< BACK", new Vector2(30f, 0f),
-                () =>
-                {
-                    TeardownUI();
-                    _onBackToHome?.Invoke();
-                });
+                () => _ = HandleBackAsync());
 
             UISharedFoundation.CreateText(topBar.transform, "Title", "SETTINGS & OPTIONS",
                 UITextRole.Display, TextAnchor.MiddleCenter, new Color(0.95f, 0.92f, 0.82f), true,
@@ -320,8 +418,12 @@ namespace MyriadOfDragons.UI
                 _statusText.text = message ?? string.Empty;
         }
 
-        private void TeardownUI()
+        public void TeardownUI()
         {
+            CancelActiveTransition();
+            _openTransitionTask = Task.CompletedTask;
+            _canvasGroup = null;
+
             if (_canvasObj == null) return;
             if (Application.isPlaying) Destroy(_canvasObj);
             else DestroyImmediate(_canvasObj);
