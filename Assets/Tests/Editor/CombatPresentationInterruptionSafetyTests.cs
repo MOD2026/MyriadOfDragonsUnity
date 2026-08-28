@@ -1,3 +1,4 @@
+using System.Collections;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -169,6 +170,45 @@ namespace MyriadOfDragons.Tests
 
             Assert.AreEqual(1, PresentationObjects(_bootstrap).Count,
                 "SetBattleCanvasVisible(true) must not cancel presentation - only hiding (false) does.");
+        }
+
+        // ---------- CR-ANIMATION-CARD-PLAY-POLISH-VERIFY-001, 2026-08-29: feaab75 tracks the hand
+        // card's pop-scale coroutine in _presentationCoroutines (it previously was NOT tracked at
+        // all, so CancelPresentationEffects never reached it). Unlike ShowTurnDamage's effects,
+        // this coroutine has no matching _presentationObjects entry - it animates an existing hand
+        // button in place rather than spawning a new GameObject.
+        //
+        // PopSelectedHandCard itself is gated behind Application.isPlaying (like every other
+        // coroutine-driving GameBootstrap method - MotionPolicy.cs's own comment: "Coroutines only
+        // run in Play mode... decorative motion is always off outside Play mode"), so it cannot be
+        // driven directly from EditMode - confirmed by running it via reflection first, which
+        // returned without tracking anything. That gate is correct production behavior, not a gap:
+        // there is no per-frame host to advance the coroutine in EditMode anyway.
+        //
+        // What IS reachable and worth proving: whether CancelPresentationEffects's
+        // _presentationCoroutines loop depends on a matching _presentationObjects entry to work.
+        // It doesn't (the two loops are independent, not zipped, per source inspection) - proven
+        // here with a real coroutine handle obtained the same way PopSelectedHandCard gets one
+        // (MonoBehaviour.StartCoroutine, public, not gated), seeded with no matching object.
+
+        private static IEnumerator NeverEndingCoroutine()
+        {
+            while (true) yield return null;
+        }
+
+        [Test]
+        public void CancelPresentationEffects_StopsACoroutineOnlyEntry_WithNoMatchingObjectToDestroy()
+        {
+            Coroutine coroutineOnly = _bootstrap.StartCoroutine(NeverEndingCoroutine());
+            PresentationCoroutines(_bootstrap).Add(coroutineOnly);
+            Assert.AreEqual(1, PresentationCoroutines(_bootstrap).Count, "Setup: one coroutine-only entry must be tracked before cancellation.");
+            CollectionAssert.IsEmpty(PresentationObjects(_bootstrap), "Setup: this entry must have no matching tracked object.");
+
+            InvokeCancelPresentationEffects(_bootstrap);
+
+            CollectionAssert.IsEmpty(PresentationCoroutines(_bootstrap),
+                "A tracked coroutine with no backing GameObject must still be stopped and cleared - the same mechanism " +
+                "feaab75's newly-tracked pop-scale coroutine now relies on.");
         }
     }
 }
