@@ -177,23 +177,17 @@ namespace MyriadOfDragons.UI
             table.transform.SetParent(_canvasObj.transform, false);
             SetNorm(table.GetComponent<RectTransform>(), 0.04f, 0.22f, 0.96f, 0.76f);
 
-            BuildTrackRow(table.transform, "FreeTrackRow", "FREE TRACK", premium: false, 0.52f, 0.98f);
-            BuildTrackRow(table.transform, "PremiumTrackRow", "PREMIUM TRACK", premium: true, 0.02f, 0.48f);
+            // Track titles live in the dual-track shell art — do not draw procedural TrackLabel
+            // text over FREE TRACK / PREMIUM TRACK (verified double-label collision at 1920x1080).
+            BuildTrackRow(table.transform, "FreeTrackRow", premium: false, 0.52f, 0.98f);
+            BuildTrackRow(table.transform, "PremiumTrackRow", premium: true, 0.02f, 0.48f);
         }
 
-        private void BuildTrackRow(Transform parent, string rowName, string label, bool premium, float yMin, float yMax)
+        private void BuildTrackRow(Transform parent, string rowName, bool premium, float yMin, float yMax)
         {
             GameObject row = new GameObject(rowName, typeof(RectTransform));
             row.transform.SetParent(parent, false);
             SetNorm(row.GetComponent<RectTransform>(), 0f, yMin, 1f, yMax);
-
-            Text labelText = UISharedFoundation.CreateText(row.transform, "TrackLabel", label, UITextRole.Title,
-                TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 40f));
-            labelText.fontSize = 28;
-            labelText.fontStyle = FontStyle.Bold;
-            UISharedFoundation.ApplyTextShadow(labelText);
-            SetNorm(labelText.rectTransform, 0.00f, 0.15f, 0.14f, 0.85f);
-            UISharedFoundation.AddLocalGradientScrim(labelText.transform, Vector2.zero, new Vector2(240f, 60f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             float wellWidth = 0.86f / BattlePassOpenValues.ShellTierWellCount;
             for (int i = 0; i < BattlePassOpenValues.ShellTierWellCount; i++)
