@@ -3675,7 +3675,7 @@ namespace MyriadOfDragons.UI
 
             Transform newest = container.GetChild(index);
             _presentationCoroutines.Add(StartCoroutine(SlideIn((RectTransform)newest,
-                from: new Vector2(0f, -140f), duration: CombatPresentationPolicy.ResolveDurationMs(
+                from: new Vector2(0f, -180f), duration: CombatPresentationPolicy.ResolveDurationMs(
                     CombatPresentationPolicy.CardPlayMs, MotionPolicy.ReduceMotion) / 1000f)));
         }
 
@@ -3692,11 +3692,18 @@ namespace MyriadOfDragons.UI
             int index = _battleController.PlayerState.Hand.IndexOf(card);
             if (index < 0 || index >= _handButtons.Count) return;
 
-            StartCoroutine(PopScale((RectTransform)_handButtons[index].transform, peak: 1.18f, duration: 0.26f));
+            _presentationCoroutines.Add(StartCoroutine(PopScale((RectTransform)_handButtons[index].transform,
+                peak: 1.12f,
+                duration: CombatPresentationPolicy.ResolveDurationMs(180, MotionPolicy.ReduceMotion) / 1000f)));
         }
 
         private static IEnumerator PopScale(RectTransform rect, float peak, float duration)
         {
+            if (duration <= 0f)
+            {
+                if (rect != null) rect.localScale = Vector3.one;
+                yield break;
+            }
             float elapsed = 0f;
             while (elapsed < duration && rect != null)
             {
