@@ -49,6 +49,19 @@ namespace MyriadOfDragons.Tests
                 .Where(id => !string.IsNullOrEmpty(id))
                 .Distinct();
 
+        /// <summary>Every real (non-None) value of an enum, derived rather than hand-copied - so a
+        /// palette or tier added later is automatically exercised instead of silently escaping
+        /// coverage the way CueAvatarStrikeStinger's binding once did on the audio side
+        /// (CR-ANIMATION-BINDINGS-ENUM-COVERAGE-001, 2026-08-28).</summary>
+        private static IEnumerable<T> AllExceptNone<T>() where T : System.Enum =>
+            System.Enum.GetValues(typeof(T)).Cast<T>().Where(v => v.ToString() != "None");
+
+        private static readonly CombatPresentationPalette[] AllPalettesExceptNone =
+            AllExceptNone<CombatPresentationPalette>().ToArray();
+
+        private static readonly CombatPresentationVisualTier[] AllTiersExceptNone =
+            AllExceptNone<CombatPresentationVisualTier>().ToArray();
+
         [Test]
         public void EveryCueTheGameCanEmit_HasAnAudioBinding()
         {
@@ -94,12 +107,8 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void ParticlePaths_CoverEveryPaletteAndTierThatCanActuallyOccur()
         {
-            foreach (CombatPresentationPalette palette in new[]
-                     { CombatPresentationPalette.Andras, CombatPresentationPalette.Ktini,
-                       CombatPresentationPalette.Pnevmas, CombatPresentationPalette.Bespoke })
-                foreach (CombatPresentationVisualTier tier in new[]
-                         { CombatPresentationVisualTier.Light, CombatPresentationVisualTier.Medium,
-                           CombatPresentationVisualTier.Heavy })
+            foreach (CombatPresentationPalette palette in AllPalettesExceptNone)
+                foreach (CombatPresentationVisualTier tier in AllTiersExceptNone)
                 {
                     string path = CombatPresentationAssetMap.ParticlePathFor(palette, tier);
                     Assert.IsNotNull(path, palette + "/" + tier + " must map to a path.");
@@ -111,12 +120,8 @@ namespace MyriadOfDragons.Tests
         public void ParticlePaths_AreUniquePerPaletteTierPair()
         {
             var paths = new List<string>();
-            foreach (CombatPresentationPalette palette in new[]
-                     { CombatPresentationPalette.Andras, CombatPresentationPalette.Ktini,
-                       CombatPresentationPalette.Pnevmas, CombatPresentationPalette.Bespoke })
-                foreach (CombatPresentationVisualTier tier in new[]
-                         { CombatPresentationVisualTier.Light, CombatPresentationVisualTier.Medium,
-                           CombatPresentationVisualTier.Heavy })
+            foreach (CombatPresentationPalette palette in AllPalettesExceptNone)
+                foreach (CombatPresentationVisualTier tier in AllTiersExceptNone)
                     paths.Add(CombatPresentationAssetMap.ParticlePathFor(palette, tier));
 
             CollectionAssert.AllItemsAreUnique(paths);
