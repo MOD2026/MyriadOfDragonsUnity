@@ -115,10 +115,9 @@ namespace MyriadOfDragons.UI
             panel.transform.SetParent(_canvasObj.transform, false);
             SetNorm(panel.GetComponent<RectTransform>(), 0.12f, 0.18f, 0.88f, 0.86f);
 
-            Text activity = UISharedFoundation.CreateText(panel.transform, "ActivityId",
-                $"activityId: {_activityId}",
-                UITextRole.Body, TextAnchor.MiddleLeft, new Color(0.85f, 0.82f, 0.7f), true, new Vector2(900f, 40f));
-            SetNorm(activity.rectTransform, 0.05f, 0.82f, 0.78f, 0.95f);
+            // The backend activityId is no longer surfaced to the player (board card
+            // VS-UI-PERMIT-COPY-001). _activityId itself is unchanged and still drives every
+            // gateway call; only its on-screen Text is gone.
 
             GameObject stateGo = new GameObject("PermitStateIcon", typeof(RectTransform), typeof(Image));
             stateGo.transform.SetParent(panel.transform, false);
@@ -130,7 +129,7 @@ namespace MyriadOfDragons.UI
             SetNorm(_permitStateIcon.rectTransform, 0.80f, 0.72f, 0.95f, 0.95f);
 
             _detailsText = UISharedFoundation.CreateText(panel.transform, "Details",
-                "Server-authoritative weekly Ascension Permit status. Local CollectionAscensionPermits is not used here.",
+                "Used once per week to evolve or fuse cards, limiting throughput without purchase.",
                 UITextRole.Body, TextAnchor.UpperLeft, new Color(0.9f, 0.88f, 0.75f), true, new Vector2(900f, 220f));
             SetNorm(_detailsText.rectTransform, 0.05f, 0.32f, 0.95f, 0.80f);
 
