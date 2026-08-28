@@ -670,16 +670,16 @@ Width-sweep findings (scratch test, reverted):
 
 | 2026-08-28 | WH-UI-BAZAAR-BASELINE-001 | CC | EVIDENCE ACCEPTED | Clean baseline; 12 controls exceed the secondary IA target, and the selected-panel action is visibly above the shell receptacle. |
 
-### WH-UI-BAZAAR-ACTION-ALIGN-001 — implementation dispatched
+### WH-UI-BAZAAR-ACTION-ALIGN-001 — COMPLETE
 
 - **Owner:** WH, direct owner relay.
-- **State:** DISPATCHED — isolated visual correction.
-- **Exact file:** `Assets/Scripts/UI/BazaarPresenter.cs` only; re-read immediately before editing.
-- **Allowed:** adjust `SelectedPanel`/`Btn_PrimaryAction` normalized placement so the primary action sits inside the authored bottom-right shell receptacle and clears divider bands. Preserve all tabs, listing wells, navigation, gateway calls, and control count.
-- **Acceptance:** loaded-profile Bazaar capture before/after at 1920x1080; zero overlap/off-canvas; relevant Bazaar/UI tests and 0 `error CS`; exact diff and isolated commit.
-- **Forbidden:** redesigning the 12-control IA count, removing tabs/listings, touching other files, stash/reset/blanket staging, or unrelated polish.
+- **State:** COMPLETE — isolated visual correction landed.
+- **Exact file:** `Assets/Scripts/UI/BazaarPresenter.cs` only.
+- **Landed anchors:** `SelectedPanel` `(0.67f, 0.04f, 0.96f, 0.86f)`; `_detailsText` `(0.04f, 0.53f, 0.96f, 0.96f)`; `Btn_PrimaryAction` `(0.02f, 0.015f, 0.98f, 0.115f)` (inside authored bottom-right shell receptacle).
+- **Evidence:** commit `18b491e2ef47e3356e7db3d1baa8e2c3d3decb3b` (1 file, +3/−3); tests `BazaarLayoutTests` 2/2, `BazaarShellTests` 4/4, `MetagameNavigationSpineTests` 1/1, `ScreenContactSheetGenerator` 1/1 (8/8, 0 failed, 0 `error CS`); capture `C:\Users\zihan\AppData\Local\Temp\MyriadOfDragonsContactSheetOutput\Bazaar.png`. Tabs, wells, gateway calls, and 12-control count preserved.
 
 | 2026-08-28 | WH-UI-BAZAAR-ACTION-ALIGN-001 | CC | DISPATCHED | Direct one-file action-slot alignment card created from WH's evidence-backed baseline. |
+| 2026-08-28 | WH-UI-BAZAAR-ACTION-ALIGN-001 | WH | COMPLETE | Commit `18b491e`; SelectedPanel/Btn_PrimaryAction aligned into shell receptacle; 8/8 Bazaar/UI tests; 0 CS; loaded-profile capture verified. |
 
 ## VS-UI-FRIENDS-RETIRE-DEFERRED-002 — IMPLEMENTATION IN PROGRESS — 2026-08-28
 
@@ -829,6 +829,9 @@ Width-sweep findings (scratch test, reverted):
 
 | 2026-08-28 | VS-UI-EMPTY-STATE-ALPHA-001 | CC | COMPLETE | Commit `b51c799`; one test file, 10/10 passed, 0 CS errors, all six registered textures positively matched an alpha-capable format. |
 
+| 2026-08-28 | VS-UI-ATKOVF-FLOOR-001 | CC | WITHDRAWN/OBSOLETE | VS verified the lane total is already `resizeTextMinSize = 22` at current line ~2910; prior 11px premise was stale. Residual low mins remain under the recorded redesign blocker and are not constant-only work. |
+| 2026-08-28 | ROOM-TRANSPORT-EVIDENCE-001 | CC | RECORDED | `SendMessage success:true` is transport acceptance only, not proof of room delivery; unanswered probes must not be interpreted as deliberate idling. |
+
 ---
 
 ## VS SEAT STATUS — QUEUE EMPTY, AWAITING A CC CARD — 2026-08-28
@@ -869,3 +872,33 @@ dropped; `myriadofdragonsunity-79` is CR and did not respond to VS. Do not treat
 message as VS being idle by choice.
 
 | 2026-08-28 | VS SEAT STATUS | VS | BLOCKED — QUEUE EMPTY | No executable card assigned; both open VS cards await ST/CC design rulings. `VS-UI-ATKOVF-FLOOR-001` re-verified closed at `GameBootstrap.cs:2910` (min 22, not 11) and the standing request for it withdrawn. |
+
+---
+
+## WH SEAT STATUS — LAST CARD COMPLETE, AWAITING NEXT CC CARD — 2026-08-28
+
+**Reported by:** WH (Cursor), autonomous turn, owner unavailable.
+**HEAD at report:** `bc4c01c` (board tip); production fix already at `18b491e`.
+
+**Latest WH card executed:** `WH-UI-BAZAAR-ACTION-ALIGN-001` — COMPLETE.
+
+| Field | Evidence |
+|---|---|
+| Commit | `18b491e2ef47e3356e7db3d1baa8e2c3d3decb3b` — `Assets/Scripts/UI/BazaarPresenter.cs` only |
+| Diff | SelectedPanel `(0.67,0.04,0.96,0.86)`; Details `(0.04,0.53,0.96,0.96)`; Btn_PrimaryAction `(0.02,0.015,0.98,0.115)` |
+| Tests | 8/8 passed (`BazaarLayout` 2, `BazaarShell` 4, `MetagameNav` 1, `ContactSheet` 1); 0 `error CS` |
+| Capture | `C:\Users\zihan\AppData\Local\Temp\MyriadOfDragonsContactSheetOutput\Bazaar.png` |
+
+**No further open executable WH card on the board.** Remaining WH-relevant entries:
+
+| Card | State | Note |
+|---|---|---|
+| `WH-UI-BAZAAR-ACTION-ALIGN-001` | COMPLETE | Evidence above. |
+| `WH-UI-HOME-RESOURCEROW-001` | BLOCKED | `HomePagePresenter.cs` still carries unrelated scrim-removal WIP; collision risk unchanged. |
+| `WH-UI-SETTINGS-STATUS-FLOOR-001` | COMPLETE | `ca3fed2` already accepted. |
+
+**Next required decision (CC):** dispatch the next isolated WH card. Safe candidates previously evidenced and still blocked/unowned: Home ResourceRow (only after Home WIP attribution clears), or a fresh clean-presenter baseline (CC must name the file — WH will not invent scope).
+
+**Nothing else edited this turn.** Dirty sweep UI files and other seats' work untouched.
+
+| 2026-08-28 | WH SEAT STATUS | WH | IDLE — QUEUE EMPTY | `WH-UI-BAZAAR-ACTION-ALIGN-001` COMPLETE at `18b491e` (8/8 tests, capture verified). No next WH card on board; awaiting CC dispatch. |
