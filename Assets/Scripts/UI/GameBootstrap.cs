@@ -5684,11 +5684,21 @@ namespace MyriadOfDragons.UI
         /// type needs a lane picked before it can be cast.</summary>
         private static bool RequiresLaneTargeting(SpellEffect effect) => effect != SpellEffect.AvatarStrike;
 
+        /// <summary>Exposed for tests: the real per-effect friendly-vs-enemy targeting rule,
+        /// extracted so it has one definition instead of being duplicated inline at every call
+        /// site (targeting UI in IsArmedSpellFriendlyTargeted, VFX anchor selection in
+        /// PlayCastImpact). Pure and static - no coroutine, no MonoBehaviour state - so it is
+        /// directly EditMode-testable, unlike the coroutine-driven presentation methods that
+        /// consume it. True for LaneHeal/LaneAttackBuff (targets the player's own board), false
+        /// for LaneDamage/AvatarStrike (targets the enemy).</summary>
+        public static bool SpellTargetsFriendlyLane(SpellEffect effect) =>
+            effect is SpellEffect.LaneHeal or SpellEffect.LaneAttackBuff;
+
         private bool IsArmedSpellFriendlyTargeted()
         {
             if (_armedSpellIndex < 0 || _armedSpellIndex >= _battleController.Spellbook.Count) return false;
             SpellEffect effect = _battleController.Spellbook[_armedSpellIndex].Effect;
-            return effect is SpellEffect.LaneHeal or SpellEffect.LaneAttackBuff;
+            return SpellTargetsFriendlyLane(effect);
         }
 
         /// <summary>
@@ -6024,7 +6034,7 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void PlayCastImpact(AvatarSpell spell, Lane targetLane)
         {
-            bool friendlyTarget = spell.Effect is SpellEffect.LaneHeal or SpellEffect.LaneAttackBuff;
+            bool friendlyTarget = SpellTargetsFriendlyLane(spell.Effect);
             Transform anchor = friendlyTarget ? _playerLaneSlots[targetLane] : _enemyLaneSlots[targetLane];
 
             PlayEffect(anchor, SpellEffectSprite(spell.Effect), Vector2.zero, 190f, 0.85f);
