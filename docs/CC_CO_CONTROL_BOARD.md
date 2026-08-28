@@ -899,21 +899,31 @@ message as VS being idle by choice.
 
 ---
 
-## WH SEAT STATUS — EMPIRE DETAIL BASELINE SUBMITTED — 2026-08-28
+## WH SEAT STATUS — EMPIRE DETAIL NAME-LEVEL COMPLETE — 2026-08-28
 
-**Reported by:** WH (Cursor). **HEAD:** `3127ca0` (unchanged production). Board docs commit follows.
+**Reported by:** WH (Cursor). **HEAD:** `509cf0a`.
 
-**Latest WH card:** `WH-UI-EMPIRE-DETAIL-BASELINE-001` — EVIDENCE SUBMITTED (read-only; no code edit).
+**Latest WH card:** `WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001` — COMPLETE.
 
 | Field | Evidence |
 |---|---|
-| File | `EmpireBuildingDetailPresenter.cs` CLEAN |
-| Capture | `...\EmpireBuildingDetail.png` (231,756 B) |
-| Controls | 4 (`Return`, `Close`, `ViewRequirements`, `Upgrade`) |
-| Future card | `WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001` — separate overlapping Name/Level `SetNorm` bands (~18px); not authorized to implement |
-| Tests this turn | Not run — card forbids Unity |
+| Commit | `509cf0afe84e8dbb560c9ab34feac89c8481383c` — presenter only |
+| Diff | Name `(0.04,0.80,0.62,0.86)`; Level `(0.04,0.75,0.62,0.79)` |
+| Tests | 20/20 passed; 0 `error CS` |
+| Captures | before/after `EmpireBuildingDetail_*_WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001.png` |
 
-| 2026-08-28 | WH SEAT STATUS | WH | IDLE — AWAITING CC | Empire Detail baseline evidenced; implementation blocked until CC cards a follow-on or new dispatch. |
+| 2026-08-28 | WH SEAT STATUS | WH | COMPLETE — AWAITING NEXT CARD | Name/Level band fix at `509cf0a`; idle for next CC dispatch. |
+
+### WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 — COMPLETE
+
+- **Owner:** WH, direct owner relay.
+- **State:** COMPLETE — isolated Name/Level band separation landed.
+- **Exact file:** `Assets/Scripts/UI/EmpireBuildingDetailPresenter.cs` only.
+- **Diff:** `BuildingName` `(0.04, 0.78, 0.62, 0.86)` → `(0.04, 0.80, 0.62, 0.86)`; `BuildingLevel` `(0.04, 0.75, 0.62, 0.80)` → `(0.04, 0.75, 0.62, 0.79)`. Controls, art, navigation, teardown, type floor unchanged.
+- **Evidence:** commit `509cf0afe84e8dbb560c9ab34feac89c8481383c`; tests 20/20 (`EmpireBuildingDetailLayoutTests` 10, `ShellTests` 8, `MetagameNavigationSpineTests` 1, `ScreenContactSheetGenerator` 1); 0 `error CS`. Captures: before `...\EmpireBuildingDetail_before_WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001.png` (231,756 B); after `...\EmpireBuildingDetail_after_WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001.png` (231,757 B).
+
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | CC | DISPATCHED | Follow-on from Empire Detail baseline; Name/Level band overlap only. |
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | WH | COMPLETE | Commit `509cf0a`; 20/20 tests; 0 CS; before/after captures verified. |
 
 ### WH-UI-EMPIRE-DETAIL-BASELINE-001 — EVIDENCE COMPLETE (NO IMPLEMENTATION)
 
@@ -1034,6 +1044,24 @@ both out of scope.
 
 | 2026-08-28 | VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 | CC | DISPATCHED | Home/Campaign dirty ownership is the fastest WH unblock; VS is the correct Metagame owner for read-only reconciliation. |
 
+| 2026-08-28 | VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 | CC | COMPLETE | Read-only attribution complete at HEAD `3127ca0`; Home has one unattributed scrim removal, Campaign has coupled retune/scrim lanes plus independent back-button scrims. No authorship inferred. |
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | NEXT/ACTIVE | VS is explicitly sequenced to execute this already-authorized one-file integration next; no new wording, Waiting shape, preserve existing copy/tests. |
+
+### VS-UI-HOME-SCRIM-MEASURE-001 — prepared follow-up
+
+- **Owner:** VS, direct owner relay.
+- **State:** PREPARED — read-only measurement only; do not edit until the card is separately authorized.
+- **Exact file:** `Assets/Scripts/UI/HomePagePresenter.cs` only.
+- **Scope:** measure the single removed `AddLocalGradientScrim` at the text plate against current responsive geometry and determine restore-versus-keep with a capture-backed result. Do not infer from byte-pattern similarity.
+
+### VS-UI-CAMPAIGN-BACK-SCRIM-001 — prepared follow-up
+
+- **Owner:** VS, direct owner relay.
+- **State:** PREPARED — independent pair; not coupled to Campaign anchor/scrim ruling.
+- **Exact file:** `Assets/Scripts/UI/CampaignMapPresenter.cs` only.
+- **Scope:** measure the two `backBtnObj` scrims and propose the smallest safe action; no edits until separately authorized. The coupled retuned plate/scrim lane remains a CC design decision.
+
 ### CO-TRANSPORT-RELAY-001 — owner-authorized transport exception
 
 - **Status:** AUTHORIZED as a relay only because the owner is mobile and cannot reach VS/CR/WH directly.
@@ -1068,6 +1096,8 @@ Tests (final, this session): `UiGeometryRegressionTests` 0 new findings (1 pre-e
 No stash/reset/blanket staging used. `GameBootstrap.cs` and the held font-floor redesign untouched. No other seat's dirty file edited (`CampaignMapPresenter.cs`/`HomePagePresenter.cs`/`WhHangProfileTrace.cs` read-only for evidence only).
 
 | 2026-08-28 | CR-UI-SWEEP-RECON-002 | CC | COMPLETE | CR-owned sweep lanes reconciled and executed at `ebd5408`; 91/92 guarded tests, 0 CS errors, no forbidden-file edits. CampaignMap/Home proposals remain VS-owned follow-ups. |
+
+| 2026-08-28 | CR-UI-SWEEP-RECON-002 | CC | CONFIRMATION | CR's latest report reconfirms the existing `ebd5408` outcome; no new CR implementation or card opened. Unsafe scrim restorations remain reverted by evidence. |
 
 ## CC HANDOFF — DIRECT DISPATCH MODEL, CO RETIRED FROM RELAY — 2026-08-28
 
@@ -1124,6 +1154,8 @@ CO authorized by owner as **transport relay only** — deliver exact CC-approved
 
 | 2026-08-28 | CLOUD-UI-ANIMATION-REDUCED-MOTION-001 | CC | AUTHORIZED | Cloud Agent may implement the smallest reduced-motion gate on its isolated branch; merge requires CC review of the PR diff and evidence. |
 
+| 2026-08-28 | CLOUD-UI-ANIMATION-REDUCED-MOTION-001 | CC | DRAFT PR PENDING GATE | Draft PR #2 contains the exact five-file scoped change and 5/5 external NUnit tests, but canonical Unity EditMode verification is blocked by the unactivated license. Do not merge until official Unity results are available. |
+
 ## CC MULTI-AI DISPATCH PLAN — MOBILE + DESKTOP MODES — 2026-08-28
 
 ### Mobile mode (owner unavailable)
@@ -1152,6 +1184,18 @@ CO authorized by owner as **transport relay only** — deliver exact CC-approved
 | 2026-08-28 | CC-MULTI-AI-DISPATCH-PLAN-001 | CC | ACTIVE | Two-mode protocol recorded: heartbeat/relay on mobile, exact room prompts on desktop, board remains authoritative. |
 
 **Note for CC:** `myriadofdragonsunity-e4` is flagged "also connected via Remote Control" — the same property CO's own address carried during the three failed VS->CO transport probes earlier today. Not asserting causation, recording it because it is the one observable that correlated with the earlier silent-drop failures. **If a card goes unanswered, check transport before reading it as non-compliance.**
+
+### WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 — COMPLETE
+
+- **Owner:** WH, direct owner relay.
+- **State:** COMPLETE — isolated Name/Level band separation landed at `509cf0a`.
+- **Exact file:** `Assets/Scripts/UI/EmpireBuildingDetailPresenter.cs` only.
+- **Landed:** `BuildingName` `(0.04, 0.80, 0.62, 0.86)`; `BuildingLevel` `(0.04, 0.75, 0.62, 0.79)`.
+- **Evidence:** 20/20 focused tests, 0 `error CS`, before/after captures verified.
+
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-BASELINE-001 | CC | COMPLETE | Read-only baseline accepted at board commit `91e800a`; clean presenter, 4 controls, no tests per card. |
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | CC | AUTHORIZED | Direct coding card created from WH’s evidence-backed baseline. |
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | WH | COMPLETE | Commit `509cf0afe84e8dbb560c9ab34feac89c8481383c`; 20/20 tests; 0 CS; captures verified. |
 
 ---
 
@@ -1224,3 +1268,27 @@ is blocked in this environment). **VS made no commit.** Whoever owns those 119 l
 them; this entry rides along or gets committed separately after.
 
 | 2026-08-28 | VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 | VS | EVIDENCE — COMPLETE, NO EDITS | Both files attributed as unattributed-sweep content in VS-owned files. Home = 1 isolated scrim. Campaign = 6 scrims + a 3-plate anchor retune where 4 scrims are provably coupled to the retune and cannot be restored independently; 2 backBtn scrims are separable. Three isolated cards proposed, one of which is a CC ruling. |
+
+### VS-UI-HOME-SCRIM-RECON-001 — implementation authorized
+
+- **Owner:** VS, direct owner relay.
+- **State:** AUTHORIZED — one-file measured restore-or-keep decision.
+- **Exact file:** `Assets/Scripts/UI/HomePagePresenter.cs` only.
+- **Task:** measure the removed `textPlate` `130x40` scrim against current pill geometry; keep or restore based on guarded geometry and loaded-profile capture evidence.
+- **Acceptance:** Home tests, `UiGeometryRegressionTests`, before/after 1920x1080 capture, 0 `error CS`, isolated commit.
+
+### VS-UI-CAMPAIGN-BACKBTN-SCRIM-001 — implementation authorized
+
+- **Owner:** VS, direct owner relay.
+- **State:** AUTHORIZED — independent two-scrim measurement/fix.
+- **Exact file:** `Assets/Scripts/UI/CampaignMapPresenter.cs` only; touch the two `backBtnObj` scrims and nothing in the coupled plate lane.
+- **Acceptance:** restore or retain each scrim only after individual guarded retest; before/after capture, 0 `error CS`, isolated commit.
+
+### VS-UI-CAMPAIGN-PLATE-ANCHOR-DECISION-001 — CC ruling
+
+- **Decision:** KEEP the responsive stretch anchors and keep the four coupled plate scrims removed. Reverting anchors solely to restore fixed-pixel scrims would reintroduce the measured responsiveness defect; no valid middle state exists.
+- **Implementation:** VS may execute the responsive-anchor state as already present, with no additional code change required beyond preserving it while handling the independent back-button card.
+
+| 2026-08-28 | VS-UI-HOME-SCRIM-RECON-001 | CC | AUTHORIZED | Direct coding/measurement card; first step to clear WH’s Home collision. |
+| 2026-08-28 | VS-UI-CAMPAIGN-BACKBTN-SCRIM-001 | CC | AUTHORIZED | Direct isolated card for the independent back-button scrims. |
+| 2026-08-28 | VS-UI-CAMPAIGN-PLATE-ANCHOR-DECISION-001 | CC | RULED | Responsive anchors retained; coupled fixed-pixel scrims remain removed. |
