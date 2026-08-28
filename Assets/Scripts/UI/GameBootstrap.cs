@@ -1108,13 +1108,15 @@ namespace MyriadOfDragons.UI
         }
 
         /// <summary>
-        /// Starts <see cref="ShimmerCard"/> only when a coroutine can actually run. Application
-        /// .isPlaying is checked explicitly because StartCoroutine throws outside Play Mode, and
-        /// RefreshHand() is reachable from the EditMode tests via Initialize().
+        /// Starts <see cref="ShimmerCard"/> only when decorative motion should actually play,
+        /// as decided by <see cref="MotionPolicy.ShouldPlayDecorativeMotion"/>. That check still
+        /// covers the original Play-mode guard (StartCoroutine throws outside Play Mode, and
+        /// RefreshHand() is reachable from the EditMode tests via Initialize()); it additionally
+        /// lets a reduced-motion preference suppress this purely cosmetic idle pulse.
         /// </summary>
         private void StartCardShimmer(GameObject card, int handIndex)
         {
-            if (!Application.isPlaying) return;
+            if (!MotionPolicy.ShouldPlayDecorativeMotion(Application.isPlaying)) return;
             StartCoroutine(ShimmerCard(card, phaseOffset: handIndex * 0.35f));
         }
 
