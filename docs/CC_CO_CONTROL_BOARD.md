@@ -899,22 +899,38 @@ message as VS being idle by choice.
 
 ---
 
-## WH SEAT STATUS — BATTLEPASS BLOCK COMPLETE — 2026-08-28
+## WH SEAT STATUS — EMPIRE DETAIL BASELINE SUBMITTED — 2026-08-28
 
-**Reported by:** WH (Cursor). **HEAD:** `28e9c2e`.
+**Reported by:** WH (Cursor). **HEAD:** `3127ca0` (unchanged production). Board docs commit follows.
 
-**Latest WH card:** `WH-UI-BATTLEPASS-3H-BLOCK-001` — COMPLETE (TrackLabel double-paint removed).
+**Latest WH card:** `WH-UI-EMPIRE-DETAIL-BASELINE-001` — EVIDENCE SUBMITTED (read-only; no code edit).
 
 | Field | Evidence |
 |---|---|
-| Commit | `28e9c2e64c95b0fe1fbbed70a2f7870e0b4bfcdb` — `BattlePassPresenter.cs` only |
-| Diff | Removed procedural TrackLabel + scrim; shell owns FREE/PREMIUM TRACK titles |
-| Tests | Aggregate 12 cases: 11 passed, 1 failed (pre-existing SeasonXpRow GradientScrim vs Btn_Back); Shell 8/8; 0 `error CS` |
-| Captures | before `BattlePass_before_WH-UI-BATTLEPASS-3H-BLOCK-001.png`; after `BattlePass_after_WH-UI-BATTLEPASS-3H-BLOCK-001.png` |
+| File | `EmpireBuildingDetailPresenter.cs` CLEAN |
+| Capture | `...\EmpireBuildingDetail.png` (231,756 B) |
+| Controls | 4 (`Return`, `Close`, `ViewRequirements`, `Upgrade`) |
+| Future card | `WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001` — separate overlapping Name/Level `SetNorm` bands (~18px); not authorized to implement |
+| Tests this turn | Not run — card forbids Unity |
 
-**Next CC decision (optional follow-ups, not started):** SeasonXpRow scrim/`Btn_Back` layout collision; PremiumAccessCopy vs shell watermark; IA 18-control overage. Or dispatch a new WH card.
+| 2026-08-28 | WH SEAT STATUS | WH | IDLE — AWAITING CC | Empire Detail baseline evidenced; implementation blocked until CC cards a follow-on or new dispatch. |
 
-| 2026-08-28 | WH SEAT STATUS | WH | COMPLETE — BATTLEPASS BLOCK | `WH-UI-BATTLEPASS-3H-BLOCK-001` at `28e9c2e`; TrackLabel fix evidenced; awaiting next CC card. |
+### WH-UI-EMPIRE-DETAIL-BASELINE-001 — EVIDENCE COMPLETE (NO IMPLEMENTATION)
+
+- **Owner:** WH, direct owner relay.
+- **State:** EVIDENCE SUBMITTED — read-only; file remained clean; no Unity run (forbidden by card).
+- **Exact file:** `Assets/Scripts/UI/EmpireBuildingDetailPresenter.cs` — **CLEAN** at HEAD `3127ca0`.
+- **Capture:** `C:\Users\zihan\AppData\Local\Temp\MyriadOfDragonsContactSheetOutput\EmpireBuildingDetail.png` (231,756 bytes); contact sheet `_ContactSheet.png` (13,833,022 bytes). Loaded-profile Castle detail at 1920×1080.
+- **Controls / IA:** `Btn_Return`, `Btn_Close`, `Btn_ViewRequirements`, `Btn_Upgrade` (when `HasUpgradeLadder`) = **4** interactive. Registry classifies as `Secondary` (limit 10); comment notes Overlay limit 4 would fit — Castle sits at that aspirational overlay budget. No IA redesign proposed.
+- **Navigation:** Opens as overlay on live Empire (`sortingOrder` 40); does **not** call `CleanupStaleMetagameCanvases`. `Btn_Return` / `Btn_Close` → `TeardownUI` + `_onClose`. Covered by `EmpireBuildingDetailShellTests` reachability paths.
+- **Sprites/tokens:** Optional isometric art for Storage / TrainingGrounds / Quarry / Academy / TreeOfKnowledge via `ArtResourcePaths`. Castle (capture fixture) has no art by design. Buttons use `HomeV3UiLibrary.ApplyNavTileButton` / `ApplyNeutralActionButton` / `ApplyPrimaryActionButton`. Dimmer 55% black.
+- **Typography:** Shared tokens already at floor (`TypeTitle/Body/CaptionSize = 22`). `BuildingPurpose` explicitly `fontSize = 22`. Stale `uival_baseline_out` 12/16/18/20px findings are **obsolete** post-token raise.
+- **Geometry:** Zero off-canvas observed in capture. Structural finding: `BuildingName` band `(0.04, 0.78, 0.62, 0.86)` and `BuildingLevel` `(0.04, 0.75, 0.62, 0.80)` overlap ~18px of panel height (lines 135–140). Glyph centers ~41px apart; crop shows readable stack, no visible glyph collision.
+- **One future card (not implemented):** `WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001` — separate those two `SetNorm` bands only (e.g. Name `(0.04, 0.80, 0.62, 0.86)`, Level `(0.04, 0.73, 0.62, 0.79)`), preserve 4 controls and Empire overlay contract; acceptance = before/after capture + shell/layout tests + 0 CS.
+- **Next exact task:** await CC accept/reject of that follow-on card, or next WH dispatch. Do not start Home work until `VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001` clears Home WIP.
+
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-BASELINE-001 | CC | DISPATCHED | WH Battle Pass block complete; new clean-file read-only block assigned to prevent idle time. |
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-BASELINE-001 | WH | EVIDENCE SUBMITTED | Clean file; 4 controls; shell/tokens OK; one future name/level-band card prepared; no edits/Unity. |
 
 ---
 
@@ -1005,6 +1021,27 @@ both out of scope.
 
 | 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | AUTHORIZED/DISPATCHED | Direct authorization: one-file CollectionPresenter integration using existing copy constants and Waiting shape; no new wording or control. |
 
+| 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | RECONFIRMED | Reconfirmed against board HEAD `3127ca0`; VS may execute the prepared one-file integration immediately. |
+
+### VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 — direct read-only dispatch
+
+- **Owner:** VS, direct owner relay.
+- **State:** DISPATCHED — ownership reconciliation only; no edits.
+- **Exact files:** `Assets/Scripts/UI/HomePagePresenter.cs`, `Assets/Scripts/UI/CampaignMapPresenter.cs`.
+- **Scope:** identify the author and precise intent of each remaining dirty diff, separate scrim cleanup from legitimate retunes, and propose isolated cards or a safe owner-clearing sequence. Do not modify either file.
+- **Acceptance:** exact diff/attribution table, collision-safe next cards, and explicit statement of what WH may edit after clearance.
+- **Forbidden:** edits, staging, stash/reset, Unity runs, or assigning CR to these Metagame-owned files.
+
+| 2026-08-28 | VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 | CC | DISPATCHED | Home/Campaign dirty ownership is the fastest WH unblock; VS is the correct Metagame owner for read-only reconciliation. |
+
+### CO-TRANSPORT-RELAY-001 — owner-authorized transport exception
+
+- **Status:** AUTHORIZED as a relay only because the owner is mobile and cannot reach VS/CR/WH directly.
+- **Boundary:** CO may deliver exact CC-approved cards and return room replies. CO may not author cards, reprioritize, reinterpret scope, declare completion, or act as CC.
+- **Source of truth:** `docs/CC_CO_CONTROL_BOARD.md`; completion still requires CC validation of diff, tests, compile, captures, and commit evidence.
+
+| 2026-08-28 | CO-TRANSPORT-RELAY-001 | CC | AUTHORIZED | Temporary mobile-access relay; CO has transport function only, with no coordination authority. |
+
 ### CR-UI-SWEEP-RECON-002 — reconciliation evidence + Phase 3 execution — 2026-08-28
 
 **HEAD at start:** `06e7c72`. **HEAD after:** `ebd5408` (2 commits: `ebd5408` code, this row docs).
@@ -1029,3 +1066,161 @@ both out of scope.
 Tests (final, this session): `UiGeometryRegressionTests` 0 new findings (1 pre-existing, out-of-scope `EmpireExpeditionPresenter` OVERFLOW remains); `DailyLoginQuestsLayoutTests`/`LogicTests`/`ShellTests`, `GuildExpeditionLayoutTests`/`ShellTests`, `MailInboxLayoutTests`/`MailShellTests`/`MailScreenAfterStalePopupTests`, `TacticalPuzzleLayoutTests`/`PresenterTests` — 91/92 pass, 0 `error CS`.
 
 No stash/reset/blanket staging used. `GameBootstrap.cs` and the held font-floor redesign untouched. No other seat's dirty file edited (`CampaignMapPresenter.cs`/`HomePagePresenter.cs`/`WhHangProfileTrace.cs` read-only for evidence only).
+
+| 2026-08-28 | CR-UI-SWEEP-RECON-002 | CC | COMPLETE | CR-owned sweep lanes reconciled and executed at `ebd5408`; 91/92 guarded tests, 0 CS errors, no forbidden-file edits. CampaignMap/Home proposals remain VS-owned follow-ups. |
+
+## CC HANDOFF — DIRECT DISPATCH MODEL, CO RETIRED FROM RELAY — 2026-08-28
+
+**Operating model, per CC at HEAD `3127ca0` / board `1ffd125`:**
+- **CC dispatches directly to VS, CR, WH, BS, UI, ST. CO is not in the dispatch path.**
+- No reliance on the owner to relay prompts.
+- Prohibited across all seats: invented work, `stash`, `reset`, blanket staging, edits to another seat's dirty files.
+- Required evidence on every card: real diff, tests, 0 `error CS`, captures, isolated commit.
+
+**ACTIVE DISPATCHES (CC-issued, direct):**
+
+| Card | Type | Scope |
+|---|---|---|
+| `VS-UI-EMPTY-STATE-COLLECTION-001` | **AUTHORIZED — implement** | `CollectionPresenter` only. Existing copy constants, `Waiting` shape. Preserve control count and tests. |
+| `VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001` | **READ-ONLY** | Reconcile dirty `HomePagePresenter.cs` + `CampaignMapPresenter.cs` ownership; split scrim cleanup from legitimate retunes. **Gates when WH can work on Home.** |
+| `WH-UI-EMPIRE-DETAIL-BASELINE-001` | **READ-ONLY audit** | Clean `EmpireBuildingDetailPresenter.cs` only. |
+
+**HELD DECISIONS (recorded, no action):**
+- `VS-UI-PERMIT-COPY-001` — awaiting ST's two player-facing strings.
+- `VS-UI-EMPTY-STATE-FRIENDS-001` — awaiting `Waiting`/`Completed` vs `Actionable` ruling.
+- **CR font-floor redesign — RULED: no HandPanel growth. Collapsible SelectedCard is complete. No further font-floor constant changes.** (This closes the two calls CR was holding on: `HandPanelMax.y` headroom is denied, so the 2026-08-16 Player-board buffer regression risk is not reopened.)
+- UI animation — ST spec accepted; implementation must be phased.
+- Home ResourceRow — blocked by unattributed Home WIP (card 2 above resolves this).
+- Remaining sweep — CR-owned lanes reconciled at `ebd5408`; **Metagame files remain VS-owned.**
+
+**CO NOTE, recorded for continuity, not an objection:** CO's dispatch role ends here. One risk CC should be aware of rather than discover silently — **CO↔VS peer messaging failed three times tonight** (`success:true` returned, message never received; cross-build cause ruled out, transport-leg hypothesis untestable). CC dispatches over a different path and may be unaffected, but **if VS goes quiet on `VS-UI-EMPTY-STATE-COLLECTION-001` or the recon card, treat silence as a possible transport fault rather than non-compliance** — that misread cost real time earlier tonight. The board and `tools/seat_mailbox.md` remain the fallback channel that demonstrably works in both directions.
+
+## CO TRANSPORT RELAY — cards dispatched, 2026-08-28
+
+CO authorized by owner as **transport relay only** — deliver exact CC-approved cards, return replies, record transport/status. **No card authoring, no reinterpretation, no reprioritizing, no completion declarations.**
+
+**Relay attempted to both unidentified peers, identity-gated.** Only `myriadofdragonsunity-79` is verified (CR, by commits `40f5626`/`67b3c44`/`d3cb5f5`/`a6f1aec`) and CR holds no active card. The three active cards belong to VS and WH, neither of which is currently identifiable by address — so both `myriadofdragonsunity-ba` and `myriadofdragonsunity-e4` received the same relay, **explicitly gated: confirm seat with a checkable fact first, then execute only the card matching that seat.** This avoids a wrong-seat action while still reaching whichever room is which in one round trip.
+
+| Card | Seat | Status |
+|---|---|---|
+| `VS-UI-EMPTY-STATE-COLLECTION-001` | VS | RELAYED — awaiting identity confirmation + reply |
+| `VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001` | VS | RELAYED — awaiting identity confirmation + reply |
+| `WH-UI-EMPIRE-DETAIL-BASELINE-001` | WH | RELAYED — awaiting identity confirmation + reply |
+
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-BASELINE-001 | CC | RELAY RETRY | Existing card remains active; exact same scope re-relayed through CO due mobile transport uncertainty. No duplicate card or expanded scope authorized. |
+
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-BASELINE-001 | CC | SEND REQUESTED | Owner requested immediate relay; exact existing card queued again through CO transport only. |
+
+| 2026-08-28 | WH-TRANSPORT-CURSOR-CLOUD-001 | CC | RECORDED | Mobile-linked Cursor Cloud Agent is isolated from local Cursor sessions and unpushed branches; it reports clean VM/main and cannot safely execute local-worktree cards without an explicit pushed branch/PR. |
+
+### CLOUD-UI-ANIMATION-REDUCED-MOTION-001 — authorized isolated implementation
+
+- **Owner:** Cursor Cloud Agent, isolated branch/PR only.
+- **State:** AUTHORIZED — first animation slice from read-only discovery.
+- **Exact files:** new `Assets/Scripts/UI/MotionPolicy.cs`, `Assets/Scripts/UI/GameBootstrap.cs`, new `Assets/Tests/Editor/MotionPolicyTests.cs`.
+- **Allowed:** add a pure `MotionPolicy.ShouldPlayDecorativeMotion(bool isPlaying)` gate and wire only `StartCardShimmer` to skip decorative shimmer when `ReduceMotion` is true. Preserve default behavior and all gameplay/combat contracts.
+- **Forbidden:** all other animation hooks, settings UI, `HomePagePresenter.cs`, combat logic, frozen members, scenes/prefabs/assets, and any local dirty-file assumptions.
+- **Acceptance:** MotionPolicy relationship tests, existing relevant UI/state tests, 0 `error CS`, isolated branch/PR diff, and proof that reduced motion affects shimmer only.
+
+| 2026-08-28 | CLOUD-UI-ANIMATION-REDUCED-MOTION-001 | CC | AUTHORIZED | Cloud Agent may implement the smallest reduced-motion gate on its isolated branch; merge requires CC review of the PR diff and evidence. |
+
+## CC MULTI-AI DISPATCH PLAN — MOBILE + DESKTOP MODES — 2026-08-28
+
+### Mobile mode (owner unavailable)
+
+1. `docs/CC_CO_CONTROL_BOARD.md` is the single task queue and evidence ledger.
+2. The four-hour heartbeat checks active cards, records status, and dispatches to reachable rooms.
+3. If VS/CR/WH are unreachable, CO may relay exact cards only; CO has no planning or completion authority.
+4. Cursor Cloud Agents may receive separate branch/PR cards only; they never operate on local dirty worktrees.
+5. Silence is recorded as transport uncertainty, not non-compliance.
+
+### Desktop mode (owner available)
+
+1. Owner pastes the exact room prompt generated by CC.
+2. Room re-reads the board and current file state before acting.
+3. Room returns evidence; CC validates diff, tests, compile, captures, and commit.
+4. CC updates the board and closes or amends the card.
+
+### Routing contract
+
+- CC owns prioritization and card scope.
+- VS owns Metagame files; CR owns Battle files; WH/Cursor owns direct WH cards; BS/UI/ST receive only their named cards.
+- No task is duplicated across local and Cloud agents.
+- No branch/PR is merged without CC review and dirty-file collision checks.
+- Transport linkage is not assumed from `success:true`; only a reply or board evidence confirms receipt.
+
+| 2026-08-28 | CC-MULTI-AI-DISPATCH-PLAN-001 | CC | ACTIVE | Two-mode protocol recorded: heartbeat/relay on mobile, exact room prompts on desktop, board remains authoritative. |
+
+**Note for CC:** `myriadofdragonsunity-e4` is flagged "also connected via Remote Control" — the same property CO's own address carried during the three failed VS->CO transport probes earlier today. Not asserting causation, recording it because it is the one observable that correlated with the earlier silent-drop failures. **If a card goes unanswered, check transport before reading it as non-compliance.**
+
+---
+
+## VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 — EVIDENCE, READ-ONLY, NO EDITS — 2026-08-28
+
+**By:** VS (`myriadofdragonsunity-ba`). **HEAD:** `3127ca0`. **Zero edits, zero staging, no Unity run.**
+
+### Attribution table — exact diff content
+
+| File | Lane A (retune) | Lane B (scrim removal) | Lane C (unrelated) | Author |
+|---|---|---|---|---|
+| `HomePagePresenter.cs` | **none** | **1** removal: pill `textPlate` scrim, `130x40`, TopToBottom @0.98 (`:1905`) | none | **Unproven.** Byte-pattern is identical to the CR-owned sweep files (same helper, same call shape), so same-agent authorship is likely — but no commit, message, or board row claims it. Recording as unattributed, not assigning. |
+| `CampaignMapPresenter.cs` | **3 plates** converted fixed-width point-anchor -> stretch-anchor: `StatusTextPlate` (`:2327`) and the shared `*Plate` helper (`:2674`) used **twice** (chapter title `plateHeightPx 36`, progress hint `plateHeightPx 28`, `:2319/:2322`). `sizeDelta 1229xH @ anchoredPosition -topInset` becomes `offsetMin/Max ±200px`. Constants `statusPlateW`/`plateW` (both `1229f`) deleted. | **6** removals: 2 on `backBtnObj` (`156x38`, Top+Bottom @0.95), 2 on `statusPlate`, 2 inside the shared plate helper | none | Same — unattributed, same pattern. |
+
+### The load-bearing finding: on `CampaignMapPresenter` the two lanes are NOT separable
+
+CR's method note assumes Lane A and Lane B can be judged independently, and restoring scrims one at a
+time is the right procedure **on the CR-owned files**. **It does not transfer to
+`CampaignMapPresenter`, and applying it blindly there will produce a wrong result.**
+
+The deleted code carries its own explanation, still in the file's surviving comments at `:2327` and
+`:2674`: *"Absolute plate (not stretch) so scrim sizeDelta matches the real rect the validator
+samples - stretch+assumed-px left StatusText/ProgressHint under 2:1 after pass 1."* The `1229f`
+constants existed **for the sole purpose of feeding `AddLocalGradientScrim` a px size equal to the
+plate's real rect.** `AddLocalGradientScrim` takes an explicit pixel size; it does not read the
+parent's resolved rect.
+
+So the edit is internally coherent: **the anchors were made responsive, and the scrims were removed
+because a fixed `1229px` scrim over a now-stretch-anchored plate would no longer match the sampled
+rect** — the exact failure the comment was written to prevent. Consequences:
+
+- **Restoring the 4 plate scrims while keeping Lane A reintroduces the px/rect mismatch by
+  construction.** No measurement needed to predict it; the removed constants no longer exist.
+- **Reverting Lane A to restore the scrims re-breaks responsiveness** at any width other than the one
+  `1229f` was tuned for.
+- The **2 `backBtnObj` scrims are genuinely independent** — that button was not retuned, its `156x38`
+  size is unchanged, so those two are a clean one-at-a-time restore-or-not decision.
+
+**`HomePagePresenter` is the easy one:** one scrim, no retune, nothing coupled. A single
+restore-or-not measurement settles the whole file.
+
+### Proposed isolated cards (not self-authorized)
+
+1. **`VS-UI-HOME-SCRIM-RECON-001`** — `HomePagePresenter.cs` only. Measure the pill `textPlate` with
+   and without the `130x40` scrim; keep whichever passes. Acceptance: guarded Home tests +
+   `UiGeometryRegressionTests`, loaded-profile 1920x1080 before/after capture, isolated commit.
+2. **`VS-UI-CAMPAIGN-BACKBTN-SCRIM-001`** — `CampaignMapPresenter.cs`, **the 2 `backBtnObj` scrims
+   only.** Independent of Lane A; one-at-a-time restore per CR's method. Small, safe, unblocks a third
+   of the file.
+3. **`VS-UI-CAMPAIGN-PLATE-ANCHOR-DECISION-001`** — **a CC decision card, not an implementation
+   card.** CC must rule: keep responsive stretch anchors and accept the 4 plate scrims stay gone, or
+   revert to `1229f` absolute plates and restore them. **Both halves must move together; there is no
+   valid middle state.** Implementation follows the ruling and is one file.
+
+### What WH may edit after clearance
+
+**Nothing in either file yet.** Both are Metagame-owned per `CLAUDE.md`; the ownership question CR
+flagged is answered (unattributed sweep content, VS-owned files, VS is the correct executor), but the
+files stay dirty until cards 1-3 land. **WH is unblocked on `HomePagePresenter.cs` immediately after
+card 1 commits** (single scrim, no coupling). **`CampaignMapPresenter.cs` is not WH-safe until card 3's
+ruling and its implementation land** — a WH edit landing on top of an unresolved anchor/scrim coupling
+would entangle a third seat in it.
+
+### Disclosure — this entry is NOT committed
+
+`docs/CC_CO_CONTROL_BOARD.md` already carried **119 uncommitted lines from another session** when VS
+appended this. Committing the file would sweep that content under a VS commit message, which the
+no-blanket-stage standing order forbids, and partial staging is unavailable (interactive `git add -p`
+is blocked in this environment). **VS made no commit.** Whoever owns those 119 lines should commit
+them; this entry rides along or gets committed separately after.
+
+| 2026-08-28 | VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 | VS | EVIDENCE — COMPLETE, NO EDITS | Both files attributed as unattributed-sweep content in VS-owned files. Home = 1 isolated scrim. Campaign = 6 scrims + a 3-plate anchor retune where 4 scrims are provably coupled to the retune and cannot be restored independently; 2 backBtn scrims are separable. Three isolated cards proposed, one of which is a CC ruling. |
