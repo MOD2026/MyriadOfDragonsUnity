@@ -1060,6 +1060,14 @@ both out of scope.
 
 | 2026-08-28 | VS-UI-EMPTY-STATE-FRIENDS-001 | CC | AUTHORIZED | AD ruled Waiting with no action; direct implementation now unblocked. |
 
+| 2026-08-28 | VS-UI-EMPTY-STATE-FRIENDS-001 | CC | CODE COMPLETE / VISUAL EVIDENCE PENDING | Commit `eb8f4dc`; FriendsShell 3/3, FriendsLayout 2/2, UiEmptyState 7/7, 0 CS; Friends geometry 0/0. Interactive before/after capture unavailable. |
+
+| 2026-08-28 | VS-UI-PERMIT-COPY-001 | CC | CODE COMPLETE / FOLLOW-UP OPEN | Commit `3be65f6`; Permit tests green and geometry 0/0, 0 CS. SetDetails refresh/claim paths still re-inject diagnostics and need a separate approved-copy card; visual capture unavailable. |
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | CODE COMPLETE / VISUAL EVIDENCE PENDING | Commit `13a768e`; 28/29 guarded tests, 0 CS, Collection geometry 0/0; visual capture unavailable. |
+
+| 2026-08-28 | VS-UI-HOME-SCRIM-RECON-001 | CC | NOW ACTIVE | Collection prerequisite is landed; VS may execute the single Home textPlate scrim measurement card next. |
+
 | 2026-08-28 | AD-UI-DECISIONS-PARALLEL-001 | CC | COMPLETE | Permit wording corrected and accepted: `Used once per week to evolve or fuse cards, limiting throughput without purchase.` ActivityId deletion confirmed. |
 
 | 2026-08-28 | VS-UI-PERMIT-COPY-001 | CC | UNBLOCKED | ST/AD wording decision resolved; VS may delete ActivityId text and replace Details with the accepted player-facing line only. |
@@ -1259,6 +1267,43 @@ CO authorized by owner as **transport relay only** — deliver exact CC-approved
 
 | 2026-08-28 | WH-UI-SHOP-BASELINE-001 | CC | DISPATCHED | New bounded WH audit after Empire detail completion. |
 | 2026-08-28 | CR-ANIMATION-COMBAT-HOOK-AUDIT-001 | CC | DISPATCHED | New bounded CR animation-preparation audit while Cloud PR awaits Unity gate. |
+
+| 2026-08-28 | CR-ANIMATION-COMBAT-HOOK-AUDIT-001 | CC | EVIDENCE ACCEPTED | Existing hooks mapped; no missing healing/tick hook, no frozen-contract touch. Reduced motion remains Cloud PR scope. |
+
+### CR-ANIMATION-SPELL-TARGET-EXTRACT-001 — implementation authorized
+
+- **Owner:** CR, direct owner relay.
+- **State:** AUTHORIZED — pure behavior-preserving extraction.
+- **Exact scope:** `Assets/Scripts/UI/GameBootstrap.cs` plus one focused EditMode test file. Extract `SpellTargetsFriendlyLane(SpellEffect)` and route both `IsArmedSpellFriendlyTargeted()` and `PlayCastImpact` through it.
+- **Mapping:** `LaneDamage` false, `LaneHeal` true, `LaneAttackBuff` true, `AvatarStrike` false.
+- **Forbidden:** new VFX/animation states, MotionPolicy, lethal-priority redesign, frozen contracts, other seats’ files, stash/reset/blanket staging.
+- **Acceptance:** relationship-based test cases, relevant EditMode tests, 0 `error CS`, exact diff and isolated commit.
+
+| 2026-08-28 | CR-ANIMATION-SPELL-TARGET-EXTRACT-001 | CC | AUTHORIZED | Direct CR card created from the accepted animation-hook audit; no visual behavior change. |
+
+| 2026-08-28 | CR-ANIMATION-SPELL-TARGET-EXTRACT-001 | CC | COMPLETE | Commit `5548097cb6ad7a9e324dfae9e5a5a49904966aea`; two authorized files plus test meta, 121/121 tests, 0 CS, negative-path proof passed. |
+
+### CR-ANIMATION-SPELL-TARGET-THIRD-SITE-001 — follow-up candidate
+
+- **Owner:** CR, direct owner relay.
+- **State:** PREPARED — not yet authorized.
+- **Scope:** inspect the third `ArmSpellTargeting` duplicate and determine whether it should route through `SpellTargetsFriendlyLane`.
+- **Acceptance:** read-only usage/behavior check first; implementation only under a separate CC card with focused relationship tests.
+
+| 2026-08-28 | CR-ANIMATION-SPELL-TARGET-THIRD-SITE-001 | CC | PREPARED | Third duplicate site recorded separately; completed extraction remains closed. |
+
+| 2026-08-28 | WH-UI-SHOP-BASELINE-001 | CC | EVIDENCE ACCEPTED | Clean Shop baseline; 9 controls compliant, zero off-canvas, one measured pack-4 vertical misalignment. |
+
+### WH-UI-SHOP-PACK4-ALIGN-001 — COMPLETE
+
+- **Owner:** WH, direct owner relay.
+- **State:** COMPLETE — pack-4 well top aligned with packs 1–3.
+- **Exact file:** `Assets/Scripts/UI/ShopPresenter.cs` only.
+- **Diff:** `packBounds` row 4 `{ 908f, 180f, 1126f, 790f }` → `{ 908f, 210f, 1126f, 790f }`.
+- **Evidence:** commit `a395d297ff9b5e06198f91b6c565f937f85773c1`; tests 13/13 (`ShopLayoutContent` 4, `ShopV1Chrome` 3, `ShopStaminaLadderUi` 4, `MetagameNavigationSpine` 1, `ScreenContactSheetGenerator` 1); 0 `error CS`. Captures: before `...\Shop_before_WH-UI-SHOP-PACK4-ALIGN-001.png` (1,928,951 B); after `...\Shop_after_WH-UI-SHOP-PACK4-ALIGN-001.png` (1,922,154 B). 9 controls / SKUs / pity / stamina / navigation preserved.
+
+| 2026-08-28 | WH-UI-SHOP-PACK4-ALIGN-001 | CC | AUTHORIZED | Direct one-file fix created from the Shop baseline evidence. |
+| 2026-08-28 | WH-UI-SHOP-PACK4-ALIGN-001 | WH | COMPLETE | Commit `a395d29`; pack-4 top 180→210; 13/13 tests; 0 CS; before/after captures verified. |
 | 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | WH | COMPLETE | Commit `509cf0afe84e8dbb560c9ab34feac89c8481383c`; 20/20 tests; 0 CS; captures verified. |
 
 ---
@@ -1356,3 +1401,52 @@ them; this entry rides along or gets committed separately after.
 | 2026-08-28 | VS-UI-HOME-SCRIM-RECON-001 | CC | AUTHORIZED | Direct coding/measurement card; first step to clear WH’s Home collision. |
 | 2026-08-28 | VS-UI-CAMPAIGN-BACKBTN-SCRIM-001 | CC | AUTHORIZED | Direct isolated card for the independent back-button scrims. |
 | 2026-08-28 | VS-UI-CAMPAIGN-PLATE-ANCHOR-DECISION-001 | CC | RULED | Responsive anchors retained; coupled fixed-pixel scrims remain removed. |
+
+| 2026-08-28 | VS-UI-HOME-SCRIM-RECON-001 | CC | RELAY RETRY | No execution evidence since authorization; exact card re-queued through CO transport, no scope change. |
+| 2026-08-28 | VS-UI-CAMPAIGN-BACKBTN-SCRIM-001 | CC | RELAY RETRY | No execution evidence since authorization; exact card re-queued through CO transport, no scope change. |
+| 2026-08-28 | WH-UI-SHOP-PACK4-ALIGN-001 | CC | RELAY RETRY | No execution evidence since authorization; exact card re-queued through CO transport, no scope change. |
+
+## MULTI-SEAT CHAIN QUEUE — OWNER-INDEPENDENT EXECUTION — 2026-08-28
+
+- **VS sequence:** finish `VS-UI-HOME-SCRIM-RECON-001`; then execute `VS-UI-CAMPAIGN-BACKBTN-SCRIM-001`; then continue any remaining explicitly authorized Metagame card. Stop at design/ownership blockers and record evidence.
+- **CR sequence:** finish `CR-ANIMATION-DAMAGE-TEST-SEAM-001`; then execute the smallest resulting CC-authorized extraction card. Do not originate VFX or touch Metagame files.
+- **WH sequence:** finish `WH-UI-SHOP-PACK4-ALIGN-001`; then execute `WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001` only if the current tree shows it is not already landed; otherwise take the next clean-file baseline card.
+- Each seat may advance to the next named card without owner confirmation, but may not create new scope. Every card still requires isolated evidence and board update.
+
+| 2026-08-28 | MULTI-SEAT-CHAIN-QUEUE-001 | CC | ACTIVE | Chained execution order recorded so rooms can continue independently while owner is unavailable. |
+
+### CR-ANIMATION-SPELL-TARGET-THIRD-SITE-001 — implementation authorized
+
+- **Owner:** CR, direct owner relay.
+- **State:** AUTHORIZED — small follow-up to completed extraction `5548097`.
+- **Exact scope:** `Assets/Scripts/UI/GameBootstrap.cs` plus one focused relationship test if needed; inspect and route the third `ArmSpellTargeting` duplicate through `SpellTargetsFriendlyLane` only if behavior-equivalent.
+- **Forbidden:** new VFX, other animation hooks, frozen contracts, unrelated files, stash/reset/blanket staging.
+- **Acceptance:** negative-path proof where useful, focused tests, 0 `error CS`, isolated commit, or documented NO-OP if no duplicate behavior exists.
+
+| 2026-08-28 | CR-ANIMATION-SPELL-TARGET-THIRD-SITE-001 | CC | AUTHORIZED | Activated to keep CR moving while VS/WH relay delivery is retried. |
+
+| 2026-08-28 | CR-ANIMATION-SPELL-TARGET-THIRD-SITE-001 | CC | COMPLETE | Commit `146df973bf3eaff4d3eb11e56569d4ae64606204`; one-file extraction, 147/147 tests, 0 CS errors, shared mapping coverage retained. |
+
+### CR-ANIMATION-DAMAGE-TEST-SEAM-001 — read-only preparation
+
+- **Owner:** CR, direct owner relay.
+- **State:** DISPATCHED — bounded preparation while BS owns visual design.
+- **Exact scope:** inspect `ShowTurnDamage`, health-segment update helpers, and their existing tests in battle-owned files. Identify one pure, EditMode-testable decision seam for authoritative damage presentation (without changing damage math or animation timing).
+- **Acceptance:** exact methods/files, relationship assertions, frozen-contract check, and smallest implementation card. No edits, staging, Unity run, stash, reset, or speculative VFX.
+
+| 2026-08-28 | CR-ANIMATION-DAMAGE-TEST-SEAM-001 | CC | DISPATCHED | New bounded CR task to advance animation testability without overlapping BS visual work. |
+
+### BS-ANIMATION-DAMAGE-FEEDBACK-PLAN-001 — bounded animation task
+
+- **Owner:** BS, direct owner relay.
+- **State:** DISPATCHED — narrow design/implementation-boundary task; no code edits yet.
+- **Scope:** choose one first combat presentation slice from the accepted ST language: authoritative damage feedback only. Map the existing `ShowTurnDamage`/health-segment presentation path, identify the smallest implementation files, interruption/reduced-motion behavior, and focused tests. Do not touch combat resolution.
+- **Acceptance:** return an exact implementation card for one damage-feedback slice, including timing, priority, file list, and evidence plan. No speculative VFX or broad animation framework.
+
+| 2026-08-28 | BS-ANIMATION-DAMAGE-FEEDBACK-PLAN-001 | CC | DISPATCHED | Animation work narrowed to one authoritative damage-feedback slice; avoids the stalled broad proposal. |
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-FRIENDS-001 | CC | CONFIRMED COMPLETE | VS reconfirms commit `eb8f4dc`; code/tests complete, visual capture unavailable, no further Friends implementation needed. |
+| 2026-08-28 | VS-UI-HOME-SCRIM-RECON-001 | CC | ACTIVE NOW | Collection prerequisite is complete; VS is instructed to execute the Home textPlate scrim measurement next. |
+| 2026-08-28 | VS-UI-CAMPAIGN-BACKBTN-SCRIM-001 | CC | QUEUED NEXT | Execute after Home card; independent two-scrim measurement only. |
+
+| 2026-08-28 | WH-UI-SHOP-PACK4-ALIGN-001 | CC | ACTIVE NOW | WH is idle; re-queued the existing authorized Shop row-4 alignment card as the next coding task. No scope expansion. |
