@@ -1002,3 +1002,30 @@ both out of scope.
 | 2026-08-28 | VS-UI-PERMIT-COPY-001 | VS | STILL BLOCKED | ST copy verified absent from board, register, and both chat archives; no wording invented. |
 | 2026-08-28 | VS-UI-EMPTY-STATE-INTEGRATION-AUDIT-001 | VS | MAP COMPLETE | 6/6 assets mapped: 1 integrable now, 1 blocked on design, 2 quarantined by the dirty sweep, 2 premature against still-OPEN shells. |
 | 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | VS | PREPARED — AWAITING CC | Only fully unblocked integration; reuses existing test-asserted copy constants, zero control-count change. |
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | AUTHORIZED/DISPATCHED | Direct authorization: one-file CollectionPresenter integration using existing copy constants and Waiting shape; no new wording or control. |
+
+### CR-UI-SWEEP-RECON-002 — reconciliation evidence + Phase 3 execution — 2026-08-28
+
+**HEAD at start:** `06e7c72`. **HEAD after:** `ebd5408` (2 commits: `ebd5408` code, this row docs).
+
+**Phase 1/2 evidence table** — every dirty `Assets/Scripts/UI/` file at start, classified:
+
+| File | Owner | Classification | Defect measured? | Disposition |
+|---|---|---|---|---|
+| `EmpirePresenter.cs`, `MemoryExpeditionPresenter.cs`, `SpellLoadoutPickerPresenter.cs` | CR | Already landed | Yes — 3 confirmed OFFCANVAS | COMPLETE, `a6f1aec4` (prior card) |
+| `DailyLoginQuestsPresenter.cs` | CR | (a) 3 retunes + (b) 4 scrim removals | 3 of 4 restorations produced real defects on re-test | Lane A kept; 3 scrims stay removed, 1 restored — see commit `ebd5408` |
+| `GuildExpeditionPresenter.cs` | CR | (a) 3 retunes + (b) 4 scrim removals | 1 of 4 restorations produced a real defect | Lane A kept; 1 scrim stays removed, 3 restored — `ebd5408` |
+| `MailInboxPresenter.cs` | CR | (a) 1 retune + (b) 3 scrim removals | 1 of 3 restorations produced a real defect | Lane A kept; 1 scrim stays removed, 2 restored — `ebd5408` |
+| `TacticalPuzzlePresenter.cs` | CR | (b) `ApplyFramedPanel`+scrim removal, (c) unrelated `SetSiblingIndex(1)` addition | Yes — restoring broke real per-state art rendering | Removal stays; `SetSiblingIndex` left untouched (neither lane) — `ebd5408` |
+| `CampaignMapPresenter.cs` | **Metagame/VS — FORBIDDEN to CR per `CLAUDE.md`** | (a) real anchor retune (StatusTextPlate/plate: fixed-width point-anchor → stretch-anchor with margins) + (b) 4 scrim removals | Not evaluated — file is off-limits to CR, read-only | **Proposal only, not executed.** Smallest valid follow-up: a VS/Metagame-owned card mirroring this same Lane A/B method (re-test each restoration individually against guarded tests before keeping it, exactly as `ebd5408` did) — do not assume "restore all" is safe without measuring, per this session's 5-of-9 real-defect rate on the CR-owned files. |
+| `HomePagePresenter.cs` | **Metagame/VS — FORBIDDEN to CR per `CLAUDE.md`** | (b) 1 scrim removal (pill scrim, `130x40`), no retune | Not evaluated — file is off-limits to CR, read-only | **Proposal only.** Single-scrim restore-or-not check, VS/Metagame-owned; low complexity relative to CampaignMapPresenter's card. |
+| `WhHangProfileTrace.cs` | Unowned/infra (WH hang-profiling) | (c) unrelated — hang-profiling instrumentation, zero `AddLocalGradientScrim`/anchor content despite living under `Assets/Scripts/UI/` | N/A — not a sweep file | No card proposed; confirmed out of the sweep's actual subject matter, not touched. |
+
+**Phase 3 note:** `CC-UI-SWEEP-SPLIT-001` (line ~523) already authorizes exactly the Lane A/B method for CR-owned sweep files, so the four CR-owned files above were executed directly under that existing card rather than stopping at proposal — matches "if a defect is already covered by an approved card, execute that card." The two Metagame-owned files have no CR-executable card (file ownership blocks it, not lack of a card shape), so they stop at proposal.
+
+**Method note, load-bearing for whoever picks up the two proposed cards:** "matches real container geometry" is necessary but **not sufficient** proof a scrim is safe to restore. On the four CR-owned files, blind restoration (my own first pass) introduced 5 new real failures across `UiGeometryRegressionTests`/3 different `*LayoutTests` classes/`TacticalPuzzlePresenterTests` before each was re-tested and pruned individually. Restore one scrim at a time and re-run the guarded tests after each, not once at the end.
+
+Tests (final, this session): `UiGeometryRegressionTests` 0 new findings (1 pre-existing, out-of-scope `EmpireExpeditionPresenter` OVERFLOW remains); `DailyLoginQuestsLayoutTests`/`LogicTests`/`ShellTests`, `GuildExpeditionLayoutTests`/`ShellTests`, `MailInboxLayoutTests`/`MailShellTests`/`MailScreenAfterStalePopupTests`, `TacticalPuzzleLayoutTests`/`PresenterTests` — 91/92 pass, 0 `error CS`.
+
+No stash/reset/blanket staging used. `GameBootstrap.cs` and the held font-floor redesign untouched. No other seat's dirty file edited (`CampaignMapPresenter.cs`/`HomePagePresenter.cs`/`WhHangProfileTrace.cs` read-only for evidence only).
