@@ -147,7 +147,9 @@ namespace MyriadOfDragons.UI
                 new Vector2(720f, 48f));
             title.fontSize = 28;
             title.fontStyle = FontStyle.Bold;
-            SetNorm(title.rectTransform, 0.22f, 0.15f, 0.78f, 0.9f);
+            // Header bands separated (WH-UI-GUILD-EXPEDITION-HEADER-001): prior Title
+            // (0.22-0.78) overlapped StatusLine (0.72-0.98) by ~115px — Friends/Chat pattern.
+            SetNorm(title.rectTransform, 0.22f, 0.15f, 0.70f, 0.90f);
 
             _statusText = UISharedFoundation.CreateText(topBar.transform, "StatusLine",
                 _actionsGateOpen ? "Ready." : GuildExpeditionOpenValues.PlayerStatus,
@@ -155,7 +157,7 @@ namespace MyriadOfDragons.UI
                 new Vector2(420f, 40f));
             _statusText.fontSize = 22;
             _statusText.fontStyle = FontStyle.Bold;
-            SetNorm(_statusText.rectTransform, 0.72f, 0.1f, 0.98f, 0.9f);
+            SetNorm(_statusText.rectTransform, 0.72f, 0.10f, 0.98f, 0.90f);
         }
 
         private void BuildBody()
