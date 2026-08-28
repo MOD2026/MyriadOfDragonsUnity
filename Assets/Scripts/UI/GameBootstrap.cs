@@ -3345,6 +3345,28 @@ namespace MyriadOfDragons.UI
         public static bool DidAvatarTakeDamage(int previousObservedHp, int currentHp) =>
             previousObservedHp >= 0 && currentHp < previousObservedHp;
 
+        /// <summary>Returns the contiguous half-open segment range that changed from filled to
+        /// empty after a real Avatar HP drop. The range is pure and allocation-free so the
+        /// coroutine-driven presentation path can use it without introducing a second source of
+        /// truth or per-tick garbage. Returns false for startup/no damage, changes that do not
+        /// cross a rendered segment boundary, and invalid bar dimensions.</summary>
+        public static bool TryGetDamageFlashSegmentRange(int previousObservedHp, int currentHp,
+            int maxHp, int segmentCount, out int firstSegment, out int exclusiveEnd)
+        {
+            firstSegment = 0;
+            exclusiveEnd = 0;
+            if (!DidAvatarTakeDamage(previousObservedHp, currentHp) || maxHp <= 0 || segmentCount <= 0)
+                return false;
+
+            int previousFilled = ComputeFilledHealthSegments(previousObservedHp, maxHp, segmentCount);
+            int currentFilled = ComputeFilledHealthSegments(currentHp, maxHp, segmentCount);
+            if (currentFilled >= previousFilled) return false;
+
+            firstSegment = currentFilled;
+            exclusiveEnd = previousFilled;
+            return true;
+        }
+
         /// <summary>Exposed for tests: the real "which slot is the just-played card" decision
         /// SlideNewestCardIntoLane uses, extracted so it has one definition instead of living
         /// inline inside a method gated behind Application.isPlaying (unreachable from EditMode).
@@ -6589,21 +6611,20 @@ namespace MyriadOfDragons.UI
 
             int filled = ComputeFilledHealthSegments(enemy.AvatarHealth, enemy.MaxAvatarHealth, EnemyHealthSegmentCount);
             bool tookDamage = DidAvatarTakeDamage(_enemyLastObservedHp, enemy.AvatarHealth);
-            int previousFilled = _enemyLastObservedHp >= 0
-                ? ComputeFilledHealthSegments(_enemyLastObservedHp, enemy.MaxAvatarHealth, EnemyHealthSegmentCount)
-                : filled;
-
             for (int i = 0; i < _enemyHealthSegments.Length; i++)
             {
                 _enemyHealthSegments[i].color = i < filled ? HealthBarFillColor : HealthBarEmptyColor;
             }
 
-            if (tookDamage && Application.isPlaying)
+            if (tookDamage && Application.isPlaying
+                && TryGetDamageFlashSegmentRange(_enemyLastObservedHp, enemy.AvatarHealth,
+                    enemy.MaxAvatarHealth, EnemyHealthSegmentCount, out int firstSegment,
+                    out int exclusiveEnd))
             {
                 // Flash exactly the segments that just emptied - the discrete "which of the 20
                 // changed" set, not a generic whole-bar pulse, so the flash itself communicates
                 // how much was lost rather than just that something was.
-                for (int i = filled; i < previousFilled && i < _enemyHealthSegments.Length; i++)
+                for (int i = firstSegment; i < exclusiveEnd && i < _enemyHealthSegments.Length; i++)
                 {
                     StartCoroutine(FlashSegment(_enemyHealthSegments[i]));
                 }
