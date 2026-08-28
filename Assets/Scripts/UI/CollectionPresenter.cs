@@ -37,6 +37,7 @@ namespace MyriadOfDragons.UI
         private Text _classFilterLabel;
         private Transform _gridRoot;
         private Text _emptyStateText;
+        private RectTransform _emptyStateRegion;
 
         /// <summary>Empty grid when the player owns nothing.</summary>
         public const string EmptyNoOwnedCopy = "No owned cards to display.";
@@ -265,8 +266,17 @@ namespace MyriadOfDragons.UI
             sr.vertical = true;
             sr.movementType = ScrollRect.MovementType.Clamped;
 
-            _emptyStateText = CreateTextElement(panelObj.transform, "EmptyState", "No owned cards to display.", new Vector2(0f, 0f), 28, TextAnchor.MiddleCenter, new Vector2(800f, 120f));
-            _emptyStateText.gameObject.SetActive(false);
+            // Empty grid now routes through the shared UIEmptyState region instead of a bare
+            // centred Text. The region is built on demand in RenderGrid because the copy and the
+            // illustration differ between "owns nothing" and "filter hides everything" - see there.
+            GameObject emptyObj = new GameObject("EmptyState", typeof(RectTransform));
+            emptyObj.transform.SetParent(panelObj.transform, false);
+            _emptyStateRegion = emptyObj.GetComponent<RectTransform>();
+            _emptyStateRegion.anchorMin = new Vector2(0.08f, 0.10f);
+            _emptyStateRegion.anchorMax = new Vector2(0.92f, 0.90f);
+            _emptyStateRegion.offsetMin = Vector2.zero;
+            _emptyStateRegion.offsetMax = Vector2.zero;
+            emptyObj.SetActive(false);
         }
 
         private void BuildDetailPanel()
@@ -438,19 +448,63 @@ namespace MyriadOfDragons.UI
             }
 
             bool hasAny = _filteredCards.Count > 0;
-            _emptyStateText.gameObject.SetActive(!hasAny);
+            if (_emptyStateRegion != null) _emptyStateRegion.gameObject.SetActive(!hasAny);
 
             if (!hasAny)
             {
-                _emptyStateText.text = _allCards.Count == 0 ? EmptyNoOwnedCopy : EmptyNoMatchCopy;
+                BuildEmptyState(_allCards.Count == 0);
                 return;
             }
+
+            // The region is what gets deactivated, not the title Text inside it, so the title
+            // would still report activeSelf==true to EmptyStateTextForTests. Drop the reference
+            // instead: a populated grid must read back as "no empty state", exactly as before.
+            _emptyStateText = null;
 
             foreach (OwnedCardViewModel card in _filteredCards)
             {
                 GameObject tile = CreateCardTile(_gridRoot, card);
                 tile.GetComponent<Button>().onClick.AddListener(() => ShowDetail(card));
             }
+        }
+
+        /// <summary>
+        /// Renders the empty grid through the shared <see cref="UIEmptyState"/> region.
+        ///
+        /// Both states are <see cref="EmptyStateKind.Waiting"/> deliberately. Neither is Actionable:
+        /// "you own no cards" resolves by playing, not by pressing anything here, and an Actionable
+        /// clear-filter variant would need a new player-facing button label, which is not this
+        /// change's to invent (board, 2026-08-28).
+        ///
+        /// The two public copy constants are passed through VERBATIM as the title - three assertions
+        /// in CollectionClassFilterTests read them back off this Text via EmptyStateTextForTests, so
+        /// the strings and the no-owned/no-match distinction are contract, not cosmetics.
+        ///
+        /// Only the filtered case gets art: empty_state_collection_filter_v1 depicts a filter that
+        /// matched nothing. There is no registered illustration for "owns nothing at all", and
+        /// reusing the filter one there would state something false about why the grid is empty.
+        /// </summary>
+        private void BuildEmptyState(bool ownsNothing)
+        {
+            if (_emptyStateRegion == null) return;
+
+            for (int i = _emptyStateRegion.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = _emptyStateRegion.GetChild(i).gameObject;
+                if (Application.isPlaying) Destroy(child);
+                else DestroyImmediate(child);
+            }
+
+            UIEmptyState.Build(
+                _emptyStateRegion,
+                EmptyStateKind.Waiting,
+                ownsNothing ? EmptyNoOwnedCopy : EmptyNoMatchCopy,
+                explanation: null,
+                statusLine: null,
+                illustrationPath: ownsNothing ? null : UIEmptyState.IllustrationCollectionFilter);
+
+            Transform title = _emptyStateRegion.Find("EmptyState_Title");
+            _emptyStateText = title != null ? title.GetComponent<Text>() : null;
         }
 
         private GameObject CreateCardTile(Transform parent, OwnedCardViewModel card)
