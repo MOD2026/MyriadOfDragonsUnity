@@ -402,7 +402,8 @@ namespace MyriadOfDragons.UI
                 { 40f, 210f, 275f, 790f },
                 { 328f, 210f, 564f, 790f },
                 { 618f, 210f, 855f, 790f },
-                { 908f, 180f, 1126f, 790f },
+                // WH-UI-SHOP-PACK4-ALIGN-001: top 180 -> 210 to match packs 1-3 row baseline.
+                { 908f, 210f, 1126f, 790f },
             };
 
             // Right sidebar ladder rows (shell chrome is opaque; atlas tiles overlay).
