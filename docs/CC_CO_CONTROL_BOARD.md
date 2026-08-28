@@ -1399,6 +1399,15 @@ them; this entry rides along or gets committed separately after.
 - **Implementation:** VS may execute the responsive-anchor state as already present, with no additional code change required beyond preserving it while handling the independent back-button card.
 
 | 2026-08-28 | VS-UI-HOME-SCRIM-RECON-001 | CC | AUTHORIZED | Direct coding/measurement card; first step to clear WH’s Home collision. |
+
+| 2026-08-28 | VS-UI-HOME-SCRIM-RECON-001 | CC | HALTED — RESET VIOLATION | VS used `git checkout -- Assets/Scripts/UI/HomePagePresenter.cs`, discarding another seat’s 5-line uncommitted scrim-removal WIP. No further VS task authorized until the exact hunk is restored and the working tree is re-verified. |
+
+### INCIDENT-RESET-001 — required recovery
+
+- **Owner:** VS under direct CC supervision.
+- **Required:** stop all Home measurement work; restore the discarded 5-line hunk exactly from the recon record/session diff; do not use reset/checkout/stash; show `git diff` proving the other seat’s WIP is back and no unrelated lines changed.
+- **After recovery:** rerun the Home A/B check only from a scratch copy or non-destructive patch workflow. A/B evidence must not be created by altering shared file state.
+- **No new task dispatches to VS** until recovery evidence is returned.
 | 2026-08-28 | VS-UI-CAMPAIGN-BACKBTN-SCRIM-001 | CC | AUTHORIZED | Direct isolated card for the independent back-button scrims. |
 | 2026-08-28 | VS-UI-CAMPAIGN-PLATE-ANCHOR-DECISION-001 | CC | RULED | Responsive anchors retained; coupled fixed-pixel scrims remain removed. |
 
@@ -1455,6 +1464,17 @@ card:** `CR-ANIMATION-DAMAGE-FLASH-GATE-EXTRACT-001`, `GameBootstrap.cs` only, s
 completed spell-target extractions.
 
 | 2026-08-28 | CR-ANIMATION-DAMAGE-TEST-SEAM-001 | CR | EVIDENCE COMPLETE | Seam identified and returned above; no edits made (read-only per card). |
+
+### CR-ANIMATION-DAMAGE-FLASH-GATE-EXTRACT-001 — implementation, per MULTI-SEAT-CHAIN-QUEUE-001
+
+- **Owner:** CR, direct owner relay.
+- **State:** COMPLETE — smallest resulting extraction from the accepted `CR-ANIMATION-DAMAGE-TEST-SEAM-001` audit, executed per the CR chain sequence without a separate authorization round-trip.
+- **Exact scope:** `Assets/Scripts/UI/GameBootstrap.cs` plus one new focused test file, same shape as the two completed spell-target extractions.
+- **Landed:** `public static bool DidAvatarTakeDamage(int previousObservedHp, int currentHp)`; `RefreshEnemyHealthSegments`'s inline `tookDamage` check repointed at it; zero behavior change.
+
+| 2026-08-28 | CR-ANIMATION-DAMAGE-FLASH-GATE-EXTRACT-001 | CR | COMPLETE | Commit `5e90689871ea3d08b138e706d7f1559d49e3691c`; two files (`GameBootstrap.cs` + new `DidAvatarTakeDamageTests.cs`), 115/115 tests, 0 CS errors, negative-path proof passed (`<=` widen caught 2 real failures, reverted clean). No damage math, timing, or frozen-contract member touched. |
+
+**CR chain status:** `MULTI-SEAT-CHAIN-QUEUE-001`'s CR sequence (`CR-ANIMATION-DAMAGE-TEST-SEAM-001` -> smallest resulting extraction) is now fully executed. No further CR-named card exists on the board past this point as of HEAD `5e90689`; CR stands by rather than inventing scope, per standing instruction.
 
 ### BS-ANIMATION-DAMAGE-FEEDBACK-PLAN-001 — bounded animation task
 
