@@ -198,7 +198,10 @@ namespace MyriadOfDragons.UI
         {
             GameObject grid = new GameObject("BenefitGrid", typeof(RectTransform));
             grid.transform.SetParent(_canvasObj.transform, false);
-            SetNorm(grid.GetComponent<RectTransform>(), 0.28f, 0.16f, 0.68f, 0.86f);
+            // Grid band kept as named fractions so the well-size math below cannot drift out of
+            // sync with the anchors the wells are actually built from.
+            const float gridLeft = 0.28f, gridBottom = 0.16f, gridRight = 0.68f, gridTop = 0.86f;
+            SetNorm(grid.GetComponent<RectTransform>(), gridLeft, gridBottom, gridRight, gridTop);
 
             string[] benefitLabels =
             {
@@ -220,9 +223,14 @@ namespace MyriadOfDragons.UI
                 well.transform.SetParent(grid.transform, false);
                 Image img = well.GetComponent<Image>();
                 img.raycastTarget = false;
-                SetNorm(well.GetComponent<RectTransform>(),
-                    col * cw + 0.02f, 1f - (row + 1) * rh + 0.02f,
-                    (col + 1) * cw - 0.02f, 1f - row * rh - 0.02f);
+                // One set of fractions, used for BOTH the anchors and the scrim size below. The old
+                // code recomputed the size as a bare half-column/third-row and silently dropped
+                // these +-0.02 margins, which is half of why the scrims were mis-sized.
+                float wellLeft = col * cw + 0.02f;
+                float wellBottom = 1f - (row + 1) * rh + 0.02f;
+                float wellRight = (col + 1) * cw - 0.02f;
+                float wellTop = 1f - row * rh - 0.02f;
+                SetNorm(well.GetComponent<RectTransform>(), wellLeft, wellBottom, wellRight, wellTop);
                 // Applied AFTER final positioning - see EmpirePresenter's same fix for why.
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
@@ -234,18 +242,33 @@ namespace MyriadOfDragons.UI
                     new Vector2(220f, 36f));
                 UISharedFoundation.ApplyTextShadow(label);
                 SetNorm(label.rectTransform, 0.06f, 0.06f, 0.94f, 0.34f);
-                // Benefit grid is 0.40×0.70 of 1920×1080; each well is half-col / third-row.
-                const float wellW = 0.40f * 1920f * 0.5f;
-                const float wellH = 0.70f * 1080f / 3f;
+                // Scrim geometry, corrected on two counts.
+                //
+                // SIZE: measure the well, never assume it. The old literals were
+                // 0.40f * 1920f * 0.5f = 384 x 252 - a bare half-column/third-row of the grid band
+                // that silently ignored the +-0.02 well margins above. Design-space pixel math is
+                // wrong here for a second reason too: the canvas only resolves to 1920x1080 when a
+                // real screen exists, so the same literals describe a well three times too large
+                // wherever the canvas resolves smaller (measured in EditMode: wells are 117.76 x
+                // 98.56 against an unscaled 640x480 canvas). rect.size tracks whatever the canvas
+                // actually is, so the scrim stays proportional in both cases - the "measure real
+                // geometry, do not copy a literal" pattern AddLocalGradientScrim documents.
+                //
+                // OFFSET: was (wellW * 0.5f, wellH * 0.20f), written as if measured from the well's
+                // corner. AddLocalGradientScrim point-anchors the scrim at (0.5,0.5) inside a
+                // ScrimLayer stretched to the parent, so an offset is CENTRE-relative: it pushed
+                // each scrim's centre clear of its own well and hung half of it over the
+                // neighbouring controls. Vector2.zero is the centred position.
+                Vector2 wellSize = well.GetComponent<RectTransform>().rect.size;
                 UISharedFoundation.AddLocalGradientScrim(
                     well.transform,
-                    new Vector2(wellW * 0.5f, wellH * 0.20f),
-                    new Vector2(wellW * 0.9f, wellH * 0.32f),
+                    Vector2.zero,
+                    new Vector2(wellSize.x * 0.9f, wellSize.y * 0.32f),
                     UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
                 UISharedFoundation.AddLocalGradientScrim(
                     well.transform,
-                    new Vector2(wellW * 0.5f, wellH * 0.20f),
-                    new Vector2(wellW * 0.9f, wellH * 0.32f),
+                    Vector2.zero,
+                    new Vector2(wellSize.x * 0.9f, wellSize.y * 0.32f),
                     UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
             }
         }
