@@ -140,7 +140,12 @@ namespace MyriadOfDragons.UI
             Image colImg = col.GetComponent<Image>();
             UISharedFoundation.ApplyFramedPanel(colImg, null,
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
-            UISharedFoundation.AddLocalGradientScrim(col.transform, Vector2.zero, new Vector2(400f, 750f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            // VS-UI-VIP-RESIDUAL-SCRIM-ALIGN-001: the 400x750 literal only matched the column at
+            // 1920x1080 (real size 460.8x756) and overhung it wherever the canvas resolves smaller
+            // (EditMode's unscaled default), the same "literal vs. rect.size" bug BuildBenefitGrid
+            // already documents. Measure the real column after SetNorm instead.
+            Vector2 colSize = col.GetComponent<RectTransform>().rect.size;
+            UISharedFoundation.AddLocalGradientScrim(col.transform, Vector2.zero, colSize, UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             _entitlementStateText = UISharedFoundation.CreateText(col.transform, "EntitlementState",
                 "Not subscribed",
@@ -178,7 +183,10 @@ namespace MyriadOfDragons.UI
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(socket.transform, "StateIcon",
                     VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.08f, 0.28f, 0.92f, 0.92f);
-                UISharedFoundation.AddLocalGradientScrim(socket.transform, Vector2.zero, new Vector2(120f, 60f), UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
+                // Same fix as the identity column above: measure the socket's own resolved rect
+                // instead of a literal sized for one canvas resolution.
+                Vector2 socketSize = socket.GetComponent<RectTransform>().rect.size;
+                UISharedFoundation.AddLocalGradientScrim(socket.transform, Vector2.zero, socketSize, UISharedFoundation.GradientDirection.BottomToTop, 0.95f);
                 Text planText = UISharedFoundation.CreateText(socket.transform, "PlanPrice", planLabels[i],
                     UITextRole.Caption, TextAnchor.LowerCenter, Color.white, true,
                     new Vector2(100f, 30f));
@@ -281,7 +289,10 @@ namespace MyriadOfDragons.UI
             Image stripImg = strip.GetComponent<Image>();
             UISharedFoundation.ApplyFramedPanel(stripImg, null,
                 UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorBackground);
-            UISharedFoundation.AddLocalGradientScrim(strip.transform, Vector2.zero, new Vector2(500f, 750f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            // Measured, not literal - real strip is 518.4x756 at 1920x1080 (0.27 x 0.70 of the
+            // canvas), not the 500x750 the old literal assumed.
+            Vector2 stripSize = strip.GetComponent<RectTransform>().rect.size;
+            UISharedFoundation.AddLocalGradientScrim(strip.transform, Vector2.zero, stripSize, UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
 
             _milestoneText = UISharedFoundation.CreateText(strip.transform, "MilestoneStatus",
                 BuildMilestoneCopy(),
