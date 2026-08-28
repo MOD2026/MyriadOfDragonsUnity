@@ -5784,9 +5784,10 @@ namespace MyriadOfDragons.UI
         /// <summary>
         /// Enters targeting mode for `spellIndex`: highlights the side its effect actually
         /// targets (the enemy board for LaneDamage, the player's own board for LaneHeal/
-        /// LaneAttackBuff - see PlayCastImpact's identical friendlyTarget split, which this
-        /// mirrors so a cast's impact effect always lands on the same side its targeting UI
-        /// highlighted) and arms a full-screen catcher so a tap anywhere else cancels cleanly.
+        /// LaneAttackBuff - see SpellTargetsFriendlyLane, the single shared rule this and
+        /// PlayCastImpact both call, so a cast's impact effect always lands on the same side its
+        /// targeting UI highlighted) and arms a full-screen catcher so a tap anywhere else
+        /// cancels cleanly.
         /// </summary>
         private void ArmSpellTargeting(int spellIndex)
         {
@@ -5794,7 +5795,7 @@ namespace MyriadOfDragons.UI
             _armedSpellIndex = spellIndex;
 
             AvatarSpell spell = _battleController.Spellbook[spellIndex];
-            bool friendlyTarget = spell.Effect is SpellEffect.LaneHeal or SpellEffect.LaneAttackBuff;
+            bool friendlyTarget = SpellTargetsFriendlyLane(spell.Effect);
 
             if (!friendlyTarget)
             {
