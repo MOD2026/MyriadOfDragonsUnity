@@ -3333,6 +3333,18 @@ namespace MyriadOfDragons.UI
             return Mathf.Clamp01((float)hpAfterHit / maxHp);
         }
 
+        /// <summary>Exposed for tests: the real "did a hit land" gate RefreshEnemyHealthSegments
+        /// uses to decide whether the damage flash should fire - extracted so it has one
+        /// definition instead of living inline inside a method gated behind
+        /// Application.isPlaying (unreachable from EditMode). Pure and static, unlike its
+        /// neighbors' shared MonoBehaviour state.
+        /// <paramref name="previousObservedHp"/> of -1 means "no prior observation" (the real
+        /// startup case, before any tick has run) and always returns false - there is nothing to
+        /// compare against yet. False for unchanged or increased HP (a heal must never trigger a
+        /// damage flash), true only for a genuine drop.</summary>
+        public static bool DidAvatarTakeDamage(int previousObservedHp, int currentHp) =>
+            previousObservedHp >= 0 && currentHp < previousObservedHp;
+
         /// <summary>Sum of a side's own currently-living Attack across every lane - the exact
         /// same figure RefreshLaneSlots already computes per lane for the lane-total column
         /// (totalAttack there), just summed across all three instead of kept separate. Reused
@@ -6555,15 +6567,15 @@ namespace MyriadOfDragons.UI
 
         /// <summary>Drives the enemy segmented health bar from real battle state - fill count,
         /// lethal marker position, and (on a real drop since the last refresh) the damage flash.
-        /// The comparison against `_enemyLastObservedHp` IS the "did a hit land" signal; nothing
-        /// here infers damage from anything but the actual HP value RefreshAll is already
+        /// DidAvatarTakeDamage against `_enemyLastObservedHp` IS the "did a hit land" signal;
+        /// nothing here infers damage from anything but the actual HP value RefreshAll is already
         /// reading, so this can never disagree with what `_enemyAvatarText` shows next to it.</summary>
         private void RefreshEnemyHealthSegments(PlayerBattleState enemy)
         {
             if (_enemyHealthSegments == null) return;
 
             int filled = ComputeFilledHealthSegments(enemy.AvatarHealth, enemy.MaxAvatarHealth, EnemyHealthSegmentCount);
-            bool tookDamage = _enemyLastObservedHp >= 0 && enemy.AvatarHealth < _enemyLastObservedHp;
+            bool tookDamage = DidAvatarTakeDamage(_enemyLastObservedHp, enemy.AvatarHealth);
             int previousFilled = _enemyLastObservedHp >= 0
                 ? ComputeFilledHealthSegments(_enemyLastObservedHp, enemy.MaxAvatarHealth, EnemyHealthSegmentCount)
                 : filled;
