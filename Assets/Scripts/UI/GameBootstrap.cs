@@ -47,7 +47,14 @@ namespace MyriadOfDragons.UI
             // which is exactly the failure this fixes and would look identical from outside.
             // Battle still initializes underneath, hidden; that is what SetBattleCanvasVisible is
             // for, and StartNewMatch stays where it is.
-            go.AddComponent<HomePagePresenter>();
+            //
+            // VS-UI-SOFT-LANDING-STARTUP-001 (2026-08-29): StartupSoftLandingPresenter now sits in
+            // front of Home, not instead of it - its own Continue button performs this exact
+            // go.AddComponent<HomePagePresenter>() call, so Home's construction, its Start() timing
+            // relative to GameBootstrap.Instance above, and everything downstream of it are
+            // unchanged; only the moment Home gets built moved from "immediately" to "after the
+            // player taps Continue".
+            go.AddComponent<StartupSoftLandingPresenter>();
         }
     }
 
