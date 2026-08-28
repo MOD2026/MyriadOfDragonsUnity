@@ -4,6 +4,7 @@ using System.Linq;
 using MyriadOfDragons.AI;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Cards;
+using MyriadOfDragons.Combat;
 using MyriadOfDragons.Economy;
 using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
@@ -286,6 +287,8 @@ namespace MyriadOfDragons.UI
         private const float CombatTickSeconds = 2.2f;
 
         private Coroutine _combatLoop;
+        private readonly List<Coroutine> _presentationCoroutines = new List<Coroutine>();
+        private readonly List<GameObject> _presentationObjects = new List<GameObject>();
         private Transform _canvasTransform;
         private const string SeenIntroPrefKey = "MOD_SeenIntro";
         private GameObject _tutorialOverlay;
@@ -3539,8 +3542,10 @@ namespace MyriadOfDragons.UI
             image.sprite = sprite;
             image.raycastTarget = false;
             image.preserveAspect = true;
-
-            StartCoroutine(FadeScaleAndDestroy(go, image, duration, growTo: 1.3f));
+            _presentationObjects.Add(go);
+            _presentationCoroutines.Add(StartCoroutine(FadeScaleAndDestroy(go, image,
+                CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f,
+                growTo: 1.3f)));
         }
 
         /// <summary>Floating combat number (damage/heal) - rises and fades over the lane it's
@@ -3562,7 +3567,19 @@ namespace MyriadOfDragons.UI
             label.raycastTarget = false;
             StretchFull(label.rectTransform);
 
-            StartCoroutine(RiseFadeAndDestroy(go, label, duration));
+            _presentationObjects.Add(go);
+            _presentationCoroutines.Add(StartCoroutine(RiseFadeAndDestroy(go, label,
+                CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f)));
+        }
+
+        private void CancelPresentationEffects()
+        {
+            foreach (Coroutine routine in _presentationCoroutines)
+                if (routine != null) StopCoroutine(routine);
+            _presentationCoroutines.Clear();
+            foreach (GameObject go in _presentationObjects)
+                if (go != null) Destroy(go);
+            _presentationObjects.Clear();
         }
 
         private static IEnumerator FadeScaleAndDestroy(GameObject go, Image image, float duration, float growTo)
@@ -3657,7 +3674,9 @@ namespace MyriadOfDragons.UI
             if (index < 0) return;
 
             Transform newest = container.GetChild(index);
-            StartCoroutine(SlideIn((RectTransform)newest, from: new Vector2(0f, -140f), duration: 0.28f));
+            _presentationCoroutines.Add(StartCoroutine(SlideIn((RectTransform)newest,
+                from: new Vector2(0f, -140f), duration: CombatPresentationPolicy.ResolveDurationMs(
+                    CombatPresentationPolicy.CardPlayMs, MotionPolicy.ReduceMotion) / 1000f)));
         }
 
         /// <summary>
@@ -4662,8 +4681,14 @@ namespace MyriadOfDragons.UI
         /// without editing the save by hand.</summary>
         public void ReplayIntro()
         {
+            CancelPresentationEffects();
             _profile.ResetOnboarding();
             MaybeShowTutorial();
+        }
+
+        private void OnDestroy()
+        {
+            CancelPresentationEffects();
         }
 
         private void ShowNarrativeBeat()
@@ -5670,6 +5695,7 @@ namespace MyriadOfDragons.UI
                 yield return new WaitForSeconds(CombatTickSeconds);
                 if (_battleController.Phase != BattlePhase.Combat) break;
 
+                CancelPresentationEffects();
                 TurnResolutionResult result = _battleController.AdvanceCombatTick();
                 RefreshAll();
                 ShowTurnDamage(result);
@@ -6111,7 +6137,9 @@ namespace MyriadOfDragons.UI
             flash.raycastTarget = false;
             StretchFull(flash.rectTransform);
             flash.transform.SetAsLastSibling();
-            StartCoroutine(FadeAndDestroy(flash, 0.45f));
+            _presentationObjects.Add(flash.gameObject);
+            _presentationCoroutines.Add(StartCoroutine(FadeAndDestroy(flash,
+                CombatPresentationPolicy.ResolveDurationMs(450, MotionPolicy.ReduceMotion) / 1000f)));
         }
 
         private static IEnumerator FadeAndDestroy(Image image, float duration)
@@ -6505,6 +6533,7 @@ namespace MyriadOfDragons.UI
         /// </summary>
         public void SetBattleCanvasVisible(bool visible)
         {
+            if (!visible) CancelPresentationEffects();
             bool wasHidden = _canvasTransform != null && !_canvasTransform.gameObject.activeSelf;
             if (_canvasTransform != null) _canvasTransform.gameObject.SetActive(visible);
 
@@ -6517,6 +6546,7 @@ namespace MyriadOfDragons.UI
 
         private void OnLineupButtonPressed(bool useRecommendedDeck)
         {
+            CancelPresentationEffects();
             _resultOverlay.SetActive(false);
             _selectedCard = null;
             // allowSavedDeck: false - "Reset Lineup" (useRecommendedDeck: false, from here) must
