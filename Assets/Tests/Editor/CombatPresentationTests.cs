@@ -343,5 +343,29 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(0, sink.ParticleEmits);
             Assert.AreEqual(1, sink.Audio.Count);
         }
+
+        [Test]
+        public void ABasicAttack_AppliesTheRootSink_OnlyOnItsImpactBeat()
+        {
+            // CR-ANIMATION-PRESENTATION-CAMERA-GATE-TEST-001, 2026-08-28. HasCameraMove
+            // (PresentationRootZoom != 1f || CameraShakeUnits > 0f) gates presentationRoot.Apply
+            // inside FireBeat, but no test asserted the negative case directly: that beats without
+            // camera move correctly suppress the root-sink call, not just that spells trigger it.
+            var sink = new RecordingSink();
+            List<CombatPresentationCue> seq = CombatPresentation.SequenceFor(CombatPresentationSubject.BasicCardAttack).ToList();
+
+            foreach (CombatPresentationCue cue in seq)
+            {
+                int before = sink.RootApplies;
+                CombatPresentation.FireBeat(cue, CombatPresentationPalette.None, 0, presentationRoot: sink);
+
+                if (cue.Beat == CombatPresentationBeat.Commit || cue.Beat == CombatPresentationBeat.Resolve)
+                    Assert.AreEqual(before, sink.RootApplies, cue.Beat + " has no camera move and must not call the root sink.");
+                else if (cue.Beat == CombatPresentationBeat.Impact)
+                    Assert.AreEqual(before + 1, sink.RootApplies, "Impact is the locked camera-move beat.");
+            }
+
+            Assert.AreEqual(1, sink.RootApplies, "Locked: a basic attack applies the root sink exactly once, at Impact.");
+        }
     }
 }
