@@ -1033,6 +1033,41 @@ both out of scope.
 
 | 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | RECONFIRMED | Reconfirmed against board HEAD `3127ca0`; VS may execute the prepared one-file integration immediately. |
 
+| 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | IN PROGRESS | One-file CollectionPresenter change underway; Waiting shape preserves 4 controls and existing copy test seam. Guarded 9-class Unity batch running; no acceptance until tests, captures, and isolated commit arrive. |
+
+### AD-UI-DECISIONS-PARALLEL-001 — design unblock package
+
+- **Owner:** AD, direct owner relay.
+- **State:** DISPATCHED — design rulings only; no code edits.
+- **Decision A:** provide final player-facing Permit Week Key Details copy and confirm ActivityId line deletion.
+- **Decision B:** rule the correct `UIEmptyStateKind` for Friends after Add Friend retirement; no invented action label, and explain the control-count impact.
+- **Acceptance:** concise final rulings with rationale grounded in existing docs/story/economy decisions; no implementation changes.
+
+| 2026-08-28 | AD-UI-DECISIONS-PARALLEL-001 | CC | DISPATCHED | Parallel design adjudication to unblock VS while Collection tests run. |
+
+| 2026-08-28 | AD-UI-DECISIONS-PARALLEL-001 | CC | PARTIAL | Friends ruling accepted: `Waiting`, zero controls. Permit ruling held because “one special challenge” conflicts with locked economy purpose (evolution/fusion throughput). |
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-FRIENDS-001 | CC | UNBLOCKED DESIGN | Friends may use the existing Waiting empty-state shape with no action and no new wording, pending a separate implementation card. |
+
+### VS-UI-EMPTY-STATE-FRIENDS-001 — implementation authorized
+
+- **Owner:** VS, direct owner relay.
+- **State:** AUTHORIZED — use `Waiting` with zero action controls.
+- **Exact file:** `Assets/Scripts/UI/FriendsPresenter.cs` only.
+- **Allowed:** when the friends list is empty, build the existing `UIEmptyState` Waiting region with `IllustrationNoFriends`; preserve the 9-control count, populated-list path, and all remaining navigation/gifting behavior.
+- **Forbidden:** restoring Add Friend/Requests/Find, changing `UIEmptyState.cs`, adding wording or actions, or touching other files.
+- **Acceptance:** FriendsShellTests, UiEmptyStateTests, UiGeometryRegressionTests; 0 `error CS`; loaded-profile before/after capture at 1920x1080; isolated commit.
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-FRIENDS-001 | CC | AUTHORIZED | AD ruled Waiting with no action; direct implementation now unblocked. |
+
+| 2026-08-28 | AD-UI-DECISIONS-PARALLEL-001 | CC | COMPLETE | Permit wording corrected and accepted: `Used once per week to evolve or fuse cards, limiting throughput without purchase.` ActivityId deletion confirmed. |
+
+| 2026-08-28 | VS-UI-PERMIT-COPY-001 | CC | UNBLOCKED | ST/AD wording decision resolved; VS may delete ActivityId text and replace Details with the accepted player-facing line only. |
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-COLLECTION-001 | CC | CODE COMPLETE / VISUAL EVIDENCE PENDING | Commit `13a768e`; 28/29 guarded tests, 0 CS errors, Collection geometry 0/0. Required interactive before/after captures were unavailable; do not mark final UI sign-off until captured. |
+
+| 2026-08-28 | VS-UI-EMPTY-STATE-FRIENDS-001 | CC | UNBLOCKED COPY | Reuse the existing test-approved player-facing title `No friends yet` for the Waiting empty state. No action button and no new control. |
+
 ### VS-UI-METAGAME-WIP-OWNERSHIP-RECON-001 — direct read-only dispatch
 
 - **Owner:** VS, direct owner relay.
@@ -1195,6 +1230,35 @@ CO authorized by owner as **transport relay only** — deliver exact CC-approved
 
 | 2026-08-28 | WH-UI-EMPIRE-DETAIL-BASELINE-001 | CC | COMPLETE | Read-only baseline accepted at board commit `91e800a`; clean presenter, 4 controls, no tests per card. |
 | 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | CC | AUTHORIZED | Direct coding card created from WH’s evidence-backed baseline. |
+
+| 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | CC | COMPLETE | Commit `509cf0afe84e8dbb560c9ab34feac89c8481383c`; one-file band separation, 20/20 tests, 0 CS errors, before/after capture verified. |
+
+### WH-UI-SHOP-BASELINE-001 — EVIDENCE SUBMITTED
+
+- **Owner:** WH, direct owner relay.
+- **State:** EVIDENCE SUBMITTED — read-only; file remained clean; no Unity run (forbidden).
+- **Exact file:** `Assets/Scripts/UI/ShopPresenter.cs` — **CLEAN** at HEAD `3be65f6`.
+- **Capture:** `C:\Users\zihan\AppData\Local\Temp\MyriadOfDragonsContactSheetOutput\Shop.png` (1,928,951 bytes); `_ContactSheet.png` (13,989,139 bytes). Loaded-profile Shop at 1920×1080.
+- **Controls / IA:** `Btn_Back` + 4 gem-pack `Btn_Buy` + 4 stamina `Btn_Buy` = **9** interactive. Registry `Secondary` limit 10 — within budget. No IA redesign proposed.
+- **Navigation:** Home → Shop; `Btn_Back` → `onBackToHomeAction`. Safelist: `Shop`/`Btn_Back`. `CleanupStaleMetagameCanvases` on build.
+- **Sprites/tokens:** Shell `UI/ShopV1/shop_catalog_grid_landscape_v1`; product art `UI/ShopV1/product_art_{id}` (+ fallbacks); stamina `UI/Icons/icon_stamina` + `ApplyStaminaTierSprite`; header pills via HomeV3 resource pill sprites. Hit targets use transparent shell wells (no second chrome).
+- **Empty/loading:** No `UIEmptyState`. Shell wells fill at runtime; status `"Tap BUY on a supply to purchase."`; pity banner always present via `CollectionPackPityCopy.FormatShopBanner`. Locked stamina tiers show padlock art while BUY remains labeled (state chrome in tier sprite).
+- **Geometry:** Pack-4 well bounds intentionally diverge: packs 1–3 `top=210`, pack 4 `top=180` (`BuildShopGrid` `packBounds` row 4) — **30px taller/shifted** vs row siblings; matches capture misalignment and can crowd Price/Pity wells on that tile. Pity banner crop reported in capture (36px-tall host). Stale `uival_baseline_out` font findings partially obsolete (many CreateWellText calls already at 22).
+- **One future card:** `WH-UI-SHOP-PACK4-ALIGN-001` — in `BuildShopGrid` only, change pack-4 bounds from `{ 908f, 180f, 1126f, 790f }` to `{ 908f, 210f, 1126f, 790f }` (match packs 1–3 top). Preserve 9 controls, SKUs, stamina ladder, navigation. Acceptance: before/after Shop capture, focused Shop layout/chrome tests, 0 CS.
+- **Next exact task:** await CC authorize `WH-UI-SHOP-PACK4-ALIGN-001` or next WH dispatch.
+
+| 2026-08-28 | WH-UI-SHOP-BASELINE-001 | CC | DISPATCHED | New bounded WH audit after Empire detail completion. |
+| 2026-08-28 | WH-UI-SHOP-BASELINE-001 | WH | EVIDENCE SUBMITTED | Clean file; 9 controls; pack-4 top 180→210 candidate; no edits/Unity. |
+
+### CR-ANIMATION-COMBAT-HOOK-AUDIT-001 — 3-hour read-only block
+
+- **Owner:** CR, direct owner relay.
+- **State:** DISPATCHED — preparation only; does not overlap the Cloud reduced-motion branch.
+- **Exact scope:** battle-owned presentation code and tests only; map existing card draw/play, damage/healing, spell-impact, tick, interruption, and reduced-motion hook candidates against the accepted ST animation language.
+- **Acceptance:** evidence table with exact files/methods, frozen-contract boundaries, smallest next implementation card, and test strategy. No edits or commits.
+
+| 2026-08-28 | WH-UI-SHOP-BASELINE-001 | CC | DISPATCHED | New bounded WH audit after Empire detail completion. |
+| 2026-08-28 | CR-ANIMATION-COMBAT-HOOK-AUDIT-001 | CC | DISPATCHED | New bounded CR animation-preparation audit while Cloud PR awaits Unity gate. |
 | 2026-08-28 | WH-UI-EMPIRE-DETAIL-NAME-LEVEL-001 | WH | COMPLETE | Commit `509cf0afe84e8dbb560c9ab34feac89c8481383c`; 20/20 tests; 0 CS; captures verified. |
 
 ---
