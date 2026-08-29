@@ -623,7 +623,7 @@ namespace MyriadOfDragons.UI
             SetDetails(
                 $"Selected objective: {PlayerFacingObjectiveLabels[_selectedObjectiveIndex]}\n" +
                 $"Selected milestone: {MilestoneLabelForThreshold(_selectedMilestone)}\n" +
-                "Catalog = CloudCode StaticExpeditionManifest scaffold (not a tuned week).");
+                "Guild Expedition objectives and milestones will become available later.");
         }
 
         private static string MilestoneLabelForThreshold(int threshold)
