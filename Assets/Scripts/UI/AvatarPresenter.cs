@@ -79,15 +79,20 @@ namespace MyriadOfDragons.UI
             backRect.anchorMin = new Vector2(0f, 1f);
             backRect.anchorMax = new Vector2(0f, 1f);
             backRect.pivot = new Vector2(0f, 1f);
-            backRect.anchoredPosition = new Vector2(30f, -5f);
-            backRect.sizeDelta = new Vector2(160f, 40f);
+            // VS-UI-AVATAR-BACK-TARGET-006: 200x72, matching SettingsPresenter.CreateHeaderButton's
+            // landscape tap-target standard. The prior 160x40 was smaller than the 160x60 that
+            // change already rejected as unreliable, and at 40px the nav-tile frame sprite - sized
+            // for a ~72px plate - rendered its top ornament flush against the screen edge. -14
+            // keeps the whole 72px plate inside the 100px header with clearance at both ends.
+            backRect.anchoredPosition = new Vector2(30f, -14f);
+            backRect.sizeDelta = new Vector2(200f, 72f);
             // UITextRole.Body's shared default (16px, UIFrozenTokens.TypeBodySize) is under the
             // global 22px floor - explicit override here rather than waiting on that frozen
             // constant, which is a separate, larger decision (touches every screen, not just this
-            // button). 34px box comfortably fits a 22px line.
-            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 40f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            // button). 56px box comfortably fits a 22px line.
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(200f, 72f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text backLabel = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body, TextAnchor.MiddleCenter,
-                Color.white, true, new Vector2(140f, 34f));
+                Color.white, true, new Vector2(180f, 56f));
             backLabel.fontSize = 22;
             backLabel.fontStyle = FontStyle.Bold;
             backBtn.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;

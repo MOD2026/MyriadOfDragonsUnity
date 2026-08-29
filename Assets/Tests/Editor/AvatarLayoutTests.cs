@@ -51,6 +51,14 @@ namespace MyriadOfDragons.Tests
             _spawned.Add(go);
             var presenter = go.AddComponent<AvatarPresenter>();
             presenter.Initialize(onBackToHome: null);
+            // Measure at the canonical landscape size, same as HomeLayoutRegressionTests.BuildHome().
+            // Without this the canvas takes the EditMode Screen rect (640x360 here), where the
+            // header's fixed 100px and the body panel's normalized 0.87 top no longer describe the
+            // same layout the game ships - a fixed-pixel header control gets measured against a
+            // panel that has shrunk to a third of its real clearance.
+            RectTransform canvasRect = presenter.CanvasObjectForTests.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(1920f, 1080f);
+            Canvas.ForceUpdateCanvases();
             foreach (RectTransform rt in presenter.CanvasObjectForTests.GetComponentsInChildren<RectTransform>(true)
                          .OrderByDescending(r => r.GetComponentsInParent<Transform>(true).Length))
                 LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
@@ -109,6 +117,44 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.IsEmpty(collisions,
                 "Art draws on top of an interactive control, so a tap would land on art instead of the button: " +
                 string.Join("  |  ", collisions));
+        }
+
+        /// <summary>
+        /// VS-UI-AVATAR-BACK-TARGET-006. Back was 160x40 at y=-5 inside a 100px header - smaller
+        /// than the 160x60 SettingsPresenter.CreateHeaderButton already rejected as an unreliable
+        /// landscape tap target, and too short for the nav-tile frame sprite, whose top ornament
+        /// rendered flush against the screen edge. Asserted as relationships (contained in its
+        /// header, clear of both header edges) plus the one magnitude that IS the spec.
+        /// </summary>
+        [Test]
+        public void Avatar_BackButton_MeetsTapTargetAndSitsFullyInsideItsHeader()
+        {
+            AvatarPresenter presenter = Open();
+            Transform canvas = presenter.CanvasObjectForTests.transform;
+
+            Transform header = canvas.Find("AvatarHeader");
+            Assert.IsNotNull(header, "Avatar built no AvatarHeader.");
+            Transform backTf = header.Find("Btn_Back");
+            Assert.IsNotNull(backTf, "Avatar header built no Btn_Back.");
+            Assert.IsNotNull(backTf.GetComponent<Button>(), "Btn_Back is not an actual Button.");
+
+            Rect back = WorldRect((RectTransform)backTf);
+            Rect head = WorldRect((RectTransform)header);
+
+            // Size in canvas reference units (rect), not world corners - the CanvasScaler scales
+            // world space by the device/reference ratio, so a world rect measures ~89x32 for the
+            // very same 200x72 plate. Containment below is a pure relationship, so world rects are
+            // the right space for it.
+            Rect backLocal = ((RectTransform)backTf).rect;
+            Assert.GreaterOrEqual(backLocal.width, 200f, "Back tap target is narrower than the 200x72 standard.");
+            Assert.GreaterOrEqual(backLocal.height, 72f, "Back tap target is shorter than the 200x72 standard.");
+
+            Assert.GreaterOrEqual(back.yMin, head.yMin,
+                $"Back {back} hangs below its header {head}.");
+            Assert.LessOrEqual(back.yMax, head.yMax,
+                $"Back {back} overruns the top of its header {head} - the frame ornament would clip at the screen edge.");
+            Assert.GreaterOrEqual(back.xMin, head.xMin, $"Back {back} starts left of its header {head}.");
+            Assert.LessOrEqual(back.xMax, head.xMax, $"Back {back} runs past the right of its header {head}.");
         }
     }
 }
