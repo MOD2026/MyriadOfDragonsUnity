@@ -55,6 +55,12 @@ namespace MyriadOfDragons.UI
             "Raid: Final Phase",
         };
 
+        /// <summary>Index of the longest provisional label (tile-fit regression target).</summary>
+        public const int LongestObjectiveLabelIndex = 1;
+
+        /// <summary>Project caption floor for objective tiles — do not shrink below this.</summary>
+        public const int ObjectiveTileLabelFontSize = 22;
+
         /// <summary>Server §5.1 personal milestone bands (Guild Contribution only).</summary>
         public static readonly int[] MilestoneThresholds = { 100, 250, 400, 700, 1000 };
 
@@ -314,12 +320,12 @@ namespace MyriadOfDragons.UI
                 UITextRole.Body, TextAnchor.UpperLeft, Color.white, true, new Vector2(900f, 120f));
             _detailsText.fontSize = 22;
             _detailsText.fontStyle = FontStyle.Bold;
-            SetNorm(_detailsText.rectTransform, 0.02f, 0.78f, 0.98f, 0.98f);
+            SetNorm(_detailsText.rectTransform, 0.02f, 0.82f, 0.98f, 0.98f);
 
             // Conservative IA (WH-UI-GUILD-EXPEDITION-CONSERVATIVE-IA-001): one Objective Selector
             // replaces 11 Objective_* buttons. Objective_0..10 remain as passive selectable entries
             // (stage/state displays) driven by the selector — no Btn_Prev/Next/Abandon/Finalize.
-            CreateActionButton(panel.transform, "Btn_ObjectiveSelector", "OBJECTIVE", 0.02f, 0.68f, 0.62f, 0.76f,
+            CreateActionButton(panel.transform, "Btn_ObjectiveSelector", "OBJECTIVE", 0.02f, 0.74f, 0.70f, 0.80f,
                 CycleObjectiveSelection);
             Transform selectorTf = panel.transform.Find("Btn_ObjectiveSelector");
             _objectiveSelectorLabel = selectorTf != null
@@ -329,7 +335,9 @@ namespace MyriadOfDragons.UI
             GameObject objGrid = new GameObject("ObjectiveGrid", typeof(RectTransform));
             objGrid.transform.SetParent(panel.transform, false);
             _objectiveGrid = objGrid.transform;
-            SetNorm(objGrid.GetComponent<RectTransform>(), 0.02f, 0.28f, 0.62f, 0.66f);
+            // WH-GUILD-EXPEDITION-HEADER-AND-TILE-FIT-004: widen/taller grid so 22px provisional
+            // labels wrap inside the tile without dropping below the type floor.
+            SetNorm(objGrid.GetComponent<RectTransform>(), 0.02f, 0.18f, 0.72f, 0.72f);
             int cols = 3;
             int rows = 4;
             for (int i = 0; i < ScaffoldObjectiveIds.Length; i++)
@@ -346,16 +354,19 @@ namespace MyriadOfDragons.UI
                 img.color = new Color(0.16f, 0.22f, 0.28f, 0.55f);
                 img.raycastTarget = false;
                 SetNorm(well.GetComponent<RectTransform>(),
-                    col * cw + 0.01f, 1f - (row + 1) * rh + 0.02f,
-                    (col + 1) * cw - 0.01f, 1f - row * rh - 0.02f);
+                    col * cw + 0.01f, 1f - (row + 1) * rh + 0.01f,
+                    (col + 1) * cw - 0.01f, 1f - row * rh - 0.01f);
+                // StageIcon top band only — clear of wrapped 22px label.
                 GuildExpeditionUiLibrary.ApplyStageIcon(well.transform, "StageIcon",
-                    GuildExpeditionUiLibrary.StageState.Available, 0.08f, 0.38f, 0.92f, 0.94f);
+                    GuildExpeditionUiLibrary.StageState.Available, 0.30f, 0.72f, 0.70f, 0.96f);
                 Text label = UISharedFoundation.CreateText(well.transform, "Label", PlayerFacingObjectiveLabels[i],
                     UITextRole.Caption, TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 40f));
-                label.fontSize = 22;
+                label.fontSize = ObjectiveTileLabelFontSize;
                 label.fontStyle = FontStyle.Bold;
                 label.raycastTarget = false;
-                SetNorm(label.rectTransform, 0.02f, 0.02f, 0.98f, 0.36f);
+                label.horizontalOverflow = HorizontalWrapMode.Wrap;
+                label.verticalOverflow = VerticalWrapMode.Overflow;
+                SetNorm(label.rectTransform, 0.04f, 0.02f, 0.96f, 0.68f);
             }
             RefreshObjectiveStageIcons();
             RefreshObjectiveSelectorLabel();
@@ -363,7 +374,7 @@ namespace MyriadOfDragons.UI
             GameObject mileStrip = new GameObject("MilestoneStrip", typeof(RectTransform));
             mileStrip.transform.SetParent(panel.transform, false);
             _milestoneStrip = mileStrip.transform;
-            SetNorm(mileStrip.GetComponent<RectTransform>(), 0.64f, 0.28f, 0.98f, 0.76f);
+            SetNorm(mileStrip.GetComponent<RectTransform>(), 0.74f, 0.18f, 0.98f, 0.72f);
             for (int i = 0; i < MilestoneThresholds.Length; i++)
             {
                 int idx = i;
