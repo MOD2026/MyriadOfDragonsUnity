@@ -68,6 +68,7 @@ namespace MyriadOfDragons.Story
             CanvasScaler scaler = overlayCanvasObj.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = MyriadOfDragons.UI.UISharedFoundation.MatchWidthOrHeight;
 
             overlayCanvasObj.AddComponent<GraphicRaycaster>();
 
