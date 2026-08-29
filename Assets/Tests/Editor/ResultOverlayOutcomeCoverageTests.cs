@@ -207,7 +207,7 @@ namespace MyriadOfDragons.Tests
             GameBootstrap bootstrap = ResolveNormalMatch("Result_RetryFromDefeat", playerWins: false);
             Assert.IsTrue(bootstrap.ResultOverlayActiveForTests, "Setup: overlay must be up before Retry.");
 
-            bootstrap.PlayAgainForTests();
+            bootstrap.RetryForTests();
 
             Assert.IsFalse(bootstrap.ResultOverlayActiveForTests, "Retry (Play Again) must hide the result overlay.");
             Assert.AreNotEqual(BattlePhase.Resolved, bootstrap.Battle.Phase,
@@ -225,6 +225,7 @@ namespace MyriadOfDragons.Tests
             bootstrap.ReturnToCityForTests();
 
             Assert.IsFalse(bootstrap.ResultOverlayActiveForTests, "Return to City must hide the result overlay.");
+            Assert.IsFalse(bootstrap.BattleCanvasVisibleForTests, "Return to City must hide the battle canvas.");
         }
 
         // ---------- Teardown / no leaked tutorial single-button state ----------
@@ -232,18 +233,26 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void TutorialDefeat_ThenNormalMatchResolves_ShowsBothCTAsAgain_NoLeakedSingleButtonState()
         {
-            // Saved BEFORE PlayAgainForTests (StartNewMatch reads whatever deck is live at the
-            // moment it runs - saving afterward left the just-started match on the tutorial's
-            // fixed 3-card deck and Formation never reached Combat, a real bug in this test's
-            // first draft, not in GameBootstrap.cs).
             SaveValidDeckForNormalMatch();
 
             GameBootstrap bootstrap = ResolveTutorialMatch("Result_TeardownLeak", playerWins: false);
             Assert.IsTrue(bootstrap.PlayAgainButtonActiveForTests, "Setup: tutorial defeat must show Retry only.");
             Assert.IsFalse(bootstrap.ReturnToCityButtonActiveForTests, "Setup: tutorial defeat must hide Return to Empire.");
 
-            bootstrap.PlayAgainForTests();
+            // Reality check: OnPlayAgainOrRetryPressed's IsTutorialMatch branch calls
+            // StartApprovedTutorialBattle again on a tutorial Retry - it re-enters a FRESH
+            // tutorial encounter, not a normal match (confirmed by CR-RESULT-CTA-REVIEW-002 against
+            // real source, not assumed). Asserted directly here instead of silently relying on it.
+            bootstrap.RetryForTests();
             Assert.IsFalse(bootstrap.ResultOverlayActiveForTests, "Setup: Retry must hide the tutorial's overlay first.");
+            Assert.IsTrue(bootstrap.IsTutorialMatch, "Reality check: tutorial Retry returns to a fresh TUTORIAL match, not a normal one.");
+            Assert.AreEqual(BattlePhase.Formation, bootstrap.Battle.Phase, "Reality check: Retry re-enters Formation directly.");
+
+            // The existing supported exit from tutorial state: Return to City ends the tutorial
+            // session (OnReturnToCityPressed's own comment: "End the tutorial session on
+            // leave-to-Home" - resets IsTutorialMatch so the next match is treated as normal).
+            bootstrap.ReturnToCityForTests();
+            Assert.IsFalse(bootstrap.IsTutorialMatch, "Setup: Return to City must end the tutorial session.");
 
             // A fresh NORMAL match now, on the same bootstrap instance - the exact scenario
             // GameBootstrap.cs's own comment (~ line 6386) says the visibility reset guards.
