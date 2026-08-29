@@ -5,6 +5,7 @@ using MyriadOfDragons.Save;
 using MyriadOfDragons.UI;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MyriadOfDragons.Tests
 {
@@ -52,6 +53,35 @@ namespace MyriadOfDragons.Tests
             var presenter = go.AddComponent<GuildExpeditionPresenter>();
             presenter.Initialize(onBack: null, gateway: new FakeGateway());
             return presenter;
+        }
+
+        [Test]
+        public async Task BackButton_HasLandscapeHitArea_AndReturnsViaCallback()
+        {
+            bool backFired = false;
+            var go = new GameObject("GuildExpeditionBackHitHost");
+            _spawned.Add(go);
+            var presenter = go.AddComponent<GuildExpeditionPresenter>();
+            presenter.Initialize(onBack: () => backFired = true, gateway: new FakeGateway());
+
+            Transform back = presenter.CanvasObjectForTests.transform
+                .Find("GuildExpeditionHeader/Btn_Back");
+            Assert.NotNull(back, "Btn_Back must exist.");
+            RectTransform rect = back.GetComponent<RectTransform>();
+            Assert.GreaterOrEqual(rect.sizeDelta.x, 200f,
+                "Landscape Back width must match Settings hit-target floor.");
+            Assert.GreaterOrEqual(rect.sizeDelta.y, 72f,
+                "Landscape Back height must match Settings hit-target floor.");
+            Assert.AreEqual(presenter.CanvasObjectForTests.transform.Find("GuildExpeditionHeader").childCount - 1,
+                back.GetSiblingIndex(),
+                "BACK must be last sibling so title/status cannot steal clicks.");
+            Assert.IsFalse(presenter.CanvasObjectForTests.transform
+                .Find("GuildExpeditionHeader/Title").GetComponent<Text>().raycastTarget);
+
+            await presenter.WaitForOpenTransitionForTests();
+            await presenter.PressBackForTests();
+            Assert.IsTrue(backFired, "Back must invoke the navigation callback.");
+            Assert.IsNull(presenter.CanvasObjectForTests);
         }
 
         [Test]

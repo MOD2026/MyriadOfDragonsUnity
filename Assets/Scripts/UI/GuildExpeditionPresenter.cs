@@ -155,6 +155,10 @@ namespace MyriadOfDragons.UI
 
             BuildHeader();
             BuildBody();
+            // Enlarged Back (200x72) can geometrically kiss ExpeditionPanel; keep the whole header
+            // above the body so Back is never painted under panel art (layout paint-order).
+            Transform header = _canvasObj.transform.Find("GuildExpeditionHeader");
+            if (header != null) header.SetAsLastSibling();
             RefreshDetails();
             BeginOpenTransition();
         }
@@ -264,19 +268,22 @@ namespace MyriadOfDragons.UI
             backRect.anchorMin = new Vector2(0f, 0.5f);
             backRect.anchorMax = new Vector2(0f, 0.5f);
             backRect.pivot = new Vector2(0f, 0.5f);
-            backRect.anchoredPosition = new Vector2(30f, 0f);
-            backRect.sizeDelta = new Vector2(160f, 56f);
-            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(160f, 56f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
+            backRect.anchoredPosition = new Vector2(24f, 0f);
+            // WH-UI-BETA-REACHABILITY-AUDIT-004: match Settings landscape hit target (was 160x56).
+            backRect.sizeDelta = new Vector2(200f, 72f);
+            UISharedFoundation.AddLocalGradientScrim(backBtn.transform, Vector2.zero, new Vector2(200f, 72f), UISharedFoundation.GradientDirection.TopToBottom, 0.95f);
             Text backTxt = UISharedFoundation.CreateText(backBtn.transform, "Text", "< BACK", UITextRole.Body,
-                TextAnchor.MiddleCenter, Color.white, true, new Vector2(140f, 44f));
-            backTxt.fontSize = 22;
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(180f, 56f));
+            backTxt.fontSize = 24;
             backTxt.fontStyle = FontStyle.Bold;
+            backTxt.raycastTarget = false;
 
             Text title = UISharedFoundation.CreateText(topBar.transform, "Title", "GUILD EXPEDITION",
                 UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true,
                 new Vector2(720f, 48f));
             title.fontSize = 28;
             title.fontStyle = FontStyle.Bold;
+            title.raycastTarget = false;
             // Header bands separated (WH-UI-GUILD-EXPEDITION-HEADER-001): prior Title
             // (0.22-0.78) overlapped StatusLine (0.72-0.98) by ~115px — Friends/Chat pattern.
             SetNorm(title.rectTransform, 0.22f, 0.15f, 0.70f, 0.90f);
@@ -287,7 +294,11 @@ namespace MyriadOfDragons.UI
                 new Vector2(420f, 40f));
             _statusText.fontSize = 22;
             _statusText.fontStyle = FontStyle.Bold;
+            _statusText.raycastTarget = false;
             SetNorm(_statusText.rectTransform, 0.72f, 0.10f, 0.98f, 0.90f);
+
+            // Keep Back above title/status for input priority on 1920x1080.
+            backBtn.transform.SetAsLastSibling();
         }
 
         private void BuildBody()
