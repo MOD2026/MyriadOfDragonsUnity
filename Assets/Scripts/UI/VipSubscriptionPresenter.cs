@@ -182,7 +182,7 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(img, null,
                     UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader);
                 VipSubscriptionUiLibrary.ApplyAtlasIcon(socket.transform, "StateIcon",
-                    VipSubscriptionUiLibrary.LoadStateAtlasCell(i), 0.08f, 0.28f, 0.92f, 0.92f);
+                    VipSubscriptionUiLibrary.LoadPlanSocketSprite(i), 0.08f, 0.28f, 0.92f, 0.92f);
                 // Same fix as the identity column above: measure the socket's own resolved rect
                 // instead of a literal sized for one canvas resolution.
                 Vector2 socketSize = socket.GetComponent<RectTransform>().rect.size;
@@ -211,14 +211,18 @@ namespace MyriadOfDragons.UI
             const float gridLeft = 0.28f, gridBottom = 0.16f, gridRight = 0.68f, gridTop = 0.86f;
             SetNorm(grid.GetComponent<RectTransform>(), gridLeft, gridBottom, gridRight, gridTop);
 
+            // The six canonical icon roles, in the locked cell order (cells 0-5). Role names only:
+            // each well label is ~338x70px, so the full approved restriction sentences live in the
+            // MilestoneStrip panel, where they fit without clipping. Nothing here is invented - the
+            // role names are the approved set and the sentences below are verbatim ST copy.
             string[] benefitLabels =
             {
-                $"Weekly - 1x{ShopStaminaCatalog.StaminaGrantPerPotion} Stam",
-                "Fortnight - 2 claims",
-                "Monthly - 4 claims",
-                $"Uses Shop {ShopStaminaCatalog.MaxPurchasesPerRollingDay}/24h slots",
-                "Full Stam = forfeit",
-                "No combat power",
+                "Claim",
+                "Duration",
+                "Schedule",
+                "Shop slot",
+                "Full Stamina",
+                "Value",
             };
 
             for (int i = 0; i < VipSubscriptionOpenValues.BenefitWellCount; i++)
@@ -334,8 +338,10 @@ namespace MyriadOfDragons.UI
                 RefreshEntitlementCopy();
             });
             SetNorm(restore.GetComponent<RectTransform>(), 0.70f, 0.12f, 0.96f, 0.88f);
-            UISharedFoundation.CreateText(restore.transform, "Text", "RESTORE", UITextRole.Body,
-                TextAnchor.MiddleCenter, Color.white, true, new Vector2(200f, 36f));
+            // Approved CTA pair is SUBSCRIBE / RESTORE PURCHASE. Preferred width widened with the
+            // longer label so it cannot clip inside the same button rect.
+            UISharedFoundation.CreateText(restore.transform, "Text", "RESTORE PURCHASE", UITextRole.Body,
+                TextAnchor.MiddleCenter, Color.white, true, new Vector2(260f, 36f));
         }
 
         private void RefreshEntitlementCopy()
@@ -365,8 +371,24 @@ namespace MyriadOfDragons.UI
                 $"Fortnight {VipSubscriptionOpenValues.FortnightGemPrice} / 14d - 2 claims\n" +
                 $"Monthly {VipSubscriptionOpenValues.MonthlyGemPrice} / 30d - 4 claims\n\n" +
                 $"{MetagameShellProfileBinding.SelfIdentityLine()}\n{MetagameShellProfileBinding.WalletLine()}\n\n" +
+                "\n" + ValueLine + "\n\n" +
+                RestrictionsCopy + "\n\n" +
                 BuildEntitlementStateLine();
         }
+
+        /// <summary>
+        /// Exact approved value wording. Convenience framing only - no discount badge and no
+        /// positive savings percentage is permitted at these prices.
+        /// </summary>
+        internal const string ValueLine =
+            "Shop-equivalent value: 30 Gems per claim. No verified saving.";
+
+        /// <summary>Approved shared restrictions, verbatim - not paraphrased, not abbreviated.</summary>
+        internal const string RestrictionsCopy =
+            "No combat power, deck power, or exclusive progression.\n" +
+            "Each claim uses one Shop Stamina refill slot. If the 4-per-24h cap is reached, the claim waits.\n" +
+            "If Stamina is full, the 50-Stamina claim is forfeited, but the claim and Shop slot are consumed.\n" +
+            "One active plan only; plans do not stack. Unused claims expire when the plan lapses.";
 
         private void SetStatus(string message)
         {

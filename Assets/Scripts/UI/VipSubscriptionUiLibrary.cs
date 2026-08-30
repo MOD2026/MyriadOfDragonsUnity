@@ -12,6 +12,19 @@ namespace MyriadOfDragons.UI
         /// <summary>Horizontal equal cells in the approved state atlas (crowns + status glyphs).</summary>
         public const int StateAtlasCellCount = 8;
 
+        /// <summary>Atlas cell locked to the Weekly plan socket (UI-VIP-REPAIR-DESIGN-027).</summary>
+        public const int WeeklyPlanAtlasCell = 6;
+
+        /// <summary>Atlas cell locked to the Fortnight plan socket (UI-VIP-REPAIR-DESIGN-027).</summary>
+        public const int FortnightPlanAtlasCell = 7;
+
+        /// <summary>
+        /// Monthly is the one plan role the eight-cell atlas does not cover, so it ships as its own
+        /// approved sprite instead of a ninth cell. Cells 0-7 keep their locked order.
+        /// </summary>
+        public const string MonthlyPlanIconResourceRoot = "UI/VipSubscriptionV2/";
+        public const string MonthlyPlanIconName = "vip_plan_monthly_icon_v1";
+
         public static Sprite Load(string fileNameWithoutExtension)
         {
             if (string.IsNullOrEmpty(fileNameWithoutExtension)) return null;
@@ -20,6 +33,12 @@ namespace MyriadOfDragons.UI
 
         public static bool HasVipSubscriptionV1Pack =>
             Load(ScreenShellName) != null && Load(StateAtlasName) != null;
+
+        /// <summary>Separate from the V1 pack flag on purpose - the Monthly icon ships outside it.</summary>
+        public static bool HasMonthlyPlanIcon => LoadMonthlyPlanIcon() != null;
+
+        public static Sprite LoadMonthlyPlanIcon() =>
+            Resources.Load<Sprite>(MonthlyPlanIconResourceRoot + MonthlyPlanIconName);
 
         public static void ApplyFullscreenShell(Image target, Color fallback)
         {
@@ -47,6 +66,30 @@ namespace MyriadOfDragons.UI
         /// </summary>
         public static Sprite LoadStateAtlasCell(int cellIndex) =>
             LoadHorizontalAtlasCell(StateAtlasName, cellIndex, StateAtlasCellCount);
+
+        /// <summary>
+        /// Sprite for plan socket <paramref name="planIndex"/> (0 Weekly, 1 Fortnight, 2 Monthly),
+        /// matching <see cref="VipPlanKind"/>. Weekly/Fortnight read their locked atlas cells;
+        /// Monthly reads the approved standalone icon. Returns null when the source is missing so a
+        /// missing asset stays visible instead of silently borrowing a benefit glyph.
+        /// </summary>
+        public static Sprite LoadPlanSocketSprite(int planIndex)
+        {
+            switch (planIndex)
+            {
+                case 0: return LoadStateAtlasCell(WeeklyPlanAtlasCell);
+                case 1: return LoadStateAtlasCell(FortnightPlanAtlasCell);
+                case 2:
+                    Sprite monthly = LoadMonthlyPlanIcon();
+                    if (monthly == null)
+                    {
+                        Debug.LogWarning($"[VipSubscription] Failed to load Monthly plan icon " +
+                            $"'{MonthlyPlanIconResourceRoot}{MonthlyPlanIconName}'.");
+                    }
+                    return monthly;
+                default: return null;
+            }
+        }
 
         internal static Sprite LoadHorizontalAtlasCell(string atlasName, int cellIndex, int cellCount)
         {
