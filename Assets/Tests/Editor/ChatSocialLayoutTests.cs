@@ -609,8 +609,9 @@ namespace MyriadOfDragons.Tests
         }
 
         /// <summary>chat.unavailable — APPROVED, and the ONLY string a disabled composer may show.
-        /// The writable composer (input + SEND) must be gone from the visual AND accessibility
-        /// trees, not greyed out: a disabled text field is still something a player taps at.</summary>
+        /// Per AD-009 the composer and SEND stay PRESENT but DISABLED on channels where sending is
+        /// not allowed, rather than being removed - so this asserts presence AND non-interactivity
+        /// together. Either half alone passes for the wrong reason.</summary>
         [Test]
         public void ChatSocial_LockedChannels_ShowOnlyTheApprovedChatUnavailableLabel()
         {
@@ -627,11 +628,20 @@ namespace MyriadOfDragons.Tests
                 Assert.AreEqual("Chat unavailable", presenter.ComposerUnavailableLabelForTests,
                     $"'{label}' does not show the approved chat.unavailable label.");
 
+                // AD-009: PRESENT but DISABLED, not removed.
                 Transform root = presenter.CanvasObjectForTests.transform;
-                Assert.IsFalse(root.Find("Composer/ComposerInput").gameObject.activeInHierarchy,
-                    $"'{label}' leaves a text field in the accessibility tree.");
-                Assert.IsFalse(root.Find("Composer/Btn_ComposerSend").gameObject.activeInHierarchy,
-                    $"'{label}' leaves SEND in the accessibility tree.");
+                Transform input = root.Find("Composer/ComposerInput");
+                Transform send = root.Find("Composer/Btn_ComposerSend");
+                Assert.IsTrue(input.gameObject.activeInHierarchy,
+                    $"'{label}' removed the composer input; AD-009 keeps it present but disabled.");
+                Assert.IsTrue(send.gameObject.activeInHierarchy,
+                    $"'{label}' removed SEND; AD-009 keeps it present but disabled.");
+                Assert.IsFalse(input.GetComponent<InputField>().interactable,
+                    $"'{label}' leaves the composer input interactable.");
+                Assert.IsTrue(input.GetComponent<InputField>().readOnly,
+                    $"'{label}' leaves the composer input writable, so a soft keyboard can still open on it.");
+                Assert.IsFalse(send.GetComponent<Button>().interactable,
+                    $"'{label}' leaves SEND interactable while sending is not allowed.");
             }
 
             // A writable channel gets the composer back and NO unavailable label.

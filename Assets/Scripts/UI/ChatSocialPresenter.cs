@@ -166,12 +166,14 @@ namespace MyriadOfDragons.UI
                 ? _stateRegion.Find("EmptyState_Title")?.GetComponent<Text>()?.text
                 : null;
 
-        /// <summary>True only when a WRITABLE composer is present - the input and SEND. Locked
-        /// channels have neither; they show the approved "Chat unavailable" label instead, which
-        /// this deliberately does NOT count, so every existing gate keeps its original meaning.</summary>
+        /// <summary>True only when a WRITABLE composer is offered. Under AD-009 the controls stay
+        /// present on locked channels, so presence alone no longer answers this - interactability
+        /// does. Every pre-existing gate that asserts this is false on Broadcast/System/DM keeps
+        /// its original meaning: no writing is offered there.</summary>
         public bool ComposerVisibleForTests =>
             _composerRoot != null && _composerRoot.activeSelf &&
-            _composerInput != null && _composerInput.gameObject.activeSelf;
+            _composerInput != null && _composerInput.gameObject.activeSelf &&
+            _composerInput.interactable;
 
         /// <summary>The approved chat.unavailable label, or null when it is not being shown.</summary>
         public string ComposerUnavailableLabelForTests =>
@@ -543,13 +545,15 @@ namespace MyriadOfDragons.UI
             // disabledSprite = normal, so Unity's own SpriteSwap shows no difference.
             send.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
 
-            // The disabled-composer face. Sized to the whole composer band because it REPLACES the
-            // input and SEND rather than sitting beside them - the player must never see a text
-            // field they cannot type into. Hidden by default; ApplyComposerAvailability owns it.
+            // The disabled-composer face. Sized to the INPUT region only, not the whole band:
+            // AD-009 keeps the composer and SEND present-but-disabled rather than removing them,
+            // so SEND stays visible beside this in its disabled state. Hidden by default;
+            // ApplyComposerAvailability owns it.
+            float unavailableWidth = composerWidth - SendWidth - Gutter;
             GameObject unavailable = new GameObject("Composer_Unavailable", typeof(RectTransform), typeof(Image));
             unavailable.transform.SetParent(root.transform, false);
             _composerUnavailableRoot = unavailable;
-            SetPxIn(unavailable.GetComponent<RectTransform>(), 0f, 0f, composerWidth, ComposerHeight);
+            SetPxIn(unavailable.GetComponent<RectTransform>(), 0f, 0f, unavailableWidth, ComposerHeight);
             Image unavailableImg = unavailable.GetComponent<Image>();
             UISharedFoundation.ApplyFramedPanel(unavailableImg, null,
                 UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorPanel,
@@ -560,11 +564,11 @@ namespace MyriadOfDragons.UI
 
             Text unavailableText = UISharedFoundation.CreateText(unavailable.transform, "Label",
                 ChatUnavailableLabel, UITextRole.Body, TextAnchor.MiddleCenter,
-                new Color(0.78f, 0.76f, 0.68f), true, new Vector2(composerWidth - 40f, 36f));
+                new Color(0.78f, 0.76f, 0.68f), true, new Vector2(unavailableWidth - 40f, 36f));
             unavailableText.fontStyle = FontStyle.Bold;
             unavailableText.verticalOverflow = VerticalWrapMode.Truncate;
             unavailableText.raycastTarget = false;
-            SetPxIn(unavailableText.rectTransform, 20f, (ComposerHeight - 36f) * 0.5f, composerWidth - 40f, 36f);
+            SetPxIn(unavailableText.rectTransform, 20f, (ComposerHeight - 36f) * 0.5f, unavailableWidth - 40f, 36f);
             unavailable.SetActive(false);
         }
 
@@ -672,15 +676,22 @@ namespace MyriadOfDragons.UI
 
             if (_composerInput != null && locked) _composerInput.text = string.Empty;
 
-            // The composer band is always present; WHAT it contains switches. Locked channels get
-            // the approved "Chat unavailable" label INSTEAD of the input and SEND - both are
-            // deactivated, so neither is in the visual or the accessibility tree, and there is no
-            // disabled text field to tap at. That is the difference from a greyed-out control.
+            // AD-009: when sending is not allowed the composer and SEND stay PRESENT but DISABLED,
+            // with the state labelled "Chat unavailable" - they are not removed. The input is put
+            // in readOnly as well as non-interactable so a platform soft-keyboard cannot open on it,
+            // and its own text is cleared so the label is the only thing that reads out of that
+            // region. InteractionStateController (attached to SEND at build) is what makes the
+            // disabled state visible rather than colour-only.
             if (_composerRoot != null) _composerRoot.SetActive(true);
-            if (_composerInput != null) _composerInput.gameObject.SetActive(!locked);
+            if (_composerInput != null)
+            {
+                _composerInput.gameObject.SetActive(true);
+                _composerInput.interactable = !locked;
+                _composerInput.readOnly = locked;
+            }
             if (_sendButton != null)
             {
-                _sendButton.gameObject.SetActive(!locked);
+                _sendButton.gameObject.SetActive(true);
                 _sendButton.interactable = !locked;
             }
             if (_composerUnavailableRoot != null) _composerUnavailableRoot.SetActive(locked);
