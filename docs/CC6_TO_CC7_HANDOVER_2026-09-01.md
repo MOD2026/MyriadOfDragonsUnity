@@ -32,14 +32,14 @@ The preferred Battle scene is a single gameplay composition based on the supplie
 - End Turn, resources, turn/timer, targeting cue, and right-side Combat FX remain distinct and readable.
 - No `[runtime]` tokens, fabricated values, unsupported copy, enemy tactical identity, or competing acceptance panels.
 
-`UI-090` through `UI-098` are superseded for scene review. `UI-099` is now the latest conditional reference: `battle_faithful_sample_replacement_v9.png` plus `battle_faithful_sample_replacement_v9_lower_control_crop.png`. It shows exactly four-or-fewer real SpellEffect positions, three card-derived reinforcement hotkeys in the lower-right safe zone, shared Energy badges, selected-card and automatic-lane cues, the player 3×3, enemy avatar/health, a limited enemy fan, and no END TURN/AUTO BATTLE/sacrifice/replacement. It is still a review reference, not implementation approval. Every new image must be shown to Zihan before implementation. The reinforcement rail remains conditional until CR7/MS closes the milestone and reserve-generation details.
+`UI-090` through `UI-099` are superseded for scene review. `UI-100` is now the latest conditional reference: `battle_faithful_sample_replacement_v10.png` plus `battle_faithful_sample_replacement_v10_lower_control_crop.png`. It shows exactly four-or-fewer real SpellEffect positions with no dead holders, three card-derived reinforcement hotkeys in the lower-right safe zone, shared Energy badges, no persistent lane arrows, and one contextual arrow only from the selected reinforcement card to the already-resolved automatic lane. It also preserves the player 3×3, enemy avatar/health, limited enemy fan, and no END TURN/AUTO BATTLE/sacrifice/replacement. It is still a review reference, not implementation approval. Every new image must be shown to Zihan before implementation. The reinforcement rail remains conditional until CR7/MS closes the milestone and reserve-generation details.
 
 ## Ownership map
 
 | Surface / responsibility | Owner | Current state |
 |---|---|---|
 | Battle Unity implementation, targeting, hand, skills, Combat FX | CR7 | Existing spell one-tap logic is complete; implement the owner-approved reinforcement economy/progression only after exact details are signed. |
-| Battle UI references | UI/UX | UI-099 v9 and its lower-control crop are the latest conditional references; show them to Zihan for approval. UI generates references only and does not approve mechanics or bind production UI. |
+| Battle UI references | UI/UX | UI-100 v10 and its lower-control crop are the latest conditional references; show them to Zihan for approval. UI generates references only and does not approve mechanics or bind production UI. |
 | Chat Unity implementation | VS/Social | Integrated at `5e59e27a`; AN independently confirmed 35/35. |
 | Chat native/accessibility evidence | VE | Still outstanding. |
 | Friends Unity implementation | FR | Integrated on LK line at `56c098a6`; prior focused evidence 11/11. |
@@ -68,7 +68,7 @@ The preferred Battle scene is a single gameplay composition based on the supplie
 
 ## Current real blockers
 
-1. **Battle UI approval:** UI-099 is still conditional. Zihan must approve V9 and the lower-control crop before CR7 binds production UI; do not treat any review PNG as implementation approval.
+1. **Battle UI approval:** UI-100 is still conditional. Zihan must approve V10 and the lower-control crop before CR7 binds production UI; do not treat any review PNG as implementation approval.
 2. **Reinforcement/deck override:** Owner approved the direction: 3 selected hotkeys, one-tap optional reinforcement, shared Energy, uniform seeded-random legal-lane selection, no rerolls, and a 7→15 non-linear deck progression target. CR7/MS must define milestones, reserve generation, duplicate policy, migration, cost, and seed details before coding.
 3. **Specification authority:** the owner override changes the live 10–20 deck-cap direction. CR7/MS/BS must publish a versioned mechanics/spec amendment (including old rule, new rule, rationale, affected systems, and migration) before production code claims the 7→15 rule is locked; MOS remains higher authority until amended.
 4. **Native evidence:** VE lacks a current approved runtime capture set for Battle, Chat, Friends, and other surfaces. Review PNGs and EditMode tests are not native evidence.
@@ -88,7 +88,7 @@ The preferred Battle scene is a single gameplay composition based on the supplie
 ## CC7 first actions
 
 1. Read this handover, `docs/MOS_v1.1.md`, `docs/AI_CONTRIBUTING.md`, and the latest `docs/LOCKED_DECISIONS_REGISTER.md`.
-2. Record UI-099 V9 and its lower-control crop as conditional and obtain Zihan's explicit approval/rejection; if rejected, ask UI for one targeted revision only. Do not start another generic Battle-art round.
+2. Record UI-100 V10 and its lower-control crop as conditional and obtain Zihan's explicit approval/rejection; if rejected, ask UI for one targeted revision only. Do not start another generic Battle-art round.
 3. Route CR and LK to receive the approved Battle composition and integrate the CR chain; route AN to verify only the resulting exact HEAD.
 4. Route BE/MS on the Daily Login contract/gate and keep the system excluded from beta until complete.
 5. Route VE to the current evidence matrix; separate native evidence from review references and do not claim PASS without native artifacts.
@@ -97,14 +97,14 @@ The preferred Battle scene is a single gameplay composition based on the supplie
 
 ## Paste-ready CC7 prompt
 
-> You are CC7 for Myriad of Dragons Unity. Use `docs/CC6_TO_CC7_HANDOVER_2026-09-01.md` and `docs/CC6_TO_CR7_BATTLE_HANDOVER_2026-09-02.md` as the authority snapshot. The owner-approved Battle direction is: non-linear 7→15 progression under Barracks ownership; 9 formation cards plus up to 6 reserve cards; 3 player-selected one-tap reinforcement hotkeys; Resource for formation only; shared Energy for spells and reinforcement; optional reinforcement at ticks 4/8; uniform seeded-random legal-lane selection with no rerolls; no END TURN/AUTO BATTLE/sacrifice/replacement. CR7/MS/BS must first publish a versioned spec/MOS amendment covering milestones, reserve generation, duplicate policy, migration, cost mapping, and seed/replay details; do not silently claim the old 10–20 rule is replaced. UI-099 V9 and its lower-control crop are the latest conditional Battle references and must be shown to Zihan before implementation; UI generates art references, while AD is the separate art-approval room. CR7 implements only after the contract and reference are approved; VE owns native evidence; MT is marketing-only. Keep VS/FR code-complete unless a concrete defect appears. Do not repeat completed screens, invent mechanics/assets/copy, or claim readiness from review PNGs or EditMode tests.
+> You are CC7 for Myriad of Dragons Unity. Use `docs/CC6_TO_CC7_HANDOVER_2026-09-01.md` and `docs/CC6_TO_CR7_BATTLE_HANDOVER_2026-09-02.md` as the authority snapshot. The owner-approved Battle direction is: non-linear 7→15 progression under Barracks ownership; 9 formation cards plus up to 6 reserve cards; 3 player-selected one-tap reinforcement hotkeys; Resource for formation only; shared Energy for spells and reinforcement; optional reinforcement at ticks 4/8; uniform seeded-random legal-lane selection with no rerolls; no END TURN/AUTO BATTLE/sacrifice/replacement. CR7/MS/BS must first publish a versioned spec/MOS amendment covering milestones, reserve generation, duplicate policy, migration, cost mapping, and seed/replay details; do not silently claim the old 10–20 rule is replaced. UI-100 V10 and its lower-control crop are the latest conditional Battle references and must be shown to Zihan before implementation; UI generates art references, while AD is the separate art-approval room. CR7 implements only after the contract and reference are approved; VE owns native evidence; MT is marketing-only. Keep VS/FR code-complete unless a concrete defect appears. Do not repeat completed screens, invent mechanics/assets/copy, or claim readiness from review PNGs or EditMode tests.
 
 ## Audit notes for CC7
 
 - Historical reports `CC6-BATTLE-REINFORCEMENT-DOCK-CONTRACT-034`, `CC6-BATTLE-REINFORCEMENT-ECONOMY-BALANCE-036`, `CC6-BATTLE-REINFORCEMENT-CONFLICT-RECONCILIATION-039`, `CC6-DECK-CAP-CASTLE-ECONOMY-041`, and `CC6-DECK-PROGRESSION-AND-MIGRATION-043` remain evidence of prior proposals and are superseded where they conflict with the owner-approved direction above.
 - The owner override is recorded in this handover and `CC6_TO_CR7_BATTLE_HANDOVER_2026-09-02.md`; it supersedes the earlier beta recommendation to retain Barracks 10–20.
 - The owner override is directional approval, not yet a complete implementable specification. MOS §16 requires the old rule, new rule, rationale, affected systems, and save/data migration to be documented before the live rule is changed.
-- UI-099 V9 and its lower-control crop are the latest conditional Battle references; they are not approved art and must not be treated as a production layout.
+- UI-100 V10 and its lower-control crop are the latest conditional Battle references; they are not approved art and must not be treated as a production layout.
 - The exact 7→15 milestone curve, reserve generation, duplicate handling, and save migration are intentionally not invented here. They are CR7/MS implementation deliverables under the approved direction.
 - AD is a separate co-pilot/room from UI. AD owns art approval and hierarchy review; UI owns generation of references only. MT remains marketing-only.
 - No native runtime readiness, beta readiness, or final art approval is claimed by this document.
