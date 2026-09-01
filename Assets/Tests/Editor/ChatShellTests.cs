@@ -75,8 +75,17 @@ namespace MyriadOfDragons.Tests
                 canvas.transform.Find("Background")?.GetComponent<Image>()?.sprite?.name);
             Assert.NotNull(canvas.transform.Find("ChannelRail/Channel_Guild"));
             Assert.AreEqual(7, ChatSocialOpenValues.ChannelLabels.Length);
+
+            // Revamp V2: the stream is a real per-message thread, so an empty channel renders the
+            // shared empty-state region rather than a placeholder Text blob. The self-identity
+            // line moved onto that region's status line - still present, still alias-only.
+            Transform state = canvas.transform.Find("StreamState");
+            Assert.NotNull(state, "V2 must build a StreamState region for loading/empty/error/DM.");
+            Assert.AreEqual(0, presenter.MessageRowCountForTests,
+                "An empty channel must build no message rows.");
             StringAssert.Contains("You:",
-                canvas.transform.Find("MessageStream/Placeholder")?.GetComponent<Text>()?.text);
+                state.Find("EmptyState_Status")?.GetComponent<Text>()?.text);
+
             var refuse = presenter.SendMessageForTests();
             Assert.AreEqual(ChatSocialActionStatus.OpenValuesNotLocked, refuse.Status);
 
