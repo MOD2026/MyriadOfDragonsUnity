@@ -72,8 +72,15 @@ namespace MyriadOfDragons.UI
         /// drawn — the drawer owns those tabs and this screen must not paint over them.</summary>
         private const float HostTabBarHeight = 100f;
 
-        /// <summary>Bottom band the host drawer's CLOSE target occupies, plus one gutter.</summary>
-        private const float HostCloseReserve = 129f;
+        // The host drawer's CLOSE target (Home builds it at 1780,970 - 1896,1080), padded by 12px.
+        // Chat paints NOTHING inside this band while hosted: raycastTarget=false already let the
+        // tap through to the drawer's own raycaster, but an opaque shell drawn over it at a higher
+        // sortingOrder still hid the control, which reads to a player as a dead Close button.
+        private const float HostCloseLeft = 1768f;
+        private const float HostCloseTop = 958f;
+
+        /// <summary>Bottom the context column stops at while hosted, one gutter above CLOSE.</summary>
+        private const float HostCloseReserve = DesignHeight - SafeMargin - (HostCloseTop - Gutter);
 
         // Player-facing copy. Locked to the approved reference's "Exact state copy" table.
         // Deliberately carries no error code, field name, account id or endpoint name: the capture
@@ -193,20 +200,34 @@ namespace MyriadOfDragons.UI
 
             float topInset = _hostedInDrawer ? HostTabBarHeight : 0f;
 
-            // Opaque theme backing under the preserveAspect shell art — kills camera clear-colour
-            // (sky-blue) letterbox bleed on non-16:9 viewports. Inset below the host tab bar so
-            // the drawer's own CHAT/MAIL/FRIENDS row stays visible and hittable.
+            // Opaque theme backing under the preserveAspect shell art - kills camera clear-colour
+            // (sky-blue) letterbox bleed on non-16:9 viewports. While hosted it stops above the
+            // drawer's CLOSE band, and a left-hand strip carries the coverage back across the
+            // composer row, so the whole screen is still backed without a second shell being
+            // painted over the host's own control.
             Color shellFallback = new Color(0.08f, 0.09f, 0.12f);
+            float shellBottom = _hostedInDrawer ? HostCloseTop : DesignHeight;
+
             GameObject backing = new GameObject("BackgroundBacking", typeof(RectTransform), typeof(Image));
             backing.transform.SetParent(_canvasObj.transform, false);
-            SetPx(backing.GetComponent<RectTransform>(), 0f, topInset, DesignWidth, DesignHeight - topInset);
+            SetPx(backing.GetComponent<RectTransform>(), 0f, topInset, DesignWidth, shellBottom - topInset);
             Image backingImg = backing.GetComponent<Image>();
             backingImg.color = new Color(shellFallback.r, shellFallback.g, shellFallback.b, 1f);
             backingImg.raycastTarget = false;
 
+            if (_hostedInDrawer)
+            {
+                GameObject skirt = new GameObject("BackgroundBackingSkirt", typeof(RectTransform), typeof(Image));
+                skirt.transform.SetParent(_canvasObj.transform, false);
+                SetPx(skirt.GetComponent<RectTransform>(), 0f, HostCloseTop, HostCloseLeft, DesignHeight - HostCloseTop);
+                Image skirtImg = skirt.GetComponent<Image>();
+                skirtImg.color = new Color(shellFallback.r, shellFallback.g, shellFallback.b, 1f);
+                skirtImg.raycastTarget = false;
+            }
+
             GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
             bg.transform.SetParent(_canvasObj.transform, false);
-            SetPx(bg.GetComponent<RectTransform>(), 0f, topInset, DesignWidth, DesignHeight - topInset);
+            SetPx(bg.GetComponent<RectTransform>(), 0f, topInset, DesignWidth, shellBottom - topInset);
             ChatSocialUiLibrary.ApplyFullscreenShell(bg.GetComponent<Image>(), shellFallback);
 
             BuildHeader(topInset);
@@ -345,6 +366,35 @@ namespace MyriadOfDragons.UI
                 marker.verticalOverflow = VerticalWrapMode.Truncate;
                 marker.raycastTarget = false;
                 SetPxIn(marker.rectTransform, RailWidth - 34f, (rowHeight - 30f) * 0.5f, 24f, 30f);
+            }
+
+            // The rail's rows are capped at 94px by the approved reference, so seven of them do
+            // not reach the bottom of the column. V1 left the remainder as bare dead space; it
+            // gets truthful capability copy instead - the same answer the reference gives for the
+            // context column, and specifically NOT decoration stretched to fill a gap.
+            float rowsBottom = channels.Length * (rowHeight + rowGap) - rowGap;
+            float noteHeight = (bodyBottom - bodyTop) - rowsBottom - Gutter;
+            if (noteHeight >= 72f)
+            {
+                GameObject note = new GameObject("RailNote", typeof(RectTransform), typeof(Image));
+                note.transform.SetParent(rail.transform, false);
+                SetPxIn(note.GetComponent<RectTransform>(), 0f, rowsBottom + Gutter, RailWidth, noteHeight);
+                Image noteImg = note.GetComponent<Image>();
+                UISharedFoundation.ApplyFramedPanel(noteImg, null,
+                    UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorPanel,
+                    kind: UISharedFoundation.FramedPanelKind.ListRow);
+                noteImg.raycastTarget = false;
+
+                Text noteText = UISharedFoundation.CreateText(note.transform, "Text",
+                    "Channels are provided by the game.\n\nUnread counts are not connected to " +
+                    "this screen yet, so none is shown.",
+                    UITextRole.Caption, TextAnchor.UpperLeft, new Color(0.78f, 0.76f, 0.68f), true,
+                    new Vector2(RailWidth - 36f, noteHeight - 32f));
+                noteText.fontSize = 18;
+                noteText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                noteText.verticalOverflow = VerticalWrapMode.Truncate;
+                noteText.raycastTarget = false;
+                SetPxIn(noteText.rectTransform, 18f, 16f, RailWidth - 36f, noteHeight - 32f);
             }
         }
 

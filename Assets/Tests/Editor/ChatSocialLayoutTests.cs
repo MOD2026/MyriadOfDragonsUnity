@@ -264,5 +264,110 @@ namespace MyriadOfDragons.Tests
             Assert.NotNull(content);
             StringAssert.StartsWith("You", content.GetChild(0).Find("Bubble/Meta").GetComponent<Text>().text);
         }
+
+        /// <summary>Stands in for Home's Social drawer WITHOUT touching HomePagePresenter: the
+        /// only thing Chat reads is "is there a canvas named SocialDrawer", and the chrome bands
+        /// asserted below are the exact rects Home builds (tab bar 0,0-1920,100; CLOSE
+        /// 1780,970-1896,1080).</summary>
+        private GameObject SpawnHostDrawerStub()
+        {
+            var drawer = new GameObject("SocialDrawer", typeof(RectTransform), typeof(Canvas));
+            _spawned.Add(drawer);
+            Canvas c = drawer.GetComponent<Canvas>();
+            c.renderMode = RenderMode.ScreenSpaceOverlay;
+            c.sortingOrder = 20;
+            return drawer;
+        }
+
+        /// <summary>Maps a 1920x1080 top-left design rect onto the built canvas's world rect.</summary>
+        private static Rect DesignRectToWorld(Rect canvas, float left, float top, float width, float height)
+        {
+            float sx = canvas.width / 1920f, sy = canvas.height / 1080f;
+            return new Rect(canvas.xMin + left * sx,
+                            canvas.yMax - (top + height) * sy,
+                            width * sx, height * sy);
+        }
+
+        /// <summary>Hosted inside the drawer, Chat must sort above the drawer's full-screen
+        /// dimmer (or nothing on this screen is tappable) AND must not paint over the drawer's own
+        /// tab bar or CLOSE target (or those controls read as dead). Both at once is the whole
+        /// constraint - clearing only one of them trades one blocked control for another.</summary>
+        [Test]
+        public void ChatSocial_HostedInDrawer_SortsAboveDimmer_AndClearsDrawerChrome()
+        {
+            SpawnHostDrawerStub();
+            ChatSocialPresenter presenter = Open(new FakeGateway());
+
+            Assert.IsTrue(presenter.HostedInSocialDrawerForTests,
+                "Chat did not detect the host drawer, so it cannot adapt to its chrome.");
+            Canvas chatCanvas = presenter.CanvasObjectForTests.GetComponent<Canvas>();
+            Assert.Greater(chatCanvas.sortingOrder, 20,
+                "Chat sorts under the drawer's full-screen dimmer, so no control on it is tappable.");
+
+            var canvasRect = presenter.CanvasObjectForTests.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(1920f, 1080f);
+            foreach (RectTransform rt in presenter.CanvasObjectForTests.GetComponentsInChildren<RectTransform>(true)
+                         .OrderByDescending(r => r.GetComponentsInParent<Transform>(true).Length))
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+
+            Rect canvas = WorldRect(canvasRect);
+            Rect tabBar = DesignRectToWorld(canvas, 0f, 0f, 1920f, 100f);
+            Rect closeBtn = DesignRectToWorld(canvas, 1780f, 970f, 116f, 110f);
+
+            var covered = new List<string>();
+            foreach (Graphic g in presenter.CanvasObjectForTests.GetComponentsInChildren<Graphic>(true))
+            {
+                if (!g.gameObject.activeInHierarchy) continue;
+                Rect r = WorldRect(g.rectTransform);
+                if (r.width <= 0f || r.height <= 0f) continue;
+                if (r.Overlaps(tabBar)) covered.Add($"'{g.name}' covers the drawer TAB BAR {r}");
+                if (r.Overlaps(closeBtn)) covered.Add($"'{g.name}' covers the drawer CLOSE target {r}");
+            }
+
+            CollectionAssert.IsEmpty(covered,
+                "Chat paints over the host drawer's own controls while sorting above them, so the " +
+                "tab bar / CLOSE read as dead: " + string.Join("  |  ", covered));
+        }
+
+        /// <summary>One shell, not two. The opaque backing and the preserveAspect art are a
+        /// deliberate pair; a SECOND copy of the shell sprite means a duplicated build.</summary>
+        [Test]
+        public void ChatSocial_DrawsExactlyOneShellSprite()
+        {
+            ChatSocialPresenter presenter = Open(new FakeGateway());
+            int shells = presenter.CanvasObjectForTests.GetComponentsInChildren<Image>(true)
+                .Count(i => i.sprite != null && i.sprite.name == ChatSocialUiLibrary.ShellName);
+            Assert.AreEqual(1, shells, "Chat drew the fullscreen shell sprite more than once.");
+        }
+
+        /// <summary>No large unexplained hole in the laid-out screen. The rail's 94px-capped rows
+        /// do not reach the bottom of their column, and V1 left that remainder blank - it must
+        /// carry real content instead.</summary>
+        [Test]
+        public void ChatSocial_RailRemainderCarriesContent_NotDeadSpace()
+        {
+            ChatSocialPresenter presenter = Open(new FakeGateway());
+            Transform rail = presenter.CanvasObjectForTests.transform.Find("ChannelRail");
+            Assert.NotNull(rail);
+
+            Transform note = rail.Find("RailNote");
+            Assert.NotNull(note, "The rail's leftover column space was left as dead space.");
+            Text noteText = note.Find("Text")?.GetComponent<Text>();
+            Assert.NotNull(noteText);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(noteText.text),
+                "The rail note panel is present but empty, which is the same blank region.");
+
+            var canvasRect = presenter.CanvasObjectForTests.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(1920f, 1080f);
+            foreach (RectTransform rt in presenter.CanvasObjectForTests.GetComponentsInChildren<RectTransform>(true)
+                         .OrderByDescending(r => r.GetComponentsInParent<Transform>(true).Length))
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+
+            // The note must actually reach the bottom of the rail, not float above another gap.
+            Rect railRect = WorldRect(rail.GetComponent<RectTransform>());
+            Rect noteRect = WorldRect(note.GetComponent<RectTransform>());
+            Assert.LessOrEqual(Mathf.Abs(noteRect.yMin - railRect.yMin), 2f,
+                $"The rail note stops short of the rail bottom, leaving a gap: note={noteRect} rail={railRect}");
+        }
     }
 }
