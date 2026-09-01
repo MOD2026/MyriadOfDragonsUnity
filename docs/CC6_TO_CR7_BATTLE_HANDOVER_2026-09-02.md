@@ -33,7 +33,7 @@
 ## Non-negotiables
 
 - Do not implement against an unapproved UI image. UI must first show the owner-approved three-hotkey one-tap Battle reference, and Zihan must approve the art.
-- UI-098 (`battle_faithful_sample_replacement_v8.png`) is the latest conditional reference only; it is not approved production art.
+- UI-099 (`battle_faithful_sample_replacement_v9.png` plus `battle_faithful_sample_replacement_v9_lower_control_crop.png`) is the latest conditional reference only; it is not approved production art.
 - Do not invent a six-card reserve at progression levels where the deck does not contain six reserve cards.
 - Do not silently preserve the old 10–20 progression while claiming the 7→15 direction is implemented.
 - Do not edit `PlayerProfile.cs`, `SaveSystem.cs`, `SaveMigration.cs`, `Data/SaveManager.cs`, or frozen tests without human coordination.
