@@ -37,9 +37,15 @@ namespace MyriadOfDragons.UI
     ///     contract. Rows show "You" for messages this session posted and a neutral generated
     ///     marker otherwise — never the id, never a fabricated player name.
     ///   * TRUTHFUL STATES. Loading / empty / error / read-only / DM-unavailable each render a
-    ///     real state region with the reference's exact copy, instead of leaving a blank panel or
-    ///     a bare sentence floating in an empty column. Read-only and unavailable channels have
-    ///     NO composer at all rather than a disabled one.
+    ///     real state region, instead of leaving a blank panel or a bare sentence floating in an
+    ///     empty column. Read-only and unavailable channels have NO composer at all rather than a
+    ///     disabled one.
+    ///   * RENDER-NOTHING OVER INVENTED COPY (CC6-CHAT-RENDER-NOTHING-CLOSURE-009). Only two
+    ///     action/result strings are approved - RETRY SAFELY and "Message was not sent." - plus the
+    ///     approved read-only and DM-unavailable states. Every capability, reconnect/recovery,
+    ///     message-length and input-placeholder string is SOURCE-BLOCKED and renders NOTHING, and
+    ///     a region whose only content was such a string is COLLAPSED rather than left as an empty
+    ///     frame. That is why there is no context column and no rail note here any more.
     /// </summary>
     public class ChatSocialPresenter : MonoBehaviour
     {
@@ -58,7 +64,11 @@ namespace MyriadOfDragons.UI
         private const float HeaderHeight = 108f;
         private const float Gutter = 19f;
         private const float RailWidth = 295f;
-        private const float StreamWidth = 1162f;
+        // Stream spans the old stream + gutter + context column (1162 + 19 + 349): the context
+        // column is collapsed while its only copy is RENDER-NOTHING - see BuildContextColumn's
+        // deletion note below. ContextWidth is kept as the documented reclaim amount so restoring
+        // the column is a one-line change, not a re-derivation.
+        private const float StreamWidth = 1530f;
         private const float ContextWidth = 349f;
         private const float ComposerHeight = 86f;
         private const float ChannelBarHeight = 56f;
@@ -86,18 +96,30 @@ namespace MyriadOfDragons.UI
         // Deliberately carries no error code, field name, account id or endpoint name: the capture
         // gate fails a screen that shows a developer diagnostic to a player. The real codes still
         // reach the console through Debug.LogWarning below.
-        private const string ComposerHint = "Type a message…";
+        // chat.input.placeholder — RENDER-NOTHING (CC6-CHAT-RENDER-NOTHING-CLOSURE-009,
+        // CC6-ST-CHAT-CURRENT-COPY-CLOSURE-008 "SOURCE-BLOCKED"). "Type a message…" implies both
+        // posting permission and message-length support, neither of which any contract confirms.
+        // Empty, not a substitute hint: ST has no approved replacement string.
+        private const string ComposerHint = "";
         private const string SendLabel = "SEND";
         private const string LoadingTitle = "Loading messages…";
         private const string LoadingBody = "Fetching the most recent messages for this channel.";
         private const string EmptyTitle = "No messages yet.";
         private const string ErrorTitle = "Messages could not be loaded.";
-        private const string ErrorBody = "The channel is reachable again as soon as the connection recovers.";
+        // chat.reconnect — RENDER-NOTHING. The former body ("reachable again as soon as the
+        // connection recovers") is a recovery promise, and no recovery authority exists. The error
+        // title plus a real RETRY SAFELY control is the whole truthful state.
+        private const string ErrorBody = null;
         private const string RetryLabel = "RETRY SAFELY";
-        private const string DmTitle = "Direct Messages Are Not Available Yet";
-        private const string DmBody =
-            "Conversation lists, requests, privacy settings, unread state, and message delivery " +
-            "are not connected to this screen.";
+        // chat.unavailable — APPROVED, CC6-COPY-AUTHORITY-SNAPSHOT-010. The ONLY string permitted
+        // in a disabled composer. It states no cause, no permission, no delivery or persistence
+        // promise: "why" would be an ACL claim, and ACL is UNSUPPORTED in production.
+        private const string ChatUnavailableLabel = "Chat unavailable";
+        // chat.dm_unavailable — the ONE approved DM string (CC6-ST-CHAT-CURRENT-COPY-CLOSURE-008).
+        // The former title was presenter-local title-case, and the former body enumerated
+        // conversation lists / requests / privacy / unread / delivery — every one of those a
+        // capability claim under chat.channel.capability RENDER-NOTHING. Title only, no body.
+        private const string DmTitle = "Direct messages aren't available yet.";
         private const string SendFailedStatus = "Message was not sent.";
         private const string SendEmptyStatus = "Type a message first.";
         private const string HistoryUnavailableStatus = "Couldn't load messages.";
@@ -108,12 +130,12 @@ namespace MyriadOfDragons.UI
         private Action _onBack;
         private Text _statusText;
         private Text _channelBarText;
-        private Text _capabilityText;
         private RectTransform _threadViewport;
         private RectTransform _threadContent;
         private GameObject _threadScrollObj;
         private RectTransform _stateRegion;
         private GameObject _composerRoot;
+        private GameObject _composerUnavailableRoot;
         private InputField _composerInput;
         private Button _sendButton;
         private Text _sendLabel;
@@ -144,8 +166,18 @@ namespace MyriadOfDragons.UI
                 ? _stateRegion.Find("EmptyState_Title")?.GetComponent<Text>()?.text
                 : null;
 
-        /// <summary>Read-only and unavailable channels get NO composer, not a disabled one.</summary>
-        public bool ComposerVisibleForTests => _composerRoot != null && _composerRoot.activeSelf;
+        /// <summary>True only when a WRITABLE composer is present - the input and SEND. Locked
+        /// channels have neither; they show the approved "Chat unavailable" label instead, which
+        /// this deliberately does NOT count, so every existing gate keeps its original meaning.</summary>
+        public bool ComposerVisibleForTests =>
+            _composerRoot != null && _composerRoot.activeSelf &&
+            _composerInput != null && _composerInput.gameObject.activeSelf;
+
+        /// <summary>The approved chat.unavailable label, or null when it is not being shown.</summary>
+        public string ComposerUnavailableLabelForTests =>
+            _composerUnavailableRoot != null && _composerUnavailableRoot.activeSelf
+                ? _composerUnavailableRoot.transform.Find("Label")?.GetComponent<Text>()?.text
+                : null;
 
         public bool HostedInSocialDrawerForTests => _hostedInDrawer;
 
@@ -235,7 +267,6 @@ namespace MyriadOfDragons.UI
             float bodyBottom = DesignHeight - SafeMargin;
             BuildChannelRail(bodyTop, bodyBottom);
             BuildStreamColumn(bodyTop, bodyBottom);
-            BuildContextColumn(bodyTop, bodyBottom);
 
             if (ChatSocialOpenValues.ChannelLabels.Length > 0)
             {
@@ -368,34 +399,17 @@ namespace MyriadOfDragons.UI
                 SetPxIn(marker.rectTransform, RailWidth - 34f, (rowHeight - 30f) * 0.5f, 24f, 30f);
             }
 
-            // The rail's rows are capped at 94px by the approved reference, so seven of them do
-            // not reach the bottom of the column. V1 left the remainder as bare dead space; it
-            // gets truthful capability copy instead - the same answer the reference gives for the
-            // context column, and specifically NOT decoration stretched to fill a gap.
-            float rowsBottom = channels.Length * (rowHeight + rowGap) - rowGap;
-            float noteHeight = (bodyBottom - bodyTop) - rowsBottom - Gutter;
-            if (noteHeight >= 72f)
-            {
-                GameObject note = new GameObject("RailNote", typeof(RectTransform), typeof(Image));
-                note.transform.SetParent(rail.transform, false);
-                SetPxIn(note.GetComponent<RectTransform>(), 0f, rowsBottom + Gutter, RailWidth, noteHeight);
-                Image noteImg = note.GetComponent<Image>();
-                UISharedFoundation.ApplyFramedPanel(noteImg, null,
-                    UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorPanel,
-                    kind: UISharedFoundation.FramedPanelKind.ListRow);
-                noteImg.raycastTarget = false;
-
-                Text noteText = UISharedFoundation.CreateText(note.transform, "Text",
-                    "Channels are provided by the game.\n\nUnread counts are not connected to " +
-                    "this screen yet, so none is shown.",
-                    UITextRole.Caption, TextAnchor.UpperLeft, new Color(0.78f, 0.76f, 0.68f), true,
-                    new Vector2(RailWidth - 36f, noteHeight - 32f));
-                noteText.fontSize = 18;
-                noteText.horizontalOverflow = HorizontalWrapMode.Wrap;
-                noteText.verticalOverflow = VerticalWrapMode.Truncate;
-                noteText.raycastTarget = false;
-                SetPxIn(noteText.rectTransform, 18f, 16f, RailWidth - 36f, noteHeight - 32f);
-            }
+            // THE RAIL REMAINDER IS NOW EMPTY ON PURPOSE, AND THAT IS THE CORRECTION.
+            //
+            // The rows are capped at 94px by the approved reference, so seven of them do not
+            // reach the bottom of the column. V1 left that bare; V2 filled it with a "RailNote"
+            // panel reading "Unread counts are not connected to this screen yet." That sentence
+            // is an unread/capability claim, and chat.channel.capability is RENDER-NOTHING until
+            // an ACL contract exists - so the fix is NOT a different sentence, and NOT a frame
+            // with nothing in it. Nothing is drawn here at all.
+            //
+            // ChatSocial_RailRemainderCarriesNoUnsupportedClaim replaces the old dead-space gate,
+            // which asserted the opposite and would otherwise have locked the claim in place.
         }
 
         private void BuildStreamColumn(float bodyTop, float bodyBottom)
@@ -490,13 +504,28 @@ namespace MyriadOfDragons.UI
             GameObject root = new GameObject("Composer", typeof(RectTransform));
             root.transform.SetParent(_canvasObj.transform, false);
             _composerRoot = root;
-            SetPx(root.GetComponent<RectTransform>(), streamX, composerTop, StreamWidth, ComposerHeight);
+            // THE COMPOSER ROW IS THE ONLY BAND THAT REACHES THE DRAWER'S CLOSE CORNER.
+            // Reclaiming the context column widened the stream to the right safe margin, which put
+            // SEND straight on top of the host drawer's CLOSE target (measured: SEND at 1706-1882 x
+            // 956-1042 against CLOSE's 1768,958 reserve). The thread and channel bar end at y=937,
+            // above the band, so only this row needs the clamp - the stream keeps its full width
+            // everywhere else. Unhosted there is no CLOSE target and no clamp.
+            float composerWidth = _hostedInDrawer
+                ? Mathf.Min(StreamWidth, HostCloseLeft - Gutter - streamX)
+                : StreamWidth;
+            SetPx(root.GetComponent<RectTransform>(), streamX, composerTop, composerWidth, ComposerHeight);
 
             _composerInput = UISharedFoundation.CreateInputField(root.transform, "ComposerInput",
                 ComposerHint, new Color(0.9f, 0.88f, 0.75f),
-                new Vector2(StreamWidth - SendWidth - Gutter, ComposerHeight), characterLimit: 500);
+                new Vector2(composerWidth - SendWidth - Gutter, ComposerHeight),
+                // AUTHORITATIVE, contractVersion 1: read from ChatSocialOpenValues, never a
+                // literal here. The value traces to the real server constant that already rejects
+                // over-length posts, so client enforcement now matches the server instead of
+                // guessing. NO number and no explanatory sentence is shown to the player -
+                // chat.message.length is RENDER-NOTHING until localized copy is approved.
+                characterLimit: ChatSocialOpenValues.MaxMessageLength ?? 0);
             SetPxIn(_composerInput.GetComponent<RectTransform>(), 0f, 0f,
-                StreamWidth - SendWidth - Gutter, ComposerHeight);
+                composerWidth - SendWidth - Gutter, ComposerHeight);
 
             GameObject send = new GameObject("Btn_ComposerSend", typeof(RectTransform), typeof(Image), typeof(Button));
             send.transform.SetParent(root.transform, false);
@@ -505,7 +534,7 @@ namespace MyriadOfDragons.UI
             HomeV3UiLibrary.ApplyNeutralActionButton(_sendButton, sendImg, new Color(0.2f, 0.35f, 0.4f));
             _sendButton.onClick.AddListener(() => _ = SendComposedAsync());
             // 176x86 clears the reference's >= 64x160 primary-target floor.
-            SetPxIn(send.GetComponent<RectTransform>(), StreamWidth - SendWidth, 0f, SendWidth, ComposerHeight);
+            SetPxIn(send.GetComponent<RectTransform>(), composerWidth - SendWidth, 0f, SendWidth, ComposerHeight);
             _sendLabel = UISharedFoundation.CreateText(send.transform, "Text", SendLabel, UITextRole.Body,
                 TextAnchor.MiddleCenter, Color.white, true, new Vector2(SendWidth - 20f, 36f));
             _sendLabel.verticalOverflow = VerticalWrapMode.Truncate;
@@ -513,42 +542,45 @@ namespace MyriadOfDragons.UI
             // Without this, a disabled SEND is label-only: ApplyNeutralActionButton sets
             // disabledSprite = normal, so Unity's own SpriteSwap shows no difference.
             send.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier3Utility;
-        }
 
-        private void BuildContextColumn(float bodyTop, float bodyBottom)
-        {
-            float contextX = SafeMargin + RailWidth + Gutter + StreamWidth + Gutter;
-            // Reserve the host drawer's CLOSE target when hosted - this column is the only one
-            // that reaches into that corner.
-            float bottom = bodyBottom - (_hostedInDrawer ? HostCloseReserve : 0f);
-
-            GameObject panel = new GameObject("ContextPanel", typeof(RectTransform), typeof(Image));
-            panel.transform.SetParent(_canvasObj.transform, false);
-            SetPx(panel.GetComponent<RectTransform>(), contextX, bodyTop, ContextWidth, bottom - bodyTop);
-            Image panelImg = panel.GetComponent<Image>();
-            UISharedFoundation.ApplyFramedPanel(panelImg, null,
-                UIFrozenTokens.ColorPanel, UIFrozenTokens.ColorHeader,
+            // The disabled-composer face. Sized to the whole composer band because it REPLACES the
+            // input and SEND rather than sitting beside them - the player must never see a text
+            // field they cannot type into. Hidden by default; ApplyComposerAvailability owns it.
+            GameObject unavailable = new GameObject("Composer_Unavailable", typeof(RectTransform), typeof(Image));
+            unavailable.transform.SetParent(root.transform, false);
+            _composerUnavailableRoot = unavailable;
+            SetPxIn(unavailable.GetComponent<RectTransform>(), 0f, 0f, composerWidth, ComposerHeight);
+            Image unavailableImg = unavailable.GetComponent<Image>();
+            UISharedFoundation.ApplyFramedPanel(unavailableImg, null,
+                UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorPanel,
                 kind: UISharedFoundation.FramedPanelKind.ListRow);
-            panelImg.raycastTarget = false;
+            // Decorative: ApplyFramedPanel does not clear this, and a disabled band must not eat
+            // taps meant for anything beneath it.
+            unavailableImg.raycastTarget = false;
 
-            Text heading = UISharedFoundation.CreateText(panel.transform, "Heading", "CHANNEL", UITextRole.Body,
-                TextAnchor.MiddleLeft, UIFrozenTokens.ColorTextPrimary, true, new Vector2(ContextWidth - 40f, 30f));
-            heading.fontStyle = FontStyle.Bold;
-            heading.verticalOverflow = VerticalWrapMode.Truncate;
-            heading.raycastTarget = false;
-            SetPxIn(heading.rectTransform, 20f, 20f, ContextWidth - 40f, 30f);
-
-            // Replaces V1's unused right-hand panel with truthful capability information — what
-            // this channel can do right now, never an unread/member/moderation claim.
-            _capabilityText = UISharedFoundation.CreateText(panel.transform, "Capability", string.Empty,
-                UITextRole.Caption, TextAnchor.UpperLeft, new Color(0.82f, 0.80f, 0.72f), true,
-                new Vector2(ContextWidth - 40f, bottom - bodyTop - 80f));
-            _capabilityText.fontSize = 19;
-            _capabilityText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _capabilityText.verticalOverflow = VerticalWrapMode.Truncate;
-            _capabilityText.raycastTarget = false;
-            SetPxIn(_capabilityText.rectTransform, 20f, 62f, ContextWidth - 40f, bottom - bodyTop - 82f);
+            Text unavailableText = UISharedFoundation.CreateText(unavailable.transform, "Label",
+                ChatUnavailableLabel, UITextRole.Body, TextAnchor.MiddleCenter,
+                new Color(0.78f, 0.76f, 0.68f), true, new Vector2(composerWidth - 40f, 36f));
+            unavailableText.fontStyle = FontStyle.Bold;
+            unavailableText.verticalOverflow = VerticalWrapMode.Truncate;
+            unavailableText.raycastTarget = false;
+            SetPxIn(unavailableText.rectTransform, 20f, (ComposerHeight - 36f) * 0.5f, composerWidth - 40f, 36f);
+            unavailable.SetActive(false);
         }
+
+        // BuildContextColumn IS DELETED, NOT EMPTIED.
+        //
+        // The right-hand column's only content was the per-channel capability sentence, and
+        // chat.channel.capability is RENDER-NOTHING until an ACL contract exists
+        // (CC6-CHAT-RENDER-NOTHING-CLOSURE-009; CC6-ST-CHAT-CURRENT-COPY-CLOSURE-008 says
+        // "Remove capability sentence and context filler"). Keeping the framed panel with nothing
+        // in it would be exactly the decorative filler UIEmptyState's locked ranking rejects -
+        // "COLLAPSE BEATS FILLER ... remove the region and reflow, not stretch art across it"
+        // (2026-08-27). So the column is removed and the stream takes its width and gutter back:
+        // 38 + 295 + 19 + 1530 = 1882, and the right safe margin stays exactly 38px.
+        //
+        // This is reversible in one constant: when BE publishes the ACL/capability contract,
+        // restore ContextWidth to the stream and rebuild this column against real fields.
 
         // ------------------------------------------------------------------ channel state
 
@@ -565,23 +597,14 @@ namespace MyriadOfDragons.UI
         /// This is presentation only - no DM behaviour is implemented here.</summary>
         private static bool IsUnavailableChannel(string channelLabel) => channelLabel == "DM";
 
+        /// <summary>Read-only and unavailable are the two ACL-confirmed dispositions and keep
+        /// their approved labels. The former third value, "Open", asserted that posting IS
+        /// permitted on every other channel - a capability claim with no ACL contract behind it,
+        /// and the same claim chat.input.placeholder is blocked for. It renders nothing.</summary>
         private static string ChannelStateLabel(string channelLabel) =>
             IsUnavailableChannel(channelLabel) ? "Unavailable"
             : IsReadOnlyChannel(channelLabel) ? "Read-only"
-            : "Open";
-
-        private static string CapabilityCopyFor(string channelLabel)
-        {
-            if (IsUnavailableChannel(channelLabel))
-                return "Direct messages are not connected to this screen.\n\n" +
-                       "Conversation lists, requests, privacy settings and delivery state are not available yet.";
-            if (IsReadOnlyChannel(channelLabel))
-                return $"{channelLabel} is read-only.\n\nMessages here are posted by the game. " +
-                       "There is no composer on this channel.";
-            return $"{channelLabel} accepts messages up to 500 characters.\n\n" +
-                   "Unread counts, member lists, pinned announcements and moderation are not " +
-                   "connected to this screen yet.";
-        }
+            : string.Empty;
 
         private void SelectChannel(int index)
         {
@@ -595,16 +618,19 @@ namespace MyriadOfDragons.UI
             ApplyComposerAvailability(_selectedChannelLabel);
 
             if (_channelBarText != null)
-                _channelBarText.text = $"{_selectedChannelLabel}  ·  {ChannelStateLabel(_selectedChannelLabel)}";
-            if (_capabilityText != null)
-                _capabilityText.text = CapabilityCopyFor(_selectedChannelLabel);
+            {
+                string disposition = ChannelStateLabel(_selectedChannelLabel);
+                _channelBarText.text = string.IsNullOrEmpty(disposition)
+                    ? _selectedChannelLabel
+                    : $"{_selectedChannelLabel}  ·  {disposition}";
+            }
 
             if (IsUnavailableChannel(_selectedChannelLabel))
             {
                 // Truthful unavailable state: no history call is made for a route that does not
                 // exist, so the player never sees a load that cannot resolve.
                 ClearThread();
-                ShowState(EmptyStateKind.Locked, DmTitle, DmBody, null, null, null,
+                ShowState(EmptyStateKind.Locked, DmTitle, null, null, null, null,
                     ChatSocialUiLibrary.DirectMessagesChromeResourcePath);
                 SetStatus(UnavailableStatus);
                 return;
@@ -645,8 +671,19 @@ namespace MyriadOfDragons.UI
             bool locked = IsUnavailableChannel(channelLabel) || IsReadOnlyChannel(channelLabel);
 
             if (_composerInput != null && locked) _composerInput.text = string.Empty;
-            if (_composerRoot != null) _composerRoot.SetActive(!locked);
-            if (_sendButton != null) _sendButton.interactable = !locked;
+
+            // The composer band is always present; WHAT it contains switches. Locked channels get
+            // the approved "Chat unavailable" label INSTEAD of the input and SEND - both are
+            // deactivated, so neither is in the visual or the accessibility tree, and there is no
+            // disabled text field to tap at. That is the difference from a greyed-out control.
+            if (_composerRoot != null) _composerRoot.SetActive(true);
+            if (_composerInput != null) _composerInput.gameObject.SetActive(!locked);
+            if (_sendButton != null)
+            {
+                _sendButton.gameObject.SetActive(!locked);
+                _sendButton.interactable = !locked;
+            }
+            if (_composerUnavailableRoot != null) _composerUnavailableRoot.SetActive(locked);
             if (_sendLabel != null) _sendLabel.text = SendLabel;
         }
 
@@ -908,6 +945,26 @@ namespace MyriadOfDragons.UI
                 return new PostChatMessageGatewayResult { errorCode = "INVALID_REQUEST" };
             }
 
+            // Authoritative length enforcement, contractVersion 1 - a BACKSTOP, not the primary
+            // gate, and measured as such: InputField.characterLimit truncates on the text setter
+            // too, not only on typing, so ComposedText can never exceed the limit while a limit is
+            // bound. (A test asserting this branch refuses an over-length post failed because the
+            // assignment had already been truncated - the branch is genuinely unreachable today.)
+            // It is kept for the case the limit is NOT bound - a future contract that publishes
+            // null, or a control swap whose truncation behaves differently - where posting an
+            // over-length message would otherwise reach the server and come back as the same
+            // generic INVALID_REQUEST an empty message returns. The limit is READ from the
+            // authority; there is no literal here. No numeric copy is shown: chat.message.length
+            // is RENDER-NOTHING until localized text is approved.
+            int? maxLength = ChatSocialOpenValues.MaxMessageLength;
+            if (maxLength.HasValue && ComposedText.Length > maxLength.Value)
+            {
+                Debug.LogWarning($"[ChatSocial] Refused an over-length post on channel " +
+                    $"'{_selectedChannelId}': {ComposedText.Length} > {maxLength.Value}.");
+                SetStatus(SendFailedStatus);
+                return new PostChatMessageGatewayResult { errorCode = "INVALID_REQUEST" };
+            }
+
             string requestedChannelId = _selectedChannelId;
             try
             {
@@ -987,12 +1044,12 @@ namespace MyriadOfDragons.UI
 
             _statusText = null;
             _channelBarText = null;
-            _capabilityText = null;
             _threadViewport = null;
             _threadContent = null;
             _threadScrollObj = null;
             _stateRegion = null;
             _composerRoot = null;
+            _composerUnavailableRoot = null;
             _composerInput = null;
             _sendButton = null;
             _sendLabel = null;
