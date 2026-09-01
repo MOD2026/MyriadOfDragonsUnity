@@ -92,7 +92,10 @@ public sealed class FriendsOperations
         }
 
         string actorId = context.PlayerId!;
-        string targetId = request.TargetAccountId;
+        // TASK 020: the client only holds a pseudonymous alias for an existing (even
+        // still-pending) relationship, per ab9ee64's ListFriends contract - resolve it back to
+        // the real account id server-side before touching the friendship record.
+        string targetId = await ResolveActionableTargetIdAsync(context, apiClient, request.TargetAccountId);
 
         for (int attempt = 0; attempt <= MaxConflictReconciliations; attempt++)
         {
@@ -154,7 +157,8 @@ public sealed class FriendsOperations
         }
 
         string actorId = context.PlayerId!;
-        string targetId = request.TargetAccountId;
+        // TASK 020: same alias-resolution requirement as RespondToRequestAsync.
+        string targetId = await ResolveActionableTargetIdAsync(context, apiClient, request.TargetAccountId);
 
         var record = await _store.LoadFriendshipAsync(context, apiClient, actorId, targetId);
         if (record == null)
@@ -208,7 +212,7 @@ public sealed class FriendsOperations
                 long actorLastGiftUtcMs = actorIsRequester ? record.RequesterLastGiftUtcMs : record.RecipientLastGiftUtcMs;
                 summaries.Add(new FriendSummary
                 {
-                    CounterpartAccountId = counterpartId,
+                    CounterpartAliasId = await ResolveCounterpartAliasAsync(context, apiClient, counterpartId),
                     Status = record.Status,
                     IsOutgoingRequest = record.Status == FriendshipStatus.Pending && actorIsRequester,
                     CanGiftToday = record.Status == FriendshipStatus.Accepted && !IsSameUtcDay(actorLastGiftUtcMs, now),
@@ -224,6 +228,41 @@ public sealed class FriendsOperations
         }
     }
 
+    /// <summary>BE-CC6-FRIENDS-IDENTITY-BOUNDARY-DECISION: resolves (creating on first use) the
+    /// stable pseudonymous alias for a counterpart account - same load-or-create shape as Bazaar's
+    /// ResolveSellerAliasAsync. Never derives the alias from the raw id itself.</summary>
+    private async Task<string> ResolveCounterpartAliasAsync(IExecutionContext context, IGameApiClient apiClient, string counterpartAccountId)
+    {
+        string? existing = await _store.LoadCounterpartAliasAsync(context, apiClient, counterpartAccountId);
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        string aliasId = Guid.NewGuid().ToString("N");
+        await _store.SaveCounterpartAliasAsync(context, apiClient, counterpartAccountId, aliasId);
+        // TASK 020: write the reverse mapping at the same moment the alias is minted, so it is
+        // resolvable server-side the very first time a client acts on it (accept/decline/remove/
+        // gift) - never exposed through any client-facing type, only used by
+        // ResolveActionableTargetIdAsync below.
+        await _store.SaveAliasReverseMappingAsync(context, apiClient, aliasId, counterpartAccountId);
+        return aliasId;
+    }
+
+    /// <summary>TASK 020 (CC6-BE-FRIEND-GIFT-ROUTING-020): resolves a client-supplied identifier
+    /// that may be either a real account id (the only kind AddFriendAsync ever receives, since no
+    /// alias exists before a relationship does) or a pseudonymous alias (the only kind ListFriends
+    /// now hands back for an existing relationship, per ab9ee64). If the supplied value matches a
+    /// known alias, the real account id is substituted server-side; otherwise the value is used
+    /// as-is. This keeps the wire contract (FriendRequest.TargetAccountId) completely unchanged -
+    /// no new field, no new endpoint - the resolution is purely an internal server-side step, per
+    /// this task's "minimal contract change" requirement.</summary>
+    private async Task<string> ResolveActionableTargetIdAsync(IExecutionContext context, IGameApiClient apiClient, string suppliedId)
+    {
+        string? resolvedAccountId = await _store.ResolveAccountIdFromAliasAsync(context, apiClient, suppliedId);
+        return resolvedAccountId ?? suppliedId;
+    }
+
     /// <summary>One gift per UTC calendar day per direction - e.g. A can gift B once today AND
     /// separately receive one from B the same day; A cannot gift B twice today.</summary>
     public async Task<GiftResult> SendDailyGiftAsync(IExecutionContext context, IGameApiClient apiClient, FriendRequest request)
@@ -235,7 +274,12 @@ public sealed class FriendsOperations
         }
 
         string actorId = context.PlayerId!;
-        string targetId = request.TargetAccountId;
+        // TASK 020 (CC6-BE-FRIEND-GIFT-ROUTING-020): closes the exact gap FR flagged in ef8e0f3f -
+        // FriendsPresenter now only ever holds a pseudonymous alias for an established
+        // relationship (ab9ee64), never the raw TargetAccountId this call used to require. Resolve
+        // it server-side before touching the friendship record; the wire contract itself is
+        // unchanged.
+        string targetId = await ResolveActionableTargetIdAsync(context, apiClient, request.TargetAccountId);
 
         for (int attempt = 0; attempt <= MaxConflictReconciliations; attempt++)
         {

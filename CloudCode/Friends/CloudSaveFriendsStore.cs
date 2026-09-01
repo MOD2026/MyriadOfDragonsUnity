@@ -32,6 +32,13 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
 {
     private const string GraphCustomId = "friends-graph";
 
+    /// <summary>TASK 020: global Custom Items bucket for the alias->account reverse index - keyed
+    /// by the alias itself (never by an account id), so it can be resolved without already
+    /// knowing which account owns it. Same ServiceToken-for-writes/AccessToken-for-reads split as
+    /// GraphCustomId, for the same live-verified reason documented on this class's own doc
+    /// comment.</summary>
+    private const string AliasReverseCustomId = "friends-alias-reverse";
+
     // Cloud Save item keys must be 1-50 chars, [A-Za-z0-9_-] only - no dots. Account ids come from
     // outside this module, so their format isn't guaranteed - hash them instead of assuming.
     private static string FriendshipKey(string accountA, string accountB)
@@ -41,6 +48,7 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
     }
 
     private static string IndexKey() => "friends_index";
+    private const string AliasKey = "friends_alias";
 
     private static string CanonicalPair(string accountA, string accountB) =>
         string.CompareOrdinal(accountA, accountB) <= 0 ? accountA + "|" + accountB : accountB + "|" + accountA;
@@ -173,6 +181,95 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
                 context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 accountId,
+                body);
+        }
+        catch (Exception exception)
+        {
+            throw new FriendsStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    // Cloud Save Custom Items keys must be 1-50 chars, [A-Za-z0-9_-] only - the alias format is
+    // controlled by this module today (Guid.NewGuid().ToString("N"), already key-safe), but hashed
+    // the same defensive way as FriendshipKey rather than assuming that never changes.
+    private static string AliasReverseKey(string aliasId) => "alias_" + ShortHash(aliasId);
+
+    public async Task<string?> ResolveAccountIdFromAliasAsync(IExecutionContext context, IGameApiClient apiClient, string aliasId)
+    {
+        try
+        {
+            var response = await apiClient.CloudSaveData.GetCustomItemsAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                AliasReverseCustomId,
+                new List<string> { AliasReverseKey(aliasId) });
+            if (response.Data.Results.Count == 0)
+            {
+                return null;
+            }
+
+            var value = response.Data.Results[0].Value?.ToString();
+            return string.IsNullOrWhiteSpace(value) ? null : JsonConvert.DeserializeObject<string>(value);
+        }
+        catch (Exception exception)
+        {
+            throw new FriendsStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task SaveAliasReverseMappingAsync(IExecutionContext context, IGameApiClient apiClient, string aliasId, string accountId)
+    {
+        try
+        {
+            var body = new SetItemBody(AliasReverseKey(aliasId), JsonConvert.SerializeObject(accountId));
+            await apiClient.CloudSaveData.SetCustomItemAsync(
+                context,
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                AliasReverseCustomId,
+                body);
+        }
+        catch (Exception exception)
+        {
+            throw new FriendsStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task<string?> LoadCounterpartAliasAsync(IExecutionContext context, IGameApiClient apiClient, string counterpartAccountId)
+    {
+        try
+        {
+            var response = await apiClient.CloudSaveData.GetItemsAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                counterpartAccountId,
+                new List<string> { AliasKey });
+            if (response.Data.Results.Count == 0)
+            {
+                return null;
+            }
+
+            var value = response.Data.Results[0].Value?.ToString();
+            return string.IsNullOrWhiteSpace(value) ? null : JsonConvert.DeserializeObject<string>(value);
+        }
+        catch (Exception exception)
+        {
+            throw new FriendsStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task SaveCounterpartAliasAsync(IExecutionContext context, IGameApiClient apiClient, string counterpartAccountId, string aliasId)
+    {
+        try
+        {
+            var body = new SetItemBody(AliasKey, JsonConvert.SerializeObject(aliasId));
+            await apiClient.CloudSaveData.SetItemAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                counterpartAccountId,
                 body);
         }
         catch (Exception exception)

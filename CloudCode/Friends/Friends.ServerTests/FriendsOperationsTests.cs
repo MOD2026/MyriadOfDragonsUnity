@@ -179,17 +179,158 @@ public sealed class FriendsOperationsTests
         Assert.That(result.Success, Is.True);
         Assert.That(result.Friends.Count, Is.EqualTo(3));
 
-        var outgoing = result.Friends.Single(f => f.CounterpartAccountId == "outgoing-target");
+        string outgoingAlias = (await store.LoadCounterpartAliasAsync(null!, null!, "outgoing-target"))!;
+        string incomingAlias = (await store.LoadCounterpartAliasAsync(null!, null!, "incoming-source"))!;
+        string friendAlias = (await store.LoadCounterpartAliasAsync(null!, null!, "friend"))!;
+        Assert.That(outgoingAlias, Is.Not.Null.And.Not.EqualTo("outgoing-target"));
+
+        var outgoing = result.Friends.Single(f => f.CounterpartAliasId == outgoingAlias);
         Assert.That(outgoing.Status, Is.EqualTo(FriendshipStatus.Pending));
         Assert.That(outgoing.IsOutgoingRequest, Is.True);
 
-        var incoming = result.Friends.Single(f => f.CounterpartAccountId == "incoming-source");
+        var incoming = result.Friends.Single(f => f.CounterpartAliasId == incomingAlias);
         Assert.That(incoming.Status, Is.EqualTo(FriendshipStatus.Pending));
         Assert.That(incoming.IsOutgoingRequest, Is.False);
 
-        var friend = result.Friends.Single(f => f.CounterpartAccountId == "friend");
+        var friend = result.Friends.Single(f => f.CounterpartAliasId == friendAlias);
         Assert.That(friend.Status, Is.EqualTo(FriendshipStatus.Accepted));
         Assert.That(friend.CanGiftToday, Is.True);
+    }
+
+    // ---------------- BE-CC6-FRIENDS-IDENTITY-BOUNDARY-DECISION: alias-only client contract ----------------
+
+    [Test]
+    public void FriendSummary_HasNoAccountIdShapedField()
+    {
+        var fieldNames = typeof(FriendSummary).GetProperties().Select(p => p.Name);
+        Assert.That(fieldNames, Has.None.Matches<string>(n => n.Contains("AccountId", StringComparison.OrdinalIgnoreCase)),
+            "FriendSummary - the ONLY type ListFriendsAsync returns to a client - must have no account-id-shaped property at all.");
+    }
+
+    [Test]
+    public async Task ListFriends_NeverExposesTheRawCounterpartAccountId_OnlyAStableAlias()
+    {
+        var store = new FakeStore();
+        var operations = Create(store);
+        await operations.AddFriendAsync(Context("a"), null!, Request("b"));
+        await operations.AcceptFriendAsync(Context("b"), null!, Request("a"));
+
+        var result = await operations.ListFriendsAsync(Context("a"), null!, new ListFriendsRequest());
+        string aliasForB = result.Friends.Single().CounterpartAliasId;
+
+        Assert.That(aliasForB, Is.Not.EqualTo("b"));
+        string json = JsonConvert.SerializeObject(result);
+        Assert.That(json, Does.Not.Contain("\"b\""), "The raw counterpart account id must never appear anywhere in the serialized response.");
+        Assert.That(json, Does.Not.Contain("counterpartAccountId"));
+    }
+
+    // ---------------- TASK 020 (CC6-BE-FRIEND-GIFT-ROUTING-020): alias-keyed actions ----------------
+
+    [Test]
+    public async Task SendDailyGift_CalledWithTheAliasFromListFriends_ResolvesToTheRealFriendshipAndSucceeds()
+    {
+        var store = new FakeStore();
+        var operations = Create(store);
+        await operations.AddFriendAsync(Context("a"), null!, Request("b"));
+        await operations.AcceptFriendAsync(Context("b"), null!, Request("a"));
+
+        // Simulates the real client flow: list friends (get an alias, never the raw id), then act
+        // using exactly that alias - this is what FriendsPresenter.SendGiftAsync actually does.
+        var list = await operations.ListFriendsAsync(Context("a"), null!, new ListFriendsRequest());
+        string aliasForB = list.Friends.Single().CounterpartAliasId;
+
+        var gift = await operations.SendDailyGiftAsync(Context("a"), null!, Request(aliasForB));
+
+        Assert.That(gift.Success, Is.True, "The alias returned by ListFriends must be usable directly as the gift target - this is the exact gap TASK 020 closes.");
+    }
+
+    [Test]
+    public async Task AcceptFriend_CalledWithTheAliasFromListFriends_ResolvesCorrectly()
+    {
+        var store = new FakeStore();
+        var operations = Create(store);
+        await operations.AddFriendAsync(Context("a"), null!, Request("b"));
+
+        var listForB = await operations.ListFriendsAsync(Context("b"), null!, new ListFriendsRequest());
+        string aliasForA = listForB.Friends.Single().CounterpartAliasId;
+
+        var accept = await operations.AcceptFriendAsync(Context("b"), null!, Request(aliasForA));
+
+        Assert.That(accept.Success, Is.True);
+        Assert.That(accept.Status, Is.EqualTo(FriendshipStatus.Accepted));
+    }
+
+    [Test]
+    public async Task RemoveFriend_CalledWithTheAliasFromListFriends_ResolvesCorrectly()
+    {
+        var store = new FakeStore();
+        var operations = Create(store);
+        await operations.AddFriendAsync(Context("a"), null!, Request("b"));
+        await operations.AcceptFriendAsync(Context("b"), null!, Request("a"));
+
+        var list = await operations.ListFriendsAsync(Context("a"), null!, new ListFriendsRequest());
+        string aliasForB = list.Friends.Single().CounterpartAliasId;
+
+        var remove = await operations.RemoveFriendAsync(Context("a"), null!, Request(aliasForB));
+
+        Assert.That(remove.Success, Is.True);
+        Assert.That(await store.LoadFriendshipAsync(null!, null!, "a", "b"), Is.Null);
+    }
+
+    [Test]
+    public async Task AddFriend_StillRequiresARealAccountId_AliasResolutionDoesNotApply()
+    {
+        // AddFriend targets a stranger - no relationship and therefore no alias exists yet. An
+        // unrecognized string (not a known alias) must be treated as a literal account id, exactly
+        // as before TASK 020 - this proves the resolver's fallback path, not a regression.
+        var store = new FakeStore();
+        var result = await Create(store).AddFriendAsync(Context("a"), null!, Request("brand-new-account-id"));
+
+        Assert.That(result.Success, Is.True);
+        var record = await store.LoadFriendshipAsync(null!, null!, "a", "brand-new-account-id");
+        Assert.That(record, Is.Not.Null, "An unrecognized target string must be used as a literal account id, not silently dropped or misrouted.");
+    }
+
+    [Test]
+    public async Task ResolveActionableTargetId_NeverExposedToAnyClientFacingType()
+    {
+        // Structural guarantee: the resolution mechanism is a private server-side helper, and
+        // AliasReverse/ResolveAccountIdFromAliasAsync's real account id output never appears on
+        // FriendResult, GiftResult, or FriendSummary - reflection-proven alongside the earlier
+        // FriendSummary_HasNoAccountIdShapedField test.
+        var store = new FakeStore();
+        var operations = Create(store);
+        await operations.AddFriendAsync(Context("a"), null!, Request("b"));
+        await operations.AcceptFriendAsync(Context("b"), null!, Request("a"));
+        var list = await operations.ListFriendsAsync(Context("a"), null!, new ListFriendsRequest());
+        string aliasForB = list.Friends.Single().CounterpartAliasId;
+
+        var gift = await operations.SendDailyGiftAsync(Context("a"), null!, Request(aliasForB));
+        string giftJson = JsonConvert.SerializeObject(gift);
+
+        Assert.That(giftJson, Does.Not.Contain("\"b\""), "The real account id resolved server-side must never leak back into a client-facing result.");
+        Assert.That(giftJson, Does.Not.Contain("accountId").IgnoreCase);
+    }
+
+    [Test]
+    public async Task SendDailyGift_UnknownAliasIsNotFriends_DoesNotThrow()
+    {
+        var result = await Create().SendDailyGiftAsync(Context("a"), null!, Request("some-unrecognized-alias"));
+        Assert.That(result.ErrorCode, Is.EqualTo("NOT_FRIENDS"), "An alias/id that resolves to no known friendship must fail cleanly as NOT_FRIENDS, not throw.");
+    }
+
+    [Test]
+    public async Task ListFriends_SameCounterpartAcrossCalls_AlwaysReturnsTheSameAlias()
+    {
+        var store = new FakeStore();
+        await Create(store).AddFriendAsync(Context("a"), null!, Request("b"));
+        await Create(store).AcceptFriendAsync(Context("b"), null!, Request("a"));
+
+        var first = await Create(store).ListFriendsAsync(Context("a"), null!, new ListFriendsRequest());
+        var second = await Create(store).ListFriendsAsync(Context("a"), null!, new ListFriendsRequest());
+
+        Assert.That(first.Friends.Single().CounterpartAliasId, Is.EqualTo(second.Friends.Single().CounterpartAliasId),
+            "A fresh FriendsOperations instance (simulating a new call) must resolve the SAME stable alias for the same counterpart, not mint a new one each time.");
     }
 
     [Test]
@@ -275,9 +416,12 @@ public sealed class FriendsOperationsTests
         var listResult = new ListFriendsResult
         {
             Success = true,
-            Friends = new List<FriendSummary> { new() { CounterpartAccountId = "x", CanGiftToday = true } },
+            Friends = new List<FriendSummary> { new() { CounterpartAliasId = "x", CanGiftToday = true } },
         };
-        Assert.That(JsonConvert.SerializeObject(listResult), Does.Contain("\"canGiftToday\":true"));
+        string listJson = JsonConvert.SerializeObject(listResult);
+        Assert.That(listJson, Does.Contain("\"canGiftToday\":true"));
+        Assert.That(listJson, Does.Contain("\"counterpartAliasId\":\"x\""));
+        Assert.That(listJson, Does.Not.Contain("counterpartAccountId"));
     }
 
     private static FriendsOperations Create(FakeStore? store = null) => new(store ?? new FakeStore(), new FakeClock(Now));
@@ -292,6 +436,8 @@ public sealed class FriendsOperationsTests
     {
         public Dictionary<string, FriendshipRecord> Records { get; } = new();
         public Dictionary<string, FriendsIndexState> Indices { get; } = new();
+        public Dictionary<string, string> Aliases { get; } = new();
+        public Dictionary<string, string> AliasReverse { get; } = new();
 
         private static string PairKey(string a, string b) =>
             string.CompareOrdinal(a, b) <= 0 ? a + "|" + b : b + "|" + a;
@@ -324,6 +470,24 @@ public sealed class FriendsOperationsTests
         public Task SaveIndexAsync(IExecutionContext context, IGameApiClient apiClient, string accountId, FriendsIndexState index)
         {
             Indices[accountId] = new FriendsIndexState { CounterpartAccountIds = new List<string>(index.CounterpartAccountIds) };
+            return Task.CompletedTask;
+        }
+
+        public Task<string?> LoadCounterpartAliasAsync(IExecutionContext context, IGameApiClient apiClient, string counterpartAccountId)
+            => Task.FromResult(Aliases.TryGetValue(counterpartAccountId, out var alias) ? alias : null);
+
+        public Task SaveCounterpartAliasAsync(IExecutionContext context, IGameApiClient apiClient, string counterpartAccountId, string aliasId)
+        {
+            Aliases[counterpartAccountId] = aliasId;
+            return Task.CompletedTask;
+        }
+
+        public Task<string?> ResolveAccountIdFromAliasAsync(IExecutionContext context, IGameApiClient apiClient, string aliasId)
+            => Task.FromResult(AliasReverse.TryGetValue(aliasId, out var accountId) ? accountId : null);
+
+        public Task SaveAliasReverseMappingAsync(IExecutionContext context, IGameApiClient apiClient, string aliasId, string accountId)
+        {
+            AliasReverse[aliasId] = accountId;
             return Task.CompletedTask;
         }
 

@@ -18,6 +18,13 @@ public enum FriendshipStatus
 /// record who actually sent the original request, independent of the shared key's own (arbitrary,
 /// canonical) ordering - direction still matters for "only the recipient may accept/decline" and
 /// for attributing each side's own daily gift.</summary>
+/// <summary>SERVER-INTERNAL identity/routing model - RequesterAccountId/RecipientAccountId are
+/// needed for real actor authorization ("only the recipient may accept") and gift attribution.
+/// This type is never returned to a client directly - only through <see cref="FriendSummary"/>,
+/// which resolves each raw id to a stable pseudonymous alias first. Owner-authorized contract
+/// decision, 2026-09-01 (BE-CC6-FRIENDS-IDENTITY-BOUNDARY-DECISION): alias, not the account's raw
+/// id and not its free-text display name - see FriendSummary's own doc comment for the
+/// reasoning.</summary>
 public sealed class FriendshipRecord
 {
     [JsonProperty("id")]
@@ -78,10 +85,23 @@ public sealed class ListFriendsRequest
 {
 }
 
+/// <summary>Client-facing per-friend summary. CounterpartAliasId replaces the former
+/// CounterpartAccountId one-for-one (BE-CC6-FRIENDS-IDENTITY-BOUNDARY-DECISION, 2026-09-01,
+/// owner-authorized): a raw account id was being rendered directly into player-facing UI and
+/// screen-reader text (FriendsPresenter.cs). The alias mechanism - not a resolved display name -
+/// was chosen because it is the ALREADY-APPROVED, already-implemented cross-account identity
+/// resolution this codebase uses everywhere else (Bazaar sellers, Chat senders, DM/Report
+/// parties): a server-assigned, stable-per-account pseudonym. Display name was considered and
+/// rejected for this fix specifically because no server-side cross-account display-name directory
+/// exists anywhere in this codebase (AccountIdentity.displayName is presently a purely
+/// client-local self-description, never stored or resolvable for another player) and because it
+/// is unvalidated free text, which the same privacy reasoning that produced the alias policy
+/// elsewhere would also flag. This is a structural guarantee, not a naming convention - no
+/// account-id-shaped property exists on this type.</summary>
 public sealed class FriendSummary
 {
-    [JsonProperty("counterpartAccountId")]
-    public string CounterpartAccountId { get; set; } = string.Empty;
+    [JsonProperty("counterpartAliasId")]
+    public string CounterpartAliasId { get; set; } = string.Empty;
     [JsonProperty("status")]
     [JsonConverter(typeof(StringEnumConverter))]
     public FriendshipStatus Status { get; set; }
