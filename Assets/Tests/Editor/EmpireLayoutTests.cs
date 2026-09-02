@@ -109,5 +109,36 @@ namespace MyriadOfDragons.Tests
                 "Art draws on top of an interactive control, so a tap would land on art instead of the button: " +
                 string.Join("  |  ", collisions));
         }
+
+        [Test]
+        public void Empire_Background_BindsTheRevampV2ApprovedAsset()
+        {
+            EmpirePresenter presenter = Open();
+            Transform canvasTransform = presenter.CanvasObjectForTests.transform;
+
+            // Verify the Background child exists
+            Transform backgroundTransform = canvasTransform.Find("Background");
+            Assert.IsNotNull(backgroundTransform, "Setup: expected the Empire backdrop GameObject to exist.");
+            GameObject background = backgroundTransform.gameObject;
+            Image backgroundImage = background.GetComponent<Image>();
+            Assert.IsNotNull(backgroundImage,
+                "Background must have an Image component.");
+
+            // Verify raycast contract: decorative backdrop must never intercept a tap
+            Assert.IsFalse(backgroundImage.raycastTarget,
+                "The full-screen Empire backdrop must never intercept a tap meant for a real control drawn above it.");
+
+            // Empire must bind the approved Revamp V2 sprite — a null sprite means silent fallback to flat color
+            Assert.IsNotNull(backgroundImage.sprite,
+                "Empire Background Image.sprite is null — flat colour fallback, not the approved revamp artwork.");
+
+            // Load the approved sprite and verify it matches what Empire loaded
+            const string approvedAssetPath = "UI/RevampV2Approved/Empire/empire_v2";
+            Sprite expected = Resources.Load<Sprite>(approvedAssetPath);
+            Assert.IsNotNull(expected,
+                $"Empire backdrop failed to Resources.Load '{approvedAssetPath}' — import/path broken.");
+            Assert.AreSame(expected, backgroundImage.sprite,
+                $"Empire must render the approved revamp backdrop '{approvedAssetPath}', not a silent substitute.");
+        }
     }
 }
