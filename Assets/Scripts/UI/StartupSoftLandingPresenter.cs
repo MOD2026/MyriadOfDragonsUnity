@@ -59,10 +59,15 @@ public class StartupSoftLandingPresenter : MonoBehaviour
         Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920f, 1080f));
         _canvasObj = canvas.gameObject;
 
-        GameObject backing = new GameObject("Backing", typeof(RectTransform), typeof(Image));
-        backing.transform.SetParent(_canvasObj.transform, false);
-        UISharedFoundation.StretchFull(backing.GetComponent<RectTransform>());
-        backing.GetComponent<Image>().color = new Color(0.06f, 0.07f, 0.10f, 1f);
+        // Approved existing visual direction, not new art: the same Revamp V2 backdrop
+        // HomePagePresenter already binds (production-approved 2026-09-02) - this screen sits
+        // one frame before Home in the same flow, so reusing it gives visual continuity instead
+        // of an unrelated flat panel. No Startup-specific asset exists or is being invented here.
+        // Non-raycastable, same VS-REVAMPV2-009 rule as Empire/Home: decoration spanning the
+        // whole canvas must never intercept the Continue tap.
+        Image backing = UISharedFoundation.CreateFullscreenBackground(
+            _canvasObj.transform, "UI/RevampV2Approved/Home/home_v2", new Color(0.06f, 0.07f, 0.10f, 1f));
+        backing.raycastTarget = false;
 
         Text title = UISharedFoundation.CreateText(_canvasObj.transform, "Title", "MYRIAD OF DRAGONS",
             UITextRole.Display, TextAnchor.MiddleCenter, Color.white, true, new Vector2(1200f, 96f));
