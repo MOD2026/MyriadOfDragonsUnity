@@ -53,10 +53,26 @@ namespace MyriadOfDragons.Metagame
     {
         private const string ModuleName = "Telemetry";
 
+        /// <summary>RELEASE BLOCKER FIX (2026-09-03): no `Telemetry` Cloud Code module exists in
+        /// CloudCode/ (only Bazaar, Chat, Friends, GuildExpedition, PermitWeekKey, SocialSafety do)
+        /// - every real flush attempt hit a live 404 "Module could not be found", spamming rc11
+        /// logs. RetentionTelemetryOutbox.FlushAsync already treats any gateway failure as
+        /// "leave queued, retry next opportunistic flush" (never loses events, never blocks the
+        /// caller - see its own doc comment), but it still attempted the network/auth round trip
+        /// every single flush with no chance of success. Gating here - before any network or auth
+        /// call - stops the guaranteed-failing call and its 404 log spam while the queue keeps
+        /// accumulating locally exactly as before. Flip to true (and delete this gate) once an
+        /// authorized Telemetry module is actually deployed; see
+        /// docs/RELEASE_BLOCKER_TELEMETRY_404_2026-09-03.md.</summary>
+        public static bool ModuleDeployed = false;
+
         public async Task<RetentionTelemetryGatewayResult> SendEventAsync(RetentionTelemetryEvent evt, CancellationToken cancellationToken)
         {
             if (evt == null || string.IsNullOrWhiteSpace(evt.eventId) || string.IsNullOrWhiteSpace(evt.eventType))
                 return new RetentionTelemetryGatewayResult { errorCode = "INVALID_REQUEST" };
+
+            if (!ModuleDeployed)
+                return new RetentionTelemetryGatewayResult { success = false, errorCode = "MODULE_NOT_DEPLOYED" };
 
             await EnsureSignedInAsync(cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
