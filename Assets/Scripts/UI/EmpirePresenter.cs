@@ -72,7 +72,8 @@ namespace MyriadOfDragons.UI
             Canvas canvas = UISharedFoundation.CreateScreenCanvas("EmpireCanvas", new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;
 
-            UISharedFoundation.CreateFullscreenBackground(_canvasObj.transform, "UI/Backdrops/Zihan_City_NO NAMES", new Color(0.12f, 0.11f, 0.16f));
+            // Revamp V2 approved Empire backdrop (APPROVED_PRODUCTION, 2026-09-02)
+            UISharedFoundation.CreateFullscreenBackground(_canvasObj.transform, "UI/RevampV2Approved/Empire/empire_v2", new Color(0.12f, 0.11f, 0.16f));
 
             BuildHeader();
             BuildConstructionPanel();
