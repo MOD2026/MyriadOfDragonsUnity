@@ -95,6 +95,14 @@ namespace MyriadOfDragons.Tests
                 {
                     if (img.sprite == null || !img.gameObject.activeInHierarchy) continue;
                     if (img.GetComponent<Button>() != null) continue;
+                    // Non-raycastable art cannot receive a tap at all, so it cannot be the thing a
+                    // tap "lands on" - uGUI skips it during the raycast entirely. Without this the
+                    // check reports a failure it has already ruled out by construction: every
+                    // AddLocalGradientScrim graphic is created with raycastTarget = false
+                    // (UISharedFoundation.AddLocalGradientScrim), and the Empire backdrop now clears
+                    // it too (VS-REVAMPV2-009). Overlap alone was never the hazard - overlap plus
+                    // input interception is.
+                    if (!img.raycastTarget) continue;
                     if (img.transform.IsChildOf(button.transform)) continue;
                     if (indexOf[img.transform] <= buttonIndex) continue;
 
@@ -124,13 +132,15 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(backgroundImage,
                 "Background must have an Image component.");
 
-            // Records the ACTUAL raycast contract rather than imposing one: this backdrop is the
-            // opaque base of a fullscreen screen and blocks taps on purpose, exactly like every
-            // other CreateFullscreenBackground caller (SoloCircuit, TacticalPuzzle, GuildHallEntry).
-            // Asserted so a later change to it is a deliberate, visible edit and not a silent drift.
-            Assert.IsTrue(backgroundImage.raycastTarget,
-                "The Empire fullscreen backdrop is the opaque base of the screen and is expected to "
-                + "keep blocking taps; nothing interactive is meant to sit beneath it.");
+            // VS-REVAMPV2-009: the backdrop is decoration spanning the whole 1920x1080 canvas and
+            // must not be raycastable. CreateFullscreenBackground leaves raycastTarget at Unity's
+            // default true, so EmpirePresenter clears it explicitly; without that the entire screen
+            // is one tap-absorbing graphic. Empire is a fullscreen screen, unlike the popups
+            // (SoloCircuit, TacticalPuzzle, GuildHallEntry) whose backdrops block on purpose to
+            // protect a live canvas underneath - there is nothing under Empire to protect.
+            Assert.IsFalse(backgroundImage.raycastTarget,
+                "The full-screen Empire backdrop must never intercept a tap meant for a real control "
+                + "drawn above it.");
 
             // Empire must bind the approved Revamp V2 sprite — a null sprite means silent fallback to flat color
             Assert.IsNotNull(backgroundImage.sprite,

@@ -92,6 +92,14 @@ namespace MyriadOfDragons.Tests
                 {
                     if (img.sprite == null || !img.gameObject.activeInHierarchy) continue;
                     if (img.GetComponent<Button>() != null) continue;
+                    // Non-raycastable art cannot receive a tap at all, so it cannot be the thing a
+                    // tap "lands on" - uGUI skips it during the raycast entirely. Without this the
+                    // check reports a failure it has already ruled out by construction: every
+                    // AddLocalGradientScrim graphic is created with raycastTarget = false
+                    // (UISharedFoundation.AddLocalGradientScrim), and the Empire backdrop now clears
+                    // it too (VS-REVAMPV2-009). Overlap alone was never the hazard - overlap plus
+                    // input interception is.
+                    if (!img.raycastTarget) continue;
                     if (img.transform.IsChildOf(button.transform)) continue;
                     if (indexOf[img.transform] <= buttonIndex) continue;
 
