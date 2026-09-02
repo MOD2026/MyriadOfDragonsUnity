@@ -130,5 +130,37 @@ namespace MyriadOfDragons.Tests
                 "Art draws on top of an interactive control, so a tap would land on art instead of the button: " +
                 string.Join("  |  ", collisions));
         }
+        /// <summary>
+        /// VS-REVAMP-002: the approved SoloCircuitV1 backdrop must actually be BOUND, not silently
+        /// falling back to UIFrozenTokens.ColorBackground. CreateFullscreenBackground swallows a
+        /// failed Resources.Load into a flat opaque colour, so a broken path/import looks fine on a
+        /// screenshot and is invisible to every other test on this screen. Mirrors
+        /// TacticalPuzzlePresenterTests' backdrop assertion and the Empire equivalent.
+        /// </summary>
+        [Test]
+        public void SoloCircuit_Backdrop_BindsTheApprovedSoloCircuitV1Asset()
+        {
+            Sprite expected = Resources.Load<Sprite>(SoloCircuitPresenter.BackdropResourcePath);
+            Assert.IsNotNull(expected,
+                "Approved asset failed to Resources.Load '" + SoloCircuitPresenter.BackdropResourcePath
+                + "' - import/path broken, so the screen can only ever show the flat fallback.");
+
+            SoloCircuitPresenter presenter = Open();
+            Transform backdropTransform = presenter.CanvasObjectForTests.transform.Find("Background");
+            Assert.IsNotNull(backdropTransform,
+                "Setup: expected the Solo Circuit fullscreen backdrop GameObject to exist.");
+
+            Image backdrop = backdropTransform.GetComponent<Image>();
+            Assert.IsNotNull(backdrop, "The Solo Circuit backdrop must carry an Image component.");
+
+            Assert.AreSame(expected, backdrop.sprite,
+                "Solo Circuit must render the approved SoloCircuitV1 backdrop, not a flat-colour fallback "
+                + "or a silent substitute.");
+
+            // The popup contract from the presenter header: EmpireCanvas is genuinely alive
+            // underneath, so this backdrop stays raycast-blocking on purpose.
+            Assert.IsTrue(backdrop.raycastTarget,
+                "The Solo Circuit backdrop must keep blocking taps - EmpireCanvas is live underneath this popup.");
+        }
     }
 }

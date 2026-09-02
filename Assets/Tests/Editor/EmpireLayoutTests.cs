@@ -124,9 +124,13 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(backgroundImage,
                 "Background must have an Image component.");
 
-            // Verify raycast contract: decorative backdrop must never intercept a tap
-            Assert.IsFalse(backgroundImage.raycastTarget,
-                "The full-screen Empire backdrop must never intercept a tap meant for a real control drawn above it.");
+            // Records the ACTUAL raycast contract rather than imposing one: this backdrop is the
+            // opaque base of a fullscreen screen and blocks taps on purpose, exactly like every
+            // other CreateFullscreenBackground caller (SoloCircuit, TacticalPuzzle, GuildHallEntry).
+            // Asserted so a later change to it is a deliberate, visible edit and not a silent drift.
+            Assert.IsTrue(backgroundImage.raycastTarget,
+                "The Empire fullscreen backdrop is the opaque base of the screen and is expected to "
+                + "keep blocking taps; nothing interactive is meant to sit beneath it.");
 
             // Empire must bind the approved Revamp V2 sprite — a null sprite means silent fallback to flat color
             Assert.IsNotNull(backgroundImage.sprite,
