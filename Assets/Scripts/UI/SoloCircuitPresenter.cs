@@ -37,6 +37,10 @@ namespace MyriadOfDragons.UI
     public class SoloCircuitPresenter : MonoBehaviour
     {
         public const string CanvasName = "SoloCircuitCanvas";
+        
+        /// <summary>Owner-approved landscape backdrop from the Revamp V2 SoloCircuitV1 art package.
+        /// Wired through CreateFullscreenBackground so a missing load falls back to a solid opaque colour.</summary>
+        public const string BackdropResourcePath = "UI/SoloCircuitV1/solo_circuit_backdrop_landscape_v1";
 
         private GameObject _canvasObj;
         private Action _onBack;
@@ -80,16 +84,13 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             canvas.sortingOrder = 40;   // popup band, same as GuildHallEntryCanvas
 
-            // Guaranteed-opaque base before any art, and MORE important now that this is a popup:
-            // EmpireCanvas is genuinely alive underneath, so any gap left by a preserveAspect
-            // background would let it both show through AND stay clickable. That was CR's real root
-            // cause on Guild Hall (7185a4c). An opaque dimmer makes it impossible at any aspect.
-            GameObject dim = new GameObject("Dimmer", typeof(RectTransform), typeof(Image));
-            dim.transform.SetParent(_canvasObj.transform, false);
-            UISharedFoundation.StretchFull(dim.GetComponent<RectTransform>());
-            Image dimImg = dim.GetComponent<Image>();
-            dimImg.color = UIFrozenTokens.ColorBackground;
-            dimImg.raycastTarget = true;
+            // Guaranteed-opaque base with backdrop art. EmpireCanvas is genuinely alive underneath,
+            // so any gap left by a preserveAspect background would let it both show through AND stay
+            // clickable. That was CR's real root cause on Guild Hall (7185a4c). The backdrop must be
+            // opaque to prevent this - the solid fallback colour holds that contract if art load fails.
+            Image backdrop = UISharedFoundation.CreateFullscreenBackground(
+                _canvasObj.transform, BackdropResourcePath, UIFrozenTokens.ColorBackground);
+            backdrop.raycastTarget = true;
 
             BuildHeader();
             BuildTrialRows();
