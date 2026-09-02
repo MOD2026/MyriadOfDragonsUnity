@@ -438,8 +438,8 @@ public class HomePagePresenter : MonoBehaviour
         homeCanvasObj = canvas.gameObject;
         homeCanvasObj.transform.SetParent(transform, false);
 
-        // Background field - preserve existing backdrop if present; otherwise neutral charcoal
-        UISharedFoundation.CreateFullscreenBackground(homeCanvasObj.transform, "UI/Backdrops/Zihan_City_NO NAMES", new Color(0.15f, 0.14f, 0.18f));
+        // Background field - Revamp V2 approved Home backdrop (APPROVED_PRODUCTION, 2026-09-02)
+        UISharedFoundation.CreateFullscreenBackground(homeCanvasObj.transform, "UI/RevampV2Approved/Home/home_v2", new Color(0.15f, 0.14f, 0.18f));
         Image backgroundImage = homeCanvasObj.transform.Find("Background")?.GetComponent<Image>();
         if (backgroundImage != null)
         {
