@@ -289,22 +289,32 @@ namespace MyriadOfDragons.UI
                 UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(1200f, 48f));
             _empireStatusText.fontSize = 24;
             _empireStatusText.fontStyle = FontStyle.Bold;
-            SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.12f, 0.68f, 0.20f);
+            // Bottom-label collision fix: this band used to be 0.12-0.20, which shared its full
+            // 0.02-0.11 y-range with RemainingStructuresStrip below (both drawn full/near-full
+            // width) - ActiveProjectDetail and EmpireMessage sat directly under the structure
+            // tiles, real visual overlap the overlap-only-checks-sprited-Images-over-Buttons test
+            // (EmpireLayoutTests) never caught. Status/Detail/Message now stack in their own
+            // band (0.005-0.13) strictly ABOVE the strip (0.14-0.215); Collect moved to its own
+            // right-hand column so it never shares a row with the strip either.
+            SetNormalizedRect(_empireStatusText.rectTransform, 0.03f, 0.095f, 0.68f, 0.13f);
 
             _projectDetailText = UISharedFoundation.CreateText(empireRoot.transform, "ActiveProjectDetail", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(900f, 40f));
             _projectDetailText.fontSize = 24;
             _projectDetailText.fontStyle = FontStyle.Bold;
-            SetNormalizedRect(_projectDetailText.rectTransform, 0.03f, 0.05f, 0.68f, 0.11f);
+            SetNormalizedRect(_projectDetailText.rectTransform, 0.03f, 0.05f, 0.68f, 0.09f);
 
             _empireMessageText = UISharedFoundation.CreateText(empireRoot.transform, "EmpireMessage", "",
                 UITextRole.Body, TextAnchor.MiddleLeft, Color.white, true, new Vector2(500f, 48f));
             _empireMessageText.fontSize = 24;
             _empireMessageText.fontStyle = FontStyle.Bold;
-            SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.00f, 0.68f, 0.05f);
+            SetNormalizedRect(_empireMessageText.rectTransform, 0.03f, 0.005f, 0.68f, 0.045f);
 
+            // Right-hand column (x 0.71-0.97) never shared by Status/Detail/Message (x 0.03-0.68)
+            // or by the narrowed RemainingStructuresStrip (x 0.03-0.68) - full-height button, no
+            // more sharing a row with structure tiles.
             _empireCollectButtonRoot = CreateActionButton(empireRoot.transform, "CollectConstructionButton",
-                "COLLECT UPGRADE", 0.71f, 0.04f, 0.97f, 0.20f, OnCollectConstruction, primary: true);
+                "COLLECT UPGRADE", 0.71f, 0.01f, 0.97f, 0.215f, OnCollectConstruction, primary: true);
         }
 
         private void RefreshPanel()
@@ -762,9 +772,14 @@ namespace MyriadOfDragons.UI
         {
             GameObject strip = new GameObject("RemainingStructuresStrip", typeof(RectTransform));
             strip.transform.SetParent(parent, false);
-            // Sits below the status line (0.12-0.20) and above the panel floor - deliberately clear
-            // of both, since the geometry audit runs at zero overlap tolerance.
-            SetNormalizedRect(strip.GetComponent<RectTransform>(), 0.03f, 0.02f, 0.97f, 0.11f);
+            // Real bottom-label collision (fixed): this used to be 0.03-0.97 x / 0.02-0.11 y, which
+            // put the strip directly UNDER ActiveProjectDetail (0.05-0.11) and EmpireMessage
+            // (0.00-0.05) and under the right-column Collect button - none of that trio is a
+            // sprited Image over a Button, so EmpireLayoutTests' overlap check never saw it, but a
+            // player would see structure-tile art with status text drawn on top of it. Narrowed to
+            // the left column (x 0.03-0.68, matching Status/Detail/Message) and moved to its own
+            // band (0.14-0.215) strictly above them, clear of the Collect button's right column too.
+            SetNormalizedRect(strip.GetComponent<RectTransform>(), 0.03f, 0.14f, 0.68f, 0.215f);
 
             float span = 1f / RemainingStructures.Length;
             for (int i = 0; i < RemainingStructures.Length; i++)
