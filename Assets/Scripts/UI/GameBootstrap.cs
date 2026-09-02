@@ -612,6 +612,21 @@ namespace MyriadOfDragons.UI
         public bool PlayAgainButtonActiveForTests => _playAgainButton != null && _playAgainButton.gameObject.activeSelf;
         public bool ReturnToCityButtonActiveForTests => _returnToCityButton != null && _returnToCityButton.gameObject.activeSelf;
 
+        /// <summary>Exposed for tests: the sprite BuildResultOverlay bound onto ResultPanel - the
+        /// approved UI/RevampV2Approved/BattleResult/battle_result_v2 asset when present, or null
+        /// if the panel still shows the procedural Popup_Frame fallback.</summary>
+        public Sprite ResultPanelSpriteForTests
+        {
+            get
+            {
+                if (_resultOverlay == null) return null;
+                Transform panelTransform = _resultOverlay.transform.Find("ResultPanel");
+                if (panelTransform == null) return null;
+                Image panelImage = panelTransform.GetComponent<Image>();
+                return panelImage != null ? panelImage.sprite : null;
+            }
+        }
+
         /// <summary>Exposed for tests: the Formation "Ready"/Combat objective caption's current
         /// visibility and text - see BuildTutorialGuidanceCaption's own comment.</summary>
         public bool TutorialGuidanceCaptionActiveForTests => _tutorialGuidanceCaption != null && _tutorialGuidanceCaption.gameObject.activeSelf;
@@ -5221,6 +5236,31 @@ namespace MyriadOfDragons.UI
             panel.offsetMin = Vector2.zero;
             panel.offsetMax = Vector2.zero;
             UISharedFoundation.FitSlicedBorderToRect(panel.GetComponent<Image>());
+
+            // Approved Revamp V2 result surface (registry row `13_battle_result.png`,
+            // APPROVED_PRODUCTION, Zihan owner decision 2026-09-02; packaged at
+            // UI/RevampV2Approved/BattleResult/battle_result_v2.png). Overrides ONLY this panel's
+            // Image after CreateRoundedPanel/FitSlicedBorderToRect build it, so the shared
+            // Popup_Frame helper (also used by the unrelated card-detail modal) is untouched -
+            // a full illustrated scene, not a tileable border, so it goes in unsliced. Falls back
+            // to the existing Popup_Frame art (already set above) when the sprite is missing,
+            // same graceful-degrade pattern as every other RevampV2Approved binding in this
+            // codebase. Battle COMBAT art stays rejected/unbound per
+            // docs/REVAMP_V2_APPROVAL_REGISTRY.md - this is the separate, explicitly approved
+            // result surface only.
+            Sprite approvedResultArt = Resources.Load<Sprite>("UI/RevampV2Approved/BattleResult/battle_result_v2");
+            if (approvedResultArt != null)
+            {
+                Image panelImage = panel.GetComponent<Image>();
+                panelImage.sprite = approvedResultArt;
+                panelImage.type = Image.Type.Simple;
+                panelImage.color = Color.white;
+            }
+            else
+            {
+                UISharedFoundation.WarnOnceMissingSprite(
+                    "UI/RevampV2Approved/BattleResult/battle_result_v2", "BuildResultOverlay");
+            }
 
             // V3 visual-review fix, 2026-08-16: this overlay is anchored against the full 1920x1080
             // canvas (not one of V3's new smaller regions), so its panel is already large - only
