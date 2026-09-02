@@ -81,7 +81,15 @@ public sealed class FriendsAliasBackfillOperations
             {
                 result.AccountsFailed++;
                 result.FailedAccountIds.Add(accountId);
-                result.Errors.Add($"{accountId}: {exception.ErrorCode}");
+                // BE-FRIENDS-STORAGE-014 diagnostic addition: CloudSaveFriendsStore.ClassifyStorageError
+                // collapses every non-409 exception into ErrorCode="STORAGE_UNAVAILABLE", discarding
+                // the real cause. FriendsStorageException.InnerException still carries it (base(msg,
+                // innerException) in FriendsState.cs) - surface it here so a live run reveals the
+                // actual underlying exception instead of just the generic label.
+                string innerDetail = exception.InnerException != null
+                    ? $"{exception.InnerException.GetType().Name}: {exception.InnerException.Message}"
+                    : "(no inner exception captured)";
+                result.Errors.Add($"{accountId}: {exception.ErrorCode} | inner={innerDetail}");
             }
             catch (Exception exception)
             {

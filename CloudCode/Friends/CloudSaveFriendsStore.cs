@@ -23,11 +23,16 @@ namespace MyriadOfDragons.CloudCode.Friends;
 /// Custom Items writes (SetCustomItemAsync/DeleteCustomItemAsync) use context.ServiceToken, not
 /// context.AccessToken - a real, live-verified requirement (2026-08-25): AccessToken (player-
 /// scoped) gets ApiException: Unauthorized on Custom Items writes specifically, even though it
-/// works fine for player-scoped Cloud Save (GetItemsAsync/SetItemsAsync) and for Custom Items
-/// READS (GetCustomItemsAsync). Matches the documented Access Class model - "readable by any
-/// player client-side, writeable only from a server" - server authority is asserted via
-/// ServiceToken, not the caller's own AccessToken. GetCustomItemsAsync (reads) correctly keeps
-/// AccessToken.</summary>
+/// works fine for Custom Items READS (GetCustomItemsAsync). Server authority is asserted via
+/// ServiceToken, not the caller's own AccessToken.
+///
+/// The SAME split applies to plain player-scoped Cloud Save (GetItemsAsync/SetItemAsync) whenever
+/// the target accountId is not guaranteed to equal context.PlayerId - confirmed live 2026-09-02
+/// (BE-FRIENDS-STORAGE-014): a cross-account SetItemAsync using AccessToken got
+/// ApiException: Forbidden. Player-scoped AccessToken calls are only valid for the signed-in
+/// player's own data; every method here that takes an explicit accountId/counterpartAccountId
+/// distinct from the caller (LoadIndexAsync, SaveIndexAsync, LoadCounterpartAliasAsync,
+/// SaveCounterpartAliasAsync) uses ServiceToken accordingly.</summary>
 public sealed class CloudSaveFriendsStore : IFriendsStore
 {
     private const string GraphCustomId = "friends-graph";
@@ -141,9 +146,12 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
     {
         try
         {
+            // accountId is caller-supplied and not necessarily context.PlayerId (accept/decline
+            // must update BOTH accounts' indices) - same cross-account ServiceToken requirement as
+            // LoadCounterpartAliasAsync/SaveCounterpartAliasAsync above.
             var response = await apiClient.CloudSaveData.GetItemsAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 accountId,
                 new List<string> { IndexKey() });
@@ -178,7 +186,7 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
 
             await apiClient.CloudSaveData.SetItemAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 accountId,
                 body);
@@ -240,9 +248,14 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
     {
         try
         {
+            // counterpartAccountId is not necessarily context.PlayerId (that's the whole point of
+            // this method) - a genuine cross-account player-scoped read/write needs server
+            // authority, same as the Custom Items ServiceToken requirement documented on this
+            // class. Confirmed live 2026-09-02 (BE-FRIENDS-STORAGE-014): AccessToken on a
+            // cross-account SetItemAsync got ApiException: Forbidden.
             var response = await apiClient.CloudSaveData.GetItemsAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 counterpartAccountId,
                 new List<string> { AliasKey });
@@ -267,7 +280,7 @@ public sealed class CloudSaveFriendsStore : IFriendsStore
             var body = new SetItemBody(AliasKey, JsonConvert.SerializeObject(aliasId));
             await apiClient.CloudSaveData.SetItemAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 counterpartAccountId,
                 body);
