@@ -19,6 +19,7 @@ namespace MyriadOfDragons.Editor
 
         public static void BuildWindows64()
         {
+            BuildEnvironmentGuard.EnsureBetaEnvironment("WhWindowsPlayerBuild");
             string projectRoot = Path.GetDirectoryName(Application.dataPath);
             string outputPath = Path.Combine(projectRoot, OutputRelativePath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
@@ -74,6 +75,7 @@ namespace MyriadOfDragons.Editor
 
         public static void BuildAndroidAab()
         {
+            BuildEnvironmentGuard.EnsureBetaEnvironment("WhWindowsPlayerBuild");
             string projectRoot = Path.GetDirectoryName(Application.dataPath);
             string outputPath = Path.Combine(projectRoot, AndroidAabRelativePath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));

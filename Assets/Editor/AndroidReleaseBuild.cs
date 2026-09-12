@@ -19,6 +19,7 @@ namespace MyriadOfDragons.Editor
 
         public static void BuildDevelopmentApk()
         {
+            BuildEnvironmentGuard.EnsureBetaEnvironment("AndroidReleaseBuild");
             string projectRoot = Path.GetDirectoryName(Application.dataPath);
             string outputPath = Path.Combine(projectRoot, OutputRelativePath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
@@ -74,6 +75,7 @@ namespace MyriadOfDragons.Editor
         /// </summary>
         public static void BuildReleaseApk()
         {
+            BuildEnvironmentGuard.EnsureBetaEnvironment("AndroidReleaseBuild");
             string projectRoot = Path.GetDirectoryName(Application.dataPath);
             string outputPath = Path.Combine(projectRoot, ReleaseOutputRelativePath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
