@@ -156,5 +156,27 @@ namespace MyriadOfDragons.Tests
             Assert.GreaterOrEqual(back.xMin, head.xMin, $"Back {back} starts left of its header {head}.");
             Assert.LessOrEqual(back.xMax, head.xMax, $"Back {back} runs past the right of its header {head}.");
         }
+
+        [Test]
+        public void Background_BindsTheApprovedRevampV2Asset()
+        {
+            AvatarPresenter presenter = Open();
+            Transform backgroundTransform = presenter.CanvasObjectForTests.transform.Find("Background");
+            Assert.IsNotNull(backgroundTransform, "Setup: expected the Avatar backdrop GameObject to exist.");
+            Image backgroundImage = backgroundTransform.GetComponent<Image>();
+            Assert.IsNotNull(backgroundImage, "Background must have an Image component.");
+
+            // docs/REVAMP_V2_APPROVAL_REGISTRY.md's `avatar_profile_states_8_distinct.png` row -
+            // a null sprite means a silent fallback to flat colour, not the approved art.
+            Assert.IsNotNull(backgroundImage.sprite,
+                "Avatar Background Image.sprite is null - flat colour fallback, not the approved revamp artwork.");
+
+            const string approvedAssetPath = "UI/RevampV2Approved/AvatarProfile/avatar_profile_states_v1";
+            Sprite expected = Resources.Load<Sprite>(approvedAssetPath);
+            Assert.IsNotNull(expected,
+                $"Avatar backdrop failed to Resources.Load '{approvedAssetPath}' - import/path broken.");
+            Assert.AreSame(expected, backgroundImage.sprite,
+                $"Avatar must render the approved revamp backdrop '{approvedAssetPath}', not a silent substitute.");
+        }
     }
 }

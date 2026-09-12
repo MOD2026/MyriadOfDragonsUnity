@@ -329,6 +329,28 @@ namespace MyriadOfDragons.Tests
                     "A null profile must read as 'no field', not as level zero.");
         }
 
+        [Test]
+        public void DetailPanel_BindsTheApprovedRevampV2Asset()
+        {
+            EmpireBuildingDetailPresenter detail = OpenDetail(EmpireBuildingKind.Castle);
+            Transform panelTransform = detail.CanvasObjectForTests.transform.Find("DetailPanel");
+            Assert.IsNotNull(panelTransform, "Setup: expected the DetailPanel GameObject to exist.");
+            Image panelImage = panelTransform.GetComponent<Image>();
+            Assert.IsNotNull(panelImage, "DetailPanel must have an Image component.");
+
+            // docs/REVAMP_V2_APPROVAL_REGISTRY.md's `04_building_detail.png` row - a null sprite
+            // means a silent fallback to flat colour, not the approved art.
+            Assert.IsNotNull(panelImage.sprite,
+                "DetailPanel Image.sprite is null - flat colour fallback, not the approved revamp artwork.");
+
+            const string approvedAssetPath = "UI/RevampV2Approved/BuildingDetail/building_detail_v2";
+            Sprite expected = Resources.Load<Sprite>(approvedAssetPath);
+            Assert.IsNotNull(expected,
+                $"DetailPanel backdrop failed to Resources.Load '{approvedAssetPath}' - import/path broken.");
+            Assert.AreSame(expected, panelImage.sprite,
+                $"DetailPanel must render the approved revamp backdrop '{approvedAssetPath}', not a silent substitute.");
+        }
+
         private void TearDownCanvases()
         {
             foreach (Canvas c in Object.FindObjectsOfType<Canvas>())

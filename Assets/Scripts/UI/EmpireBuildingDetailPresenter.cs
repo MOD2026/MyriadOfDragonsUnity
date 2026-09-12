@@ -62,7 +62,21 @@ namespace MyriadOfDragons.UI
 
             GameObject panel = new GameObject("DetailPanel", typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(_canvasObj.transform, false);
-            panel.GetComponent<Image>().color = new Color(0.10f, 0.09f, 0.08f, 0.96f);
+            Image panelImg = panel.GetComponent<Image>();
+            Color panelFallback = new Color(0.10f, 0.09f, 0.08f, 0.96f);
+            // docs/REVAMP_V2_APPROVAL_REGISTRY.md's `04_building_detail.png` row - Zihan direct
+            // owner approval, 2026-09-12 (863f2115). Falls back to the original flat panel colour
+            // (unchanged) if the sprite ever fails to load.
+            Sprite panelSprite = Resources.Load<Sprite>("UI/RevampV2Approved/BuildingDetail/building_detail_v2");
+            if (panelSprite != null)
+            {
+                panelImg.sprite = panelSprite;
+                panelImg.color = Color.white;
+            }
+            else
+            {
+                panelImg.color = panelFallback;
+            }
             SetNorm(panel.GetComponent<RectTransform>(), 0.06f, 0.08f, 0.94f, 0.92f);
 
             BuildHeader(panel.transform);

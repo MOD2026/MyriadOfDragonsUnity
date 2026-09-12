@@ -37,8 +37,12 @@ namespace MyriadOfDragons.UI
             Canvas canvas = UISharedFoundation.CreateScreenCanvas("AvatarCanvas", new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;
 
-            UISharedFoundation.CreateFullscreenBackground(_canvasObj.transform, "UI/Backdrops/Zihan_City_NO NAMES",
-                new Color(0.1f, 0.11f, 0.15f));
+            // docs/REVAMP_V2_APPROVAL_REGISTRY.md's `avatar_profile_states_8_distinct.png` row -
+            // Zihan direct owner approval, 2026-09-12 (863f2115). Replaces the older
+            // "Zihan_City_NO NAMES" placeholder backdrop; no test pins that sprite name, so no
+            // locked expectation is broken. Falls back to the same flat colour as before.
+            UISharedFoundation.CreateFullscreenBackground(_canvasObj.transform,
+                "UI/RevampV2Approved/AvatarProfile/avatar_profile_states_v1", new Color(0.1f, 0.11f, 0.15f));
 
             BuildHeader();
             BuildBody();

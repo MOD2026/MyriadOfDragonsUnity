@@ -59,14 +59,16 @@ public class StartupSoftLandingPresenter : MonoBehaviour
         Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920f, 1080f));
         _canvasObj = canvas.gameObject;
 
-        // Approved existing visual direction, not new art: the same Revamp V2 backdrop
-        // HomePagePresenter already binds (production-approved 2026-09-02) - this screen sits
-        // one frame before Home in the same flow, so reusing it gives visual continuity instead
-        // of an unrelated flat panel. No Startup-specific asset exists or is being invented here.
-        // Non-raycastable, same VS-REVAMPV2-009 rule as Empire/Home: decoration spanning the
-        // whole canvas must never intercept the Continue tap.
+        // Startup's own APPROVED_PRODUCTION asset (docs/REVAMP_V2_APPROVAL_REGISTRY.md's
+        // `01_home_first_login.png` row, sha256 7DFCA63D...F5C5A3, Zihan owner decision
+        // 2026-09-02), packaged by WH at this path (a4a15e21) - verified byte-for-byte via
+        // certutil against the registry hash before wiring this. Replaces an earlier home_v2
+        // substitution that bound a DIFFERENT approved asset (Home's own 02_home.png) under
+        // Startup's name - not an exact-path match, corrected here now the real asset exists on
+        // this branch. Non-raycastable, same VS-REVAMPV2-009 rule as Empire/Home: decoration
+        // spanning the whole canvas must never intercept the Continue tap.
         Image backing = UISharedFoundation.CreateFullscreenBackground(
-            _canvasObj.transform, "UI/RevampV2Approved/Home/home_v2", new Color(0.06f, 0.07f, 0.10f, 1f));
+            _canvasObj.transform, "UI/RevampV2Approved/Startup/startup_first_login_v1", new Color(0.06f, 0.07f, 0.10f, 1f));
         backing.raycastTarget = false;
 
         Text title = UISharedFoundation.CreateText(_canvasObj.transform, "Title", "MYRIAD OF DRAGONS",
@@ -121,6 +123,13 @@ public class StartupSoftLandingPresenter : MonoBehaviour
         if (_canvasObj != null) DestroyImmediate(_canvasObj);
         _canvasObj = null;
     }
+
+    // CreateScreenCanvas builds a standalone, root-level GameObject (not parented under this
+    // component's host) - destroying the host alone leaves it orphaned in the scene, exactly the
+    // real leak Background_BindsTheExactApprovedStartupAsset (the first test here that builds and
+    // inspects without ever pressing Continue) surfaced against a later test's GameObject.Find.
+    // Matches the established pattern (e.g. EmpirePresenter.OnDestroy) project-wide.
+    private void OnDestroy() => TeardownUI();
 
     private static void SetNorm(RectTransform rect, float left, float bottom, float right, float top)
     {

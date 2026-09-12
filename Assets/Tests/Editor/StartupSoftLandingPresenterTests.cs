@@ -35,6 +35,19 @@ namespace MyriadOfDragons.Tests
             CampaignMapPresenter.CleanupStaleMetagameCanvases();
             foreach (GameObject go in _spawned) if (go != null) UnityEngine.Object.DestroyImmediate(go);
             _spawned.Clear();
+            // "StartupSoftLandingCanvas" is not in CampaignMapPresenter's shared stale-canvas
+            // list (that file is Metagame-owned, not touched here) - a test that builds and
+            // inspects without ever pressing Continue (Background_BindsTheExactApprovedStartupAsset)
+            // can otherwise leave a root-level canvas that a later test's GameObject.Find picks up,
+            // even though the host that owned it was already destroyed. Belt-and-suspenders sweep,
+            // same idiom as CleanupStaleMetagameCanvases.
+            GameObject stale;
+            int guard = 0;
+            while ((stale = GameObject.Find(StartupSoftLandingPresenter.CanvasName)) != null)
+            {
+                UnityEngine.Object.DestroyImmediate(stale);
+                if (++guard > 32) break;
+            }
             SaveSystem.ClearRootDirectoryOverride();
             SaveSystem.ResetCurrentProfileForTests();
             if (_scratchSaveDir != null && Directory.Exists(_scratchSaveDir)) Directory.Delete(_scratchSaveDir, true);
@@ -73,6 +86,32 @@ namespace MyriadOfDragons.Tests
             Assert.IsFalse(presenter.IsFirstRunForTests);
             Text subtitle = presenter.CanvasObjectForTests.transform.Find("Subtitle").GetComponent<Text>();
             StringAssert.Contains("Welcome back.", subtitle.text);
+        }
+
+        [Test]
+        public void Background_BindsTheExactApprovedStartupAsset()
+        {
+            StartupSoftLandingPresenter presenter = Build();
+            Transform backingTransform = presenter.CanvasObjectForTests.transform.Find("Background");
+            Assert.IsNotNull(backingTransform, "Setup: expected the Startup backing GameObject to exist.");
+            Image backingImage = backingTransform.GetComponent<Image>();
+            Assert.IsNotNull(backingImage, "Backing must have an Image component.");
+
+            Assert.IsFalse(backingImage.raycastTarget,
+                "The full-screen Startup backdrop must never intercept the Continue tap.");
+
+            // docs/REVAMP_V2_APPROVAL_REGISTRY.md's exact approved Startup asset - must not
+            // silently fall back to a flat colour or substitute a different screen's art (Home's
+            // home_v2 was wrongly substituted here previously).
+            Assert.IsNotNull(backingImage.sprite,
+                "Startup Backing Image.sprite is null - flat colour fallback, not the approved asset.");
+
+            const string approvedAssetPath = "UI/RevampV2Approved/Startup/startup_first_login_v1";
+            Sprite expected = Resources.Load<Sprite>(approvedAssetPath);
+            Assert.IsNotNull(expected,
+                $"Startup backdrop failed to Resources.Load '{approvedAssetPath}' - import/path broken.");
+            Assert.AreSame(expected, backingImage.sprite,
+                $"Startup must render the approved '{approvedAssetPath}' asset, not a silent substitute.");
         }
 
         [Test]
