@@ -6,7 +6,15 @@ namespace MyriadOfDragons.Story
 {
     public class StoryOverlayPresenter : MonoBehaviour
     {
+        /// <summary>PRODUCTIVE CODING TASK - Tutorial/Story Revamp V2 binding. Approved
+        /// 2026-09-12 (docs/REVAMP_V2_APPROVAL_REGISTRY.md), packaged at
+        /// tools/seat_reports commit 05cc2fc1 lineage / RevampV2Approved. Resources.Load path
+        /// (no extension) for the backdrop Image on StoryCanvas/StoryBackdrop.</summary>
+        public const string ApprovedBackdropResourcePath =
+            "UI/RevampV2Approved/TutorialStoryOverlay/tutorial_story_overlay_v2";
+
         private GameObject overlayCanvasObj;
+        private Image backdropImg;
         private Image leftPortraitImg;
         private Image rightPortraitImg;
         private Text speakerNameText;
@@ -21,6 +29,9 @@ namespace MyriadOfDragons.Story
         public static string LastPlayedSequenceIdForTests { get; private set; }
 
         public static void ResetTestHooks() => LastPlayedSequenceIdForTests = null;
+
+        /// <summary>Exposed for tests: the StoryBackdrop Image's sprite after BuildUI().</summary>
+        public Sprite BackdropSpriteForTests => backdropImg != null ? backdropImg.sprite : null;
 
         public static void PlaySequence(StorySequence sequence, Action onCompleted)
         {
@@ -72,11 +83,23 @@ namespace MyriadOfDragons.Story
 
             overlayCanvasObj.AddComponent<GraphicRaycaster>();
 
-            // Dim Backdrop
+            // Dim Backdrop - bound to the approved Revamp V2 art where available; falls back to
+            // the original plain dim color if the sprite isn't found, so this never regresses to
+            // a blank/broken backdrop if Resources.Load ever misses.
             GameObject bgObj = new GameObject("StoryBackdrop");
             bgObj.transform.SetParent(overlayCanvasObj.transform, false);
             Image bgImg = bgObj.AddComponent<Image>();
-            bgImg.color = new Color(0f, 0f, 0f, 0.65f);
+            backdropImg = bgImg;
+            Sprite approvedBackdrop = Resources.Load<Sprite>(ApprovedBackdropResourcePath);
+            if (approvedBackdrop != null)
+            {
+                bgImg.sprite = approvedBackdrop;
+                bgImg.color = Color.white;
+            }
+            else
+            {
+                bgImg.color = new Color(0f, 0f, 0f, 0.65f);
+            }
 
             RectTransform bgRect = bgObj.GetComponent<RectTransform>();
             bgRect.anchorMin = Vector2.zero;

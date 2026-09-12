@@ -90,5 +90,46 @@ namespace MyriadOfDragons.Tests
                 "screen uses (UISharedFoundation.MatchWidthOrHeight), not a locally hardcoded one that " +
                 "could silently drift from it.");
         }
+
+        /// <summary>PRODUCTIVE CODING TASK - Tutorial/Story Revamp V2 binding. Proves BuildUI()
+        /// loads the exact approved sprite, not just "some" sprite - compares the presenter's
+        /// loaded Sprite object against a fresh, independent Resources.Load of the same path, and
+        /// separately confirms that path is the one the packaging commits actually delivered
+        /// (Assets/Resources/UI/RevampV2Approved/TutorialStoryOverlay/tutorial_story_overlay_v2.png).</summary>
+        [Test]
+        public void BuildUI_BindsTheApprovedTutorialStoryBackdropSprite()
+        {
+            var host = new GameObject("StoryOverlayBackdropBindingTestHost");
+            _spawned.Add(host);
+            var presenter = host.AddComponent<StoryOverlayPresenter>();
+
+            MethodInfo buildUI = typeof(StoryOverlayPresenter).GetMethod("BuildUI", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(buildUI, "STATE UNREACHED: StoryOverlayPresenter.BuildUI was not found - the presenter's shape changed.");
+            buildUI.Invoke(presenter, null);
+
+            Sprite boundSprite = presenter.BackdropSpriteForTests;
+            Assert.IsNotNull(boundSprite,
+                "StoryBackdrop must load the approved Revamp V2 sprite, not fall back to the plain " +
+                "dim color - if this fails, the asset is missing from Resources or was moved.");
+
+            Sprite independentLoad = Resources.Load<Sprite>(StoryOverlayPresenter.ApprovedBackdropResourcePath);
+            Assert.IsNotNull(independentLoad, "Setup: the approved backdrop must exist at the exact packaged path.");
+            Assert.AreSame(independentLoad, boundSprite,
+                "BuildUI must bind the exact approved sprite object from ApprovedBackdropResourcePath - " +
+                "not a different sprite that happens to also be non-null.");
+            Assert.AreEqual("tutorial_story_overlay_v2", boundSprite.texture.name,
+                "Bound sprite's source texture must be the exact approved file, by name, not a same-shaped substitute.");
+
+            // Preservation: tutorial flow, text, buttons, navigation, and state logic are
+            // untouched by this binding - re-confirm the rest of the built hierarchy is exactly
+            // as before (dialogue panel, portraits, skip button all still present).
+            Transform storyCanvas = host.transform.Find("StoryCanvas");
+            Assert.IsNotNull(storyCanvas.Find("DialoguePanel"), "DialoguePanel must be unchanged by this binding.");
+            Assert.IsNotNull(storyCanvas.Find("DialoguePanel/SpeakerNameText"), "Speaker name text must be unchanged.");
+            Assert.IsNotNull(storyCanvas.Find("DialoguePanel/DialogueContentText"), "Dialogue body text must be unchanged.");
+            Assert.IsNotNull(storyCanvas.Find("Btn_Skip"), "Skip button/navigation must be unchanged.");
+            Assert.IsNotNull(storyCanvas.Find("Portrait_Left"), "Left portrait slot must be unchanged.");
+            Assert.IsNotNull(storyCanvas.Find("Portrait_Right"), "Right portrait slot must be unchanged.");
+        }
     }
 }
