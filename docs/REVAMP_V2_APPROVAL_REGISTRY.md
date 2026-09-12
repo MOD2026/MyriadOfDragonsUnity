@@ -44,7 +44,7 @@ All remaining PNGs in the package are aliases, crops, or earlier Battle iteratio
 
 ## Owner approval record — 2026-09-12
 
-Zihan directly approved the five unresolved UI items for production reference: Building Detail, Avatar/Profile, Friend Requests, Loading Sigil v3, and PackOpen overlay plus its post-purchase entry point. No separate signature form is required. This approval does not authorize Save-schema changes, new gameplay mechanics, invented rewards, or release-lane integration.
+Zihan directly approved the five unresolved UI items for implementation and release-lane integration: Building Detail, Avatar/Profile, Friend Requests, Loading Sigil v3, and PackOpen overlay plus its post-purchase entry point. No separate signature form is required. This approval does not authorize Save-schema changes, new gameplay mechanics, invented rewards, or rejected/conditional art outside the named items.
 
 All `Social_RevampV2_012/*` and `09_social.png` are **REJECTED** by Zihan on 2026-09-02. They must not be bound or used as production references. Chat is accepted separately through the approved Chat UI package, preserving the eight-contact-point rule.
 
