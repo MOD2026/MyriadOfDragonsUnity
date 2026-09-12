@@ -9,7 +9,7 @@ Registry owner: UI/UX Codex. **No asset is APPROVED_PRODUCTION without a dated o
 | `01_home_first_login.png` | 1672x941 | `7DFCA63D…F5C5A3` | startup/home first login | APPROVED_PRODUCTION | Zihan owner decision, 2026-09-02 |
 | `02_home.png` | 1672x941 | `1E8174118F8F66899DB83CD7FF732415233868DF7DCE99CECD31EB3D4B92B75E` | Home | APPROVED_PRODUCTION | Zihan owner approval, 2026-09-02 |
 | `03_empire_map.png` | 1672x941 | `5ADDE60C…F4DED2` | Empire overview | REJECTED | Zihan owner decision, 2026-09-02; conflicting Empire image; use approved empire_revamp_v2 instead |
-| `04_building_detail.png` | 1672x941 | `2C841C5D…A8EA75` | building detail | CURRENT_CONDITIONAL | Approval not found / CC6 visual owner |
+| `04_building_detail.png` | 1672x941 | `2C841C5D…A8EA75` | building detail | APPROVED_PRODUCTION | Zihan direct owner approval, 2026-09-12 |
 | `05_daily_login_quests.png` | 1672x941 | `7F21AF2A…D478F30` | daily login/quests | APPROVED_PRODUCTION | Zihan owner decision, 2026-09-02 |
 | `06_collection.png` | 1672x941 | `D4752039…E235709` | collection/deck | APPROVED_PRODUCTION | Zihan owner decision, 2026-09-02 |
 | `07_shop.png` | 1920x1080 | `926F4631…BDFB179` | shop | REJECTED | Zihan owner decision, 2026-09-02; superseded for this slice |
@@ -18,9 +18,9 @@ Registry owner: UI/UX Codex. **No asset is APPROVED_PRODUCTION without a dated o
 | `12_battle_pass.png` | 1672x941 | `09DD9E26…167D02E` | battle pass | APPROVED_PRODUCTION | Zihan owner decision, 2026-09-02 |
 | `13_battle_result.png` | 1672x941 | `EE822697…200AD3` | results | APPROVED_PRODUCTION | Zihan owner decision, 2026-09-02 |
 | `14_tutorial_story_overlay.png` | 1672x941 | `983B06E9…7AD11D2` | tutorial/story overlay | APPROVED_PRODUCTION | Zihan owner decision, 2026-09-02 |
-| `avatar_profile_states_8_distinct.png` | 1672x941 | `CA140D3C…373994` | Avatar/profile states | CURRENT_CONDITIONAL | Approval not found / CC6 visual owner |
+| `avatar_profile_states_8_distinct.png` | 1672x941 | `CA140D3C…373994` | Avatar/profile states | APPROVED_PRODUCTION | Zihan direct owner approval, 2026-09-12 |
 | `settings_states_9_distinct.png` | 1672x941 | `B5BA6A7E…609F9C47` | Settings states | REJECTED | Zihan owner decision, 2026-09-02 |
-| `requests_friends_states_9_distinct.png` | 1672x941 | `39106B08…992E8F991` | requests/friends | CURRENT_CONDITIONAL | Approval not found / CC6 visual owner |
+| `requests_friends_states_9_distinct.png` | 1672x941 | `39106B08…992E8F991` | requests/friends | APPROVED_PRODUCTION | Zihan direct owner approval, 2026-09-12 |
 | `Assets/Resources/UI/FriendsV1/friends_roster_aligned_to_chat_v1_native_1920x1080_logo_removed_v3.png` | 1920x1080 | `5317F065EF415FF848789C398FB3B973941AF6FD866F32C569ED6FC4F579F003` | Friends roster/empty state | APPROVED_PRODUCTION | Zihan owner approval, 2026-09-02; logo/wordmark removed, aligned to Chat visual, no lock treatment; supersedes the older logo-bearing Friends visual |
 | `guild_states_9_distinct.png` | 1672x941 | `FCFE959C…D15CFD4` | Guild states | REJECTED | Zihan owner decision, 2026-09-02; Group F rejected |
 | `campaign_manifest_states_v1.png` | 1672x941 | `738AAFFC…AC0B7ED` | campaign | REJECTED | Zihan owner decision, 2026-09-02; Group F rejected |
@@ -40,7 +40,11 @@ All remaining PNGs in the package are aliases, crops, or earlier Battle iteratio
 
 ## Explicit pending assets
 
-`02_home.png` and `Home_Empire_RevampV2_011/empire_revamp_v2_conditional.png` are **APPROVED_PRODUCTION** by dated owner approval from Zihan on 2026-09-02. `SoloCircuitV1/solo_circuit_backdrop_landscape_v1.png` is also **APPROVED_PRODUCTION** by dated owner approval from Zihan on 2026-09-02. `LoadingSigilV1` remains unclassified/pending: approval evidence is not present in the package and it must not be bound. `PackOpenOverlay` remains gated on its entry-point decision. Battle Borders/Popups are excluded from the non-Battle first slice.
+`02_home.png` and `Home_Empire_RevampV2_011/empire_revamp_v2_conditional.png` are **APPROVED_PRODUCTION** by dated owner approval from Zihan on 2026-09-02. `SoloCircuitV1/solo_circuit_backdrop_landscape_v1.png` is also **APPROVED_PRODUCTION** by dated owner approval from Zihan on 2026-09-02. The Building Detail, Avatar/Profile, and Friend Requests candidates are **APPROVED_PRODUCTION** by Zihan direct owner instruction on 2026-09-12. Loading Sigil v3 and PackOpen are approved by the same direct owner instruction on 2026-09-12; PackOpen approval includes the post-purchase entry point. Battle Borders/Popups are excluded from the non-Battle first slice.
+
+## Owner approval record — 2026-09-12
+
+Zihan directly approved the five unresolved UI items for production reference: Building Detail, Avatar/Profile, Friend Requests, Loading Sigil v3, and PackOpen overlay plus its post-purchase entry point. No separate signature form is required. This approval does not authorize Save-schema changes, new gameplay mechanics, invented rewards, or release-lane integration.
 
 All `Social_RevampV2_012/*` and `09_social.png` are **REJECTED** by Zihan on 2026-09-02. They must not be bound or used as production references. Chat is accepted separately through the approved Chat UI package, preserving the eight-contact-point rule.
 
