@@ -295,6 +295,14 @@ namespace MyriadOfDragons.UI
 
         private Coroutine _combatLoop;
         private readonly List<Coroutine> _presentationCoroutines = new List<Coroutine>();
+
+        /// <summary>BATTLE_ANIMATION_PACKAGE_V1's "Card draw / hand arrival" beat. Set true right
+        /// after each real BattleController.DealFormationHand(PlayerState) call (both call sites);
+        /// RefreshHand() consumes and clears it the next time it rebuilds _handButtons, so the
+        /// arrival animation plays exactly once per real deal and never replays on an unrelated
+        /// RefreshAll() (a tap, a phase change, a reinforcement window) that happens to also
+        /// rebuild the same buttons.</summary>
+        private bool _handArrivalAnimationPending;
         private readonly List<GameObject> _presentationObjects = new List<GameObject>();
         private Transform _canvasTransform;
         private const string SeenIntroPrefKey = "MOD_SeenIntro";
@@ -458,6 +466,17 @@ namespace MyriadOfDragons.UI
         /// <summary>Exposed for tests: the single BattlePresentationRoot every Battle child is
         /// built under (Battle Release Layout pass - see Initialize()'s own comment).</summary>
         public RectTransform BattlePresentationRootForTests => _battlePresentationRoot;
+
+        /// <summary>Exposed for tests: whether a real hand deal is still waiting for RefreshHand to
+        /// consume it and play the arrival animation - true immediately after DealFormationHand,
+        /// false once RefreshHand has next rebuilt _handButtons.</summary>
+        public bool HandArrivalAnimationPendingForTests => _handArrivalAnimationPending;
+
+        /// <summary>Exposed for tests: how many times RefreshHand has actually recognized and
+        /// consumed a pending hand arrival - increments exactly once per real DealFormationHand
+        /// call, never on an unrelated RefreshAll. Counted independent of Application.isPlaying so
+        /// EditMode (which never runs the coroutine itself) can still observe the trigger.</summary>
+        public int HandArrivalAnimationTriggerCountForTests { get; private set; }
 
         /// <summary>Exposed for tests: the Hand dock's own decorative background Image, to check
         /// its raycastTarget setting directly.</summary>
@@ -1046,6 +1065,7 @@ namespace MyriadOfDragons.UI
             // formation model is that the squad is built in one sitting rather than dribbled out
             // two cards per turn, so the hand has to be there in one go.
             _battleController.DealFormationHand(_battleController.PlayerState);
+            _handArrivalAnimationPending = true;
             _battleController.DealFormationHand(_battleController.EnemyState);
 
             if (_combatLoop != null)
@@ -1202,6 +1222,7 @@ namespace MyriadOfDragons.UI
 
             _battleController.StartMatch(playerDeck, enemyDeck, economy, enemyEconomy);
             _battleController.DealFormationHand(_battleController.PlayerState);
+            _handArrivalAnimationPending = true;
             _battleController.DealFormationHand(_battleController.EnemyState);
 
             // Deterministic hand order for this scripted encounter only: PlayerBattleState
@@ -7314,6 +7335,51 @@ namespace MyriadOfDragons.UI
 
             bool anyAffordable = _battleController.PlayerState.Hand.Any(c => c.ResourceCost <= resource);
             _handHintText.gameObject.SetActive(!anyAffordable && _battleController.PlayerState.Hand.Count > 0);
+
+            if (_handArrivalAnimationPending)
+            {
+                _handArrivalAnimationPending = false;
+                // Counted here, before PlayHandArrivalAnimation's own Application.isPlaying gate -
+                // this is what makes "the arrival was recognized and handled exactly once per real
+                // deal, never on an unrelated refresh" observable from EditMode, where the actual
+                // coroutine/visual never runs at all (same isPlaying limitation as every other
+                // decorative animation in this file).
+                HandArrivalAnimationTriggerCountForTests++;
+                PlayHandArrivalAnimation();
+            }
+        }
+
+        /// <summary>BATTLE_ANIMATION_PACKAGE_V1's "Card draw / hand arrival" beat: "180-260 ms
+        /// slide/fade; stagger at most 3 cards, 60 ms apart". Reuses the existing SlideIn
+        /// coroutine (already fading + sliding placed cards into a lane) rather than a new
+        /// tween helper - a "replaceable FX hook" in the sense the spec asks for (no atlas/
+        /// particle dependency at all, purely procedural), so a future approved arrival sprite
+        /// can be layered on without touching the timing/stagger logic here.</summary>
+        private void PlayHandArrivalAnimation()
+        {
+            if (!Application.isPlaying) return;
+
+            int durationMs = CombatPresentationPolicy.ResolveDurationMs(
+                CombatPresentationPolicy.HandArrivalMs, MotionPolicy.ReduceMotion);
+            if (durationMs <= 0) return; // Reduced Motion: cards are already in their final
+                                          // position/alpha from the build above - a static hold,
+                                          // not an animation to cancel mid-flight.
+
+            float duration = durationMs / 1000f;
+            for (int i = 0; i < _handButtons.Count; i++)
+            {
+                int staggerSteps = Mathf.Min(i, CombatPresentationPolicy.HandArrivalMaxStaggeredCards - 1);
+                float delaySeconds = staggerSteps * (CombatPresentationPolicy.HandArrivalStaggerMs / 1000f);
+                _presentationCoroutines.Add(StartCoroutine(
+                    DelayedSlideIn((RectTransform)_handButtons[i].transform, from: new Vector2(0f, -40f),
+                        duration: duration, delaySeconds: delaySeconds)));
+            }
+        }
+
+        private IEnumerator DelayedSlideIn(RectTransform rect, Vector2 from, float duration, float delaySeconds)
+        {
+            if (delaySeconds > 0f) yield return new WaitForSeconds(delaySeconds);
+            yield return SlideIn(rect, from, duration);
         }
 
         private void ShowCardDetail(Card card)
