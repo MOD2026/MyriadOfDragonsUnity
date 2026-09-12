@@ -11,6 +11,7 @@ using MyriadOfDragons.Save;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityEngine.Video;
 
 namespace MyriadOfDragons.UI
 {
@@ -1260,8 +1261,25 @@ namespace MyriadOfDragons.UI
         private Text _cinematicCopyText;
         private readonly List<Image> _cinematicLayerImages = new List<Image>();
 
+        // ST-TUTORIAL-ANIMATION-V1-HANDOFF-003: the Opening beat plays the real supplied MP4
+        // (chapter1_opening_v1, Resources-loaded as a VideoClip) instead of the static layer
+        // composite, whenever MotionPolicy.ReduceMotion is off and the clip is present. Both
+        // fields are null whenever video isn't in use (Reduced Motion, missing clip, or the
+        // Victory cinematic, which never uses video) - see BuildCinematicOverlay.
+        private VideoPlayer _cinematicVideoPlayer;
+        private RenderTexture _cinematicVideoRenderTexture;
+
         /// <summary>Exposed for tests: whether a cinematic is currently blocking input.</summary>
         public bool CinematicActiveForTests => _activeCinematic != null;
+
+        /// <summary>Exposed for tests: whether the active cinematic is presenting the real supplied
+        /// video (as opposed to the static layer composite - Reduced Motion, a missing clip, or the
+        /// Victory cinematic all fall back to the composite).</summary>
+        public bool CinematicIsPresentingVideoForTests => _cinematicVideoPlayer != null;
+
+        /// <summary>Exposed for tests: the VideoClip bound to the active cinematic's VideoPlayer, or
+        /// null when the video path isn't in use.</summary>
+        public VideoClip CinematicVideoClipForTests => _cinematicVideoPlayer != null ? _cinematicVideoPlayer.clip : null;
 
         /// <summary>Exposed for tests: whether the older JSON-driven "how to play" narrative
         /// walkthrough (MaybeShowTutorial/_tutorialOverlay/BuildTutorialOverlay) is currently
@@ -1279,6 +1297,10 @@ namespace MyriadOfDragons.UI
 
         /// <summary>Exposed for tests: which cinematic is active, or null if none is.</summary>
         public CinematicKind? CinematicKindForTests => _activeCinematic?.Kind;
+
+        /// <summary>Exposed for tests: the active cinematic's total duration in seconds, or null
+        /// if none is active.</summary>
+        public float? CinematicDurationSecondsForTests => _activeCinematic?.DurationSeconds;
 
         /// <summary>Exposed for tests: the real Skip handler, without needing to simulate a UI
         /// click - same pattern as every other ...ForTests() method in this file.</summary>
@@ -1322,8 +1344,13 @@ namespace MyriadOfDragons.UI
 
         private const string VictoryCinematicCopy = "Victory. The first threat has been driven back.";
 
+        /// <summary>ST-TUTORIAL-ANIMATION-V1-HANDOFF-003's locked timing table: "Opening playback |
+        /// 0.00-8.04s, 24 fps source". Resources-loaded VideoClip for the real supplied MP4 - see
+        /// BuildCinematicOverlay for the video-vs-static-composite decision.</summary>
+        private const string OpeningVideoResourcePath = "Cinematics/Chapter1/Opening/chapter1_opening_v1";
+
         private void BeginOpeningCinematic() =>
-            BeginCinematic(CinematicKind.Opening, 8f, OpeningCinematicLayers, OpeningCinematicCopy);
+            BeginCinematic(CinematicKind.Opening, 8.04f, OpeningCinematicLayers, OpeningCinematicCopy);
 
         private void BeginVictoryCinematic() =>
             BeginCinematic(CinematicKind.Victory, 5f, VictoryCinematicLayers, VictoryCinematicCopy);
@@ -1337,7 +1364,7 @@ namespace MyriadOfDragons.UI
             }
 
             _activeCinematic = new CinematicSequence(kind, durationSeconds);
-            BuildCinematicOverlay(layerResourcePaths, copy);
+            BuildCinematicOverlay(kind, layerResourcePaths, copy);
             _cinematicCoroutine = StartCoroutine(RunCinematic());
 
             // Modal precedence guard: re-evaluate immediately so the teaching overlay hides
@@ -1361,10 +1388,20 @@ namespace MyriadOfDragons.UI
 
         /// <summary>Simple continuous horizontal drift on the two outermost layers (sky drifts
         /// one way, the nearest foreground layer drifts the other) - a lightweight approximation
-        /// of the motion spec's per-layer parallax for this phase, not its exact percent curves.</summary>
+        /// of the motion spec's per-layer parallax for this phase, not its exact percent curves.
+        ///
+        /// ST-TUTORIAL-ANIMATION-V1-HANDOFF-003: "Reduced Motion applies to the opening and any
+        /// presentation transitions: replace parallax, lightning pulses, and animated emphasis
+        /// with static holds or dissolves at the same state boundaries." MotionPolicy.ReduceMotion
+        /// is checked directly (not the isPlaying-gated ShouldPlayDecorativeMotion, since a static
+        /// EditMode build of the layers - drift simply never having run yet - already needs to
+        /// look identical to a live Reduced Motion hold for the test below) - a no-op here leaves
+        /// every layer at its authored anchored position, which is exactly the static hold the
+        /// spec asks for; copy, transitions, and callbacks are untouched by this gate.</summary>
         private void DriftCinematicLayers()
         {
             if (_activeCinematic == null || _cinematicLayerImages.Count == 0) return;
+            if (MotionPolicy.ReduceMotion) return;
 
             float t = _activeCinematic.ElapsedSeconds;
             Image sky = _cinematicLayerImages[0];
@@ -1410,13 +1447,16 @@ namespace MyriadOfDragons.UI
         /// <summary>
         /// Full-screen blocking overlay: an opaque background (raycastTarget=true, so it
         /// intercepts every tap meant for the board beneath it - "Cinematic blocks battle input
-        /// while active"), the approved layered art stacked back-to-front, the runtime copy, and
-        /// a Skip button. Rebuilt fresh per cinematic rather than reused, since this shows at
-        /// most twice in a tutorial run (opening, victory) - not worth a persistent pooled object.
+        /// while active"), the approved layered art stacked back-to-front (or, for a
+        /// non-Reduced-Motion Opening with its clip present, the real supplied video instead - see
+        /// the video-vs-composite branch below), the runtime copy, and a Skip button. Rebuilt fresh
+        /// per cinematic rather than reused, since this shows at most twice in a tutorial run
+        /// (opening, victory) - not worth a persistent pooled object.
         /// </summary>
-        private void BuildCinematicOverlay(string[] layerResourcePaths, string copy)
+        private void BuildCinematicOverlay(CinematicKind kind, string[] layerResourcePaths, string copy)
         {
             if (_cinematicOverlay != null) DestroyImmediate(_cinematicOverlay);
+            ReleaseCinematicVideoResources();
             _cinematicLayerImages.Clear();
 
             _cinematicOverlay = new GameObject("Chapter1Cinematic", typeof(RectTransform));
@@ -1424,32 +1464,52 @@ namespace MyriadOfDragons.UI
             StretchFull((RectTransform)_cinematicOverlay.transform);
 
             // Opaque fallback so the overlay still fully blocks input and reads as a real
-            // transition even if a layer sprite fails to load - never a blank/see-through gap.
+            // transition even if a layer sprite (or the video, below) fails to load - never a
+            // blank/see-through gap.
             Image background = CreateImage(_cinematicOverlay.transform, Color.black);
             StretchFull(background.rectTransform);
 
             Font font = GetDefaultFont();
 
-            foreach (string path in layerResourcePaths)
+            // ST-TUTORIAL-ANIMATION-V1-HANDOFF-003: Opening plays the real supplied MP4 when
+            // Reduced Motion is off and the clip is present; Victory never uses video (its own
+            // storyboard beat isn't part of this handoff's five locked beats), and a missing clip
+            // or an active Reduced Motion preference both fall back to the existing static layer
+            // composite below - same graceful-degrade shape as a missing layer sprite already
+            // has, just one level up. MotionPolicy.ReduceMotion checked directly (not the
+            // isPlaying-gated ShouldPlayDecorativeMotion): building the VideoPlayer/RawImage is
+            // harmless and inspectable outside Play Mode (EditMode can construct and configure a
+            // VideoPlayer, it just never decodes a frame), which is what lets a focused EditMode
+            // test assert the video path is actually chosen.
+            bool wantsVideo = kind == CinematicKind.Opening && !MotionPolicy.ReduceMotion;
+            VideoClip openingClip = wantsVideo ? Resources.Load<VideoClip>(OpeningVideoResourcePath) : null;
+            if (openingClip != null)
             {
-                Sprite sprite = Resources.Load<Sprite>(path);
-                if (sprite == null) continue; // missing/optional layer - play with what's approved and present.
+                BuildCinematicVideoLayer(openingClip);
+            }
+            else
+            {
+                foreach (string path in layerResourcePaths)
+                {
+                    Sprite sprite = Resources.Load<Sprite>(path);
+                    if (sprite == null) continue; // missing/optional layer - play with what's approved and present.
 
-                var layerGo = new GameObject(path.Substring(path.LastIndexOf('/') + 1), typeof(RectTransform));
-                layerGo.transform.SetParent(_cinematicOverlay.transform, false);
-                var layerImage = layerGo.AddComponent<Image>();
-                layerImage.sprite = sprite;
-                layerImage.preserveAspect = false;
-                layerImage.raycastTarget = false;
-                // Slight overscan so the small drift in DriftCinematicLayers never exposes an
-                // edge - "Layer source files require overscan equal to maximum movement plus 1%
-                // safety on every moving edge" (motion spec).
-                var layerRect = (RectTransform)layerGo.transform;
-                layerRect.anchorMin = new Vector2(-0.03f, -0.03f);
-                layerRect.anchorMax = new Vector2(1.03f, 1.03f);
-                layerRect.offsetMin = Vector2.zero;
-                layerRect.offsetMax = Vector2.zero;
-                _cinematicLayerImages.Add(layerImage);
+                    var layerGo = new GameObject(path.Substring(path.LastIndexOf('/') + 1), typeof(RectTransform));
+                    layerGo.transform.SetParent(_cinematicOverlay.transform, false);
+                    var layerImage = layerGo.AddComponent<Image>();
+                    layerImage.sprite = sprite;
+                    layerImage.preserveAspect = false;
+                    layerImage.raycastTarget = false;
+                    // Slight overscan so the small drift in DriftCinematicLayers never exposes an
+                    // edge - "Layer source files require overscan equal to maximum movement plus 1%
+                    // safety on every moving edge" (motion spec).
+                    var layerRect = (RectTransform)layerGo.transform;
+                    layerRect.anchorMin = new Vector2(-0.03f, -0.03f);
+                    layerRect.anchorMax = new Vector2(1.03f, 1.03f);
+                    layerRect.offsetMin = Vector2.zero;
+                    layerRect.offsetMax = Vector2.zero;
+                    _cinematicLayerImages.Add(layerImage);
+                }
             }
 
             // Matte bars - top and bottom, static for this phase (the timing sheet's animated
@@ -1498,6 +1558,61 @@ namespace MyriadOfDragons.UI
             skipTutorialLabel.fontStyle = FontStyle.Bold;
         }
 
+        /// <summary>The real supplied MP4, rendered to a full-frame RawImage via a VideoPlayer -
+        /// only reachable from BuildCinematicOverlay's own graceful-degrade branch (Reduced Motion
+        /// off, Opening kind, clip present). No baked runtime copy or UI in the clip itself - the
+        /// existing copy Text/Skip button are siblings added after this by the caller, unchanged.
+        /// Audio is deliberately silenced here (audioOutputMode = None): the handoff's existing
+        /// audio map already owns the Questing cue for this beat, and playing the clip's own baked
+        /// track alongside it would double up, not replace it.</summary>
+        private void BuildCinematicVideoLayer(VideoClip clip)
+        {
+            var videoGo = new GameObject("OpeningVideo", typeof(RectTransform));
+            videoGo.transform.SetParent(_cinematicOverlay.transform, false);
+            StretchFull((RectTransform)videoGo.transform);
+
+            var rawImage = videoGo.AddComponent<RawImage>();
+            rawImage.raycastTarget = false;
+
+            _cinematicVideoRenderTexture = new RenderTexture(
+                Mathf.Max(1, (int)clip.width), Mathf.Max(1, (int)clip.height), 0);
+            rawImage.texture = _cinematicVideoRenderTexture;
+
+            _cinematicVideoPlayer = _cinematicOverlay.AddComponent<VideoPlayer>();
+            _cinematicVideoPlayer.source = VideoSource.VideoClip;
+            _cinematicVideoPlayer.clip = clip;
+            _cinematicVideoPlayer.renderMode = VideoRenderMode.RenderTexture;
+            _cinematicVideoPlayer.targetTexture = _cinematicVideoRenderTexture;
+            _cinematicVideoPlayer.isLooping = false;
+            _cinematicVideoPlayer.playOnAwake = false;
+            _cinematicVideoPlayer.audioOutputMode = VideoAudioOutputMode.None;
+
+            // CinematicSequence (Advance/Skip, driven by RunCinematic) stays the one authoritative
+            // timer/completion source, exactly as it already is for the static-composite path and
+            // for Victory - Play() here only starts the decode/render, it is never itself queried
+            // for completion. EditMode never reaches this call (Application.isPlaying is always
+            // false there), which is what keeps this constructible-and-inspectable-but-inert in
+            // the EditMode suite, same as every other Play-Mode-only visual in this file.
+            if (Application.isPlaying) _cinematicVideoPlayer.Play();
+        }
+
+        /// <summary>Releases the RenderTexture backing an active video cinematic, if any - a
+        /// RenderTexture is its own Unity Object, not a child of _cinematicOverlay, so
+        /// DestroyImmediate(_cinematicOverlay) alone would leak it. Called before rebuilding
+        /// (BuildCinematicOverlay's own top) and when tearing down (HideCinematicOverlay), so two
+        /// cinematics in a row (or a cinematic that never got hidden) can never leak more than
+        /// one.</summary>
+        private void ReleaseCinematicVideoResources()
+        {
+            _cinematicVideoPlayer = null;
+            if (_cinematicVideoRenderTexture != null)
+            {
+                _cinematicVideoRenderTexture.Release();
+                DestroyImmediate(_cinematicVideoRenderTexture);
+                _cinematicVideoRenderTexture = null;
+            }
+        }
+
         private void HideCinematicOverlay()
         {
             if (_cinematicOverlay == null) return;
@@ -1505,6 +1620,7 @@ namespace MyriadOfDragons.UI
             _cinematicOverlay = null;
             _cinematicCopyText = null;
             _cinematicLayerImages.Clear();
+            ReleaseCinematicVideoResources();
         }
 
         // ---------- Chapter 1 guided tutorial step machine ----------
