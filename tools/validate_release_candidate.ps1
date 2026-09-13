@@ -18,6 +18,20 @@
 #     -BuildLog "MoD-lk-line-019\lk_rc19_build.log" `
 #     -TestResultsXml "MoD-lk-line-019\lk_rc19_results.xml"
 #
+# Usage (GATE MODE - validate a candidate BEFORE capture exists, omit -CaptureDir):
+#   powershell -File tools/validate_release_candidate.ps1 `
+#     -CandidateRoot "C:\Users\zihan\Downloads\MoD-lk-line-019" `
+#     -ExpectedHead "d4469a9ce70f5e920753f52e528ffccbadde8fef" `
+#     -ExpectedRuntimeHash "aeca62d094b2cc4263396f3fe2ae2605fbdfc8752e956ddb647176235d5b483a" `
+#     -ExpectedTag "lk/FROZEN-capture-candidate-rc19" `
+#     -BuildLog "MoD-lk-line-019\lk_rc19_build.log" `
+#     -TestResultsXml "MoD-lk-line-019\lk_rc19_results.xml"
+#   This is what tools/capture_native_window.ps1 calls automatically before every capture - checks
+#   exact HEAD, tracked dirt, the frozen tag, Runtime.dll hash, and clean build/test evidence, but
+#   skips every capture-set check (there's nothing to check yet). -BuildLog and -TestResultsXml are
+#   REQUIRED in gate mode (exit 2 if omitted) - a gate that didn't require them could pass a
+#   candidate that never actually compiled or tested cleanly.
+#
 # Usage (run the tool's own automated tests, no candidate/build/Unity needed):
 #   powershell -File tools/validate_release_candidate.ps1 -SelfTest
 #
@@ -44,8 +58,14 @@ param(
     [Parameter(ParameterSetName = "Validate")]
     [string]$ExpectedTag = "",
 
-    [Parameter(ParameterSetName = "Validate", Mandatory = $true)]
-    [string]$CaptureDir,
+    # Optional in "gate" usage (PRODUCTIVE CODING TASK - wire into the capture workflow): when
+    # omitted, captures don't exist yet - this validates only what's knowable BEFORE capture
+    # (exact HEAD, tracked dirt, frozen tag, Runtime.dll hash, build log, test results) so
+    # tools/capture_native_window.ps1 can refuse to run against an unvalidated candidate. Supply
+    # it for the original post-hoc full validation (adds provenance/dimension/duplicate/
+    # required-screen checks against real capture output).
+    [Parameter(ParameterSetName = "Validate")]
+    [string]$CaptureDir = "",
 
     [Parameter(ParameterSetName = "Validate")]
     [string[]]$RequiredScreens = @(),
@@ -137,10 +157,21 @@ function Test-FrozenTag {
         [Parameter(Mandatory)][string]$Tag,
         [Parameter(Mandatory)][string]$ExpectedHead
     )
-    $resolved = (& git -C $RepoPath rev-parse "$Tag^{commit}" 2>$null).Trim()
-    if ([string]::IsNullOrEmpty($resolved)) {
+    # A nonexistent tag is an entirely normal, expected input here (that IS the "missing frozen
+    # tag" case this function exists to report) - git exits non-zero and writes to stderr for it.
+    # Under this script's own $ErrorActionPreference = "Stop", a native command's non-zero exit
+    # can still throw even with its stderr stream redirected to $null (a real, reproducible PS 5.1
+    # quirk - confirmed while adding this function's own end-to-end self-test), so the exit code
+    # must be checked explicitly rather than relying on redirection alone to keep this non-fatal.
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    $resolved = (& git -C $RepoPath rev-parse "$Tag^{commit}" 2>$null)
+    $gitExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap
+    if ($gitExitCode -ne 0 -or [string]::IsNullOrEmpty($resolved)) {
         return [pscustomobject]@{ TagExists = $false; ResolvesToExpected = $false; Resolved = "" }
     }
+    $resolved = $resolved.Trim()
     return [pscustomobject]@{
         TagExists          = $true
         ResolvesToExpected = ($resolved.ToLowerInvariant() -eq $ExpectedHead.ToLowerInvariant())
@@ -609,6 +640,98 @@ if ($SelfTest) {
         if ($r.ResolvesToExpected) { throw "should not have matched" }
     }
 
+    # 9. GATE MODE end-to-end (PRODUCTIVE CODING TASK): actually invokes this script as a real
+    # subprocess (-File $PSCommandPath), exactly the way tools/capture_native_window.ps1 calls it,
+    # against a fresh dedicated fixture repo - proves the gate wiring itself (not just the
+    # individual guard functions above) refuses on every real acceptance failure and accepts a
+    # genuinely valid candidate, using real exit codes.
+    $gateRepoDir = Join-Path $tmp "gate_repo_fixture"
+    New-Item -ItemType Directory -Force -Path $gateRepoDir | Out-Null
+    & git -C $gateRepoDir init -q 2>$null
+    & git -C $gateRepoDir config user.email "selftest@example.com" 2>$null
+    & git -C $gateRepoDir config user.name "selftest" 2>$null
+    $dllRelPath = "Builds\Windows64\MyriadOfDragons_Data\Managed\MyriadOfDragons.Runtime.dll"
+    $dllFullPath = Join-Path $gateRepoDir $dllRelPath
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dllFullPath) | Out-Null
+    Set-Content -Path $dllFullPath -Value "fake runtime dll contents" -Encoding utf8
+    Set-Content -Path (Join-Path $gateRepoDir "a.txt") -Value "a" -Encoding utf8
+    & git -C $gateRepoDir add -A 2>$null
+    & git -C $gateRepoDir commit -q -m "gate fixture commit" 2>$null
+    $gateHead = (& git -C $gateRepoDir rev-parse HEAD).Trim()
+    & git -C $gateRepoDir tag -a "gate-fixture-frozen" -m "freeze" 2>$null
+    $gateDllHash = Get-Sha256Hex -Path $dllFullPath
+
+    $gateCleanLog = Join-Path $tmp "gate_clean_build.log"
+    Set-Content -Path $gateCleanLog -Value @("Compiling...", "Build succeeded.") -Encoding utf8
+    $gateDirtyLog = Join-Path $tmp "gate_dirty_build.log"
+    Set-Content -Path $gateDirtyLog -Value @("Assets\Foo.cs(1,1): error CS0103: bad", "done") -Encoding utf8
+    $gateGoodXml = Join-Path $tmp "gate_good_results.xml"
+    Set-Content -Path $gateGoodXml -Value '<?xml version="1.0"?><test-run testcasecount="5" passed="5" failed="0"></test-run>' -Encoding utf8
+    $gateBadXml = Join-Path $tmp "gate_bad_results.xml"
+    Set-Content -Path $gateBadXml -Value '<?xml version="1.0"?><test-run testcasecount="5" passed="4" failed="1"></test-run>' -Encoding utf8
+
+    function Invoke-GateScript {
+        param(
+            [string]$Head = $gateHead,
+            [string]$RuntimeHash = $gateDllHash,
+            [string]$Tag = "gate-fixture-frozen",
+            [string]$BuildLog = $gateCleanLog,
+            [string]$TestXml = $gateGoodXml
+        )
+        # Same non-zero-exit-under-Stop-preference quirk as Test-FrozenTag above - a child
+        # PowerShell process that exits non-zero (every REFUSES case here does, by design) can
+        # throw here too unless $ErrorActionPreference is relaxed for the call itself.
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath `
+            -CandidateRoot $gateRepoDir -ExpectedHead $Head -ExpectedRuntimeHash $RuntimeHash `
+            -ExpectedTag $Tag -BuildLog $BuildLog -TestResultsXml $TestXml 1>$null 2>$null
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        return $code
+    }
+
+    Check "Gate mode end-to-end: ACCEPTS a fully valid candidate (exit 0)" {
+        $code = Invoke-GateScript
+        if ($code -ne 0) { throw "expected exit 0, got $code" }
+    }
+    Check "Gate mode end-to-end: REFUSES wrong HEAD (exit 1)" {
+        $code = Invoke-GateScript -Head ("9" * 40)
+        if ($code -ne 1) { throw "expected exit 1, got $code" }
+    }
+    Check "Gate mode end-to-end: REFUSES tracked dirt (exit 1)" {
+        Set-Content -Path (Join-Path $gateRepoDir "a.txt") -Value "changed" -Encoding utf8
+        $code = Invoke-GateScript
+        & git -C $gateRepoDir checkout -q -- a.txt
+        if ($code -ne 1) { throw "expected exit 1, got $code" }
+    }
+    Check "Gate mode end-to-end: REFUSES a wrong/missing frozen tag (exit 1)" {
+        $code = Invoke-GateScript -Tag "no-such-tag"
+        if ($code -ne 1) { throw "expected exit 1, got $code" }
+    }
+    Check "Gate mode end-to-end: REFUSES wrong Runtime.dll hash (exit 1)" {
+        $code = Invoke-GateScript -RuntimeHash ("0" * 64)
+        if ($code -ne 1) { throw "expected exit 1, got $code" }
+    }
+    Check "Gate mode end-to-end: REFUSES a dirty build log (error CS, exit 1)" {
+        $code = Invoke-GateScript -BuildLog $gateDirtyLog
+        if ($code -ne 1) { throw "expected exit 1, got $code" }
+    }
+    Check "Gate mode end-to-end: REFUSES failing test results (exit 1)" {
+        $code = Invoke-GateScript -TestXml $gateBadXml
+        if ($code -ne 1) { throw "expected exit 1, got $code" }
+    }
+    Check "Gate mode end-to-end: REFUSES (tool error, exit 2) when BuildLog/TestResultsXml are omitted" {
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath `
+            -CandidateRoot $gateRepoDir -ExpectedHead $gateHead -ExpectedRuntimeHash $gateDllHash `
+            -ExpectedTag "gate-fixture-frozen" 1>$null 2>$null
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        if ($code -ne 2) { throw "expected exit 2, got $code" }
+    }
+
     Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host ""
     if ($fails -eq 0) { Write-Host "SELFTEST: all guard checks passed."; exit 0 }
@@ -623,11 +746,26 @@ $allFindings = New-Object System.Collections.Generic.List[string]
 $passNotes = New-Object System.Collections.Generic.List[string]
 
 if (-not (Test-Path -LiteralPath $CandidateRoot)) {
-    Write-Error "CandidateRoot does not exist: $CandidateRoot"
+    # -ErrorAction Continue is required here: this script sets $ErrorActionPreference = "Stop" at
+    # the top, so a bare Write-Error would itself become a terminating error and the `exit 2` on
+    # the next line would never run - PowerShell's own exit code for an unhandled terminating
+    # error under `-File` is 1, silently swallowing the intended "tool could not run" (2) signal.
+    # Confirmed as a real, reproducible bug while adding this function's own end-to-end self-test
+    # (the omitted-evidence case below returned exit 1, not 2, until this was fixed).
+    Write-Error "CandidateRoot does not exist: $CandidateRoot" -ErrorAction Continue
     exit 2
 }
-if (-not (Test-Path -LiteralPath $CaptureDir)) {
-    Write-Error "CaptureDir does not exist: $CaptureDir"
+$gateOnly = ($CaptureDir -eq "")
+if (-not $gateOnly -and -not (Test-Path -LiteralPath $CaptureDir)) {
+    Write-Error "CaptureDir does not exist: $CaptureDir" -ErrorAction Continue
+    exit 2
+}
+# Gate mode (no CaptureDir) exists specifically to run BEFORE capture, so the two pieces of
+# evidence that can only come from BEFORE this run (a clean compile and a passing test suite)
+# must be supplied and real - without this, gate mode would rubber-stamp a candidate that never
+# actually built or tested cleanly, defeating "required test/compiler evidence exists".
+if ($gateOnly -and ($BuildLog -eq "" -or $TestResultsXml -eq "")) {
+    Write-Error "Gate mode (no -CaptureDir) requires both -BuildLog and -TestResultsXml - required compiler/test evidence must exist before a candidate can be gated." -ErrorAction Continue
     exit 2
 }
 
@@ -670,34 +808,41 @@ else {
     else { $passNotes.Add("Runtime.dll hash matches: $ExpectedRuntimeHash") }
 }
 
-# 4-7. Captures: provenance, dimensions, duplicate pixels, required screens.
-$captureSet = Get-CaptureSet -CaptureDir $CaptureDir
-foreach ($f in $captureSet.Findings) { $allFindings.Add($f) }
+# 4-7. Captures: provenance, dimensions, duplicate pixels, required screens. Skipped entirely in
+# gate mode (no CaptureDir) - there is nothing to check yet, that's the point of gating BEFORE
+# capture runs.
+if (-not $gateOnly) {
+    $captureSet = Get-CaptureSet -CaptureDir $CaptureDir
+    foreach ($f in $captureSet.Findings) { $allFindings.Add($f) }
 
-$hashesByName = @{}
-foreach ($capture in $captureSet.Captures) {
-    $result = Test-CaptureProvenance -Capture $capture -ExpectedHead $ExpectedHead -ExpectedRuntimeHash $ExpectedRuntimeHash
-    if ($result.Findings.Count -eq 0) { $passNotes.Add("Capture OK: $($result.Name)") }
-    foreach ($f in $result.Findings) { $allFindings.Add($f) }
-    $hashesByName[$result.Name] = $result.ActualPngHash
+    $hashesByName = @{}
+    foreach ($capture in $captureSet.Captures) {
+        $result = Test-CaptureProvenance -Capture $capture -ExpectedHead $ExpectedHead -ExpectedRuntimeHash $ExpectedRuntimeHash
+        if ($result.Findings.Count -eq 0) { $passNotes.Add("Capture OK: $($result.Name)") }
+        foreach ($f in $result.Findings) { $allFindings.Add($f) }
+        $hashesByName[$result.Name] = $result.ActualPngHash
 
-    if ($capture.Sidecar.PSObject.Properties.Name -contains 'note') {
-        foreach ($f in (Find-ForbiddenTextMarkers -Text ([string]$capture.Sidecar.note) -SourceName "$($result.Name) sidecar note")) {
-            $allFindings.Add($f)
+        if ($capture.Sidecar.PSObject.Properties.Name -contains 'note') {
+            foreach ($f in (Find-ForbiddenTextMarkers -Text ([string]$capture.Sidecar.note) -SourceName "$($result.Name) sidecar note")) {
+                $allFindings.Add($f)
+            }
         }
     }
-}
 
-$knownStale = @()
-if ($KnownStaleHashesFile -ne "" -and (Test-Path -LiteralPath $KnownStaleHashesFile)) {
-    $knownStale = @(Get-Content -LiteralPath $KnownStaleHashesFile | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ -ne "" })
-}
-foreach ($f in (Find-DuplicatePixelHashes -HashesByName $hashesByName -KnownStaleHashes $knownStale)) { $allFindings.Add($f) }
+    $knownStale = @()
+    if ($KnownStaleHashesFile -ne "" -and (Test-Path -LiteralPath $KnownStaleHashesFile)) {
+        $knownStale = @(Get-Content -LiteralPath $KnownStaleHashesFile | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ -ne "" })
+    }
+    foreach ($f in (Find-DuplicatePixelHashes -HashesByName $hashesByName -KnownStaleHashes $knownStale)) { $allFindings.Add($f) }
 
-if ($RequiredScreens.Count -gt 0) {
-    $missingScreens = Find-MissingRequiredScreens -RequiredScreens $RequiredScreens -Captures $captureSet.Captures
-    foreach ($m in $missingScreens) { $allFindings.Add("MISSING REQUIRED SCREEN: $m") }
-    if ($missingScreens.Count -eq 0) { $passNotes.Add("All $($RequiredScreens.Count) required screens present") }
+    if ($RequiredScreens.Count -gt 0) {
+        $missingScreens = Find-MissingRequiredScreens -RequiredScreens $RequiredScreens -Captures $captureSet.Captures
+        foreach ($m in $missingScreens) { $allFindings.Add("MISSING REQUIRED SCREEN: $m") }
+        if ($missingScreens.Count -eq 0) { $passNotes.Add("All $($RequiredScreens.Count) required screens present") }
+    }
+}
+else {
+    $passNotes.Add("GATE MODE: capture-set checks (provenance/dimensions/duplicates/required screens) skipped - no CaptureDir yet")
 }
 
 # 8. Build log: compiler errors + forbidden text.
@@ -717,9 +862,9 @@ if ($TestResultsXml -ne "") {
     }
 }
 
-Write-Output "release-candidate acceptance validator"
+Write-Output "release-candidate acceptance validator$(if ($gateOnly) { ' (GATE MODE - pre-capture)' })"
 Write-Output "CandidateRoot: $CandidateRoot"
-Write-Output "CaptureDir:    $CaptureDir"
+Write-Output "CaptureDir:    $(if ($gateOnly) { '(none - gate mode)' } else { $CaptureDir })"
 Write-Output ""
 Write-Output "PASS notes ($($passNotes.Count)):"
 foreach ($p in $passNotes) { Write-Output "  PASS $p" }
