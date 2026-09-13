@@ -192,7 +192,7 @@ function ConvertTo-DashboardSummary {
         }
         resolutionIssues     = $resolutionIssues
         forbiddenTextFindings = @($Report.forbiddenRuntimeText)
-        requiredOwnerActions = @(Get-RequiredOwnerActions -Report $Report)
+        requiredOwnerActions = Get-RequiredOwnerActions -Report $Report
     }
 }
 
@@ -467,6 +467,24 @@ if ($SelfTest) {
         }
         $text = Format-DashboardSummaryText -Dashboard $dash
         if ($text -notmatch "GATE") { throw "rendered text does not flag gate mode" }
+    }
+
+    # 4b. Multiple simultaneous findings: each owner action must render as its OWN bullet line,
+    #     not get collapsed into one line. This is a regression test for a real bug found while
+    #     running this tool against the real rc31 acceptance report (2026-09-13): a redundant
+    #     @() wrapper around Get-RequiredOwnerActions' already-safe ",$list" return re-nested the
+    #     list as a single array element, so every action printed on one joined bullet line.
+    Check "Owner actions: multiple simultaneous findings render as separate bullet lines" {
+        $bad = New-FixtureReportJson -Path (Join-Path $tmp "multi.json") -TagSupplied $false -TestTotal 20 -TestPassed 18 -TestFailed 2 -ForbiddenText @("FORBIDDEN MARKER (placeholder text) found in rc_Home")
+        $dash = ConvertTo-DashboardSummary -Report (Read-AcceptanceReportJson -Path $bad)
+        if ($dash.requiredOwnerActions.Count -ne 3) {
+            throw "expected exactly 3 owner actions, got $($dash.requiredOwnerActions.Count): $($dash.requiredOwnerActions -join ' <> ')"
+        }
+        $text = Format-DashboardSummaryText -Dashboard $dash
+        $bulletLines = @(($text -split "`n") | Where-Object { $_ -like "- LK: no frozen*" -or $_ -like "- Owner/dev: 2 of 20*" -or $_ -like "- Dev/ST: forbidden*" })
+        if ($bulletLines.Count -ne 3) {
+            throw "expected 3 distinct owner-action bullet lines in the rendered text, got $($bulletLines.Count):`n$text"
+        }
     }
 
     # 5. Full CLI path: real end-to-end chain from tools/generate_candidate_acceptance_report.ps1's
