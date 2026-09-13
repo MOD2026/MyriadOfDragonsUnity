@@ -3939,6 +3939,15 @@ namespace MyriadOfDragons.UI
             Button selectedCardExpandButton = placementBox.gameObject.AddComponent<Button>();
             selectedCardExpandButton.transition = Selectable.Transition.None;
             selectedCardExpandButton.onClick.AddListener(ToggleSelectedCardExpansion);
+            // CreateAnchoredPanel's background Image defaults raycastTarget=false (a deliberate
+            // shared fix so decorative panel backgrounds never silently steal a tap meant for
+            // something behind them - see that helper's own comment). SelectedCardBox is the one
+            // real exception: per this method's header comment, the box itself IS the tap target
+            // for the collapsible-overlay affordance, so its Image must opt back in or the Button
+            // above renders but is never actually tappable (real regression found by
+            // SelectedCardBoxHitAreaCoverageTests/UiValidationRunTests, not assumed).
+            Image selectedCardBoxImage = placementBox.GetComponent<Image>();
+            if (selectedCardBoxImage != null) selectedCardBoxImage.raycastTarget = true;
             _selectedCardText = CreateText(placementBox, "", 22, GoldTextColor, font);
             _selectedCardText.raycastTarget = false;
             _selectedCardText.alignment = TextAnchor.UpperCenter;
