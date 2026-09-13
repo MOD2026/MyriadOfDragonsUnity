@@ -76,6 +76,13 @@ param(
     # the-pipeline / stage-1-succeeds-runs-stage-3 wiring without needing a real Unity window.
     [Parameter(ParameterSetName = "Run")][string]$CaptureScript = "",
     [Parameter(ParameterSetName = "Run")][string]$ReportScript = "",
+    # PRODUCTIVE CODING TASK - script-version pinning. Resolved next to THIS script by default -
+    # deliberately NOT derived from wherever -CaptureScript happens to point, so pointing
+    # -CaptureScript at a stale/frozen checkout's copy of capture_native_window.ps1 cannot also
+    # silently drag in that checkout's own stale sibling validator. Forwarded to the capture stage
+    # as its own -ValidatorScript, and independently verified here too (defense in depth - this
+    # orchestrator does not just trust that the capture stage will catch a stale validator).
+    [Parameter(ParameterSetName = "Run")][string]$ValidatorScript = "",
 
     [Parameter(ParameterSetName = "SelfTest", Mandatory)][switch]$SelfTest
 )
@@ -85,6 +92,34 @@ if ($CaptureScript -eq "") {
 }
 if ($ReportScript -eq "") {
     $ReportScript = Join-Path (Split-Path -Parent $PSCommandPath) "generate_candidate_acceptance_report.ps1"
+}
+if ($ValidatorScript -eq "") {
+    $ValidatorScript = Join-Path (Split-Path -Parent $PSCommandPath) "validate_release_candidate.ps1"
+}
+
+# Same version-pin content check as tools/capture_native_window.ps1's own Test-ValidatorImplementation
+# (duplicated deliberately, not dot-sourced - each standalone tool in this set verifies its own
+# inputs rather than trusting a sibling not to have been swapped out from under it). Both markers
+# together confirm the ACTUAL fix is present, not just a function with a similar name.
+function Test-ValidatorImplementation {
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return [pscustomobject]@{ Ok = $false; ResolvedPath = $Path; Sha256 = ""; Reason = "Validator script not found: $Path" }
+    }
+    $resolvedPath = (Resolve-Path -LiteralPath $Path).Path
+    $sha256 = (Get-FileHash -LiteralPath $resolvedPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $content = Get-Content -LiteralPath $resolvedPath -Raw
+    $hasHelperFunction = $content -match 'function\s+Invoke-GitOnCandidate'
+    $hasSafeDirectoryArg = $content -match '\bsafe\.directory=\$RepoPath\b'
+    if (-not $hasHelperFunction -or -not $hasSafeDirectoryArg) {
+        return [pscustomobject]@{
+            Ok = $false
+            ResolvedPath = $resolvedPath
+            Sha256 = $sha256
+            Reason = "Validator at '$resolvedPath' (sha256 $sha256) does not contain the process-local git safe.directory fix (commit 77538a6d, Invoke-GitOnCandidate) - this looks like a stale validator copy (e.g. from a frozen checkout predating that fix). Refusing to run the pipeline against it."
+        }
+    }
+    return [pscustomobject]@{ Ok = $true; ResolvedPath = $resolvedPath; Sha256 = $sha256; Reason = "" }
 }
 
 # Runs one pipeline stage as a real subprocess and returns its exit code + combined output, never
@@ -112,6 +147,7 @@ function Invoke-ReleaseCapture {
         [Parameter(Mandatory)][string]$TestResultsXml,
         [Parameter(Mandatory)][string]$CaptureScript,
         [Parameter(Mandatory)][string]$ReportScript,
+        [Parameter(Mandatory)][string]$ValidatorScript,
         [string]$RuntimeDllRelativePath = "Builds\Windows64\MyriadOfDragons_Data\Managed\MyriadOfDragons.Runtime.dll",
         [string]$CaptureOutDir = "handover/native_capture_out",
         [int]$WaitSeconds = 8,
@@ -123,13 +159,34 @@ function Invoke-ReleaseCapture {
         [string]$ReportOutMarkdown = ""
     )
 
-    # --- Stage 1: gate (inside capture_native_window.ps1) + DPI-aware native capture. ---
+    # --- Stage 0: independent version-pin check, before the pipeline touches anything. Stops
+    # here (never reaching stage 1, so the player is never even considered) if the validator this
+    # orchestrator was told to use is missing or stale. ---
+    $validatorImpl = Test-ValidatorImplementation -Path $ValidatorScript
+    if (-not $validatorImpl.Ok) {
+        return [pscustomobject]@{
+            ExitCode      = 2
+            Stage         = "validator-pin"
+            CaptureOutput = @(
+                "REFUSED before the pipeline started: the validator this run would have used failed the version-pin check.",
+                "  Validator script:  $($validatorImpl.ResolvedPath)"
+                "  Validator SHA-256: $($validatorImpl.Sha256)"
+                "  Reason: $($validatorImpl.Reason)"
+            )
+            ReportRan     = $false
+            ReportOutput  = @()
+        }
+    }
+
+    # --- Stage 1: gate (inside capture_native_window.ps1) + DPI-aware native capture. -ValidatorScript
+    # is forwarded explicitly so the capture stage uses the SAME validator this orchestrator just
+    # verified, never whatever happens to be sitting next to -CaptureScript. ---
     $captureArgs = @(
         "-File", $CaptureScript,
         "-ExePath", $ExePath, "-Label", $Label,
         "-CandidateRoot", $CandidateRoot, "-SourceHead", $SourceHead, "-RuntimeHash", $RuntimeHash,
         "-ExpectedTag", $ExpectedTag, "-BuildLog", $BuildLog, "-TestResultsXml", $TestResultsXml,
-        "-RuntimeDllRelativePath", $RuntimeDllRelativePath,
+        "-RuntimeDllRelativePath", $RuntimeDllRelativePath, "-ValidatorScript", $validatorImpl.ResolvedPath,
         "-OutDir", $CaptureOutDir, "-WaitSeconds", $WaitSeconds
     )
     if ($LeaveRunning) { $captureArgs += "-LeaveRunning" }
@@ -137,6 +194,10 @@ function Invoke-ReleaseCapture {
 
     $captureStage = Invoke-PipelineStage -ArgumentList $captureArgs
     if ($captureStage.ExitCode -ne 0) {
+        # PRODUCTIVE CODING TASK - observability. Always relay the capture stage's FULL output
+        # (which, as of capture_native_window.ps1's own fix, already includes the resolved
+        # validator path/SHA-256/exit code/every finding) on every non-zero exit - never a
+        # summarized or truncated version.
         return [pscustomobject]@{
             ExitCode      = $captureStage.ExitCode
             Stage         = "capture"
@@ -194,6 +255,7 @@ if ($SelfTest) {
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null
     $realCaptureScript = Join-Path (Split-Path -Parent $PSCommandPath) "capture_native_window.ps1"
     $realReportScript = Join-Path (Split-Path -Parent $PSCommandPath) "generate_candidate_acceptance_report.ps1"
+    $realValidatorScript = Join-Path (Split-Path -Parent $PSCommandPath) "validate_release_candidate.ps1"
 
     $repoDir = Join-Path $tmp "candidate_repo"
     New-Item -ItemType Directory -Force -Path $repoDir | Out-Null
@@ -226,7 +288,7 @@ if ($SelfTest) {
         $r = Invoke-ReleaseCapture -ExePath (Join-Path $tmp "does_not_exist.exe") -Label "ShouldNeverCapture" `
             -CandidateRoot $repoDir -SourceHead $realHead -RuntimeHash ("0" * 64) `
             -ExpectedTag "run-release-fixture-frozen" -BuildLog $cleanLog -TestResultsXml $goodXml `
-            -CaptureScript $realCaptureScript -ReportScript $realReportScript `
+            -CaptureScript $realCaptureScript -ReportScript $realReportScript -ValidatorScript $realValidatorScript `
             -CaptureOutDir $captureOut -ReportOutJson $reportJson -ReportOutMarkdown $reportMd
         if ($r.ExitCode -eq 0) { throw "expected non-zero exit, got 0" }
         if ($r.Stage -ne "capture") { throw "expected the pipeline to stop at the capture stage, stopped at $($r.Stage)" }
@@ -243,9 +305,47 @@ if ($SelfTest) {
         $r = Invoke-ReleaseCapture -ExePath (Join-Path $tmp "does_not_exist.exe") -Label "ShouldNeverCapture" `
             -CandidateRoot $repoDir -SourceHead $realHead -RuntimeHash $realDllHash `
             -ExpectedTag "no-such-tag" -BuildLog $cleanLog -TestResultsXml $goodXml `
-            -CaptureScript $realCaptureScript -ReportScript $realReportScript -CaptureOutDir $captureOut
+            -CaptureScript $realCaptureScript -ReportScript $realReportScript -ValidatorScript $realValidatorScript -CaptureOutDir $captureOut
         if ($r.ExitCode -eq 0) { throw "expected non-zero exit, got 0" }
         if ($r.ReportRan) { throw "report stage must not run when the gate refuses" }
+    }
+
+    # 1b. PRODUCTIVE CODING TASK - script-version pinning. A "stale validator" fixture: a real
+    # .ps1 that would run (correct param shape) but contains none of commit 77538a6d's fix
+    # markers - simulating a frozen-rc31-checkout's stale sibling validator. Exits 99 if it were
+    # ever actually invoked, so a bypassed version-pin check would fail on the WRONG exit code
+    # (99, not 2) rather than passing by accident.
+    $staleValidator = Join-Path $tmp "stale_validate_release_candidate.ps1"
+    @'
+param(
+    [string]$CandidateRoot, [string]$ExpectedHead, [string]$ExpectedRuntimeHash,
+    [string]$RuntimeDllRelativePath, [string]$ExpectedTag, [string]$CaptureDir, [string]$BuildLog, [string]$TestResultsXml
+)
+Write-Host "STALE VALIDATOR RAN - THIS SHOULD NEVER HAPPEN IN A SELF-TEST"
+exit 99
+'@ | Set-Content -Path $staleValidator -Encoding utf8
+    $staleValidatorHash = (Get-FileHash -LiteralPath $staleValidator -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    Check "REFUSES a stale validator before stage 1 (capture_native_window.ps1 is never even invoked), exit 2" {
+        $captureOut = Join-Path $tmp "out_stale_validator"
+        $r = Invoke-ReleaseCapture -ExePath (Join-Path $tmp "does_not_exist.exe") -Label "ShouldNeverCapture" `
+            -CandidateRoot $repoDir -SourceHead $realHead -RuntimeHash $realDllHash `
+            -ExpectedTag "run-release-fixture-frozen" -BuildLog $cleanLog -TestResultsXml $goodXml `
+            -CaptureScript $realCaptureScript -ReportScript $realReportScript -ValidatorScript $staleValidator `
+            -CaptureOutDir $captureOut
+        if ($r.ExitCode -ne 2) { throw "expected exit 2, got $($r.ExitCode)" }
+        if ($r.Stage -ne "validator-pin") { throw "expected Stage='validator-pin' (refused before stage 1), got '$($r.Stage)'" }
+        if ($r.ReportRan) { throw "report stage must not run" }
+        if (($r.CaptureOutput | Where-Object { $_ -like "*$staleValidatorHash*" }).Count -eq 0) {
+            throw "diagnostic does not include the stale validator's SHA-256: $($r.CaptureOutput -join ' | ')"
+        }
+        if (($r.CaptureOutput | Where-Object { $_ -like "*safe.directory*" }).Count -eq 0) {
+            throw "diagnostic does not mention the safe.directory fix"
+        }
+        if (Test-Path -LiteralPath $captureOut) {
+            $written = @(Get-ChildItem -LiteralPath $captureOut -File -ErrorAction SilentlyContinue)
+            if ($written.Count -gt 0) { throw "CaptureOutDir has $($written.Count) file(s) - a capture was attempted despite the stale validator" }
+        }
     }
 
     # 2. Fixture "capture" script that always succeeds - proves stage 3 (the REAL report
@@ -256,7 +356,7 @@ if ($SelfTest) {
 param(
     [string]$ExePath, [string]$Label, [string]$CandidateRoot, [string]$SourceHead, [string]$RuntimeHash,
     [string]$ExpectedTag, [string]$BuildLog, [string]$TestResultsXml, [string]$RuntimeDllRelativePath,
-    [string]$OutDir, [int]$WaitSeconds, [switch]$LeaveRunning, [string]$AttachProcessId
+    [string]$ValidatorScript, [string]$OutDir, [int]$WaitSeconds, [switch]$LeaveRunning, [string]$AttachProcessId
 )
 Add-Type -AssemblyName System.Drawing
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
@@ -278,7 +378,7 @@ exit 0
         $r = Invoke-ReleaseCapture -ExePath "unused-by-fixture.exe" -Label "FixtureScreen" `
             -CandidateRoot $repoDir -SourceHead $realHead -RuntimeHash $realDllHash `
             -ExpectedTag "run-release-fixture-frozen" -BuildLog $cleanLog -TestResultsXml $goodXml `
-            -CaptureScript $fixtureCaptureScript -ReportScript $realReportScript `
+            -CaptureScript $fixtureCaptureScript -ReportScript $realReportScript -ValidatorScript $realValidatorScript `
             -CaptureOutDir $captureOut -ReportOutJson $reportJson -ReportOutMarkdown $reportMd
 
         if (-not $r.ReportRan) { throw "report stage should have run after a successful capture" }
@@ -310,7 +410,7 @@ exit 0
         $r = Invoke-ReleaseCapture -ExePath "unused-by-fixture.exe" -Label "DefaultRequiredScreen" `
             -CandidateRoot $repoDir -SourceHead $realHead -RuntimeHash $realDllHash `
             -ExpectedTag "run-release-fixture-frozen" -BuildLog $cleanLog -TestResultsXml $goodXml `
-            -CaptureScript $fixtureCaptureScript -ReportScript $realReportScript `
+            -CaptureScript $fixtureCaptureScript -ReportScript $realReportScript -ValidatorScript $realValidatorScript `
             -CaptureOutDir $captureOut -ReportOutJson $reportJson -ReportOutMarkdown $reportMd
         if ($r.ExitCode -ne 0) { throw "expected exit 0, got $($r.ExitCode): $($r.ReportOutput -join ' | ')" }
         $parsed = Get-Content -LiteralPath $reportJson -Raw | ConvertFrom-Json
@@ -351,7 +451,7 @@ exit 0
 $result = Invoke-ReleaseCapture -ExePath $ExePath -Label $Label -CandidateRoot $CandidateRoot `
     -SourceHead $SourceHead -RuntimeHash $RuntimeHash -ExpectedTag $ExpectedTag `
     -BuildLog $BuildLog -TestResultsXml $TestResultsXml -RuntimeDllRelativePath $RuntimeDllRelativePath `
-    -CaptureScript $CaptureScript -ReportScript $ReportScript -CaptureOutDir $CaptureOutDir `
+    -CaptureScript $CaptureScript -ReportScript $ReportScript -ValidatorScript $ValidatorScript -CaptureOutDir $CaptureOutDir `
     -WaitSeconds $WaitSeconds -LeaveRunning:$LeaveRunning -AttachProcessId $AttachProcessId `
     -RequiredScreens $RequiredScreens -KnownStaleHashesFile $KnownStaleHashesFile `
     -ReportOutJson $ReportOutJson -ReportOutMarkdown $ReportOutMarkdown

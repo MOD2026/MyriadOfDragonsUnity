@@ -73,9 +73,45 @@ if ($ValidatorScript -eq "") {
     $ValidatorScript = Join-Path (Split-Path -Parent $PSCommandPath) "validate_release_candidate.ps1"
 }
 
+# PRODUCTIVE CODING TASK - script-version pinning. $ValidatorScript resolves relative to wherever
+# THIS script physically lives (see above) - correct in general, but this script is routinely
+# copied into isolated/frozen checkouts (an rc capture candidate's own tree, a throwaway worktree)
+# for exactly the kind of isolated verification this whole gate exists to do. A frozen rc31
+# checkout copied BEFORE commit 77538a6d (the process-local `git -c safe.directory=...` fix) still
+# has its own sibling tools/validate_release_candidate.ps1 without that fix - and the naive
+# Join-Path resolution above would silently run THAT stale copy, re-introducing the exact dubious-
+# ownership false-refusal 77538a6d fixed, with no indication anything was wrong. This check refuses
+# (loudly, with the resolved path and hash) rather than silently trusting whatever file happens to
+# be sitting next to this script.
+function Test-ValidatorImplementation {
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return [pscustomobject]@{ Ok = $false; ResolvedPath = $Path; Sha256 = ""; Reason = "Validator script not found: $Path" }
+    }
+    $resolvedPath = (Resolve-Path -LiteralPath $Path).Path
+    $sha256 = (Get-FileHash -LiteralPath $resolvedPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $content = Get-Content -LiteralPath $resolvedPath -Raw
+    # Both markers together confirm the ACTUAL fix (the helper exists AND is used to build the
+    # git argument list with the candidate's own path) - not just that a function with a similar
+    # name exists somewhere in the file.
+    $hasHelperFunction = $content -match 'function\s+Invoke-GitOnCandidate'
+    $hasSafeDirectoryArg = $content -match '\bsafe\.directory=\$RepoPath\b'
+    if (-not $hasHelperFunction -or -not $hasSafeDirectoryArg) {
+        return [pscustomobject]@{
+            Ok = $false
+            ResolvedPath = $resolvedPath
+            Sha256 = $sha256
+            Reason = "Validator at '$resolvedPath' (sha256 $sha256) does not contain the process-local git safe.directory fix (commit 77538a6d, Invoke-GitOnCandidate) - this looks like a stale validator copy (e.g. from a frozen checkout predating that fix). Refusing to gate against it."
+        }
+    }
+    return [pscustomobject]@{ Ok = $true; ResolvedPath = $resolvedPath; Sha256 = $sha256; Reason = "" }
+}
+
 # Runs the gate as a real subprocess (not a dot-sourced function) so this script never shares
 # process state (working directory, loaded types) with the validator, and so its own exit code is
-# the single source of truth for pass/refuse - matching how a human would run it by hand.
+# the single source of truth for pass/refuse - matching how a human would run it by hand. The
+# returned object always carries ValidatorPath/ValidatorSha256 (even on failure - that IS the
+# observability this task asked for: which exact validator implementation ran, or was refused).
 function Invoke-PreCaptureGate {
     param(
         [Parameter(Mandatory)][string]$ValidatorScript,
@@ -87,18 +123,25 @@ function Invoke-PreCaptureGate {
         [Parameter(Mandatory)][string]$TestResultsXml,
         [string]$RuntimeDllRelativePath = "Builds\Windows64\MyriadOfDragons_Data\Managed\MyriadOfDragons.Runtime.dll"
     )
-    if (-not (Test-Path -LiteralPath $ValidatorScript)) {
-        return [pscustomobject]@{ Passed = $false; ExitCode = 2; Output = @("Validator script not found: $ValidatorScript") }
+    $impl = Test-ValidatorImplementation -Path $ValidatorScript
+    if (-not $impl.Ok) {
+        return [pscustomobject]@{
+            Passed = $false; ExitCode = 2; Output = @($impl.Reason)
+            ValidatorPath = $impl.ResolvedPath; ValidatorSha256 = $impl.Sha256
+        }
     }
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = "SilentlyContinue"
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $ValidatorScript `
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $impl.ResolvedPath `
         -CandidateRoot $CandidateRoot -ExpectedHead $SourceHead -ExpectedRuntimeHash $RuntimeHash `
         -RuntimeDllRelativePath $RuntimeDllRelativePath -ExpectedTag $ExpectedTag `
         -BuildLog $BuildLog -TestResultsXml $TestResultsXml 2>&1
     $exitCode = $LASTEXITCODE
     $ErrorActionPreference = $prevEap
-    return [pscustomobject]@{ Passed = ($exitCode -eq 0); ExitCode = $exitCode; Output = @($output | ForEach-Object { "$_" }) }
+    return [pscustomobject]@{
+        Passed = ($exitCode -eq 0); ExitCode = $exitCode; Output = @($output | ForEach-Object { "$_" })
+        ValidatorPath = $impl.ResolvedPath; ValidatorSha256 = $impl.Sha256
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -181,6 +224,77 @@ if ($SelfTest) {
             -BuildLog $dirtyLog -TestResultsXml $goodXml
         if ($r.Passed) { throw "gate should have refused a dirty build log" }
     }
+    Check "Gate: PASSES result carries the real validator's own resolved path and SHA-256" {
+        $r = Invoke-PreCaptureGate -ValidatorScript $validator -CandidateRoot $repoDir `
+            -SourceHead $realHead -RuntimeHash $realDllHash -ExpectedTag "capture-fixture-frozen" `
+            -BuildLog $cleanLog -TestResultsXml $goodXml
+        $expectedResolved = (Resolve-Path -LiteralPath $validator).Path
+        $expectedHash = (Get-FileHash -LiteralPath $validator -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($r.ValidatorPath -ne $expectedResolved) { throw "expected ValidatorPath '$expectedResolved', got '$($r.ValidatorPath)'" }
+        if ($r.ValidatorSha256 -ne $expectedHash) { throw "expected ValidatorSha256 '$expectedHash', got '$($r.ValidatorSha256)'" }
+    }
+
+    # PRODUCTIVE CODING TASK - script-version pinning. A "stale validator" fixture: a real .ps1
+    # file that would run (correct param names) but contains NONE of commit 77538a6d's fix markers
+    # - simulating exactly the frozen-rc31-checkout scenario the task describes. It exits 99 if
+    # ever actually invoked, so if Test-ValidatorImplementation's content check were ever bypassed,
+    # these checks would fail loudly on the WRONG exit code (99, not 2) rather than passing by
+    # accident.
+    $staleValidator = Join-Path $tmp "stale_validate_release_candidate.ps1"
+    @'
+param(
+    [string]$CandidateRoot, [string]$ExpectedHead, [string]$ExpectedRuntimeHash,
+    [string]$RuntimeDllRelativePath, [string]$ExpectedTag, [string]$BuildLog, [string]$TestResultsXml
+)
+# Deliberately the OLD, pre-77538a6d shape: no Invoke-GitOnCandidate, no safe.directory override.
+$actualHead = (& git -C $CandidateRoot rev-parse HEAD 2>$null).Trim()
+Write-Host "STALE VALIDATOR RAN - THIS SHOULD NEVER HAPPEN IN A SELF-TEST"
+exit 99
+'@ | Set-Content -Path $staleValidator -Encoding utf8
+    $staleValidatorHash = (Get-FileHash -LiteralPath $staleValidator -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    Check "Gate: REFUSES a stale validator implementation (missing the safe.directory fix) WITHOUT running it" {
+        $r = Invoke-PreCaptureGate -ValidatorScript $staleValidator -CandidateRoot $repoDir `
+            -SourceHead $realHead -RuntimeHash $realDllHash -ExpectedTag "capture-fixture-frozen" `
+            -BuildLog $cleanLog -TestResultsXml $goodXml
+        if ($r.Passed) { throw "gate should have refused a stale validator" }
+        if ($r.ExitCode -eq 99) { throw "the stale validator was actually EXECUTED (exit 99) - the version-pin check did not stop it" }
+        if ($r.ExitCode -ne 2) { throw "expected exit 2 (tool refusal), got $($r.ExitCode)" }
+        if ($r.ValidatorPath -ne (Resolve-Path -LiteralPath $staleValidator).Path) { throw "ValidatorPath not populated correctly on a stale-validator refusal" }
+        if ($r.ValidatorSha256 -ne $staleValidatorHash) { throw "ValidatorSha256 not populated correctly on a stale-validator refusal" }
+        if (($r.Output | Where-Object { $_ -like "*safe.directory*" }).Count -eq 0) { throw "refusal reason does not mention the safe.directory fix" }
+        if (($r.Output | Where-Object { $_ -like "*$staleValidatorHash*" }).Count -eq 0) { throw "refusal reason does not include the stale validator's own SHA-256" }
+    }
+    Check "Gate: REFUSES a missing validator file, with the attempted path still reported" {
+        $missingValidator = Join-Path $tmp "does_not_exist_validator.ps1"
+        $r = Invoke-PreCaptureGate -ValidatorScript $missingValidator -CandidateRoot $repoDir `
+            -SourceHead $realHead -RuntimeHash $realDllHash -ExpectedTag "capture-fixture-frozen" `
+            -BuildLog $cleanLog -TestResultsXml $goodXml
+        if ($r.Passed) { throw "gate should have refused a missing validator" }
+        if ($r.ExitCode -ne 2) { throw "expected exit 2, got $($r.ExitCode)" }
+        if ($r.ValidatorPath -ne $missingValidator) { throw "expected the attempted (unresolved) path to be reported when the file does not exist" }
+    }
+    Check "End-to-end CLI: REFUSES a stale validator and prints its path/hash/exit-code diagnostic, OutDir stays empty" {
+        $staleOutDir = Join-Path $tmp "out_stale_validator"
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        $rawOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath `
+            -ExePath (Join-Path $tmp "does_not_exist.exe") -Label "ShouldNeverCapture" `
+            -CandidateRoot $repoDir -SourceHead $realHead -RuntimeHash $realDllHash `
+            -ExpectedTag "capture-fixture-frozen" -BuildLog $cleanLog -TestResultsXml $goodXml `
+            -ValidatorScript $staleValidator -OutDir $staleOutDir 2>&1
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        $text = ($rawOutput | ForEach-Object { "$_" }) -join "`n"
+        if ($code -ne 2) { throw "expected exit 2, got $code" }
+        if ($text -notmatch [regex]::Escape($staleValidatorHash)) { throw "CLI output does not include the stale validator's SHA-256" }
+        if ($text -notmatch [regex]::Escape((Resolve-Path -LiteralPath $staleValidator).Path)) { throw "CLI output does not include the stale validator's resolved absolute path" }
+        if ($text -notmatch "exit code") { throw "CLI output does not label the validator exit code" }
+        if (Test-Path -LiteralPath $staleOutDir) {
+            $written = @(Get-ChildItem -LiteralPath $staleOutDir -File -ErrorAction SilentlyContinue)
+            if ($written.Count -gt 0) { throw "OutDir has $($written.Count) file(s) - a capture was attempted despite the stale validator" }
+        }
+    }
 
     # End-to-end: actually invoke THIS script (not just Invoke-PreCaptureGate) with a real, doomed
     # -ExePath against an invalid candidate, and prove no capture was even attempted - OutDir stays
@@ -229,11 +343,21 @@ $gate = Invoke-PreCaptureGate -ValidatorScript $ValidatorScript -CandidateRoot $
     -SourceHead $SourceHead -RuntimeHash $RuntimeHash -ExpectedTag $ExpectedTag `
     -BuildLog $BuildLog -TestResultsXml $TestResultsXml -RuntimeDllRelativePath $RuntimeDllRelativePath
 if (-not $gate.Passed) {
-    Write-Host "REFUSED: candidate failed the pre-capture gate (validator exit $($gate.ExitCode)). No player was launched, no capture was written."
-    foreach ($line in $gate.Output) { Write-Host "  $line" }
+    # PRODUCTIVE CODING TASK - observability. Every non-zero exit prints the resolved absolute
+    # validator path, its SHA-256, the validator's own exit code, and every line the validator
+    # subprocess produced (including its full FAIL findings section) - never just "gate failed" -
+    # so a refusal is diagnosable from this script's own output alone, without re-running anything.
+    Write-Host "REFUSED: candidate failed the pre-capture gate. No player was launched, no capture was written."
+    Write-Host "  Validator script:   $($gate.ValidatorPath)"
+    Write-Host "  Validator SHA-256:  $($gate.ValidatorSha256)"
+    Write-Host "  Validator exit code: $($gate.ExitCode)"
+    Write-Host "  Validator output:"
+    foreach ($line in $gate.Output) { Write-Host "    $line" }
     exit 2
 }
 Write-Host "Gate PASSED - candidate verified (HEAD, tag, Runtime.dll hash, tracked dirt, build/test evidence). Proceeding to capture."
+Write-Host "  Validator script:  $($gate.ValidatorPath)"
+Write-Host "  Validator SHA-256: $($gate.ValidatorSha256)"
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -Namespace NativeCapture -Name Win32 -MemberDefinition @'
