@@ -286,32 +286,36 @@ function Test-BuildLog {
 function Test-TestResultsXml {
     param([Parameter(Mandatory)][string]$Path)
     $findings = New-Object System.Collections.Generic.List[string]
+    $empty = { [pscustomobject]@{ Findings = $findings; Total = $null; Passed = $null; Failed = $null; Skipped = $null } }
     if (-not (Test-Path -LiteralPath $Path)) {
         $findings.Add("MISSING test results XML: $Path")
-        return [pscustomobject]@{ Findings = $findings; Total = $null; Passed = $null; Failed = $null }
+        return (& $empty)
     }
     try {
         [xml]$xml = Get-Content -LiteralPath $Path -Raw
     }
     catch {
         $findings.Add("MALFORMED test results XML: $Path ($($_.Exception.Message))")
-        return [pscustomobject]@{ Findings = $findings; Total = $null; Passed = $null; Failed = $null }
+        return (& $empty)
     }
     $run = $xml.'test-run'
     if ($null -eq $run) {
         $findings.Add("MISSING <test-run> root element in $Path")
-        return [pscustomobject]@{ Findings = $findings; Total = $null; Passed = $null; Failed = $null }
+        return (& $empty)
     }
     $total = [int]$run.testcasecount
     $passed = [int]$run.passed
     $failed = [int]$run.failed
+    # 'skipped' is an optional attribute in some NUnit-style results files - absent means 0, not
+    # unknown, so this is never left $null the way a missing/malformed file is above.
+    $skipped = if ($run.PSObject.Properties.Name -contains 'skipped' -and $run.skipped) { [int]$run.skipped } else { 0 }
     if ($total -eq 0) {
         $findings.Add("ZERO TESTS in $Path - not a passing run")
     }
     if ($failed -ne 0) {
         $findings.Add("TEST FAILURES: $failed of $total failed in $Path")
     }
-    return [pscustomobject]@{ Findings = $findings; Total = $total; Passed = $passed; Failed = $failed }
+    return [pscustomobject]@{ Findings = $findings; Total = $total; Passed = $passed; Failed = $failed; Skipped = $skipped }
 }
 
 # ---------------------------------------------------------------------------
@@ -456,12 +460,13 @@ function Invoke-CandidateAcceptanceCheck {
     }
 
     # 9. Test results: totals + failures.
-    $testResultsInfo = [pscustomobject]@{ Path = $TestResultsXml; Supplied = ($TestResultsXml -ne ""); Total = $null; Passed = $null; Failed = $null; Findings = @() }
+    $testResultsInfo = [pscustomobject]@{ Path = $TestResultsXml; Supplied = ($TestResultsXml -ne ""); Total = $null; Passed = $null; Failed = $null; Skipped = $null; Findings = @() }
     if ($TestResultsXml -ne "") {
         $trResult = Test-TestResultsXml -Path $TestResultsXml
         $testResultsInfo.Total = $trResult.Total
         $testResultsInfo.Passed = $trResult.Passed
         $testResultsInfo.Failed = $trResult.Failed
+        $testResultsInfo.Skipped = $trResult.Skipped
         $testResultsInfo.Findings = @($trResult.Findings)
         foreach ($f in $trResult.Findings) { $allFindings.Add($f) }
         if ($trResult.Findings.Count -eq 0) { $passNotes.Add("Tests: $($trResult.Passed)/$($trResult.Total) passed, 0 failed") }

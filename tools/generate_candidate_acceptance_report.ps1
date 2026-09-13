@@ -112,7 +112,7 @@ function ConvertTo-AcceptanceReportObject {
     }
 
     return [pscustomobject]@{
-        schemaVersion = 1
+        schemaVersion = 2
         generatedUtc  = $CheckResult.GeneratedUtc
         decision      = $CheckResult.Decision
         gateOnly      = $CheckResult.GateOnly
@@ -149,6 +149,7 @@ function ConvertTo-AcceptanceReportObject {
             total           = $CheckResult.TestResults.Total
             passed          = $CheckResult.TestResults.Passed
             failed          = $CheckResult.TestResults.Failed
+            skipped         = $CheckResult.TestResults.Skipped
         }
         captureCompleteness = [pscustomobject]@{
             requiredScreens = $CheckResult.RequiredScreens.Required
@@ -216,7 +217,7 @@ function Format-AcceptanceReportMarkdown {
     $tt = $Report.testTotals
     if ($tt.resultsSupplied) {
         $lines.Add("- Results XML: ``$($tt.resultsPath)``")
-        $lines.Add("- Total: $($tt.total) | Passed: $($tt.passed) | Failed: $($tt.failed)")
+        $lines.Add("- Total: $($tt.total) | Passed: $($tt.passed) | Failed: $($tt.failed) | Skipped: $($tt.skipped)")
     }
     else { $lines.Add("- No test results XML supplied.") }
     $lines.Add("")
