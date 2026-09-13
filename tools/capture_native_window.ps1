@@ -42,9 +42,20 @@ Add-Type -Namespace NativeCapture -Name Win32 -MemberDefinition @'
 [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
 public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 public struct POINT { public int X; public int Y; }
 '@
+
+# CRITICAL: without this, every Win32 geometry call below (GetWindowRect, GetClientRect,
+# ClientToScreen) AND System.Windows.Forms.Screen.Bounds runs under Windows' DPI VIRTUALIZATION,
+# which silently scales every reported pixel dimension down by the display's scale factor for any
+# caller that hasn't declared itself DPI-aware - a real, measured example on this machine: a
+# genuinely-1920x1080 Unity client area was reported (and captured) as 1280x720 (exactly 1920/1.5,
+# 1080/1.5 - this display's 150% Windows scaling) before this call was added. That is the exact
+# failure mode the "do not relabel non-native output as native" instruction is guarding against -
+# every dimension this script reports must be the real physical pixel count, not a DPI-shrunk one.
+[NativeCapture.Win32]::SetProcessDPIAware() | Out-Null
 
 if (-not (Test-Path $ExePath)) {
     Write-Error "ExePath not found: $ExePath"
