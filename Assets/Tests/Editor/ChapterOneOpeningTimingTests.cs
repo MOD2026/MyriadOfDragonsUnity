@@ -15,10 +15,16 @@ namespace MyriadOfDragons.Tests
     /// <summary>
     /// ST-TUTORIAL-ANIMATION-V1-HANDOFF-003, corrected direction: the existing static layer
     /// composite/parallax path stays the Opening presentation (no VideoPlayer, no new gameplay
-    /// system). This file proves the two things that direction specifically asked for: the locked
-    /// duration is centralized and cannot silently drift from the approved supplied source, and
-    /// Reduced Motion turns the composite's parallax/drift into a genuine static hold. Skip,
-    /// resume-to-Formation, and the return-callback chain are already covered end to end by
+    /// system). Proves the locked duration is centralized and cannot silently drift from the
+    /// approved supplied source (normal motion only).
+    ///
+    /// Reduced Motion: rc21 Option A (owner-resolved, tools/seat_reports/LK-RELEASE-042-rc21-
+    /// HELD-NOT-FROZEN.md §4) - the cinematic is skipped entirely under Reduced Motion, never
+    /// built at all, reinstating CC6-CR-TUTORIAL-COMBAT-ANIMATION-023's original accessibility fix
+    /// this lineage never carried. This supersedes the handoff's literal "static hold" reading,
+    /// which is what produced two tests here that contradicted an already-shipped skip test on a
+    /// sibling line (LK caught it, held rc21, escalated - the owner chose to keep the skip). Skip,
+    /// resume-to-Formation, and the return-callback chain are otherwise covered end to end by
     /// ChapterOneCinematicTests.cs and are not re-tested here.
     /// </summary>
     public class ChapterOneOpeningTimingTests
@@ -97,7 +103,9 @@ namespace MyriadOfDragons.Tests
                 ticksRun++;
                 Assert.LessOrEqual(ticksRun, BattleController.MaxCombatTicks, "Setup: expected a knockout inside the tick cap.");
             }
-            Assert.AreEqual(CinematicKind.Victory, bootstrap.CinematicKindForTests, "Setup: expected the victory cinematic to be active.");
+            // Caller asserts its own expectation - under Reduced Motion, BeginVictoryCinematic
+            // (fired synchronously by the knockout tick above) skips entirely per rc21 Option A, so
+            // no cinematic of any kind is ever active here. Under normal motion it must be Victory.
             return bootstrap;
         }
 
@@ -120,47 +128,55 @@ namespace MyriadOfDragons.Tests
                 "The Opening cinematic's duration must stay exactly aligned to the approved supplied source (8.042s).");
         }
 
-        // ---------- Reduced Motion: static holds instead of parallax/drift ----------
+        // ---------- Reduced Motion: skip entirely (rc21 Option A), never a static hold ----------
 
         [Test]
-        public void ReducedMotion_SuppressesLayerDrift_OnTheOpeningCinematic()
+        public void ReducedMotion_SkipsTheOpeningCinematicEntirely_NeverBuildsIt()
         {
             MotionPolicy.ReduceMotion = true;
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("OpeningTiming_ReducedMotionOpening");
             bootstrap.StartApprovedTutorialBattle();
-            Assert.AreEqual(CinematicKind.Opening, bootstrap.CinematicKindForTests);
 
-            (MethodInfo drift, FieldInfo activeField, List<Image> layers) = ReflectDriftMembers(bootstrap);
-            Assert.Greater(layers.Count, 0, "Setup: expected at least one composite layer image for the opening.");
-            var activeCinematic = (CinematicSequence)activeField.GetValue(bootstrap);
-            Image sky = layers[0];
-            Vector2 before = sky.rectTransform.anchoredPosition;
-
-            activeCinematic.Advance(2f);
-            drift.Invoke(bootstrap, null);
-
-            Assert.AreEqual(before, sky.rectTransform.anchoredPosition,
-                "Reduced Motion must hold the opening's composite layers static - no parallax drift, " +
-                "exactly the 'static hold' ST-TUTORIAL-ANIMATION-V1-HANDOFF-003 requires.");
+            Assert.IsFalse(bootstrap.CinematicActiveForTests,
+                "rc21 Option A: a Reduced Motion player must never see the opening cinematic, not even as a static hold.");
+            Assert.IsNull(bootstrap.CinematicKindForTests);
+            // The real Formation state underneath is already fully built regardless of the
+            // cinematic (this file's own header comment on the production code) - Reduced Motion
+            // reaching it in the same frame is the whole point of the skip.
+            Assert.AreEqual(BattlePhase.Formation, bootstrap.Battle.Phase);
         }
 
         [Test]
-        public void ReducedMotion_SuppressesLayerDrift_OnTheVictoryCinematic()
+        public void ReducedMotion_SkipsTheVictoryCinematicEntirely_ReturnToEmpireImmediatelyWorks()
         {
             MotionPolicy.ReduceMotion = true;
             GameBootstrap bootstrap = StartTutorialToVictoryCinematic(_spawned, "OpeningTiming_ReducedMotionVictory");
 
-            (MethodInfo drift, FieldInfo activeField, List<Image> layers) = ReflectDriftMembers(bootstrap);
-            Assert.Greater(layers.Count, 0, "Setup: expected at least one composite layer image for victory.");
-            var activeCinematic = (CinematicSequence)activeField.GetValue(bootstrap);
-            Image sky = layers[0];
-            Vector2 before = sky.rectTransform.anchoredPosition;
+            Assert.IsFalse(bootstrap.CinematicActiveForTests,
+                "rc21 Option A: a Reduced Motion player must never see the victory cinematic either.");
+            Assert.IsNull(bootstrap.CinematicKindForTests);
+            // The result overlay is built and activated by HandleMatchEnded independent of the
+            // cinematic - skipping the cinematic must not also skip or delay it.
+            Assert.IsTrue(bootstrap.ResultOverlayActiveForTests,
+                "STATE UNREACHED: the result overlay must already be visible with no cinematic covering it.");
 
-            activeCinematic.Advance(2f);
-            drift.Invoke(bootstrap, null);
+            bootstrap.ReturnToCityForTests();
+            Assert.IsFalse(bootstrap.ResultOverlayActiveForTests, "Return to Empire must still work immediately, uninterrupted by any cinematic.");
+        }
 
-            Assert.AreEqual(before, sky.rectTransform.anchoredPosition,
-                "Reduced Motion must also hold the victory composite static.");
+        [Test]
+        public void NormalMotion_StillShowsBothCinematics_UnaffectedByTheReducedMotionSkip()
+        {
+            // Sanity companion: rc21 Option A's skip must be conditioned strictly on
+            // MotionPolicy.ReduceMotion - normal motion still gets both cinematics exactly as
+            // before this change.
+            MotionPolicy.ReduceMotion = false;
+            GameBootstrap opening = SpawnAndInitializeBootstrap("OpeningTiming_NormalMotionOpeningStillShows");
+            opening.StartApprovedTutorialBattle();
+            Assert.AreEqual(CinematicKind.Opening, opening.CinematicKindForTests);
+
+            GameBootstrap victory = StartTutorialToVictoryCinematic(_spawned, "OpeningTiming_NormalMotionVictoryStillShows");
+            Assert.AreEqual(CinematicKind.Victory, victory.CinematicKindForTests);
         }
 
         [Test]

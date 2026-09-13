@@ -1371,6 +1371,23 @@ namespace MyriadOfDragons.UI
                 _cinematicCoroutine = null;
             }
 
+            // rc21 Option A (owner-resolved; tools/seat_reports/LK-RELEASE-042-rc21-HELD-NOT-FROZEN.md
+            // §4) - reinstates CC6-CR-TUTORIAL-COMBAT-ANIMATION-023's original fix, which this
+            // lineage never carried: a Reduced Motion player must never wait through this cinematic,
+            // not even as a static hold - skip it entirely, exactly as if Skip had already been
+            // pressed. No overlay is built, no CinematicSequence exists, so
+            // CinematicActiveForTests/CinematicKindForTests both read "no cinematic" - the same end
+            // state a real completed skip reaches, not a third state. The real Formation/result
+            // screen underneath is already fully built (see this method's header comment) and
+            // becomes reachable in the same frame. Supersedes ST-TUTORIAL-ANIMATION-V1-HANDOFF-003's
+            // "static hold" reading for Reduced Motion, which is what produced the two contradictory
+            // tests LK-042 caught - the owner's resolution keeps this skip, not the hold.
+            if (MotionPolicy.ReduceMotion)
+            {
+                RefreshTutorialTeachingOverlay();
+                return;
+            }
+
             _activeCinematic = new CinematicSequence(kind, durationSeconds);
             BuildCinematicOverlay(layerResourcePaths, copy);
             _cinematicCoroutine = StartCoroutine(RunCinematic());
