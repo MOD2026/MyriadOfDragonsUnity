@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using MyriadOfDragons.Metagame;
@@ -30,7 +31,8 @@ namespace MyriadOfDragons.Tests.PlayMode
     /// - the UGS default environment (see BuildEnvironmentGuard.cs, Assets/Editor/) - this
     /// assertion fails the whole suite immediately, before UnityServices.InitializeAsync or any
     /// network call, rather than silently exercising the real backend's real player-facing
-    /// production data.
+    /// production data. The same assertion is checked again immediately before the artifact file
+    /// is written (see WriteArtifact) as defense in depth for that specific side effect.
     ///
     /// REPEATABILITY (2026-09-13): the two Unity Authentication profiles this suite signs into are
     /// suffixed with a fresh GUID every run (_runId below), not a fixed "beta-smoke-a"/
@@ -43,11 +45,22 @@ namespace MyriadOfDragons.Tests.PlayMode
     /// pair per run makes every run start from a genuinely clean relationship graph with zero
     /// cross-run/cross-seat interference, and needs no cleanup step to achieve that guarantee -
     /// RemoveFriend at the end is real endpoint contract coverage, not a workaround.
+    ///
+    /// ARTIFACT (2026-09-13): each run writes a machine-readable JSON result file
+    /// (beta_smoke_artifact.json, project root) so CI/a release checklist can consume pass/fail
+    /// and error codes without scraping the Unity test-runner log. Deliberately narrow content -
+    /// runId, environment, per-check endpoint/pass/errorCode/timestamp only. No player id, access
+    /// token, service token, or any other credential/identity value is ever written to this file -
+    /// this suite never even holds an AccessToken/ServiceToken itself (CloudCodeService/
+    /// AuthenticationService keep those internal), and playerIdA/playerIdB are deliberately kept
+    /// log-only (Debug.Log EVIDENCE lines) rather than promoted into the on-disk artifact, since
+    /// the artifact is meant to be safe to archive/attach to a release checklist without review.
     /// </summary>
     public sealed class BetaBackendSmokeContractPlayModeTests
     {
         private const string TargetEnvironmentName = "nonprod-validation";
         private const string ForbiddenEnvironmentName = "production";
+        private const string ArtifactFileName = "beta_smoke_artifact.json";
 
         [UnityTest]
         public IEnumerator RunFriendsAndBazaarSmokeContractSuite()
@@ -68,19 +81,22 @@ namespace MyriadOfDragons.Tests.PlayMode
                 throw task.Exception ?? new Exception("Beta backend smoke/contract suite faulted with no exception.");
             }
 
-            var (results, passCount) = task.Result;
-            foreach (var (check, pass, detail) in results)
+            var artifact = task.Result;
+            foreach (var check in artifact.checks)
             {
-                UnityEngine.Debug.Log($"[{(pass ? "PASS" : "FAIL")}] {check}{(string.IsNullOrEmpty(detail) ? "" : " - " + detail)}");
+                UnityEngine.Debug.Log($"[{(check.pass ? "PASS" : "FAIL")}] {check.name}{(string.IsNullOrEmpty(check.errorCode) ? "" : " - " + check.errorCode)}");
             }
-            UnityEngine.Debug.Log($"===== {passCount}/{results.Count} passed =====");
+            UnityEngine.Debug.Log($"===== {artifact.passedChecks}/{artifact.totalChecks} passed =====");
 
-            Assert.AreEqual(results.Count, passCount, $"{results.Count - passCount} check(s) failed - see log above.");
+            string artifactPath = WriteArtifact(artifact);
+            UnityEngine.Debug.Log($"EVIDENCE ARTIFACT_PATH={artifactPath}");
+
+            Assert.AreEqual(artifact.totalChecks, artifact.passedChecks, $"{artifact.totalChecks - artifact.passedChecks} check(s) failed - see log above.");
         }
 
-        private static async Task<(List<(string, bool, string)> results, int passCount)> RunAsync()
+        private static async Task<SmokeRunArtifact> RunAsync()
         {
-            var results = new List<(string, bool, string)>();
+            var results = new List<CheckArtifactEntry>();
 
             var options = new InitializationOptions();
             options.SetEnvironmentName(TargetEnvironmentName);
@@ -103,6 +119,7 @@ namespace MyriadOfDragons.Tests.PlayMode
             string runId = Guid.NewGuid().ToString("N").Substring(0, 16);
             string profileA = "beta-a-" + runId;
             string profileB = "beta-b-" + runId;
+            string startedUtc = DateTime.UtcNow.ToString("O");
 
             AuthenticationService.Instance.SwitchProfile(profileA);
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
@@ -116,23 +133,33 @@ namespace MyriadOfDragons.Tests.PlayMode
             UnityEngine.Debug.Log($"EVIDENCE runId={runId}");
             UnityEngine.Debug.Log($"EVIDENCE playerIdA={playerIdA}");
             UnityEngine.Debug.Log($"EVIDENCE playerIdB={playerIdB}");
-            UnityEngine.Debug.Log($"EVIDENCE TIMESTAMP_UTC={DateTime.UtcNow:O}");
+            UnityEngine.Debug.Log($"EVIDENCE TIMESTAMP_UTC={startedUtc}");
             UnityEngine.Debug.Log($"EVIDENCE ENVIRONMENT={TargetEnvironmentName}");
 
             await RunFriendsChecksAsync(results, playerIdA, playerIdB, profileA, profileB);
             await RunBazaarChecksAsync(results);
 
             int passCount = 0;
-            foreach (var (_, pass, _) in results)
+            foreach (var check in results)
             {
-                if (pass) passCount++;
+                if (check.pass) passCount++;
             }
-            return (results, passCount);
+
+            return new SmokeRunArtifact
+            {
+                runId = runId,
+                environment = TargetEnvironmentName,
+                startedUtc = startedUtc,
+                finishedUtc = DateTime.UtcNow.ToString("O"),
+                totalChecks = results.Count,
+                passedChecks = passCount,
+                checks = results,
+            };
         }
 
         // ---------- Friends: success shapes, error codes, daily-gift idempotency ----------
 
-        private static async Task RunFriendsChecksAsync(List<(string, bool, string)> results, string playerIdA, string playerIdB, string profileA, string profileB)
+        private static async Task RunFriendsChecksAsync(List<CheckArtifactEntry> results, string playerIdA, string playerIdB, string profileA, string profileB)
         {
             var gateway = new UnityCloudCodeFriendsGateway();
 
@@ -144,20 +171,24 @@ namespace MyriadOfDragons.Tests.PlayMode
             // check that follows (the bug this suite's first version actually hit).
             var blankTarget = await gateway.AddFriendAsync("", CancellationToken.None);
             LogRaw("Friends.AddFriend(blank)", blankTarget);
-            results.Add(("Friends: AddFriend(blank target) -> INVALID_REQUEST", blankTarget?.errorCode == "INVALID_REQUEST", blankTarget?.errorCode));
+            AddCheck(results, "Friends: AddFriend(blank target) -> INVALID_REQUEST", "Friends.AddFriend",
+                blankTarget?.errorCode == "INVALID_REQUEST", blankTarget?.errorCode);
 
             var selfTarget = await gateway.AddFriendAsync(AuthenticationService.Instance.PlayerId, CancellationToken.None);
             LogRaw("Friends.AddFriend(self)", selfTarget);
-            results.Add(("Friends: AddFriend(self target) -> SELF_TARGET_NOT_ALLOWED", selfTarget?.errorCode == "SELF_TARGET_NOT_ALLOWED", selfTarget?.errorCode));
+            AddCheck(results, "Friends: AddFriend(self target) -> SELF_TARGET_NOT_ALLOWED", "Friends.AddFriend",
+                selfTarget?.errorCode == "SELF_TARGET_NOT_ALLOWED", selfTarget?.errorCode);
 
             string nonexistentTarget = "beta-smoke-nonexistent-" + Guid.NewGuid().ToString("N");
             var acceptNonexistent = await gateway.AcceptFriendAsync(nonexistentTarget, CancellationToken.None);
             LogRaw("Friends.AcceptFriend(nonexistent)", acceptNonexistent);
-            results.Add(("Friends: AcceptFriend(nonexistent) -> REQUEST_NOT_FOUND", acceptNonexistent?.errorCode == "REQUEST_NOT_FOUND", acceptNonexistent?.errorCode));
+            AddCheck(results, "Friends: AcceptFriend(nonexistent) -> REQUEST_NOT_FOUND", "Friends.AcceptFriend",
+                acceptNonexistent?.errorCode == "REQUEST_NOT_FOUND", acceptNonexistent?.errorCode);
 
             var declineNonexistent = await gateway.DeclineFriendAsync(nonexistentTarget, CancellationToken.None);
             LogRaw("Friends.DeclineFriend(nonexistent)", declineNonexistent);
-            results.Add(("Friends: DeclineFriend(nonexistent) -> REQUEST_NOT_FOUND", declineNonexistent?.errorCode == "REQUEST_NOT_FOUND", declineNonexistent?.errorCode));
+            AddCheck(results, "Friends: DeclineFriend(nonexistent) -> REQUEST_NOT_FOUND", "Friends.DeclineFriend",
+                declineNonexistent?.errorCode == "REQUEST_NOT_FOUND", declineNonexistent?.errorCode);
 
             // Success shape + daily-gift idempotency: real two-account round trip. A and B are a
             // fresh identity pair for this run (see class doc comment), so there is no leftover
@@ -165,31 +196,37 @@ namespace MyriadOfDragons.Tests.PlayMode
             await SwitchToAsync(playerIdA, playerIdB, profileA, profileB, isA: true);
             var add = await gateway.AddFriendAsync(playerIdB, CancellationToken.None);
             LogRaw("Friends.AddFriend(A->B)", add);
-            results.Add(("Friends: AddFriend(A->B) success shape (success=true, status=Pending)", add != null && add.success && add.status == "Pending", add?.errorCode));
+            AddCheck(results, "Friends: AddFriend(A->B) success shape (success=true, status=Pending)", "Friends.AddFriend",
+                add != null && add.success && add.status == "Pending", add?.errorCode);
 
             await SwitchToAsync(playerIdA, playerIdB, profileA, profileB, isA: false);
             var accept = await gateway.AcceptFriendAsync(playerIdA, CancellationToken.None);
             LogRaw("Friends.AcceptFriend(B accepts A)", accept);
-            results.Add(("Friends: AcceptFriend(B accepts A) success shape (success=true, status=Accepted)", accept != null && accept.success && accept.status == "Accepted", accept?.errorCode));
+            AddCheck(results, "Friends: AcceptFriend(B accepts A) success shape (success=true, status=Accepted)", "Friends.AcceptFriend",
+                accept != null && accept.success && accept.status == "Accepted", accept?.errorCode);
 
             var list = await gateway.ListFriendsAsync(CancellationToken.None);
             LogRawList("Friends.ListFriends(B)", list);
             bool listShapeOk = list != null && list.success && list.friends != null && list.friends.Count > 0 && !string.IsNullOrEmpty(list.friends[0].counterpartAliasId);
-            results.Add(("Friends: ListFriends success shape (non-empty alias, no raw account id)", listShapeOk, list?.errorCode));
+            AddCheck(results, "Friends: ListFriends success shape (non-empty alias, no raw account id)", "Friends.ListFriends",
+                listShapeOk, list?.errorCode);
 
             await SwitchToAsync(playerIdA, playerIdB, profileA, profileB, isA: true);
             var gift1 = await gateway.SendDailyGiftAsync(playerIdB, CancellationToken.None);
             LogRaw("Friends.SendDailyGift(A->B) #1", gift1);
-            results.Add(("Friends: SendDailyGift #1 today succeeds", gift1 != null && gift1.success, gift1?.errorCode));
+            AddCheck(results, "Friends: SendDailyGift #1 today succeeds", "Friends.SendDailyGift",
+                gift1 != null && gift1.success, gift1?.errorCode);
 
             var gift2 = await gateway.SendDailyGiftAsync(playerIdB, CancellationToken.None);
             LogRaw("Friends.SendDailyGift(A->B) #2", gift2);
-            results.Add(("Friends: SendDailyGift #2 same day -> GIFT_ALREADY_SENT_TODAY (idempotency)", gift2 != null && !gift2.success && gift2.errorCode == "GIFT_ALREADY_SENT_TODAY", gift2?.errorCode));
+            AddCheck(results, "Friends: SendDailyGift #2 same day -> GIFT_ALREADY_SENT_TODAY (idempotency)", "Friends.SendDailyGift",
+                gift2 != null && !gift2.success && gift2.errorCode == "GIFT_ALREADY_SENT_TODAY", gift2?.errorCode);
 
             // Cleanup so a repeated suite run doesn't accumulate stale friendships.
             var remove = await gateway.RemoveFriendAsync(playerIdB, CancellationToken.None);
             LogRaw("Friends.RemoveFriend(cleanup)", remove);
-            results.Add(("Friends: RemoveFriend cleanup succeeds", remove != null && remove.success, remove?.errorCode));
+            AddCheck(results, "Friends: RemoveFriend cleanup succeeds", "Friends.RemoveFriend",
+                remove != null && remove.success, remove?.errorCode);
         }
 
         private static async Task SwitchToAsync(string playerIdA, string playerIdB, string profileA, string profileB, bool isA)
@@ -213,31 +250,79 @@ namespace MyriadOfDragons.Tests.PlayMode
 
         // ---------- Bazaar: success shapes, error codes ----------
 
-        private static async Task RunBazaarChecksAsync(List<(string, bool, string)> results)
+        private static async Task RunBazaarChecksAsync(List<CheckArtifactEntry> results)
         {
             var gateway = new UnityCloudCodeBazaarGateway();
 
             var wallet = await gateway.GetWalletAsync(CancellationToken.None);
             UnityEngine.Debug.Log($"EVIDENCE RAW Bazaar.GetBazaarWallet = {{\"balanceCredits\":{wallet?.balanceCredits},\"errorCode\":\"{wallet?.errorCode}\"}}");
-            results.Add(("Bazaar: GetBazaarWallet success shape (no error)", wallet != null && string.IsNullOrEmpty(wallet.errorCode), wallet?.errorCode));
+            AddCheck(results, "Bazaar: GetBazaarWallet success shape (no error)", "Bazaar.GetBazaarWallet",
+                wallet != null && string.IsNullOrEmpty(wallet.errorCode), wallet?.errorCode);
 
             var query = await gateway.QueryListingsAsync(10, null, CancellationToken.None);
             UnityEngine.Debug.Log($"EVIDENCE RAW Bazaar.QueryBazaarListings = {{\"success\":{query?.success.ToString().ToLowerInvariant()},\"listingCount\":{query?.listings?.Count},\"errorCode\":\"{query?.errorCode}\"}}");
-            results.Add(("Bazaar: QueryBazaarListings success shape (success=true)", query != null && query.success, query?.errorCode));
+            AddCheck(results, "Bazaar: QueryBazaarListings success shape (success=true)", "Bazaar.QueryBazaarListings",
+                query != null && query.success, query?.errorCode);
 
             string fakeInstanceId = "beta-smoke-instance-" + Guid.NewGuid().ToString("N");
             var list = await gateway.ListItemAsync(fakeInstanceId, 100, CancellationToken.None);
             UnityEngine.Debug.Log($"EVIDENCE RAW Bazaar.ListBazaarItem(fakeInstance) = {{\"success\":{list?.success.ToString().ToLowerInvariant()},\"errorCode\":\"{list?.errorCode}\"}}");
-            results.Add(("Bazaar: ListBazaarItem(nonexistent instance) -> INSTANCE_NOT_FOUND", list != null && list.errorCode == "INSTANCE_NOT_FOUND", list?.errorCode));
+            AddCheck(results, "Bazaar: ListBazaarItem(nonexistent instance) -> INSTANCE_NOT_FOUND", "Bazaar.ListBazaarItem",
+                list != null && list.errorCode == "INSTANCE_NOT_FOUND", list?.errorCode);
 
             string fakeListingId = "beta-smoke-listing-" + Guid.NewGuid().ToString("N");
             var cancel = await gateway.CancelListingAsync(fakeListingId, CancellationToken.None);
             UnityEngine.Debug.Log($"EVIDENCE RAW Bazaar.CancelBazaarListing(fakeListing) = {{\"success\":{cancel?.success.ToString().ToLowerInvariant()},\"errorCode\":\"{cancel?.errorCode}\"}}");
-            results.Add(("Bazaar: CancelBazaarListing(nonexistent listing) -> LISTING_NOT_AVAILABLE", cancel != null && cancel.errorCode == "LISTING_NOT_AVAILABLE", cancel?.errorCode));
+            AddCheck(results, "Bazaar: CancelBazaarListing(nonexistent listing) -> LISTING_NOT_AVAILABLE", "Bazaar.CancelBazaarListing",
+                cancel != null && cancel.errorCode == "LISTING_NOT_AVAILABLE", cancel?.errorCode);
 
             var buy = await gateway.BuyItemAsync(fakeListingId, "beta-smoke-idem-" + Guid.NewGuid().ToString("N"), CancellationToken.None);
             UnityEngine.Debug.Log($"EVIDENCE RAW Bazaar.BuyBazaarItem(fakeListing) = {{\"success\":{buy?.success.ToString().ToLowerInvariant()},\"errorCode\":\"{buy?.errorCode}\"}}");
-            results.Add(("Bazaar: BuyBazaarItem(nonexistent listing) -> LISTING_NOT_AVAILABLE", buy != null && buy.errorCode == "LISTING_NOT_AVAILABLE", buy?.errorCode));
+            AddCheck(results, "Bazaar: BuyBazaarItem(nonexistent listing) -> LISTING_NOT_AVAILABLE", "Bazaar.BuyBazaarItem",
+                buy != null && buy.errorCode == "LISTING_NOT_AVAILABLE", buy?.errorCode);
+        }
+
+        private static void AddCheck(List<CheckArtifactEntry> results, string name, string endpoint, bool pass, string errorCode)
+        {
+            results.Add(new CheckArtifactEntry
+            {
+                name = name,
+                endpoint = endpoint,
+                pass = pass,
+                errorCode = errorCode ?? "",
+                timestampUtc = DateTime.UtcNow.ToString("O"),
+            });
+        }
+
+        /// <summary>Writes the run's result to a machine-readable JSON file at the project root
+        /// (next to results.xml/run.log, which tools/run_editmode_tests.ps1 already produces
+        /// there) so CI/a release checklist can consume pass/fail and error codes without scraping
+        /// the Unity test-runner log. Re-checks the production-refusal condition immediately
+        /// before writing, as defense in depth for this specific side effect, and returns the path
+        /// actually written (or null if the write itself failed - a failed artifact write must
+        /// never turn a real pass/fail result into a false test failure, so it degrades to a
+        /// logged warning instead of throwing).</summary>
+        private static string WriteArtifact(SmokeRunArtifact artifact)
+        {
+            if (artifact.environment == ForbiddenEnvironmentName)
+            {
+                UnityEngine.Debug.LogError("Refusing to write the smoke-run artifact: environment resolved to production.");
+                return null;
+            }
+
+            try
+            {
+                string projectRoot = Path.GetDirectoryName(UnityEngine.Application.dataPath);
+                string path = Path.Combine(projectRoot ?? ".", ArtifactFileName);
+                string json = UnityEngine.JsonUtility.ToJson(artifact, prettyPrint: true);
+                File.WriteAllText(path, json);
+                return path;
+            }
+            catch (Exception exception)
+            {
+                UnityEngine.Debug.LogWarning($"Could not write the smoke-run artifact (non-fatal, does not affect the pass/fail result above): {exception.GetType().Name}: {exception.Message}");
+                return null;
+            }
         }
 
         private static void LogRaw(string label, FriendGatewayResult result) =>
@@ -250,6 +335,28 @@ namespace MyriadOfDragons.Tests.PlayMode
         {
             string aliasOfFirst = result?.friends != null && result.friends.Count > 0 ? result.friends[0].counterpartAliasId : null;
             UnityEngine.Debug.Log($"EVIDENCE RAW {label} = {{\"success\":{result?.success.ToString().ToLowerInvariant()},\"friendCount\":{result?.friends?.Count},\"firstAlias\":\"{aliasOfFirst}\",\"errorCode\":\"{result?.errorCode}\"}}");
+        }
+
+        [Serializable]
+        private sealed class CheckArtifactEntry
+        {
+            public string name;
+            public string endpoint;
+            public bool pass;
+            public string errorCode;
+            public string timestampUtc;
+        }
+
+        [Serializable]
+        private sealed class SmokeRunArtifact
+        {
+            public string runId;
+            public string environment;
+            public string startedUtc;
+            public string finishedUtc;
+            public int totalChecks;
+            public int passedChecks;
+            public List<CheckArtifactEntry> checks = new List<CheckArtifactEntry>();
         }
     }
 }
