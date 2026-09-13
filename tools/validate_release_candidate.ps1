@@ -307,12 +307,25 @@ function Find-MissingRequiredScreens {
 
 # Scans arbitrary text (sidecar note fields, build/test logs) for runtime-error, 404, and
 # placeholder-content markers that should never appear in accepted evidence.
+#
+# PRODUCTIVE CODING TASK - the old "HTTP 404" pattern ((?<![0-9])404(?![0-9])) matched ANY 404 not
+# touching another digit - including Unity's own build-progress counters, e.g.
+# "[404/660] Importing 'GUID: ...'" (real text from this project's own build logs, not a runtime
+# error). That is a real false-positive that would have failed a clean candidate's gate for
+# nothing. The fix excludes the "N/M" progress-counter shape specifically (404 immediately
+# followed by "/" and a digit, or immediately preceded by "[" - covers both the bracketed and
+# unbracketed forms Unity logs use) while still catching every real HTTP-404 shape: "HTTP 404",
+# "returned 404", "404 Not Found", "Error 404.", a bare "404" on its own. Also added a dedicated
+# "module not found" marker for the real Cloud Code failure mode this project has actually hit
+# ("Module could not be found" - see RetentionTelemetryGateway.cs's own history) - that text has
+# no digits at all, so the numeric 404 pattern alone could never catch it.
 function Find-ForbiddenTextMarkers {
     param([Parameter(Mandatory)][string]$Text, [string]$SourceName = "")
     $patterns = @(
         @{ Name = "NullReferenceException"; Pattern = 'NullReferenceException' },
         @{ Name = "unhandled exception";    Pattern = '(?i)unhandled exception' },
-        @{ Name = "HTTP 404";               Pattern = '(?<![0-9])404(?![0-9])' },
+        @{ Name = "HTTP 404";               Pattern = '(?<!\[)\b404\b(?!/\d)' },
+        @{ Name = "module not found";       Pattern = '(?i)module (could not be found|not found)' },
         @{ Name = "placeholder text";       Pattern = '(?i)\bplaceholder\b' },
         @{ Name = "lorem ipsum";            Pattern = '(?i)lorem ipsum' },
         @{ Name = "TODO marker";            Pattern = '(?i)\bTODO\b' },
@@ -477,9 +490,40 @@ if ($SelfTest) {
         $f = Find-ForbiddenTextMarkers -Text "at Foo.Bar() NullReferenceException: Object reference"
         if (($f | Where-Object { $_ -like "*NullReferenceException*" }).Count -eq 0) { throw "not caught" }
     }
-    Check "Forbidden-text scanner: catches a 404" {
+    Check "Forbidden-text scanner: catches a 404 (returned 404)" {
         $f = Find-ForbiddenTextMarkers -Text "GET /api/foo returned 404"
-        if (($f | Where-Object { $_ -like "*404*" }).Count -eq 0) { throw "not caught" }
+        if (($f | Where-Object { $_ -like "*HTTP 404*" }).Count -eq 0) { throw "not caught" }
+    }
+    Check "Forbidden-text scanner: catches a 404 (HTTP 404 status line)" {
+        $f = Find-ForbiddenTextMarkers -Text "Response: HTTP 404 - resource not found"
+        if (($f | Where-Object { $_ -like "*HTTP 404*" }).Count -eq 0) { throw "not caught" }
+    }
+    Check "Forbidden-text scanner: catches a 404 (trailing punctuation, no slash)" {
+        $f = Find-ForbiddenTextMarkers -Text "Cloud Code call failed with error 404."
+        if (($f | Where-Object { $_ -like "*HTTP 404*" }).Count -eq 0) { throw "not caught" }
+    }
+    Check "Forbidden-text scanner: does NOT flag a Unity build-progress counter [404/660]" {
+        # Real text shape from this project's own build logs - a bracketed progress counter, not
+        # an HTTP error. This is the exact false positive the fix corrects.
+        $f = Find-ForbiddenTextMarkers -Text "[404/660] Importing 'GUID: 8ae8063bfa41044ddaa5c5c70943e142'"
+        if (($f | Where-Object { $_ -like "*HTTP 404*" }).Count -gt 0) { throw "false positive on a build-progress counter: $($f -join '; ')" }
+    }
+    Check "Forbidden-text scanner: does NOT flag an unbracketed N/M progress counter either" {
+        $f = Find-ForbiddenTextMarkers -Text "404/660 assets imported"
+        if (($f | Where-Object { $_ -like "*HTTP 404*" }).Count -gt 0) { throw "false positive on an unbracketed progress counter: $($f -join '; ')" }
+    }
+    Check "Forbidden-text scanner: catches a real 404 immediately after a progress counter in the same log line" {
+        # Guards against an overly broad fix that disables the whole line once any counter appears.
+        $f = Find-ForbiddenTextMarkers -Text "[12/660] Cloud Code call to Telemetry/SendEvent returned 404"
+        if (($f | Where-Object { $_ -like "*HTTP 404*" }).Count -eq 0) { throw "real 404 in the same line as a progress counter was not caught" }
+    }
+    Check "Forbidden-text scanner: catches 'Module could not be found' (no digits at all)" {
+        $f = Find-ForbiddenTextMarkers -Text "[ServicesCore]: Module could not be found - Telemetry"
+        if (($f | Where-Object { $_ -like "*module not found*" }).Count -eq 0) { throw "not caught" }
+    }
+    Check "Forbidden-text scanner: catches 'module not found' (case-insensitive, alternate phrasing)" {
+        $f = Find-ForbiddenTextMarkers -Text "error: module not found: com.example.telemetry"
+        if (($f | Where-Object { $_ -like "*module not found*" }).Count -eq 0) { throw "not caught" }
     }
     Check "Forbidden-text scanner: catches placeholder text" {
         $f = Find-ForbiddenTextMarkers -Text "This is placeholder copy pending ST review"
@@ -590,6 +634,18 @@ if ($SelfTest) {
     Check "Build log check: missing file is a finding, not a thrown exception" {
         $f = Test-BuildLog -Path (Join-Path $tmp "missing.log")
         if (($f | Where-Object { $_ -like "*MISSING build log*" }).Count -eq 0) { throw "missing log not flagged" }
+    }
+    Check "Build log check: a real Unity import log full of [N/M] progress counters, including [404/660], has zero findings" {
+        $progressLog = Join-Path $tmp "progress_build.log"
+        Set-Content -Path $progressLog -Value @(
+            "[402/660] Importing 'GUID: 1234'",
+            "[403/660] Importing 'GUID: 5678'",
+            "[404/660] Importing 'GUID: 8ae8063bfa41044ddaa5c5c70943e142'",
+            "[405/660] Importing 'GUID: 9012'",
+            "Build succeeded."
+        ) -Encoding utf8
+        $f = Test-BuildLog -Path $progressLog
+        if ($f.Count -ne 0) { throw "false positive on a real Unity progress-counter log: $($f -join '; ')" }
     }
 
     $goodXml = Join-Path $tmp "good_results.xml"

@@ -389,6 +389,48 @@ if ($SelfTest) {
         if ($md -notmatch "Findings") { throw "Markdown does not include a findings section on FAIL" }
     }
 
+    # 2b. PRODUCTIVE CODING TASK - the forbidden-text scanner (CandidateAcceptanceLib.ps1's own
+    # copy of Find-ForbiddenTextMarkers) must not flag a Unity build-progress counter like
+    # "[404/660]" landing in a sidecar note, but must still flag a real 404 runtime error there.
+    Check "A sidecar note containing a Unity build-progress counter [404/660] is NOT flagged as forbidden text" {
+        $cand = New-FixtureCandidate -Root (Join-Path $tmp "cand_progress_counter")
+        $capDir = Join-Path $tmp "captures_progress_counter"
+        New-Item -ItemType Directory -Force -Path $capDir | Out-Null
+        $png = Join-Path $capDir "rc_Home_1920x1080.png"
+        New-TestPng -Path $png -Width 1920 -Height 1080
+        @{
+            label = "rc_Home"; sourceHead = $cand.Head; runtimeHash = $cand.DllHash
+            pngSha256 = (Get-Sha256Hex -Path $png)
+            note = "Captured after [404/660] Importing 'GUID: 8ae8063bfa41044ddaa5c5c70943e142' completed"
+        } | ConvertTo-Json | Set-Content -Path (Join-Path $capDir "rc_Home_1920x1080.json") -Encoding utf8
+
+        $checkResult = Invoke-CandidateAcceptanceCheck -CandidateRoot $cand.Root -ExpectedHead $cand.Head `
+            -ExpectedRuntimeHash $cand.DllHash -ExpectedTag "rc-fixture" -CaptureDir $capDir
+        $report = ConvertTo-AcceptanceReportObject -CheckResult $checkResult
+
+        if ($report.decision -ne "PASS") { throw "expected PASS, got FAIL: $($report.allFindings -join '; ')" }
+        if ($report.forbiddenRuntimeText.Count -ne 0) { throw "false positive on a build-progress counter: $($report.forbiddenRuntimeText -join '; ')" }
+    }
+    Check "A sidecar note containing a REAL 404 runtime error is still flagged as forbidden text" {
+        $cand = New-FixtureCandidate -Root (Join-Path $tmp "cand_real_404")
+        $capDir = Join-Path $tmp "captures_real_404"
+        New-Item -ItemType Directory -Force -Path $capDir | Out-Null
+        $png = Join-Path $capDir "rc_Home_1920x1080.png"
+        New-TestPng -Path $png -Width 1920 -Height 1080
+        @{
+            label = "rc_Home"; sourceHead = $cand.Head; runtimeHash = $cand.DllHash
+            pngSha256 = (Get-Sha256Hex -Path $png)
+            note = "Cloud Code call to Telemetry/SendEvent returned 404 during capture"
+        } | ConvertTo-Json | Set-Content -Path (Join-Path $capDir "rc_Home_1920x1080.json") -Encoding utf8
+
+        $checkResult = Invoke-CandidateAcceptanceCheck -CandidateRoot $cand.Root -ExpectedHead $cand.Head `
+            -ExpectedRuntimeHash $cand.DllHash -ExpectedTag "rc-fixture" -CaptureDir $capDir
+        $report = ConvertTo-AcceptanceReportObject -CheckResult $checkResult
+
+        if ($report.decision -ne "FAIL") { throw "expected FAIL (real 404 in sidecar note), got PASS" }
+        if ($report.forbiddenRuntimeText.Count -eq 0) { throw "real 404 runtime error was not flagged" }
+    }
+
     # 3. Gate mode: report reflects gate-only state (no capture section, no missing-screen churn).
     Check "Gate mode: report marks gateOnly and skips capture completeness" {
         $cand = New-FixtureCandidate -Root (Join-Path $tmp "cand_gate")

@@ -242,12 +242,20 @@ function Find-MissingRequiredScreens {
 
 # Scans arbitrary text (sidecar note fields, build/test logs) for runtime-error, 404, and
 # placeholder-content markers that should never appear in accepted evidence.
+#
+# PRODUCTIVE CODING TASK - mirrors the same fix made in tools/validate_release_candidate.ps1's own
+# copy of this function (see that file's comment for the full rationale): the old "HTTP 404"
+# pattern matched Unity's own build-progress counters (e.g. "[404/660] Importing ..."), a real
+# false positive. Fixed to exclude the "N/M" progress-counter shape while still catching real
+# HTTP-404 text, and added a "module not found" marker for the real Cloud Code failure mode this
+# project has actually hit ("Module could not be found"), which has no digits at all.
 function Find-ForbiddenTextMarkers {
     param([Parameter(Mandatory)][string]$Text, [string]$SourceName = "")
     $patterns = @(
         @{ Name = "NullReferenceException"; Pattern = 'NullReferenceException' },
         @{ Name = "unhandled exception";    Pattern = '(?i)unhandled exception' },
-        @{ Name = "HTTP 404";               Pattern = '(?<![0-9])404(?![0-9])' },
+        @{ Name = "HTTP 404";               Pattern = '(?<!\[)\b404\b(?!/\d)' },
+        @{ Name = "module not found";       Pattern = '(?i)module (could not be found|not found)' },
         @{ Name = "placeholder text";       Pattern = '(?i)\bplaceholder\b' },
         @{ Name = "lorem ipsum";            Pattern = '(?i)lorem ipsum' },
         @{ Name = "TODO marker";            Pattern = '(?i)\bTODO\b' },
