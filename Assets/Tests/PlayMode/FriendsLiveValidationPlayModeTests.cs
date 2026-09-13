@@ -112,7 +112,7 @@ namespace MyriadOfDragons.Tests.PlayMode
                 {
                     foreach (var friend in list.friends)
                     {
-                        if (friend.counterpartAccountId == target && friend.isOutgoingRequest) found = true;
+                        if (friend.counterpartAliasId == target && friend.isOutgoingRequest) found = true;
                     }
                 }
 
@@ -162,7 +162,7 @@ namespace MyriadOfDragons.Tests.PlayMode
         [Serializable]
         private sealed class FriendSummaryResponse
         {
-            public string counterpartAccountId;
+            public string counterpartAliasId;
             public string status;
             public bool isOutgoingRequest;
             public bool canGiftToday;

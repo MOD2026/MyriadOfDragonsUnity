@@ -268,10 +268,10 @@ namespace MyriadOfDragons.UI
             }
 
             FriendSummaryDto friend = _friends[row];
-            _selectedCounterpartId = friend.counterpartAccountId;
+            _selectedCounterpartId = friend.counterpartAliasId;
             SetStatus(friend.status == "Accepted"
-                ? $"Selected {friend.counterpartAccountId} — {(friend.canGiftToday ? "gift available" : "gift already sent today")}"
-                : $"Selected {friend.counterpartAccountId} — {(friend.isOutgoingRequest ? "request sent" : "incoming request")}");
+                ? $"Selected {friend.counterpartAliasId} — {(friend.canGiftToday ? "gift available" : "gift already sent today")}"
+                : $"Selected {friend.counterpartAliasId} — {(friend.isOutgoingRequest ? "request sent" : "incoming request")}");
         }
 
         private async Task<ListFriendsGatewayResult> RefreshFriendsAsync()
@@ -303,8 +303,8 @@ namespace MyriadOfDragons.UI
 
                     FriendSummaryDto friend = _friends[i];
                     _rowTexts[i].text = friend.status == "Accepted"
-                        ? friend.counterpartAccountId
-                        : $"{friend.counterpartAccountId} ({(friend.isOutgoingRequest ? "pending sent" : "pending received")})";
+                        ? friend.counterpartAliasId
+                        : $"{friend.counterpartAliasId} ({(friend.isOutgoingRequest ? "pending sent" : "pending received")})";
                     if (relIcon != null)
                     {
                         int cell = friend.status == "Accepted"

@@ -19,7 +19,7 @@ namespace MyriadOfDragons.Metagame
     [Serializable]
     public sealed class FriendSummaryDto
     {
-        public string counterpartAccountId;
+        public string counterpartAliasId;
         public string status;
         public bool isOutgoingRequest;
         public bool canGiftToday;
