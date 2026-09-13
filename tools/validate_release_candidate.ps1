@@ -133,6 +133,27 @@ function Get-Sha256Hex {
     return $hash.Hash.ToLowerInvariant()
 }
 
+# PRODUCTIVE CODING TASK - every git command this script runs against -CandidateRoot goes through
+# this helper, which prepends `-c safe.directory=<path>` as a PROCESS-LOCAL override (an argument
+# to this one git invocation, not a config write) rather than trusting the caller's global/system
+# gitconfig to already have it. Git refuses to operate at all (exit 128, "detected dubious
+# ownership") on a repo whose directory owner differs from the current user - a real, common
+# condition for a candidate checked out or copied by a different account/service than the one
+# running this validator. Without this, a genuinely valid, correctly-tagged, byte-identical
+# candidate would be REPORTED AS A FAILURE (git's error text landing in $actualHead/$resolved,
+# nowhere near a real SHA) rather than validated - the opposite of what an acceptance gate is for.
+# Deliberately never writes `git config --global --add safe.directory ...` - that would persist a
+# trust decision on the machine beyond this one validation run, which is not this script's call to
+# make. `-c` only affects the single git process it's attached to.
+function Invoke-GitOnCandidate {
+    param(
+        [Parameter(Mandatory)][string]$RepoPath,
+        [Parameter(Mandatory)][string[]]$GitArgs
+    )
+    $allArgs = @("-c", "safe.directory=$RepoPath", "-C", $RepoPath) + $GitArgs
+    & git @allArgs
+}
+
 # Exact HEAD + tracked-dirt check against a git worktree. Returns a result object rather than
 # throwing, so callers can accumulate multiple findings instead of stopping at the first one.
 function Test-ExactHead {
@@ -140,8 +161,8 @@ function Test-ExactHead {
         [Parameter(Mandatory)][string]$RepoPath,
         [Parameter(Mandatory)][string]$ExpectedHead
     )
-    $actualHead = (& git -C $RepoPath rev-parse HEAD 2>$null).Trim()
-    $dirtLines = @(& git -C $RepoPath status --porcelain --untracked-files=no 2>$null)
+    $actualHead = (Invoke-GitOnCandidate -RepoPath $RepoPath -GitArgs @("rev-parse", "HEAD") 2>$null).Trim()
+    $dirtLines = @(Invoke-GitOnCandidate -RepoPath $RepoPath -GitArgs @("status", "--porcelain", "--untracked-files=no") 2>$null)
     return [pscustomobject]@{
         ExpectedHead = $ExpectedHead.ToLowerInvariant()
         ActualHead   = $actualHead.ToLowerInvariant()
@@ -165,7 +186,7 @@ function Test-FrozenTag {
     # must be checked explicitly rather than relying on redirection alone to keep this non-fatal.
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = "SilentlyContinue"
-    $resolved = (& git -C $RepoPath rev-parse "$Tag^{commit}" 2>$null)
+    $resolved = (Invoke-GitOnCandidate -RepoPath $RepoPath -GitArgs @("rev-parse", "$Tag^{commit}") 2>$null)
     $gitExitCode = $LASTEXITCODE
     $ErrorActionPreference = $prevEap
     if ($gitExitCode -ne 0 -or [string]::IsNullOrEmpty($resolved)) {
@@ -696,6 +717,56 @@ if ($SelfTest) {
         if ($r.ResolvesToExpected) { throw "should not have matched" }
     }
 
+    # PRODUCTIVE CODING TASK - dubious-ownership handling. GIT_TEST_ASSUME_DIFFERENT_OWNER is a
+    # real, documented git environment variable (git's own test suite uses it) that forces git's
+    # ownership check to treat the CURRENT process as NOT owning the repo directory, deterministically
+    # reproducing "fatal: detected dubious ownership in repository" without any cross-user/admin
+    # trickery. Sanity-checked directly against this repo below before trusting it in the two real
+    # checks that follow - if the sanity check itself doesn't reproduce the failure, the two
+    # "handles it" checks after it would be proving nothing.
+    $ownDir = Join-Path $tmp "dubious_ownership_repo"
+    New-Item -ItemType Directory -Force -Path $ownDir | Out-Null
+    & git -C $ownDir init -q 2>$null
+    & git -C $ownDir config user.email "selftest@example.com" 2>$null
+    & git -C $ownDir config user.name "selftest" 2>$null
+    Set-Content -Path (Join-Path $ownDir "a.txt") -Value "a" -Encoding utf8
+    & git -C $ownDir add a.txt 2>$null
+    & git -C $ownDir commit -q -m "init" 2>$null
+    $ownHead = (& git -C $ownDir rev-parse HEAD).Trim()
+    & git -C $ownDir tag -a "dubious-fixture" -m "freeze" 2>$null
+
+    Check "Sanity check: GIT_TEST_ASSUME_DIFFERENT_OWNER really does reproduce dubious ownership (proves the two checks below test something real)" {
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        $env:GIT_TEST_ASSUME_DIFFERENT_OWNER = "1"
+        & git -C $ownDir rev-parse HEAD 1>$null 2>$null
+        $code = $LASTEXITCODE
+        Remove-Item Env:\GIT_TEST_ASSUME_DIFFERENT_OWNER -ErrorAction SilentlyContinue
+        $ErrorActionPreference = $prevEap
+        if ($code -eq 0) { throw "GIT_TEST_ASSUME_DIFFERENT_OWNER did not reproduce dubious ownership on this git version - the two checks below would be meaningless" }
+    }
+    Check "Test-ExactHead: accepts a valid candidate despite dubious ownership (safe.directory override)" {
+        $env:GIT_TEST_ASSUME_DIFFERENT_OWNER = "1"
+        try {
+            $r = Test-ExactHead -RepoPath $ownDir -ExpectedHead $ownHead
+        }
+        finally {
+            Remove-Item Env:\GIT_TEST_ASSUME_DIFFERENT_OWNER -ErrorAction SilentlyContinue
+        }
+        if (-not $r.HeadMatches) { throw "expected HeadMatches=true, got ActualHead='$($r.ActualHead)' (a git dubious-ownership error message landing here instead of a real SHA is exactly the bug this override fixes)" }
+        if ($r.DirtCount -ne 0) { throw "expected 0 dirt, got $($r.DirtCount)" }
+    }
+    Check "Test-FrozenTag: resolves correctly despite dubious ownership (safe.directory override)" {
+        $env:GIT_TEST_ASSUME_DIFFERENT_OWNER = "1"
+        try {
+            $r = Test-FrozenTag -RepoPath $ownDir -Tag "dubious-fixture" -ExpectedHead $ownHead
+        }
+        finally {
+            Remove-Item Env:\GIT_TEST_ASSUME_DIFFERENT_OWNER -ErrorAction SilentlyContinue
+        }
+        if (-not $r.TagExists -or -not $r.ResolvesToExpected) { throw "tag did not resolve as expected under dubious ownership" }
+    }
+
     # 9. GATE MODE end-to-end (PRODUCTIVE CODING TASK): actually invokes this script as a real
     # subprocess (-File $PSCommandPath), exactly the way tools/capture_native_window.ps1 calls it,
     # against a fresh dedicated fixture repo - proves the gate wiring itself (not just the
@@ -750,6 +821,22 @@ if ($SelfTest) {
     Check "Gate mode end-to-end: ACCEPTS a fully valid candidate (exit 0)" {
         $code = Invoke-GateScript
         if ($code -ne 0) { throw "expected exit 0, got $code" }
+    }
+    Check "Gate mode end-to-end: ACCEPTS a valid candidate whose repo would otherwise trigger dubious-ownership (exit 0)" {
+        # This is the task's own required proof, run through the REAL CLI entry point (a fresh
+        # child process, exactly how a human or capture_native_window.ps1 would invoke this
+        # script) rather than just the unit-level Test-ExactHead/Test-FrozenTag checks above -
+        # end-to-end confirmation that the whole gate, not just its two helper functions, honors
+        # the safe.directory override. GIT_TEST_ASSUME_DIFFERENT_OWNER is inherited by the child
+        # PowerShell process the same way any environment variable is.
+        $env:GIT_TEST_ASSUME_DIFFERENT_OWNER = "1"
+        try {
+            $code = Invoke-GateScript
+        }
+        finally {
+            Remove-Item Env:\GIT_TEST_ASSUME_DIFFERENT_OWNER -ErrorAction SilentlyContinue
+        }
+        if ($code -ne 0) { throw "expected exit 0 despite dubious ownership, got $code" }
     }
     Check "Gate mode end-to-end: REFUSES wrong HEAD (exit 1)" {
         $code = Invoke-GateScript -Head ("9" * 40)
