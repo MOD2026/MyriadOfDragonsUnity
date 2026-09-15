@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "Assets/Scripts/Battle/AvatarSpell.cs CreateCatalog() (36/36, transcribed by hand, cross-checked by BattleSpellVfxManifestTests.cs against the real runtime catalog)",
+  "approvedFamilies": [
+    "AreaDamage",
+    "AttackBuff",
+    "AvatarStrike",
+    "CleanseDispel",
+    "DrawMovement",
+    "FirestormImpact",
+    "Heal",
+    "LaneDamage",
+    "MarkSilence",
+    "Shield"
+  ],
+  "familySpellCounts": {
+    "FirestormImpact": 1,
+    "Heal": 5,
+    "AttackBuff": 4,
+    "AvatarStrike": 5,
+    "LaneDamage": 5,
+    "Shield": 4,
+    "CleanseDispel": 2,
+    "MarkSilence": 3,
+    "AreaDamage": 3,
+    "DrawMovement": 4
+  },
+  "totalSpells": 36,
+  "spells": [
+    {
+      "spellId": "firestorm",
+      "displayName": "Firestorm",
+      "spellEffect": "LaneDamage",
+      "family": "FirestormImpact",
+      "normalMotionAsset": "UI/VFX/Firestorm_Impact",
+      "reducedMotionAsset": "UI/VFX/Firestorm_Impact_Static"
+    },
+    {
+      "spellId": "mend",
+      "displayName": "Mend",
+      "spellEffect": "LaneHeal",
+      "family": "Heal",
+      "normalMotionAsset": "UI/VFX/Heal_Ring",
+      "reducedMotionAsset": "UI/VFX/Heal_Ring_Static"
+    },
+    {
+      "spellId": "war_cry",
+      "displayName": "War Cry",
+      "spellEffect": "LaneAttackBuff",
+      "family": "AttackBuff",
+      "normalMotionAsset": "UI/VFX/Magic_Circle",
+      "reducedMotionAsset": "UI/VFX/Magic_Circle_Static"
+    },
+    {
+      "spellId": "divine_bolt",
+      "displayName": "Divine Bolt",
+      "spellEffect": "AvatarStrike",
+      "family": "AvatarStrike",
+      "normalMotionAsset": "UI/VFX/Lightning_Strike",
+      "reducedMotionAsset": "UI/VFX/Lightning_Strike_Static"
+    },
+    {
+      "spellId": "cinder_lash",
+      "displayName": "Cinder Lash",
+      "spellEffect": "LaneDamage",
+      "family": "LaneDamage",
+      "normalMotionAsset": "UI/VFX/Fire_Explosion",
+      "reducedMotionAsset": "UI/VFX/Fire_Explosion_Static"
+    },
+    {
+      "spellId": "ember_wave",
+      "displayName": "Ember Wave",
+      "spellEffect": "LaneDamage",
+      "family": "LaneDamage",
+      "normalMotionAsset": "UI/VFX/Fire_Explosion",
+      "reducedMotionAsset": "UI/VFX/Fire_Explosion_Static"
+    },
+    {
+      "spellId": "fault_line",
+      "displayName": "Fault Line",
+      "spellEffect": "LaneDamage",
+      "family": "LaneDamage",
+      "normalMotionAsset": "UI/VFX/Fire_Explosion",
+      "reducedMotionAsset": "UI/VFX/Fire_Explosion_Static"
+    },
+    {
+      "spellId": "vital_spark",
+      "displayName": "Vital Spark",
+      "spellEffect": "LaneHeal",
+      "family": "Heal",
+      "normalMotionAsset": "UI/VFX/Heal_Ring",
+      "reducedMotionAsset": "UI/VFX/Heal_Ring_Static"
+    },
+    {
+      "spellId": "renewal",
+      "displayName": "Renewal",
+      "spellEffect": "LaneHeal",
+      "family": "Heal",
+      "normalMotionAsset": "UI/VFX/Heal_Ring",
+      "reducedMotionAsset": "UI/VFX/Heal_Ring_Static"
+    },
+    {
+      "spellId": "rallying_gale",
+      "displayName": "Rallying Gale",
+      "spellEffect": "LaneAttackBuff",
+      "family": "AttackBuff",
+      "normalMotionAsset": "UI/VFX/Magic_Circle",
+      "reducedMotionAsset": "UI/VFX/Magic_Circle_Static"
+    },
+    {
+      "spellId": "banner_of_ashes",
+      "displayName": "Banner of Ashes",
+      "spellEffect": "LaneAttackBuff",
+      "family": "AttackBuff",
+      "normalMotionAsset": "UI/VFX/Magic_Circle",
+      "reducedMotionAsset": "UI/VFX/Magic_Circle_Static"
+    },
+    {
+      "spellId": "sun_lance",
+      "displayName": "Sun Lance",
+      "spellEffect": "AvatarStrike",
+      "family": "AvatarStrike",
+      "normalMotionAsset": "UI/VFX/Lightning_Strike",
+      "reducedMotionAsset": "UI/VFX/Lightning_Strike_Static"
+    },
+    {
+      "spellId": "stone_judgment",
+      "displayName": "Stone Judgment",
+      "spellEffect": "AvatarStrike",
+      "family": "AvatarStrike",
+      "normalMotionAsset": "UI/VFX/Lightning_Strike",
+      "reducedMotionAsset": "UI/VFX/Lightning_Strike_Static"
+    },
+    {
+      "spellId": "tempest_brand",
+      "displayName": "Tempest Brand",
+      "spellEffect": "LaneDamage",
+      "family": "LaneDamage",
+      "normalMotionAsset": "UI/VFX/Fire_Explosion",
+      "reducedMotionAsset": "UI/VFX/Fire_Explosion_Static"
+    },
+    {
+      "spellId": "magma_rend",
+      "displayName": "Magma Rend",
+      "spellEffect": "LaneDamage",
+      "family": "LaneDamage",
+      "normalMotionAsset": "UI/VFX/Fire_Explosion",
+      "reducedMotionAsset": "UI/VFX/Fire_Explosion_Static"
+    },
+    {
+      "spellId": "blood_price",
+      "displayName": "Blood Price",
+      "spellEffect": "AvatarStrike",
+      "family": "AvatarStrike",
+      "normalMotionAsset": "UI/VFX/Lightning_Strike",
+      "reducedMotionAsset": "UI/VFX/Lightning_Strike_Static"
+    },
+    {
+      "spellId": "grave_mend",
+      "displayName": "Grave Mend",
+      "spellEffect": "LaneHeal",
+      "family": "Heal",
+      "normalMotionAsset": "UI/VFX/Heal_Ring",
+      "reducedMotionAsset": "UI/VFX/Heal_Ring_Static"
+    },
+    {
+      "spellId": "celestial_verdict",
+      "displayName": "Celestial Verdict",
+      "spellEffect": "AvatarStrike",
+      "family": "AvatarStrike",
+      "normalMotionAsset": "UI/VFX/Lightning_Strike",
+      "reducedMotionAsset": "UI/VFX/Lightning_Strike_Static"
+    },
+    {
+      "spellId": "aegis_return",
+      "displayName": "Aegis Return",
+      "spellEffect": "LaneHeal",
+      "family": "Heal",
+      "normalMotionAsset": "UI/VFX/Heal_Ring",
+      "reducedMotionAsset": "UI/VFX/Heal_Ring_Static"
+    },
+    {
+      "spellId": "ember_guard",
+      "displayName": "Ember Guard",
+      "spellEffect": "LaneShield",
+      "family": "Shield",
+      "normalMotionAsset": "UI/VFX/Shield_Bubble",
+      "reducedMotionAsset": "UI/VFX/Shield_Bubble_Static"
+    },
+    {
+      "spellId": "earthward",
+      "displayName": "Earthward",
+      "spellEffect": "LaneShield",
+      "family": "Shield",
+      "normalMotionAsset": "UI/VFX/Shield_Bubble",
+      "reducedMotionAsset": "UI/VFX/Shield_Bubble_Static"
+    },
+    {
+      "spellId": "stonewall",
+      "displayName": "Stonewall",
+      "spellEffect": "LaneShield",
+      "family": "Shield",
+      "normalMotionAsset": "UI/VFX/Shield_Bubble",
+      "reducedMotionAsset": "UI/VFX/Shield_Bubble_Static"
+    },
+    {
+      "spellId": "veil_of_zeus",
+      "displayName": "Veil of Zeus",
+      "spellEffect": "LaneShield",
+      "family": "Shield",
+      "normalMotionAsset": "UI/VFX/Shield_Bubble",
+      "reducedMotionAsset": "UI/VFX/Shield_Bubble_Static"
+    },
+    {
+      "spellId": "cleansing_root",
+      "displayName": "Cleansing Root",
+      "spellEffect": "Cleanse",
+      "family": "CleanseDispel",
+      "normalMotionAsset": "UI/VFX/Cleanse_Dispel",
+      "reducedMotionAsset": "UI/VFX/Cleanse_Dispel_Static"
+    },
+    {
+      "spellId": "gale_break",
+      "displayName": "Gale Break",
+      "spellEffect": "Dispel",
+      "family": "CleanseDispel",
+      "normalMotionAsset": "UI/VFX/Cleanse_Dispel",
+      "reducedMotionAsset": "UI/VFX/Cleanse_Dispel_Static"
+    },
+    {
+      "spellId": "infernal_mark",
+      "displayName": "Infernal Mark",
+      "spellEffect": "Vulnerability",
+      "family": "MarkSilence",
+      "normalMotionAsset": "UI/VFX/Mark_Silence",
+      "reducedMotionAsset": "UI/VFX/Mark_Silence_Static"
+    },
+    {
+      "spellId": "thunder_decree",
+      "displayName": "Thunder Decree",
+      "spellEffect": "AllLaneAttackBuff",
+      "family": "AttackBuff",
+      "normalMotionAsset": "UI/VFX/Magic_Circle",
+      "reducedMotionAsset": "UI/VFX/Magic_Circle_Static"
+    },
+    {
+      "spellId": "ashfall",
+      "displayName": "Ashfall",
+      "spellEffect": "CrossLaneDamage",
+      "family": "AreaDamage",
+      "normalMotionAsset": "UI/VFX/Area_Damage",
+      "reducedMotionAsset": "UI/VFX/Area_Damage_Static"
+    },
+    {
+      "spellId": "stormchain",
+      "displayName": "Stormchain",
+      "spellEffect": "CrossLaneDamage",
+      "family": "AreaDamage",
+      "normalMotionAsset": "UI/VFX/Area_Damage",
+      "reducedMotionAsset": "UI/VFX/Area_Damage_Static"
+    },
+    {
+      "spellId": "scorched_sky",
+      "displayName": "Scorched Sky",
+      "spellEffect": "AllLaneDamage",
+      "family": "AreaDamage",
+      "normalMotionAsset": "UI/VFX/Area_Damage",
+      "reducedMotionAsset": "UI/VFX/Area_Damage_Static"
+    },
+    {
+      "spellId": "leyline_draw",
+      "displayName": "Leyline Draw",
+      "spellEffect": "DrawCards",
+      "family": "DrawMovement",
+      "normalMotionAsset": "UI/VFX/Draw_Movement",
+      "reducedMotionAsset": "UI/VFX/Draw_Movement_Static"
+    },
+    {
+      "spellId": "oracle_sight",
+      "displayName": "Oracle Sight",
+      "spellEffect": "DrawCards",
+      "family": "DrawMovement",
+      "normalMotionAsset": "UI/VFX/Draw_Movement",
+      "reducedMotionAsset": "UI/VFX/Draw_Movement_Static"
+    },
+    {
+      "spellId": "windstep",
+      "displayName": "Windstep",
+      "spellEffect": "Reposition",
+      "family": "DrawMovement",
+      "normalMotionAsset": "UI/VFX/Draw_Movement",
+      "reducedMotionAsset": "UI/VFX/Draw_Movement_Static"
+    },
+    {
+      "spellId": "seismic_swap",
+      "displayName": "Seismic Swap",
+      "spellEffect": "Reposition",
+      "family": "DrawMovement",
+      "normalMotionAsset": "UI/VFX/Draw_Movement",
+      "reducedMotionAsset": "UI/VFX/Draw_Movement_Static"
+    },
+    {
+      "spellId": "volcanic_prison",
+      "displayName": "Volcanic Prison",
+      "spellEffect": "Silence",
+      "family": "MarkSilence",
+      "normalMotionAsset": "UI/VFX/Mark_Silence",
+      "reducedMotionAsset": "UI/VFX/Mark_Silence_Static"
+    },
+    {
+      "spellId": "titan_seal",
+      "displayName": "Titan Seal",
+      "spellEffect": "Silence",
+      "family": "MarkSilence",
+      "normalMotionAsset": "UI/VFX/Mark_Silence",
+      "reducedMotionAsset": "UI/VFX/Mark_Silence_Static"
+    }
+  ]
+}

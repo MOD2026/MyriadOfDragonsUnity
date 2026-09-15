@@ -6298,20 +6298,53 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void PlayCastImpact(AvatarSpell spell, Lane targetLane)
         {
-            bool friendlyTarget = SpellTargetsFriendlyLane(spell.Effect);
+            bool friendlyTarget = VfxAnchorTargetsFriendlyLane(spell.Effect);
             Transform anchor = friendlyTarget ? _playerLaneSlots[targetLane] : _enemyLaneSlots[targetLane];
 
-            PlayEffect(anchor, SpellEffectSprite(spell.Effect), Vector2.zero, 190f, 0.85f);
+            PlayEffect(anchor, SpellEffectSprite(spell), Vector2.zero, 190f, 0.85f);
             PlayScreenFlash(SpellFlashColor(spell.Effect));
             PlayFloatingText(anchor, spell.Name.ToUpperInvariant(), SpellFlashColor(spell.Effect), 1.0f);
         }
 
+        /// <summary>VFX-anchor-only friendly/enemy side, matching AvatarSpell.Cast's own real
+        /// caster/opponent choice per effect (see that switch directly) - NOT the same as
+        /// GameBootstrap.SpellTargetsFriendlyLane, which this deliberately does not touch or
+        /// reuse: that shared function also drives real input-targeting legality
+        /// (IsArmedSpellFriendlyTargeted) and is currently wrong for LaneShield/Cleanse/
+        /// AllLaneAttackBuff (all three apply to `caster` in Cast(), i.e. friendly, but the
+        /// shared function returns false/enemy for them - a real, pre-existing bug, out of this
+        /// asset-package task's scope to fix since it touches spell-targeting input behavior,
+        /// not art). This local copy exists so the new cast-impact art added here renders on the
+        /// correct side regardless of that separate, unfixed bug - flagged, not fixed, elsewhere.
+        /// </summary>
+        private static bool VfxAnchorTargetsFriendlyLane(SpellEffect effect) => effect switch
+        {
+            SpellEffect.LaneHeal => true,
+            SpellEffect.LaneAttackBuff => true,
+            SpellEffect.AllLaneAttackBuff => true,
+            SpellEffect.LaneShield => true,
+            SpellEffect.Cleanse => true,
+            SpellEffect.Reposition => true,
+            SpellEffect.DrawCards => true,
+            _ => false,
+        };
+
         private static Color SpellFlashColor(SpellEffect effect) => effect switch
         {
             SpellEffect.LaneDamage => new Color(1f, 0.45f, 0.15f),
+            SpellEffect.CrossLaneDamage => new Color(0.95f, 0.4f, 0.2f),
+            SpellEffect.AllLaneDamage => new Color(0.95f, 0.4f, 0.2f),
             SpellEffect.LaneHeal => new Color(0.4f, 1f, 0.55f),
             SpellEffect.LaneAttackBuff => new Color(1f, 0.85f, 0.3f),
+            SpellEffect.AllLaneAttackBuff => new Color(1f, 0.85f, 0.3f),
             SpellEffect.AvatarStrike => new Color(0.6f, 0.8f, 1f),
+            SpellEffect.LaneShield => new Color(0.55f, 0.82f, 0.95f),
+            SpellEffect.Cleanse => new Color(0.65f, 0.95f, 0.9f),
+            SpellEffect.Dispel => new Color(0.65f, 0.95f, 0.9f),
+            SpellEffect.Vulnerability => new Color(0.75f, 0.55f, 0.95f),
+            SpellEffect.Silence => new Color(0.75f, 0.55f, 0.95f),
+            SpellEffect.DrawCards => new Color(0.55f, 0.85f, 0.9f),
+            SpellEffect.Reposition => new Color(0.55f, 0.85f, 0.9f),
             _ => Color.white,
         };
 
@@ -6344,13 +6377,47 @@ namespace MyriadOfDragons.UI
             if (image != null) Destroy(image.gameObject);
         }
 
-        private static Sprite SpellEffectSprite(SpellEffect effect) => effect switch
+        /// <summary>Battle spell-animation asset package (10 approved reusable families covering
+        /// all 36 catalog spells - see Assets/Resources/Data/SpellVfx/SpellVfxManifest.json and
+        /// docs/BATTLE_SPELL_VFX_PACKAGE_HANDOFF.md): every SpellEffect now resolves to a real
+        /// transparent-PNG family asset, not the previous 4-of-14 coverage that silently rendered
+        /// nothing (PlayEffect no-ops on a null sprite) for the other 10 - LaneShield, Cleanse,
+        /// Dispel, Vulnerability, AllLaneAttackBuff, CrossLaneDamage, AllLaneDamage, DrawCards,
+        /// Reposition, Silence. Firestorm alone gets its own unique "Firestorm-specific impact"
+        /// asset (Firestorm_Impact) rather than sharing generic LaneDamage's Fire_Explosion, per
+        /// the approved family list's 10th, id-specific entry - every other LaneDamage spell
+        /// still shares Fire_Explosion.
+        ///
+        /// Reduced Motion (MotionPolicy.ReduceMotion) swaps to each family's "_Static" companion
+        /// - the same still-hold pattern used everywhere else in this file (DriftCinematicLayers,
+        /// BeginCinematic's Reduced-Motion skip): PlayEffect's own fade/scale duration already
+        /// collapses near-instantly under Reduced Motion (CombatPresentationPolicy.
+        /// ResolveDurationMs), so this is a genuinely still frame held for that shortened time,
+        /// not a motion-blurred frame that merely appears briefly.</summary>
+        private static Sprite SpellEffectSprite(AvatarSpell spell)
         {
-            SpellEffect.LaneDamage => Resources.Load<Sprite>("UI/VFX/Fire_Explosion"),
-            SpellEffect.LaneHeal => Resources.Load<Sprite>("UI/VFX/Heal_Ring"),
-            SpellEffect.LaneAttackBuff => Resources.Load<Sprite>("UI/VFX/Magic_Circle"),
-            SpellEffect.AvatarStrike => Resources.Load<Sprite>("UI/VFX/Lightning_Strike"),
-            _ => null,
+            string baseName = spell.Id == "firestorm" ? "Firestorm_Impact" : SpellEffectFamilyAssetBaseName(spell.Effect);
+            string suffix = MotionPolicy.ReduceMotion ? "_Static" : "";
+            return Resources.Load<Sprite>($"UI/VFX/{baseName}{suffix}");
+        }
+
+        private static string SpellEffectFamilyAssetBaseName(SpellEffect effect) => effect switch
+        {
+            SpellEffect.LaneDamage => "Fire_Explosion",
+            SpellEffect.CrossLaneDamage => "Area_Damage",
+            SpellEffect.AllLaneDamage => "Area_Damage",
+            SpellEffect.AvatarStrike => "Lightning_Strike",
+            SpellEffect.LaneHeal => "Heal_Ring",
+            SpellEffect.LaneAttackBuff => "Magic_Circle",
+            SpellEffect.AllLaneAttackBuff => "Magic_Circle",
+            SpellEffect.LaneShield => "Shield_Bubble",
+            SpellEffect.Cleanse => "Cleanse_Dispel",
+            SpellEffect.Dispel => "Cleanse_Dispel",
+            SpellEffect.Vulnerability => "Mark_Silence",
+            SpellEffect.Silence => "Mark_Silence",
+            SpellEffect.DrawCards => "Draw_Movement",
+            SpellEffect.Reposition => "Draw_Movement",
+            _ => "Fire_Explosion", // defensive only - every real SpellEffect value is listed above.
         };
 
         private static Sprite ElementEffectSprite(CardElement element) => element switch
