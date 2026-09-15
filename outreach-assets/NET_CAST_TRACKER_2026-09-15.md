@@ -108,3 +108,29 @@ session, same pattern as before. Posted directly on each platform's own site ins
 
 Log entries (fill after 24h): reach, engaged views, profile visits, clicks, follows, replies —
 see the Log table above.
+
+## Founder video (3-clip split) — attempted 2026-09-15, video upload confirmed broken on web for all platforms
+Split the raw founder talking-head recording into 3 clips (~18s/24s/29s) with real
+faster-whisper captions, reaction-cam layout, boomerang-looped gameplay background, and a
+typo-free end card. Files: `founder-clip1/2/3-2026-09-15.mp4` in
+`outreach-assets/current-gameplay/publish/`.
+
+Attempted to post clip1 4 separate times today across 2 platforms:
+- **X**, reply to the live before/after post: video dropped, posted as text-only ("The
+  actual footage:"). Deleted.
+- **X**, new standalone post: video showed a real upload/processing spinner for 45+
+  seconds (further than previous attempts), but still dropped when Post was clicked —
+  posted as text + Discord link card only, no video. Deleted.
+- **Instagram**, Create → Post: file input never registered with Instagram's own JS (no
+  upload network request fired even after the file was attached to the input) — the
+  modal just sat on the empty "Drag photos and videos here" state indefinitely.
+
+**Conclusion: browser-automated video upload is not reliable today on X or Instagram, and
+TikTok's web upload is fully blocked by anti-bot (confirmed separately, twice). This is
+the 4th distinct failed attempt across the two platforms — per the standing priority
+(reach over perfectionism, don't get stuck), stopping the retry loop here rather than
+burning more time on the same broken path.**
+
+**Real next step: post founder-clip1/2/3 manually from the phone apps (X, Instagram,
+TikTok).** Mobile app upload uses a different path than desktop web and has worked before
+when web automation hasn't. Files and captions are ready — see below.
