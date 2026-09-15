@@ -83,3 +83,10 @@ Affected and fixed:
 **Next real step:** post the fixed video from a phone (X, TikTok, Instagram apps) rather
 than fighting the desktop upload pipeline further, using the captions already written in
 this session's transcript. Files are ready and verified clean.
+
+## STANDING PRIORITY — set 2026-09-15
+Reach and Discord signups are the goal, not endless single-comment rectification. Do not
+re-edit a post over one piece of feedback — fix only real, verified errors (typos, broken
+assets, factual claims). Otherwise: publish, log the real numbers, iterate from volume of
+data, not from perfecting one clip before it ever goes out. Bias toward shipping more
+content across more slots over polishing what's already built.
