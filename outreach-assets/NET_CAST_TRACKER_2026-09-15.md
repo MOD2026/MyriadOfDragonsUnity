@@ -90,3 +90,21 @@ re-edit a post over one piece of feedback — fix only real, verified errors (ty
 assets, factual claims). Otherwise: publish, log the real numbers, iterate from volume of
 data, not from perfecting one clip before it ever goes out. Bias toward shipping more
 content across more slots over polishing what's already built.
+
+## Live posts pushed — 2026-09-15, direct native posting (Buffer bypassed)
+Buffer's uploader stalled at 0%/"Preparing media" again on TikTok, Instagram, and X in this
+session, same pattern as before. Posted directly on each platform's own site instead:
+
+- **X** (@myriadofdragons): LIVE. Before/after caption, text + clickable Discord link. Video
+  did not attach in time before posting (dropped when Post was clicked); can follow up with a
+  video reply later. https://x.com/myriadofdragons
+- **Instagram** (myriadofdragons.game): LIVE. Static before/after thumbnail image (video upload
+  also stalled on IG web, same as Buffer), full caption, 5 hashtags, "link in bio" CTA (IG
+  captions aren't clickable).
+- **TikTok** (@zihanpoh761): NOT posted. TikTok's web upload page (tiktok.com/upload) is gated
+  by an anti-bot check that never resolves for browser automation — confirmed on two separate
+  attempts today. Needs the phone app, or retry via Buffer once its pipeline is behaving.
+  Caption ready: "I kept this early battle scene for years..." (already written this session).
+
+Log entries (fill after 24h): reach, engaged views, profile visits, clicks, follows, replies —
+see the Log table above.
