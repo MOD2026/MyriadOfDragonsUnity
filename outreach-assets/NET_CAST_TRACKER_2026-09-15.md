@@ -57,3 +57,29 @@ those posts outperform the screen-recording-only ones.
 
 | Date | Slot | Platform | Hook / opening line | Has human face/voice? | Views | Likes | Comments | Shares | Saves | Follows | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+
+## Urgent fix log — 2026-09-15, branding typo
+Found a misspelled logo splash card ("MYRIAID OF DRAGONS") baked into the raw source
+footage (`current-gameplay/myriad-of-dragons-battle-scene-2026-09-12.mp4`, appears ~10-15s
+in). This is a game-asset bug, not something introduced in editing — flag to whoever owns
+that render/build.
+
+Affected and fixed:
+- Rebuilt clean versions using only the pre-typo footage (0-8.8s of source):
+  `before-after-battle-16x9-FIXED.mp4`, `before-after-battle-9x16-FIXED.mp4`,
+  `before-after-thumbnail-FIXED.png` (all in outreach-assets/current-gameplay/publish/).
+  Verified frame-by-frame across the full timeline — typo does not appear.
+- X: live typo'd post deleted. Repost attempted 3x with the fixed video; X's upload
+  pipeline stalled at "Preparing media..." for 60+ seconds every time today. Caption
+  saved as an X draft (title starts "This was the battle...") so it's not lost. Account
+  currently has NO before/after post live — better than a typo, but needs a human to
+  finish posting once upload is reliable again (try X's phone app — mobile upload uses a
+  different, usually more reliable path than desktop web).
+- TikTok / Instagram: both drafts (still holding the typo'd video) were deleted rather
+  than left queued. Buffer's own uploader stalled at 0% on repeated attempts with the
+  fixed file too, on both channels, and won't even save a caption-only draft (both
+  require media attached). Nothing is queued for either right now.
+
+**Next real step:** post the fixed video from a phone (X, TikTok, Instagram apps) rather
+than fighting the desktop upload pipeline further, using the captions already written in
+this session's transcript. Files are ready and verified clean.
