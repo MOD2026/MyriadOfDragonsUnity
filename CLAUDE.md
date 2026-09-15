@@ -5,6 +5,10 @@ under **`docs/MOS_v1.1.md`** — the project's design constitution, priority 2 i
 source-of-truth hierarchy (just below running code+tests, above every other doc including this
 one). Read it first if anything here seems to conflict with it; MOS wins.
 
+Document-version and current-status reconciliation is recorded in
+`docs/DOCUMENT_AUTHORITY_AND_STATUS_2026-09-16.md`. `docs/MOS_v1.2.md` remains a draft until
+explicit owner approval and does not silently supersede v1.1.
+
 **Before writing any code, also read `docs/AI_CONTRIBUTING.md`.** Key points repeated here:
 
 ## You own

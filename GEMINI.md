@@ -7,6 +7,10 @@ one). Read it first if anything here seems to conflict with it; MOS wins. Per MO
 metagame systems implementation (UI, Economy, Save-adjacent glue, Story content) plus bulk content
 generation, within already-approved specs — not independent architecture decisions.
 
+Document-version and current-status reconciliation is recorded in
+`docs/DOCUMENT_AUTHORITY_AND_STATUS_2026-09-16.md`. `docs/MOS_v1.2.md` remains a draft until
+explicit owner approval and does not silently supersede v1.1.
+
 **Before writing any code, also read `docs/AI_CONTRIBUTING.md`.** It is short and it is the rules of this
 project. The most important ones, repeated here so they are never missed:
 
