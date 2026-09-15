@@ -1444,28 +1444,48 @@ namespace MyriadOfDragons.UI
             if (_activeCinematic == null) return;
 
             // First accepted Skip wins; a second tap while the coroutine is already stopping
-            // finds _activeCinematic already null (CompleteActiveCinematic cleared it) and this
+            // finds _activeCinematic already null (CancelActiveCinematic cleared it) and this
             // whole method is a no-op - see CinematicSequence.Skip's own comment for the same
             // rule at the timer level.
             _activeCinematic.Skip();
+            CompleteActiveCinematic();
+        }
+
+        /// <summary>Stops and discards any active cinematic - coroutine, sequence, overlay - and
+        /// nothing else. Used by every path that must guarantee no cinematic keeps running or
+        /// leaves its overlay behind (destruction, replay reset), as well as by
+        /// CompleteActiveCinematic below. Deliberately does not touch the Formation/result screen
+        /// underneath or call RefreshTutorialTeachingOverlay - callers that want the normal
+        /// "reveal what's underneath" behavior go through CompleteActiveCinematic instead; a
+        /// caller tearing everything down (OnDestroy) or about to rebuild it from scratch
+        /// (ReplayIntro) must not touch other systems that may already be gone or are about to be
+        /// reset anyway. Safe to call with no active cinematic (every step already null-checks).</summary>
+        private void CancelActiveCinematic()
+        {
             if (_cinematicCoroutine != null)
             {
                 StopCoroutine(_cinematicCoroutine);
                 _cinematicCoroutine = null;
             }
-            CompleteActiveCinematic();
+            _activeCinematic = null;
+            HideCinematicOverlay();
         }
 
         private void CompleteActiveCinematic()
         {
             if (_activeCinematic == null) return;
-            _activeCinematic = null;
-            HideCinematicOverlay();
+            CancelActiveCinematic();
 
             // Modal precedence guard, mirroring BeginCinematic's own call: Formation guidance may
             // only begin once the opening cinematic has fully finished or been skipped - this is
             // what lets it reappear the instant that happens, rather than waiting for the next
-            // unrelated RefreshAll().
+            // unrelated RefreshAll(). Natural completion (RunCinematic), Skip
+            // (OnCinematicSkipPressed) and SKIP TUTORIAL (OnSkipTutorialPressed) all route through
+            // here, so all three reveal the identical already-built Formation/result state
+            // underneath - see this file's "purely additive" header comment on the cinematics
+            // section for why that state never differs between the three. Reduced Motion never
+            // reaches this method at all (BeginCinematic returns before ever creating a
+            // CinematicSequence), reaching the same state by simply never covering it.
             RefreshTutorialTeachingOverlay();
         }
 
@@ -2309,15 +2329,7 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void OnSkipTutorialPressed()
         {
-            if (_activeCinematic != null)
-            {
-                if (_cinematicCoroutine != null)
-                {
-                    StopCoroutine(_cinematicCoroutine);
-                    _cinematicCoroutine = null;
-                }
-                CompleteActiveCinematic();
-            }
+            if (_activeCinematic != null) CompleteActiveCinematic();
 
             _tutorialStep = null;
             DestroyTutorialActionProxy();
@@ -4787,6 +4799,11 @@ namespace MyriadOfDragons.UI
         public void ReplayIntro()
         {
             CancelPresentationEffects();
+            // Defensive: a replay is only ever requested once the intro/tutorial has already
+            // ended, so a Chapter 1 cinematic should never actually be active here - but this
+            // guarantees a stale one (e.g. a future call site that replays mid-tutorial) can never
+            // survive into the freshly-reset intro, leaking its overlay or coroutine forward.
+            CancelActiveCinematic();
             _profile.ResetOnboarding();
             MaybeShowTutorial();
         }
@@ -4794,6 +4811,12 @@ namespace MyriadOfDragons.UI
         private void OnDestroy()
         {
             CancelPresentationEffects();
+            // Without this, destroying GameBootstrap mid-cinematic leaks its overlay: Unity stops
+            // this component's own coroutine automatically, but _cinematicOverlay is parented
+            // under _canvasTransform (the Canvas), a separate GameObject that does not go with it
+            // - it would otherwise sit there forever, still raycastTarget=true, blocking all input
+            // on whatever Canvas survives this GameBootstrap.
+            CancelActiveCinematic();
         }
 
         private void ShowNarrativeBeat()

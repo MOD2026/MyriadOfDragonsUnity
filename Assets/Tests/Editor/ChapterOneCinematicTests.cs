@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using MyriadOfDragons.Battle;
 using MyriadOfDragons.Cards;
 using MyriadOfDragons.Save;
@@ -22,6 +23,7 @@ namespace MyriadOfDragons.Tests
     {
         private readonly List<GameObject> _spawned = new List<GameObject>();
         private string _scratchSaveDir;
+        private bool _reduceMotionBefore;
 
         [SetUp]
         public void SetUp()
@@ -30,6 +32,7 @@ namespace MyriadOfDragons.Tests
             Directory.CreateDirectory(_scratchSaveDir);
             SaveSystem.OverrideRootDirectoryForTests(_scratchSaveDir);
             SaveSystem.ResetCurrentProfileForTests();
+            _reduceMotionBefore = MotionPolicy.ReduceMotion;
         }
 
         [TearDown]
@@ -43,6 +46,7 @@ namespace MyriadOfDragons.Tests
 
             SaveSystem.ClearRootDirectoryOverride();
             SaveSystem.ResetCurrentProfileForTests();
+            MotionPolicy.ReduceMotion = _reduceMotionBefore;
             if (_scratchSaveDir != null && Directory.Exists(_scratchSaveDir))
             {
                 Directory.Delete(_scratchSaveDir, recursive: true);
@@ -311,6 +315,134 @@ namespace MyriadOfDragons.Tests
             }
 
             Assert.IsFalse(bootstrap.CinematicActiveForTests, "A Campaign match's result, win or lose, must never show a cinematic.");
+        }
+
+        // ---------- Remaining Phase A behavior: reduced motion / determinism / reset / cleanup ----------
+
+        private static GameObject FindCinematicOverlayUnderCanvas()
+        {
+            GameObject canvasGo = GameObject.Find("Canvas");
+            if (canvasGo == null) return null;
+            Transform found = canvasGo.transform.Find("Chapter1Cinematic");
+            return found != null ? found.gameObject : null;
+        }
+
+        /// <summary>Drives the private CinematicSequence directly to natural completion the same
+        /// way RunCinematic's coroutine would (Advance past the duration, then invoke the private
+        /// completion handler it calls next) - coroutines never tick in EditMode (CLAUDE.md rule
+        /// 6), so this is how a plain test proves the natural-completion path without Play Mode.</summary>
+        private static void DriveActiveCinematicToNaturalCompletion(GameBootstrap bootstrap)
+        {
+            FieldInfo activeField = typeof(GameBootstrap).GetField("_activeCinematic", BindingFlags.Instance | BindingFlags.NonPublic);
+            var active = (CinematicSequence)activeField.GetValue(bootstrap);
+            Assert.IsNotNull(active, "Setup: expected an active cinematic to drive to completion.");
+            active.Advance(active.DurationSeconds + 1f);
+            Assert.IsTrue(active.IsComplete, "Setup: expected Advance past the full duration to complete the sequence.");
+
+            MethodInfo complete = typeof(GameBootstrap).GetMethod("CompleteActiveCinematic", BindingFlags.Instance | BindingFlags.NonPublic);
+            complete.Invoke(bootstrap, null);
+        }
+
+        [Test]
+        public void NaturalCompletion_SkipAndReducedMotion_AllReachTheIdenticalFormationDestination()
+        {
+            MotionPolicy.ReduceMotion = false;
+            GameBootstrap natural = SpawnAndInitializeBootstrap("Cinematic_NaturalCompletionBootstrap");
+            natural.StartApprovedTutorialBattle();
+            int handBefore = natural.Battle.PlayerState.Hand.Count;
+            int frontLaneBefore = natural.Battle.PlayerState.Lanes[Lane.Front].Cards.Count;
+
+            DriveActiveCinematicToNaturalCompletion(natural);
+
+            Assert.IsFalse(natural.CinematicActiveForTests, "Natural completion must clear the cinematic.");
+            Assert.AreEqual(BattlePhase.Formation, natural.Battle.Phase, "Natural completion must reach Formation.");
+            Assert.AreEqual(handBefore, natural.Battle.PlayerState.Hand.Count, "Natural completion must not place any card.");
+            Assert.AreEqual(frontLaneBefore, natural.Battle.PlayerState.Lanes[Lane.Front].Cards.Count, "Natural completion must not choose a lane.");
+
+            MotionPolicy.ReduceMotion = false;
+            GameBootstrap skipped = SpawnAndInitializeBootstrap("Cinematic_SkipCompletionBootstrap");
+            skipped.StartApprovedTutorialBattle();
+            skipped.SkipCinematicForTests();
+
+            MotionPolicy.ReduceMotion = true;
+            GameBootstrap reduced = SpawnAndInitializeBootstrap("Cinematic_ReducedMotionCompletionBootstrap");
+            reduced.StartApprovedTutorialBattle();
+
+            // All three completion paths must be indistinguishable from outside: the same
+            // Formation phase with the same untouched hand/lane state, and no cinematic left
+            // active - exactly what "same Formation destination" means for the player.
+            foreach (GameBootstrap bootstrap in new[] { natural, skipped, reduced })
+            {
+                Assert.IsFalse(bootstrap.CinematicActiveForTests);
+                Assert.AreEqual(BattlePhase.Formation, bootstrap.Battle.Phase);
+                Assert.AreEqual(handBefore, bootstrap.Battle.PlayerState.Hand.Count);
+                Assert.AreEqual(frontLaneBefore, bootstrap.Battle.PlayerState.Lanes[Lane.Front].Cards.Count);
+            }
+        }
+
+        [Test]
+        public void SkipTutorial_WhileCinematicIsActivelyPlaying_StopsItAndHidesTheOverlay()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_InterruptedBySkipTutorialBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+
+            Assert.IsTrue(bootstrap.CinematicActiveForTests, "Setup: expected the opening cinematic to still be playing.");
+            Assert.IsNotNull(FindCinematicOverlayUnderCanvas(), "Setup: expected the cinematic overlay to exist under Canvas.");
+
+            bootstrap.SkipTutorialForTests();
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests, "SKIP TUTORIAL must stop an actively-playing cinematic, not just a finished one.");
+            Assert.IsNull(FindCinematicOverlayUnderCanvas(), "SKIP TUTORIAL must destroy the cinematic overlay, leaving nothing behind under Canvas.");
+            Assert.IsFalse(bootstrap.BattleCanvasVisibleForTests, "SKIP TUTORIAL must still hide the battle canvas as normal.");
+        }
+
+        [Test]
+        public void ReplayIntro_ClearsAnyCinematicAndLeavesNoOverlayBehind()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_ReplayResetBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+
+            Assert.IsTrue(bootstrap.CinematicActiveForTests, "Setup: expected the opening cinematic to still be playing.");
+            Assert.IsNotNull(FindCinematicOverlayUnderCanvas(), "Setup: expected the cinematic overlay to exist under Canvas.");
+
+            Assert.DoesNotThrow(() => bootstrap.ReplayIntro(),
+                "ReplayIntro must clear a stale cinematic without throwing, even though other systems (narrative overlay) are being reset in the same call.");
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests, "Replaying the intro must clear any stale cinematic.");
+            Assert.IsNull(FindCinematicOverlayUnderCanvas(), "Replaying the intro must destroy any stale cinematic overlay.");
+        }
+
+        /// <summary>
+        /// GameBootstrap.OnDestroy is a MonoBehaviour lifecycle hook, not a place for new logic
+        /// (CLAUDE.md rule 6: "MonoBehaviours supply only timing"; every other Presenter in this
+        /// codebase already follows the identical `OnDestroy() => TeardownUI()` shape). Its own
+        /// body is two lines of glue calling already-tested logic (CancelPresentationEffects,
+        /// CancelActiveCinematic - the latter separately proven correct by
+        /// ReplayIntro_ClearsAnyCinematicAndLeavesNoOverlayBehind and every Skip/SkipTutorial test
+        /// above). Real Play Mode dispatches OnDestroy synchronously on DestroyImmediate, but a
+        /// headless EditMode test run does not: empirically confirmed here (during this task) with
+        /// a call counter incremented only inside OnDestroy, which stayed at 0 immediately after
+        /// DestroyImmediate(bootstrap.gameObject) returned - the same reason CLAUDE.md rule 6 calls
+        /// coroutines "permanently untestable" in EditMode extends to this callback too. Invoking
+        /// the hook directly proves its own glue is correct without depending on that dispatch
+        /// timing, the same reflection-based pattern DriveActiveCinematicToNaturalCompletion above
+        /// already uses for the coroutine Unity itself won't tick in EditMode.
+        /// </summary>
+        [Test]
+        public void OnDestroy_ClearsAnyActiveCinematicAndLeavesNoOverlayBehind()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_OnDestroyCleanupBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+
+            Assert.IsTrue(bootstrap.CinematicActiveForTests, "Setup: expected the opening cinematic to still be playing.");
+            Assert.IsNotNull(FindCinematicOverlayUnderCanvas(), "Setup: expected the cinematic overlay to exist under Canvas.");
+
+            MethodInfo onDestroy = typeof(GameBootstrap).GetMethod("OnDestroy", BindingFlags.Instance | BindingFlags.NonPublic);
+            onDestroy.Invoke(bootstrap, null);
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests, "OnDestroy must clear an active cinematic.");
+            Assert.IsNull(FindCinematicOverlayUnderCanvas(),
+                "OnDestroy must destroy the cinematic overlay, leaving nothing behind under Canvas.");
         }
     }
 }
