@@ -34,3 +34,26 @@ top — one good post is luck, the same slot or hook winning 3+ times in 7 days 
 Lock that in as the default cadence, drop what clearly underperformed, and start a new
 7-day round only on the variable still worth testing (e.g. keep the winning time, now
 test hook styles against each other).
+
+## Update — 2026-09-15, real feedback received
+A comment came in on the before/after post: it reads too AI-generated, and the video/image
+isn't catching eyes. Diagnosis:
+- Caption cause: the founder-diary prompt's fixed "recurring invitation" paragraph
+  ("I'm building an original dark-fantasy world... if that speaks to you... I'm listening
+  while the foundations are still moving") was being reused near-verbatim across posts.
+  Repeating the same emotional scaffold with only nouns swapped is the actual tell, not
+  any individual sentence. Fix applied: rewrote the Instagram caption in this batch to
+  drop the fixed template, use a specific concrete detail (found 2 UI bugs recording the
+  clip), and acknowledge the feedback directly in the post itself instead of pretending it
+  didn't happen.
+- Video cause: screen-recorded gameplay with a centered serif title card and fade transitions
+  reads as templated / AI-slideshow-shaped. No human face or voice in it to signal "real
+  person" to a scrolling viewer.
+
+**Open item, needs the human:** a short (15-30s) selfie/talking clip — phone camera is
+enough, no editing needed — would do more for "this doesn't feel AI" than any caption
+rewrite can. Add a "has human face/voice in it" column to the log below and track whether
+those posts outperform the screen-recording-only ones.
+
+| Date | Slot | Platform | Hook / opening line | Has human face/voice? | Views | Likes | Comments | Shares | Saves | Follows | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|
