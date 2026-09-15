@@ -49,3 +49,21 @@ Older files may contain statements such as “open,” “planned,” “complet
 - Battle has 36 spell definitions but not 36 individually generated and runtime-accepted animations.
 - Several external UI correction packages still lack code integration and/or runtime proof.
 - rc31 remains frozen; rc32 remains a candidate, not a release approval.
+
+## Release-candidate document decision (E resolved under GR1/GR2)
+
+Keep both LK reports, but do not treat them as competing descriptions of one release:
+
+- `LK-RELEASE-051-rc31-FROZEN.md` is the current release baseline. It describes the
+  immutable, tagged rc31 candidate and its completed gate. Use rc31 when a current
+  frozen reference is required.
+- `LK-RELEASE-059-rc32-GATE-EVIDENCE.md` is the next-candidate record. It describes
+  newer content with a clean build/test result, but it is explicitly not tagged,
+  frozen, or runtime-capture-approved. Use it only for rc32 progression work.
+
+The reports must remain separate because they refer to different commits, builds,
+runtime hashes, and acceptance states. Do not merge their numbers or delete either
+report: rc31 is provenance for the frozen baseline, while rc32 is the evidence needed
+to decide whether a later freeze is worthwhile. Under GR1, rc32 can replace rc31 only
+after its missing tag and runtime evidence gates are satisfied. Under GR2, no duplicate
+re-run or document rewrite is needed while those states remain unchanged.

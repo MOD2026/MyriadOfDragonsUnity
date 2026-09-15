@@ -61,6 +61,9 @@ run.log
 # Cross-seat Unity exclusive-access lock (tools/run_editmode_tests.ps1) - machine-local, never commit
 .unity_batch.lock
 
+# Nested worktrees created inside this checkout are local coordination state, not project files.
+/.worktrees/
+
 # OS noise
 .DS_Store
 Thumbs.db
