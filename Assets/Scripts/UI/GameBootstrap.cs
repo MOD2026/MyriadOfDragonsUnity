@@ -2686,6 +2686,38 @@ namespace MyriadOfDragons.UI
 
         // ---------- Canvas / EventSystem ----------
 
+        /// <summary>
+        /// Battle's own responsive canvas match value (phone-compression fix). The flat 0.5 this
+        /// canvas shipped with (see the history in this method's own prior comment, kept below)
+        /// is genuinely correct for a screen close to the 1920x1080 reference aspect, but on a
+        /// WIDER-than-reference screen - every real phone in landscape, e.g. 2400x1080 (20:9) vs.
+        /// this game's 16:9 - a flat 0.5 blend still lets HEIGHT compress (CanvasOverflowAuditTests
+        /// measures ~11% design-space loss at 2400x1080, match=0.5), because width has slack that
+        /// 0.5 does not use. Matching height exactly (matchWidthOrHeight=1) for that case gives
+        /// scaleFactor = screenHeight/refHeight - on 2400x1080 specifically that is 1080/1080 = 1.0
+        /// EXACTLY, so every fixed-pixel HUD/board/hand/spell/action element renders at its
+        /// authored reference-unit size with zero shrink, and the extra real width (2400 vs 1920)
+        /// is pure slack that fraction-anchored regions already know how to absorb - not a new
+        /// crowding risk.
+        ///
+        /// A NARROWER-or-equal-than-reference screen (tablet 2560x1600 is 16:10 &lt; 16:9; the
+        /// authored 1920x1080 baseline is exactly 16:9) keeps the EXISTING static 0.5 unchanged -
+        /// tablet support is explicitly excluded from this beta's scope and this fix must not
+        /// alter its behavior, measured or otherwise, in either direction.
+        ///
+        /// Deliberately keeps the original "mixed HUD/content canvas" reasoning below: that
+        /// argument was against a single GLOBAL match=1 (which would break tablet exactly as
+        /// described), not against a match value chosen per the real device's own aspect ratio.
+        /// </summary>
+        public static float ComputeBattleCanvasMatchWidthOrHeight(
+            float screenWidth, float screenHeight, float refWidth, float refHeight)
+        {
+            if (screenWidth <= 0f || screenHeight <= 0f || refWidth <= 0f || refHeight <= 0f) return 0.5f;
+            float screenAspect = screenWidth / screenHeight;
+            float refAspect = refWidth / refHeight;
+            return screenAspect > refAspect ? 1f : 0.5f;
+        }
+
         private Canvas BuildCanvas()
         {
             var canvasGo = new GameObject("Canvas");
@@ -2696,14 +2728,17 @@ namespace MyriadOfDragons.UI
             var scaler = canvasGo.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(CanvasWidth, CanvasHeight);
-            // Reverted to the original 0.5 (CC 4e836a5, 2026-08-27, after checking): this canvas
-            // is MIXED - edge-anchored Top HUD bands (Player/Phase/Enemy resource bars) AND
-            // centre-weighted battlefield/hand-dock gameplay content on the same canvas. Neither
-            // match=1 (crops battle content horizontally on a wide-short mismatch) nor a blanket
-            // match=0 is right for a mixed screen; a real HUD/content split is the correct fix but
-            // is an owner decision here per the frozen battle-metagame-contract boundary
-            // (SetBattleCanvasVisible operates on this exact canvas) - not attempted in this pass.
-            scaler.matchWidthOrHeight = 0.5f;
+            // Originally a flat 0.5 (CC 4e836a5, 2026-08-27): this canvas is MIXED - edge-anchored
+            // Top HUD bands AND centre-weighted battlefield/hand-dock gameplay content on the same
+            // canvas. A single GLOBAL match=1 was rejected because it crops battle content
+            // horizontally on a narrower-than-reference screen (tablet). ComputeBattleCanvasMatch-
+            // WidthOrHeight (see its own doc comment) resolves that by choosing per the REAL
+            // device's own aspect ratio at boot: match=1 only for screens wider than the 16:9
+            // reference (phone), where it has real width slack to spend and eliminates the height
+            // compression entirely; 0.5 unchanged otherwise (tablet, baseline) - not a fresh
+            // per-device branch invented here, the same rule already used to reason about this
+            // canvas, just applied per-screen instead of picked once for every device.
+            scaler.matchWidthOrHeight = ComputeBattleCanvasMatchWidthOrHeight(Screen.width, Screen.height, CanvasWidth, CanvasHeight);
 
             canvasGo.AddComponent<GraphicRaycaster>();
 
