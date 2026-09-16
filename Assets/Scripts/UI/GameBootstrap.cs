@@ -7236,15 +7236,40 @@ namespace MyriadOfDragons.UI
             }
         }
 
-        /// <summary>Icon for a spell button, from the uploaded StatusIcons set.</summary>
+        /// <summary>Icon for a spell button on the always-visible spell rail (BATTLE-UI-
+        /// PRESENTATION-INTEGRATION-001, 2026-09-16). The original 4 SpellEffect values keep
+        /// their existing, already-shipped StatusIcons look unchanged. The other 10 - covering
+        /// 17 of the 36 real catalog spells (LaneShield, Cleanse, Dispel, Vulnerability,
+        /// AllLaneAttackBuff, CrossLaneDamage, AllLaneDamage, DrawCards, Reposition, Silence) -
+        /// previously fell through to `null`, so `_spellIcons[i].enabled = false` left those
+        /// spells' rail buttons with no icon at all in the live, permanently-visible Battle UI
+        /// (not just the momentary cast-impact flash, which SpellEffectSprite already covered
+        /// for all 36 via the approved spell-animation asset package). Those 10 now resolve
+        /// through the same SpellEffectFamilyAssetBaseName family resolver the cast-impact VFX
+        /// already uses - the same already-approved UI/VFX/* assets (see
+        /// docs/BATTLE_SPELL_VFX_PACKAGE_HANDOFF.md), not new or unapproved art. No StatusIcons
+        /// entry is removed or reassigned.</summary>
         private static Sprite SpellIconSprite(SpellEffect effect) => effect switch
         {
             SpellEffect.LaneDamage => Resources.Load<Sprite>("UI/StatusIcons/Burn"),
             SpellEffect.LaneHeal => Resources.Load<Sprite>("UI/StatusIcons/Regeneration"),
             SpellEffect.LaneAttackBuff => Resources.Load<Sprite>("UI/StatusIcons/Rage"),
             SpellEffect.AvatarStrike => Resources.Load<Sprite>("UI/StatusIcons/Lightning"),
-            _ => null,
+            _ => Resources.Load<Sprite>($"UI/VFX/{SpellEffectFamilyAssetBaseName(effect)}"),
         };
+
+        /// <summary>Exposed for tests: the real spell-rail icon a given SpellEffect resolves to.</summary>
+        public static Sprite SpellIconSpriteForTests(SpellEffect effect) => SpellIconSprite(effect);
+
+        /// <summary>Exposed for tests: the real, currently-assigned sprite on the live spell-rail
+        /// button at `spellIndex` (null/disabled means no icon is showing), and whether that
+        /// icon Image is enabled - the same two fields RefreshHand's spell-rail loop sets from
+        /// SpellIconSprite every refresh. Proves the real rendered state, not just the pure
+        /// resolver function.</summary>
+        public (Sprite sprite, bool enabled) SpellRailIconStateForTests(int spellIndex) =>
+            spellIndex >= 0 && spellIndex < _spellIcons.Count
+                ? (_spellIcons[spellIndex].sprite, _spellIcons[spellIndex].enabled)
+                : (null, false);
 
         /// <summary>One-line "what does this do" for a spell button.</summary>
         private static string SpellShortEffect(AvatarSpell spell) => spell.Effect switch
