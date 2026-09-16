@@ -5952,10 +5952,22 @@ namespace MyriadOfDragons.UI
         /// site (targeting UI in IsArmedSpellFriendlyTargeted, VFX anchor selection in
         /// PlayCastImpact). Pure and static - no coroutine, no MonoBehaviour state - so it is
         /// directly EditMode-testable, unlike the coroutine-driven presentation methods that
-        /// consume it. True for LaneHeal/LaneAttackBuff (targets the player's own board), false
-        /// for LaneDamage/AvatarStrike (targets the enemy).</summary>
+        /// consume it. True for effects whose AvatarSpell.Cast mutates the caster's board
+        /// (LaneHeal/LaneAttackBuff/LaneShield/Cleanse/AllLaneAttackBuff), false for effects
+        /// that mutate the opponent or Avatar (LaneDamage/AvatarStrike/Dispel/Vulnerability/
+        /// CrossLaneDamage/AllLaneDamage - all confirmed directly against Cast's own caster/
+        /// opponent parameter, see SpellTargetsFriendlyLaneTests). DrawCards/Reposition/Silence
+        /// never reach this predicate: DrawCards has no lane, Reposition/Silence pick a unit.
+        /// LaneShield/Cleanse/AllLaneAttackBuff were confirmed missing here (2026-09-16) while
+        /// wiring the Battle spell-animation asset package - see
+        /// docs/BATTLE_SPELL_VFX_PACKAGE_HANDOFF.md's "Known issue found, NOT fixed here" note,
+        /// now closed.</summary>
         public static bool SpellTargetsFriendlyLane(SpellEffect effect) =>
-            effect is SpellEffect.LaneHeal or SpellEffect.LaneAttackBuff;
+            effect is SpellEffect.LaneHeal
+                or SpellEffect.LaneAttackBuff
+                or SpellEffect.LaneShield
+                or SpellEffect.Cleanse
+                or SpellEffect.AllLaneAttackBuff;
 
         private bool IsArmedSpellFriendlyTargeted()
         {
@@ -6293,8 +6305,8 @@ namespace MyriadOfDragons.UI
         /// spell's name punched over the board. All three use the existing PlayEffect /
         /// PlayFloatingText / coroutine template rather than a new animation system.
         ///
-        /// A heal targets the player's own lane, everything else the enemy's - firing a heal
-        /// effect over the enemy board would read as damage.
+        /// A heal, shield, cleanse, or friendly attack buff targets the player's own lane;
+        /// firing one of those effects over the enemy board would contradict the state change.
         /// </summary>
         private void PlayCastImpact(AvatarSpell spell, Lane targetLane)
         {
@@ -6309,13 +6321,9 @@ namespace MyriadOfDragons.UI
         /// <summary>VFX-anchor-only friendly/enemy side, matching AvatarSpell.Cast's own real
         /// caster/opponent choice per effect (see that switch directly) - NOT the same as
         /// GameBootstrap.SpellTargetsFriendlyLane, which this deliberately does not touch or
-        /// reuse: that shared function also drives real input-targeting legality
-        /// (IsArmedSpellFriendlyTargeted) and is currently wrong for LaneShield/Cleanse/
-        /// AllLaneAttackBuff (all three apply to `caster` in Cast(), i.e. friendly, but the
-        /// shared function returns false/enemy for them - a real, pre-existing bug, out of this
-        /// asset-package task's scope to fix since it touches spell-targeting input behavior,
-        /// not art). This local copy exists so the new cast-impact art added here renders on the
-        /// correct side regardless of that separate, unfixed bug - flagged, not fixed, elsewhere.
+        /// reuse: this helper is presentation-only and retains its explicit mapping for effects
+        /// whose impact needs a local anchor. The shared targeting rule is the authoritative
+        /// input-side mapping and is covered independently.
         /// </summary>
         private static bool VfxAnchorTargetsFriendlyLane(SpellEffect effect) => effect switch
         {
