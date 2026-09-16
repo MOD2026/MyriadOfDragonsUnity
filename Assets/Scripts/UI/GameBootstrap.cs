@@ -463,6 +463,18 @@ namespace MyriadOfDragons.UI
         public RectTransform EnemyLaneButtonRectForTests(Lane lane) =>
             _enemyLaneButtons.TryGetValue(lane, out Button button) ? button.GetComponent<RectTransform>() : null;
 
+        /// <summary>Exposed for tests: whether a Player lane's targeting-highlight border glow
+        /// (CR-BATTLE-PRESENTATION-VISUAL-PASS-002) is currently showing.</summary>
+        public bool PlayerLaneHighlightOutlineEnabledForTests(Lane lane) =>
+            _playerLaneButtons.TryGetValue(lane, out Button button)
+            && button.GetComponent<Outline>() is Outline outline && outline.enabled;
+
+        /// <summary>Exposed for tests: whether an Enemy lane's targeting-highlight border glow is
+        /// currently showing - the enemy-side half of the same visual pass.</summary>
+        public bool EnemyLaneHighlightOutlineEnabledForTests(Lane lane) =>
+            _enemyLaneButtons.TryGetValue(lane, out Button button)
+            && button.GetComponent<Outline>() is Outline outline && outline.enabled;
+
         /// <summary>Exposed for tests: the single BattlePresentationRoot every Battle child is
         /// built under (Battle Release Layout pass - see Initialize()'s own comment).</summary>
         public RectTransform BattlePresentationRootForTests => _battlePresentationRoot;
@@ -3162,6 +3174,18 @@ namespace MyriadOfDragons.UI
                 // only for the lanes it can actually hit.
                 button.interactable = false;
             }
+
+            // CR-BATTLE-PRESENTATION-VISUAL-PASS-002, 2026-09-17: a legal-target lane previously
+            // only got a faint 0.28-0.32 alpha background wash (RefreshLaneButtons/
+            // ArmSpellTargeting) - too subtle to read as "this is the thing to tap" at a glance
+            // against the busy arena backdrop. Adds a real border glow, toggled alongside that
+            // same background tint by the same two methods, disabled by default here. Presentation
+            // only - toggling .enabled changes nothing about which lane is a legal target.
+            var targetOutline = slotsGo.AddComponent<Outline>();
+            targetOutline.effectColor = new Color(SelectedColor.r, SelectedColor.g, SelectedColor.b, 0.95f);
+            targetOutline.effectDistance = new Vector2(5f, 5f);
+            targetOutline.useGraphicAlpha = false;
+            targetOutline.enabled = false;
 
             var slotsLayout = slotsGo.AddComponent<HorizontalLayoutGroup>();
             slotsLayout.spacing = BoardSlotSpacing;
@@ -6096,8 +6120,12 @@ namespace MyriadOfDragons.UI
                     var background = enemyButton.GetComponent<Image>();
                     if (background != null)
                     {
-                        background.color = new Color(SelectedColor.r, SelectedColor.g, SelectedColor.b, 0.32f);
+                        // Alpha raised 0.32 -> 0.5, matching RefreshLaneButtons's own friendly-
+                        // side fix (CR-BATTLE-PRESENTATION-VISUAL-PASS-002).
+                        background.color = new Color(SelectedColor.r, SelectedColor.g, SelectedColor.b, 0.5f);
                     }
+                    var outline = enemyButton.GetComponent<Outline>();
+                    if (outline != null) outline.enabled = true;
                 }
             }
 
@@ -6127,6 +6155,8 @@ namespace MyriadOfDragons.UI
                 enemyButton.onClick.RemoveAllListeners();
                 var background = enemyButton.GetComponent<Image>();
                 if (background != null) background.color = new Color(0f, 0f, 0f, 0f);
+                var outline = enemyButton.GetComponent<Outline>();
+                if (outline != null) outline.enabled = false;
             }
 
             if (_spellTargetCancelCatcher != null) _spellTargetCancelCatcher.SetActive(false);
@@ -7418,16 +7448,21 @@ namespace MyriadOfDragons.UI
                     && _battleController.PlayerState.Lanes[lane].HasRoomFor(_selectedCard)
                     && _selectedCard.ResourceCost <= _battleController.PlayerState.Resource;
 
+                bool highlighted = isValidCardTarget || armedSpellIsFriendly;
                 var background = button.GetComponent<Image>();
                 if (background != null)
                 {
                     // Invisible unless this lane is a legal target for the selected card or the
                     // currently armed spell - the highlight is the only time a row tint earns the
-                    // space it takes up.
-                    background.color = (isValidCardTarget || armedSpellIsFriendly)
-                        ? new Color(SelectedColor.r, SelectedColor.g, SelectedColor.b, 0.28f)
+                    // space it takes up. Alpha raised 0.28 -> 0.5 (CR-BATTLE-PRESENTATION-VISUAL-
+                    // PASS-002) - the prior wash read as barely-there against the arena backdrop;
+                    // the border glow below is the other half of the same fix.
+                    background.color = highlighted
+                        ? new Color(SelectedColor.r, SelectedColor.g, SelectedColor.b, 0.5f)
                         : new Color(0f, 0f, 0f, 0f);
                 }
+                var outline = button.GetComponent<Outline>();
+                if (outline != null) outline.enabled = highlighted;
             }
         }
 
