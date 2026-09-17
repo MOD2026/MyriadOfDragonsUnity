@@ -846,6 +846,9 @@ namespace MyriadOfDragons.UI
                 WhHangProfileTrace.Mark("AttemptPurchase.before_RefreshStaminaBuyButtons");
                 RefreshStaminaBuyButtons();
                 WhHangProfileTrace.Mark("AttemptPurchase.after_RefreshStaminaBuyButtons", refreshSw.ElapsedMilliseconds);
+                // This is deliberately after fulfillment, wallet commit/save, and both display
+                // refreshes: cosmetic confirmation must never imply a failed or partial purchase.
+                PurchaseSuccessRevealPresenter.Show(canvasObj != null ? canvasObj.transform : null, item.title);
             }
 
             WhHangProfileTrace.Mark("AttemptPurchase.exit_ok", totalSw.ElapsedMilliseconds);

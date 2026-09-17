@@ -22,9 +22,9 @@ namespace MyriadOfDragons.Tests
     /// Gameplay state (BattleController/LaneBattleResolver) is untouched by 7115462 - confirmed by
     /// inspection of the commit diff, not re-tested here to avoid duplicating BattleLogicTests.cs.
     /// ReducedMotion_ResolvesEveryDurationImmediately (CombatPresentationPolicyTests.cs) already
-    /// proves reduced motion collapses every duration to zero; GameBootstrap's three call sites
-    /// (PlayEffect/PlayFloatingText/ShowClashEffects flash) pass MotionPolicy.ReduceMotion straight
-    /// through with no extra branching, so that relationship is not re-derived here either.
+    /// proves reduced motion collapses requested durations to zero. The decorative cast paths now
+    /// short-circuit before creating a decorative effect or flash; informational floating labels
+    /// are created directly at their final position and remain static until timed cleanup.
     /// </summary>
     public class CombatPresentationInterruptionSafetyTests
     {

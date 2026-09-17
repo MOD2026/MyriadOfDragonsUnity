@@ -82,6 +82,32 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void SuccessfulPurchase_ShowsConfirmedReveal_AfterRealPurchaseHandler()
+        {
+            var profile = new PlayerProfile { gems = 100 };
+            ShopPresenter shop = SpawnAndInitializeShop(profile);
+
+            shop.PurchaseForTests("res_gold");
+
+            GameObject reveal = GameObject.Find(PurchaseSuccessRevealPresenter.RootName);
+            Assert.IsNotNull(reveal, "A confirmed reveal must follow the real successful purchase callback.");
+            Assert.AreEqual(PurchaseSuccessRevealPresenter.Headline,
+                reveal.transform.Find("Headline")?.GetComponent<UnityEngine.UI.Text>()?.text);
+        }
+
+        [Test]
+        public void UnsuccessfulPurchase_DoesNotShowConfirmedReveal()
+        {
+            var profile = new PlayerProfile { gems = 10 };
+            ShopPresenter shop = SpawnAndInitializeShop(profile);
+
+            shop.PurchaseForTests("res_gold");
+
+            Assert.IsNull(GameObject.Find(PurchaseSuccessRevealPresenter.RootName),
+                "Confirmation must not appear when the real purchase path rejects affordability.");
+        }
+
+        [Test]
         public void InsufficientFunds_LeavesWalletAndRewardUntouched()
         {
             var profile = new PlayerProfile { gold = 0, gems = 10 }; // Gold Vault costs 50 Gems

@@ -75,6 +75,17 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void ReducedMotion_StartupReveal_IsAlreadyVisibleAndStatic()
+        {
+            MotionPolicy.ReduceMotion = true;
+            StartupSoftLandingPresenter presenter = Build();
+            CanvasGroup group = presenter.CanvasObjectForTests.GetComponent<CanvasGroup>();
+
+            Assert.AreEqual(1f, group.alpha);
+            Assert.AreEqual(Vector3.one, presenter.CanvasObjectForTests.transform.localScale);
+        }
+
+        [Test]
         public void ExistingSaveFile_ReadAsReturning_AndShowsReturningCopy()
         {
             SaveSystem.Save(new PlayerProfile { gold = 500 });

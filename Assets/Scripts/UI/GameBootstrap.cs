@@ -3708,7 +3708,7 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void PlayEffect(Transform parent, Sprite sprite, Vector2 anchoredPosition, float size, float duration)
         {
-            if (sprite == null || parent == null) return;
+            if (sprite == null || parent == null || MotionPolicy.ReduceMotion) return;
 
             var go = new GameObject("Effect", typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -3748,6 +3748,15 @@ namespace MyriadOfDragons.UI
             StretchFull(label.rectTransform);
 
             _presentationObjects.Add(go);
+            if (MotionPolicy.ReduceMotion)
+            {
+                // Informational feedback stays visible, but never drifts or fades under the
+                // reduced-motion preference. Its timed cleanup is not visual motion.
+                if (Application.isPlaying)
+                    _presentationCoroutines.Add(StartCoroutine(DestroyAfterDelay(go, duration)));
+                return;
+            }
+
             _presentationCoroutines.Add(StartCoroutine(RiseFadeAndDestroy(go, label,
                 CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f)));
         }
@@ -3790,6 +3799,13 @@ namespace MyriadOfDragons.UI
                 rect.anchoredPosition = new Vector2(0f, Mathf.Lerp(0f, 40f, t));
                 yield return null;
             }
+            if (go != null) Destroy(go);
+        }
+
+        private static IEnumerator DestroyAfterDelay(GameObject go, float duration)
+        {
+            if (duration > 0f)
+                yield return new WaitForSecondsRealtime(duration);
             if (go != null) Destroy(go);
         }
 
@@ -6453,7 +6469,7 @@ namespace MyriadOfDragons.UI
         /// "big" without any new art. Non-raycast so it never swallows a tap mid-fade.</summary>
         private void PlayScreenFlash(Color color)
         {
-            if (!Application.isPlaying || _canvasTransform == null) return;
+            if (!Application.isPlaying || _canvasTransform == null || MotionPolicy.ReduceMotion) return;
 
             Image flash = CreateImage(_canvasTransform, new Color(color.r, color.g, color.b, 0.34f));
             flash.raycastTarget = false;

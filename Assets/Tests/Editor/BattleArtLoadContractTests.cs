@@ -51,9 +51,13 @@ namespace MyriadOfDragons.Tests
             "UI/VFX/Fire_Explosion",
             "UI/VFX/Heal_Ring",
             "UI/VFX/Holy_Beam",
+            "UI/VFX/Ice_Explosion",
             "UI/VFX/Lightning_Strike",
             "UI/VFX/Magic_Circle",
+            "UI/VFX/Poison_Cloud",
+            "UI/VFX/Resurrection_Glow",
             "UI/VFX/Shadow_Explosion",
+            "UI/VFX/Shield_Bubble",
         };
 
         [Test]

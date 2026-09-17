@@ -99,6 +99,13 @@ public class StartupSoftLandingPresenter : MonoBehaviour
             UITextRole.Body, TextAnchor.MiddleCenter, Color.white, true, new Vector2(220f, 40f));
         continueLabel.fontSize = 24;
         continueLabel.fontStyle = FontStyle.Bold;
+
+        CanvasGroup group = _canvasObj.GetComponent<CanvasGroup>();
+        if (group == null) group = _canvasObj.AddComponent<CanvasGroup>();
+        group.interactable = true;
+        group.blocksRaycasts = true;
+        PresentationRevealRunner runner = _canvasObj.AddComponent<PresentationRevealRunner>();
+        runner.Initialize(group, _canvasObj.GetComponent<RectTransform>());
     }
 
     /// <summary>Exposed for tests: exercises exactly what Btn_Continue's onClick does, without
