@@ -405,6 +405,76 @@ namespace MyriadOfDragons.Tests
             }
         }
 
+        /// <summary>CC9 dispatch, 2026-09-17 - the vertical counterpart to the right-margin fix
+        /// above: TopHud's top edge used to sit only 5.4px from the real screen top at 1920x1080,
+        /// short of the 32px vertical safe-area standard. Proves the real, post-layout top margin
+        /// at authored 1920x1080 (not a hardcoded anchor fraction) and, separately, that TopHud
+        /// still never overlaps the board region it sits directly above - the real risk this fix's
+        /// own interior compression (not a pure translation - see TopHudMin/Max's own comment)
+        /// had to avoid.</summary>
+        [Test]
+        public void TopHud_KeepsAtLeastTheThirtyTwoPixelTopSafeAreaMargin_AndNeverOverlapsTheBoard()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_SafeAreaTopMarginBootstrap");
+            RectTransform root = bootstrap.BattlePresentationRootForTests;
+
+            GameObject canvasGo = GameObject.Find("Canvas");
+            Assert.IsNotNull(canvasGo, "Setup: expected the Battle canvas to exist after Initialize.");
+            Rect canvasBounds = WorldBounds(canvasGo.GetComponent<RectTransform>());
+
+            Transform topHud = root.Find("TopHud");
+            Assert.IsNotNull(topHud, "Setup: expected TopHud to exist.");
+            Rect topHudBounds = WorldBounds((RectTransform)topHud);
+
+            const float requiredMarginPx = 32f;
+            float topMargin = canvasBounds.yMax - topHudBounds.yMax;
+            Assert.GreaterOrEqual(topMargin, requiredMarginPx - 0.5f,
+                $"TopHud has only {topMargin:F1}px between its top edge and the screen's real top " +
+                $"edge - must be at least the {requiredMarginPx}px vertical safe-area margin.");
+
+            foreach (Lane lane in System.Enum.GetValues(typeof(Lane)))
+            {
+                Rect enemyLaneBounds = WorldBounds(bootstrap.EnemyLaneButtonRectForTests(lane));
+                Assert.IsFalse(topHudBounds.Overlaps(enemyLaneBounds),
+                    $"TopHud must never overlap the Enemy {lane} lane, even after shrinking to meet the top safe-area margin.");
+            }
+        }
+
+        /// <summary>Same top-margin requirement as above, checked at the worst real device
+        /// profile GameBootstrap's own match=0.5 canvas produces (see
+        /// SpellList_EveryRowPlusSpacing_FitsItsOwnRealHeight_UnderPhoneCompression's own comment
+        /// for the exact 2400x1080 -> ~2147x966 derivation) - "remains readable under compressed
+        /// landscape layouts" is only proven by checking compression, not assumed from the
+        /// authored-size result alone.</summary>
+        [Test]
+        public void TopHud_KeepsTheTopSafeAreaMargin_UnderPhoneCompression()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_SafeAreaTopMarginPhoneBootstrap");
+
+            GameObject canvasGo = GameObject.Find("Canvas");
+            Assert.IsNotNull(canvasGo, "Setup: expected the Battle canvas to exist after Initialize.");
+            RectTransform canvasRect = canvasGo.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(2147f, 966f);
+            foreach (RectTransform rt in canvasGo.GetComponentsInChildren<RectTransform>(true)
+                         .OrderByDescending(r => r.GetComponentsInParent<Transform>(true).Length))
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            }
+            LayoutRebuilder.ForceRebuildLayoutImmediate(canvasRect);
+
+            Rect canvasBounds = WorldBounds(canvasRect);
+            RectTransform root = bootstrap.BattlePresentationRootForTests;
+            Transform topHud = root.Find("TopHud");
+            Assert.IsNotNull(topHud, "Setup: expected TopHud to exist.");
+            Rect topHudBounds = WorldBounds((RectTransform)topHud);
+
+            const float requiredMarginPx = 32f;
+            float topMargin = canvasBounds.yMax - topHudBounds.yMax;
+            Assert.GreaterOrEqual(topMargin, requiredMarginPx - 0.5f,
+                $"Under phone compression, TopHud has only {topMargin:F1}px between its top edge and " +
+                $"the screen's real top edge - must still be at least the {requiredMarginPx}px margin.");
+        }
+
         /// <summary>Regression for the SpellList row-overflow fix (CR, 2026-08-27): asserts the
         /// RELATIONSHIP (every spell row, plus the spacing between them, fits inside SpellList's
         /// own real height) rather than any magic number, per the project rule against hardcoding

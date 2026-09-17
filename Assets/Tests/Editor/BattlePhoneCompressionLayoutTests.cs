@@ -237,9 +237,12 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(topHud, "Expected TopHud to exist.");
 
             Rect bounds = WorldBounds((RectTransform)topHud);
-            // TopHudMax.y - TopHudMin.y = 0.995 - 0.885 = 0.11 of the authored 1080 = 118.8px.
-            // At the old match=0.5, this would render ~11% shorter; the fix makes it exact.
-            const float expectedAuthoredHeight = (0.995f - 0.885f) * RefHeight;
+            // TopHudMax.y - TopHudMin.y = 0.966 - 0.878 = 0.088 of the authored 1080 = 95.04px
+            // (CC9 dispatch, 2026-09-17: shrunk from the original 0.995-0.885=0.11/118.8px to meet
+            // the 32px vertical safe-area rule - see TopHudMin/Max's own doc comment in
+            // GameBootstrap.cs for the exact derivation). At the old match=0.5, this would render
+            // ~11% shorter; the fix makes it exact regardless of the height value itself.
+            const float expectedAuthoredHeight = (0.966f - 0.878f) * RefHeight;
             Assert.AreEqual(expectedAuthoredHeight, bounds.height, 1.5f,
                 $"TopHud must render at its full authored height ({expectedAuthoredHeight:F1}px) on phone now, not compressed.");
         }
@@ -371,7 +374,9 @@ namespace MyriadOfDragons.Tests
             Transform topHud = root.Find("TopHud");
             Assert.IsNotNull(topHud);
             Rect bounds = WorldBounds((RectTransform)topHud);
-            const float expectedAuthoredHeight = (0.995f - 0.885f) * RefHeight;
+            // Same 0.966-0.878 authored height as PhoneProfile_TopHudRendersAtItsFullAuthoredPixelHeight's
+            // own comment - kept in sync with TopHudMin/Max in GameBootstrap.cs.
+            const float expectedAuthoredHeight = (0.966f - 0.878f) * RefHeight;
             Assert.AreEqual(expectedAuthoredHeight, bounds.height, 0.5f);
         }
     }

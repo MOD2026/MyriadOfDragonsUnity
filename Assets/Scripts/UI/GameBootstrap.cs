@@ -150,14 +150,39 @@ namespace MyriadOfDragons.UI
         // file first and confirmed nothing pins these exact X fractions, so this is scoped to the
         // one identified gap rather than a full margin renumbering (which risks the Y-axis font-
         // floor cascade flagged, but deliberately not attempted, in the prior pass's report).
-        private static readonly Vector2 TopHudMin = new Vector2(0.015f, 0.885f);
-        private static readonly Vector2 TopHudMax = new Vector2(0.975f, 0.995f);
-        private static readonly Vector2 PlayerHudMin = new Vector2(0.020f, 0.895f);
-        private static readonly Vector2 PlayerHudMax = new Vector2(0.300f, 0.985f);
-        private static readonly Vector2 PhaseHudMin = new Vector2(0.360f, 0.895f);
-        private static readonly Vector2 PhaseHudMax = new Vector2(0.640f, 0.985f);
-        private static readonly Vector2 EnemyHudMin = new Vector2(0.700f, 0.895f);
-        private static readonly Vector2 EnemyHudMax = new Vector2(0.970f, 0.985f);
+        // CC9 dispatch, 2026-09-17: the top edge of TopHud sat at y=0.995 - only 5.4px from the
+        // real screen top at 1080 height, far short of the 32px vertical safe-area rule (same
+        // standard as the prior pass's 48px horizontal fix: Battle_State_Acceptance_GUI_Handoff.md
+        // / Beta_Presenter_Acceptance_GUI_CR_Handoff.md). Unlike the horizontal fix, this one
+        // cannot be a pure margin shift: TopHudMin.y=0.885 already sat only 10.8px above
+        // EnemyBoardMax.y=0.875 (the board), so there isn't 26.6px of pure top-side slack to
+        // redistribute - the fix is a real, modest interior compression, not a translation:
+        //   TopHudMin.y  0.885 -> 0.878 (uses 6.8px of the board's 10.8px original slack; a real
+        //     3.24px gap remains, still > 0 and unchanged relative to the board's own geometry).
+        //   TopHudMax.y  0.995 -> 0.966. Sized against the WORST real device profile this canvas's
+        //     own match=0.5 scaler produces, not just authored 1920x1080 - "remain readable under
+        //     compressed landscape layouts" (a 2400x1080 phone compresses this canvas's design-
+        //     space HEIGHT to ~966 of its authored 1080, per
+        //     SpellList_EveryRowPlusSpacing_FitsItsOwnRealHeight_UnderPhoneCompression's own
+        //     derivation - anchor fractions are constant, so a fixed-pixel target must be checked
+        //     against the smallest real effective height, not 1080). (1-0.966)*966 = 32.8px at
+        //     worst compression; (1-0.966)*1080 = 36.7px at authored size - both clear 32px.
+        //   Player/Phase/EnemyHudMin.y  0.895 -> 0.883, Max.y 0.985 -> 0.961: the three clusters'
+        //     own height shrinks 97.2px -> 84.2px (~13.4% at authored size) while every AnchorBand
+        //     FRACTION inside them (portrait/health bar/resource bar/hand-count text in PlayerHud;
+        //     crest/health segments/resource bar in EnemyHud) is untouched - each element's own
+        //     SHARE of the cluster stays identical, only the cluster's total pixel height shrinks.
+        //     Verified against the real UI Verification Gate (UiValidationRunTests) and
+        //     CanvasOverflowAuditTests, both re-run clean after this change - see this pass's
+        //     commit for the exact before/after numbers.
+        private static readonly Vector2 TopHudMin = new Vector2(0.015f, 0.878f);
+        private static readonly Vector2 TopHudMax = new Vector2(0.975f, 0.966f);
+        private static readonly Vector2 PlayerHudMin = new Vector2(0.020f, 0.883f);
+        private static readonly Vector2 PlayerHudMax = new Vector2(0.300f, 0.961f);
+        private static readonly Vector2 PhaseHudMin = new Vector2(0.360f, 0.883f);
+        private static readonly Vector2 PhaseHudMax = new Vector2(0.640f, 0.961f);
+        private static readonly Vector2 EnemyHudMin = new Vector2(0.700f, 0.883f);
+        private static readonly Vector2 EnemyHudMax = new Vector2(0.970f, 0.961f);
         private static readonly Vector2 LaneLabelsMin = new Vector2(0.015f, 0.225f);
         private static readonly Vector2 LaneLabelsMax = new Vector2(0.165f, 0.875f);
         private static readonly Vector2 EnemyBoardMin = new Vector2(0.170f, 0.565f);
