@@ -43,6 +43,7 @@ namespace MyriadOfDragons.UI
         public const string BackdropResourcePath = "UI/SoloCircuitV1/solo_circuit_backdrop_landscape_v1";
 
         private GameObject _canvasObj;
+        private CanvasGroup _rootCanvasGroup;
         private Action _onBack;
         private PlayerProfile _profile;
         private DateTime _nowUtc;
@@ -82,6 +83,7 @@ namespace MyriadOfDragons.UI
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas(CanvasName, new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;
+            _rootCanvasGroup = _canvasObj.AddComponent<CanvasGroup>();
             canvas.sortingOrder = 40;   // popup band, same as GuildHallEntryCanvas
 
             // Guaranteed-opaque base with backdrop art. EmpireCanvas is genuinely alive underneath,
@@ -94,6 +96,16 @@ namespace MyriadOfDragons.UI
 
             BuildHeader();
             BuildTrialRows();
+
+            // CC9 metagame transition slice: entry fade / loading-to-content handoff - same
+            // pattern and reasoning as EmpirePresenter.BuildUI (see ScreenTransitionPresentation's
+            // own doc comment). EditMode-safe: no coroutine runs outside Play Mode, so structural
+            // tests reading this popup right after BuildUI() are unaffected.
+            if (Application.isPlaying)
+            {
+                StartCoroutine(ScreenTransitionPresentation.FadeIn(
+                    _rootCanvasGroup, ScreenTransitionPresentation.EntryFadeMs, MotionPolicy.ReduceMotion));
+            }
         }
 
         private void BuildHeader()
@@ -286,6 +298,19 @@ namespace MyriadOfDragons.UI
                 UISharedFoundation.ApplyFramedPanel(
                     cycleImage, null, UIFrozenTokens.ColorHeader, UIFrozenTokens.ColorHeader);
             }
+
+            // CC9 metagame transition slice: lower action-band reveal. CycleRow is the last,
+            // lowest-positioned row in the trial list's vertical layout - it fades in shortly
+            // after the screen's own entry fade starts, rather than appearing simultaneously with
+            // the three trial rows above it. The CanvasGroup is always added (harmless at its
+            // default alpha of 1); only actually starting the coroutine is Play-Mode-gated.
+            CanvasGroup cycleGroup = card.gameObject.AddComponent<CanvasGroup>();
+            if (Application.isPlaying)
+            {
+                StartCoroutine(ScreenTransitionPresentation.DelayedFadeIn(
+                    cycleGroup, ScreenTransitionPresentation.ActionBandRevealDelayMs,
+                    ScreenTransitionPresentation.ActionBandRevealMs, MotionPolicy.ReduceMotion));
+            }
         }
 
         private bool IsCleared(SoloCircuitTrial trial) =>
@@ -427,12 +452,29 @@ namespace MyriadOfDragons.UI
 
         private void Close()
         {
-            TeardownUI();
-            _onBack?.Invoke();
+            // CC9 back-navigation transition: same pattern as EmpirePresenter.HandleBackToHome -
+            // a short exit fade before the real teardown+callback in Play Mode; EditMode (or no
+            // root group) keeps the exact prior synchronous behavior.
+            if (!Application.isPlaying || _rootCanvasGroup == null)
+            {
+                TeardownUI();
+                _onBack?.Invoke();
+                return;
+            }
+
+            CanvasGroup group = _rootCanvasGroup;
+            StartCoroutine(ScreenTransitionPresentation.FadeOutThenInvoke(
+                group, ScreenTransitionPresentation.BackNavExitMs, MotionPolicy.ReduceMotion,
+                () =>
+                {
+                    TeardownUI();
+                    _onBack?.Invoke();
+                }));
         }
 
         private void TeardownUI()
         {
+            _rootCanvasGroup = null;
             if (_canvasObj == null) return;
             DestroyImmediate(_canvasObj);
             _canvasObj = null;

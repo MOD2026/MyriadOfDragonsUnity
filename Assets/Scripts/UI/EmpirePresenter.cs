@@ -13,6 +13,7 @@ namespace MyriadOfDragons.UI
     public class EmpirePresenter : MonoBehaviour
     {
         private GameObject _canvasObj;
+        private CanvasGroup _rootCanvasGroup;
         private Action _onBackToHome;
         private Text _empireStatusText;
         private Text _empireMessageText;
@@ -71,6 +72,7 @@ namespace MyriadOfDragons.UI
 
             Canvas canvas = UISharedFoundation.CreateScreenCanvas("EmpireCanvas", new Vector2(1920, 1080));
             _canvasObj = canvas.gameObject;
+            _rootCanvasGroup = _canvasObj.AddComponent<CanvasGroup>();
 
             // Revamp V2 approved Empire backdrop (APPROVED_PRODUCTION, 2026-09-02).
             // Non-raycastable: this is decoration covering the entire 1920x1080 canvas, and
@@ -85,6 +87,43 @@ namespace MyriadOfDragons.UI
 
             BuildHeader();
             BuildConstructionPanel();
+
+            // CC9 metagame transition slice: entry fade / loading-to-content handoff. Content is
+            // already fully built above (this presenter has no async loading phase) - the canvas
+            // simply reveals it over a short, bounded fade rather than popping in fully formed.
+            // Application.isPlaying-gated: coroutines never run in EditMode, so every existing
+            // structural test that reads this screen via transform.Find/GetComponent immediately
+            // after BuildUI() sees the same content it always has, at CanvasGroup's untouched
+            // default alpha of 1 - this is purely additive in EditMode.
+            if (Application.isPlaying)
+            {
+                StartCoroutine(ScreenTransitionPresentation.FadeIn(
+                    _rootCanvasGroup, ScreenTransitionPresentation.EntryFadeMs, MotionPolicy.ReduceMotion));
+            }
+        }
+
+        /// <summary>CC9 back-navigation transition: a short exit fade, then the real teardown and
+        /// callback - same pattern as every other Reduced-Motion-aware presentation coroutine in
+        /// this codebase (see ScreenTransitionPresentation's own doc comment). EditMode/no-root-
+        /// group callers get the exact same synchronous TeardownUI()+invoke as before this slice;
+        /// only real Play Mode gets the fade.</summary>
+        private void HandleBackToHome()
+        {
+            if (!Application.isPlaying || _rootCanvasGroup == null)
+            {
+                TeardownUI();
+                _onBackToHome?.Invoke();
+                return;
+            }
+
+            CanvasGroup group = _rootCanvasGroup;
+            StartCoroutine(ScreenTransitionPresentation.FadeOutThenInvoke(
+                group, ScreenTransitionPresentation.BackNavExitMs, MotionPolicy.ReduceMotion,
+                () =>
+                {
+                    TeardownUI();
+                    _onBackToHome?.Invoke();
+                }));
         }
 
         private void BuildHeader()
@@ -111,11 +150,7 @@ namespace MyriadOfDragons.UI
             Button back = backBtn.GetComponent<Button>();
             HomeV3UiLibrary.ApplyNavTileButton(back, backImg);
             back.targetGraphic = backImg;
-            back.onClick.AddListener(() =>
-            {
-                TeardownUI();
-                _onBackToHome?.Invoke();
-            });
+            back.onClick.AddListener(HandleBackToHome);
             // Top-anchored, not vertically centered in the 100px header: centering ate clearance
             // below the button that the construction panel needed, and the two were fighting over
             // the same real estate (EmpireLayoutTests' overlap check vs MetagameWorkingAreaLayoutTests'
@@ -787,6 +822,21 @@ namespace MyriadOfDragons.UI
                 EmpireBuildingKind kind = RemainingStructures[i];
                 CreateStructureTile(strip.transform, kind, span * i, span * (i + 1));
             }
+
+            // CC9 metagame transition slice: lower action-band reveal. This is the screen's
+            // lowest-positioned interactive strip - it fades in shortly after the main entry fade
+            // starts, rather than popping in simultaneously with the header/status content above
+            // it. The CanvasGroup is always added (harmless at its default alpha of 1, and it's
+            // what lets a test prove the structure exists); only actually STARTING the coroutine
+            // is Application.isPlaying-gated, for the same EditMode-safety reason as the entry
+            // fade in BuildUI().
+            CanvasGroup stripGroup = strip.AddComponent<CanvasGroup>();
+            if (Application.isPlaying)
+            {
+                StartCoroutine(ScreenTransitionPresentation.DelayedFadeIn(
+                    stripGroup, ScreenTransitionPresentation.ActionBandRevealDelayMs,
+                    ScreenTransitionPresentation.ActionBandRevealMs, MotionPolicy.ReduceMotion));
+            }
         }
 
         /// <summary>Tile-only label, separate from `def.DisplayName` (register 3aede59) -
@@ -971,6 +1021,7 @@ namespace MyriadOfDragons.UI
                 else DestroyImmediate(detail);
             }
 
+            _rootCanvasGroup = null;
             if (_canvasObj == null) return;
             if (Application.isPlaying) Destroy(_canvasObj);
             else DestroyImmediate(_canvasObj);
