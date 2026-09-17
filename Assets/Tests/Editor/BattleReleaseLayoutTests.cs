@@ -412,30 +412,47 @@ namespace MyriadOfDragons.Tests
             RectTransform root = bootstrap.BattlePresentationRootForTests;
             Transform spellRail = root.Find("SpellRail");
             Assert.IsNotNull(spellRail, "Setup: expected SpellRail to exist.");
-            Transform spellList = spellRail.Find("SpellList");
-            Assert.IsNotNull(spellList, "Setup: expected SpellRail/SpellList to exist.");
+            // CR-BATTLE-PRESENTATION-VISUAL-PASS-002, 2026-09-17: SpellList is now one level
+            // deeper, inside a masked, scrollable "SpellRailViewport" - see that Initialize()
+            // comment for why (6 rows, up from a hardcoded 4, no longer always fit the rail's
+            // fixed area at the 22px font floor, so overflow now scrolls instead of spilling).
+            Transform spellRailViewport = spellRail.Find("SpellRailViewport");
+            Assert.IsNotNull(spellRailViewport, "Setup: expected SpellRail/SpellRailViewport to exist.");
+            var scrollRect = spellRailViewport.GetComponent<ScrollRect>();
+            Assert.IsNotNull(scrollRect, "Setup: expected SpellRailViewport to own a ScrollRect for the overflow case.");
+            Assert.IsTrue(scrollRect.vertical, "The spell list must be able to scroll vertically once more rows are equipped than fit.");
+            Assert.IsFalse(scrollRect.horizontal, "The spell list must never scroll horizontally - only vertical overflow is expected.");
+            Transform spellList = spellRailViewport.Find("SpellList");
+            Assert.IsNotNull(spellList, "Setup: expected SpellRailViewport/SpellList to exist.");
+            Assert.AreSame(spellList.GetComponent<RectTransform>(), scrollRect.content,
+                "ScrollRect.content must be the real SpellList that carries the rows, or scrolling would move nothing.");
 
             var spellLayout = spellList.GetComponent<VerticalLayoutGroup>();
             Assert.IsNotNull(spellLayout, "Setup: expected SpellList to own the spell rows' VerticalLayoutGroup.");
 
+            // Only the ACTIVE rows matter for this fit check - a level-10+/20+ Avatar's 5th/6th
+            // row is expected and fine to need scrolling now; a fresh/default loadout (this
+            // test's own setup, always 4 active rows) must still fit without ever needing to
+            // scroll, unchanged from before this pass.
             var rowHeights = new List<float>();
             foreach (Transform row in spellList)
             {
+                if (!row.gameObject.activeSelf) continue;
                 rowHeights.Add(((RectTransform)row).rect.height);
             }
-            Assert.Greater(rowHeights.Count, 1, "Setup: expected more than one spell row to make the spacing math meaningful.");
+            Assert.Greater(rowHeights.Count, 1, "Setup: expected more than one active spell row to make the spacing math meaningful.");
 
             float totalRowHeight = rowHeights.Sum();
             float totalSpacing = spellLayout.spacing * (rowHeights.Count - 1);
             float required = totalRowHeight + totalSpacing;
-            float available = ((RectTransform)spellList).rect.height;
+            float available = ((RectTransform)spellRailViewport).rect.height;
 
             Assert.LessOrEqual(required, available + 0.5f,
-                $"SpellList's {rowHeights.Count} rows ({totalRowHeight:F1} units) plus spacing " +
-                $"({totalSpacing:F1} units) = {required:F1} units, but SpellList only has " +
-                $"{available:F1} units at phone compression - rows will spill past their own " +
-                "container, which for the SPELLS panel means the player's combat-time input " +
-                "becoming unreadable or untappable under time pressure.");
+                $"SpellList's {rowHeights.Count} ACTIVE rows ({totalRowHeight:F1} units) plus spacing " +
+                $"({totalSpacing:F1} units) = {required:F1} units, but the viewport only has " +
+                $"{available:F1} units at phone compression - a default/starter loadout must never " +
+                "need to scroll; if this now fails, either row count or row height grew for the " +
+                "common case, not just the 5/6-slot overflow case this pass added scrolling for.");
         }
 
         private CardDatabase SpawnDatabase()

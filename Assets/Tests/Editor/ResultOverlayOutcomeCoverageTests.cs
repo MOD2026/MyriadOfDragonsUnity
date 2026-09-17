@@ -199,6 +199,40 @@ namespace MyriadOfDragons.Tests
             StringAssert.Contains("DEFEAT", bootstrap.ResultTextForTests);
         }
 
+        // ---------- CR-BATTLE-PRESENTATION-VISUAL-PASS-002: outcome-colored headline ----------
+
+        [Test]
+        public void Victory_Tutorial_HeadlineIsGold_NotDefeatColor()
+        {
+            GameBootstrap bootstrap = ResolveTutorialMatch("Result_VictoryTutorialColor", playerWins: true);
+            Assert.AreEqual(new Color(0.9f, 0.78f, 0.45f), bootstrap.ResultTextColorForTests,
+                "STATE UNREACHED: a tutorial Victory headline must use the gold/positive color.");
+        }
+
+        [Test]
+        public void Defeat_Tutorial_HeadlineIsRed_NotVictoryColor()
+        {
+            GameBootstrap bootstrap = ResolveTutorialMatch("Result_DefeatTutorialColor", playerWins: false);
+            Assert.AreEqual(new Color(0.85f, 0.35f, 0.35f), bootstrap.ResultTextColorForTests,
+                "STATE UNREACHED: a tutorial Defeat headline must use the red/negative color.");
+        }
+
+        [Test]
+        public void Victory_NormalMatch_HeadlineIsGold_NotDefeatColor()
+        {
+            GameBootstrap bootstrap = ResolveNormalMatch("Result_VictoryNormalColor", playerWins: true);
+            Assert.AreEqual(new Color(0.9f, 0.78f, 0.45f), bootstrap.ResultTextColorForTests,
+                "STATE UNREACHED: a normal-match Victory headline must use the gold/positive color.");
+        }
+
+        [Test]
+        public void Defeat_NormalMatch_HeadlineIsRed_NotVictoryColor()
+        {
+            GameBootstrap bootstrap = ResolveNormalMatch("Result_DefeatNormalColor", playerWins: false);
+            Assert.AreEqual(new Color(0.85f, 0.35f, 0.35f), bootstrap.ResultTextColorForTests,
+                "STATE UNREACHED: a normal-match Defeat headline must use the red/negative color.");
+        }
+
         // ---------- Retry ----------
 
         [Test]

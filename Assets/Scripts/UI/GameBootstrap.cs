@@ -632,6 +632,11 @@ namespace MyriadOfDragons.UI
         /// no other way for a test to observe this without a broader UI-inspection API.</summary>
         public string ResultTextForTests => _resultText != null ? _resultText.text : null;
 
+        /// <summary>Exposed for tests: the result headline's current color - Victory/Defeat
+        /// (CR-BATTLE-PRESENTATION-VISUAL-PASS-002) must read as visually distinct outcomes, not
+        /// just distinct words.</summary>
+        public Color? ResultTextColorForTests => _resultText != null ? _resultText.color : (Color?)null;
+
         /// <summary>Exposed for tests: whether the result overlay GameObject itself (not just its
         /// text/button state) is currently showing - lets a test catch a stale overlay left
         /// active across a screen transition, which ResultTextForTests/button-active checks alone
@@ -4380,7 +4385,50 @@ namespace MyriadOfDragons.UI
             AnchorBand(spellsTitle.rectTransform, 0.90f, 0.99f, 0.04f, 0.04f);
             _spellsTitleText = spellsTitle;
 
-            _spellBar = CreateAnchoredPanel(spellRail, "SpellList", Color.clear, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.88f));
+            // CR-BATTLE-PRESENTATION-VISUAL-PASS-002, 2026-09-17: the loop below now builds one
+            // row per SpellLoadoutAutoEquip.MaxSlotCount (6), up from a hardcoded 4, since a
+            // level-10+/20+ Avatar's real Spellbook can equip 5 or 6 spells (SpellLoadoutAutoEquip
+            // .RequiredSlotCount) but only the first 4 ever had a rail row to appear in - the 5th/
+            // 6th equipped spell was completely unreachable through the live Battle UI, not just a
+            // cosmetic gap. Each row's own minimum height (62px: 28px name + 26px cost/cooldown +
+            // 8px padding, both texts already at this file's 22px font floor - see spellName's own
+            // comment below) cannot shrink to fit 6 rows in the rail's existing ~270-300px budget
+            // without breaking that floor, so the fix is a real scroll view, not a smaller row: a
+            // masked, scrollable viewport (this "SpellRailViewport") whose "SpellList" child grows
+            // to its real content height (ContentSizeFitter) and scrolls within it. A 4-or-fewer
+            // loadout (every player below Avatar L10) fits entirely without ever needing to
+            // scroll - unchanged from before this pass, proven by
+            // BattleReleaseLayoutTests/BattlePhoneCompressionLayoutTests, both still green at 4
+            // rows including under phone compression.
+            RectTransform spellRailViewport = CreateAnchoredPanel(spellRail, "SpellRailViewport",
+                Color.clear, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.88f));
+            var viewportMaskImage = spellRailViewport.gameObject.AddComponent<Image>();
+            viewportMaskImage.color = new Color(0f, 0f, 0f, 0f);
+            viewportMaskImage.raycastTarget = false;
+            var viewportMask = spellRailViewport.gameObject.AddComponent<Mask>();
+            viewportMask.showMaskGraphic = false;
+            var spellScrollRect = spellRailViewport.gameObject.AddComponent<ScrollRect>();
+            spellScrollRect.horizontal = false;
+            spellScrollRect.vertical = true;
+            spellScrollRect.movementType = ScrollRect.MovementType.Clamped;
+            spellScrollRect.viewport = spellRailViewport;
+
+            _spellBar = new GameObject("SpellList", typeof(RectTransform)).GetComponent<RectTransform>();
+            _spellBar.SetParent(spellRailViewport, false);
+            _spellBar.anchorMin = new Vector2(0f, 1f);
+            _spellBar.anchorMax = new Vector2(1f, 1f);
+            _spellBar.pivot = new Vector2(0.5f, 1f);
+            _spellBar.anchoredPosition = Vector2.zero;
+            // sizeDelta.x zeroed explicitly (UI Verification Gate finding, 2026-09-17): a fresh
+            // RectTransform's default sizeDelta is (100,100) - on a horizontally-stretched anchor
+            // (0..1) that reads as "100 units wider than the parent it just said it would match",
+            // which VerticalLayoutGroup's childControlWidth then propagated into every row button's
+            // own width (the same real cause behind TutorialTeachingOverlayTests' proxy-width
+            // mismatch below). sizeDelta.y is left alone - ContentSizeFitter drives it.
+            _spellBar.sizeDelta = new Vector2(0f, _spellBar.sizeDelta.y);
+            var spellListSizeFitter = _spellBar.gameObject.AddComponent<ContentSizeFitter>();
+            spellListSizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            spellScrollRect.content = _spellBar;
             var spellLayout = _spellBar.gameObject.AddComponent<VerticalLayoutGroup>();
             spellLayout.spacing = 6f;
             spellLayout.childAlignment = TextAnchor.UpperCenter;
@@ -4400,7 +4448,7 @@ namespace MyriadOfDragons.UI
             // Battle compression capture actually was.
             spellLayout.childControlHeight = true;
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < SpellLoadoutAutoEquip.MaxSlotCount; i++)
             {
                 int spellIndex = i; // captured per iteration, not shared across the closures
 
@@ -6623,6 +6671,13 @@ namespace MyriadOfDragons.UI
                 _resultText.text = playerWon
                     ? "Victory. The first threat has been driven back."
                     : "Defeat. Adjust your formation and try again.";
+                // CR-BATTLE-PRESENTATION-VISUAL-PASS-002, 2026-09-17: the result headline was
+                // always plain white regardless of outcome - Victory and Defeat read as visually
+                // identical states other than their own words. Reuses the same warm-gold/cool-red
+                // palette already established for positive/negative accents elsewhere in this file
+                // (GoldTextColor; the enemy board's own red accent in BuildBattleBoardSide) rather
+                // than inventing a new color.
+                _resultText.color = playerWon ? GoldTextColor : new Color(0.85f, 0.35f, 0.35f);
                 _returnToCityLabel.text = "Return to Empire";
                 _playAgainLabel.text = "Retry Battle";
                 // Exactly one of the two exits applies to a tutorial outcome - victory returns to
@@ -6656,6 +6711,8 @@ namespace MyriadOfDragons.UI
                     $"Avatar Level {_empireData.AvatarLevel} - next match: " +
                     $"{_empireData.ResourceCap} Resource, {_empireData.StartingAvatarHealth} HP." +
                     campaignNextAction;
+                // Same outcome-color fix as the tutorial branch above.
+                _resultText.color = playerWon ? GoldTextColor : new Color(0.85f, 0.35f, 0.35f);
                 // Restores the normal, always-both-visible/normally-labelled state - covers a
                 // normal match starting right after a tutorial one, whose HandleMatchEnded call
                 // would otherwise have left the tutorial's single-button state in place.
@@ -7300,6 +7357,14 @@ namespace MyriadOfDragons.UI
             spellIndex >= 0 && spellIndex < _spellIcons.Count
                 ? (_spellIcons[spellIndex].sprite, _spellIcons[spellIndex].enabled)
                 : (null, false);
+
+        /// <summary>Exposed for tests: how many spell-rail row slots actually exist
+        /// (CR-BATTLE-PRESENTATION-VISUAL-PASS-002 - was hardcoded to 4, now
+        /// SpellLoadoutAutoEquip.MaxSlotCount), and whether the row at `spellIndex` is currently
+        /// active (RefreshPhaseControls sets this from the real Spellbook.Count each refresh).</summary>
+        public int SpellRailSlotCountForTests => _spellButtons.Count;
+        public bool SpellRailRowActiveForTests(int spellIndex) =>
+            spellIndex >= 0 && spellIndex < _spellButtons.Count && _spellButtons[spellIndex].gameObject.activeSelf;
 
         /// <summary>One-line "what does this do" for a spell button.</summary>
         private static string SpellShortEffect(AvatarSpell spell) => spell.Effect switch

@@ -314,13 +314,25 @@ namespace MyriadOfDragons.Tests
             Transform spellRail = root.Find("SpellRail");
             Assert.IsNotNull(spellRail);
 
+            // CR-BATTLE-PRESENTATION-VISUAL-PASS-002, 2026-09-17: the rail now always builds
+            // SpellLoadoutAutoEquip.MaxSlotCount (6) row GameObjects (up from a hardcoded 4), so a
+            // level-10+/20+ Avatar's real 5th/6th equipped spell has a row to appear in - see that
+            // constant's own doc comment. A fresh/default profile (this test's own setup) still
+            // only equips the starter four, so only 4 of the 6 built rows are ever active; the
+            // other 2 exist but stay inactive and contribute no layout space (proven separately by
+            // BattleSpellRailSlotCountTests.FourSpellLoadout_RendersExactlyAsBefore_...). Hit-area
+            // is only meaningful for a row that can actually receive a tap.
             Button[] spellButtons = spellRail.GetComponentsInChildren<Button>(true);
-            Assert.AreEqual(4, spellButtons.Length, "Expected exactly 4 spell buttons on phone, same as authored.");
-            foreach (Button spell in spellButtons)
+            Assert.AreEqual(SpellLoadoutAutoEquip.MaxSlotCount, spellButtons.Length,
+                "Expected one spell-rail row per SpellLoadoutAutoEquip.MaxSlotCount to exist (active or not).");
+            Button[] activeSpellButtons = spellButtons.Where(b => b.gameObject.activeInHierarchy).ToArray();
+            Assert.AreEqual(4, activeSpellButtons.Length,
+                "Expected exactly 4 ACTIVE spell buttons for this test's fresh/default (starter) loadout.");
+            foreach (Button spell in activeSpellButtons)
             {
                 Rect bounds = WorldBounds((RectTransform)spell.transform);
-                Assert.Greater(bounds.width, 0f, "Each spell button must keep a non-zero hit width on phone.");
-                Assert.Greater(bounds.height, 0f, "Each spell button must keep a non-zero hit height on phone.");
+                Assert.Greater(bounds.width, 0f, "Each active spell button must keep a non-zero hit width on phone.");
+                Assert.Greater(bounds.height, 0f, "Each active spell button must keep a non-zero hit height on phone.");
             }
         }
 
