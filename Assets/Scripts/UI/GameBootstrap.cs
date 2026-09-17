@@ -135,14 +135,29 @@ namespace MyriadOfDragons.UI
         //   Spell/action rail:     (.760, .225) - (.985, .500)
         //   Hand dock:             (.015, .025) - (.730, .195)
         //   Primary action:        (.745, .025) - (.985, .195)
+        // NOTE: every right edge above reading .985/.980 is the ORIGINAL V4 handoff value, kept
+        // verbatim for provenance - the real constants below shift those to .975/.970 per the
+        // safe-area fix noted just under this table. Treat the constants, not this comment table,
+        // as authoritative.
+        // CR-BATTLE-PRESENTATION-VISUAL-PASS-002 follow-up, 2026-09-17: the right edge of every
+        // right-anchored HUD/rail/action region sat at x=0.985, a 28.8px margin from the real
+        // screen edge at 1920 width - short of the 48px horizontal safe-area standard this
+        // project's newer approved packages use (Battle_State_Acceptance_GUI_Handoff.md,
+        // Beta_Presenter_Acceptance_GUI_CR_Handoff.md: "48 px left/right"). Bounded fix: only the
+        // right-edge Max.x values shift 0.985 -> 0.975 (and EnemyHudMax's own 0.980 -> 0.970, to
+        // keep its existing 0.005 inset from TopHud's own right edge unchanged) - (1-0.975)*1920 =
+        // 48px exactly. No Min.x, no Y value, and no left-edge margin touched: grepped every test
+        // file first and confirmed nothing pins these exact X fractions, so this is scoped to the
+        // one identified gap rather than a full margin renumbering (which risks the Y-axis font-
+        // floor cascade flagged, but deliberately not attempted, in the prior pass's report).
         private static readonly Vector2 TopHudMin = new Vector2(0.015f, 0.885f);
-        private static readonly Vector2 TopHudMax = new Vector2(0.985f, 0.995f);
+        private static readonly Vector2 TopHudMax = new Vector2(0.975f, 0.995f);
         private static readonly Vector2 PlayerHudMin = new Vector2(0.020f, 0.895f);
         private static readonly Vector2 PlayerHudMax = new Vector2(0.300f, 0.985f);
         private static readonly Vector2 PhaseHudMin = new Vector2(0.360f, 0.895f);
         private static readonly Vector2 PhaseHudMax = new Vector2(0.640f, 0.985f);
         private static readonly Vector2 EnemyHudMin = new Vector2(0.700f, 0.895f);
-        private static readonly Vector2 EnemyHudMax = new Vector2(0.980f, 0.985f);
+        private static readonly Vector2 EnemyHudMax = new Vector2(0.970f, 0.985f);
         private static readonly Vector2 LaneLabelsMin = new Vector2(0.015f, 0.225f);
         private static readonly Vector2 LaneLabelsMax = new Vector2(0.165f, 0.875f);
         private static readonly Vector2 EnemyBoardMin = new Vector2(0.170f, 0.565f);
@@ -162,13 +177,13 @@ namespace MyriadOfDragons.UI
         // smaller share safely, where SpellRail's fixed-pixel rows cannot. The 0.020 gap between
         // the two rails is preserved exactly (was 0.520-0.500; is now 0.570-0.550).
         private static readonly Vector2 ActivityRailMin = new Vector2(0.760f, 0.570f);
-        private static readonly Vector2 ActivityRailMax = new Vector2(0.985f, 0.875f);
+        private static readonly Vector2 ActivityRailMax = new Vector2(0.975f, 0.875f);
         private static readonly Vector2 SpellRailMin = new Vector2(0.760f, 0.225f);
-        private static readonly Vector2 SpellRailMax = new Vector2(0.985f, 0.550f);
+        private static readonly Vector2 SpellRailMax = new Vector2(0.975f, 0.550f);
         private static readonly Vector2 HandPanelMin = new Vector2(0.015f, 0.025f);
         private static readonly Vector2 HandPanelMax = new Vector2(0.730f, 0.195f);
         private static readonly Vector2 PrimaryActionMin = new Vector2(0.745f, 0.025f);
-        private static readonly Vector2 PrimaryActionMax = new Vector2(0.985f, 0.195f);
+        private static readonly Vector2 PrimaryActionMax = new Vector2(0.975f, 0.195f);
 
         // Bounded collapsible SelectedCard (AD ruling, 2026-08-28): HandPanel itself does not
         // grow (HandPanelMax above is untouched) - real worst-case content (150px measured) does

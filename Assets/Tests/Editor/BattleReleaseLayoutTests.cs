@@ -374,6 +374,37 @@ namespace MyriadOfDragons.Tests
                 "The action well's own region bounds must stay fixed regardless of board/formation state.");
         }
 
+        /// <summary>CR-BATTLE-PRESENTATION-VISUAL-PASS-002 follow-up, 2026-09-17 - the right edge
+        /// of every right-anchored region (TopHud, ActivityRail, SpellRail, PrimaryActionPanel)
+        /// used to sit only 28.8px from the real screen edge at 1920x1080, short of the 48px
+        /// horizontal safe-area standard this project's newer approved packages use
+        /// (Battle_State_Acceptance_GUI_Handoff.md, Beta_Presenter_Acceptance_GUI_CR_Handoff.md:
+        /// "48 px left/right"). Proves the real, post-layout right margin of each region against
+        /// the real canvas width rather than a hardcoded anchor fraction, so this stays meaningful
+        /// if CanvasWidth or the region's own definition ever changes.</summary>
+        [Test]
+        public void RightAnchoredRegions_KeepAtLeastTheFortyEightPixelSafeAreaMargin()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Layout_SafeAreaRightMarginBootstrap");
+            RectTransform root = bootstrap.BattlePresentationRootForTests;
+
+            GameObject canvasGo = GameObject.Find("Canvas");
+            Assert.IsNotNull(canvasGo, "Setup: expected the Battle canvas to exist after Initialize.");
+            Rect canvasBounds = WorldBounds(canvasGo.GetComponent<RectTransform>());
+
+            const float requiredMarginPx = 48f;
+            foreach (string regionName in new[] { "TopHud", "ActivityRail", "SpellRail", "PrimaryActionPanel" })
+            {
+                Transform region = root.Find(regionName);
+                Assert.IsNotNull(region, $"Setup: expected named region '{regionName}' to exist.");
+                Rect bounds = WorldBounds((RectTransform)region);
+                float rightMargin = canvasBounds.xMax - bounds.xMax;
+                Assert.GreaterOrEqual(rightMargin, requiredMarginPx - 0.5f,
+                    $"'{regionName}' has only {rightMargin:F1}px between its right edge and the screen's " +
+                    $"real right edge - must be at least the {requiredMarginPx}px horizontal safe-area margin.");
+            }
+        }
+
         /// <summary>Regression for the SpellList row-overflow fix (CR, 2026-08-27): asserts the
         /// RELATIONSHIP (every spell row, plus the spacing between them, fits inside SpellList's
         /// own real height) rather than any magic number, per the project rule against hardcoding
