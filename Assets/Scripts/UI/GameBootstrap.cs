@@ -6157,7 +6157,14 @@ namespace MyriadOfDragons.UI
             if (spellIndex >= _battleController.Spellbook.Count) return;
             AvatarSpell spell = _battleController.Spellbook[spellIndex];
 
-            if (!spell.IsOffCooldown || spell.EnergyCost > _battleController.Energy)
+            // One source of truth for castability: the same predicate BattleController.TryCastSpell
+            // mirrors (phase, cooldown, Energy, and the clash-3 direct-strike gate). This gate used
+            // to re-implement only cooldown + Energy, so a tap during Formation with Energy on hand
+            // (tutorial) armed targeting for a spell the controller would then reject, and the
+            // UI - not the controller - was deciding what "castable" meant (MOS section 14).
+            SpellAffordability.SpellCastRejectReason tapRejectReason =
+                SpellAffordability.GetRejectReason(spell, _battleController.Phase, _battleController.Energy, _battleController.TickCount);
+            if (tapRejectReason != SpellAffordability.SpellCastRejectReason.None)
             {
                 // Was ShowLaneHint alone, which writes into the hand-hint text at the bottom of
                 // the hand panel - reasonable when the rejection is about a card, invisible when
@@ -6173,14 +6180,17 @@ namespace MyriadOfDragons.UI
                 // cooling down" regardless of which one actually applied - SpellAffordability's
                 // plain, testable GetRejectReason/DescribeRejectReason (mirroring TryCastSpell's
                 // own phase/cooldown/Energy checks in the same order) now names the real reason.
-                SpellAffordability.SpellCastRejectReason rejectReason =
-                    SpellAffordability.GetRejectReason(spell, _battleController.Phase, _battleController.Energy, _battleController.TickCount);
+                SpellAffordability.SpellCastRejectReason rejectReason = tapRejectReason;
                 ShowLaneHint(SpellAffordability.DescribeRejectReason(spell, rejectReason, _battleController.Energy));
                 if (_spellBar != null)
                 {
-                    string reason = !spell.IsOffCooldown
-                        ? $"{spell.CooldownRemaining} tick(s) left"
-                        : $"needs {spell.EnergyCost} Energy";
+                    string reason = rejectReason switch
+                    {
+                        SpellAffordability.SpellCastRejectReason.OnCooldown => $"{spell.CooldownRemaining} tick(s) left",
+                        SpellAffordability.SpellCastRejectReason.NotEnoughEnergy => $"needs {spell.EnergyCost} Energy",
+                        SpellAffordability.SpellCastRejectReason.TooEarlyForAvatarStrike => "clash 3 or later",
+                        _ => "Combat only",
+                    };
                     PlayFloatingText(_spellBar, $"{spell.Name}: not ready ({reason})",
                         ButtonTextDisabledColor, 1.3f);
                 }
@@ -6893,6 +6903,8 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void OnReturnToCityPressed()
         {
+            if (_armedSpellIndex >= 0) CancelSpellTargeting();
+            HideSpellTooltip();
             _canvasTransform.gameObject.SetActive(false);
             // Explicit Stop(), not left to the canvas SetActive(false) above - the music
             // AudioSource lives under the canvas today, but relying on deactivation alone to
@@ -6949,6 +6961,14 @@ namespace MyriadOfDragons.UI
             CancelPresentationEffects();
             OnReturnToCityPressed();
         }
+
+        /// <summary>Exposed for tests (spell-casting interaction pass): -1 when no spell is armed for
+        /// targeting; the spell row at `index` (the real Button carrying SpellIconPointerHandler,
+        /// active or not); and whether the hold-to-inspect tooltip is currently showing.</summary>
+        public int ArmedSpellIndexForTests => _armedSpellIndex;
+        public Button SpellRowButtonForTests(int index) =>
+            index >= 0 && index < _spellButtons.Count ? _spellButtons[index] : null;
+        public bool SpellTooltipActiveForTests => _spellTooltip != null && _spellTooltip.activeSelf;
 
         /// <summary>Exposed for tests: the LEAVE button's own handler, since EditMode cannot click.</summary>
         public void LeaveBattleForTests() => LeaveBattle();
@@ -7039,7 +7059,17 @@ namespace MyriadOfDragons.UI
         /// </summary>
         public void SetBattleCanvasVisible(bool visible)
         {
-            if (!visible) CancelPresentationEffects();
+            if (!visible)
+            {
+                CancelPresentationEffects();
+                // Leaving Battle mid-interaction must not leave spell UI state behind: a still-armed
+                // spell would hijack the next player-lane tap (OnLanePressed gives an armed spell
+                // priority), and a hold-to-inspect tooltip would reappear stuck on screen when the
+                // canvas is next shown - the tile that owned the hold is deactivated with the
+                // canvas and never delivers its own Up/Exit.
+                if (_armedSpellIndex >= 0) CancelSpellTargeting();
+                HideSpellTooltip();
+            }
             bool wasHidden = _canvasTransform != null && !_canvasTransform.gameObject.activeSelf;
             if (_canvasTransform != null) _canvasTransform.gameObject.SetActive(visible);
             if (visible) EnsureBattleInputReady();

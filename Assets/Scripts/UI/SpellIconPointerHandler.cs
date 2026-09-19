@@ -30,22 +30,37 @@ namespace MyriadOfDragons.UI
 
         private Coroutine _holdTimer;
         private bool _holdFired;
+        private bool _pressed;
 
         public void OnPointerDown(PointerEventData eventData)
         {
+            _pressed = true;
             _holdFired = false;
             if (_holdTimer != null) StopCoroutine(_holdTimer);
             _holdTimer = StartCoroutine(HoldTimer());
         }
 
-        public void OnPointerUp(PointerEventData eventData) => EndPress();
+        /// <summary>Only a release that follows a press on THIS tile counts. Before this guard a
+        /// stray Up (or the Up that follows an Exit) re-ran the tap.</summary>
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            if (!_pressed) return;
+            EndPress(cancelled: false);
+        }
 
-        /// <summary>A finger/cursor dragged off the tile mid-press ends it the same as releasing -
-        /// otherwise a hold that drifts off-target keeps "holding" a tile the pointer isn't over
-        /// any more.</summary>
-        public void OnPointerExit(PointerEventData eventData) => EndPress();
+        /// <summary>A finger/cursor leaving the tile CANCELS the press: it ends a hold (so the
+        /// tooltip closes) but never reports a tap. This used to report OnQuickTap, which meant
+        /// (a) a mouse merely hovering over and off a spell armed/cast it, (b) every ordinary
+        /// click fired a SECOND tap when the mouse left the tile afterwards (a bogus "still
+        /// cooling down" rejection right after a real cast), and (c) dragging off a tile before
+        /// releasing still cast it - unlike every other button in the game.</summary>
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            if (!_pressed) return;
+            EndPress(cancelled: true);
+        }
 
-        private void EndPress()
+        private void EndPress(bool cancelled)
         {
             if (_holdTimer != null)
             {
@@ -53,10 +68,12 @@ namespace MyriadOfDragons.UI
                 _holdTimer = null;
             }
 
-            if (_holdFired) OnHoldEnd?.Invoke();
-            else OnQuickTap?.Invoke();
-
+            bool wasHold = _holdFired;
+            _pressed = false;
             _holdFired = false;
+
+            if (wasHold) OnHoldEnd?.Invoke();
+            else if (!cancelled) OnQuickTap?.Invoke();
         }
 
         private IEnumerator HoldTimer()
@@ -77,7 +94,13 @@ namespace MyriadOfDragons.UI
                 StopCoroutine(_holdTimer);
                 _holdTimer = null;
             }
+            // A hold that was already showing its tooltip must close it: nothing else will ever
+            // deliver the matching Up/Exit to a tile that just went inactive, so the tooltip
+            // would otherwise stay on screen. A press that had NOT become a hold reports nothing.
+            bool hadHold = _holdFired;
+            _pressed = false;
             _holdFired = false;
+            if (hadHold) OnHoldEnd?.Invoke();
         }
     }
 }
