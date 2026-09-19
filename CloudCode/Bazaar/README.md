@@ -62,9 +62,14 @@ the first pass; that coverage is unaffected by adding the real store alongside i
   IDs) IS implemented, since it needs nothing external.
 - **Listing expiry.** No scheduler/cron exists in this scaffold; only explicit seller-initiated
   cancellation is implemented.
-- **True cross-entity transactional atomicity.** `BuyItemAsync`'s own doc comment covers this: the
-  system packet's §5 lists "atomic database transactions and escrow" as a still-open backend
-  dependency, not something already solved - this scaffold does not invent a workaround for it.
+- **True cross-entity database transactions / escrow.** Cloud Save still has none. `BuyItemAsync`
+  is instead a resumable forward-recovery saga (durable settlement journal written before the
+  first mutation, each step idempotent - listing claim carries a settlementId, wallets record
+  applied settlement ids in the same save as the balance change), so a mid-settlement failure is
+  completed by retrying with the same idempotency key and can never charge or credit twice. Still
+  open: a **reconciliation sweep** for settlements whose client never retries (journals stuck
+  InProgress) and stale active-index entries, and a live `nonprod-validation` run of the cross-account
+  wallet path (wallet reads/writes now use `ServiceToken`, same fix as Friends BE-FRIENDS-STORAGE-014).
 - **The append-only ownership/wallet ledger history** (system packet §2). Only the current balance
   and the rolling-sale timestamps the business rules actually need are modeled; full transaction
   history is not.

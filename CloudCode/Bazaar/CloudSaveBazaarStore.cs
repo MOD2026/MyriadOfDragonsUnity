@@ -55,6 +55,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
     private static string InstanceKey(string instanceId) => "instance_" + ShortHash(instanceId);
     private static string ListingKey(string listingId) => "listing_" + ShortHash(listingId);
     private static string IdempotencyKey(string idempotencyKey) => "bazaar_idem_" + ShortHash(idempotencyKey);
+    private static string SettlementKey(string idempotencyKey) => "bazaar_settle_" + ShortHash(idempotencyKey);
 
     private static string ShortHash(string value)
     {
@@ -82,7 +83,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
         {
             var response = await apiClient.CloudSaveData.GetItemsAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 accountId,
                 new List<string> { WalletKey });
@@ -117,7 +118,7 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
 
             await apiClient.CloudSaveData.SetItemAsync(
                 context,
-                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ServiceToken ?? throw new InvalidOperationException("Missing service token."),
                 context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
                 wallet.AccountId,
                 body);
@@ -157,6 +158,48 @@ public sealed class CloudSaveBazaarStore : IBazaarStore
         try
         {
             var body = new SetItemBody(IdempotencyKey(idempotencyKey), JsonConvert.SerializeObject(result));
+            await apiClient.CloudSaveData.SetItemAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                buyerId,
+                body);
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task<SettlementJournal?> TryGetSettlementJournalAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey)
+    {
+        try
+        {
+            var response = await apiClient.CloudSaveData.GetItemsAsync(
+                context,
+                context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),
+                context.ProjectId ?? throw new InvalidOperationException("Missing project context."),
+                buyerId,
+                new List<string> { SettlementKey(idempotencyKey) });
+            if (response.Data.Results.Count == 0)
+            {
+                return null;
+            }
+
+            var value = response.Data.Results[0].Value?.ToString();
+            return string.IsNullOrWhiteSpace(value) ? null : JsonConvert.DeserializeObject<SettlementJournal>(value);
+        }
+        catch (Exception exception)
+        {
+            throw new BazaarStorageException(ClassifyStorageError(exception), exception);
+        }
+    }
+
+    public async Task SaveSettlementJournalAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey, SettlementJournal journal)
+    {
+        try
+        {
+            var body = new SetItemBody(SettlementKey(idempotencyKey), JsonConvert.SerializeObject(journal));
             await apiClient.CloudSaveData.SetItemAsync(
                 context,
                 context.AccessToken ?? throw new InvalidOperationException("Missing authenticated access token."),

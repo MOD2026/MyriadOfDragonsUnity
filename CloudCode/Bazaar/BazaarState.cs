@@ -64,6 +64,11 @@ public sealed class BazaarListing
     public BazaarListingState State { get; set; } = BazaarListingState.Active;
     [JsonProperty("createdUtcMs")]
     public long CreatedUtcMs { get; set; }
+    /// <summary>Set (in the same single-entity write that flips the listing to Sold) to the id of
+    /// the settlement that claimed it, so a resumed settlement can tell "sold by ME" from "sold to
+    /// someone else" without any cross-entity transaction.</summary>
+    [JsonProperty("settlementId", NullValueHandling = NullValueHandling.Ignore)]
+    public string? SettlementId { get; set; }
 
     [JsonIgnore]
     public string? WriteLock { get; set; }
@@ -81,6 +86,11 @@ public sealed class WalletState
     public int BalanceCredits { get; set; }
     [JsonProperty("recentSaleUtcMs")]
     public List<long> RecentSaleUtcMs { get; set; } = new();
+    /// <summary>Settlement ids already applied to this balance (bounded, most recent last). Written
+    /// in the SAME single-entity save as the balance change, so applying a settlement's debit/credit
+    /// is idempotent even if the process dies between the write and the journal update.</summary>
+    [JsonProperty("appliedSettlementIds", NullValueHandling = NullValueHandling.Ignore)]
+    public List<string> AppliedSettlementIds { get; set; } = new();
 
     [JsonIgnore]
     public string? WriteLock { get; set; }
@@ -114,6 +124,43 @@ public sealed class BuyResult
     public int TaxTreasuryCredits { get; set; }
     [JsonProperty("errorCode")]
     public string? ErrorCode { get; set; }
+}
+
+/// <summary>Durable settlement intent, saved BEFORE the first mutation of a purchase. Cloud Save has
+/// no cross-entity transaction, so BuyItemAsync is a resumable forward-recovery saga: every step is
+/// individually idempotent, and a retry with the same (buyer, idempotencyKey) resumes from this
+/// record instead of starting a second, independent purchase. Amounts are frozen here so a resume
+/// never recomputes against changed rules or wallets.</summary>
+public sealed class SettlementJournal
+{
+    public const string PhaseInProgress = "InProgress";
+    public const string PhaseAborted = "Aborted";
+    public const string PhaseCompleted = "Completed";
+
+    [JsonProperty("settlementId")]
+    public string SettlementId { get; set; } = string.Empty;
+    [JsonProperty("phase")]
+    public string Phase { get; set; } = PhaseInProgress;
+    [JsonProperty("buyerId")]
+    public string BuyerId { get; set; } = string.Empty;
+    [JsonProperty("sellerId")]
+    public string SellerId { get; set; } = string.Empty;
+    [JsonProperty("listingId")]
+    public string ListingId { get; set; } = string.Empty;
+    [JsonProperty("instanceId")]
+    public string InstanceId { get; set; } = string.Empty;
+    [JsonProperty("priceCredits")]
+    public int PriceCredits { get; set; }
+    [JsonProperty("sellerReceivesCredits")]
+    public int SellerReceivesCredits { get; set; }
+    [JsonProperty("taxBurnCredits")]
+    public int TaxBurnCredits { get; set; }
+    [JsonProperty("taxTreasuryCredits")]
+    public int TaxTreasuryCredits { get; set; }
+    [JsonProperty("startedUtcMs")]
+    public long StartedUtcMs { get; set; }
+    [JsonProperty("failureCode", NullValueHandling = NullValueHandling.Ignore)]
+    public string? FailureCode { get; set; }
 }
 
 public sealed class CancelListingResult

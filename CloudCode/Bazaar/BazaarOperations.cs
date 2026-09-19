@@ -119,14 +119,18 @@ public sealed class BazaarOperations
     /// §2's transaction shape: verify listing and both accounts, debit buyer, apply the sale tax
     /// (12%: 6% burned, 6% Treasury), credit seller, transfer ownership, close the listing.
     ///
-    /// This scaffold saves each of the three entities (buyer wallet, seller wallet, instance +
-    /// listing) with its own optimistic-lock conflict retry, but does NOT provide true
-    /// all-or-nothing atomicity across all of them - §5 of the system packet lists "atomic
-    /// database transactions and escrow" as a still-open backend dependency, not something this
-    /// module invents a workaround for. What this scaffold DOES guarantee: idempotency - a
-    /// retried call with the same (buyer, idempotencyKey) always returns the original outcome
-    /// rather than re-debiting, so a dropped response can't be paid for twice by the client
-    /// retrying.
+    /// SETTLEMENT IS A RESUMABLE FORWARD-RECOVERY SAGA (Cloud Save has no cross-entity transaction,
+    /// so "atomic" here means: crash-safe, exactly-once, and never left needing manual repair).
+    /// A durable <see cref="SettlementJournal"/> holding the frozen amounts is written BEFORE the
+    /// first mutation. Each step is individually idempotent - the listing is claimed with a
+    /// settlementId in one single-entity write, each wallet records the settlement ids already
+    /// applied in the SAME save as the balance change, instance transfer and index removal are
+    /// state-checked - so a retry with the same (buyer, idempotencyKey) resumes from the journal and
+    /// can never debit or credit twice. Failure before the journal = nothing happened; failure
+    /// after it = the retry completes the sale. The only compensation is the one case forward
+    /// recovery cannot complete (buyer no longer has the credits after the listing was claimed):
+    /// the claim is released and the journal aborted. A settlement whose client never retries stays
+    /// InProgress and is the input to the reconciliation sweep (still a deployment prerequisite).
     /// </summary>
     public async Task<BuyResult> BuyItemAsync(IExecutionContext context, IGameApiClient apiClient, BuyItemRequest request)
     {
@@ -146,6 +150,28 @@ public sealed class BazaarOperations
         if (existing != null)
         {
             return existing;
+        }
+
+        SettlementJournal? journal;
+        try
+        {
+            journal = await _store.TryGetSettlementJournalAsync(context, apiClient, buyerId, request.IdempotencyKey);
+        }
+        catch (BazaarStorageException exception)
+        {
+            return new BuyResult { ErrorCode = exception.ErrorCode };
+        }
+
+        if (journal != null)
+        {
+            if (journal.Phase == SettlementJournal.PhaseAborted)
+            {
+                // A definitive, already-recorded outcome for this key - replay it, never re-attempt.
+                return new BuyResult { ErrorCode = journal.FailureCode ?? "SETTLEMENT_ABORTED" };
+            }
+
+            // InProgress (or Completed whose result record was lost): resume from the frozen journal.
+            return await ExecuteSettlementAsync(context, apiClient, journal, request.IdempotencyKey);
         }
 
         var rules = await _rules.LoadAsync(context, apiClient);
@@ -182,45 +208,169 @@ public sealed class BazaarOperations
 
         int tax = (listing.AskCredits * rules.SaleTaxPercent) / 100;
         int taxBurn = (listing.AskCredits * rules.SaleTaxBurnPercent) / 100;
-        int taxTreasury = tax - taxBurn;
-        int sellerReceives = listing.AskCredits - tax;
 
-        buyerWallet.BalanceCredits -= listing.AskCredits;
-        sellerWallet.BalanceCredits += sellerReceives;
-        sellerWallet.RecentSaleUtcMs.Add(now);
+        journal = new SettlementJournal
+        {
+            SettlementId = buyerId + "|" + request.IdempotencyKey,
+            Phase = SettlementJournal.PhaseInProgress,
+            BuyerId = buyerId,
+            SellerId = listing.SellerId,
+            ListingId = listing.ListingId,
+            InstanceId = listing.InstanceId,
+            PriceCredits = listing.AskCredits,
+            SellerReceivesCredits = listing.AskCredits - tax,
+            TaxBurnCredits = taxBurn,
+            TaxTreasuryCredits = tax - taxBurn,
+            StartedUtcMs = now,
+        };
 
-        instance.OwnerId = buyerId;
-        instance.State = ItemInstanceState.Owned;
-        instance.LastAcquiredUtcMs = now;
-        instance.LastAcquisitionWasPurchase = true;
-
-        listing.State = BazaarListingState.Sold;
-
+        // Recorded BEFORE the first irreversible mutation: if this write fails nothing has changed
+        // and the caller can simply retry; if it succeeds every later failure is resumable.
         try
         {
-            await _store.SaveWalletAsync(context, apiClient, buyerWallet);
-            await _store.SaveWalletAsync(context, apiClient, sellerWallet);
-            await _store.SaveInstanceAsync(context, apiClient, instance);
-            await _store.SaveListingAsync(context, apiClient, listing);
-            await RemoveFromIndexAsync(context, apiClient, listing.ListingId);
+            await _store.SaveSettlementJournalAsync(context, apiClient, buyerId, request.IdempotencyKey, journal);
         }
         catch (BazaarStorageException exception)
         {
             return new BuyResult { ErrorCode = exception.ErrorCode };
         }
 
-        var result = new BuyResult
-        {
-            Success = true,
-            ListingId = listing.ListingId,
-            PricePaidCredits = listing.AskCredits,
-            SellerReceivedCredits = sellerReceives,
-            TaxBurnedCredits = taxBurn,
-            TaxTreasuryCredits = taxTreasury,
-        };
+        return await ExecuteSettlementAsync(context, apiClient, journal, request.IdempotencyKey);
+    }
 
-        await _store.SaveIdempotentBuyResultAsync(context, apiClient, buyerId, request.IdempotencyKey, result);
-        return result;
+    private const int MaxAppliedSettlementIds = 64;
+
+    private static bool WasApplied(WalletState wallet, string settlementId) => wallet.AppliedSettlementIds.Contains(settlementId);
+
+    private static void MarkApplied(WalletState wallet, string settlementId)
+    {
+        wallet.AppliedSettlementIds.Add(settlementId);
+        if (wallet.AppliedSettlementIds.Count > MaxAppliedSettlementIds)
+        {
+            wallet.AppliedSettlementIds.RemoveRange(0, wallet.AppliedSettlementIds.Count - MaxAppliedSettlementIds);
+        }
+    }
+
+    /// <summary>Runs (or resumes) every settlement step. Each step is idempotent, so this is safe
+    /// to call again after any storage failure - including one that lands the write but still
+    /// reports an error.</summary>
+    private async Task<BuyResult> ExecuteSettlementAsync(IExecutionContext context, IGameApiClient apiClient, SettlementJournal journal, string idempotencyKey)
+    {
+        try
+        {
+            // 1. Claim the listing (single-entity write; the real store's WriteLock makes a
+            //    concurrent second buyer lose with CONFLICT instead of double-selling).
+            var listing = await _store.LoadListingAsync(context, apiClient, journal.ListingId);
+            if (listing == null)
+            {
+                return await AbortSettlementAsync(context, apiClient, journal, idempotencyKey, "LISTING_NOT_AVAILABLE");
+            }
+
+            if (listing.State == BazaarListingState.Active)
+            {
+                listing.State = BazaarListingState.Sold;
+                listing.SettlementId = journal.SettlementId;
+                await _store.SaveListingAsync(context, apiClient, listing);
+            }
+            else if (!(listing.State == BazaarListingState.Sold && listing.SettlementId == journal.SettlementId))
+            {
+                // Sold to someone else, or cancelled, since validation - this settlement never owned it.
+                return await AbortSettlementAsync(context, apiClient, journal, idempotencyKey, "LISTING_NOT_AVAILABLE");
+            }
+
+            // 2. Debit the buyer (idempotent via AppliedSettlementIds, saved with the balance).
+            var buyerWallet = await _store.LoadWalletAsync(context, apiClient, journal.BuyerId);
+            if (!WasApplied(buyerWallet, journal.SettlementId))
+            {
+                if (buyerWallet.BalanceCredits < journal.PriceCredits)
+                {
+                    // The one case forward recovery cannot complete: release the claim, abort.
+                    listing.State = BazaarListingState.Active;
+                    listing.SettlementId = null;
+                    await _store.SaveListingAsync(context, apiClient, listing);
+                    return await AbortSettlementAsync(context, apiClient, journal, idempotencyKey, "INSUFFICIENT_CREDITS");
+                }
+
+                buyerWallet.BalanceCredits -= journal.PriceCredits;
+                MarkApplied(buyerWallet, journal.SettlementId);
+                await _store.SaveWalletAsync(context, apiClient, buyerWallet);
+            }
+
+            // 3. Credit the seller (same idempotent-apply pattern).
+            var sellerWallet = await _store.LoadWalletAsync(context, apiClient, journal.SellerId);
+            if (!WasApplied(sellerWallet, journal.SettlementId))
+            {
+                sellerWallet.BalanceCredits += journal.SellerReceivesCredits;
+                sellerWallet.RecentSaleUtcMs.Add(journal.StartedUtcMs);
+                MarkApplied(sellerWallet, journal.SettlementId);
+                await _store.SaveWalletAsync(context, apiClient, sellerWallet);
+            }
+
+            // 4. Transfer ownership (state-checked, so a re-run is a no-op).
+            var instance = await _store.LoadInstanceAsync(context, apiClient, journal.InstanceId);
+            if (instance == null)
+            {
+                return new BuyResult { ErrorCode = "INSTANCE_NOT_FOUND" };
+            }
+
+            if (!(instance.OwnerId == journal.BuyerId && instance.State == ItemInstanceState.Owned))
+            {
+                instance.OwnerId = journal.BuyerId;
+                instance.State = ItemInstanceState.Owned;
+                instance.LastAcquiredUtcMs = journal.StartedUtcMs;
+                instance.LastAcquisitionWasPurchase = true;
+                await _store.SaveInstanceAsync(context, apiClient, instance);
+            }
+
+            // 5. Drop from the active index (removing an absent id is a no-op).
+            await RemoveFromIndexAsync(context, apiClient, journal.ListingId);
+
+            var result = new BuyResult
+            {
+                Success = true,
+                ListingId = journal.ListingId,
+                PricePaidCredits = journal.PriceCredits,
+                SellerReceivedCredits = journal.SellerReceivesCredits,
+                TaxBurnedCredits = journal.TaxBurnCredits,
+                TaxTreasuryCredits = journal.TaxTreasuryCredits,
+            };
+
+            await _store.SaveIdempotentBuyResultAsync(context, apiClient, journal.BuyerId, idempotencyKey, result);
+
+            journal.Phase = SettlementJournal.PhaseCompleted;
+            try
+            {
+                await _store.SaveSettlementJournalAsync(context, apiClient, journal.BuyerId, idempotencyKey, journal);
+            }
+            catch (BazaarStorageException)
+            {
+                // The idempotent result is already durable, so replays are served from it; a stale
+                // InProgress journal is harmless (a resume finds every step already applied).
+            }
+
+            return result;
+        }
+        catch (BazaarStorageException exception)
+        {
+            // Journal stays InProgress: a retry with the same key resumes and completes the sale.
+            return new BuyResult { ErrorCode = exception.ErrorCode };
+        }
+    }
+
+    private async Task<BuyResult> AbortSettlementAsync(IExecutionContext context, IGameApiClient apiClient, SettlementJournal journal, string idempotencyKey, string failureCode)
+    {
+        journal.Phase = SettlementJournal.PhaseAborted;
+        journal.FailureCode = failureCode;
+        try
+        {
+            await _store.SaveSettlementJournalAsync(context, apiClient, journal.BuyerId, idempotencyKey, journal);
+        }
+        catch (BazaarStorageException)
+        {
+            // Best effort: with no aborted marker a retry re-derives the same failure from state.
+        }
+
+        return new BuyResult { ErrorCode = failureCode };
     }
 
     public async Task<CancelListingResult> CancelListingAsync(IExecutionContext context, IGameApiClient apiClient, CancelListingRequest request)

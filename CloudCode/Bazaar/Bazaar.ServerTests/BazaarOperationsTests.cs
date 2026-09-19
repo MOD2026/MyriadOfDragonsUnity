@@ -594,6 +594,19 @@ public sealed class BazaarOperationsTests
             return Task.CompletedTask;
         }
 
+        private readonly Dictionary<(string, string), SettlementJournal> _journals = new();
+
+        public Task<SettlementJournal?> TryGetSettlementJournalAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey)
+            => Task.FromResult(_journals.TryGetValue((buyerId, idempotencyKey), out var journal)
+                ? JsonConvert.DeserializeObject<SettlementJournal>(JsonConvert.SerializeObject(journal))
+                : null);
+
+        public Task SaveSettlementJournalAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey, SettlementJournal journal)
+        {
+            _journals[(buyerId, idempotencyKey)] = JsonConvert.DeserializeObject<SettlementJournal>(JsonConvert.SerializeObject(journal))!;
+            return Task.CompletedTask;
+        }
+
         public Task<BazaarListingIndex> LoadIndexAsync(IExecutionContext context, IGameApiClient apiClient)
             => Task.FromResult(new BazaarListingIndex { ActiveListingIds = new List<string>(Index.ActiveListingIds) });
 

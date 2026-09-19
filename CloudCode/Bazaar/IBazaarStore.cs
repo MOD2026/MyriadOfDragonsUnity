@@ -33,6 +33,12 @@ public interface IBazaarStore
     Task<BuyResult?> TryGetIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey);
     Task SaveIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey, BuyResult result);
 
+    /// <summary>Durable settlement journal for (buyerId, idempotencyKey) - written BEFORE the first
+    /// mutation of a purchase so a failed/interrupted settlement can be resumed by retrying with the
+    /// same key rather than restarted (see <see cref="SettlementJournal"/>).</summary>
+    Task<SettlementJournal?> TryGetSettlementJournalAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey);
+    Task SaveSettlementJournalAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey, SettlementJournal journal);
+
     /// <summary>Loads the shared active-listing-id index (empty if none exist yet).</summary>
     Task<BazaarListingIndex> LoadIndexAsync(IExecutionContext context, IGameApiClient apiClient);
     Task SaveIndexAsync(IExecutionContext context, IGameApiClient apiClient, BazaarListingIndex index);
