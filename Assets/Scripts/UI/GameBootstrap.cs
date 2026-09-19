@@ -388,6 +388,7 @@ namespace MyriadOfDragons.UI
         private Lane _pickerLane;
         private Text _synergyText;
         private Button _primaryActionButton;
+        private Button _leaveBattleButton;
         private Text _primaryActionLabel;
         private readonly List<Button> _spellButtons = new List<Button>();
         private readonly List<Text> _spellLabels = new List<Text>();
@@ -809,6 +810,7 @@ namespace MyriadOfDragons.UI
             Canvas canvas = BuildCanvas();
             _canvasTransform = canvas.transform;
             BuildEventSystem();
+            EnsureBattleInputReady();
 
             // Battle Release Layout pass: one BattlePresentationRoot under Canvas owns every
             // Battle child from here down - built first (before even the music source and
@@ -4332,8 +4334,12 @@ namespace MyriadOfDragons.UI
             primaryRect.anchorMin = new Vector2(0.5f, 0.5f);
             primaryRect.anchorMax = new Vector2(0.5f, 0.5f);
             primaryRect.pivot = new Vector2(0.5f, 0.5f);
-            primaryRect.sizeDelta = new Vector2(440f, 130f);
-            primaryRect.anchoredPosition = Vector2.zero;
+            // Shared with LEAVE below: the 184px action well used to hold START BATTLE alone at
+            // 130px tall (27px slack each side); 100px + a 16px gap + a 52px LEAVE still fits with
+            // margin, and neither button leaves the region, so the six-region layout contract is
+            // unchanged.
+            primaryRect.sizeDelta = new Vector2(440f, 100f);
+            primaryRect.anchoredPosition = new Vector2(0f, 30f);
 
             // THE screen's primary CTA - the one control the whole Battle screen exists to lead to.
             // Applied after the anchors above for the same border-fit reason as Reset.
@@ -4369,6 +4375,26 @@ namespace MyriadOfDragons.UI
             _tutorialContinueLabel.fontSize = 30;
             _tutorialContinueLabel.fontStyle = FontStyle.Bold;
             _tutorialContinueButton.gameObject.SetActive(false);
+
+            // One-step exit (CR battle interaction fix, 2026-09-19): before this, the ONLY way out
+            // of Battle was the result overlay's Return button, so a player who entered by mistake
+            // had to play a whole match to leave. Routes through the same OnReturnToCityPressed the
+            // result overlay uses, so the frozen OnReturnToCityRequested handoff is unchanged - see
+            // LeaveBattle for what it adds on top.
+            _leaveBattleButton = CreateButton(panel, "LEAVE", font, LeaveBattle);
+            RectTransform leaveRect = _leaveBattleButton.GetComponent<RectTransform>();
+            leaveRect.anchorMin = new Vector2(0.5f, 0.5f);
+            leaveRect.anchorMax = new Vector2(0.5f, 0.5f);
+            leaveRect.pivot = new Vector2(0.5f, 0.5f);
+            leaveRect.sizeDelta = new Vector2(440f, 52f);
+            leaveRect.anchoredPosition = new Vector2(0f, -62f);
+            HomeV3UiLibrary.ApplyNeutralActionButton(
+                _leaveBattleButton, _leaveBattleButton.GetComponent<Image>());
+            FitButtonChrome(_leaveBattleButton);
+            _leaveBattleButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
+            Text leaveLabel = _leaveBattleButton.GetComponentInChildren<Text>();
+            leaveLabel.fontSize = 22;
+            leaveLabel.fontStyle = FontStyle.Bold;
         }
 
         /// <summary>
@@ -6905,6 +6931,80 @@ namespace MyriadOfDragons.UI
             OnReturnToCityRequested?.Invoke();
         }
 
+        /// <summary>LEAVE control handler: abandons the current match and returns in one step.
+        /// The combat loop is a coroutine on THIS component, not on the canvas, so hiding the
+        /// canvas alone (all OnReturnToCityPressed does) would leave it ticking in the
+        /// background and could resolve the match - firing OnMatchCompleted and paying rewards -
+        /// while the player is already back on Home. Stopped explicitly here first; nothing is
+        /// recorded for an abandoned match (RecordMatchResult/OnMatchCompleted only ever run at
+        /// Resolved, which this path never reaches).</summary>
+        private void LeaveBattle()
+        {
+            if (_combatLoop != null)
+            {
+                StopCoroutine(_combatLoop);
+                _combatLoop = null;
+            }
+            CancelSpellTargeting();
+            CancelPresentationEffects();
+            OnReturnToCityPressed();
+        }
+
+        /// <summary>Exposed for tests: the LEAVE button's own handler, since EditMode cannot click.</summary>
+        public void LeaveBattleForTests() => LeaveBattle();
+        public bool LeaveBattleButtonActiveForTests => _leaveBattleButton != null && _leaveBattleButton.gameObject.activeSelf;
+        public Button LeaveBattleButtonForTests => _leaveBattleButton;
+        public Button PrimaryActionButtonForTests => _primaryActionButton;
+        public bool CombatLoopRunningForTests => _combatLoop != null;
+
+        /// <summary>Guarantees Battle can actually receive input: an active, enabled EventSystem
+        /// with an enabled input module, and an enabled GraphicRaycaster on the Battle canvas.
+        /// BuildEventSystem only ever checked EventSystem.current != null, which is also true
+        /// for a disabled/inactive EventSystem left behind by another screen - taps then land on
+        /// nothing and every Battle control reads as dead. Called on every hidden-to-visible
+        /// transition (SetBattleCanvasVisible) and once at Initialize.</summary>
+        private void EnsureBattleInputReady()
+        {
+            EventSystem es = EventSystem.current;
+            if (es == null) es = Object.FindAnyObjectByType<EventSystem>(FindObjectsInactive.Include);
+            if (es == null)
+            {
+                var esGo = new GameObject("EventSystem");
+                es = esGo.AddComponent<EventSystem>();
+            }
+            if (!es.gameObject.activeSelf) es.gameObject.SetActive(true);
+            if (!es.enabled) es.enabled = true;
+            BaseInputModule module = es.GetComponent<BaseInputModule>();
+            if (module == null) module = es.gameObject.AddComponent<StandaloneInputModule>();
+            if (!module.enabled) module.enabled = true;
+
+            if (_canvasTransform != null)
+            {
+                var raycaster = _canvasTransform.GetComponent<GraphicRaycaster>();
+                if (raycaster == null) raycaster = _canvasTransform.gameObject.AddComponent<GraphicRaycaster>();
+                if (!raycaster.enabled) raycaster.enabled = true;
+                var group = _canvasTransform.GetComponent<CanvasGroup>();
+                if (group != null)
+                {
+                    group.interactable = true;
+                    group.blocksRaycasts = true;
+                }
+            }
+        }
+
+        /// <summary>Exposed for tests: whether every prerequisite EnsureBattleInputReady
+        /// guarantees actually holds right now.</summary>
+        public bool BattleInputReadyForTests()
+        {
+            EventSystem es = EventSystem.current != null ? EventSystem.current : Object.FindAnyObjectByType<EventSystem>();
+            if (es == null || !es.isActiveAndEnabled) return false;
+            BaseInputModule module = es.GetComponent<BaseInputModule>();
+            if (module == null || !module.isActiveAndEnabled) return false;
+            if (_canvasTransform == null) return false;
+            var raycaster = _canvasTransform.GetComponent<GraphicRaycaster>();
+            return raycaster != null && raycaster.isActiveAndEnabled;
+        }
+
         /// <summary>Exposed for tests: the result overlay's "Return to City" button calls the
         /// private OnReturnToCityPressed() directly - EditMode tests have no way to click a UI
         /// Button, so this is the only way to exercise the real handler (and the real
@@ -6942,6 +7042,7 @@ namespace MyriadOfDragons.UI
             if (!visible) CancelPresentationEffects();
             bool wasHidden = _canvasTransform != null && !_canvasTransform.gameObject.activeSelf;
             if (_canvasTransform != null) _canvasTransform.gameObject.SetActive(visible);
+            if (visible) EnsureBattleInputReady();
 
             if (visible && wasHidden && !IsTutorialMatch)
             {
@@ -7268,6 +7369,11 @@ namespace MyriadOfDragons.UI
             // Guided-tutorial gate: real UI-level block for Start Battle, mirroring the logical
             // gate already in OnPrimaryActionPressed itself.
             _primaryActionButton.interactable = _tutorialStep == null || _tutorialStep == TutorialStep.BeginBattle;
+            // LEAVE: any live normal match (Formation or Combat). Hidden for a resolved match (the
+            // result overlay's own Return button owns that exit) and for the guided tutorial (its
+            // own skip/step flow owns leaving - a bare exit there would strand tutorial state).
+            if (_leaveBattleButton != null)
+                _leaveBattleButton.gameObject.SetActive(!resolved && !IsTutorialMatch);
 
             // Visible during Formation and Combat both now - V3's activity rail is "a permanent
             // in-shell rail" per the handoff, and the mockup shows the spell list fully populated
