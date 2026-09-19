@@ -108,6 +108,19 @@ namespace MyriadOfDragons.Battle
 
         public BattlePhase Phase { get; private set; } = BattlePhase.Formation;
 
+        /// <summary>True once a LIVE fight was abandoned (the player left Battle mid-Combat). A new
+        /// member, not a change to Phase/MatchResult/OnMatchCompleted: an abandoned fight is not a
+        /// win or a loss, so it must never advance, cast, or report a result - even if a stale timer
+        /// or late callback still holds a reference to this controller. Cleared by StartMatch.</summary>
+        public bool IsAbandoned { get; private set; }
+
+        /// <summary>Marks a live Combat as abandoned. Idempotent, and a no-op outside Combat
+        /// (Formation has no ticks to stop; Resolved already reported its one result).</summary>
+        public void AbandonMatch()
+        {
+            if (Phase == BattlePhase.Combat) IsAbandoned = true;
+        }
+
         /// <summary>
         /// Player's spell energy during Combat. Accrues per *tick* rather than per frame - the
         /// obvious per-frame version (`energy += rate * Time.deltaTime` rounded to int) rounds
@@ -494,6 +507,7 @@ namespace MyriadOfDragons.Battle
             _playerDeployments.Clear();
 
             Phase = BattlePhase.Formation;
+            IsAbandoned = false;
             TickCount = 0;
             Energy = 0;
             EnemyEnergy = 0;
@@ -660,7 +674,7 @@ namespace MyriadOfDragons.Battle
         /// </summary>
         public TurnResolutionResult AdvanceCombatTick()
         {
-            if (Phase != BattlePhase.Combat) return default;
+            if (Phase != BattlePhase.Combat || IsAbandoned) return default;
 
             TickCount++;
             Energy = Math.Min(MaxEnergy, Energy + EnergyPerTick + BackLaneEnergy(PlayerState));
@@ -762,7 +776,7 @@ namespace MyriadOfDragons.Battle
         /// </summary>
         public bool TryDeployReinforcement(Card card, Lane lane)
         {
-            if (!IsReinforcementWindowOpen) return false;
+            if (IsAbandoned || !IsReinforcementWindowOpen) return false;
             if (!PlayerState.Hand.Contains(card)) return false;
             if (card.ResourceCost > PlayerState.Resource) return false;
             if (!PlayerState.Lanes[lane].HasRoomFor(card)) return false;
@@ -796,7 +810,7 @@ namespace MyriadOfDragons.Battle
         {
             avatarDamageDealt = 0;
 
-            if (Phase != BattlePhase.Combat) return false;
+            if (Phase != BattlePhase.Combat || IsAbandoned) return false;
             if (spellIndex < 0 || spellIndex >= Spellbook.Count) return false;
 
             AvatarSpell spell = Spellbook[spellIndex];

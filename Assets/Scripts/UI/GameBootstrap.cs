@@ -6035,7 +6035,7 @@ namespace MyriadOfDragons.UI
             while (_battleController.Phase == BattlePhase.Combat)
             {
                 yield return new WaitForSeconds(CombatTickSeconds);
-                if (_battleController.Phase != BattlePhase.Combat) break;
+                if (_battleController.Phase != BattlePhase.Combat || _battleController.IsAbandoned) break;
 
                 CancelPresentationEffects();
                 TurnResolutionResult result = _battleController.AdvanceCombatTick();
@@ -6144,6 +6144,10 @@ namespace MyriadOfDragons.UI
 
         private void OnSpellTapped(int spellIndex)
         {
+            // A tap delivered after the player left (or while Battle is not on screen) must not
+            // arm, cast, or even show a rejection for a match that is gone.
+            if (!BattleIsPresented || _battleController.IsAbandoned) return;
+
             // Guided-tutorial gate: no spell is usable outside step 7, and only the one approved
             // spell is usable within it - real UI-level block is the button's own gating in
             // RefreshPhaseControls; this is what makes a direct call honor the same rule.
@@ -6311,6 +6315,7 @@ namespace MyriadOfDragons.UI
 
         private void OnSpellTargetLanePressed(Lane lane)
         {
+            if (!BattleIsPresented || _battleController.IsAbandoned) return;
             if (_armedSpellIndex < 0) return;
 
             // Guided-tutorial gate: only the one scripted enemy lane is a legal target - the
@@ -6332,6 +6337,7 @@ namespace MyriadOfDragons.UI
 
         private void CastSpellAt(int spellIndex, Lane lane)
         {
+            if (!BattleIsPresented || _battleController.IsAbandoned) return;
             int energyBefore = _battleController.Energy;
 
             // Firestorm (and every guided-lesson spell) targets a *lane*, not the enemy Avatar
@@ -6903,6 +6909,13 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void OnReturnToCityPressed()
         {
+            // Idempotent (CR exit-lifecycle pass): the result overlay's Return button, LEAVE, and
+            // any test/tutorial caller all funnel here. Once the canvas is hidden the return has
+            // already happened - firing OnReturnToCityRequested again would run Home's
+            // return handler twice, and a STALE callback arriving after the player has moved on to
+            // another screen would re-show Home over it.
+            if (!BattleIsPresented) return;
+            AbandonLiveMatchForExit();
             if (_armedSpellIndex >= 0) CancelSpellTargeting();
             HideSpellTooltip();
             _canvasTransform.gameObject.SetActive(false);
@@ -6943,6 +6956,28 @@ namespace MyriadOfDragons.UI
             OnReturnToCityRequested?.Invoke();
         }
 
+        /// <summary>True while the Battle canvas is the screen the player is looking at. The single
+        /// truth every exit/cast entry point checks so a late or repeated callback (a second LEAVE
+        /// tap, a stale return listener, a spell tap delivered after the canvas went away) is a
+        /// no-op instead of a second cleanup, a second OnReturnToCityRequested, or a cast on a
+        /// match the player already left.</summary>
+        private bool BattleIsPresented => _canvasTransform != null && _canvasTransform.gameObject.activeSelf;
+
+        /// <summary>Stops a live normal-match fight for good: the tick coroutine (it lives on this
+        /// component, not the canvas, so hiding the canvas alone never stops it) and the
+        /// controller's own tick/cast gates via AbandonMatch. Safe to call any number of times and
+        /// in any phase. The guided tutorial is left alone - it is stepped manually and must stay
+        /// resumable across hide/show.</summary>
+        private void AbandonLiveMatchForExit()
+        {
+            if (_combatLoop != null)
+            {
+                StopCoroutine(_combatLoop);
+                _combatLoop = null;
+            }
+            if (!IsTutorialMatch) _battleController.AbandonMatch();
+        }
+
         /// <summary>LEAVE control handler: abandons the current match and returns in one step.
         /// The combat loop is a coroutine on THIS component, not on the canvas, so hiding the
         /// canvas alone (all OnReturnToCityPressed does) would leave it ticking in the
@@ -6952,11 +6987,10 @@ namespace MyriadOfDragons.UI
         /// Resolved, which this path never reaches).</summary>
         private void LeaveBattle()
         {
-            if (_combatLoop != null)
-            {
-                StopCoroutine(_combatLoop);
-                _combatLoop = null;
-            }
+            // Idempotent: a second LEAVE (double tap, or a callback arriving after the return
+            // already happened) finds Battle no longer presented and does nothing.
+            if (!BattleIsPresented) return;
+            AbandonLiveMatchForExit();
             CancelSpellTargeting();
             CancelPresentationEffects();
             OnReturnToCityPressed();
@@ -7059,8 +7093,10 @@ namespace MyriadOfDragons.UI
         /// </summary>
         public void SetBattleCanvasVisible(bool visible)
         {
-            if (!visible)
+            if (!visible && BattleIsPresented)
             {
+                // Only the visible -> hidden transition does cleanup: hiding an already-hidden
+                // Battle is a no-op (no second cancel, no second abandon).
                 CancelPresentationEffects();
                 // Leaving Battle mid-interaction must not leave spell UI state behind: a still-armed
                 // spell would hijack the next player-lane tap (OnLanePressed gives an armed spell
@@ -7069,6 +7105,9 @@ namespace MyriadOfDragons.UI
                 // canvas and never delivers its own Up/Exit.
                 if (_armedSpellIndex >= 0) CancelSpellTargeting();
                 HideSpellTooltip();
+                // A live fight must not keep ticking (and could resolve, reporting a result and
+                // paying rewards) while nobody is looking at it - see AbandonLiveMatchForExit.
+                AbandonLiveMatchForExit();
             }
             bool wasHidden = _canvasTransform != null && !_canvasTransform.gameObject.activeSelf;
             if (_canvasTransform != null) _canvasTransform.gameObject.SetActive(visible);
