@@ -31,7 +31,7 @@ namespace MyriadOfDragons.CloudCode.Bazaar.Tests;
 /// </summary>
 public sealed class BazaarSettlementContractTests
 {
-    private const long Now = 10_000_000_000L;
+    internal const long Now = 10_000_000_000L;
 
     // ---------------- Reconciliation ----------------
 
@@ -419,7 +419,7 @@ public sealed class BazaarSettlementContractTests
     /// <summary>Returns a list of violations (empty == consistent). This is the tested definition
     /// of a settled sale that a real reconciliation job would apply: credits are conserved across
     /// buyer + seller + burn + treasury, and instance/listing/index agree with the wallets.</summary>
-    private static List<string> Reconcile(StoreSnapshot before, StoreSnapshot after, BuyResult result, string listingId, string buyerId, string sellerId)
+    internal static List<string> Reconcile(StoreSnapshot before, StoreSnapshot after, BuyResult result, string listingId, string buyerId, string sellerId)
     {
         var violations = new List<string>();
         int buyerDelta = after.Balance(buyerId) - before.Balance(buyerId);
@@ -441,11 +441,11 @@ public sealed class BazaarSettlementContractTests
 
     // ---------------- Helpers ----------------
 
-    private static BazaarOperations Create(FaultStore store) => new(store, new FixedClock(Now), new FixedRules());
-    private static Ctx Context(string? playerId) => new(playerId);
-    private static BuyItemRequest Buy(string listingId, string key) => new() { ListingId = listingId, IdempotencyKey = key };
+    internal static BazaarOperations Create(FaultStore store) => new(store, new FixedClock(Now), new FixedRules());
+    internal static Ctx Context(string? playerId) => new(playerId);
+    internal static BuyItemRequest Buy(string listingId, string key) => new() { ListingId = listingId, IdempotencyKey = key };
 
-    private sealed class StoreSnapshot : IEquatable<StoreSnapshot>
+    internal sealed class StoreSnapshot : IEquatable<StoreSnapshot>
     {
         public Dictionary<string, int> Balances { get; init; } = new();
         public Dictionary<string, string> InstanceOwner { get; init; } = new();
@@ -469,7 +469,7 @@ public sealed class BazaarSettlementContractTests
 
     /// <summary>In-memory IBazaarStore that can throw BazaarStorageException on the Nth
     /// wallet/instance/listing/index save, to exercise mid-settlement failures.</summary>
-    private sealed class FaultStore : IBazaarStore
+    internal sealed class FaultStore : IBazaarStore
     {
         public Dictionary<string, ItemInstance> Instances { get; } = new();
         public Dictionary<string, BazaarListing> Listings { get; } = new();
@@ -613,19 +613,19 @@ public sealed class BazaarSettlementContractTests
         private static WalletState Clone(WalletState v) => JsonConvert.DeserializeObject<WalletState>(JsonConvert.SerializeObject(v))!;
     }
 
-    private sealed class FixedClock : IBazaarClock
+    internal sealed class FixedClock : IBazaarClock
     {
         public FixedClock(long now) => UtcNowMs = now;
         public long UtcNowMs { get; }
     }
 
-    private sealed class FixedRules : IBazaarRulesConfiguration
+    internal sealed class FixedRules : IBazaarRulesConfiguration
     {
         public Task<BazaarRulesConfiguration> LoadAsync(IExecutionContext context, IGameApiClient apiClient)
             => Task.FromResult(BazaarRulesConfiguration.Fallback());
     }
 
-    private sealed class Ctx : IExecutionContext
+    internal sealed class Ctx : IExecutionContext
     {
         public Ctx(string? playerId) => PlayerId = playerId!;
         public string ProjectId => "project";

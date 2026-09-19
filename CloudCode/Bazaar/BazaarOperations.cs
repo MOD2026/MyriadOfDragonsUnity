@@ -357,6 +357,12 @@ public sealed class BazaarOperations
         }
     }
 
+    /// <summary>Recovery entry point used by <see cref="BazaarReconciliationSweep"/>: resumes a stuck
+    /// InProgress journal through the exact same idempotent saga path a buyer's own retry takes, so
+    /// recovery can never diverge from (or double-apply relative to) a normal retry.</summary>
+    internal Task<BuyResult> ResumeSettlementAsync(IExecutionContext context, IGameApiClient apiClient, SettlementJournal journal, string idempotencyKey)
+        => ExecuteSettlementAsync(context, apiClient, journal, idempotencyKey);
+
     private async Task<BuyResult> AbortSettlementAsync(IExecutionContext context, IGameApiClient apiClient, SettlementJournal journal, string idempotencyKey, string failureCode)
     {
         journal.Phase = SettlementJournal.PhaseAborted;

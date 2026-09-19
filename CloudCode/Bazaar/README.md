@@ -66,10 +66,13 @@ the first pass; that coverage is unaffected by adding the real store alongside i
   is instead a resumable forward-recovery saga (durable settlement journal written before the
   first mutation, each step idempotent - listing claim carries a settlementId, wallets record
   applied settlement ids in the same save as the balance change), so a mid-settlement failure is
-  completed by retrying with the same idempotency key and can never charge or credit twice. Still
-  open: a **reconciliation sweep** for settlements whose client never retries (journals stuck
-  InProgress) and stale active-index entries, and a live `nonprod-validation` run of the cross-account
-  wallet path (wallet reads/writes now use `ServiceToken`, same fix as Friends BE-FRIENDS-STORAGE-014).
+  completed by retrying with the same idempotency key and can never charge or credit twice.
+  `BazaarReconciliationSweep` (library class, deliberately NOT a CloudCodeFunction) recovers journals
+  stuck InProgress for buyers who never retry, and repairs stale active-index entries, discovering work
+  through the active-listing index (a claimed listing's SettlementId locates its journal). Still open:
+  deciding how/when it is invoked (endpoint or scheduler, run cadence, any minimum journal age, alerting
+  - none invented here), and a live `nonprod-validation` run of the cross-account wallet path (wallet
+  reads/writes now use `ServiceToken`, same fix as Friends BE-FRIENDS-STORAGE-014).
 - **The append-only ownership/wallet ledger history** (system packet §2). Only the current balance
   and the rolling-sale timestamps the business rules actually need are modeled; full transaction
   history is not.
