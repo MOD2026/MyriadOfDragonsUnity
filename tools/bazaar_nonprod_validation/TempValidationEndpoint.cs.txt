@@ -1,0 +1,60 @@
+// TEMPORARY, nonprod-validation ONLY. Deliberately stored as .txt so it is never compiled into
+// CloudCode/Bazaar. `bazaar_validation.py prepare` copies the module to a scratch directory, drops this
+// file in as TEMP_NonprodValidationEndpoint.cs, and deploys THAT COPY to nonprod-validation.
+// `bazaar_validation.py cleanup` redeploys the clean repo module, which removes this endpoint.
+//
+// WHY IT EXISTS: BazaarReconciliationSweep is a library class (no CloudCodeFunction) so that no
+// production entry point is invented before the owner decides how/when/by-whom the sweep is invoked
+// (see README.md "Owner decisions required"). Validating it live needs *some* callable path; this is
+// that path, scoped to a scratch deployment and removed afterwards. While it is deployed it is callable by
+// any authenticated player in nonprod-validation.
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Unity.Services.CloudCode.Apis;
+using Unity.Services.CloudCode.Core;
+
+namespace MyriadOfDragons.CloudCode.Bazaar;
+
+public sealed class TempValidationFinding
+{
+    public string ListingId { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public string Detail { get; set; } = string.Empty;
+}
+
+public sealed class TempValidationSweepResult
+{
+    public int Scanned { get; set; }
+    public bool IsClean { get; set; }
+    public List<TempValidationFinding> Findings { get; set; } = new();
+}
+
+public sealed class TempValidationSweepRequest
+{
+    public long MinJournalAgeMs { get; set; }
+}
+
+public sealed class TempBazaarValidationModule
+{
+    private readonly BazaarReconciliationSweep _sweep;
+
+    public TempBazaarValidationModule()
+    {
+        var store = new CloudSaveBazaarStore();
+        var clock = new SystemBazaarClock();
+        _sweep = new BazaarReconciliationSweep(store, new BazaarOperations(store, clock, new RemoteConfigBazaarRulesConfiguration()), clock);
+    }
+
+    [CloudCodeFunction("TempValidateReconcileBazaar")]
+    public async Task<TempValidationSweepResult> Run(IExecutionContext context, IGameApiClient apiClient, TempValidationSweepRequest request)
+    {
+        var result = await _sweep.SweepAsync(context, apiClient, request?.MinJournalAgeMs ?? 0);
+        return new TempValidationSweepResult
+        {
+            Scanned = result.Scanned,
+            IsClean = result.IsClean,
+            Findings = result.Findings.Select(f => new TempValidationFinding { ListingId = f.ListingId, Kind = f.Kind.ToString(), Detail = f.Detail }).ToList(),
+        };
+    }
+}
