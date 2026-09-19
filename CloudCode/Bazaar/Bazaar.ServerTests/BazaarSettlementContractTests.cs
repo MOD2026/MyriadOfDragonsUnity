@@ -584,8 +584,19 @@ public sealed class BazaarSettlementContractTests
             return Task.CompletedTask;
         }
 
+        /// <summary>When set and returning true for (buyerId, idempotencyKey), the idempotency-record read
+        /// throws - models a cross-account read Cloud Save rejects (found live for the sweep).</summary>
+        public Func<string, string, bool>? FailIdempotencyRead { get; set; }
+
         public Task<BuyResult?> TryGetIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey)
-            => Task.FromResult(IdempotencyRecords.TryGetValue((buyerId, idempotencyKey), out var v) ? v : null);
+        {
+            if (FailIdempotencyRead != null && FailIdempotencyRead(buyerId, idempotencyKey))
+            {
+                throw new BazaarStorageException(FailureCode);
+            }
+
+            return Task.FromResult(IdempotencyRecords.TryGetValue((buyerId, idempotencyKey), out var v) ? v : null);
+        }
 
         public Task SaveIdempotentBuyResultAsync(IExecutionContext context, IGameApiClient apiClient, string buyerId, string idempotencyKey, BuyResult result)
         {

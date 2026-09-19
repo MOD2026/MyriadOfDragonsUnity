@@ -112,19 +112,28 @@ public sealed class BazaarReconciliationSweep
                 continue;
             }
 
-            switch (listing.State)
+            try
             {
-                case BazaarListingState.Active:
-                    break; // healthy
+                switch (listing.State)
+                {
+                    case BazaarListingState.Active:
+                        break; // healthy
 
-                case BazaarListingState.Cancelled:
-                    await RemoveFromIndexAsync(context, apiClient, listingId);
-                    result.Findings.Add(Finding(listingId, ReconciliationFindingKind.RemovedStaleIndexEntry, "listing cancelled"));
-                    break;
+                    case BazaarListingState.Cancelled:
+                        await RemoveFromIndexAsync(context, apiClient, listingId);
+                        result.Findings.Add(Finding(listingId, ReconciliationFindingKind.RemovedStaleIndexEntry, "listing cancelled"));
+                        break;
 
-                case BazaarListingState.Sold:
-                    await ReconcileSoldListingAsync(context, apiClient, listing, minJournalAgeMs, result);
-                    break;
+                    case BazaarListingState.Sold:
+                        await ReconcileSoldListingAsync(context, apiClient, listing, minJournalAgeMs, result);
+                        break;
+                }
+            }
+            catch (BazaarStorageException exception)
+            {
+                // One unreadable/unwritable listing must never abort the rest of the board: report it
+                // and move on; the next sweep retries it (every step is idempotent).
+                result.Findings.Add(Finding(listingId, ReconciliationFindingKind.DeferredFailure, exception.ErrorCode));
             }
         }
 

@@ -210,6 +210,38 @@ public sealed class BazaarReconciliationSweepTests
         Assert.That(store.Listings["listing-2"].State, Is.EqualTo(BazaarListingState.Active));
     }
 
+    [Test]
+    public async Task Sweep_AStorageFailureOnOneListing_IsDeferred_AndTheRestOfTheBoardIsStillReconciled()
+    {
+        // Regression for a defect found by the live nonprod-validation run: reading ANOTHER buyer's
+        // record failed and that one exception used to abort the entire sweep.
+        var store = NewStore("listing-1", "seller", "buyerA");
+        store.SeedActiveListing("listing-2", "seller", 200);
+        store.SeedActiveListing("listing-3", "seller", 50);
+        store.Listings["listing-3"].State = BazaarListingState.Cancelled;
+        store.Wallets["buyerB"] = new WalletState { AccountId = "buyerB", BalanceCredits = 1_000 };
+        await StickAsync(store, "buyerA", "listing-1", "key-a", failAtSave: 2);
+        await StickAsync(store, "buyerB", "listing-2", "key-b", failAtSave: 2);
+        store.FailIdempotencyRead = (buyer, _) => buyer == "buyerA";
+
+        var partial = await Sweep(store);
+
+        Assert.That(partial.Findings.Select(f => (f.ListingId, f.Kind)), Is.EqualTo(new[]
+        {
+            ("listing-1", ReconciliationFindingKind.DeferredFailure),
+            ("listing-2", ReconciliationFindingKind.RecoveredSettlement),
+            ("listing-3", ReconciliationFindingKind.RemovedStaleIndexEntry),
+        }));
+        Assert.That(store.Wallets["buyerA"].BalanceCredits, Is.EqualTo(500), "The deferred settlement must not have been touched.");
+        Assert.That(store.Wallets["buyerB"].BalanceCredits, Is.EqualTo(800));
+
+        store.FailIdempotencyRead = null;
+        var healed = await Sweep(store);
+        Assert.That(healed.Findings.Select(f => f.Kind), Is.EqualTo(new[] { ReconciliationFindingKind.RecoveredSettlement }));
+        Assert.That(store.Wallets["buyerA"].BalanceCredits, Is.EqualTo(400), "Recovered exactly once after the deferral.");
+        Assert.That((await Sweep(store)).IsClean, Is.True);
+    }
+
     // ---------------- stale index detection ----------------
 
     [TestCase(false)]
