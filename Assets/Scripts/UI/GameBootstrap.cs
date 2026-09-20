@@ -3821,6 +3821,88 @@ namespace MyriadOfDragons.UI
                 CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f)));
         }
 
+        // ---------- in-game motion (presentation only) ----------
+        // Motion rules live in BattleMotionPlan (pure, tested). This applies them as scale-only
+        // beats on existing transforms - no positions are moved, so no layout state can be left
+        // shifted - and remembers every target so ANY interruption or restart resets it to rest.
+        private readonly HashSet<Transform> _motionTargets = new HashSet<Transform>();
+
+        /// <summary>Plays one motion beat on `target`. No-op under Reduced Motion (the beat's
+        /// outcome is unchanged, only its motion is removed) and outside Play mode.</summary>
+        private void PlayMotion(Transform target, BattleMotionKind kind)
+        {
+            if (target == null || !Application.isPlaying) return;
+            BattleMotionStep step = BattleMotionPlan.For(kind, MotionPolicy.ReduceMotion);
+            if (step.IsStatic) return;
+
+            _motionTargets.Add(target);
+            _presentationCoroutines.Add(StartCoroutine(RunMotion(target, step)));
+        }
+
+        private static IEnumerator RunMotion(Transform target, BattleMotionStep step)
+        {
+            float elapsed = 0f;
+            while (elapsed < step.Duration && target != null)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float scale = BattleMotionPlan.EvaluateScale(step, Mathf.Clamp01(elapsed / step.Duration));
+                target.localScale = new Vector3(scale, scale, 1f);
+                yield return null;
+            }
+            if (target != null) target.localScale = Vector3.one;
+        }
+
+        /// <summary>Returns every animated target to its resting size. Called on interruption and
+        /// on every fresh match, so no beat can leave a lane, banner or panel scaled.</summary>
+        private void ResetMotionTargets()
+        {
+            foreach (Transform target in _motionTargets)
+                if (target != null) target.localScale = Vector3.one;
+            _motionTargets.Clear();
+        }
+
+        /// <summary>Exposed for tests: applies the motion envelope at normalized time `t` to a
+        /// target and registers it, exactly as a running beat would - EditMode cannot run the
+        /// coroutine that normally drives this.</summary>
+        public void ApplyMotionSampleForTests(Transform target, BattleMotionKind kind, float t)
+        {
+            BattleMotionStep step = BattleMotionPlan.For(kind, MotionPolicy.ReduceMotion);
+            _motionTargets.Add(target);
+            float scale = BattleMotionPlan.EvaluateScale(step, t);
+            target.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        /// <summary>Exposed for tests: how many targets are currently registered as animated.</summary>
+        public int MotionTargetCountForTests => _motionTargets.Count;
+
+        /// <summary>Exposed for tests: a player lane's slot transform.</summary>
+        public Transform PlayerLaneSlotForTests(Lane lane) => _playerLaneSlots[lane];
+
+        /// <summary>Exposed for tests: an enemy lane's slot transform.</summary>
+        public Transform EnemyLaneSlotForTests(Lane lane) => _enemyLaneSlots[lane];
+
+        /// <summary>Hit feedback: a short red tint over the struck side's lane. Full motion fades it
+        /// out; Reduced Motion holds it as a still marker (same still-hold rule as every other
+        /// effect). Play mode only, so EditMode tests never leave transient objects behind.</summary>
+        private void PlayHitTint(Transform slot, float strength)
+        {
+            if (slot == null || !Application.isPlaying) return;
+
+            Image tint = CreateImage(slot, new Color(0.85f, 0.15f, 0.15f, strength));
+            tint.raycastTarget = false;
+            StretchFull(tint.rectTransform);
+            tint.transform.SetAsLastSibling();
+            _presentationObjects.Add(tint.gameObject);
+
+            if (MotionPolicy.ReduceMotion)
+            {
+                _presentationCoroutines.Add(StartCoroutine(DestroyAfterDelay(tint.gameObject, BattleMotionPlan.StaticHitHoldSeconds)));
+                return;
+            }
+            _presentationCoroutines.Add(StartCoroutine(FadeAndDestroy(tint,
+                CombatPresentationPolicy.ResolveDurationMs(260, false) / 1000f)));
+        }
+
         /// <summary>Retry / Replay / a fresh match must start from a clean presentation: the previous
         /// fight's floating text, effects and Start Battle banner must not survive into the new
         /// Formation (UI Beta pack, states 9-10: "no duplicate overlays or stale VFX"). Same as
@@ -3840,6 +3922,7 @@ namespace MyriadOfDragons.UI
             }
             _presentationObjects.Clear();
             DestroyStartBanner();
+            ResetMotionTargets();
             if (_resultOverlayFade != null) { StopCoroutine(_resultOverlayFade); _resultOverlayFade = null; }
         }
 
@@ -3852,6 +3935,7 @@ namespace MyriadOfDragons.UI
                 if (go != null) Destroy(go);
             _presentationObjects.Clear();
             DestroyStartBanner();
+            ResetMotionTargets();
         }
 
         private static IEnumerator FadeScaleAndDestroy(GameObject go, Image image, float duration, float growTo)
@@ -5868,6 +5952,7 @@ namespace MyriadOfDragons.UI
                 RefreshAll();
                 PlayEffect(_playerLaneSlots[lane], ElementEffectSprite(playedCard.Element), Vector2.zero, 60f, 0.6f);
                 SlideNewestCardIntoLane(lane);
+                PlayMotion(_playerLaneSlots[lane], BattleMotionKind.PlacementLand);
             }
             else
             {
@@ -5979,6 +6064,7 @@ namespace MyriadOfDragons.UI
                 int last = _presentationObjects.Count - 1;
                 _startBanner = _presentationObjects[last];
                 _presentationObjects.RemoveAt(last);
+                PlayMotion(_startBanner.transform, BattleMotionKind.StartBattle);
             }
         }
 
@@ -6165,7 +6251,18 @@ namespace MyriadOfDragons.UI
                 Sprite sprite = Resources.Load<Sprite>(broke ? "UI/VFX/Critical_Slash" : "UI/VFX/Blood_Splash");
                 PlayEffect(_playerLaneSlots[lane.Lane], sprite, Vector2.zero, broke ? 90f : 64f, 0.5f);
                 PlayEffect(_enemyLaneSlots[lane.Lane], sprite, Vector2.zero, broke ? 90f : 64f, 0.5f);
+
+                // Unit attack / hit feedback (presentation only - reads the already-resolved
+                // clash): each side lunges if it traded blows, recoils if it lost units or its
+                // Avatar took overflow, and the struck side gets a hit tint.
+                PlayMotion(_playerLaneSlots[lane.Lane], BattleMotionPlan.ReactionFor(lane, sideA: true));
+                PlayMotion(_enemyLaneSlots[lane.Lane], BattleMotionPlan.ReactionFor(lane, sideA: false));
+                PlayHitTint(_playerLaneSlots[lane.Lane], BattleMotionPlan.HitTintStrengthFor(lane, sideA: true));
+                PlayHitTint(_enemyLaneSlots[lane.Lane], BattleMotionPlan.HitTintStrengthFor(lane, sideA: false));
             }
+            // The clash counter ("Clash N/12") pulses once per resolved tick - the automatic
+            // clash's tempo indicator.
+            if (_turnText != null) PlayMotion(_turnText.transform, BattleMotionKind.ClashPulse);
         }
 
         /// <summary>
@@ -6992,6 +7089,8 @@ namespace MyriadOfDragons.UI
 
             _resultOverlay.SetActive(true);
             PresentResultOverlayEntrance();
+            if (_resultText != null && _resultText.transform.parent != null)
+                PlayMotion(_resultText.transform.parent, BattleMotionKind.ResultReveal);
 
             // Purely additive, same reasoning as StartApprovedTutorialBattle's own opening-
             // cinematic call: the result overlay above is already fully configured and active
