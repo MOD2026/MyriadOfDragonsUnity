@@ -690,14 +690,14 @@ namespace MyriadOfDragons.Tests
             // first or this call would be a no-op.
             bootstrap.SetBattleCanvasVisible(false);
             bootstrap.SetBattleCanvasVisible(true);
-            StringAssert.Contains("saved 10-card deck", bootstrap.TutorialGuidanceCaptionTextForTests,
+            StringAssert.Contains($"saved {MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)}-card deck", bootstrap.TutorialGuidanceCaptionTextForTests,
                 "Setup: expected the Campaign-specific onboarding caption while the stage is pending.");
 
             bootstrap.ReturnToCityForTests();
             bootstrap.StartApprovedTutorialBattle();
 
             string text = bootstrap.TutorialGuidanceCaptionTextForTests;
-            StringAssert.DoesNotContain("saved 10-card deck", text,
+            StringAssert.DoesNotContain($"saved {MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)}-card deck", text,
                 "Requirement 4: the Campaign onboarding copy must never leak into Tutorial after returning home and starting Tutorial.");
             Assert.AreEqual("Cards cost Energy to play. Tap Warrior to select it.", text,
                 "Tutorial must show its own real step caption, unaffected by the earlier Campaign attempt.");

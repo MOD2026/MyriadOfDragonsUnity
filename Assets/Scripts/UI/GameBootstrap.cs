@@ -1024,7 +1024,10 @@ namespace MyriadOfDragons.UI
             // cards against a 3x3 board that fills long before a deck runs out), so making it
             // uneven would mostly just look unfair without changing much - the AI's actual
             // difficulty comes from SoloAIScalingSystem's HP/resource scaling and its archetype.
-            int deckSize = _empireData.DeckSlotCount;
+            // Owner-signed Option A: a newly constructed/fielded beta deck is never larger than
+            // BetaDeckSlotCap, whatever a legacy stored slot value says. The stored value itself is
+            // untouched (BetaDeckSizeFor is pure) - only Battle's sizing is capped.
+            int deckSize = PlayerEmpireData.BetaDeckSizeFor(_empireData.DeckSlotCount);
 
             if (useRecommendedDeck)
             {
@@ -2559,7 +2562,19 @@ namespace MyriadOfDragons.UI
                 savedDeck.Add(card);
             }
 
-            return savedDeck.Count == deckSize;
+            return TryFitSavedDeckToBattleSize(savedDeck, deckSize);
+        }
+
+        /// <summary>Owner-signed Option A (BATTLE-REMAINING-OWNER-DECISIONS-0.9-SIGNED.md): a saved
+        /// deck larger than the size Battle now fields (legacy 16/18/20 - or any count from the old,
+        /// larger curve) stays exactly as saved, and Battle fields its first `deckSize` cards for the
+        /// match. Never rewrites the profile, never pads: a saved deck SMALLER than deckSize is still
+        /// incomplete and fails the whole deck as before.</summary>
+        public static bool TryFitSavedDeckToBattleSize(List<Card> savedDeck, int deckSize)
+        {
+            if (savedDeck == null || deckSize <= 0 || savedDeck.Count < deckSize) return false;
+            if (savedDeck.Count > deckSize) savedDeck.RemoveRange(deckSize, savedDeck.Count - deckSize);
+            return true;
         }
 
         /// <summary>Set by HomePagePresenter's launch handoff (SetPendingCampaignStageForNextMatch)

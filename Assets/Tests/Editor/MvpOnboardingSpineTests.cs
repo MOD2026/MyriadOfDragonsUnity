@@ -217,7 +217,7 @@ namespace MyriadOfDragons.Tests
             DeckBuilderPresenter deckBuilder = home.GetComponent<DeckBuilderPresenter>();
             Assert.IsNotNull(deckBuilder, "BlockedNoDeck must attach DeckBuilderPresenter.");
             deckBuilder.SetAndConfirmDeckForTests(ApprovedStarterCollectionCardIds);
-            CollectionAssert.AreEqual(ApprovedStarterCollectionCardIds, bootstrap.Profile.activeDeckCardIds);
+            CollectionAssert.AreEqual(ApprovedStarterCollectionCardIds.Take(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)).ToList(), bootstrap.Profile.activeDeckCardIds);
             Assert.IsTrue(bootstrap.HasValidConfirmedDeckForNormalBattle());
 
             if (homeCanvas != null) homeCanvas.SetActive(true);

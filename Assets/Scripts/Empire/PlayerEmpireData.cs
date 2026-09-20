@@ -111,7 +111,14 @@ namespace MyriadOfDragons.Empire
         // The old ÷5 formula reached 20 slots at Barracks 50 and granted empty +1 levels
         // (2, 3, 4…) that construction must never sell. Lookup, not arithmetic.
         private static readonly int[] PaidBarracksMilestones = { 1, 5, 10, 15, 20, 25, 30 };
-        private static readonly int[] DeckSlotsAtPaidMilestone = { 10, 11, 12, 14, 16, 18, 20 };
+        // Owner-signed deck curve (BATTLE-REMAINING-OWNER-DECISIONS-0.9-SIGNED.md, 2026-09-02):
+        // non-linear 7 -> 15 across eight Barracks milestones. A SEPARATE table from
+        // PaidBarracksMilestones on purpose: the paid list (and GoldCostAtPaidMilestone) is the
+        // construction/Gold ladder - an economy authority - and adding L3/L8 there would invent
+        // two new purchase tiers and their prices. The curve only answers "how many deck slots
+        // does this stored Barracks level grant"; construction targets are unchanged.
+        private static readonly int[] DeckCurveBarracksLevels = { 1, 3, 5, 8, 10, 15, 20, 30 };
+        private static readonly int[] DeckCurveSlots = { 7, 8, 9, 10, 11, 12, 13, 15 };
         // Gold to BUY that milestone from the previous paid tier (L1 is free start).
         // Pacing vs Campaign first-clear Gold (~6.2k Ch1, ~155k through Ch3, ~650k through Ch5,
         // ~2.2M through Ch8): early tiers after Ch1–2; L30 needs late-campaign Gold and must
@@ -126,7 +133,20 @@ namespace MyriadOfDragons.Empire
             100_000, // → L25
             250_000, // → L30
         };
-        private const int MaxDeckSlotCount = 20;
+        private const int MaxDeckSlotCount = 15;
+
+        /// <summary>Hard cap on the size of any deck Battle constructs or fields from the beta
+        /// onward (owner-signed Option A). Saved decks/values of 16, 18 or 20 from the old curve are
+        /// never rewritten - the cap applies only where Battle sizes a deck - see
+        /// <see cref="BetaDeckSizeFor"/>.</summary>
+        public const int BetaDeckSlotCap = MaxDeckSlotCount;
+
+        /// <summary>The deck size Battle uses for a NEWLY constructed/fielded beta deck given a
+        /// stored slot value: the stored value, capped at <see cref="BetaDeckSlotCap"/>. Pure -
+        /// never mutates or clamps the stored value itself, so a legacy 16/18/20 stays readable
+        /// everywhere outside Battle.</summary>
+        public static int BetaDeckSizeFor(int storedDeckSlots) =>
+            Mathf.Clamp(storedDeckSlots, 0, BetaDeckSlotCap);
 
         // Resource cap rescaled 2026-08-05 alongside Avatar HP - the two had drifted out of
         // proportion (HP went to the hundreds/thousands, Resource stayed at 8-20), and a
@@ -234,16 +254,17 @@ namespace MyriadOfDragons.Empire
 
         /// <summary>
         /// Deck slots granted by a stored Barracks level. Interstitial levels keep the last
-        /// paid milestone's slots; levels past 30 stay capped at 20.
+        /// curve milestone's slots (L1=7, L3=8, L5=9, L8=10, L10=11, L15=12, L20=13, L30=15); levels
+        /// past 30 stay capped at 15.
         /// </summary>
         public static int DeckSlotsForBarracksLevel(int barracksLevel)
         {
             int level = Mathf.Max(1, barracksLevel);
-            int slots = DeckSlotsAtPaidMilestone[0];
-            for (int i = 0; i < PaidBarracksMilestones.Length; i++)
+            int slots = DeckCurveSlots[0];
+            for (int i = 0; i < DeckCurveBarracksLevels.Length; i++)
             {
-                if (level >= PaidBarracksMilestones[i])
-                    slots = DeckSlotsAtPaidMilestone[i];
+                if (level >= DeckCurveBarracksLevels[i])
+                    slots = DeckCurveSlots[i];
                 else
                     break;
             }

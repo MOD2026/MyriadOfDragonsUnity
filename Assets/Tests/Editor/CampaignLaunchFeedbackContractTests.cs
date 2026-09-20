@@ -242,7 +242,7 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(deckBuilderCanvas, "Setup: expected the real Deck Builder canvas to be built.");
             Text deckStatus = deckBuilderCanvas.transform.Find("DeckPanel/DeckStatus")?.GetComponent<Text>();
             Assert.IsNotNull(deckStatus, "Setup: expected the existing Deck Builder status surface to exist.");
-            Assert.AreEqual(HomePagePresenter.DeckBlockedMessage, deckStatus.text,
+            Assert.AreEqual(HomePagePresenter.FormatDeckBlockedMessage(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)), deckStatus.text,
                 "Requirement 3: the Deck Builder redirect must show the exact existing deck-status message.");
         }
 
