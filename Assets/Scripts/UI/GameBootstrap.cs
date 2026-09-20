@@ -3748,9 +3748,12 @@ namespace MyriadOfDragons.UI
         /// for combat numbers - both are meant as a starting pattern other effects (buffs,
         /// debuffs, more VFX from Resources/UI/VFX) can copy rather than a finished VFX system.
         /// </summary>
+        /// <summary>How long a reduced-motion still effect stays on screen.</summary>
+        public const float StaticEffectHoldSeconds = 0.55f;
+
         private void PlayEffect(Transform parent, Sprite sprite, Vector2 anchoredPosition, float size, float duration)
         {
-            if (sprite == null || parent == null || MotionPolicy.ReduceMotion) return;
+            if (sprite == null || parent == null) return;
 
             var go = new GameObject("Effect", typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -3765,6 +3768,19 @@ namespace MyriadOfDragons.UI
             image.raycastTarget = false;
             image.preserveAspect = true;
             _presentationObjects.Add(go);
+            if (MotionPolicy.ReduceMotion)
+            {
+                // Reduced Motion keeps the feedback and drops the motion: the effect is a still
+                // frame (callers already resolve the "_Static" companion where one exists) held
+                // in place for a short fixed time - never scaled or faded. Previously this path
+                // returned early, so a reduced-motion player saw no cast impact, clash or
+                // placement feedback at all. Cleanup is not visual motion; CancelPresentation-
+                // Effects still removes it immediately on any interruption.
+                if (Application.isPlaying)
+                    _presentationCoroutines.Add(StartCoroutine(DestroyAfterDelay(go, StaticEffectHoldSeconds)));
+                return;
+            }
+
             _presentationCoroutines.Add(StartCoroutine(FadeScaleAndDestroy(go, image,
                 CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f,
                 growTo: 1.3f)));
@@ -3811,6 +3827,7 @@ namespace MyriadOfDragons.UI
             foreach (GameObject go in _presentationObjects)
                 if (go != null) Destroy(go);
             _presentationObjects.Clear();
+            DestroyStartBanner();
         }
 
         private static IEnumerator FadeScaleAndDestroy(GameObject go, Image image, float duration, float growTo)
@@ -5911,8 +5928,49 @@ namespace MyriadOfDragons.UI
             }
 
             RefreshAll();
+            ShowStartBattleBanner();
             StartCombatLoop();
         }
+
+        /// <summary>Text of the banner shown when a normal match's formation locks and the auto
+        /// clash begins.</summary>
+        public const string StartBattleBannerText = "BATTLE START";
+
+        /// <summary>Start Battle transition beat: a centered banner as the formation locks.
+        /// Presentation only - the match state is already Combat. Under Reduced Motion it is a
+        /// still banner held briefly (PlayFloatingText's reduced-motion path). The scripted
+        /// tutorial returns before this, so its pacing is unchanged.</summary>
+        private void ShowStartBattleBanner()
+        {
+            if (_battlePresentationRoot == null) return;
+            DestroyStartBanner();
+            int before = _presentationObjects.Count;
+            PlayFloatingText(_battlePresentationRoot, StartBattleBannerText, SelectedColor, 1.2f);
+            if (_presentationObjects.Count > before)
+            {
+                // Owned separately from _presentationObjects so interruption cleanup can remove it
+                // with a destroy that is valid in both Play and Edit mode (the shared list uses
+                // Destroy(), which logs an Editor error outside Play mode). Its timer coroutine
+                // stays tracked, so an interruption still stops it.
+                int last = _presentationObjects.Count - 1;
+                _startBanner = _presentationObjects[last];
+                _presentationObjects.RemoveAt(last);
+            }
+        }
+
+        private GameObject _startBanner;
+
+        private void DestroyStartBanner()
+        {
+            if (_startBanner == null) { _startBanner = null; return; }
+            if (Application.isPlaying) Destroy(_startBanner);
+            else DestroyImmediate(_startBanner);
+            _startBanner = null;
+        }
+
+        /// <summary>Exposed for tests: number of live start-battle banner objects on screen.</summary>
+        public int StartBattleBannerCountForTests =>
+            _startBanner != null && _startBanner.GetComponentInChildren<Text>() is Text t && t.text == StartBattleBannerText ? 1 : 0;
 
         /// <summary>Exposed for tests: the real "Start Battle" button calls the private
         /// OnPrimaryActionPressed() directly - EditMode tests have no way to click a UI Button,
@@ -6499,6 +6557,13 @@ namespace MyriadOfDragons.UI
         /// A heal, shield, cleanse, or friendly attack buff targets the player's own lane;
         /// firing one of those effects over the enemy board would contradict the state change.
         /// </summary>
+        /// <summary>Exposed for tests: plays a spell's real cast-impact presentation for `lane`.</summary>
+        public void PlayCastImpactForTests(AvatarSpell spell, Lane lane) => PlayCastImpact(spell, lane);
+
+        /// <summary>Exposed for tests: how many spell/clash/placement effect sprites are live.</summary>
+        public int PresentationEffectCountForTests =>
+            _presentationObjects.Count(go => go != null && go.name == "Effect");
+
         private void PlayCastImpact(AvatarSpell spell, Lane targetLane)
         {
             bool friendlyTarget = VfxAnchorTargetsFriendlyLane(spell.Effect);
@@ -6595,9 +6660,26 @@ namespace MyriadOfDragons.UI
         /// not a motion-blurred frame that merely appears briefly.</summary>
         private static Sprite SpellEffectSprite(AvatarSpell spell)
         {
+            return ResolveSpellEffectSprite(spell, MotionPolicy.ReduceMotion, path => Resources.Load<Sprite>(path));
+        }
+
+        /// <summary>The generic effect every spell can fall back to when its own art is missing.</summary>
+        public const string FallbackSpellEffectBaseName = "Fire_Explosion";
+
+        /// <summary>Pure resolver with a runtime fallback chain, so a missing asset degrades to
+        /// generic feedback instead of silence: (1) the spell's own art in the current motion mode,
+        /// (2) the same art's other motion variant, (3) the generic fallback family. Null only if
+        /// even the fallback art is missing. `load` is injected so tests can force a missing asset
+        /// without touching Resources.</summary>
+        public static Sprite ResolveSpellEffectSprite(AvatarSpell spell, bool reduceMotion, System.Func<string, Sprite> load)
+        {
             string baseName = spell.Id == "firestorm" ? "Firestorm_Impact" : SpellEffectFamilyAssetBaseName(spell.Effect);
-            string suffix = MotionPolicy.ReduceMotion ? "_Static" : "";
-            return Resources.Load<Sprite>($"UI/VFX/{baseName}{suffix}");
+            string preferred = reduceMotion ? "_Static" : "";
+            string other = reduceMotion ? "" : "_Static";
+            return load($"UI/VFX/{baseName}{preferred}")
+                ?? load($"UI/VFX/{baseName}{other}")
+                ?? load($"UI/VFX/{FallbackSpellEffectBaseName}{preferred}")
+                ?? load($"UI/VFX/{FallbackSpellEffectBaseName}{other}");
         }
 
         private static string SpellEffectFamilyAssetBaseName(SpellEffect effect) => effect switch
@@ -6624,8 +6706,12 @@ namespace MyriadOfDragons.UI
             CardElement.Andras => Resources.Load<Sprite>("UI/VFX/Holy_Beam"),
             CardElement.Ktini => Resources.Load<Sprite>("UI/VFX/Shadow_Explosion"),
             CardElement.Pnevmas => Resources.Load<Sprite>("UI/VFX/Magic_Circle"),
-            _ => null,
+            // Any other element still gets placement feedback rather than none.
+            _ => Resources.Load<Sprite>("UI/VFX/Magic_Circle"),
         };
+
+        /// <summary>Exposed for tests: the placement-effect sprite for an element.</summary>
+        public static Sprite ElementEffectSpriteForTests(CardElement element) => ElementEffectSprite(element);
 
         /// <summary>
         /// Exposed for tests: locks formation and steps combat once, exercising a full
@@ -6836,6 +6922,7 @@ namespace MyriadOfDragons.UI
             }
 
             _resultOverlay.SetActive(true);
+            PresentResultOverlayEntrance();
 
             // Purely additive, same reasoning as StartApprovedTutorialBattle's own opening-
             // cinematic call: the result overlay above is already fully configured and active
@@ -6868,6 +6955,54 @@ namespace MyriadOfDragons.UI
         /// recording real progression again. OnPlayAgainPressed's own normal-match body is
         /// reused as-is for the non-tutorial case.
         /// </summary>
+        private Coroutine _resultOverlayFade;
+
+        /// <summary>Result overlay entrance: a short fade-in. Instant (fully opaque) under Reduced
+        /// Motion and outside Play mode, so the result screen is never left half-visible. Always
+        /// resets alpha first, so an interrupted earlier fade cannot leak into the next result.</summary>
+        private void PresentResultOverlayEntrance()
+        {
+            if (_resultOverlay == null) return;
+            CanvasGroup group = _resultOverlay.GetComponent<CanvasGroup>();
+            if (group == null) group = _resultOverlay.AddComponent<CanvasGroup>();
+            if (_resultOverlayFade != null) { StopCoroutine(_resultOverlayFade); _resultOverlayFade = null; }
+
+            if (MotionPolicy.ReduceMotion || !Application.isPlaying)
+            {
+                group.alpha = 1f;
+                return;
+            }
+
+            group.alpha = 0f;
+            _resultOverlayFade = StartCoroutine(FadeInGroup(group, ResultOverlayFadeSeconds));
+        }
+
+        /// <summary>Fade-in length for the result overlay (full motion only).</summary>
+        public const float ResultOverlayFadeSeconds = 0.25f;
+
+        private static IEnumerator FadeInGroup(CanvasGroup group, float seconds)
+        {
+            float elapsed = 0f;
+            while (group != null && elapsed < seconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                group.alpha = Mathf.Clamp01(elapsed / seconds);
+                yield return null;
+            }
+            if (group != null) group.alpha = 1f;
+        }
+
+        /// <summary>Exposed for tests: the result overlay's current alpha (1 when fully shown).</summary>
+        public float ResultOverlayAlphaForTests =>
+            _resultOverlay != null && _resultOverlay.GetComponent<CanvasGroup>() is CanvasGroup g ? g.alpha : 1f;
+
+        /// <summary>Message shown on the result overlay when a Campaign retry is blocked by Stamina.</summary>
+        public const string RetryBlockedStaminaMessage = "Not enough Stamina to retry this stage.";
+
+        /// <summary>Exposed for tests: whether the retry-blocked message is currently on screen.</summary>
+        public bool RetryBlockedMessageVisibleForTests =>
+            _presentationObjects.Any(go => go != null && go.GetComponentInChildren<Text>() is Text t && t.text == RetryBlockedStaminaMessage);
+
         private void OnPlayAgainOrRetryPressed()
         {
             if (IsTutorialMatch)
@@ -6896,6 +7031,10 @@ namespace MyriadOfDragons.UI
                 if (_pendingCampaignStage != null && !TrySpendCampaignStaminaForAttempt())
                 {
                     Debug.LogError($"Campaign stage {_pendingCampaignStage.stageId}: insufficient Stamina - retry blocked.");
+                    // The player must also SEE why nothing happened: the console line alone was
+                    // invisible. Shown on the result overlay that stays up; no retry is started.
+                    if (_resultOverlay != null)
+                        PlayFloatingText(_resultOverlay.transform, RetryBlockedStaminaMessage, ButtonTextDisabledColor, 2.2f);
                     return;
                 }
 
