@@ -1005,6 +1005,9 @@ namespace MyriadOfDragons.UI
         /// </summary>
         private void StartNewMatch(bool useRecommendedDeck = false, bool allowSavedDeck = true)
         {
+            // Every new match begins from a clean presentation state - covers SetBattleCanvasVisible's
+            // hidden->visible rebuild (a frozen member this deliberately does not edit) as well as Play Again.
+            ResetBattlePresentationState();
             // Modal precedence guard, mirroring StartApprovedTutorialBattle's own (2026-08-17): a
             // normal match must be completely free-play, with no leftover modal from a previous
             // session. If the older JSON-driven "how to play" narrative walkthrough
@@ -1187,6 +1190,7 @@ namespace MyriadOfDragons.UI
         /// re-enter Formation directly, not replay the opening.</param>
         public void StartApprovedTutorialBattle(bool showOpeningCinematic = true)
         {
+            ResetBattlePresentationState();
             // Modal precedence guard, 2026-08-16: the older, JSON-driven "how to play" narrative
             // walkthrough (MaybeShowTutorial/_tutorialOverlay - independent of this guided,
             // interactive sequence and gated only on the player's own SeenIntro flag) can still
@@ -3733,9 +3737,16 @@ namespace MyriadOfDragons.UI
         /// for combat numbers - both are meant as a starting pattern other effects (buffs,
         /// debuffs, more VFX from Resources/UI/VFX) can copy rather than a finished VFX system.
         /// </summary>
-        private void PlayEffect(Transform parent, Sprite sprite, Vector2 anchoredPosition, float size, float duration)
+        /// <summary>`reducedHoldMs` (BattleBeatPolicy static hold): under Reduced Motion an effect
+        /// that carries information (which spell landed, a lane break) is shown as a static,
+        /// non-animated marker for that long instead of being dropped; 0 keeps the previous
+        /// behavior for purely decorative effects (nothing under Reduced Motion). The held marker
+        /// never fades, scales, drifts or flashes.</summary>
+        private void PlayEffect(Transform parent, Sprite sprite, Vector2 anchoredPosition, float size, float duration,
+            int reducedHoldMs = 0)
         {
-            if (sprite == null || parent == null || MotionPolicy.ReduceMotion) return;
+            if (sprite == null || parent == null) return;
+            if (MotionPolicy.ReduceMotion && reducedHoldMs <= 0) return;
 
             var go = new GameObject("Effect", typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -3750,6 +3761,12 @@ namespace MyriadOfDragons.UI
             image.raycastTarget = false;
             image.preserveAspect = true;
             _presentationObjects.Add(go);
+            if (MotionPolicy.ReduceMotion)
+            {
+                if (Application.isPlaying)
+                    _presentationCoroutines.Add(StartCoroutine(DestroyAfterDelay(go, reducedHoldMs / 1000f)));
+                return;
+            }
             _presentationCoroutines.Add(StartCoroutine(FadeScaleAndDestroy(go, image,
                 CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f,
                 growTo: 1.3f)));
@@ -3788,13 +3805,129 @@ namespace MyriadOfDragons.UI
                 CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f)));
         }
 
+        // ---------- Battle runtime presentation beats (start / formation / result / replay / return) ----------
+        //
+        // Timing and reduced-motion decisions live in BattleBeatPolicy (pure, EditMode-testable);
+        // this region only supplies the coroutines and the one teardown path. None of it reads or
+        // writes combat rules, damage, rewards, Save, Economy or the navigation contracts.
+
+        private CanvasGroup _resultOverlayGroup;
+        private CanvasGroup _battleRootGroup;
+        private Coroutine _resultRevealCoroutine;
+        private Coroutine _formationEnterCoroutine;
+
+        private static CanvasGroup EnsureCanvasGroup(GameObject go, ref CanvasGroup cache)
+        {
+            if (go == null) return null;
+            if (cache == null)
+            {
+                // Explicit Unity null checks, not `??`: in the Editor a missing GetComponent returns
+                // a "fake null" that `??` treats as non-null, which would hand back a dead reference
+                // and silently skip the reveal/formation fade.
+                cache = go.GetComponent<CanvasGroup>();
+                if (cache == null) cache = go.AddComponent<CanvasGroup>();
+            }
+            return cache;
+        }
+
+        /// <summary>Start Battle beat: a brief neutral wash as the locked Formation turns into
+        /// Combat. Reduced Motion has no wash - the phase change itself (Start Battle hides, spell
+        /// rail goes live) is the immediate, static signal.</summary>
+        private void PlayBattleStartBeat()
+        {
+            BattleBeatTiming timing = BattleBeatPolicy.Resolve(BattleBeat.BattleStart, MotionPolicy.ReduceMotion);
+            if (timing.AllowsFlash) PlayScreenFlash(new Color(1f, 0.95f, 0.8f));
+        }
+
+        /// <summary>Result overlay reveal (victory or defeat): the overlay is already fully
+        /// configured and active; this only fades it in. Immediate/static under Reduced Motion and
+        /// in EditMode (no coroutine runs there, so alpha is simply 1).</summary>
+        private void RevealResultOverlay()
+        {
+            CanvasGroup group = EnsureCanvasGroup(_resultOverlay, ref _resultOverlayGroup);
+            if (group == null) return;
+            StopResultReveal();
+
+            BattleBeatTiming timing = BattleBeatPolicy.Resolve(BattleBeat.ResultReveal, MotionPolicy.ReduceMotion);
+            if (!timing.Animated || !Application.isPlaying)
+            {
+                group.alpha = 1f;
+                return;
+            }
+            _resultRevealCoroutine = StartCoroutine(ScreenTransitionPresentation.FadeIn(group, timing.AnimatedMs, false));
+        }
+
+        /// <summary>Formation entering after a replay/retry: the board fades in instead of
+        /// snapping to a rebuilt state. Alpha only - no movement or scale.</summary>
+        private void PlayFormationEnterBeat()
+        {
+            CanvasGroup group = EnsureCanvasGroup(
+                _battlePresentationRoot != null ? _battlePresentationRoot.gameObject : null, ref _battleRootGroup);
+            if (group == null) return;
+            StopFormationEnter();
+
+            BattleBeatTiming timing = BattleBeatPolicy.Resolve(BattleBeat.FormationEnter, MotionPolicy.ReduceMotion);
+            if (!timing.Animated || !Application.isPlaying)
+            {
+                group.alpha = 1f;
+                return;
+            }
+            _formationEnterCoroutine = StartCoroutine(ScreenTransitionPresentation.FadeIn(group, timing.AnimatedMs, false));
+        }
+
+        private void StopResultReveal()
+        {
+            if (_resultRevealCoroutine == null) return;
+            StopCoroutine(_resultRevealCoroutine);
+            _resultRevealCoroutine = null;
+        }
+
+        private void StopFormationEnter()
+        {
+            if (_formationEnterCoroutine == null) return;
+            StopCoroutine(_formationEnterCoroutine);
+            _formationEnterCoroutine = null;
+        }
+
+        /// <summary>The single teardown for everything Battle presentation can leave running or
+        /// visible: in-flight reveal/enter fades (a fade interrupted mid-way must not strand a
+        /// group at alpha 0 - the next match would show an invisible board or result), queued
+        /// effects/floating text/flashes, and a still-active Chapter 1 cinematic overlay. Called
+        /// on replay, retry, return-to-Empire and new-match start; safe to call any number of times.</summary>
+        private void ResetBattlePresentationState()
+        {
+            StopResultReveal();
+            StopFormationEnter();
+            if (_resultOverlayGroup != null) _resultOverlayGroup.alpha = 1f;
+            if (_battleRootGroup != null) _battleRootGroup.alpha = 1f;
+            CancelPresentationEffects();
+            CancelActiveCinematic();
+        }
+
+        /// <summary>Exposed for tests: the result overlay's / battle root's current fade alpha
+        /// (1 when no group exists yet - nothing has ever faded).</summary>
+        public float ResultOverlayAlphaForTests => _resultOverlayGroup != null ? _resultOverlayGroup.alpha : 1f;
+        public float BattleRootAlphaForTests => _battleRootGroup != null ? _battleRootGroup.alpha : 1f;
+        public bool ResultRevealRunningForTests => _resultRevealCoroutine != null;
+        public CanvasGroup ResultOverlayGroupForTests => _resultOverlayGroup;
+        public CanvasGroup BattleRootGroupForTests => _battleRootGroup;
+        public bool FormationEnterRunningForTests => _formationEnterCoroutine != null;
+        public void ResetBattlePresentationStateForTests() => ResetBattlePresentationState();
+        public void PlayBattleStartBeatForTests() => PlayBattleStartBeat();
+        public void RevealResultOverlayForTests() => RevealResultOverlay();
+        public void PlayFormationEnterBeatForTests() => PlayFormationEnterBeat();
+
         private void CancelPresentationEffects()
         {
             foreach (Coroutine routine in _presentationCoroutines)
                 if (routine != null) StopCoroutine(routine);
             _presentationCoroutines.Clear();
             foreach (GameObject go in _presentationObjects)
-                if (go != null) Destroy(go);
+            {
+                if (go == null) continue;
+                if (Application.isPlaying) Destroy(go);
+                else DestroyImmediate(go);
+            }
             _presentationObjects.Clear();
         }
 
@@ -5873,6 +6006,7 @@ namespace MyriadOfDragons.UI
             }
 
             _selectedCard = null;
+            PlayBattleStartBeat();
 
             if (_tutorialStep == TutorialStep.BeginBattle)
             {
@@ -6060,16 +6194,66 @@ namespace MyriadOfDragons.UI
             {
                 bool contested = _battleController.PlayerState.Lanes[lane.Lane].Cards.Count > 0
                     || _battleController.EnemyState.Lanes[lane.Lane].Cards.Count > 0;
-                if (!contested) continue;
 
-                // A cleared lane gets the heavier effect - that's the moment damage actually
-                // breaks through to an Avatar, so it should look different from a normal trade.
-                bool broke = lane.SideACleared || lane.SideBCleared;
-                Sprite sprite = Resources.Load<Sprite>(broke ? "UI/VFX/Critical_Slash" : "UI/VFX/Blood_Splash");
-                PlayEffect(_playerLaneSlots[lane.Lane], sprite, Vector2.zero, broke ? 90f : 64f, 0.5f);
-                PlayEffect(_enemyLaneSlots[lane.Lane], sprite, Vector2.zero, broke ? 90f : 64f, 0.5f);
+                int defeatedA = lane.DefeatedCardNamesA?.Count ?? 0;
+                int defeatedB = lane.DefeatedCardNamesB?.Count ?? 0;
+                bool cleared = lane.SideACleared || lane.SideBCleared;
+                ClashCue cue = BattleBeatPolicy.ClassifyClash(
+                    contested, defeatedA + defeatedB, cleared, lane.OverflowToA + lane.OverflowToB);
+                if (cue == ClashCue.None) continue;
+
+                PlayClashCue(cue, lane.Lane, defeatedA > 0, defeatedB > 0);
             }
         }
+
+        /// <summary>One lane's hit / critical hit / defeat feedback. Purely a read of the
+        /// already-resolved clash: which cue to show is BattleBeatPolicy.ClassifyClash, how long it
+        /// plays (or holds statically under Reduced Motion) is BattleBeatPolicy.Resolve - this only
+        /// places the art. A lane break keeps the heavier Critical_Slash; a defeat marks the side
+        /// that actually lost cards with the existing Shadow_Explosion art (no new asset needed).</summary>
+        private void PlayClashCue(ClashCue cue, Lane lane, bool playerLostCards, bool enemyLostCards)
+        {
+            BattleBeatTiming timing = BattleBeatPolicy.Resolve(BattleBeatPolicy.BeatFor(cue), MotionPolicy.ReduceMotion);
+            float seconds = timing.Animated ? timing.AnimatedMs / 1000f : 0.5f;
+
+            switch (cue)
+            {
+                case ClashCue.Defeat:
+                    Sprite defeat = Resources.Load<Sprite>("UI/VFX/Shadow_Explosion");
+                    if (playerLostCards) PlayEffect(_playerLaneSlots[lane], defeat, Vector2.zero, 90f, seconds, timing.StaticHoldMs);
+                    if (enemyLostCards) PlayEffect(_enemyLaneSlots[lane], defeat, Vector2.zero, 90f, seconds, timing.StaticHoldMs);
+                    break;
+                case ClashCue.CriticalHit:
+                    Sprite crit = Resources.Load<Sprite>("UI/VFX/Critical_Slash");
+                    PlayEffect(_playerLaneSlots[lane], crit, Vector2.zero, 90f, seconds, timing.StaticHoldMs);
+                    PlayEffect(_enemyLaneSlots[lane], crit, Vector2.zero, 90f, seconds, timing.StaticHoldMs);
+                    break;
+                default:
+                    Sprite hit = Resources.Load<Sprite>("UI/VFX/Blood_Splash");
+                    PlayEffect(_playerLaneSlots[lane], hit, Vector2.zero, 64f, seconds, timing.StaticHoldMs);
+                    PlayEffect(_enemyLaneSlots[lane], hit, Vector2.zero, 64f, seconds, timing.StaticHoldMs);
+                    break;
+            }
+        }
+
+        /// <summary>Exposed for tests: plays a cue exactly as the clash loop would, so the
+        /// reduced-motion static marker and the animated path are provable without a coroutine.</summary>
+        public void PlayClashCueForTests(ClashCue cue, Lane lane, bool playerLostCards, bool enemyLostCards) =>
+            PlayClashCue(cue, lane, playerLostCards, enemyLostCards);
+
+        /// <summary>Exposed for tests: live presentation objects (effects, floating text, flashes).</summary>
+        public int PresentationObjectCountForTests
+        {
+            get
+            {
+                int live = 0;
+                foreach (GameObject go in _presentationObjects) if (go != null) live++;
+                return live;
+            }
+        }
+
+        /// <summary>Exposed for tests: cancels queued presentation exactly like a hide/replay does.</summary>
+        public void CancelPresentationEffectsForTests() => CancelPresentationEffects();
 
         /// <summary>
         /// Floating damage numbers over each side's health bar - the concrete payoff of the
@@ -6489,8 +6673,9 @@ namespace MyriadOfDragons.UI
             bool friendlyTarget = VfxAnchorTargetsFriendlyLane(spell.Effect);
             Transform anchor = friendlyTarget ? _playerLaneSlots[targetLane] : _enemyLaneSlots[targetLane];
 
-            PlayEffect(anchor, SpellEffectSprite(spell), Vector2.zero, 190f, 0.85f);
-            PlayScreenFlash(SpellFlashColor(spell.Effect));
+            BattleBeatTiming impact = BattleBeatPolicy.Resolve(BattleBeat.SpellImpact, MotionPolicy.ReduceMotion);
+            PlayEffect(anchor, SpellEffectSprite(spell), Vector2.zero, 190f, 0.85f, impact.StaticHoldMs);
+            if (impact.AllowsFlash) PlayScreenFlash(SpellFlashColor(spell.Effect));
             PlayFloatingText(anchor, spell.Name.ToUpperInvariant(), SpellFlashColor(spell.Effect), 1.0f);
         }
 
@@ -6572,37 +6757,18 @@ namespace MyriadOfDragons.UI
         /// the approved family list's 10th, id-specific entry - every other LaneDamage spell
         /// still shares Fire_Explosion.
         ///
-        /// Reduced Motion (MotionPolicy.ReduceMotion) swaps to each family's "_Static" companion
-        /// - the same still-hold pattern used everywhere else in this file (DriftCinematicLayers,
-        /// BeginCinematic's Reduced-Motion skip): PlayEffect's own fade/scale duration already
-        /// collapses near-instantly under Reduced Motion (CombatPresentationPolicy.
-        /// ResolveDurationMs), so this is a genuinely still frame held for that shortened time,
-        /// not a motion-blurred frame that merely appears briefly.</summary>
-        private static Sprite SpellEffectSprite(AvatarSpell spell)
-        {
-            string baseName = spell.Id == "firestorm" ? "Firestorm_Impact" : SpellEffectFamilyAssetBaseName(spell.Effect);
-            string suffix = MotionPolicy.ReduceMotion ? "_Static" : "";
-            return Resources.Load<Sprite>($"UI/VFX/{baseName}{suffix}");
-        }
+        /// Reduced Motion (MotionPolicy.ReduceMotion) swaps to each family's "_Static" companion,
+        /// which PlayEffect now actually shows as a held, non-animated marker (previously it
+        /// returned early and the static art was never visible).
+        ///
+        /// Resolution is data-driven and never returns nothing: SpellVfxCatalog reads the manifest
+        /// row for this spell id, falls back to the approved family for its SpellEffect, then to
+        /// one generic neutral asset.</summary>
+        private static Sprite SpellEffectSprite(AvatarSpell spell) =>
+            SpellVfxCatalog.ResolveSprite(spell, MotionPolicy.ReduceMotion);
 
-        private static string SpellEffectFamilyAssetBaseName(SpellEffect effect) => effect switch
-        {
-            SpellEffect.LaneDamage => "Fire_Explosion",
-            SpellEffect.CrossLaneDamage => "Area_Damage",
-            SpellEffect.AllLaneDamage => "Area_Damage",
-            SpellEffect.AvatarStrike => "Lightning_Strike",
-            SpellEffect.LaneHeal => "Heal_Ring",
-            SpellEffect.LaneAttackBuff => "Magic_Circle",
-            SpellEffect.AllLaneAttackBuff => "Magic_Circle",
-            SpellEffect.LaneShield => "Shield_Bubble",
-            SpellEffect.Cleanse => "Cleanse_Dispel",
-            SpellEffect.Dispel => "Cleanse_Dispel",
-            SpellEffect.Vulnerability => "Mark_Silence",
-            SpellEffect.Silence => "Mark_Silence",
-            SpellEffect.DrawCards => "Draw_Movement",
-            SpellEffect.Reposition => "Draw_Movement",
-            _ => "Fire_Explosion", // defensive only - every real SpellEffect value is listed above.
-        };
+        private static string SpellEffectFamilyAssetBaseName(SpellEffect effect) =>
+            SpellVfxCatalog.FamilyAssetBaseName(effect);
 
         private static Sprite ElementEffectSprite(CardElement element) => element switch
         {
@@ -6821,6 +6987,7 @@ namespace MyriadOfDragons.UI
             }
 
             _resultOverlay.SetActive(true);
+            RevealResultOverlay();
 
             // Purely additive, same reasoning as StartApprovedTutorialBattle's own opening-
             // cinematic call: the result overlay above is already fully configured and active
@@ -6833,10 +7000,12 @@ namespace MyriadOfDragons.UI
 
         private void OnPlayAgainPressed()
         {
+            ResetBattlePresentationState();
             _resultOverlay.SetActive(false);
             _selectedCard = null;
             StartNewMatch();
             RefreshAll();
+            PlayFormationEnterBeat();
         }
 
         /// <summary>Exposed for tests: restarts the match on the "Play Again" path (ordinary
@@ -6857,6 +7026,7 @@ namespace MyriadOfDragons.UI
         {
             if (IsTutorialMatch)
             {
+                ResetBattlePresentationState();
                 _resultOverlay.SetActive(false);
                 _selectedCard = null;
                 // A retry after tutorial defeat re-enters Formation directly - the opening
@@ -6865,6 +7035,7 @@ namespace MyriadOfDragons.UI
                 // HandleMatchEnded), so this call is reached only from the defeat result screen.
                 StartApprovedTutorialBattle(showOpeningCinematic: false);
                 RefreshAll();
+                PlayFormationEnterBeat();
             }
             else
             {
@@ -6935,6 +7106,9 @@ namespace MyriadOfDragons.UI
             // as early as the very first post-tutorial stage launch (TutorialResultOverlayLeakTests);
             // explicit hide here, same pattern OnPlayAgainPressed/OnLineupButtonPressed already use.
             _resultOverlay.SetActive(false);
+            // Return-to-Empire teardown: a fade interrupted mid-way, queued effects, or a live
+            // Chapter 1 cinematic overlay must not survive into the next time Battle is shown.
+            ResetBattlePresentationState();
 
             // Campaign match-context lifecycle contract, requirement 4: returning to Home from
             // EITHER a campaign victory or a campaign defeat clears the pending battle

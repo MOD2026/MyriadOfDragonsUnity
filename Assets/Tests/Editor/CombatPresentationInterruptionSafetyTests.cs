@@ -113,13 +113,22 @@ namespace MyriadOfDragons.Tests
 
         // ---------- interruption / teardown leaves no tracked transient effects ----------
 
-        /// <summary>Object.Destroy() outside Play mode logs an Editor error rather than destroying
-        /// synchronously - a Unity quirk of exercising this Play-mode-only coroutine cleanup path
-        /// from EditMode, not a production defect. Expected once per tracked object destroyed.</summary>
-        private static void ExpectDestroyEditModeErrors(int count)
+        /// <summary>CancelPresentationEffects now uses DestroyImmediate outside Play mode (CLAUDE.md
+        /// rule 7), so cancellation really destroys the tracked GameObjects even in EditMode. This
+        /// replaces the old expectation of Unity's "Destroy may not be called from edit mode"
+        /// error, which only ever proved the cleanup was ATTEMPTED - the objects were left alive.
+        /// Returns the live objects to check afterwards.</summary>
+        private static System.Collections.Generic.List<GameObject> TrackedLiveObjects(GameBootstrap bootstrap)
         {
-            for (int i = 0; i < count; i++)
-                LogAssert.Expect(LogType.Error, new Regex("Destroy may not be called from edit mode"));
+            var live = new System.Collections.Generic.List<GameObject>();
+            foreach (GameObject go in PresentationObjects(bootstrap)) if (go != null) live.Add(go);
+            return live;
+        }
+
+        private static void AssertAllDestroyed(System.Collections.Generic.List<GameObject> before)
+        {
+            foreach (GameObject go in before)
+                Assert.IsTrue(go == null, "Cancellation must actually destroy the tracked effect object, not just forget it.");
         }
 
         [Test]
@@ -128,9 +137,10 @@ namespace MyriadOfDragons.Tests
             InvokeShowTurnDamage(_bootstrap, new TurnResolutionResult { DamageDealtToSideA = 1, DamageDealtToSideB = 1 });
             Assert.AreEqual(2, PresentationObjects(_bootstrap).Count, "Setup: two effects must be tracked before cancellation.");
 
-            ExpectDestroyEditModeErrors(2);
+            System.Collections.Generic.List<GameObject> before = TrackedLiveObjects(_bootstrap);
             InvokeCancelPresentationEffects(_bootstrap);
 
+            AssertAllDestroyed(before);
             CollectionAssert.IsEmpty(PresentationObjects(_bootstrap), "Cancellation must leave no tracked transient objects.");
             CollectionAssert.IsEmpty(PresentationCoroutines(_bootstrap), "Cancellation must leave no tracked transient coroutines.");
         }
@@ -141,9 +151,10 @@ namespace MyriadOfDragons.Tests
             InvokeShowTurnDamage(_bootstrap, new TurnResolutionResult { DamageDealtToSideA = 4, DamageDealtToSideB = 0 });
             Assert.AreEqual(1, PresentationObjects(_bootstrap).Count, "Setup: one effect must be tracked before replay.");
 
-            ExpectDestroyEditModeErrors(1);
+            System.Collections.Generic.List<GameObject> before = TrackedLiveObjects(_bootstrap);
             _bootstrap.ReplayIntro();
 
+            AssertAllDestroyed(before);
             CollectionAssert.IsEmpty(PresentationObjects(_bootstrap),
                 "ReplayIntro must not leave a stale in-flight effect from before the reset.");
             CollectionAssert.IsEmpty(PresentationCoroutines(_bootstrap));
@@ -155,9 +166,10 @@ namespace MyriadOfDragons.Tests
             InvokeShowTurnDamage(_bootstrap, new TurnResolutionResult { DamageDealtToSideA = 0, DamageDealtToSideB = 6 });
             Assert.AreEqual(1, PresentationObjects(_bootstrap).Count, "Setup: one effect must be tracked before the canvas hides.");
 
-            ExpectDestroyEditModeErrors(1);
+            System.Collections.Generic.List<GameObject> before = TrackedLiveObjects(_bootstrap);
             _bootstrap.SetBattleCanvasVisible(false);
 
+            AssertAllDestroyed(before);
             CollectionAssert.IsEmpty(PresentationObjects(_bootstrap),
                 "Hiding the battle canvas must not leave a stale effect animating underneath.");
         }
