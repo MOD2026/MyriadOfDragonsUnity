@@ -169,8 +169,8 @@ namespace MyriadOfDragons.Tests
 
             StringAssert.Contains("VICTORY", bootstrap.ResultTextForTests,
                 "A normal victory's existing result text must be unaffected by tutorial guidance.");
-            Assert.AreEqual("Play Again", bootstrap.PlayAgainLabelForTests);
-            Assert.AreEqual("Return to City", bootstrap.ReturnToCityLabelForTests);
+            Assert.AreEqual(GameBootstrap.ReplayLabel, bootstrap.PlayAgainLabelForTests);
+            Assert.AreEqual(GameBootstrap.ReturnToEmpireLabel, bootstrap.ReturnToCityLabelForTests);
             Assert.IsTrue(bootstrap.PlayAgainButtonActiveForTests, "A normal match must always show both result buttons.");
             Assert.IsTrue(bootstrap.ReturnToCityButtonActiveForTests, "A normal match must always show both result buttons.");
         }

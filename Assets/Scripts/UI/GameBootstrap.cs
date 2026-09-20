@@ -1115,6 +1115,7 @@ namespace MyriadOfDragons.UI
             // Reset BEFORE the match starts: the presented-tick cursor is per-match, and a stale
             // value would make match 2 skip every beat whose index the previous match already passed.
             _presentedTickCount = 0;
+            ClearStalePresentationForNewMatch();
             if (_combatResolutionStage != null) _combatResolutionStage.ClearAll();
 
             _battleController.StartMatch(playerDeck, enemyDeck, playerEconomy, enemyEconomy,
@@ -1280,6 +1281,7 @@ namespace MyriadOfDragons.UI
             // Reset BEFORE the match starts: the presented-tick cursor is per-match, and a stale
             // value would make match 2 skip every beat whose index the previous match already passed.
             _presentedTickCount = 0;
+            ClearStalePresentationForNewMatch();
             if (_combatResolutionStage != null) _combatResolutionStage.ClearAll();
 
             _battleController.StartMatch(playerDeck, enemyDeck, economy, enemyEconomy);
@@ -3788,7 +3790,7 @@ namespace MyriadOfDragons.UI
 
         /// <summary>Floating combat number (damage/heal) - rises and fades over the lane it's
         /// triggered from, using the same animation template as PlayEffect.</summary>
-        private void PlayFloatingText(Transform parent, string text, Color color, float duration = 1.1f)
+        private void PlayFloatingText(Transform parent, string text, Color color, float duration = 1.1f, Vector2 anchoredOffset = default)
         {
             if (parent == null) return;
 
@@ -3798,7 +3800,7 @@ namespace MyriadOfDragons.UI
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = new Vector2(140, 40);
-            rect.anchoredPosition = Vector2.zero;
+            rect.anchoredPosition = anchoredOffset;
 
             Text label = CreateText(go.transform, text, 20, color, GetDisplayFont());
             label.fontStyle = FontStyle.Bold;
@@ -3817,6 +3819,28 @@ namespace MyriadOfDragons.UI
 
             _presentationCoroutines.Add(StartCoroutine(RiseFadeAndDestroy(go, label,
                 CombatPresentationPolicy.ResolveDurationMs(Mathf.RoundToInt(duration * 1000f), MotionPolicy.ReduceMotion) / 1000f)));
+        }
+
+        /// <summary>Retry / Replay / a fresh match must start from a clean presentation: the previous
+        /// fight's floating text, effects and Start Battle banner must not survive into the new
+        /// Formation (UI Beta pack, states 9-10: "no duplicate overlays or stale VFX"). Same as
+        /// CancelPresentationEffects, but the destroy is valid in Play and Edit mode (the shared
+        /// path's plain Destroy() logs an Editor error outside Play mode, which several existing
+        /// tests pin), and it also clears the banner and any result-overlay fade.</summary>
+        private void ClearStalePresentationForNewMatch()
+        {
+            foreach (Coroutine routine in _presentationCoroutines)
+                if (routine != null) StopCoroutine(routine);
+            _presentationCoroutines.Clear();
+            foreach (GameObject go in _presentationObjects)
+            {
+                if (go == null) continue;
+                if (Application.isPlaying) Destroy(go);
+                else DestroyImmediate(go);
+            }
+            _presentationObjects.Clear();
+            DestroyStartBanner();
+            if (_resultOverlayFade != null) { StopCoroutine(_resultOverlayFade); _resultOverlayFade = null; }
         }
 
         private void CancelPresentationEffects()
@@ -6567,12 +6591,54 @@ namespace MyriadOfDragons.UI
         private void PlayCastImpact(AvatarSpell spell, Lane targetLane)
         {
             bool friendlyTarget = VfxAnchorTargetsFriendlyLane(spell.Effect);
-            Transform anchor = friendlyTarget ? _playerLaneSlots[targetLane] : _enemyLaneSlots[targetLane];
+            Transform laneAnchor = friendlyTarget ? _playerLaneSlots[targetLane] : _enemyLaneSlots[targetLane];
 
-            PlayEffect(anchor, SpellEffectSprite(spell), Vector2.zero, 190f, 0.85f);
-            PlayScreenFlash(SpellFlashColor(spell.Effect));
-            PlayFloatingText(anchor, spell.Name.ToUpperInvariant(), SpellFlashColor(spell.Effect), 1.0f);
+            // UI Beta pack (Battle_State_Acceptance_GUI_Handoff.md): spell VFX stay clipped to the
+            // Battle VFX stage - the combat rail's RectMask2D stage - and never cover board cards,
+            // spell rows, hand, primary action, HUD or the tutorial guide. The cast/impact is
+            // therefore drawn inside that stage, with the spell name and an explicit target marker
+            // so the outcome stays legible without the effect sitting on the lane. The lane slot
+            // is only a fallback if the stage does not exist.
+            Transform stage = _combatResolutionStage != null ? _combatResolutionStage.RootForTests : null;
+            Transform host = stage != null ? stage : laneAnchor;
+
+            PlayEffect(host, SpellEffectSprite(spell), Vector2.zero, 190f, 0.85f);
+            PlayStageFlash(host, SpellFlashColor(spell.Effect));
+            PlayFloatingText(host, spell.Name.ToUpperInvariant(), SpellFlashColor(spell.Effect), 1.0f,
+                new Vector2(0f, SpellStageLabelOffset));
+            PlayFloatingText(host, SpellTargetMarkerText(friendlyTarget, targetLane), Color.white, 1.0f,
+                new Vector2(0f, -SpellStageLabelOffset));
         }
+
+        /// <summary>Vertical offset of the stage's spell-name (top) and target-marker (bottom) labels.</summary>
+        public const float SpellStageLabelOffset = 112f;
+
+        /// <summary>The explicit target marker shown with a cast: whose side and which lane.</summary>
+        public static string SpellTargetMarkerText(bool friendlyTarget, Lane lane) =>
+            $"{(friendlyTarget ? "YOUR" : "ENEMY")} {lane.ToString().ToUpperInvariant()}";
+
+        /// <summary>Stage-clipped colour flash. Skipped under Reduced Motion (no flash) and outside
+        /// Play mode, like the full-screen flash it replaces for cast impacts - but it now lives
+        /// INSIDE the clipped VFX stage instead of tinting the whole canvas.</summary>
+        private void PlayStageFlash(Transform host, Color color)
+        {
+            if (!Application.isPlaying || host == null || MotionPolicy.ReduceMotion) return;
+
+            Image flash = CreateImage(host, new Color(color.r, color.g, color.b, 0.34f));
+            flash.raycastTarget = false;
+            StretchFull(flash.rectTransform);
+            flash.transform.SetAsLastSibling();
+            _presentationObjects.Add(flash.gameObject);
+            _presentationCoroutines.Add(StartCoroutine(FadeAndDestroy(flash,
+                CombatPresentationPolicy.ResolveDurationMs(450, MotionPolicy.ReduceMotion) / 1000f)));
+        }
+
+        /// <summary>Exposed for tests: the clipped VFX stage's transform (null before Initialize).</summary>
+        public Transform VfxStageForTests => _combatResolutionStage != null ? _combatResolutionStage.RootForTests : null;
+
+        /// <summary>Exposed for tests: the live "Effect" sprite objects, for parenting assertions.</summary>
+        public IReadOnlyList<GameObject> PresentationEffectObjectsForTests =>
+            _presentationObjects.Where(go => go != null && go.name == "Effect").ToList();
 
         /// <summary>VFX-anchor-only friendly/enemy side, matching AvatarSpell.Cast's own real
         /// caster/opponent choice per effect (see that switch directly) - NOT the same as
@@ -6915,8 +6981,11 @@ namespace MyriadOfDragons.UI
                 // Restores the normal, always-both-visible/normally-labelled state - covers a
                 // normal match starting right after a tutorial one, whose HandleMatchEnded call
                 // would otherwise have left the tutorial's single-button state in place.
-                _returnToCityLabel.text = "Return to City";
-                _playAgainLabel.text = "Play Again";
+                // UI Beta pack (Battle_State_Acceptance_GUI_Handoff.md, states 7/8): Victory offers
+                // Replay + Return to Empire, Defeat offers Retry + Return to Empire. Labels only -
+                // the same two handlers, Stamina rules and reward paths run underneath.
+                _returnToCityLabel.text = ReturnToEmpireLabel;
+                _playAgainLabel.text = playerWon ? ReplayLabel : RetryLabel;
                 _returnToCityButton.gameObject.SetActive(true);
                 _playAgainButton.gameObject.SetActive(true);
             }
@@ -6955,6 +7024,11 @@ namespace MyriadOfDragons.UI
         /// recording real progression again. OnPlayAgainPressed's own normal-match body is
         /// reused as-is for the non-tutorial case.
         /// </summary>
+        /// <summary>Result-overlay action labels (UI Beta pack). Tutorial keeps "Retry Battle".</summary>
+        public const string ReplayLabel = "Replay";
+        public const string RetryLabel = "Retry";
+        public const string ReturnToEmpireLabel = "Return to Empire";
+
         private Coroutine _resultOverlayFade;
 
         /// <summary>Result overlay entrance: a short fade-in. Instant (fully opaque) under Reduced
