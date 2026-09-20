@@ -5723,8 +5723,97 @@ namespace MyriadOfDragons.UI
             FitButtonChrome(_returnToCityButton); // also fits CreateButton's own "Fill" child
             _returnToCityButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
+            // Approved Battle Result atlas (UI Beta pack): three DECORATIVE icons bound only to the
+            // existing result surfaces - an outcome badge on the panel (Victory / Defeat) and one icon
+            // at the leading edge of each existing action control (Replay/Retry on the play-again
+            // control, Resolved/Confirmed on Return to Empire). Every icon is raycastTarget=false and
+            // never resizes a control, so hit testing, handlers, rewards and Stamina are exactly as
+            // before. Sprites are assigned per outcome in ApplyResultIcons.
+            _resultBadgeIcon = CreateResultIcon(panel, "ResultOutcomeBadge");
+            AnchorBand(_resultBadgeIcon.rectTransform, 0.86f, 0.99f, 0.44f, 0.44f);
+            _playAgainIcon = CreateResultIcon(_playAgainButton.transform, "ResultActionIcon");
+            PlaceLeadingResultIcon(_playAgainIcon.rectTransform);
+            _returnIcon = CreateResultIcon(_returnToCityButton.transform, "ResultActionIcon");
+            PlaceLeadingResultIcon(_returnIcon.rectTransform);
+
             _resultOverlay.SetActive(false);
         }
+
+        /// <summary>Icon size at a control's leading edge (the pack suggests 48-72 px).</summary>
+        public const float ResultActionIconSize = 56f;
+
+        private Image _resultBadgeIcon;
+        private Image _playAgainIcon;
+        private Image _returnIcon;
+
+        private static Image CreateResultIcon(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            Image icon = go.AddComponent<Image>();
+            icon.raycastTarget = false;
+            icon.preserveAspect = true;
+            icon.enabled = false; // shown only once a sprite is assigned
+            return icon;
+        }
+
+        private static void PlaceLeadingResultIcon(RectTransform rect)
+        {
+            // Fixed width at the leading edge, height tied to the control (10%-90%): the sprite is
+            // drawn with preserveAspect, so it is as large as the control allows up to
+            // ResultActionIconSize and can never overhang the control it belongs to.
+            rect.anchorMin = new Vector2(0f, 0.1f);
+            rect.anchorMax = new Vector2(0f, 0.9f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.sizeDelta = new Vector2(ResultActionIconSize, 0f);
+            rect.anchoredPosition = new Vector2(14f, 0f);
+        }
+
+        private void SetResultIcon(Image icon, string spriteName)
+        {
+            if (icon == null) return;
+            Sprite sprite = BattleResultIconSet.Resolve(spriteName, MotionPolicy.ReduceMotion,
+                path => Resources.Load<Sprite>(path));
+            icon.sprite = sprite;
+            icon.enabled = sprite != null;
+            if (sprite != null) _resultIconNames[icon] = spriteName;
+            else _resultIconNames.Remove(icon);
+        }
+
+        // Pack sprite name each live icon was bound with (the slice asset's own name differs).
+        private readonly Dictionary<Image, string> _resultIconNames = new Dictionary<Image, string>();
+
+        private string BoundResultIconName(Image icon) =>
+            icon != null && icon.enabled && _resultIconNames.TryGetValue(icon, out string name) ? name : null;
+
+        /// <summary>Binds the atlas icons for this result. Under Reduced Motion the reduced-motion
+        /// atlas is swapped in immediately - no reveal, pulse or delay; the same icon, same slot.</summary>
+        private void ApplyResultIcons(bool playerWon)
+        {
+            SetResultIcon(_resultBadgeIcon, BattleResultIconSet.OutcomeBadgeName(playerWon));
+            SetResultIcon(_playAgainIcon, BattleResultIconSet.ActionIconName(playerWon));
+            SetResultIcon(_returnIcon, BattleResultIconSet.ReturnIconName);
+        }
+
+        /// <summary>Exposed for tests: the bound sprite's atlas name (null when no icon is shown).</summary>
+        public string ResultBadgeSpriteNameForTests => BoundResultIconName(_resultBadgeIcon);
+        public string PlayAgainIconSpriteNameForTests => BoundResultIconName(_playAgainIcon);
+        public string ReturnIconSpriteNameForTests => BoundResultIconName(_returnIcon);
+
+        /// <summary>Exposed for tests: the slice asset a bound badge came from.</summary>
+        public string ResultBadgeSourceAssetNameForTests => _resultBadgeIcon != null && _resultBadgeIcon.enabled ? _resultBadgeIcon.sprite.name : null;
+
+        /// <summary>Exposed for tests: none of the three icons may take input.</summary>
+        public bool ResultIconsAreRaycastFreeForTests =>
+            _resultBadgeIcon != null && !_resultBadgeIcon.raycastTarget
+            && _playAgainIcon != null && !_playAgainIcon.raycastTarget
+            && _returnIcon != null && !_returnIcon.raycastTarget;
+
+        /// <summary>Exposed for tests: the icon images' rects and their owning controls' rects.</summary>
+        public RectTransform PlayAgainIconRectForTests => _playAgainIcon != null ? _playAgainIcon.rectTransform : null;
+        public RectTransform ReturnIconRectForTests => _returnIcon != null ? _returnIcon.rectTransform : null;
+        public RectTransform PlayAgainButtonRectForTests => _playAgainButton != null ? _playAgainButton.GetComponent<RectTransform>() : null;
+        public RectTransform ReturnButtonRectForTests => _returnToCityButton != null ? _returnToCityButton.GetComponent<RectTransform>() : null;
 
         /// <summary>
         /// The blocked-normal-battle state ("no complete saved deck") used to render inside
@@ -7087,6 +7176,7 @@ namespace MyriadOfDragons.UI
                 _playAgainButton.gameObject.SetActive(true);
             }
 
+            ApplyResultIcons(playerWon);
             _resultOverlay.SetActive(true);
             PresentResultOverlayEntrance();
             if (_resultText != null && _resultText.transform.parent != null)
