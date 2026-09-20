@@ -80,12 +80,12 @@ namespace MyriadOfDragons.Tests
 
             Text status = presenter.DeckStatusTextForTests;
             Assert.NotNull(status);
-            StringAssert.Contains(DeckBuilderPresenter.ConfirmedDeckRequiredGuidance, status.text,
+            StringAssert.Contains(DeckBuilderPresenter.FormatConfirmedDeckRequiredGuidance(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)), status.text,
                 "First-open Soft must tell the player a confirmed deck is required before Campaign / To Battle.");
             StringAssert.DoesNotContain("Deck confirmed", status.text);
 
             Assert.IsFalse(SaveManager.SaveData.activeDeckCardIds != null
-                           && SaveManager.SaveData.activeDeckCardIds.Count == 10,
+                           && SaveManager.SaveData.activeDeckCardIds.Count == MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1),
                 "First-open Soft must not auto-confirm a deck.");
         }
 
@@ -118,9 +118,9 @@ namespace MyriadOfDragons.Tests
             Text status = presenter.DeckStatusTextForTests;
             Assert.NotNull(status);
             StringAssert.Contains("Deck confirmed", status.text);
-            StringAssert.DoesNotContain(DeckBuilderPresenter.ConfirmedDeckRequiredGuidance, status.text,
+            StringAssert.DoesNotContain(DeckBuilderPresenter.FormatConfirmedDeckRequiredGuidance(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)), status.text,
                 "After confirm, Soft must not still say the player must confirm a deck.");
-            CollectionAssert.AreEqual(ApprovedStarterCollectionCardIds, SaveManager.SaveData.activeDeckCardIds);
+            CollectionAssert.AreEqual(ApprovedStarterCollectionCardIds.Take(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)).ToList(), SaveManager.SaveData.activeDeckCardIds);
         }
     }
 }

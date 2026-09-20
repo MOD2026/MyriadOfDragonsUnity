@@ -278,6 +278,7 @@ namespace MyriadOfDragons.Tests
 
             Assert.AreEqual(0, bootstrap.Profile.stamina, "An insufficient-Stamina retry must not go negative or spend anything.");
             Assert.AreEqual(phaseBeforeRetry, bootstrap.Battle.Phase, "An insufficient-Stamina retry must not start a new match - the resolved result must remain as it was.");
+            Assert.IsTrue(bootstrap.RetryBlockedMessageVisibleForTests, "The blocked retry must be explained on-screen, not only in the console.");
         }
 
         [Test]

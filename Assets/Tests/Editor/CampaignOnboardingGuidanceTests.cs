@@ -116,7 +116,7 @@ namespace MyriadOfDragons.Tests
 
             Assert.IsTrue(bootstrap.TutorialGuidanceCaptionActiveForTests, "Requirement 1: the guidance caption must be visible before any placement.");
             string text = bootstrap.TutorialGuidanceCaptionTextForTests;
-            StringAssert.Contains("saved 10-card deck", text, "Requirement 1: must explain the saved deck fills the hand.");
+            StringAssert.Contains($"saved {MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)}-card deck", text, "Requirement 1: must explain the saved deck fills the hand.");
             StringAssert.Contains("Auto Formation", text, "Requirement 1: must explain Auto Formation is available.");
             StringAssert.Contains("optional", text, "Requirement 1: must state Auto Formation is optional.");
             StringAssert.Contains("tap a hand card, then an empty lane slot", text, "Requirement 1: must explain manual placement steps.");
@@ -298,8 +298,8 @@ namespace MyriadOfDragons.Tests
             bootstrap.RefreshAllForTests();
 
             string text = bootstrap.TutorialGuidanceCaptionTextForTests;
-            Assert.IsFalse(string.IsNullOrEmpty(text) && text.Contains("saved 10-card deck"), "Requirement: Tutorial must never show the Campaign onboarding copy.");
-            StringAssert.DoesNotContain("saved 10-card deck", text ?? string.Empty, "Requirement: Tutorial's own scripted step captions must remain exactly as before, never the Campaign onboarding text.");
+            Assert.IsFalse(string.IsNullOrEmpty(text) && text.Contains($"saved {MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)}-card deck"), "Requirement: Tutorial must never show the Campaign onboarding copy.");
+            StringAssert.DoesNotContain($"saved {MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)}-card deck", text ?? string.Empty, "Requirement: Tutorial's own scripted step captions must remain exactly as before, never the Campaign onboarding text.");
         }
 
         [Test]

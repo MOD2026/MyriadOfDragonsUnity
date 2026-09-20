@@ -158,8 +158,8 @@ namespace MyriadOfDragons.Tests
 
             // ===== REQUIREMENT 2: a valid 10-card deck is confirmed and persists. =====
             deckBuilder.SetAndConfirmDeckForTests(approvedStarterIds);
-            CollectionAssert.AreEqual(approvedStarterIds, bootstrap.Profile.activeDeckCardIds,
-                "Requirement 2: the confirmed deck must be exactly the ten cards submitted.");
+            CollectionAssert.AreEqual(approvedStarterIds.Take(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)).ToList(), bootstrap.Profile.activeDeckCardIds,
+                "Requirement 2: the confirmed deck must be exactly the first deck-size cards submitted (the Deck Builder caps at the current deck size).");
             Assert.IsTrue(bootstrap.HasValidConfirmedDeckForNormalBattle(), "Setup: expected the confirmed deck to satisfy the normal-battle saved-deck gate.");
 
             // ===== REQUIREMENT 3: Shop purchases change only the intended wallet/card state — live

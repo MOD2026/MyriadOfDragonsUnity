@@ -4,38 +4,41 @@ using NUnit.Framework;
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// Locks the paid Barracks milestone table (EMPIRE_SCHEMA_LOCK_2026-08-22): 20 slots at
-    /// L30, no empty +1 levels, construction targets skip interstitial levels.
+    /// Locks the owner-signed deck curve (L1=7 ... L30=15) and that construction targets
+    /// (the paid milestone ladder) are unchanged and still skip interstitial levels.
     /// </summary>
     public class BarracksMilestoneTests
     {
         [Test]
-        public void PaidMilestones_GrantTheLockedSlotTable()
+        public void CurveMilestones_GrantTheOwnerSignedSlotTable()
         {
-            Assert.AreEqual(10, PlayerEmpireData.DeckSlotsForBarracksLevel(1));
-            Assert.AreEqual(11, PlayerEmpireData.DeckSlotsForBarracksLevel(5));
-            Assert.AreEqual(12, PlayerEmpireData.DeckSlotsForBarracksLevel(10));
-            Assert.AreEqual(14, PlayerEmpireData.DeckSlotsForBarracksLevel(15));
-            Assert.AreEqual(16, PlayerEmpireData.DeckSlotsForBarracksLevel(20));
-            Assert.AreEqual(18, PlayerEmpireData.DeckSlotsForBarracksLevel(25));
-            Assert.AreEqual(20, PlayerEmpireData.DeckSlotsForBarracksLevel(30));
+            // BATTLE-REMAINING-OWNER-DECISIONS-0.9-SIGNED.md: all eight milestones.
+            Assert.AreEqual(7, PlayerEmpireData.DeckSlotsForBarracksLevel(1));
+            Assert.AreEqual(8, PlayerEmpireData.DeckSlotsForBarracksLevel(3));
+            Assert.AreEqual(9, PlayerEmpireData.DeckSlotsForBarracksLevel(5));
+            Assert.AreEqual(10, PlayerEmpireData.DeckSlotsForBarracksLevel(8));
+            Assert.AreEqual(11, PlayerEmpireData.DeckSlotsForBarracksLevel(10));
+            Assert.AreEqual(12, PlayerEmpireData.DeckSlotsForBarracksLevel(15));
+            Assert.AreEqual(13, PlayerEmpireData.DeckSlotsForBarracksLevel(20));
+            Assert.AreEqual(15, PlayerEmpireData.DeckSlotsForBarracksLevel(30));
         }
 
         [Test]
         public void InterstitialLevels_DoNotGrantExtraSlots()
         {
-            Assert.AreEqual(10, PlayerEmpireData.DeckSlotsForBarracksLevel(2));
-            Assert.AreEqual(10, PlayerEmpireData.DeckSlotsForBarracksLevel(4));
-            Assert.AreEqual(11, PlayerEmpireData.DeckSlotsForBarracksLevel(9));
-            Assert.AreEqual(12, PlayerEmpireData.DeckSlotsForBarracksLevel(14));
-            Assert.AreEqual(18, PlayerEmpireData.DeckSlotsForBarracksLevel(29));
+            Assert.AreEqual(7, PlayerEmpireData.DeckSlotsForBarracksLevel(2));
+            Assert.AreEqual(8, PlayerEmpireData.DeckSlotsForBarracksLevel(4));
+            Assert.AreEqual(9, PlayerEmpireData.DeckSlotsForBarracksLevel(7));
+            Assert.AreEqual(10, PlayerEmpireData.DeckSlotsForBarracksLevel(9));
+            Assert.AreEqual(11, PlayerEmpireData.DeckSlotsForBarracksLevel(14));
+            Assert.AreEqual(13, PlayerEmpireData.DeckSlotsForBarracksLevel(29));
         }
 
         [Test]
-        public void PastCap_StaysAtTwentySlots()
+        public void PastCap_StaysAtFifteenSlots()
         {
-            Assert.AreEqual(20, PlayerEmpireData.DeckSlotsForBarracksLevel(31));
-            Assert.AreEqual(20, PlayerEmpireData.DeckSlotsForBarracksLevel(50));
+            Assert.AreEqual(15, PlayerEmpireData.DeckSlotsForBarracksLevel(31));
+            Assert.AreEqual(15, PlayerEmpireData.DeckSlotsForBarracksLevel(50));
         }
 
         [Test]
@@ -55,12 +58,12 @@ namespace MyriadOfDragons.Tests
             var empire = new PlayerEmpireData();
             empire.SetLevelsForTesting(avatarLevel: 1, castleLevel: 1, barracksLevel: 30);
             empire.InitializeTCGModifiers();
-            Assert.AreEqual(20, empire.DeckSlotCount,
-                "L30 must be the 20-slot ceiling. The old ÷5 formula only reached 16 here.");
+            Assert.AreEqual(15, empire.DeckSlotCount,
+                "L30 must be the 15-slot ceiling. The old ÷5 formula only reached 16 here.");
 
-            empire.SetLevelsForTesting(avatarLevel: 1, castleLevel: 1, barracksLevel: 3);
+            empire.SetLevelsForTesting(avatarLevel: 1, castleLevel: 1, barracksLevel: 4);
             empire.InitializeTCGModifiers();
-            Assert.AreEqual(10, empire.DeckSlotCount,
+            Assert.AreEqual(8, empire.DeckSlotCount,
                 "Empty Barracks levels must not sell a deck slot.");
         }
 

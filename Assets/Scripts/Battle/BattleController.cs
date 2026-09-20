@@ -193,6 +193,135 @@ namespace MyriadOfDragons.Battle
         public bool IsReinforcementWindowOpen =>
             Phase == BattlePhase.Combat && System.Array.IndexOf(ReinforcementTicks, TickCount) >= 0;
 
+        // ---------- Hotkeys (owner-signed 4 + 3 split, 2026-09-02) ----------
+        // Match/UI-scoped state: never persisted, reset by StartMatch. Plain testable logic here;
+        // GameBootstrap only binds taps to it. Shared Energy is unchanged - skills still spend
+        // Energy, reinforcements still spend Resource via TryDeployReinforcement.
+
+        /// <summary>Left side: at most this many player-selected skill hotkeys.</summary>
+        public const int SkillHotkeyCapacity = 4;
+
+        /// <summary>Right side: at most this many player-selected reinforcement hotkeys.</summary>
+        public const int ReinforcementHotkeyCapacity = 3;
+
+        private readonly int[] _skillHotkeySelection = { -1, -1, -1, -1 };
+        private readonly Card[] _reinforcementHotkeySelection = new Card[ReinforcementHotkeyCapacity];
+
+        /// <summary>Spellbook indices bound to the left-side hotkeys, in slot order. A slot the
+        /// player has not chosen defaults to the next unbound equipped spell, so a loadout of N
+        /// equipped spells always shows min(4, N) hotkeys.</summary>
+        public IReadOnlyList<int> SkillHotkeySpellIndices
+        {
+            get
+            {
+                int count = System.Math.Min(SkillHotkeyCapacity, Spellbook.Count);
+                var result = new List<int>(count);
+                for (int slot = 0; slot < count; slot++)
+                {
+                    int chosen = _skillHotkeySelection[slot];
+                    if (chosen >= 0 && chosen < Spellbook.Count && !result.Contains(chosen)) result.Add(chosen);
+                    else result.Add(-1);
+                }
+                for (int slot = 0; slot < count; slot++)
+                {
+                    if (result[slot] >= 0) continue;
+                    for (int i = 0; i < Spellbook.Count; i++)
+                    {
+                        if (result.Contains(i) || IsSelectedElsewhere(i, slot)) continue;
+                        result[slot] = i;
+                        break;
+                    }
+                }
+                return result;
+            }
+        }
+
+        private bool IsSelectedElsewhere(int spellIndex, int exceptSlot)
+        {
+            for (int s = 0; s < _skillHotkeySelection.Length; s++)
+                if (s != exceptSlot && _skillHotkeySelection[s] == spellIndex) return true;
+            return false;
+        }
+
+        /// <summary>Player picks which equipped spell a left-side hotkey slot triggers. Rejected
+        /// (nothing changes) for an out-of-range slot/spell, or a spell already on another slot.</summary>
+        public bool TrySetSkillHotkey(int slot, int spellIndex)
+        {
+            if (slot < 0 || slot >= System.Math.Min(SkillHotkeyCapacity, Spellbook.Count)) return false;
+            if (spellIndex < 0 || spellIndex >= Spellbook.Count) return false;
+            if (IsSelectedElsewhere(spellIndex, slot)) return false;
+            _skillHotkeySelection[slot] = spellIndex;
+            return true;
+        }
+
+        /// <summary>Cards still in hand: the reserve a reinforcement can come from.</summary>
+        public IReadOnlyList<Card> EligibleReinforcementReserve => PlayerState.Hand;
+
+        /// <summary>Cards on the right-side reinforcement hotkeys, in slot order. Length is
+        /// min(3, eligible reserve) - fewer than three when the reserve is smaller. A slot the
+        /// player has not chosen (or whose chosen card left the hand) defaults to the next unbound
+        /// reserve card in hand order.</summary>
+        public IReadOnlyList<Card> ReinforcementHotkeyEntries
+        {
+            get
+            {
+                IReadOnlyList<Card> reserve = EligibleReinforcementReserve;
+                int count = System.Math.Min(ReinforcementHotkeyCapacity, reserve.Count);
+                var result = new List<Card>(count);
+                for (int slot = 0; slot < count; slot++)
+                {
+                    Card chosen = _reinforcementHotkeySelection[slot];
+                    result.Add(chosen != null && PlayerState.Hand.Contains(chosen) && !result.Contains(chosen) ? chosen : null);
+                }
+                for (int slot = 0; slot < count; slot++)
+                {
+                    if (result[slot] != null) continue;
+                    foreach (Card candidate in reserve)
+                    {
+                        if (result.Contains(candidate) || IsReinforcementSelectedElsewhere(candidate, slot)) continue;
+                        result[slot] = candidate;
+                        break;
+                    }
+                }
+                return result;
+            }
+        }
+
+        private bool IsReinforcementSelectedElsewhere(Card card, int exceptSlot)
+        {
+            for (int s = 0; s < _reinforcementHotkeySelection.Length; s++)
+                if (s != exceptSlot && _reinforcementHotkeySelection[s] == card) return true;
+            return false;
+        }
+
+        /// <summary>Player picks which reserve card a right-side hotkey slot deploys. Rejected
+        /// (nothing changes) for a slot beyond the visible entries, a card not in hand, or a card
+        /// already on another slot.</summary>
+        public bool TrySelectReinforcementHotkey(int slot, Card card)
+        {
+            if (card == null || !PlayerState.Hand.Contains(card)) return false;
+            if (slot < 0 || slot >= System.Math.Min(ReinforcementHotkeyCapacity, EligibleReinforcementReserve.Count)) return false;
+            if (IsReinforcementSelectedElsewhere(card, slot)) return false;
+            _reinforcementHotkeySelection[slot] = card;
+            return true;
+        }
+
+        /// <summary>Deploys the hotkey slot's card into `lane` through the ordinary reinforcement
+        /// path - same window, Resource cost, room and synergy rules; the lane stays an explicit
+        /// player choice, exactly as before.</summary>
+        public bool TryDeployReinforcementFromHotkey(int slot, Lane lane)
+        {
+            IReadOnlyList<Card> entries = ReinforcementHotkeyEntries;
+            if (slot < 0 || slot >= entries.Count || entries[slot] == null) return false;
+            return TryDeployReinforcement(entries[slot], lane);
+        }
+
+        private void ResetHotkeySelections()
+        {
+            for (int i = 0; i < _skillHotkeySelection.Length; i++) _skillHotkeySelection[i] = -1;
+            for (int i = 0; i < _reinforcementHotkeySelection.Length; i++) _reinforcementHotkeySelection[i] = null;
+        }
+
         /// <summary>Set when a match ends on the tick cap rather than by an Avatar dying, so the
         /// result screen can explain *why* it ended.</summary>
         public string OutcomeReason { get; private set; } = string.Empty;
@@ -508,6 +637,7 @@ namespace MyriadOfDragons.Battle
 
             Phase = BattlePhase.Formation;
             IsAbandoned = false;
+            ResetHotkeySelections();
             TickCount = 0;
             Energy = 0;
             EnemyEnergy = 0;

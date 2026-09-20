@@ -342,8 +342,8 @@ namespace MyriadOfDragons.Tests
         {
             ResolveNormalMatch("Result_VictoryGeometry", playerWins: true);
 
-            Button playAgain = FindResultButtonByLabel("Play Again", "Retry Battle");
-            Button returnHome = FindResultButtonByLabel("Return to City", "Return to Empire");
+            Button playAgain = FindResultButtonByLabel("Replay", "Retry", "Retry Battle");
+            Button returnHome = FindResultButtonByLabel("Return to Empire");
             Assert.IsNotNull(playAgain, "STATE UNREACHED: could not locate the Play Again/Retry button in the real hierarchy.");
             Assert.IsNotNull(returnHome, "STATE UNREACHED: could not locate the Return to City/Empire button in the real hierarchy.");
 
@@ -364,8 +364,8 @@ namespace MyriadOfDragons.Tests
         {
             ResolveNormalMatch("Result_DefeatGeometry", playerWins: false);
 
-            Button playAgain = FindResultButtonByLabel("Play Again", "Retry Battle");
-            Button returnHome = FindResultButtonByLabel("Return to City", "Return to Empire");
+            Button playAgain = FindResultButtonByLabel("Replay", "Retry", "Retry Battle");
+            Button returnHome = FindResultButtonByLabel("Return to Empire");
             Assert.IsNotNull(playAgain);
             Assert.IsNotNull(returnHome);
 

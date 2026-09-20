@@ -1027,7 +1027,10 @@ namespace MyriadOfDragons.UI
             // cards against a 3x3 board that fills long before a deck runs out), so making it
             // uneven would mostly just look unfair without changing much - the AI's actual
             // difficulty comes from SoloAIScalingSystem's HP/resource scaling and its archetype.
-            int deckSize = _empireData.DeckSlotCount;
+            // Owner-signed Option A: a newly constructed/fielded beta deck is never larger than
+            // BetaDeckSlotCap, whatever a legacy stored slot value says. The stored value itself is
+            // untouched (BetaDeckSizeFor is pure) - only Battle's sizing is capped.
+            int deckSize = PlayerEmpireData.BetaDeckSizeFor(_empireData.DeckSlotCount);
 
             if (useRecommendedDeck)
             {
@@ -2563,7 +2566,19 @@ namespace MyriadOfDragons.UI
                 savedDeck.Add(card);
             }
 
-            return savedDeck.Count == deckSize;
+            return TryFitSavedDeckToBattleSize(savedDeck, deckSize);
+        }
+
+        /// <summary>Owner-signed Option A (BATTLE-REMAINING-OWNER-DECISIONS-0.9-SIGNED.md): a saved
+        /// deck larger than the size Battle now fields (legacy 16/18/20 - or any count from the old,
+        /// larger curve) stays exactly as saved, and Battle fields its first `deckSize` cards for the
+        /// match. Never rewrites the profile, never pads: a saved deck SMALLER than deckSize is still
+        /// incomplete and fails the whole deck as before.</summary>
+        public static bool TryFitSavedDeckToBattleSize(List<Card> savedDeck, int deckSize)
+        {
+            if (savedDeck == null || deckSize <= 0 || savedDeck.Count < deckSize) return false;
+            if (savedDeck.Count > deckSize) savedDeck.RemoveRange(deckSize, savedDeck.Count - deckSize);
+            return true;
         }
 
         /// <summary>Set by HomePagePresenter's launch handoff (SetPendingCampaignStageForNextMatch)
@@ -3774,7 +3789,7 @@ namespace MyriadOfDragons.UI
 
         /// <summary>Floating combat number (damage/heal) - rises and fades over the lane it's
         /// triggered from, using the same animation template as PlayEffect.</summary>
-        private void PlayFloatingText(Transform parent, string text, Color color, float duration = 1.1f)
+        private void PlayFloatingText(Transform parent, string text, Color color, float duration = 1.1f, Vector2 anchoredOffset = default)
         {
             if (parent == null) return;
 
@@ -3784,7 +3799,7 @@ namespace MyriadOfDragons.UI
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = new Vector2(140, 40);
-            rect.anchoredPosition = Vector2.zero;
+            rect.anchoredPosition = anchoredOffset;
 
             Text label = CreateText(go.transform, text, 20, color, GetDisplayFont());
             label.fontStyle = FontStyle.Bold;
@@ -3901,6 +3916,10 @@ namespace MyriadOfDragons.UI
             if (_resultOverlayGroup != null) _resultOverlayGroup.alpha = 1f;
             if (_battleRootGroup != null) _battleRootGroup.alpha = 1f;
             CancelPresentationEffects();
+            // Battle motion + the Start Battle banner: an interrupted beat must leave every animated
+            // target at rest size and no banner behind (UI Beta pack, states 9-11).
+            DestroyStartBanner();
+            ResetMotionTargets();
             CancelActiveCinematic();
         }
 
@@ -3917,6 +3936,88 @@ namespace MyriadOfDragons.UI
         public void RevealResultOverlayForTests() => RevealResultOverlay();
         public void PlayFormationEnterBeatForTests() => PlayFormationEnterBeat();
 
+        // ---------- in-game motion (presentation only) ----------
+        // Motion rules live in BattleMotionPlan (pure, tested). This applies them as scale-only
+        // beats on existing transforms - no positions are moved, so no layout state can be left
+        // shifted - and remembers every target so ANY interruption or restart resets it to rest.
+        private readonly HashSet<Transform> _motionTargets = new HashSet<Transform>();
+
+        /// <summary>Plays one motion beat on `target`. No-op under Reduced Motion (the beat's
+        /// outcome is unchanged, only its motion is removed) and outside Play mode.</summary>
+        private void PlayMotion(Transform target, BattleMotionKind kind)
+        {
+            if (target == null || !Application.isPlaying) return;
+            BattleMotionStep step = BattleMotionPlan.For(kind, MotionPolicy.ReduceMotion);
+            if (step.IsStatic) return;
+
+            _motionTargets.Add(target);
+            _presentationCoroutines.Add(StartCoroutine(RunMotion(target, step)));
+        }
+
+        private static IEnumerator RunMotion(Transform target, BattleMotionStep step)
+        {
+            float elapsed = 0f;
+            while (elapsed < step.Duration && target != null)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float scale = BattleMotionPlan.EvaluateScale(step, Mathf.Clamp01(elapsed / step.Duration));
+                target.localScale = new Vector3(scale, scale, 1f);
+                yield return null;
+            }
+            if (target != null) target.localScale = Vector3.one;
+        }
+
+        /// <summary>Returns every animated target to its resting size. Called on interruption and
+        /// on every fresh match, so no beat can leave a lane, banner or panel scaled.</summary>
+        private void ResetMotionTargets()
+        {
+            foreach (Transform target in _motionTargets)
+                if (target != null) target.localScale = Vector3.one;
+            _motionTargets.Clear();
+        }
+
+        /// <summary>Exposed for tests: applies the motion envelope at normalized time `t` to a
+        /// target and registers it, exactly as a running beat would - EditMode cannot run the
+        /// coroutine that normally drives this.</summary>
+        public void ApplyMotionSampleForTests(Transform target, BattleMotionKind kind, float t)
+        {
+            BattleMotionStep step = BattleMotionPlan.For(kind, MotionPolicy.ReduceMotion);
+            _motionTargets.Add(target);
+            float scale = BattleMotionPlan.EvaluateScale(step, t);
+            target.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        /// <summary>Exposed for tests: how many targets are currently registered as animated.</summary>
+        public int MotionTargetCountForTests => _motionTargets.Count;
+
+        /// <summary>Exposed for tests: a player lane's slot transform.</summary>
+        public Transform PlayerLaneSlotForTests(Lane lane) => _playerLaneSlots[lane];
+
+        /// <summary>Exposed for tests: an enemy lane's slot transform.</summary>
+        public Transform EnemyLaneSlotForTests(Lane lane) => _enemyLaneSlots[lane];
+
+        /// <summary>Hit feedback: a short red tint over the struck side's lane. Full motion fades it
+        /// out; Reduced Motion holds it as a still marker (same still-hold rule as every other
+        /// effect). Play mode only, so EditMode tests never leave transient objects behind.</summary>
+        private void PlayHitTint(Transform slot, float strength)
+        {
+            if (slot == null || !Application.isPlaying) return;
+
+            Image tint = CreateImage(slot, new Color(0.85f, 0.15f, 0.15f, strength));
+            tint.raycastTarget = false;
+            StretchFull(tint.rectTransform);
+            tint.transform.SetAsLastSibling();
+            _presentationObjects.Add(tint.gameObject);
+
+            if (MotionPolicy.ReduceMotion)
+            {
+                _presentationCoroutines.Add(StartCoroutine(DestroyAfterDelay(tint.gameObject, BattleMotionPlan.StaticHitHoldSeconds)));
+                return;
+            }
+            _presentationCoroutines.Add(StartCoroutine(FadeAndDestroy(tint,
+                CombatPresentationPolicy.ResolveDurationMs(260, false) / 1000f)));
+        }
+
         private void CancelPresentationEffects()
         {
             foreach (Coroutine routine in _presentationCoroutines)
@@ -3929,6 +4030,8 @@ namespace MyriadOfDragons.UI
                 else DestroyImmediate(go);
             }
             _presentationObjects.Clear();
+            DestroyStartBanner();
+            ResetMotionTargets();
         }
 
         private static IEnumerator FadeScaleAndDestroy(GameObject go, Image image, float duration, float growTo)
@@ -5716,8 +5819,97 @@ namespace MyriadOfDragons.UI
             FitButtonChrome(_returnToCityButton); // also fits CreateButton's own "Fill" child
             _returnToCityButton.gameObject.AddComponent<InteractionStateController>().Tier = UIDesignTokens.FrameTier.Tier2Section;
 
+            // Approved Battle Result atlas (UI Beta pack): three DECORATIVE icons bound only to the
+            // existing result surfaces - an outcome badge on the panel (Victory / Defeat) and one icon
+            // at the leading edge of each existing action control (Replay/Retry on the play-again
+            // control, Resolved/Confirmed on Return to Empire). Every icon is raycastTarget=false and
+            // never resizes a control, so hit testing, handlers, rewards and Stamina are exactly as
+            // before. Sprites are assigned per outcome in ApplyResultIcons.
+            _resultBadgeIcon = CreateResultIcon(panel, "ResultOutcomeBadge");
+            AnchorBand(_resultBadgeIcon.rectTransform, 0.86f, 0.99f, 0.44f, 0.44f);
+            _playAgainIcon = CreateResultIcon(_playAgainButton.transform, "ResultActionIcon");
+            PlaceLeadingResultIcon(_playAgainIcon.rectTransform);
+            _returnIcon = CreateResultIcon(_returnToCityButton.transform, "ResultActionIcon");
+            PlaceLeadingResultIcon(_returnIcon.rectTransform);
+
             _resultOverlay.SetActive(false);
         }
+
+        /// <summary>Icon size at a control's leading edge (the pack suggests 48-72 px).</summary>
+        public const float ResultActionIconSize = 56f;
+
+        private Image _resultBadgeIcon;
+        private Image _playAgainIcon;
+        private Image _returnIcon;
+
+        private static Image CreateResultIcon(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            Image icon = go.AddComponent<Image>();
+            icon.raycastTarget = false;
+            icon.preserveAspect = true;
+            icon.enabled = false; // shown only once a sprite is assigned
+            return icon;
+        }
+
+        private static void PlaceLeadingResultIcon(RectTransform rect)
+        {
+            // Fixed width at the leading edge, height tied to the control (10%-90%): the sprite is
+            // drawn with preserveAspect, so it is as large as the control allows up to
+            // ResultActionIconSize and can never overhang the control it belongs to.
+            rect.anchorMin = new Vector2(0f, 0.1f);
+            rect.anchorMax = new Vector2(0f, 0.9f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.sizeDelta = new Vector2(ResultActionIconSize, 0f);
+            rect.anchoredPosition = new Vector2(14f, 0f);
+        }
+
+        private void SetResultIcon(Image icon, string spriteName)
+        {
+            if (icon == null) return;
+            Sprite sprite = BattleResultIconSet.Resolve(spriteName, MotionPolicy.ReduceMotion,
+                path => Resources.Load<Sprite>(path));
+            icon.sprite = sprite;
+            icon.enabled = sprite != null;
+            if (sprite != null) _resultIconNames[icon] = spriteName;
+            else _resultIconNames.Remove(icon);
+        }
+
+        // Pack sprite name each live icon was bound with (the slice asset's own name differs).
+        private readonly Dictionary<Image, string> _resultIconNames = new Dictionary<Image, string>();
+
+        private string BoundResultIconName(Image icon) =>
+            icon != null && icon.enabled && _resultIconNames.TryGetValue(icon, out string name) ? name : null;
+
+        /// <summary>Binds the atlas icons for this result. Under Reduced Motion the reduced-motion
+        /// atlas is swapped in immediately - no reveal, pulse or delay; the same icon, same slot.</summary>
+        private void ApplyResultIcons(bool playerWon)
+        {
+            SetResultIcon(_resultBadgeIcon, BattleResultIconSet.OutcomeBadgeName(playerWon));
+            SetResultIcon(_playAgainIcon, BattleResultIconSet.ActionIconName(playerWon));
+            SetResultIcon(_returnIcon, BattleResultIconSet.ReturnIconName);
+        }
+
+        /// <summary>Exposed for tests: the bound sprite's atlas name (null when no icon is shown).</summary>
+        public string ResultBadgeSpriteNameForTests => BoundResultIconName(_resultBadgeIcon);
+        public string PlayAgainIconSpriteNameForTests => BoundResultIconName(_playAgainIcon);
+        public string ReturnIconSpriteNameForTests => BoundResultIconName(_returnIcon);
+
+        /// <summary>Exposed for tests: the slice asset a bound badge came from.</summary>
+        public string ResultBadgeSourceAssetNameForTests => _resultBadgeIcon != null && _resultBadgeIcon.enabled ? _resultBadgeIcon.sprite.name : null;
+
+        /// <summary>Exposed for tests: none of the three icons may take input.</summary>
+        public bool ResultIconsAreRaycastFreeForTests =>
+            _resultBadgeIcon != null && !_resultBadgeIcon.raycastTarget
+            && _playAgainIcon != null && !_playAgainIcon.raycastTarget
+            && _returnIcon != null && !_returnIcon.raycastTarget;
+
+        /// <summary>Exposed for tests: the icon images' rects and their owning controls' rects.</summary>
+        public RectTransform PlayAgainIconRectForTests => _playAgainIcon != null ? _playAgainIcon.rectTransform : null;
+        public RectTransform ReturnIconRectForTests => _returnIcon != null ? _returnIcon.rectTransform : null;
+        public RectTransform PlayAgainButtonRectForTests => _playAgainButton != null ? _playAgainButton.GetComponent<RectTransform>() : null;
+        public RectTransform ReturnButtonRectForTests => _returnToCityButton != null ? _returnToCityButton.GetComponent<RectTransform>() : null;
 
         /// <summary>
         /// The blocked-normal-battle state ("no complete saved deck") used to render inside
@@ -5945,6 +6137,7 @@ namespace MyriadOfDragons.UI
                 RefreshAll();
                 PlayEffect(_playerLaneSlots[lane], ElementEffectSprite(playedCard.Element), Vector2.zero, 60f, 0.6f);
                 SlideNewestCardIntoLane(lane);
+                PlayMotion(_playerLaneSlots[lane], BattleMotionKind.PlacementLand);
             }
             else
             {
@@ -6030,8 +6223,50 @@ namespace MyriadOfDragons.UI
             }
 
             RefreshAll();
+            ShowStartBattleBanner();
             StartCombatLoop();
         }
+
+        /// <summary>Text of the banner shown when a normal match's formation locks and the auto
+        /// clash begins.</summary>
+        public const string StartBattleBannerText = "BATTLE START";
+
+        /// <summary>Start Battle transition beat: a centered banner as the formation locks.
+        /// Presentation only - the match state is already Combat. Under Reduced Motion it is a
+        /// still banner held briefly (PlayFloatingText's reduced-motion path). The scripted
+        /// tutorial returns before this, so its pacing is unchanged.</summary>
+        private void ShowStartBattleBanner()
+        {
+            if (_battlePresentationRoot == null) return;
+            DestroyStartBanner();
+            int before = _presentationObjects.Count;
+            PlayFloatingText(_battlePresentationRoot, StartBattleBannerText, SelectedColor, 1.2f);
+            if (_presentationObjects.Count > before)
+            {
+                // Owned separately from _presentationObjects so interruption cleanup can remove it
+                // with a destroy that is valid in both Play and Edit mode (the shared list uses
+                // Destroy(), which logs an Editor error outside Play mode). Its timer coroutine
+                // stays tracked, so an interruption still stops it.
+                int last = _presentationObjects.Count - 1;
+                _startBanner = _presentationObjects[last];
+                _presentationObjects.RemoveAt(last);
+                PlayMotion(_startBanner.transform, BattleMotionKind.StartBattle);
+            }
+        }
+
+        private GameObject _startBanner;
+
+        private void DestroyStartBanner()
+        {
+            if (_startBanner == null) { _startBanner = null; return; }
+            if (Application.isPlaying) Destroy(_startBanner);
+            else DestroyImmediate(_startBanner);
+            _startBanner = null;
+        }
+
+        /// <summary>Exposed for tests: number of live start-battle banner objects on screen.</summary>
+        public int StartBattleBannerCountForTests =>
+            _startBanner != null && _startBanner.GetComponentInChildren<Text>() is Text t && t.text == StartBattleBannerText ? 1 : 0;
 
         /// <summary>Exposed for tests: the real "Start Battle" button calls the private
         /// OnPrimaryActionPressed() directly - EditMode tests have no way to click a UI Button,
@@ -6203,7 +6438,18 @@ namespace MyriadOfDragons.UI
                 if (cue == ClashCue.None) continue;
 
                 PlayClashCue(cue, lane.Lane, defeatedA > 0, defeatedB > 0);
+
+                // Unit attack / hit feedback (presentation only - reads the already-resolved
+                // clash): each side lunges if it traded blows, recoils if it lost units or its
+                // Avatar took overflow, and the struck side gets a hit tint.
+                PlayMotion(_playerLaneSlots[lane.Lane], BattleMotionPlan.ReactionFor(lane, sideA: true));
+                PlayMotion(_enemyLaneSlots[lane.Lane], BattleMotionPlan.ReactionFor(lane, sideA: false));
+                PlayHitTint(_playerLaneSlots[lane.Lane], BattleMotionPlan.HitTintStrengthFor(lane, sideA: true));
+                PlayHitTint(_enemyLaneSlots[lane.Lane], BattleMotionPlan.HitTintStrengthFor(lane, sideA: false));
             }
+            // The clash counter ("Clash N/12") pulses once per resolved tick - the automatic
+            // clash's tempo indicator.
+            if (_turnText != null) PlayMotion(_turnText.transform, BattleMotionKind.ClashPulse);
         }
 
         /// <summary>One lane's hit / critical hit / defeat feedback. Purely a read of the
@@ -6668,16 +6914,68 @@ namespace MyriadOfDragons.UI
         /// A heal, shield, cleanse, or friendly attack buff targets the player's own lane;
         /// firing one of those effects over the enemy board would contradict the state change.
         /// </summary>
+        /// <summary>Exposed for tests: plays a spell's real cast-impact presentation for `lane`.</summary>
+        public void PlayCastImpactForTests(AvatarSpell spell, Lane lane) => PlayCastImpact(spell, lane);
+
+        /// <summary>Exposed for tests: how many spell/clash/placement effect sprites are live.</summary>
+        public int PresentationEffectCountForTests =>
+            _presentationObjects.Count(go => go != null && go.name == "Effect");
+
         private void PlayCastImpact(AvatarSpell spell, Lane targetLane)
         {
             bool friendlyTarget = VfxAnchorTargetsFriendlyLane(spell.Effect);
-            Transform anchor = friendlyTarget ? _playerLaneSlots[targetLane] : _enemyLaneSlots[targetLane];
+            Transform laneAnchor = friendlyTarget ? _playerLaneSlots[targetLane] : _enemyLaneSlots[targetLane];
 
+            // UI Beta pack (Battle_State_Acceptance_GUI_Handoff.md): spell VFX stay clipped to the
+            // Battle VFX stage - the combat rail's RectMask2D stage - and never cover board cards,
+            // spell rows, hand, primary action, HUD or the tutorial guide. The cast/impact is
+            // therefore drawn inside that stage, with the spell name and an explicit target marker
+            // so the outcome stays legible without the effect sitting on the lane. The lane slot
+            // is only a fallback if the stage does not exist.
+            Transform stage = _combatResolutionStage != null ? _combatResolutionStage.RootForTests : null;
+            Transform host = stage != null ? stage : laneAnchor;
+
+            // Timing / reduced-motion decision comes from BattleBeatPolicy (canonical line): full
+            // motion animates, Reduced Motion holds the still marker for the policy's hold time and
+            // never flashes.
             BattleBeatTiming impact = BattleBeatPolicy.Resolve(BattleBeat.SpellImpact, MotionPolicy.ReduceMotion);
-            PlayEffect(anchor, SpellEffectSprite(spell), Vector2.zero, 190f, 0.85f, impact.StaticHoldMs);
-            if (impact.AllowsFlash) PlayScreenFlash(SpellFlashColor(spell.Effect));
-            PlayFloatingText(anchor, spell.Name.ToUpperInvariant(), SpellFlashColor(spell.Effect), 1.0f);
+            PlayEffect(host, SpellEffectSprite(spell), Vector2.zero, 190f, 0.85f, impact.StaticHoldMs);
+            if (impact.AllowsFlash) PlayStageFlash(host, SpellFlashColor(spell.Effect));
+            PlayFloatingText(host, spell.Name.ToUpperInvariant(), SpellFlashColor(spell.Effect), 1.0f,
+                new Vector2(0f, SpellStageLabelOffset));
+            PlayFloatingText(host, SpellTargetMarkerText(friendlyTarget, targetLane), Color.white, 1.0f,
+                new Vector2(0f, -SpellStageLabelOffset));
         }
+
+        /// <summary>Vertical offset of the stage's spell-name (top) and target-marker (bottom) labels.</summary>
+        public const float SpellStageLabelOffset = 112f;
+
+        /// <summary>The explicit target marker shown with a cast: whose side and which lane.</summary>
+        public static string SpellTargetMarkerText(bool friendlyTarget, Lane lane) =>
+            $"{(friendlyTarget ? "YOUR" : "ENEMY")} {lane.ToString().ToUpperInvariant()}";
+
+        /// <summary>Stage-clipped colour flash. Skipped under Reduced Motion (no flash) and outside
+        /// Play mode, like the full-screen flash it replaces for cast impacts - but it now lives
+        /// INSIDE the clipped VFX stage instead of tinting the whole canvas.</summary>
+        private void PlayStageFlash(Transform host, Color color)
+        {
+            if (!Application.isPlaying || host == null || MotionPolicy.ReduceMotion) return;
+
+            Image flash = CreateImage(host, new Color(color.r, color.g, color.b, 0.34f));
+            flash.raycastTarget = false;
+            StretchFull(flash.rectTransform);
+            flash.transform.SetAsLastSibling();
+            _presentationObjects.Add(flash.gameObject);
+            _presentationCoroutines.Add(StartCoroutine(FadeAndDestroy(flash,
+                CombatPresentationPolicy.ResolveDurationMs(450, MotionPolicy.ReduceMotion) / 1000f)));
+        }
+
+        /// <summary>Exposed for tests: the clipped VFX stage's transform (null before Initialize).</summary>
+        public Transform VfxStageForTests => _combatResolutionStage != null ? _combatResolutionStage.RootForTests : null;
+
+        /// <summary>Exposed for tests: the live "Effect" sprite objects, for parenting assertions.</summary>
+        public IReadOnlyList<GameObject> PresentationEffectObjectsForTests =>
+            _presentationObjects.Where(go => go != null && go.name == "Effect").ToList();
 
         /// <summary>VFX-anchor-only friendly/enemy side, matching AvatarSpell.Cast's own real
         /// caster/opponent choice per effect (see that switch directly) - NOT the same as
@@ -6775,8 +7073,12 @@ namespace MyriadOfDragons.UI
             CardElement.Andras => Resources.Load<Sprite>("UI/VFX/Holy_Beam"),
             CardElement.Ktini => Resources.Load<Sprite>("UI/VFX/Shadow_Explosion"),
             CardElement.Pnevmas => Resources.Load<Sprite>("UI/VFX/Magic_Circle"),
-            _ => null,
+            // Any other element still gets placement feedback rather than none.
+            _ => Resources.Load<Sprite>("UI/VFX/Magic_Circle"),
         };
+
+        /// <summary>Exposed for tests: the placement-effect sprite for an element.</summary>
+        public static Sprite ElementEffectSpriteForTests(CardElement element) => ElementEffectSprite(element);
 
         /// <summary>
         /// Exposed for tests: locks formation and steps combat once, exercising a full
@@ -6980,14 +7282,20 @@ namespace MyriadOfDragons.UI
                 // Restores the normal, always-both-visible/normally-labelled state - covers a
                 // normal match starting right after a tutorial one, whose HandleMatchEnded call
                 // would otherwise have left the tutorial's single-button state in place.
-                _returnToCityLabel.text = "Return to City";
-                _playAgainLabel.text = "Play Again";
+                // UI Beta pack (Battle_State_Acceptance_GUI_Handoff.md, states 7/8): Victory offers
+                // Replay + Return to Empire, Defeat offers Retry + Return to Empire. Labels only -
+                // the same two handlers, Stamina rules and reward paths run underneath.
+                _returnToCityLabel.text = ReturnToEmpireLabel;
+                _playAgainLabel.text = playerWon ? ReplayLabel : RetryLabel;
                 _returnToCityButton.gameObject.SetActive(true);
                 _playAgainButton.gameObject.SetActive(true);
             }
 
+            ApplyResultIcons(playerWon);
             _resultOverlay.SetActive(true);
             RevealResultOverlay();
+            if (_resultText != null && _resultText.transform.parent != null)
+                PlayMotion(_resultText.transform.parent, BattleMotionKind.ResultReveal);
 
             // Purely additive, same reasoning as StartApprovedTutorialBattle's own opening-
             // cinematic call: the result overlay above is already fully configured and active
@@ -7022,6 +7330,18 @@ namespace MyriadOfDragons.UI
         /// recording real progression again. OnPlayAgainPressed's own normal-match body is
         /// reused as-is for the non-tutorial case.
         /// </summary>
+        /// <summary>Result-overlay action labels (UI Beta pack). Tutorial keeps "Retry Battle".</summary>
+        public const string ReplayLabel = "Replay";
+        public const string RetryLabel = "Retry";
+        public const string ReturnToEmpireLabel = "Return to Empire";
+
+        /// <summary>Message shown on the result overlay when a Campaign retry is blocked by Stamina.</summary>
+        public const string RetryBlockedStaminaMessage = "Not enough Stamina to retry this stage.";
+
+        /// <summary>Exposed for tests: whether the retry-blocked message is currently on screen.</summary>
+        public bool RetryBlockedMessageVisibleForTests =>
+            _presentationObjects.Any(go => go != null && go.GetComponentInChildren<Text>() is Text t && t.text == RetryBlockedStaminaMessage);
+
         private void OnPlayAgainOrRetryPressed()
         {
             if (IsTutorialMatch)
@@ -7052,6 +7372,10 @@ namespace MyriadOfDragons.UI
                 if (_pendingCampaignStage != null && !TrySpendCampaignStaminaForAttempt())
                 {
                     Debug.LogError($"Campaign stage {_pendingCampaignStage.stageId}: insufficient Stamina - retry blocked.");
+                    // The player must also SEE why nothing happened: the console line alone was
+                    // invisible. Shown on the result overlay that stays up; no retry is started.
+                    if (_resultOverlay != null)
+                        PlayFloatingText(_resultOverlay.transform, RetryBlockedStaminaMessage, ButtonTextDisabledColor, 2.2f);
                     return;
                 }
 

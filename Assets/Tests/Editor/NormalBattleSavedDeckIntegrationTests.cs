@@ -52,14 +52,14 @@ namespace MyriadOfDragons.Tests
             List<string> distinctiveDeck = database.AllCards
                 .Select(card => card.Id)
                 .Where(id => id != "warrior" && id != "novice_knight" && id != "goblin_caster")
-                .Take(10)
+                .Take(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1))
                 .ToList();
-            Assert.AreEqual(10, distinctiveDeck.Count, "Setup: expected ten distinctive real cards.");
+            Assert.AreEqual(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1), distinctiveDeck.Count, "Setup: expected a full deck of distinctive real cards.");
 
             PlayerProfile profile = new PlayerProfile();
             profile.cardCollection = new List<string>(distinctiveDeck);
             profile.ApplyDataToEmpire();
-            Assert.AreEqual(10, profile.Empire.DeckSlotCount, "Setup: expected the current deck size to be ten.");
+            Assert.AreEqual(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1), profile.Empire.DeckSlotCount, "Setup: expected the level-1 deck size.");
             profile.activeDeckCardIds = new List<string>(distinctiveDeck);
             Assert.IsTrue(SaveSystem.Save(profile), "Setup: the production save path must persist the confirmed deck.");
             SaveSystem.ResetCurrentProfileForTests();

@@ -130,7 +130,7 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(deckBuilderCanvas, "Expected the real Deck Builder canvas to be built.");
             Text status = FindDeckStatusText(deckBuilderCanvas);
             Assert.IsNotNull(status, "Expected the existing Deck Builder status surface to exist.");
-            Assert.AreEqual("Build and confirm a 10-card deck before normal Battle.", status.text,
+            Assert.AreEqual(HomePagePresenter.FormatNormalBattleDeckBlockedMessage(MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1)), status.text,
                 "The redirect must show the exact required status message on the existing status surface.");
 
             AssertOwnsApprovedStarterCollection(bootstrap.Profile,
@@ -154,7 +154,7 @@ namespace MyriadOfDragons.Tests
             database = CardDatabase.Instance; // real fix: Initialize() may have destroyed this local instance if a duplicate was already live (see CardDatabase.Initialize's own comment) - always resolve to the survivor.
 
             var profile = new PlayerProfile();
-            List<string> nineCards = BuildValidDeckIds(database, 9); // one short of the required 10
+            List<string> nineCards = BuildValidDeckIds(database, MyriadOfDragons.Empire.PlayerEmpireData.DeckSlotsForBarracksLevel(1) - 1); // one short of the required deck size
             profile.cardCollection = new List<string>(nineCards);
             profile.activeDeckCardIds = new List<string>(nineCards);
             Assert.IsTrue(SaveSystem.Save(profile), "Setup: expected the incomplete-deck profile to save.");
