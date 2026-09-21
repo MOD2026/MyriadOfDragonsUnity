@@ -141,7 +141,7 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(GameBootstrap.OpeningGameplayVideoResourcePath,
                 bootstrap.OpeningVideoResourcePathForTests,
                 "Opening must bind the canonical gameplay cut, never the marketing master.");
-            Assert.IsNotNull(Resources.Load<VideoClip>(GameBootstrap.OpeningGameplayVideoResourcePath),
+            Assert.IsNotNull(Resources.Load<UnityEngine.Video.VideoClip>(GameBootstrap.OpeningGameplayVideoResourcePath),
                 "The canonical gameplay cut must be imported at the stable Resources path.");
             Assert.IsNotNull(Resources.Load<Sprite>(GameBootstrap.OpeningLogoEndCardResourcePath),
                 "The approved logo end card must be imported at the stable Resources path.");
@@ -154,7 +154,7 @@ namespace MyriadOfDragons.Tests
                 "The additive bridge must begin only after the canonical gameplay video callback.");
             Assert.AreEqual(GameBootstrap.OpeningOptionalBridgeVideoResourcePath,
                 bootstrap.OpeningVideoResourcePathForTests);
-            Assert.IsNotNull(Resources.Load<VideoClip>(GameBootstrap.OpeningOptionalBridgeVideoResourcePath),
+            Assert.IsNotNull(Resources.Load<UnityEngine.Video.VideoClip>(GameBootstrap.OpeningOptionalBridgeVideoResourcePath),
                 "The approved optional bridge must be imported at its stable Resources path.");
             Assert.IsFalse(bootstrap.OpeningLogoEndCardActiveForTests,
                 "The logo end card must wait for the optional bridge completion callback.");
@@ -222,7 +222,7 @@ namespace MyriadOfDragons.Tests
 
             GameObject cinematic = GameObject.Find("Chapter1Cinematic");
             Assert.IsNotNull(cinematic);
-            RawImage videoImage = cinematic.GetComponentInChildren<RawImage>(true);
+            UnityEngine.UI.RawImage videoImage = cinematic.GetComponentInChildren<UnityEngine.UI.RawImage>(true);
             Assert.IsNotNull(videoImage);
             Assert.IsFalse(videoImage.raycastTarget,
                 "The canonical video surface must remain decorative; Skip owns the explicit input target.");
