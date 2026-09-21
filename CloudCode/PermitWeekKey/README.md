@@ -23,6 +23,10 @@ validation path is clear, the same role `CloudCode/SocialSafety/` already serves
   outcome (`alreadyClaimed: true`, `granted: 0`) rather than granting again - a changed client
   clock cannot create a second claim, because the week key it's compared against is never
   client-supplied.
+- **Activity allowlist:** `activityId` selects the storage record, so it is server-allowlisted
+  (`PermitWeekKeyOperations.DefaultAllowedActivityIds` = `ascensionPermit.weekly`, the one activity the client ships).
+  Any other id returns `UNKNOWN_ACTIVITY` on both endpoints; without this a client could claim under unlimited fresh
+  ids, each with its own weekly grant and hoard balance. Adding an activity is a deliberate server change.
 - **Client role:** `GetPermitStatus` (read-only) returns balance, the server's current week key,
   whether this week is already claimed, and the active weekly rate/hoard cap; `ClaimWeeklyPermit`
   submits a claim. Neither endpoint takes a client-provided week key or timestamp.

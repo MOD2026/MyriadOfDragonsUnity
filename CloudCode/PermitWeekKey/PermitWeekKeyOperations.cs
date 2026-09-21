@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -11,9 +12,17 @@ public sealed class PermitWeekKeyOperations
     private readonly IPermitWeekKeyStore _store;
     private readonly IPermitWeekKeyClock _clock;
     private readonly IPermitWeekKeyEconomyConfiguration _configuration;
+    private readonly HashSet<string> _allowedActivityIds;
 
-    public PermitWeekKeyOperations(IPermitWeekKeyStore store, IPermitWeekKeyClock clock, IPermitWeekKeyEconomyConfiguration? configuration = null)
+    /// <summary>ActivityId is client-supplied and selects the storage record (account + activityId), so it must be
+    /// allowlisted: otherwise each fresh id gets its own weekly claim and its own hoard balance, i.e. unbounded
+    /// permits per week. The only activity the shipped client uses is its DefaultActivityId; new activities are a
+    /// deliberate server-side addition (constructor argument), never a client choice.</summary>
+    public static readonly IReadOnlyList<string> DefaultAllowedActivityIds = new[] { "ascensionPermit.weekly" };
+
+    public PermitWeekKeyOperations(IPermitWeekKeyStore store, IPermitWeekKeyClock clock, IPermitWeekKeyEconomyConfiguration? configuration = null, IEnumerable<string>? allowedActivityIds = null)
     {
+        _allowedActivityIds = new HashSet<string>(allowedActivityIds ?? DefaultAllowedActivityIds, StringComparer.Ordinal);
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _configuration = configuration ?? new RemoteConfigPermitWeekKeyEconomyConfiguration();
@@ -121,7 +130,7 @@ public sealed class PermitWeekKeyOperations
         return Failure("CONFLICT", weekKey);
     }
 
-    private static PermitStatusResult? ValidateStatusRequest(IExecutionContext context, PermitStatusRequest request)
+    private PermitStatusResult? ValidateStatusRequest(IExecutionContext context, PermitStatusRequest request)
     {
         if (context == null || string.IsNullOrWhiteSpace(context.PlayerId))
         {
@@ -133,10 +142,15 @@ public sealed class PermitWeekKeyOperations
             return new PermitStatusResult { ErrorCode = "INVALID_REQUEST" };
         }
 
+        if (!_allowedActivityIds.Contains(request.ActivityId))
+        {
+            return new PermitStatusResult { ErrorCode = "UNKNOWN_ACTIVITY" };
+        }
+
         return null;
     }
 
-    private static PermitClaimResult? ValidateClaimRequest(IExecutionContext context, PermitClaimRequest request)
+    private PermitClaimResult? ValidateClaimRequest(IExecutionContext context, PermitClaimRequest request)
     {
         if (context == null || string.IsNullOrWhiteSpace(context.PlayerId))
         {
@@ -146,6 +160,11 @@ public sealed class PermitWeekKeyOperations
         if (request == null || string.IsNullOrWhiteSpace(request.ActivityId))
         {
             return Failure("INVALID_REQUEST", string.Empty);
+        }
+
+        if (!_allowedActivityIds.Contains(request.ActivityId))
+        {
+            return Failure("UNKNOWN_ACTIVITY", string.Empty);
         }
 
         return null;

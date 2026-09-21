@@ -35,6 +35,46 @@ public sealed class PermitWeekKeyOperationsTests
     }
 
     [Test]
+    public async Task ClientChosenActivityIds_CannotMultiplyTheWeeklyGrant()
+    {
+        // ActivityId is client-supplied. Storage is keyed per (account, activityId), so without a server allowlist each
+        // fresh id got its own weekly claim record AND its own hoard balance - unbounded permits per week.
+        var store = new FakeStore();
+        var operations = Create(store, config: new FixedEconomyConfiguration(4, 8));
+
+        var real = await operations.ClaimWeeklyAsync(Context(), null!, Request());
+        var forged1 = await operations.ClaimWeeklyAsync(Context(), null!, Request("attacker-activity-1"));
+        var forged2 = await operations.ClaimWeeklyAsync(Context(), null!, Request("attacker-activity-2"));
+
+        Assert.That(real.Granted, Is.EqualTo(4));
+        Assert.That(forged1.Success, Is.False);
+        Assert.That(forged1.ErrorCode, Is.EqualTo("UNKNOWN_ACTIVITY"));
+        Assert.That(forged2.ErrorCode, Is.EqualTo("UNKNOWN_ACTIVITY"));
+        Assert.That(store.SaveCount, Is.EqualTo(1), "Only the one known activity may ever write a claim record.");
+    }
+
+    [Test]
+    public async Task UnknownActivity_IsRejectedOnStatusToo_AndNothingIsRead()
+    {
+        var operations = Create();
+        var status = await operations.GetStatusAsync(Context(), null!, StatusRequest("attacker-activity-1"));
+        Assert.That(status.ErrorCode, Is.EqualTo("UNKNOWN_ACTIVITY"));
+    }
+
+    [Test]
+    public async Task ActivityAllowlist_IsExactMatch_AndInjectable()
+    {
+        var operations = new PermitWeekKeyOperations(new FakeStore(), new FakeClock("2026-W01", 1000), new FixedEconomyConfiguration(4, 8), new[] { "custom.activity" });
+        Assert.That((await operations.ClaimWeeklyAsync(Context(), null!, Request("custom.activity"))).Success, Is.True);
+        Assert.That((await operations.ClaimWeeklyAsync(Context(), null!, Request("ascensionPermit.weekly"))).ErrorCode, Is.EqualTo("UNKNOWN_ACTIVITY"));
+        Assert.That((await operations.ClaimWeeklyAsync(Context(), null!, Request("CUSTOM.ACTIVITY"))).ErrorCode, Is.EqualTo("UNKNOWN_ACTIVITY"));
+    }
+
+    [Test]
+    public void DefaultAllowlist_IsExactlyTheOneActivityTheClientShips() =>
+        Assert.That(PermitWeekKeyOperations.DefaultAllowedActivityIds, Is.EqualTo(new[] { "ascensionPermit.weekly" }));
+
+    [Test]
     public async Task FirstClaim_GrantsTheConfiguredWeeklyRate()
     {
         var operations = Create(config: new FixedEconomyConfiguration(4, 8));

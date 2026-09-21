@@ -55,14 +55,18 @@ namespace MyriadOfDragons.Tests.PlayMode
             }
 
             UnityEngine.Debug.Log($"Signed in as: {AuthenticationService.Instance.PlayerId}");
-            string activityId = "livevalidation-activity-" + Guid.NewGuid().ToString("N");
+            // The server allowlists activityId (PermitWeekKeyOperations.DefaultAllowedActivityIds); a random id is now
+            // rejected as UNKNOWN_ACTIVITY (checked below), so the happy path uses the one shipped activity.
+            string activityId = "ascensionPermit.weekly";
+            bool playerAlreadyClaimedThisWeek = false;
 
             PermitStatusResponse? firstStatus = null;
             await CheckAsync(results, "GetPermitStatus before claim", async () =>
             {
                 var r = await CallAsync<PermitStatusResponse>("GetPermitStatus", activityId);
                 firstStatus = r;
-                return r != null && string.IsNullOrEmpty(r.errorCode) && !r.claimedThisWeek;
+                playerAlreadyClaimedThisWeek = r != null && r.claimedThisWeek;
+                return r != null && string.IsNullOrEmpty(r.errorCode);
             });
 
             PermitClaimResponse? firstClaim = null;
@@ -70,7 +74,8 @@ namespace MyriadOfDragons.Tests.PlayMode
             {
                 var r = await CallAsync<PermitClaimResponse>("ClaimWeeklyPermit", activityId);
                 firstClaim = r;
-                return r != null && r.success && !r.alreadyClaimed && r.granted > 0;
+                // A fresh anonymous player grants; a cached session that already claimed this week must report it.
+                return r != null && r.success && (playerAlreadyClaimedThisWeek ? (r.alreadyClaimed && r.granted == 0) : (!r.alreadyClaimed && r.granted > 0));
             });
 
             await CheckAsync(results, "ClaimWeeklyPermit second claim same week is idempotent (no double grant)", async () =>
@@ -85,6 +90,12 @@ namespace MyriadOfDragons.Tests.PlayMode
                 var r = await CallAsync<PermitStatusResponse>("GetPermitStatus", activityId);
                 return r != null && string.IsNullOrEmpty(r.errorCode) && r.claimedThisWeek
                        && firstClaim != null && r.balance == firstClaim.balance;
+            });
+
+            await CheckAsync(results, "ClaimWeeklyPermit with a client-invented activityId is rejected (no minting via new ids)", async () =>
+            {
+                var r = await CallAsync<PermitClaimResponse>("ClaimWeeklyPermit", "livevalidation-activity-" + Guid.NewGuid().ToString("N"));
+                return r != null && !r.success && r.errorCode == "UNKNOWN_ACTIVITY";
             });
 
             await CheckAsync(results, "GetPermitStatus with blank activityId is rejected", async () =>
