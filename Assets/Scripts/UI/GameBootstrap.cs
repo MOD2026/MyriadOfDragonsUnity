@@ -5515,6 +5515,16 @@ namespace MyriadOfDragons.UI
             MaybeShowTutorial();
         }
 
+        private void OnDisable()
+        {
+            // EditMode DestroyImmediate reliably disables the owner before removing it, while
+            // OnDestroy is not dispatched for every test-created component. The cinematic overlay
+            // lives under the surviving Canvas, so use the same idempotent cancellation path here
+            // to prevent a stale input blocker without changing the video route.
+            CancelPresentationEffects();
+            CancelActiveCinematic();
+        }
+
         private void OnDestroy()
         {
             CancelPresentationEffects();
