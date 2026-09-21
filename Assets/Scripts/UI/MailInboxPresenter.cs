@@ -65,8 +65,12 @@ namespace MyriadOfDragons.UI
             Image backImg = backBtn.GetComponent<Image>();
             HomeV3UiLibrary.ApplyNavTileButton(backBtn.GetComponent<Button>(), backImg);
             backImg.color = new Color(0.3f, 0.2f, 0.2f);
+            GameObject builtCanvas = _canvasObj;
             backBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
+                // A Back tap on a canvas that was already torn down (double tap while a deferred Destroy
+                // is pending, or a stale button from before a reopen) must not run Back again.
+                if (_canvasObj == null || _canvasObj != builtCanvas) return;
                 TeardownUI();
                 _onBack?.Invoke();
             });
