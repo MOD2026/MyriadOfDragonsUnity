@@ -1474,7 +1474,7 @@ namespace MyriadOfDragons.UI
             }
 
             CancelActiveCinematic();
-            _activeCinematic = new CinematicSequence(CinematicKind.Opening, clip.length);
+            _activeCinematic = new CinematicSequence(CinematicKind.Opening, (float)clip.length);
             _openingVideoStage = OpeningVideoStage.CanonicalGameplay;
             BuildOpeningVideoOverlay(clip, OpeningCinematicCopy);
             _openingVideoPlayer.prepareCompleted += OnOpeningVideoPrepared;
@@ -1627,7 +1627,7 @@ namespace MyriadOfDragons.UI
                 _cinematicLayerImages.Clear();
             }
 
-            _activeCinematic = new CinematicSequence(CinematicKind.Opening, clip.length);
+            _activeCinematic = new CinematicSequence(CinematicKind.Opening, (float)clip.length);
             _openingVideoStage = OpeningVideoStage.OptionalBridge;
             BuildOpeningVideoOverlay(clip, OpeningCinematicCopy);
             _openingVideoPlayer.prepareCompleted += OnOpeningVideoPrepared;
