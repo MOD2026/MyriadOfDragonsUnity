@@ -1351,9 +1351,19 @@ namespace MyriadOfDragons.UI
         private RenderTexture _openingVideoTexture;
         private Coroutine _openingLogoEndCardCoroutine;
         private bool _openingLogoEndCardActive;
+        private OpeningVideoStage _openingVideoStage;
+
+        private enum OpeningVideoStage
+        {
+            None,
+            CanonicalGameplay,
+            OptionalBridge,
+        }
 
         public const string OpeningGameplayVideoResourcePath =
             "Cinematics/Chapter1/Opening/Chapter1GameplayOpening";
+        public const string OpeningOptionalBridgeVideoResourcePath =
+            "Cinematics/Chapter1/Opening/Chapter1OptionalBridge";
         public const string OpeningLogoEndCardResourcePath =
             "Cinematics/Chapter1/Opening/Chapter1LogoEndCard";
         public const float OpeningLogoEndCardDurationSeconds = 2.8f;
@@ -1379,9 +1389,18 @@ namespace MyriadOfDragons.UI
         public CinematicKind? CinematicKindForTests => _activeCinematic?.Kind;
 
         public string OpeningVideoResourcePathForTests => _openingVideoPlayer != null &&
-            _openingVideoPlayer.clip != null ? OpeningGameplayVideoResourcePath : null;
+            _openingVideoPlayer.clip != null
+                ? (_openingVideoStage == OpeningVideoStage.OptionalBridge
+                    ? OpeningOptionalBridgeVideoResourcePath
+                    : OpeningGameplayVideoResourcePath)
+                : null;
 
         public void CompleteOpeningVideoForTests() => OnOpeningVideoLoopPointReached(_openingVideoPlayer);
+
+        public void CompleteOpeningBridgeForTests() => OnOpeningVideoLoopPointReached(_openingVideoPlayer);
+
+        public bool OpeningBridgeActiveForTests => _openingVideoStage == OpeningVideoStage.OptionalBridge &&
+            _openingVideoPlayer != null;
 
         public bool OpeningLogoEndCardActiveForTests => _openingLogoEndCardActive;
 
@@ -1455,7 +1474,8 @@ namespace MyriadOfDragons.UI
             }
 
             CancelActiveCinematic();
-            _activeCinematic = new CinematicSequence(CinematicKind.Opening, (float)clip.length);
+            _activeCinematic = new CinematicSequence(CinematicKind.Opening, clip.length);
+            _openingVideoStage = OpeningVideoStage.CanonicalGameplay;
             BuildOpeningVideoOverlay(clip, OpeningCinematicCopy);
             _openingVideoPlayer.prepareCompleted += OnOpeningVideoPrepared;
             _openingVideoPlayer.loopPointReached += OnOpeningVideoLoopPointReached;
@@ -1572,7 +1592,47 @@ namespace MyriadOfDragons.UI
                 return;
             }
 
-            BeginOpeningLogoEndCard();
+            if (_openingVideoStage == OpeningVideoStage.CanonicalGameplay)
+            {
+                // The optional bridge is additive and starts only after the canonical gameplay
+                // cut's real completion callback. It never replaces or races that source clip.
+                BeginOpeningOptionalBridge();
+                return;
+            }
+
+            if (_openingVideoStage == OpeningVideoStage.OptionalBridge)
+            {
+                // The logo card remains the canonical post-video end state, now reached after
+                // the approved additive bridge has completed through its real callback.
+                BeginOpeningLogoEndCard();
+            }
+        }
+
+        private void BeginOpeningOptionalBridge()
+        {
+            VideoClip clip = Resources.Load<VideoClip>(OpeningOptionalBridgeVideoResourcePath);
+            if (clip == null)
+            {
+                Debug.LogError($"Missing optional Chapter 1 bridge at Resources/{OpeningOptionalBridgeVideoResourcePath}.");
+                BeginOpeningLogoEndCard();
+                return;
+            }
+
+            StopOpeningVideoPlayback();
+            if (_cinematicOverlay != null)
+            {
+                DestroyImmediate(_cinematicOverlay);
+                _cinematicOverlay = null;
+                _cinematicCopyText = null;
+                _cinematicLayerImages.Clear();
+            }
+
+            _activeCinematic = new CinematicSequence(CinematicKind.Opening, clip.length);
+            _openingVideoStage = OpeningVideoStage.OptionalBridge;
+            BuildOpeningVideoOverlay(clip, OpeningCinematicCopy);
+            _openingVideoPlayer.prepareCompleted += OnOpeningVideoPrepared;
+            _openingVideoPlayer.loopPointReached += OnOpeningVideoLoopPointReached;
+            _openingVideoPlayer.Prepare();
         }
 
         /// <summary>Stops and discards any active cinematic - coroutine, sequence, overlay - and
@@ -1592,6 +1652,7 @@ namespace MyriadOfDragons.UI
                 _cinematicCoroutine = null;
             }
             StopOpeningLogoEndCard();
+            _openingVideoStage = OpeningVideoStage.None;
             _activeCinematic = null;
             HideCinematicOverlay();
         }
@@ -1792,6 +1853,7 @@ namespace MyriadOfDragons.UI
         private void BeginOpeningLogoEndCard()
         {
             StopOpeningVideoPlayback();
+            _openingVideoStage = OpeningVideoStage.None;
             if (_cinematicOverlay != null)
             {
                 DestroyImmediate(_cinematicOverlay);

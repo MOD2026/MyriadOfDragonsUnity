@@ -1,0 +1,36 @@
+fileFormatVersion: 2
+guid: 212dc1af790c46cfa78a104f510467a9
+VideoClipImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  frameRange: 0
+  frameCount: 0
+  loop: 0
+  useLegacyImporter: 0
+  deinterlace: 0
+  aspectRatio: 0
+  importAudio: 1
+  preserveAudio: 1
+  sourceFileSize: 26594754
+  useHardwareDecoding: 0
+  srgbClip: 1
+  enableTranscoding: 0
+  spatialQuality: 0
+  audioSampleRate: 0
+  audioBitrate: 0
+  audioChannels: 0
+  audioCodec: 0
+  videoCodec: 0
+  resizeFormat: 0
+  resizeMode: 0
+  resizeRatio: 1
+  quality: 100
+  frameRate: 24
+  keyframeInterval: 0
+  enableAlpha: 0
+  flipVertical: 0
+  flipHorizontal: 0
+  importCameras: 1
+  importLights: 1
+  importAudioTracks: 1
+  importVideoTracks: 1

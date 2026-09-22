@@ -132,6 +132,181 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
+        public void TutorialOpening_UsesCanonicalGameplayCut_AndCompletesThroughVideoCallback()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_CanonicalGameplayOpeningBootstrap");
+
+            bootstrap.StartApprovedTutorialBattle();
+
+            Assert.AreEqual(GameBootstrap.OpeningGameplayVideoResourcePath,
+                bootstrap.OpeningVideoResourcePathForTests,
+                "Opening must bind the canonical gameplay cut, never the marketing master.");
+            Assert.IsNotNull(Resources.Load<VideoClip>(GameBootstrap.OpeningGameplayVideoResourcePath),
+                "The canonical gameplay cut must be imported at the stable Resources path.");
+            Assert.IsNotNull(Resources.Load<Sprite>(GameBootstrap.OpeningLogoEndCardResourcePath),
+                "The approved logo end card must be imported at the stable Resources path.");
+            Assert.IsNotNull(GameObject.Find("CanonicalGameplayOpeningVideo"),
+                "Opening must present the canonical gameplay cut through the runtime video surface.");
+
+            bootstrap.CompleteOpeningVideoForTests();
+
+            Assert.IsTrue(bootstrap.OpeningBridgeActiveForTests,
+                "The additive bridge must begin only after the canonical gameplay video callback.");
+            Assert.AreEqual(GameBootstrap.OpeningOptionalBridgeVideoResourcePath,
+                bootstrap.OpeningVideoResourcePathForTests);
+            Assert.IsNotNull(Resources.Load<VideoClip>(GameBootstrap.OpeningOptionalBridgeVideoResourcePath),
+                "The approved optional bridge must be imported at its stable Resources path.");
+            Assert.IsFalse(bootstrap.OpeningLogoEndCardActiveForTests,
+                "The logo end card must wait for the optional bridge completion callback.");
+
+            bootstrap.CompleteOpeningBridgeForTests();
+
+            Assert.IsTrue(bootstrap.CinematicActiveForTests,
+                "Bridge completion must enter the bounded logo end state before revealing Formation.");
+            Assert.IsTrue(bootstrap.OpeningLogoEndCardActiveForTests);
+            Assert.IsNotNull(GameObject.Find("Chapter1LogoEndCard"));
+
+            bootstrap.CompleteOpeningLogoEndCardForTests();
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests,
+                "Logo end-card completion must reveal the existing Formation destination.");
+            Assert.IsNull(GameObject.Find("Chapter1Cinematic"),
+                "Logo end-card completion must tear down the cinematic overlay.");
+        }
+
+        [Test]
+        public void TutorialOpening_OptionalBridge_SkipSuppressesLateCompletionAndReleasesOverlay()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_OptionalBridgeSkipBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+
+            bootstrap.CompleteOpeningVideoForTests();
+            Assert.IsTrue(bootstrap.OpeningBridgeActiveForTests);
+
+            bootstrap.SkipCinematicForTests();
+            bootstrap.CompleteOpeningBridgeForTests();
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests,
+                "Skip must cancel the optional bridge instead of allowing a stale callback to continue the route.");
+            Assert.IsFalse(bootstrap.OpeningLogoEndCardActiveForTests);
+            Assert.IsNull(GameObject.Find("Chapter1Cinematic"),
+                "Skipping the optional bridge must remove its input-blocking overlay.");
+        }
+
+        [Test]
+        public void TutorialOpening_SkipAfterVideoCompletion_ClearsLogoEndCardWithoutChangingFormation()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_LogoEndCardSkipBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            BattlePhase phaseBefore = bootstrap.Battle.Phase;
+            int handCountBefore = bootstrap.Battle.PlayerState.Hand.Count;
+
+            bootstrap.CompleteOpeningVideoForTests();
+            bootstrap.CompleteOpeningBridgeForTests();
+            Assert.IsTrue(bootstrap.OpeningLogoEndCardActiveForTests);
+
+            bootstrap.SkipCinematicForTests();
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests);
+            Assert.IsFalse(bootstrap.OpeningLogoEndCardActiveForTests);
+            Assert.IsNull(GameObject.Find("Chapter1Cinematic"));
+            Assert.AreEqual(phaseBefore, bootstrap.Battle.Phase);
+            Assert.AreEqual(handCountBefore, bootstrap.Battle.PlayerState.Hand.Count);
+        }
+
+        [Test]
+        public void TutorialOpening_VideoGraphicsDoNotInterceptControls()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_CanonicalGameplayInputBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+
+            GameObject cinematic = GameObject.Find("Chapter1Cinematic");
+            Assert.IsNotNull(cinematic);
+            RawImage videoImage = cinematic.GetComponentInChildren<RawImage>(true);
+            Assert.IsNotNull(videoImage);
+            Assert.IsFalse(videoImage.raycastTarget,
+                "The canonical video surface must remain decorative; Skip owns the explicit input target.");
+        }
+
+        [Test]
+        public void ReturningToCityDuringOpening_CancelsVideoAndLeavesNoStaleOverlay()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_ReturnDuringOpeningBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            bootstrap.CompleteOpeningVideoForTests();
+            bootstrap.CompleteOpeningBridgeForTests();
+            Assert.IsTrue(bootstrap.OpeningLogoEndCardActiveForTests);
+
+            bootstrap.ReturnToCityForTests();
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests);
+            Assert.IsFalse(bootstrap.OpeningLogoEndCardActiveForTests);
+            Assert.IsNull(GameObject.Find("Chapter1Cinematic"),
+                "Return to City must tear down the video/logo overlay before hiding Battle.");
+            Assert.IsFalse(bootstrap.BattleCanvasVisibleForTests);
+        }
+
+        [Test]
+        public void DestroyingBootstrapDuringOpening_CancelsVideoAndLeavesNoStaleOverlay()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_DestroyDuringOpeningBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            bootstrap.CompleteOpeningVideoForTests();
+            bootstrap.CompleteOpeningBridgeForTests();
+            Assert.IsTrue(bootstrap.OpeningLogoEndCardActiveForTests);
+
+            Assert.DoesNotThrow(() => Object.DestroyImmediate(bootstrap.gameObject));
+
+            Assert.IsNull(GameObject.Find("Chapter1Cinematic"),
+                "Destroying the owner must release the opening video overlay immediately.");
+        }
+
+        [Test]
+        public void ReplayIntro_CancelsOpeningVideoBeforeReplayingNarrative()
+        {
+            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_ReplayOpeningBootstrap");
+            bootstrap.StartApprovedTutorialBattle();
+            bootstrap.CompleteOpeningVideoForTests();
+            bootstrap.CompleteOpeningBridgeForTests();
+            Assert.IsTrue(bootstrap.OpeningLogoEndCardActiveForTests);
+
+            bootstrap.ReplayIntro();
+
+            Assert.IsFalse(bootstrap.CinematicActiveForTests);
+            Assert.IsFalse(bootstrap.OpeningLogoEndCardActiveForTests);
+            Assert.IsNull(GameObject.Find("Chapter1Cinematic"),
+                "Replay must not retain the previous opening video/logo overlay or callback.");
+        }
+
+        [Test]
+        public void TutorialOpening_ReducedMotionCompletesImmediately_AndHandsOffToFormationGuidance()
+        {
+            bool previousReduceMotion = MotionPolicy.ReduceMotion;
+            try
+            {
+                MotionPolicy.ReduceMotion = true;
+                GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_ReducedMotionBootstrap");
+
+                bootstrap.StartApprovedTutorialBattle();
+
+                Assert.IsFalse(bootstrap.CinematicActiveForTests,
+                    "Reduced motion must not leave a completed blocking cinematic active.");
+                Assert.AreEqual(TutorialStep.CardCost, bootstrap.TutorialStepForTests,
+                    "Reduced motion must hand control to the existing first tutorial step.");
+                Assert.IsTrue(bootstrap.TutorialTeachingOverlayForTests.activeSelf,
+                    "Formation guidance must be available immediately after the reduced-motion handoff.");
+                Assert.IsNull(GameObject.Find("Chapter1Cinematic"),
+                    "Reduced motion must not leave a cinematic overlay or input blocker behind.");
+                Assert.IsFalse(bootstrap.OpeningLogoEndCardActiveForTests,
+                    "Reduced motion must not enter the logo end-card state.");
+            }
+            finally
+            {
+                MotionPolicy.ReduceMotion = previousReduceMotion;
+            }
+        }
+
+        [Test]
         public void SkipOpening_ClearsTheCinematicWithoutAlteringFormationOrDoubleSkipping()
         {
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("Cinematic_SkipOpeningBootstrap");
