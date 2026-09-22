@@ -49,8 +49,11 @@ namespace MyriadOfDragons.Tests.PlayMode
             Assert.IsNotNull(Resources.Load<VideoClip>(GameBootstrap.OpeningGameplayVideoResourcePath));
 
             bootstrap.CompleteOpeningVideoForTests();
+            Assert.IsTrue(bootstrap.OpeningBridgeActiveForTests,
+                "The optional bridge must begin only after the canonical gameplay video completion callback.");
+            bootstrap.CompleteOpeningBridgeForTests();
             Assert.IsTrue(bootstrap.OpeningLogoEndCardActiveForTests,
-                "The logo end card must begin only after the real video completion callback.");
+                "The logo end card must begin only after the real optional bridge completion callback.");
             Assert.IsNotNull(GameObject.Find("Chapter1LogoEndCard"));
 
             bootstrap.CompleteOpeningLogoEndCardForTests();

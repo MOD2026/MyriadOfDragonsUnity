@@ -809,6 +809,12 @@ namespace MyriadOfDragons.UI
             Font defaultFont = GetDefaultFont();
 
             Canvas canvas = BuildCanvas();
+            // EditMode DestroyImmediate does not reliably dispatch MonoBehaviour teardown hooks
+            // for test-created owners. Keep the test-created Canvas under its bootstrap so any
+            // owner destruction still removes the cinematic surface structurally; Play Mode
+            // keeps the existing root Canvas hierarchy and canonical video route unchanged.
+            if (!Application.isPlaying)
+                canvas.transform.SetParent(transform, false);
             _canvasTransform = canvas.transform;
             BuildEventSystem();
             EnsureBattleInputReady();
