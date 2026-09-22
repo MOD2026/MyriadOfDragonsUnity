@@ -9,14 +9,24 @@ using MyriadOfDragons.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Video;
 
 namespace MyriadOfDragons.Tests
 {
     /// <summary>
-    /// ST-TUTORIAL-ANIMATION-V1-HANDOFF-003, corrected direction: the existing static layer
-    /// composite/parallax path stays the Opening presentation (no VideoPlayer, no new gameplay
-    /// system). Proves the locked duration is centralized and cannot silently drift from the
-    /// approved supplied source (normal motion only).
+    /// AN's canonical Chapter 1 gameplay opening (839406f6) replaced the Opening cinematic's
+    /// static layer composite with the real approved video (Chapter1GameplayOpening.mp4,
+    /// optionally followed by Chapter1OptionalBridge.mp4) - ST-TUTORIAL-ANIMATION-V1-HANDOFF-003's
+    /// literal "static composite, no VideoPlayer" reading is superseded by that later, owner-
+    /// accepted integration; do not cite this file's own older comment history as current.
+    /// Opening's duration now comes directly from the real imported clip's own length
+    /// (GameBootstrap.OnOpeningVideoLoopPointReached: `new CinematicSequence(..., clip.length)`),
+    /// so the duration test below asserts against that real asset, not a hand-typed literal that
+    /// could silently drift from whatever footage is actually imported.
+    ///
+    /// Victory (BeginVictoryCinematic) was NOT changed by that integration - it still uses the
+    /// original static layer composite/parallax path, so the layer-drift test below exercises
+    /// Victory, not Opening, to keep proving that path.
     ///
     /// Reduced Motion: rc21 Option A (owner-resolved, tools/seat_reports/LK-RELEASE-042-rc21-
     /// HELD-NOT-FROZEN.md §4) - the cinematic is skipped entirely under Reduced Motion, never
@@ -114,18 +124,21 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void OpeningCinematicDurationDoesNotDriftFromTheApprovedSource()
         {
-            // ST-TUTORIAL-ANIMATION-V1-HANDOFF-003's locked timing table ("Opening playback |
-            // 0.00-8.04s") plus the supplied MP4's own independently re-measured real runtime
-            // (1280x720, 193 frames @ 24fps = 8.042s, via cv2.VideoCapture - not just relayed).
-            // GameBootstrap.BeginOpeningCinematic reads a single centralized const for this value;
-            // this test is what makes a future accidental edit to that literal a real, named
-            // failure instead of a silent mismatch against the approved source.
+            // Opening's duration is read directly from the real imported VideoClip's own length
+            // (see this file's own header comment), not a hand-typed literal - so the "approved
+            // source" this guards against drifting from is the actual committed asset. Comparing
+            // against a fresh load of that same asset (not a cached/hardcoded number) is what
+            // makes a future swap of the clip - a different cut, a re-export at a different
+            // frame rate - a real, named failure here instead of a silent mismatch.
+            VideoClip approvedClip = Resources.Load<VideoClip>(GameBootstrap.OpeningGameplayVideoResourcePath);
+            Assert.IsNotNull(approvedClip, "Setup: expected the canonical gameplay opening clip to be imported.");
+
             GameBootstrap bootstrap = SpawnAndInitializeBootstrap("OpeningTiming_Duration");
             bootstrap.StartApprovedTutorialBattle();
 
             Assert.AreEqual(CinematicKind.Opening, bootstrap.CinematicKindForTests);
-            Assert.AreEqual(8.042f, bootstrap.CinematicDurationSecondsForTests,
-                "The Opening cinematic's duration must stay exactly aligned to the approved supplied source (8.042s).");
+            Assert.AreEqual((float)approvedClip.length, bootstrap.CinematicDurationSecondsForTests,
+                "The Opening cinematic's duration must stay exactly aligned to the real approved video clip's own length.");
         }
 
         // ---------- Reduced Motion: skip entirely (rc21 Option A), never a static hold ----------
@@ -182,11 +195,12 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void NormalMotion_StillDrivesRealLayerDrift_ProvingTheReducedMotionGuardIsTheReason()
         {
-            // Sanity companion to the two tests above: with Reduced Motion off, the pre-existing
-            // drift behavior must be completely unaffected by this change.
+            // Opening no longer builds the static layer composite (it plays the real video - see
+            // this file's own header comment), so this drives Victory instead, which still uses
+            // the original static layer/parallax path unchanged by the video integration.
             MotionPolicy.ReduceMotion = false;
-            GameBootstrap bootstrap = SpawnAndInitializeBootstrap("OpeningTiming_NormalMotion");
-            bootstrap.StartApprovedTutorialBattle();
+            GameBootstrap bootstrap = StartTutorialToVictoryCinematic(_spawned, "OpeningTiming_NormalMotion");
+            Assert.AreEqual(CinematicKind.Victory, bootstrap.CinematicKindForTests, "Setup: expected the Victory cinematic to be active.");
 
             (MethodInfo drift, FieldInfo activeField, List<Image> layers) = ReflectDriftMembers(bootstrap);
             var activeCinematic = (CinematicSequence)activeField.GetValue(bootstrap);
