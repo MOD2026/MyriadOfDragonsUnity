@@ -11,6 +11,7 @@ using MyriadOfDragons.Save;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityEngine.Video;
 
 namespace MyriadOfDragons.UI
 {
@@ -1346,6 +1347,16 @@ namespace MyriadOfDragons.UI
         private GameObject _cinematicOverlay;
         private Text _cinematicCopyText;
         private readonly List<Image> _cinematicLayerImages = new List<Image>();
+        private VideoPlayer _openingVideoPlayer;
+        private RenderTexture _openingVideoTexture;
+        private Coroutine _openingLogoEndCardCoroutine;
+        private bool _openingLogoEndCardActive;
+
+        public const string OpeningGameplayVideoResourcePath =
+            "Cinematics/Chapter1/Opening/Chapter1GameplayOpening";
+        public const string OpeningLogoEndCardResourcePath =
+            "Cinematics/Chapter1/Opening/Chapter1LogoEndCard";
+        public const float OpeningLogoEndCardDurationSeconds = 2.8f;
 
         /// <summary>Exposed for tests: whether a cinematic is currently blocking input.</summary>
         public bool CinematicActiveForTests => _activeCinematic != null;
@@ -1367,6 +1378,18 @@ namespace MyriadOfDragons.UI
         /// <summary>Exposed for tests: which cinematic is active, or null if none is.</summary>
         public CinematicKind? CinematicKindForTests => _activeCinematic?.Kind;
 
+        public string OpeningVideoResourcePathForTests => _openingVideoPlayer != null &&
+            _openingVideoPlayer.clip != null ? OpeningGameplayVideoResourcePath : null;
+
+        public void CompleteOpeningVideoForTests() => OnOpeningVideoLoopPointReached(_openingVideoPlayer);
+
+        public bool OpeningLogoEndCardActiveForTests => _openingLogoEndCardActive;
+
+        public void CompleteOpeningLogoEndCardForTests()
+        {
+            if (_openingLogoEndCardActive) CompleteActiveCinematic();
+        }
+
         /// <summary>Exposed for tests: the active cinematic's total duration in seconds, or null
         /// if none is active.</summary>
         public float? CinematicDurationSecondsForTests => _activeCinematic?.DurationSeconds;
@@ -1386,16 +1409,6 @@ namespace MyriadOfDragons.UI
         /// <summary>Exposed for tests: whether the battle canvas is currently visible - the same
         /// state SetBattleCanvasVisible(bool) controls for the metagame side.</summary>
         public bool BattleCanvasVisibleForTests => _canvasTransform != null && _canvasTransform.gameObject.activeSelf;
-
-        private static readonly string[] OpeningCinematicLayers =
-        {
-            "Cinematics/Chapter1/Opening/OPEN_01_SKY_WEATHER_BG",
-            "Cinematics/Chapter1/Opening/OPEN_02_MOUNTAINS_FAR",
-            "Cinematics/Chapter1/Opening/OPEN_03_FORTRESS_MID",
-            "Cinematics/Chapter1/Opening/OPEN_04_BRIDGE_FOREGROUND",
-            "Cinematics/Chapter1/Opening/OPEN_05_THREAT_FG",
-            "Cinematics/Chapter1/Opening/OPEN_06_ATMOS_LIGHT_FX",
-        };
 
         private static readonly string[] VictoryCinematicLayers =
         {
@@ -1421,10 +1434,34 @@ namespace MyriadOfDragons.UI
         /// (BuildCinematicOverlay), not the video file; this constant only keeps the composite's
         /// hold duration aligned to it. See OpeningCinematicDurationDoesNotDriftFromTheApprovedSource
         /// in ChapterOneOpeningTimingTests.cs for the regression that guards this value.</summary>
-        private const float OpeningCinematicDurationSeconds = 8.042f;
+        private void BeginOpeningCinematic()
+        {
+            // The approved gameplay opening owns its duration. Completion is accepted only from
+            // the real VideoPlayer callback; no timer may race or shorten the source footage.
+            if (MotionPolicy.ReduceMotion)
+            {
+                CancelActiveCinematic();
+                RefreshTutorialTeachingOverlay();
+                return;
+            }
 
-        private void BeginOpeningCinematic() =>
-            BeginCinematic(CinematicKind.Opening, OpeningCinematicDurationSeconds, OpeningCinematicLayers, OpeningCinematicCopy);
+            VideoClip clip = Resources.Load<VideoClip>(OpeningGameplayVideoResourcePath);
+            if (clip == null)
+            {
+                Debug.LogError($"Missing canonical Chapter 1 gameplay opening at Resources/{OpeningGameplayVideoResourcePath}.");
+                CancelActiveCinematic();
+                RefreshTutorialTeachingOverlay();
+                return;
+            }
+
+            CancelActiveCinematic();
+            _activeCinematic = new CinematicSequence(CinematicKind.Opening, (float)clip.length);
+            BuildOpeningVideoOverlay(clip, OpeningCinematicCopy);
+            _openingVideoPlayer.prepareCompleted += OnOpeningVideoPrepared;
+            _openingVideoPlayer.loopPointReached += OnOpeningVideoLoopPointReached;
+            _openingVideoPlayer.Prepare();
+            RefreshTutorialTeachingOverlay();
+        }
 
         private void BeginVictoryCinematic() =>
             BeginCinematic(CinematicKind.Victory, 5f, VictoryCinematicLayers, VictoryCinematicCopy);
@@ -1517,6 +1554,27 @@ namespace MyriadOfDragons.UI
             CompleteActiveCinematic();
         }
 
+        private void OnOpeningVideoPrepared(VideoPlayer player)
+        {
+            if (_activeCinematic == null || _activeCinematic.Kind != CinematicKind.Opening ||
+                player != _openingVideoPlayer) return;
+            player.Play();
+        }
+
+        private void OnOpeningVideoLoopPointReached(VideoPlayer player)
+        {
+            if (player == null || player != _openingVideoPlayer || _activeCinematic == null ||
+                _activeCinematic.Kind != CinematicKind.Opening) return;
+
+            if (MotionPolicy.ReduceMotion)
+            {
+                CompleteActiveCinematic();
+                return;
+            }
+
+            BeginOpeningLogoEndCard();
+        }
+
         /// <summary>Stops and discards any active cinematic - coroutine, sequence, overlay - and
         /// nothing else. Used by every path that must guarantee no cinematic keeps running or
         /// leaves its overlay behind (destruction, replay reset), as well as by
@@ -1533,6 +1591,7 @@ namespace MyriadOfDragons.UI
                 StopCoroutine(_cinematicCoroutine);
                 _cinematicCoroutine = null;
             }
+            StopOpeningLogoEndCard();
             _activeCinematic = null;
             HideCinematicOverlay();
         }
@@ -1540,6 +1599,7 @@ namespace MyriadOfDragons.UI
         private void CompleteActiveCinematic()
         {
             if (_activeCinematic == null) return;
+            StopOpeningLogoEndCard();
             CancelActiveCinematic();
 
             // Modal precedence guard, mirroring BeginCinematic's own call: Formation guidance may
@@ -1651,8 +1711,168 @@ namespace MyriadOfDragons.UI
             skipTutorialLabel.fontStyle = FontStyle.Bold;
         }
 
+        private void BuildOpeningVideoOverlay(VideoClip clip, string copy)
+        {
+            _cinematicLayerImages.Clear();
+            _cinematicOverlay = new GameObject("Chapter1Cinematic", typeof(RectTransform));
+            _cinematicOverlay.transform.SetParent(_canvasTransform, false);
+            StretchFull((RectTransform)_cinematicOverlay.transform);
+
+            Image background = CreateImage(_cinematicOverlay.transform, Color.black);
+            StretchFull(background.rectTransform);
+
+            _openingVideoTexture = new RenderTexture(1920, 1080, 0, RenderTextureFormat.ARGB32)
+            {
+                name = "Chapter1GameplayOpeningVideoTexture"
+            };
+            _openingVideoTexture.Create();
+
+            var videoGo = new GameObject("CanonicalGameplayOpeningVideo", typeof(RectTransform));
+            videoGo.transform.SetParent(_cinematicOverlay.transform, false);
+            StretchFull((RectTransform)videoGo.transform);
+            RawImage videoImage = videoGo.AddComponent<RawImage>();
+            videoImage.texture = _openingVideoTexture;
+            videoImage.raycastTarget = false;
+
+            _openingVideoPlayer = _cinematicOverlay.AddComponent<VideoPlayer>();
+            _openingVideoPlayer.playOnAwake = false;
+            _openingVideoPlayer.source = VideoSource.VideoClip;
+            _openingVideoPlayer.clip = clip;
+            _openingVideoPlayer.isLooping = false;
+            _openingVideoPlayer.skipOnDrop = true;
+            _openingVideoPlayer.renderMode = VideoRenderMode.RenderTexture;
+            _openingVideoPlayer.targetTexture = _openingVideoTexture;
+
+            Font font = GetDefaultFont();
+            _cinematicCopyText = CreateText(_cinematicOverlay.transform, copy, 26, Color.white, font);
+            _cinematicCopyText.fontStyle = FontStyle.Bold;
+            _cinematicCopyText.alignment = TextAnchor.UpperLeft;
+            _cinematicCopyText.raycastTarget = false;
+            _cinematicCopyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            var copyOutline = _cinematicCopyText.gameObject.AddComponent<Outline>();
+            copyOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            copyOutline.effectDistance = new Vector2(2f, -2f);
+            AnchorBand(_cinematicCopyText.rectTransform, 0.72f, 0.92f, 0.06f, 0.32f);
+
+            Image topMatte = CreateImage(_cinematicOverlay.transform, Color.black);
+            topMatte.raycastTarget = false;
+            AnchorBand(topMatte.rectTransform, 0.97f, 1f, 0f, 0f);
+            Image bottomMatte = CreateImage(_cinematicOverlay.transform, Color.black);
+            bottomMatte.raycastTarget = false;
+            AnchorBand(bottomMatte.rectTransform, 0f, 0.03f, 0f, 0f);
+
+            CreateCinematicSkipControls(_cinematicOverlay.transform, font);
+        }
+
+        private void CreateCinematicSkipControls(Transform parent, Font font)
+        {
+            Button skipButton = CreateButton(parent, "Skip", font, OnCinematicSkipPressed);
+            RectTransform skipRect = skipButton.GetComponent<RectTransform>();
+            skipRect.anchorMin = new Vector2(1f, 1f);
+            skipRect.anchorMax = new Vector2(1f, 1f);
+            skipRect.pivot = new Vector2(1f, 1f);
+            skipRect.sizeDelta = new Vector2(140f, 56f);
+            skipRect.anchoredPosition = new Vector2(-24f, -24f);
+            FitButtonChrome(skipButton);
+            skipButton.GetComponentInChildren<Text>().fontSize = 18;
+
+            Button skipTutorialButton = CreateButton(parent, "SKIP TUTORIAL", font, OnSkipTutorialPressed);
+            RectTransform skipTutorialRect = skipTutorialButton.GetComponent<RectTransform>();
+            skipTutorialRect.anchorMin = new Vector2(1f, 1f);
+            skipTutorialRect.anchorMax = new Vector2(1f, 1f);
+            skipTutorialRect.pivot = new Vector2(1f, 1f);
+            skipTutorialRect.sizeDelta = new Vector2(190f, 56f);
+            skipTutorialRect.anchoredPosition = new Vector2(-24f, -88f);
+            FitButtonChrome(skipTutorialButton);
+            Text skipTutorialLabel = skipTutorialButton.GetComponentInChildren<Text>();
+            skipTutorialLabel.fontSize = 18;
+            skipTutorialLabel.fontStyle = FontStyle.Bold;
+        }
+
+        private void BeginOpeningLogoEndCard()
+        {
+            StopOpeningVideoPlayback();
+            if (_cinematicOverlay != null)
+            {
+                DestroyImmediate(_cinematicOverlay);
+                _cinematicOverlay = null;
+                _cinematicCopyText = null;
+                _cinematicLayerImages.Clear();
+            }
+
+            BuildOpeningLogoEndCardOverlay();
+            _openingLogoEndCardActive = true;
+            if (Application.isPlaying)
+                _openingLogoEndCardCoroutine = StartCoroutine(RunOpeningLogoEndCard());
+        }
+
+        private IEnumerator RunOpeningLogoEndCard()
+        {
+            yield return new WaitForSecondsRealtime(OpeningLogoEndCardDurationSeconds);
+            _openingLogoEndCardCoroutine = null;
+            if (_openingLogoEndCardActive) CompleteActiveCinematic();
+        }
+
+        private void StopOpeningLogoEndCard()
+        {
+            if (_openingLogoEndCardCoroutine != null)
+            {
+                StopCoroutine(_openingLogoEndCardCoroutine);
+                _openingLogoEndCardCoroutine = null;
+            }
+            _openingLogoEndCardActive = false;
+        }
+
+        private void BuildOpeningLogoEndCardOverlay()
+        {
+            _cinematicOverlay = new GameObject("Chapter1Cinematic", typeof(RectTransform));
+            _cinematicOverlay.transform.SetParent(_canvasTransform, false);
+            StretchFull((RectTransform)_cinematicOverlay.transform);
+
+            Image background = CreateImage(_cinematicOverlay.transform, Color.black);
+            StretchFull(background.rectTransform);
+
+            Sprite logoCardSprite = Resources.Load<Sprite>(OpeningLogoEndCardResourcePath);
+            if (logoCardSprite == null)
+            {
+                Debug.LogError($"Missing Chapter 1 logo end card at Resources/{OpeningLogoEndCardResourcePath}.");
+            }
+            else
+            {
+                Image logoCard = CreateImage(_cinematicOverlay.transform, Color.white);
+                logoCard.name = "Chapter1LogoEndCard";
+                logoCard.sprite = logoCardSprite;
+                logoCard.preserveAspect = true;
+                logoCard.raycastTarget = false;
+                StretchFull(logoCard.rectTransform);
+            }
+
+            CreateCinematicSkipControls(_cinematicOverlay.transform, GetDefaultFont());
+        }
+
+        private void StopOpeningVideoPlayback()
+        {
+            if (_openingVideoPlayer != null)
+            {
+                _openingVideoPlayer.prepareCompleted -= OnOpeningVideoPrepared;
+                _openingVideoPlayer.loopPointReached -= OnOpeningVideoLoopPointReached;
+                _openingVideoPlayer.Stop();
+                _openingVideoPlayer.targetTexture = null;
+            }
+
+            if (_openingVideoTexture != null)
+            {
+                _openingVideoTexture.Release();
+                DestroyImmediate(_openingVideoTexture);
+                _openingVideoTexture = null;
+            }
+
+            _openingVideoPlayer = null;
+        }
+
         private void HideCinematicOverlay()
         {
+            StopOpeningVideoPlayback();
             if (_cinematicOverlay == null) return;
             DestroyImmediate(_cinematicOverlay);
             _cinematicOverlay = null;
