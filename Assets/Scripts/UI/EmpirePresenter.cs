@@ -74,15 +74,19 @@ namespace MyriadOfDragons.UI
             _canvasObj = canvas.gameObject;
             _rootCanvasGroup = _canvasObj.AddComponent<CanvasGroup>();
 
-            // Revamp V2 approved Empire backdrop (APPROVED_PRODUCTION, 2026-09-02).
+            // Approved text-free city backdrop (same asset Home, Expedition and Settings bind).
+            // Deliberately NOT UI/RevampV2Approved/Empire/empire_v2: that PNG is a flattened mockup
+            // with the old "EMPIRE OVERVIEW" title, subtitle, left rail, Return-to-Home, notifications
+            // panel and bottom building bar baked in, which rendered as a second, dead shell behind
+            // the runtime header/controls.
             // Non-raycastable: this is decoration covering the entire 1920x1080 canvas, and
             // CreateFullscreenBackground leaves raycastTarget at Unity's default true. On a
             // fullscreen screen that turns the whole surface into one graphic that absorbs
             // every tap the controls above it do not claim first - a real Empire UI regression
             // (VS-REVAMPV2-009), not a style preference. Proven by
-            // EmpireLayoutTests.Empire_Background_BindsTheRevampV2ApprovedAsset.
+            // EmpireLayoutTests.Empire_Background_BindsTheApprovedTextFreeCityBackdrop.
             Image backdrop = UISharedFoundation.CreateFullscreenBackground(
-                _canvasObj.transform, "UI/RevampV2Approved/Empire/empire_v2", new Color(0.12f, 0.11f, 0.16f));
+                _canvasObj.transform, "UI/Backdrops/Zihan_City_NO NAMES", new Color(0.12f, 0.11f, 0.16f));
             backdrop.raycastTarget = false;
 
             BuildHeader();

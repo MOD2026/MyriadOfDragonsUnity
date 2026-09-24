@@ -119,7 +119,7 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public void Empire_Background_BindsTheRevampV2ApprovedAsset()
+        public void Empire_Background_BindsTheApprovedTextFreeCityBackdrop()
         {
             EmpirePresenter presenter = Open();
             Transform canvasTransform = presenter.CanvasObjectForTests.transform;
@@ -142,17 +142,17 @@ namespace MyriadOfDragons.Tests
                 "The full-screen Empire backdrop must never intercept a tap meant for a real control "
                 + "drawn above it.");
 
-            // Empire must bind the approved Revamp V2 sprite — a null sprite means silent fallback to flat color
+            // Empire must bind the approved text-free city backdrop (never the flattened empire_v2 mockup with baked title/rail/pill chrome) — a null sprite means silent fallback to flat color
             Assert.IsNotNull(backgroundImage.sprite,
-                "Empire Background Image.sprite is null — flat colour fallback, not the approved revamp artwork.");
+                "Empire Background Image.sprite is null — flat colour fallback, not the approved backdrop artwork.");
 
             // Load the approved sprite and verify it matches what Empire loaded
-            const string approvedAssetPath = "UI/RevampV2Approved/Empire/empire_v2";
+            const string approvedAssetPath = "UI/Backdrops/Zihan_City_NO NAMES";
             Sprite expected = Resources.Load<Sprite>(approvedAssetPath);
             Assert.IsNotNull(expected,
                 $"Empire backdrop failed to Resources.Load '{approvedAssetPath}' — import/path broken.");
             Assert.AreSame(expected, backgroundImage.sprite,
-                $"Empire must render the approved revamp backdrop '{approvedAssetPath}', not a silent substitute.");
+                $"Empire must render the approved text-free backdrop '{approvedAssetPath}', not a silent substitute.");
         }
     }
 }
