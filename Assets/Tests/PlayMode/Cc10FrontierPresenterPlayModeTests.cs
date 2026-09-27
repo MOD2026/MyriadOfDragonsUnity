@@ -175,5 +175,20 @@ namespace MyriadOfDragons.Tests
             Assert.IsNotNull(p.Root.Find("Scroll/Content/Row_phase:HomeOutpost"));
             Assert.IsNotNull(p.Root.Find("Scroll/Content/Row_hub"));
         }
+
+        [Test]
+        public async Task MinigameSection_VerifiedShowsClaim_ClickSendsClaimEndpoint()
+        {
+            Cc10FrontierSnapshot snap = Snap();
+            snap.minigame = new Cc10MinigameSessionDto { sessionId = "s1", status = Cc10MinigameStatus.Verified, verifiedScore = 10 };
+            var (p, _, gw) = await Open(e => e == Cc10Endpoints.GetFrontierState ? (object)snap : new Cc10CommandResult { success = true, receipt = new Cc10Receipt { receiptId = "r1" } });
+            p.SelectSection(Cc10SystemId.Minigame);
+            Button claim = Find(p, "Action");
+            Assert.IsNotNull(claim);
+            claim.onClick.Invoke();
+            await Task.Yield();
+            await Task.Yield();
+            Assert.AreEqual(1, gw.CommandCalls);
+        }
     }
 }

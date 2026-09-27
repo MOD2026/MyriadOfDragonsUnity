@@ -46,6 +46,10 @@ namespace MyriadOfDragons.Frontier
 
         public Cc10ServerClock Clock { get; }
         public Cc10FrontierSnapshot Snapshot { get; private set; }
+        /// <summary>Last authoritative GetGuildState result, or null if never loaded / the caller
+        /// has no guild. Loaded separately from <see cref="Snapshot"/> because it needs a guild id
+        /// the frontier snapshot does not carry.</summary>
+        public Cc10GuildSnapshot GuildSnapshot { get; private set; }
         public Cc10Connection Connection { get; private set; } = Cc10Connection.Unknown;
         public IReadOnlyList<string> StateAnomalies => _anomalies;
         public int PendingRequestCount => _pendingRequestIds.Count;
@@ -98,6 +102,39 @@ namespace MyriadOfDragons.Frontier
 
             RecordTransitionAnomalies(Snapshot, fresh);
             Snapshot = fresh;
+            RaiseChanged();
+            return true;
+        }
+
+        /// <summary>Reload this player's own guild state (territory contribution/ownership rows
+        /// joined server-side, guild research, membership). Returns false on any failure; the last
+        /// GuildSnapshot (if any) stays visible, read-only.</summary>
+        public async Task<bool> RefreshGuildStateAsync(string guildId, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(guildId)) return false;
+            Cc10GuildSnapshot fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10GuildSnapshot>(Cc10Endpoints.GetGuildState,
+                    new Dictionary<string, object> { { "guildId", guildId } }, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                Connection = Cc10Connection.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            GuildSnapshot = fresh;
             RaiseChanged();
             return true;
         }
@@ -239,6 +276,8 @@ namespace MyriadOfDragons.Frontier
         public const string DistrictTaken = "Another guild already enrolled there.";
         public const string AlreadyEnrolledElsewhere = "Your guild already enrolled a different district this season.";
         public const string WindowClosed = "That window has closed.";
+        public const string MinigameCoolingDown = "Give it a little longer before playing again.";
+        public const string PrerequisiteNotMet = "You need to finish an earlier step first.";
         public const string Generic = "That didn't go through.";
 
         public static string ForRejection(string errorCode)
@@ -251,6 +290,8 @@ namespace MyriadOfDragons.Frontier
             if (errorCode == Cc10Errors.DistrictTaken) return DistrictTaken;
             if (errorCode == Cc10Errors.AlreadyEnrolledElsewhere) return AlreadyEnrolledElsewhere;
             if (errorCode == Cc10Errors.WindowClosed) return WindowClosed;
+            if (errorCode == Cc10Errors.MinigameCoolingDown) return MinigameCoolingDown;
+            if (errorCode == Cc10Errors.PrerequisiteNotMet) return PrerequisiteNotMet;
             return Generic;
         }
     }

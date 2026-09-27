@@ -91,7 +91,10 @@ namespace MyriadOfDragons.Frontier
                 case Cc10SystemId.NpcSpots: AddSpots(vm, s); break;
                 case Cc10SystemId.GuildTerritory: AddContestDistricts(vm, s); break;
                 case Cc10SystemId.IndividualResearch: AddResearch(vm, client, s, Cc10ResearchScope.Individual); break;
-                case Cc10SystemId.GuildResearch: AddResearch(vm, client, s, Cc10ResearchScope.Guild); break;
+                case Cc10SystemId.GuildResearch:
+                    AddResearch(vm, client, s, Cc10ResearchScope.Guild);
+                    AddGuildResearchContribute(vm, s);
+                    break;
                 case Cc10SystemId.Minigame: AddMinigame(vm, s); break;
                 case Cc10SystemId.Cargo: AddCargo(vm, client, s); break;
             }
@@ -339,11 +342,19 @@ namespace MyriadOfDragons.Frontier
             }
         }
 
+        /// <summary>Research rows: started/completed instances come straight from the server
+        /// (<paramref name="s"/>.research); a catalog node not yet started has NO server instance
+        /// at all (GetFrontierState only ever returns instances), so an "Available"/"Locked" row is
+        /// built from the preview-only <see cref="Cc10Rules.ResearchCatalog"/> - purely to offer the
+        /// Start button and explain a lock; the server independently re-validates cost, prerequisite,
+        /// phase and top-three-guild eligibility on every real Start/Contribute call.</summary>
         private static void AddResearch(Cc10SectionVm vm, Cc10FrontierClient client, Cc10FrontierSnapshot s, string scope)
         {
+            var started = new HashSet<string>();
             foreach (Cc10ResearchDto n in s.research)
             {
                 if (n.scope != scope) continue;
+                started.Add(n.nodeId);
                 var row = new Cc10Row { Title = n.nodeId, EntityKey = n.nodeId };
                 row.Payload["nodeId"] = n.nodeId;
                 if (n.status == Cc10ResearchStatus.Completed)
@@ -370,21 +381,104 @@ namespace MyriadOfDragons.Frontier
                 }
                 vm.Rows.Add(row);
             }
+
+            foreach (Cc10Rules.ResearchCatalogRow cat in Cc10Rules.ResearchCatalog)
+            {
+                if (cat.Scope != scope || started.Contains(cat.NodeId)) continue;
+                bool prereqsMet = cat.Prerequisites.All(p => s.research.Any(r => r.nodeId == p && r.status == Cc10ResearchStatus.Completed));
+                var row = new Cc10Row { Title = cat.NodeId, EntityKey = cat.NodeId };
+                row.Payload["nodeId"] = cat.NodeId;
+                if (scope == Cc10ResearchScope.Guild && cat.RequiresTopThreeGuild)
+                    row.DisabledReason = "Prerequisite not met, or your guild isn't currently top-3";
+                else
+                    row.DisabledReason = "Prerequisite not met";
+                row.Detail = "Available - " + cat.Gold + " Gold + " + cat.Materials + " Materials";
+                row.ActionLabel = scope == Cc10ResearchScope.Guild ? "Start (guild)" : "Start";
+                row.Endpoint = scope == Cc10ResearchScope.Guild ? Cc10Endpoints.StartGuildResearch : Cc10Endpoints.StartResearch;
+                row.ActionEnabled = prereqsMet; // server independently re-checks phase/top-three/cost
+                vm.Rows.Add(row);
+            }
         }
 
+        /// <summary>Contribute-only row for a guild research node already started by someone in the
+        /// guild but not yet complete (ContributeGuildResearch is a no-op gate under the approved
+        /// catalog - every real row's RequiredContributionPoints is 0 - but the endpoint stays
+        /// available for DTO compatibility, per the server's own doc comment).</summary>
+        private static void AddGuildResearchContribute(Cc10SectionVm vm, Cc10FrontierSnapshot s)
+        {
+            foreach (Cc10ResearchDto n in s.research)
+            {
+                if (n.scope != Cc10ResearchScope.Guild || n.status == Cc10ResearchStatus.Completed) continue;
+                Cc10Row row = vm.Rows.FirstOrDefault(r => r.EntityKey == n.nodeId);
+                if (row == null || row.HasAction) continue; // don't override Complete
+                row.ActionLabel = "Contribute";
+                row.Endpoint = Cc10Endpoints.ContributeGuildResearch;
+                row.ActionEnabled = true;
+            }
+        }
+
+        /// <summary>Full published minigame state machine: Active/Submitted/Verified/Claimed/
+        /// Failed/Expired/Abandoned. Submission itself (score/proof) is produced by the minigame's
+        /// own play surface, not this shell - this row only offers Abandon while Active and Claim
+        /// once Verified. Cost/reward stay 0 (CC10_ECONOMY_NEUTRAL_0_0) unless a receipt says
+        /// otherwise; this layer never computes either.</summary>
         private static void AddMinigame(Cc10SectionVm vm, Cc10FrontierSnapshot s)
         {
             Cc10MinigameSessionDto g = s.minigame;
-            bool running = g != null && g.status == Cc10MinigameStatus.Created;
-            var row = new Cc10Row
+            var row = new Cc10Row { Title = "Side Activity (optional)", EntityKey = "minigame" };
+            if (g == null)
             {
-                Title = "Side Activity (optional)",
-                Detail = running ? "In progress" : "Doesn't affect progression",
-                ActionLabel = running ? string.Empty : "Play",
-                Endpoint = Cc10Endpoints.CreateMinigameSession,
-                EntityKey = "minigame",
-                ActionEnabled = !running,
-            };
+                row.Detail = "Doesn't affect progression";
+                row.ActionLabel = "Play";
+                row.Endpoint = Cc10Endpoints.CreateMinigameSession;
+                row.ActionEnabled = true;
+                vm.Rows.Add(row);
+                return;
+            }
+
+            row.Payload["sessionId"] = g.sessionId;
+            switch (g.status)
+            {
+                case Cc10MinigameStatus.Active:
+                    row.Detail = "In progress";
+                    row.ActionLabel = "Abandon";
+                    row.Endpoint = Cc10Endpoints.AbandonMinigameSession;
+                    row.ActionEnabled = true;
+                    break;
+                case Cc10MinigameStatus.Submitted:
+                    row.Detail = "Result submitted - awaiting verification";
+                    break;
+                case Cc10MinigameStatus.Verified:
+                    row.Detail = "Verified" + (g.verifiedScore.HasValue ? " - score " + g.verifiedScore.Value : string.Empty);
+                    row.ActionLabel = "Claim";
+                    row.Endpoint = Cc10Endpoints.ClaimMinigameResult;
+                    row.ActionEnabled = true;
+                    break;
+                case Cc10MinigameStatus.Claimed:
+                    row.Detail = "Claimed";
+                    break;
+                case Cc10MinigameStatus.Failed:
+                    row.Detail = "Failed - nothing claimed";
+                    row.ActionLabel = "Play again";
+                    row.Endpoint = Cc10Endpoints.CreateMinigameSession;
+                    row.ActionEnabled = true; // server enforces the 10-minute cooldown (MINIGAME_COOLING_DOWN), not this row
+                    break;
+                case Cc10MinigameStatus.Expired:
+                    row.Detail = "Expired";
+                    row.ActionLabel = "Play again";
+                    row.Endpoint = Cc10Endpoints.CreateMinigameSession;
+                    row.ActionEnabled = true;
+                    break;
+                case Cc10MinigameStatus.Abandoned:
+                    row.Detail = "Abandoned";
+                    row.ActionLabel = "Play again";
+                    row.Endpoint = Cc10Endpoints.CreateMinigameSession;
+                    row.ActionEnabled = true;
+                    break;
+                default:
+                    row.Detail = g.status;
+                    break;
+            }
             vm.Rows.Add(row);
         }
 
@@ -422,12 +516,77 @@ namespace MyriadOfDragons.Frontier
                         row.Endpoint = Cc10Endpoints.ClaimMission; // claim settles via the bound mission's claim
                         row.ActionEnabled = true;
                         break;
-                    default:
-                        row.Detail = c.status + (c.terminalReason != null ? " (" + c.terminalReason + ")" : "");
+                    case Cc10CargoStatus.Intercepted:
+                        row.Detail = "Intercepted by an NPC patrol" + (c.terminalReason != null ? " (" + c.terminalReason + ")" : string.Empty)
+                            + " - the haul was lost, permanent progression untouched";
+                        break;
+                    default: // Abandoned / Expired / Failed - terminal, read-only
+                        row.Detail = c.status + (c.terminalReason != null ? " (" + c.terminalReason + ")" : string.Empty);
                         break;
                 }
                 vm.Rows.Add(row);
             }
+        }
+
+        /// <summary>Guild territory contribution ledger, from a separately-loaded GetGuildState
+        /// (<see cref="Cc10FrontierClient.GuildSnapshot"/> - the frontier snapshot itself has no
+        /// per-guild territory rows). Contribution is a single command per member per window; the
+        /// server decides eligibility/window/points, never this layer.</summary>
+        public static Cc10SectionVm BuildGuildTerritory(Cc10FrontierClient client, string callerPseudonym)
+        {
+            var vm = new Cc10SectionVm { SystemId = Cc10SystemId.GuildTerritory, Title = "Territory" };
+            if (client.GuildSnapshot == null)
+            {
+                vm.Banner = "No guild territory data loaded yet.";
+                vm.ReadOnly = true;
+                return vm;
+            }
+
+            // Independent of the main FrontierSnapshot load (GetGuildState is its own query); only
+            // gates on live connectivity and the disabled-systems list when that snapshot exists.
+            vm.ReadOnly = client.Connection != Cc10Connection.Online || client.IsSystemDisabled(Cc10SystemId.GuildTerritory);
+            if (vm.ReadOnly) vm.Banner = client.Connection != Cc10Connection.Online ? Cc10Copy.Offline : Cc10Copy.SystemDisabled;
+            foreach (Cc10TerritoryDto t in client.GuildSnapshot.territories)
+            {
+                bool alreadyContributed = t.contributedMembers != null && t.contributedMembers.Contains(callerPseudonym);
+                var row = new Cc10Row
+                {
+                    Title = t.territoryId,
+                    Detail = (string.IsNullOrEmpty(t.ownerGuildPseudonym) ? "Unclaimed" : "Held by " + t.ownerGuildPseudonym)
+                        + " - window ends " + Cc10ServerClock.FormatRemaining(client.Clock.RemainingMs(t.windowEndUtcMs)),
+                    EntityKey = t.territoryId,
+                    ActionLabel = "Contribute",
+                    Endpoint = Cc10Endpoints.ContributeTerritory,
+                    ActionEnabled = !alreadyContributed,
+                    DisabledReason = "Already contributed this window",
+                };
+                row.Payload["territoryId"] = t.territoryId;
+                if (vm.ReadOnly) { row.ActionEnabled = false; row.DisabledReason = vm.Banner; }
+                vm.Rows.Add(row);
+            }
+            return vm;
+        }
+
+        /// <summary>Rendering only for a ranking view the host already fetched (a season id source
+        /// - e.g. the active season from a Home/Season UI - is outside this shell's scope). Entries
+        /// are shown in exactly the order the server returned them: tie order is the server's own
+        /// deterministic rule (points desc, then earliest LastScoredUtcMs, then pseudonym), never
+        /// re-sorted here.</summary>
+        public static Cc10SectionVm BuildRanking(string systemId, Cc10RankingViewDto view)
+        {
+            var vm = new Cc10SectionVm { SystemId = systemId, Title = SectionTitle(systemId), ReadOnly = true };
+            if (view == null)
+            {
+                vm.Banner = "Not available yet - no season selected.";
+                return vm;
+            }
+
+            vm.Rows.Add(new Cc10Row { Title = "Season " + view.seasonId, Detail = view.state, EntityKey = "season:" + view.seasonId });
+            foreach (Cc10RankingEntryDto e in view.entries)
+                vm.Rows.Add(new Cc10Row { Title = "#" + e.rank + "  " + e.subjectPseudonym, Detail = e.points + " pts", EntityKey = "rank:" + e.rank });
+            if (view.you != null)
+                vm.Rows.Add(new Cc10Row { Title = "You: #" + view.you.rank, Detail = view.you.points + " pts", EntityKey = "rank:you" });
+            return vm;
         }
     }
 }

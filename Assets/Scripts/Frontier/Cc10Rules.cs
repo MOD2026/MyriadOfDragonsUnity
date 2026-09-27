@@ -73,6 +73,56 @@ namespace MyriadOfDragons.Frontier
         };
 
         public const int CentralRealmContestDistrictCount = 3;
+
+        /// <summary>Preview-only copy of the approved research catalog (CC10RowSet.ResearchNodes,
+        /// BE 5ca919f6). Used ONLY to render "Available"/"Locked" rows GetFrontierState never
+        /// returns (the server's own ResearchDto list holds started/completed instances only) -
+        /// the server independently re-validates cost/prerequisite/phase/top-three-guild on every
+        /// Start/Contribute call; this never gates a client action by itself.</summary>
+        public struct ResearchCatalogRow
+        {
+            public string NodeId;
+            public string Scope;
+            public string[] Prerequisites;
+            public int Gold;
+            public int Materials;
+            public int DurationMinutes;
+            public int RequiredTavernLevel;
+            public string RequiredPhase; // Cc10MapPhase or null
+            public string RequiredPlayerPhase; // guild-only
+            public bool RequiresTopThreeGuild;
+        }
+
+        public static readonly ResearchCatalogRow[] ResearchCatalog =
+        {
+            new ResearchCatalogRow { NodeId = "IND_CAPACITY_01", Scope = Cc10ResearchScope.Individual, Prerequisites = Array.Empty<string>(), RequiredTavernLevel = 3, Gold = 200, Materials = 100, DurationMinutes = 30 },
+            new ResearchCatalogRow { NodeId = "IND_CONSTRUCTION_01", Scope = Cc10ResearchScope.Individual, Prerequisites = new[] { "IND_CAPACITY_01" }, RequiredTavernLevel = 5, Gold = 300, Materials = 150, DurationMinutes = 45 },
+            new ResearchCatalogRow { NodeId = "IND_CODEX_01", Scope = Cc10ResearchScope.Individual, Prerequisites = new[] { "IND_CONSTRUCTION_01" }, RequiredPhase = Cc10MapPhase.CentralRealm, Gold = 400, Materials = 200, DurationMinutes = 60 },
+            new ResearchCatalogRow { NodeId = "IND_EXPEDITION_01", Scope = Cc10ResearchScope.Individual, Prerequisites = new[] { "IND_CODEX_01" }, RequiredPhase = Cc10MapPhase.CentralRealm, Gold = 500, Materials = 250, DurationMinutes = 90 },
+            new ResearchCatalogRow { NodeId = "GUILD_TERRITORY_01", Scope = Cc10ResearchScope.Guild, Prerequisites = Array.Empty<string>(), RequiredPlayerPhase = Cc10MapPhase.CentralRealm, RequiresTopThreeGuild = true, Gold = 500, Materials = 300, DurationMinutes = 60 },
+            new ResearchCatalogRow { NodeId = "GUILD_RESEARCH_01", Scope = Cc10ResearchScope.Guild, Prerequisites = new[] { "GUILD_TERRITORY_01" }, Gold = 700, Materials = 400, DurationMinutes = 120 },
+            new ResearchCatalogRow { NodeId = "GUILD_CHRONICLE_01", Scope = Cc10ResearchScope.Guild, Prerequisites = new[] { "GUILD_RESEARCH_01" }, Gold = 900, Materials = 500, DurationMinutes = 180 },
+        };
+
+        /// <summary>Preview-only copy of CC10RowSet.ThreatBands - the server independently exposes
+        /// the same data per node/mission via ThreatBandDto; this is only a fallback label lookup
+        /// by phase when a DTO's own ThreatBand field is absent.</summary>
+        public struct ThreatBandRule
+        {
+            public string Phase;
+            public string BandName;
+            public string AiDifficultyTier;
+        }
+
+        public static readonly ThreatBandRule[] ThreatBands =
+        {
+            new ThreatBandRule { Phase = Cc10MapPhase.HomeOutpost, BandName = "Tutorial", AiDifficultyTier = "Novice" },
+            new ThreatBandRule { Phase = Cc10MapPhase.OuterMarches, BandName = "Outer", AiDifficultyTier = "Apprentice" },
+            new ThreatBandRule { Phase = Cc10MapPhase.InnerReach, BandName = "Inner", AiDifficultyTier = "Veteran" },
+            new ThreatBandRule { Phase = Cc10MapPhase.CentralRealm, BandName = "Central", AiDifficultyTier = "Master" },
+        };
+
+        public const long MinigameCooldownMinutes = 10;
     }
 
     /// <summary>Legal display transitions, copied from the enum sets in the published contract
@@ -127,6 +177,23 @@ namespace MyriadOfDragons.Frontier
 
         public static bool IsMissionClaimable(string status) => status == Cc10MissionStatus.Completed;
         public static bool IsCargoClaimable(string status) => status == Cc10CargoStatus.Delivered;
+
+        public static bool IsMinigameTransitionLegal(string from, string to)
+        {
+            if (from == to) return true;
+            if (Cc10MinigameStatus.IsTerminal(from)) return false;
+            switch (from)
+            {
+                case Cc10MinigameStatus.Active:
+                    return to == Cc10MinigameStatus.Submitted || to == Cc10MinigameStatus.Expired || to == Cc10MinigameStatus.Abandoned;
+                case Cc10MinigameStatus.Submitted:
+                    return to == Cc10MinigameStatus.Verified || to == Cc10MinigameStatus.Failed || to == Cc10MinigameStatus.Expired;
+                case Cc10MinigameStatus.Verified:
+                    return to == Cc10MinigameStatus.Claimed || to == Cc10MinigameStatus.Expired;
+                default:
+                    return false;
+            }
+        }
     }
 
     /// <summary>Display-only server clock: one server UTC sample plus a monotonic elapsed counter,

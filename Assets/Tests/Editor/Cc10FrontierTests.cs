@@ -544,9 +544,43 @@ namespace MyriadOfDragons.Tests
                 new Cc10ResearchDto { nodeId = "g1", scope = Cc10ResearchScope.Guild, status = Cc10ResearchStatus.InProgress, readyUtcMs = 5_000_000 },
             };
             Cc10FrontierClient client = await OnlineClient(gw, snap);
-            Assert.AreEqual(Cc10Endpoints.CancelResearch, Vm(client, Cc10SystemId.IndividualResearch).Rows.Single().Endpoint);
-            Assert.AreEqual(1, Vm(client, Cc10SystemId.GuildResearch).Rows.Count);
-            Assert.IsFalse(Vm(client, Cc10SystemId.GuildResearch).Rows.Single().HasAction, "guild research cannot be individually cancelled");
+            Assert.AreEqual(Cc10Endpoints.CancelResearch, Vm(client, Cc10SystemId.IndividualResearch).Rows.Single(r => r.EntityKey == "i1").Endpoint);
+            Cc10Row g1 = Vm(client, Cc10SystemId.GuildResearch).Rows.Single(r => r.EntityKey == "g1");
+            Assert.AreEqual(Cc10Endpoints.ContributeGuildResearch, g1.Endpoint,
+                "in progress guild research offers Contribute, not an individual Cancel");
+        }
+
+        [Test]
+        public async Task Research_UnstartedCatalogNodes_OfferStart_GatedByPrerequisite()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.research = Array.Empty<Cc10ResearchDto>();
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            List<Cc10Row> rows = Vm(client, Cc10SystemId.IndividualResearch).Rows;
+            Cc10Row first = rows.Single(r => r.EntityKey == "IND_CAPACITY_01");
+            Assert.AreEqual(Cc10Endpoints.StartResearch, first.Endpoint);
+            Assert.IsTrue(first.ActionEnabled, "no prerequisite");
+            Cc10Row second = rows.Single(r => r.EntityKey == "IND_CONSTRUCTION_01");
+            Assert.IsFalse(second.ActionEnabled, "IND_CAPACITY_01 not completed yet");
+
+            snap.research = new[] { new Cc10ResearchDto { nodeId = "IND_CAPACITY_01", scope = Cc10ResearchScope.Individual, status = Cc10ResearchStatus.Completed } };
+            Cc10FrontierClient client2 = await OnlineClient(gw, snap);
+            Cc10Row secondUnlocked = Vm(client2, Cc10SystemId.IndividualResearch).Rows.Single(r => r.EntityKey == "IND_CONSTRUCTION_01");
+            Assert.IsTrue(secondUnlocked.ActionEnabled, "prerequisite now completed");
+        }
+
+        [Test]
+        public async Task GuildResearch_TopThreeGatedNode_NeverDecidedClientSide()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.research = Array.Empty<Cc10ResearchDto>();
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            Cc10Row row = Vm(client, Cc10SystemId.GuildResearch).Rows.Single(r => r.EntityKey == "GUILD_TERRITORY_01");
+            Assert.AreEqual(Cc10Endpoints.StartGuildResearch, row.Endpoint);
+            Assert.IsTrue(row.ActionEnabled, "client never blocks on top-three eligibility - the server independently re-checks it");
+            StringAssert.Contains("top-3", row.DisabledReason);
         }
 
         [Test]
@@ -780,6 +814,161 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(Cc10Outcome.Disabled, r1.Outcome);
             Assert.AreEqual(Cc10Outcome.Disabled, r2.Outcome);
             Assert.AreEqual(0, gw.Calls.Count);
+        }
+
+        // ---- BE 5ca919f6: GetGuildState, minigame states, research catalog, cargo interception ---
+
+        [Test]
+        public void MinigameStatus_TerminalSet_MatchesPublishedEnum()
+        {
+            Assert.IsTrue(Cc10MinigameStatus.IsTerminal(Cc10MinigameStatus.Claimed));
+            Assert.IsTrue(Cc10MinigameStatus.IsTerminal(Cc10MinigameStatus.Failed));
+            Assert.IsTrue(Cc10MinigameStatus.IsTerminal(Cc10MinigameStatus.Expired));
+            Assert.IsTrue(Cc10MinigameStatus.IsTerminal(Cc10MinigameStatus.Abandoned));
+            Assert.IsFalse(Cc10MinigameStatus.IsTerminal(Cc10MinigameStatus.Active));
+            Assert.IsFalse(Cc10MinigameStatus.IsTerminal(Cc10MinigameStatus.Submitted));
+            Assert.IsFalse(Cc10MinigameStatus.IsTerminal(Cc10MinigameStatus.Verified));
+        }
+
+        [Test]
+        public void MinigameTransitions_FollowThePublishedLifecycle()
+        {
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Submitted));
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Submitted, Cc10MinigameStatus.Verified));
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Verified, Cc10MinigameStatus.Claimed));
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Abandoned));
+            Assert.IsFalse(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Claimed, Cc10MinigameStatus.Active), "terminal is final");
+            Assert.IsFalse(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Claimed), "cannot skip Submitted/Verified");
+        }
+
+        [Test]
+        public async Task Minigame_EveryStatusRendersItsOwnRowAndAction()
+        {
+            var gw = new FakeGateway();
+            (string status, string expectedEndpoint, string expectedDetailFragment)[] cases =
+            {
+                (Cc10MinigameStatus.Active, Cc10Endpoints.AbandonMinigameSession, "In progress"),
+                (Cc10MinigameStatus.Submitted, null, "awaiting verification"),
+                (Cc10MinigameStatus.Verified, Cc10Endpoints.ClaimMinigameResult, "Verified"),
+                (Cc10MinigameStatus.Claimed, null, "Claimed"),
+                (Cc10MinigameStatus.Failed, Cc10Endpoints.CreateMinigameSession, "Failed"),
+                (Cc10MinigameStatus.Expired, Cc10Endpoints.CreateMinigameSession, "Expired"),
+                (Cc10MinigameStatus.Abandoned, Cc10Endpoints.CreateMinigameSession, "Abandoned"),
+            };
+            foreach (var (status, expectedEndpoint, detailFragment) in cases)
+            {
+                Cc10FrontierSnapshot snap = Snap();
+                snap.minigame = new Cc10MinigameSessionDto { sessionId = "sess1", status = status, verifiedScore = 42 };
+                Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Minigame).Rows.Single();
+                StringAssert.Contains(detailFragment, row.Detail, status);
+                Assert.AreEqual(expectedEndpoint ?? string.Empty, row.Endpoint, status);
+            }
+        }
+
+        [Test]
+        public async Task Minigame_ClaimAndAbandon_NeverSendScoreOrReward()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.minigame = new Cc10MinigameSessionDto { sessionId = "sess1", status = Cc10MinigameStatus.Verified };
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            await client.ExecuteAsync(Cc10SystemId.Minigame, Cc10Endpoints.ClaimMinigameResult,
+                new Dictionary<string, object> { { "sessionId", "sess1" } }, "minigame");
+            Dictionary<string, object> body = gw.Calls.First(c => c.Key == Cc10Endpoints.ClaimMinigameResult).Value;
+            Assert.AreEqual("sess1", body["sessionId"]);
+            Assert.IsFalse(body.ContainsKey("score") || body.ContainsKey("verifiedScore") || body.ContainsKey("reward"));
+        }
+
+        [Test]
+        public async Task MinigameCoolingDown_MapsToPlainCopy()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap());
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : new Cc10CommandResult { success = false, errorCode = Cc10Errors.MinigameCoolingDown };
+            Cc10CommandOutcome outcome = await client.ExecuteAsync(Cc10SystemId.Minigame, Cc10Endpoints.CreateMinigameSession, null, "minigame");
+            Assert.AreEqual(Cc10Copy.MinigameCoolingDown, outcome.Message);
+        }
+
+        [Test]
+        public async Task Cargo_Intercepted_ShowsPlainExplanation_NoActionOffered()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.cargo = new[] { new Cc10CargoDto { cargoId = "c1", status = Cc10CargoStatus.Intercepted, terminalReason = "npc_patrol" } };
+            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Cargo).Rows.Single();
+            Assert.IsFalse(row.HasAction);
+            StringAssert.Contains("Intercepted", row.Detail);
+            StringAssert.Contains("permanent progression untouched", row.Detail);
+        }
+
+        [Test]
+        public async Task GuildState_LoadsTerritories_ContributeGatedByAlreadyContributedThisWindow()
+        {
+            var gw = new FakeGateway();
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetGuildState
+                ? (object)new Cc10GuildSnapshot
+                {
+                    success = true,
+                    territories = new[]
+                    {
+                        new Cc10TerritoryDto { territoryId = "territory.ashen_ridge", ownerGuildPseudonym = "Guild-A", contributedMembers = new[] { "me" } },
+                        new Cc10TerritoryDto { territoryId = "territory.ember_hollow", contributedMembers = Array.Empty<string>() },
+                    },
+                }
+                : throw new InvalidOperationException("unexpected");
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsTrue(await client.RefreshGuildStateAsync("g1"));
+
+            Cc10SectionVm vm = Cc10ViewModels.BuildGuildTerritory(client, "me");
+            Cc10Row ashen = vm.Rows.Single(r => r.EntityKey == "territory.ashen_ridge");
+            Assert.IsFalse(ashen.ActionEnabled, "already contributed this window");
+            StringAssert.Contains("Guild-A", ashen.Detail);
+            Cc10Row ember = vm.Rows.Single(r => r.EntityKey == "territory.ember_hollow");
+            Assert.IsTrue(ember.ActionEnabled);
+            Assert.AreEqual(Cc10Endpoints.ContributeTerritory, ember.Endpoint);
+        }
+
+        [Test]
+        public async Task GuildState_FailureKeepsPreviousSnapshot()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10GuildSnapshot { success = true, territories = new[] { new Cc10TerritoryDto { territoryId = "t1" } } } };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsTrue(await client.RefreshGuildStateAsync("g1"));
+            Assert.AreEqual(1, client.GuildSnapshot.territories.Length);
+
+            gw.Handler = (e, r) => new InvalidOperationException("down");
+            Assert.IsFalse(await client.RefreshGuildStateAsync("g1"));
+            Assert.AreEqual(1, client.GuildSnapshot.territories.Length, "last good snapshot stays visible");
+        }
+
+        [Test]
+        public void Ranking_RendersServerTieOrder_NeverReSorted()
+        {
+            var view = new Cc10RankingViewDto
+            {
+                seasonId = "S1",
+                state = Cc10SeasonState.Published,
+                entries = new[]
+                {
+                    new Cc10RankingEntryDto { rank = 1, subjectPseudonym = "Ada", points = 500 },
+                    new Cc10RankingEntryDto { rank = 2, subjectPseudonym = "Zed", points = 500 }, // tie, server already ordered it
+                    new Cc10RankingEntryDto { rank = 3, subjectPseudonym = "Bea", points = 400 },
+                },
+                you = new Cc10RankingEntryDto { rank = 7, subjectPseudonym = "Me", points = 100 },
+            };
+            Cc10SectionVm vm = Cc10ViewModels.BuildRanking(Cc10SystemId.IndividualRankings, view);
+            Assert.AreEqual("#1  Ada", vm.Rows[1].Title, "server's own order is preserved, index 0 is the season header");
+            Assert.AreEqual("#2  Zed", vm.Rows[2].Title, "tie order exactly as returned, never re-sorted client-side");
+            Assert.AreEqual("#3  Bea", vm.Rows[3].Title);
+            Assert.AreEqual("You: #7", vm.Rows[4].Title);
+            Assert.IsTrue(vm.Rows.All(r => !r.HasAction), "ranking rows are read-only");
+        }
+
+        [Test]
+        public void Ranking_NoViewLoaded_ShowsUnavailable()
+        {
+            Cc10SectionVm vm = Cc10ViewModels.BuildRanking(Cc10SystemId.GuildRankings, null);
+            StringAssert.Contains("Not available", vm.Banner);
         }
     }
 }

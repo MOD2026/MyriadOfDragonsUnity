@@ -20,11 +20,18 @@ namespace MyriadOfDragons.Frontier
     /// FrontierSnapshotResult.Phases/ContestDistricts). The older flat 4-node/no-phase assumption
     /// this file carried before is replaced below.
     ///
-    /// Remaining GAP: CC10FrontierModule still has no query endpoint returning GuildSnapshotResult
-    /// (the per-guild TerritoryDto contribution ledger for Ashen Ridge/Ember Hollow/Iron Quarry) or
-    /// a ranking view without a chosen season id - only mutation endpoints exist for those. The
-    /// Central Realm contest board IS queryable (via GetFrontierState.ContestDistricts), so
-    /// GuildTerritory now has partial query support.
+    /// Superseded again at BE 5ca919f6 (continues from b49d1bd6): a real GetGuildState endpoint now
+    /// returns GuildSnapshotResult (this guild's own territory contribution/ownership rows joined
+    /// from the shared board, guild research, membership epoch/count) - the per-guild
+    /// TerritoryDto gap is closed. The research catalog is now the real approved BS rows
+    /// (IND_*/GUILD_* ids, phase/top-three-guild gates), minigame gained Verified/Claimed/
+    /// Abandoned states plus dedicated ClaimMinigameResult/AbandonMinigameSession endpoints, and
+    /// FrontierSnapshotResult additionally carries ThreatBands (read-only encounter-band catalog
+    /// data for Battle's own encounter binding - never a client combat rule) and TavernCatalog
+    /// (the full 1-10 level track, not just the current level).
+    ///
+    /// Remaining GAP: GetRankingView still needs a chosen season id the shell has no source for -
+    /// Individual/Guild Rankings still render "Not available yet" until a season picker exists.
     /// </summary>
     public static class Cc10SystemId
     {
@@ -46,6 +53,7 @@ namespace MyriadOfDragons.Frontier
         public const string ModuleName = "CC10Frontier";
         public const string GetServerUtc = "GetServerUtc";
         public const string GetFrontierState = "GetFrontierState";
+        public const string GetGuildState = "GetGuildState";
         public const string StartTavernUpgrade = "StartTavernUpgrade";
         public const string CompleteTavernUpgrade = "CompleteTavernUpgrade";
         public const string ReportExpeditionGold = "ReportExpeditionGold";
@@ -75,10 +83,8 @@ namespace MyriadOfDragons.Frontier
         public const string ProjectRankingEvents = "ProjectRankingEvents";
         public const string CreateMinigameSession = "CreateMinigameSession";
         public const string SubmitMinigameResult = "SubmitMinigameResult";
-
-        /// <summary>GAP: CC10FrontierModule has no query endpoint returning GuildSnapshotResult
-        /// (territories / guild research). Only mutation endpoints exist today.</summary>
-        public const string NoGuildStateQueryEndpoint = null;
+        public const string ClaimMinigameResult = "ClaimMinigameResult";
+        public const string AbandonMinigameSession = "AbandonMinigameSession";
     }
 
     public static class Cc10Errors
@@ -99,6 +105,9 @@ namespace MyriadOfDragons.Frontier
         public const string DistrictTaken = "DISTRICT_TAKEN";
         public const string AlreadyEnrolledElsewhere = "ALREADY_ENROLLED_ELSEWHERE";
         public const string WindowClosed = "WINDOW_CLOSED";
+        // New with the reconciled catalog (5ca919f6):
+        public const string MinigameCoolingDown = "MINIGAME_COOLING_DOWN";
+        public const string PrerequisiteNotMet = "PREREQUISITE_NOT_MET";
     }
 
     /// <summary>Four server-authored World Map phases (numeric order IS unlock order). Mirrors
@@ -176,8 +185,27 @@ namespace MyriadOfDragons.Frontier
         public string phase = Cc10MapPhase.HomeOutpost;
         public Cc10PhaseDto[] phases = Array.Empty<Cc10PhaseDto>();
         public Cc10ContestDistrictDto[] contestDistricts = Array.Empty<Cc10ContestDistrictDto>();
+        /// <summary>Read-only catalog data (one row per phase) for Battle's encounter binding -
+        /// never a client combat rule.</summary>
+        public Cc10ThreatBandDto[] threatBands = Array.Empty<Cc10ThreatBandDto>();
+        /// <summary>The full 1-10 Tavern cost/duration track, for rendering the whole ladder, not
+        /// just the current level/active project.</summary>
+        public Cc10TavernLevelRowDto[] tavernCatalog = Array.Empty<Cc10TavernLevelRowDto>();
 
         public bool IsSystemDisabled(string systemId) => Array.IndexOf(disabledSystems, systemId) >= 0;
+    }
+
+    /// <summary>GetGuildState's result: this guild's own territory contribution/ownership rows
+    /// (joined server-side from the shared cross-guild board - never another guild's), guild
+    /// research state, and membership epoch/count.</summary>
+    [Serializable]
+    public sealed class Cc10GuildSnapshot : Cc10ResultBase
+    {
+        public string[] disabledSystems = Array.Empty<string>();
+        public Cc10TerritoryDto[] territories = Array.Empty<Cc10TerritoryDto>();
+        public Cc10ResearchDto[] research = Array.Empty<Cc10ResearchDto>();
+        public long membershipEpoch;
+        public int memberCount;
     }
 
     [Serializable]
@@ -244,6 +272,35 @@ namespace MyriadOfDragons.Frontier
         public string outcome; // "Victory" | "Loss" | null
         public string cargoId;
         public string claimReceiptId;
+        /// <summary>Additive, never null in a real response: the approved threat band this
+        /// mission's encounter is bound to. Display/Battle-binding only - never a client combat
+        /// rule or a client-computed multiplier.</summary>
+        public Cc10ThreatBandDto threatBand;
+    }
+
+    /// <summary>Read-only World Map threat-band catalog row. RewardMultiplier is always 1.0 - it
+    /// changes no existing Gold/Materials contract; HP/Damage multipliers feed Battle's own
+    /// encounter binding, never resolved by this client.</summary>
+    [Serializable]
+    public class Cc10ThreatBandDto
+    {
+        public string phase = Cc10MapPhase.HomeOutpost;
+        public string bandName = string.Empty;
+        public double hpMultiplier;
+        public double damageMultiplier;
+        public double rewardMultiplier;
+        public string aiDifficultyTier = string.Empty;
+    }
+
+    /// <summary>One row of the read-only 1-10 Tavern cost/duration track.</summary>
+    [Serializable]
+    public class Cc10TavernLevelRowDto
+    {
+        public int fromLevel;
+        public int toLevel;
+        public int goldCost;
+        public int materialsCost;
+        public long durationMs;
     }
 
     /// <summary>Discovered/Owned/Expanded are independent booleans, per the server's own doc
@@ -386,11 +443,22 @@ namespace MyriadOfDragons.Frontier
         public string terminalReason;
     }
 
+    /// <summary>Created/Started/Active are collapsed at session creation (no separate "declare
+    /// start" server call - a session is Active the moment it exists). Verified is deliberately
+    /// separate from Claimed: a verified result is not itself a claim (a claim is always a
+    /// separate, receipt-protected mutation via ClaimMinigameResult).</summary>
     public static class Cc10MinigameStatus
     {
-        public const string Created = "Created";
+        public const string Active = "Active";
         public const string Submitted = "Submitted";
+        public const string Verified = "Verified";
+        public const string Claimed = "Claimed";
+        public const string Failed = "Failed";
         public const string Expired = "Expired";
+        public const string Abandoned = "Abandoned";
+
+        public static bool IsTerminal(string status) =>
+            status == Claimed || status == Failed || status == Expired || status == Abandoned;
     }
 
     [Serializable]
