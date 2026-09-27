@@ -53,6 +53,19 @@ namespace MyriadOfDragons.Frontier
     /// 4deee700 adds BattleAttestation.ReplayTranscriptBlob (the actual serialized replay transcript
     /// for the new headless-replay verifier) - built and populated by the Battle/CR adapter, not
     /// this shell; kept on Cc10BattleAttestation for wire-shape completeness only.
+    ///
+    /// Superseded again at BE 6e93d10d ("Vein Relay" minigame packet, continues from a5e17638): the
+    /// score/proof-hash minigame is replaced entirely by a real, fully server-authoritative
+    /// minigame. The client never submits a score or a verdict - it submits SessionId + exactly 12
+    /// MinigameActionDto entries (RoundIndex/SelectedLane/ClientTick, ClientTick informational
+    /// only) + a client-claimed TranscriptHash; the server independently replays the stream against
+    /// its own deterministic target sequence and computes the score itself (correctSelections x
+    /// 100), and recomputes the canonical hash to catch a tampered stream (MINIGAME_INVALID_STREAM).
+    /// CORRECTION to the prior pass's MinigameStatus doc comment: Available and Active are BOTH
+    /// real server statuses in this packet (CreateMinigameSession sets Available; the new
+    /// StartMinigameSession call - not Create - transitions Available -&gt; Active and starts the
+    /// real 30-second deadline). Started/Submitted are declared in the enum for wire compatibility
+    /// but the server never actually produces either value in this pass.
     /// </summary>
     public static class Cc10SystemId
     {
@@ -104,6 +117,7 @@ namespace MyriadOfDragons.Frontier
         public const string GetRankingView = "GetRankingView";
         public const string ProjectRankingEvents = "ProjectRankingEvents";
         public const string CreateMinigameSession = "CreateMinigameSession";
+        public const string StartMinigameSession = "StartMinigameSession";
         public const string SubmitMinigameResult = "SubmitMinigameResult";
         public const string ClaimMinigameResult = "ClaimMinigameResult";
         public const string AbandonMinigameSession = "AbandonMinigameSession";
@@ -132,6 +146,8 @@ namespace MyriadOfDragons.Frontier
         public const string PrerequisiteNotMet = "PREREQUISITE_NOT_MET";
         // New with Tavern active-mission slots (d99b6c6d):
         public const string MissionSlotsFull = "MISSION_SLOTS_FULL";
+        // New with the Vein Relay minigame packet (6e93d10d):
+        public const string MinigameInvalidStream = "MINIGAME_INVALID_STREAM";
     }
 
     /// <summary>Four server-authored World Map phases (numeric order IS unlock order). Mirrors
@@ -493,30 +509,51 @@ namespace MyriadOfDragons.Frontier
         public string terminalReason;
     }
 
-    /// <summary>The packet's full 9-state lifecycle. Available is NEVER a real session's Status -
-    /// it is the client-inferred state when no session document exists yet (nothing started).
-    /// CreateMinigameSession creates the session directly in Started (no separate "declare start"
-    /// server call - Started IS the moment the session exists and is playable; earlier client code
-    /// called this "Active"). Active is reserved for a future explicit mid-session checkpoint the
-    /// server does not currently produce; Submit/Abandon accept Started or Active identically.
-    /// Verified is deliberately separate from Claimed: a verified result is not itself a claim (a
-    /// claim is always a separate, receipt-protected mutation via ClaimMinigameResult).</summary>
+    /// <summary>Vein Relay's real lifecycle (BE 6e93d10d): CreateMinigameSession sets Available
+    /// (real, no cost); StartMinigameSession - a distinct, explicit call, NOT Create - transitions
+    /// Available -&gt; Active and starts the real 30-second deadline (ExpiresUtcMs from
+    /// StartedUtcMs, not from CreatedUtcMs - a created-but-not-started session never expires);
+    /// SubmitMinigameResult moves Active straight to Verified or Failed (no observable Submitted
+    /// state is ever produced); Verified -&gt; Claimed via the separate, receipt-protected
+    /// ClaimMinigameResult (a verified result is not itself a claim). Started/Submitted remain in
+    /// this enum only for wire compatibility with the request/result shape - the server never
+    /// actually assigns either as a session's Status in this pass.</summary>
     public static class Cc10MinigameStatus
     {
-        public const string Available = "Available"; // client-inferred only; never a server Status
-        public const string Started = "Started";
+        public const string Available = "Available";
+        public const string Started = "Started"; // declared for wire compatibility; server never produces this
         public const string Active = "Active";
-        public const string Submitted = "Submitted";
+        public const string Submitted = "Submitted"; // declared for wire compatibility; server never produces this
         public const string Verified = "Verified";
         public const string Claimed = "Claimed";
         public const string Failed = "Failed";
         public const string Expired = "Expired";
         public const string Abandoned = "Abandoned";
 
-        public static bool IsPlayable(string status) => status == Started || status == Active;
+        public static bool IsPlayable(string status) => status == Active || status == Started;
 
         public static bool IsTerminal(string status) =>
             status == Claimed || status == Failed || status == Expired || status == Abandoned;
+    }
+
+    /// <summary>0=Front, 1=Middle, 2=Back - Vein Relay's lane vocabulary (mirrors Battle's existing
+    /// three-lane concept without resolving cards/damage/Energy).</summary>
+    public static class Cc10MinigameLane
+    {
+        public const string Front = "Front";
+        public const string Middle = "Middle";
+        public const string Back = "Back";
+    }
+
+    /// <summary>One accepted Vein Relay round input. ClientTick is informational ONLY - the
+    /// server's own receipt tick (its authoritative NowMs) is the real UTC authority; this field is
+    /// never read by any server rule and never sent as, or treated as, a score or verdict.</summary>
+    [Serializable]
+    public class Cc10MinigameActionDto
+    {
+        public int roundIndex;
+        public string selectedLane = Cc10MinigameLane.Front;
+        public long clientTick;
     }
 
     [Serializable]
@@ -524,10 +561,21 @@ namespace MyriadOfDragons.Frontier
     {
         public string sessionId = string.Empty;
         public string seed = string.Empty;
+        /// <summary>Server-issued at creation; the target-sequence formula
+        /// (HMAC-SHA256(seed, rulesetVersion+sessionId+round) mod 3) needs it, and a client
+        /// re-deriving pulses for display must use the SAME version the server verifies against.</summary>
+        public string rulesetVersion = string.Empty;
         public string status = string.Empty;
         public long createdUtcMs;
+        public long startedUtcMs;
+        /// <summary>The 30-second deadline from startedUtcMs - 0/unset while still Available.</summary>
         public long expiresUtcMs;
+        /// <summary>Final score (correctSelections x 100, 0-1200) once Verified - server-computed
+        /// only, never client-submitted.</summary>
         public int? verifiedScore;
+        public int? correctSelections;
+        public string submittedTranscriptHash;
+        public string startReceiptId;
     }
 
     [Serializable]
@@ -549,10 +597,14 @@ namespace MyriadOfDragons.Frontier
         public string receiptId = string.Empty;
     }
 
+    /// <summary>Minigame is its OWN ranking track, separate from Individual - Vein Relay's own
+    /// ranking rule ("if a later verified score is higher, it atomically replaces the player's
+    /// prior minigame score") is max-replace, not the additive per-claim policy Individual uses.</summary>
     public static class Cc10RankingScope
     {
         public const string Individual = "Individual";
         public const string Guild = "Guild";
+        public const string Minigame = "Minigame";
     }
 
     public static class Cc10SeasonState

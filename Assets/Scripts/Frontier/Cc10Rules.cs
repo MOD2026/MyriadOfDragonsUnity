@@ -123,6 +123,13 @@ namespace MyriadOfDragons.Frontier
         };
 
         public const long MinigameCooldownMinutes = 10;
+
+        // Locked Vein Relay numbers (CC10RowSet, validated server-side) - preview only.
+        public const long MinigameSessionSeconds = 30;
+        public const int MinigameRounds = 12;
+        public const int MinigameSuccessThreshold = 9;
+        public const int MinigamePointsPerCorrect = 100;
+        public const int MinigameMaxScore = 1_200;
     }
 
     /// <summary>Legal display transitions, copied from the enum sets in the published contract
@@ -178,16 +185,22 @@ namespace MyriadOfDragons.Frontier
         public static bool IsMissionClaimable(string status) => status == Cc10MissionStatus.Completed;
         public static bool IsCargoClaimable(string status) => status == Cc10CargoStatus.Delivered;
 
+        /// <summary>Vein Relay's real graph (BE 6e93d10d): Available -&gt; Active (StartMinigameSession)
+        /// or Abandoned; Active -&gt; Verified/Failed (SubmitMinigameResult) or Expired/Abandoned;
+        /// Verified -&gt; Claimed. Started/Submitted are accepted as aliases of Available/Active for
+        /// wire compatibility (the server declares them but never assigns either).</summary>
         public static bool IsMinigameTransitionLegal(string from, string to)
         {
             if (from == to) return true;
             if (Cc10MinigameStatus.IsTerminal(from)) return false;
             switch (from)
             {
+                case Cc10MinigameStatus.Available:
                 case Cc10MinigameStatus.Started:
+                    return to == Cc10MinigameStatus.Active || to == Cc10MinigameStatus.Abandoned || to == Cc10MinigameStatus.Expired;
                 case Cc10MinigameStatus.Active:
-                    return to == Cc10MinigameStatus.Submitted || to == Cc10MinigameStatus.Expired
-                        || to == Cc10MinigameStatus.Abandoned || to == Cc10MinigameStatus.Active;
+                    return to == Cc10MinigameStatus.Verified || to == Cc10MinigameStatus.Failed
+                        || to == Cc10MinigameStatus.Expired || to == Cc10MinigameStatus.Abandoned;
                 case Cc10MinigameStatus.Submitted:
                     return to == Cc10MinigameStatus.Verified || to == Cc10MinigameStatus.Failed || to == Cc10MinigameStatus.Expired;
                 case Cc10MinigameStatus.Verified:

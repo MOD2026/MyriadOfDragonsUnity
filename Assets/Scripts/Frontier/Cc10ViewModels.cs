@@ -92,7 +92,7 @@ namespace MyriadOfDragons.Frontier
                 case Cc10SystemId.GuildTerritory: AddContestDistricts(vm, s); break;
                 case Cc10SystemId.IndividualResearch: AddResearch(vm, client, s, Cc10ResearchScope.Individual); break;
                 case Cc10SystemId.GuildResearch: AddResearch(vm, client, s, Cc10ResearchScope.Guild); break;
-                case Cc10SystemId.Minigame: AddMinigame(vm, s); break;
+                case Cc10SystemId.Minigame: AddMinigame(vm, client, s); break;
                 case Cc10SystemId.Cargo: AddCargo(vm, client, s); break;
             }
 
@@ -420,10 +420,16 @@ namespace MyriadOfDragons.Frontier
         /// own play surface, not this shell - this row only offers Abandon while Active and Claim
         /// once Verified. Cost/reward stay 0 (CC10_ECONOMY_NEUTRAL_0_0) unless a receipt says
         /// otherwise; this layer never computes either.</summary>
-        private static void AddMinigame(Cc10SectionVm vm, Cc10FrontierSnapshot s)
+        /// <summary>Vein Relay session row. Available and Active are BOTH real server statuses
+        /// (BE 6e93d10d) - Available offers Start (a distinct call from Create), Active offers
+        /// Abandon and shows the real 30-second countdown from StartedUtcMs. Actually PLAYING (the
+        /// 12-round lane submission) is a separate gameplay surface this shell does not build - see
+        /// Cc10FrontierClient.ExecuteAsync(SubmitMinigameResult) for the wire shape a future
+        /// presenter uses; this row never computes or previews a score.</summary>
+        private static void AddMinigame(Cc10SectionVm vm, Cc10FrontierClient client, Cc10FrontierSnapshot s)
         {
             Cc10MinigameSessionDto g = s.minigame;
-            var row = new Cc10Row { Title = "Side Activity (optional)", EntityKey = "minigame" };
+            var row = new Cc10Row { Title = "Vein Relay (optional)", EntityKey = "minigame" };
             if (g == null)
             {
                 row.Detail = "Doesn't affect progression";
@@ -437,14 +443,20 @@ namespace MyriadOfDragons.Frontier
             row.Payload["sessionId"] = g.sessionId;
             switch (g.status)
             {
-                case Cc10MinigameStatus.Started:
+                case Cc10MinigameStatus.Available:
+                case Cc10MinigameStatus.Started: // wire-compat alias; server never produces this
+                    row.Detail = "Ready - not started yet";
+                    row.ActionLabel = "Start";
+                    row.Endpoint = Cc10Endpoints.StartMinigameSession;
+                    row.ActionEnabled = true;
+                    break;
                 case Cc10MinigameStatus.Active:
-                    row.Detail = "In progress";
+                    row.Detail = "In progress - " + Cc10ServerClock.FormatRemaining(client.Clock.RemainingMs(g.expiresUtcMs));
                     row.ActionLabel = "Abandon";
                     row.Endpoint = Cc10Endpoints.AbandonMinigameSession;
                     row.ActionEnabled = true;
                     break;
-                case Cc10MinigameStatus.Submitted:
+                case Cc10MinigameStatus.Submitted: // wire-compat alias; server never produces this
                     row.Detail = "Result submitted - awaiting verification";
                     break;
                 case Cc10MinigameStatus.Verified:

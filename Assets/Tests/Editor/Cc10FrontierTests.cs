@@ -873,12 +873,15 @@ namespace MyriadOfDragons.Tests
         [Test]
         public void MinigameTransitions_FollowThePublishedLifecycle()
         {
-            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Submitted));
-            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Submitted, Cc10MinigameStatus.Verified));
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Available, Cc10MinigameStatus.Active), "StartMinigameSession");
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Verified), "SubmitMinigameResult success");
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Failed), "SubmitMinigameResult failure");
             Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Verified, Cc10MinigameStatus.Claimed));
             Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Abandoned));
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Available, Cc10MinigameStatus.Abandoned));
             Assert.IsFalse(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Claimed, Cc10MinigameStatus.Active), "terminal is final");
-            Assert.IsFalse(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Claimed), "cannot skip Submitted/Verified");
+            Assert.IsFalse(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Active, Cc10MinigameStatus.Claimed), "cannot skip Verified");
+            Assert.IsFalse(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Available, Cc10MinigameStatus.Verified), "cannot skip Active - must Start first");
         }
 
         [Test]
@@ -1023,34 +1026,154 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public async Task Minigame_NoSession_IsClientInferredAvailable_ServerNeverSendsThatStatus()
+        public async Task Minigame_NeverCreated_OffersPlay_CreatesTheSession()
         {
             var gw = new FakeGateway();
             Cc10FrontierSnapshot snap = Snap();
-            snap.minigame = null; // no session document exists - "Available" is inferred, not a real Status
+            snap.minigame = null; // no session document exists at all - nothing created yet
             Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Minigame).Rows.Single();
             Assert.AreEqual(Cc10Endpoints.CreateMinigameSession, row.Endpoint);
             Assert.IsTrue(row.ActionEnabled);
         }
 
         [Test]
-        public async Task Minigame_Started_OffersAbandon_SameAsActive()
+        public async Task Minigame_Available_IsARealServerStatus_OffersStart_NotAbandon()
+        {
+            // BE 6e93d10d: CreateMinigameSession genuinely sets Available (real, no cost); a
+            // distinct StartMinigameSession call - not Create - is required to begin play.
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.minigame = new Cc10MinigameSessionDto { sessionId = "s1", status = Cc10MinigameStatus.Available };
+            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Minigame).Rows.Single();
+            Assert.AreEqual(Cc10Endpoints.StartMinigameSession, row.Endpoint);
+            StringAssert.Contains("not started", row.Detail);
+        }
+
+        [Test]
+        public async Task Minigame_Active_ShowsRealCountdown_OffersAbandon()
         {
             var gw = new FakeGateway();
             Cc10FrontierSnapshot snap = Snap();
-            snap.minigame = new Cc10MinigameSessionDto { sessionId = "s1", status = Cc10MinigameStatus.Started };
+            snap.minigame = new Cc10MinigameSessionDto { sessionId = "s1", status = Cc10MinigameStatus.Active, expiresUtcMs = 1_020_000 };
             Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Minigame).Rows.Single();
             Assert.AreEqual(Cc10Endpoints.AbandonMinigameSession, row.Endpoint);
             StringAssert.Contains("In progress", row.Detail);
         }
 
         [Test]
-        public void MinigameTransitions_StartedBehavesLikeActive()
+        public void MinigameTransitions_StartedAliasesAvailable_SubmittedAliasesActiveOnly()
         {
-            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Submitted));
+            // Started/Submitted are declared for wire compatibility only - the server never
+            // actually assigns either. Started behaves like Available (offers Start, not Abandon).
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Active));
             Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Abandoned));
-            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Active),
-                "a future explicit mid-session checkpoint");
+            Assert.IsFalse(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Verified),
+                "Started cannot skip straight to Verified - it must reach Active first");
+        }
+
+        [Test]
+        public async Task StartMinigameSession_SendsOnlySessionId_NoScoreOrTiming()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.minigame = new Cc10MinigameSessionDto { sessionId = "s1", status = Cc10MinigameStatus.Available };
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            await client.ExecuteAsync(Cc10SystemId.Minigame, Cc10Endpoints.StartMinigameSession,
+                new Dictionary<string, object> { { "sessionId", "s1" } }, "minigame");
+            Dictionary<string, object> body = gw.Calls.First(c => c.Key == Cc10Endpoints.StartMinigameSession).Value;
+            Assert.AreEqual("s1", body["sessionId"]);
+            Assert.IsFalse(body.ContainsKey("score") || body.ContainsKey("expiresUtcMs") || body.ContainsKey("startedUtcMs"),
+                "timing/score are entirely server-decided - Start only ever names the session");
+        }
+
+        /// <summary>The exact final SubmitMinigameResult mapping asked for: sessionId, an ordered
+        /// list of exactly 12 actions (roundIndex/selectedLane/clientTick, clientTick informational
+        /// only), and a client-claimed transcriptHash. No compatibility-only score/proof-hash field
+        /// exists, and the client never sends an authoritative score or verdict of its own.</summary>
+        [Test]
+        public async Task SubmitMinigameResult_FieldMapping_Exactly12OrderedActions_NoScoreOrVerdict()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.minigame = new Cc10MinigameSessionDto { sessionId = "s1", status = Cc10MinigameStatus.Active, rulesetVersion = "ruleset-1" };
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+
+            var actions = new List<Cc10MinigameActionDto>();
+            for (int i = 0; i < 12; i++)
+                actions.Add(new Cc10MinigameActionDto { roundIndex = i, selectedLane = Cc10MinigameLane.Front, clientTick = 1000 + i });
+
+            await client.ExecuteAsync(Cc10SystemId.Minigame, Cc10Endpoints.SubmitMinigameResult,
+                new Dictionary<string, object>
+                {
+                    { "sessionId", "s1" },
+                    { "actions", actions },
+                    { "transcriptHash", "deadbeef" },
+                }, "minigame");
+
+            Dictionary<string, object> body = gw.Calls.First(c => c.Key == Cc10Endpoints.SubmitMinigameResult).Value;
+            Assert.AreEqual("s1", body["sessionId"]);
+            var sentActions = (List<Cc10MinigameActionDto>)body["actions"];
+            Assert.AreEqual(12, sentActions.Count, "exactly 12 rounds, no more, no fewer");
+            for (int i = 0; i < 12; i++)
+                Assert.AreEqual(i, sentActions[i].roundIndex, "strict round order 0-11");
+            Assert.AreEqual("deadbeef", body["transcriptHash"]);
+            Assert.IsFalse(body.ContainsKey("score") || body.ContainsKey("verdict") || body.ContainsKey("proofHash")
+                || body.ContainsKey("verifiedScore") || body.ContainsKey("correctSelections"),
+                "the client never submits an authoritative score or verdict - the old Score/ProofHash fields are gone");
+        }
+
+        [Test]
+        public void MinigameActionDto_ClientTick_IsInformationalOnly_NeverAuthoritativeTime()
+        {
+            // No server rule reads it (docs: "ClientTick is informational only"); this asserts the
+            // client-side DTO carries it purely as a display/telemetry field, never mixed into any
+            // client decision (Cc10ViewModels/Cc10FrontierClient never branch on it anywhere).
+            var action = new Cc10MinigameActionDto { roundIndex = 0, selectedLane = Cc10MinigameLane.Middle, clientTick = 123456 };
+            Assert.AreEqual(123456, action.clientTick);
+            Assert.AreEqual(Cc10MinigameLane.Middle, action.selectedLane);
+        }
+
+        [Test]
+        public void MinigameLane_ThreeValues_MatchServerEnumNames()
+        {
+            Assert.AreEqual("Front", Cc10MinigameLane.Front);
+            Assert.AreEqual("Middle", Cc10MinigameLane.Middle);
+            Assert.AreEqual("Back", Cc10MinigameLane.Back);
+        }
+
+        [Test]
+        public void MinigameSessionDto_DeserializesRealServerJson_RulesetVersionAndTiming()
+        {
+            // int?/string? fields are intentionally not round-tripped through JsonUtility here -
+            // Unity's JsonUtility does not support System.Nullable<T> deserialization (a real,
+            // documented engine limitation), so correctSelections/verifiedScore are exercised via
+            // direct construction elsewhere in this file instead of JSON parsing.
+            const string json = "{\"sessionId\":\"s1\",\"seed\":\"abc\",\"rulesetVersion\":\"ruleset-1\"," +
+                "\"status\":\"Active\",\"createdUtcMs\":1000,\"startedUtcMs\":1500,\"expiresUtcMs\":31500}";
+            Cc10MinigameSessionDto dto = UnityEngine.JsonUtility.FromJson<Cc10MinigameSessionDto>(json);
+            Assert.AreEqual("ruleset-1", dto.rulesetVersion);
+            Assert.AreEqual(1500, dto.startedUtcMs);
+            Assert.AreEqual(31500, dto.expiresUtcMs);
+        }
+
+        [Test]
+        public void LockedVeinRelayNumbers_MatchPublishedRowSet()
+        {
+            Assert.AreEqual(30, Cc10Rules.MinigameSessionSeconds);
+            Assert.AreEqual(12, Cc10Rules.MinigameRounds);
+            Assert.AreEqual(9, Cc10Rules.MinigameSuccessThreshold);
+            Assert.AreEqual(100, Cc10Rules.MinigamePointsPerCorrect);
+            Assert.AreEqual(1200, Cc10Rules.MinigameMaxScore);
+        }
+
+        [Test]
+        public async Task MinigameInvalidStream_RejectionMapsToPlainCopy()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap());
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : new Cc10CommandResult { success = false, errorCode = Cc10Errors.MinigameInvalidStream };
+            Cc10CommandOutcome outcome = await client.ExecuteAsync(Cc10SystemId.Minigame, Cc10Endpoints.SubmitMinigameResult, null, "minigame");
+            Assert.AreEqual(Cc10Copy.MinigameInvalidStream, outcome.Message);
         }
 
         [Test]
