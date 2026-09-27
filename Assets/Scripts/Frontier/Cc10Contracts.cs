@@ -66,6 +66,20 @@ namespace MyriadOfDragons.Frontier
     /// StartMinigameSession call - not Create - transitions Available -&gt; Active and starts the
     /// real 30-second deadline). Started/Submitted are declared in the enum for wire compatibility
     /// but the server never actually produces either value in this pass.
+    ///
+    /// Superseded again at BE fe0a2f5d (continues from 5183947c): World Map strategic-occupancy
+    /// read data. MapNodeDto.LayoutX/LayoutY is server-authoritative, hand-authored catalog data
+    /// (identical for every player/read, unique per node) - the ONLY source of a node's on-screen
+    /// position; this client never invents or computes a layout position itself.
+    /// MapNodeDto.OccupantDisplayId/FrontierSnapshotResult.YourDisplayId are privacy-safe: the
+    /// server can only ever expose the CALLING player's own pseudonym (when they own that node),
+    /// never another player's - this beta's World Map has no cross-player occupancy board.
+    /// ContestDistrictDto.EnrolledGuildColorKey/OwnerGuildColorKey are a deterministic 0-11
+    /// palette-index the server derives from the already-verified guild pseudonym on the shared
+    /// contest board - never an RGB/hex value, never client-supplied, and NOT added to
+    /// MapNodeDto (a player-owned exploration node has no guild-affiliation concept in this beta;
+    /// guild ownership is a real, shared, cross-guild concern only for the three Central Realm
+    /// contest districts).
     /// </summary>
     public static class Cc10SystemId
     {
@@ -234,6 +248,10 @@ namespace MyriadOfDragons.Frontier
         /// <summary>The full approved 10-pool NPC catalog, for rendering pool flavor without
         /// waiting on a mission assignment.</summary>
         public Cc10NpcPoolDto[] npcPools = Array.Empty<Cc10NpcPoolDto>();
+        /// <summary>The caller's own privacy-safe, stable base-identity display id (their
+        /// pseudonym) - the same value a node's own occupantDisplayId carries for any node this
+        /// player themselves owns. Never another player's id.</summary>
+        public string yourDisplayId = string.Empty;
 
         public bool IsSystemDisabled(string systemId) => Array.IndexOf(disabledSystems, systemId) >= 0;
     }
@@ -390,6 +408,17 @@ namespace MyriadOfDragons.Frontier
         public long ownedUtcMs;
         public bool expanded;
         public string[] neighbors = Array.Empty<string>();
+        /// <summary>Server-authoritative, hand-authored layout key - never computed or invented
+        /// client-side. The only source of a node's on-screen position; identical for every
+        /// player and every read.</summary>
+        public int layoutX;
+        public int layoutY;
+        /// <summary>Privacy-safe, stable: the CALLING player's own pseudonym when THEY own this
+        /// node, null otherwise. This beta's World Map has no cross-player occupancy board - never
+        /// another player's raw id, pseudonym, or any other identifying data. Central Realm
+        /// contest ownership (a real, shared, cross-guild concern) is exposed separately on
+        /// Cc10ContestDistrictDto, never folded into this per-player field.</summary>
+        public string occupantDisplayId;
     }
 
     /// <summary>One of the four server-authored phases and whether THIS player has unlocked it
@@ -413,6 +442,14 @@ namespace MyriadOfDragons.Frontier
         public string ownerGuildPseudonym;
         /// <summary>True only when the caller's own guild is presently a top-3 season guild.</summary>
         public bool callerGuildEligible;
+        /// <summary>Deterministic palette-index (0..Cc10Rules.GuildColorPaletteSize-1) derived
+        /// server-side from the already-verified enrolledGuildPseudonym; null when no guild is
+        /// enrolled. Names an INDEX into the client's own fixed color palette, never an RGB/hex
+        /// value and never anything a client could supply.</summary>
+        public int? enrolledGuildColorKey;
+        /// <summary>Same derivation from ownerGuildPseudonym; null when the district has no
+        /// resolved owner yet.</summary>
+        public int? ownerGuildColorKey;
     }
 
     public static class Cc10SpotStatus

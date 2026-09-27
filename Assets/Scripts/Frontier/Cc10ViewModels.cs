@@ -279,10 +279,17 @@ namespace MyriadOfDragons.Frontier
                     EntityKey = n.nodeId,
                 };
                 row.Payload["nodeId"] = n.nodeId;
+                // Server-authoritative layout key only - never computed or invented here; a future
+                // map renderer places this row purely from these two numbers.
+                row.Payload["layoutX"] = n.layoutX;
+                row.Payload["layoutY"] = n.layoutY;
 
                 if (n.owned)
                 {
-                    row.Detail = "Owned" + (n.expanded ? " - expanded" : string.Empty);
+                    // occupantDisplayId is privacy-safe by construction: the server only ever sets
+                    // it to the CALLING player's own pseudonym on a node they themselves own.
+                    string occupant = !string.IsNullOrEmpty(n.occupantDisplayId) ? " - " + n.occupantDisplayId : string.Empty;
+                    row.Detail = "Owned" + (n.expanded ? " - expanded" : string.Empty) + occupant;
                 }
                 else if (n.discovered)
                 {
@@ -328,6 +335,12 @@ namespace MyriadOfDragons.Frontier
         /// Enroll is offered only when the server says the caller's own guild is presently top-3
         /// eligible and no district is enrolled yet; resolution is operator-gated, never a player
         /// action, so it is shown as status only.</summary>
+        /// <summary>Display-only palette-index suffix. The key is server-derived from the already-
+        /// verified guild pseudonym, never an RGB/hex value and never client-supplied; null means
+        /// no guild is enrolled/resolved (a genuinely neutral state, not colored as if one were).</summary>
+        private static string ColorSuffix(int? colorKey) =>
+            colorKey.HasValue ? " (color " + colorKey.Value + ")" : string.Empty;
+
         private static void AddContestDistricts(Cc10SectionVm vm, Cc10FrontierSnapshot s)
         {
             foreach (Cc10ContestDistrictDto d in s.contestDistricts)
@@ -344,10 +357,12 @@ namespace MyriadOfDragons.Frontier
                         row.DisabledReason = "Your guild is not currently top-3";
                         break;
                     case Cc10ContestStatus.Owned:
-                        row.Detail = "Owned by " + (d.ownerGuildPseudonym ?? "another guild");
+                        row.Detail = "Owned by " + (d.ownerGuildPseudonym ?? "another guild") + ColorSuffix(d.ownerGuildColorKey);
                         break;
                     default:
-                        row.Detail = d.status + (d.enrolledGuildPseudonym != null ? " - " + d.enrolledGuildPseudonym : string.Empty);
+                        row.Detail = d.status + (d.enrolledGuildPseudonym != null
+                            ? " - " + d.enrolledGuildPseudonym + ColorSuffix(d.enrolledGuildColorKey)
+                            : string.Empty);
                         break;
                 }
                 vm.Rows.Add(row);

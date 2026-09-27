@@ -130,6 +130,11 @@ namespace MyriadOfDragons.Frontier
         public const int MinigameSuccessThreshold = 9;
         public const int MinigamePointsPerCorrect = 100;
         public const int MinigameMaxScore = 1_200;
+
+        /// <summary>Guild color palette size (CC10Hashing.GuildColorPaletteSize) - a contest
+        /// district's EnrolledGuildColorKey/OwnerGuildColorKey is always in [0, GuildColorPaletteSize).
+        /// The client owns the actual 12-color palette itself; the server names only the index.</summary>
+        public const int GuildColorPaletteSize = 12;
     }
 
     /// <summary>Legal display transitions, copied from the enum sets in the published contract
