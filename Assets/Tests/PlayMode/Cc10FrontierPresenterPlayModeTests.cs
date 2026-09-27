@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -7,7 +6,6 @@ using System.Threading.Tasks;
 using MyriadOfDragons.Frontier;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityEngine.UI;
 
 namespace MyriadOfDragons.Tests
@@ -20,9 +18,9 @@ namespace MyriadOfDragons.Tests
             public int CommandCalls;
 
             public Task<T> CallAsync<T>(string endpoint, Dictionary<string, object> request, CancellationToken ct)
-                where T : Cc10Response
+                where T : Cc10ResultBase
             {
-                if (endpoint != Cc10Endpoints.GetState) CommandCalls++;
+                if (endpoint != Cc10Endpoints.GetFrontierState) CommandCalls++;
                 object r = Handler(endpoint);
                 if (r is Exception ex) throw ex;
                 if (r is Task<T> pending) return pending;
@@ -40,14 +38,10 @@ namespace MyriadOfDragons.Tests
             _spawned.Clear();
         }
 
-        private static Cc10Snapshot Snap() => new Cc10Snapshot
+        private static Cc10FrontierSnapshot Snap() => new Cc10FrontierSnapshot
         {
-            status = Cc10Status.Ok, stateVersion = 1, serverUtcMs = 1_000_000,
-            missions = new[]
-            {
-                new Cc10MissionRow { missionId = "m1", kind = Cc10Rules.KindNpcPatrol, state = "Available",
-                    dailyRemaining = 3, goldReward = 300, materialReward = 200, staminaCost = 10, durationMinutes = 30 },
-            },
+            success = true, stateVersion = 1, serverUtcMs = 1_000_000,
+            missions = new[] { new Cc10MissionDto { missionId = "m1", type = Cc10MissionType.NpcPatrol, status = Cc10MissionStatus.Active, readyUtcMs = 1_060_000 } },
         };
 
         private async Task<(Cc10FrontierPresenter, Cc10FrontierClient, Gateway)> Open(Func<string, object> handler,
@@ -70,13 +64,18 @@ namespace MyriadOfDragons.Tests
         public async Task Builds_AllSectionTabs_WithTouchSizedHitAreas()
         {
             var (p, _, _) = await Open(e => Snap());
-            foreach (Cc10System s in Enum.GetValues(typeof(Cc10System)))
+            foreach (string sys in new[]
+                     {
+                         Cc10SystemId.Tavern, Cc10SystemId.Missions, Cc10SystemId.WorldMap, Cc10SystemId.NpcSpots,
+                         Cc10SystemId.GuildTerritory, Cc10SystemId.IndividualResearch, Cc10SystemId.GuildResearch,
+                         Cc10SystemId.IndividualRankings, Cc10SystemId.GuildRankings, Cc10SystemId.Minigame, Cc10SystemId.Cargo,
+                     })
             {
-                Button tab = Find(p, "Tab_" + s);
-                Assert.IsNotNull(tab, "missing tab " + s);
+                Button tab = Find(p, "Tab_" + sys);
+                Assert.IsNotNull(tab, "missing tab " + sys);
                 var rt = (RectTransform)tab.transform;
-                Assert.GreaterOrEqual(rt.rect.height, Cc10FrontierPresenter.MinTouch, s + " height");
-                Assert.GreaterOrEqual(rt.rect.width, Cc10FrontierPresenter.MinTouch, s + " width");
+                Assert.GreaterOrEqual(rt.rect.height, Cc10FrontierPresenter.MinTouch, sys + " height");
+                Assert.GreaterOrEqual(rt.rect.width, Cc10FrontierPresenter.MinTouch, sys + " width");
             }
         }
 
@@ -93,7 +92,7 @@ namespace MyriadOfDragons.Tests
         public async Task Offline_ShowsBanner_AndActionButtonIsNotInteractable()
         {
             var (p, client, gw) = await Open(e => Snap());
-            p.SelectSection(Cc10System.Missions);
+            p.SelectSection(Cc10SystemId.Missions);
             Assert.IsTrue(Find(p, "Action").interactable);
 
             gw.Handler = e => new InvalidOperationException("network");
@@ -114,16 +113,16 @@ namespace MyriadOfDragons.Tests
         [Test]
         public async Task DoubleClick_SendsOneCommand()
         {
-            var tcs = new TaskCompletionSource<Cc10CommandResponse>();
-            var (p, client, gw) = await Open(e => e == Cc10Endpoints.GetState ? (object)Snap() : tcs.Task);
-            p.SelectSection(Cc10System.Missions);
+            var tcs = new TaskCompletionSource<Cc10CommandResult>();
+            var (p, client, gw) = await Open(e => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : tcs.Task);
+            p.SelectSection(Cc10SystemId.Missions);
             Button action = Find(p, "Action");
 
             action.onClick.Invoke();
             action.onClick.Invoke();
             Assert.AreEqual(1, gw.CommandCalls, "second tap while in flight is swallowed");
 
-            tcs.SetResult(new Cc10CommandResponse { status = Cc10Status.Ok, receiptId = "r", stateVersion = 2 });
+            tcs.SetResult(new Cc10CommandResult { success = true, receipt = new Cc10Receipt { receiptId = "r" }, stateVersion = 2 });
             await Task.Yield();
         }
 
@@ -131,7 +130,7 @@ namespace MyriadOfDragons.Tests
         public async Task Reconnect_RerendersFromServer()
         {
             var (p, client, gw) = await Open(e => Snap());
-            p.SelectSection(Cc10System.Missions);
+            p.SelectSection(Cc10SystemId.Missions);
             gw.Handler = e => new InvalidOperationException("network");
             await client.RefreshAsync();
             Assert.IsFalse(Find(p, "Action").interactable);
@@ -145,15 +144,23 @@ namespace MyriadOfDragons.Tests
         [Test]
         public async Task DisabledSystem_ShowsPausedBanner_OtherSectionsStayLive()
         {
-            Cc10Snapshot snap = Snap();
-            snap.disabledSystems = new[] { "Missions" };
+            Cc10FrontierSnapshot snap = Snap();
+            snap.disabledSystems = new[] { Cc10SystemId.Missions };
             var (p, _, _) = await Open(e => snap);
-            p.SelectSection(Cc10System.Missions);
+            p.SelectSection(Cc10SystemId.Missions);
             Assert.AreEqual(Cc10Copy.SystemDisabled, p.BannerText);
             Assert.IsFalse(Find(p, "Action").interactable);
 
-            p.SelectSection(Cc10System.Tavern);
+            p.SelectSection(Cc10SystemId.Tavern);
             Assert.IsEmpty(p.BannerText);
+        }
+
+        [Test]
+        public async Task UnsupportedQuerySection_ShowsUnavailable_NeverAnEmptyLiveList()
+        {
+            var (p, _, _) = await Open(e => Snap());
+            p.SelectSection(Cc10SystemId.GuildTerritory);
+            StringAssert.Contains("Not available", p.BannerText);
         }
     }
 }

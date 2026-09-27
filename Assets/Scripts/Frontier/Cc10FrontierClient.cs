@@ -9,19 +9,24 @@ namespace MyriadOfDragons.Frontier
 
     public enum Cc10Outcome { Applied, Replayed, Conflict, Disabled, Offline, Rejected, InFlight, Failed }
 
-    public sealed class Cc10CommandResult
+    public sealed class Cc10CommandOutcome
     {
         public Cc10Outcome Outcome;
         public string Message = string.Empty;
-        public Cc10Response Response;
+        public Cc10CommandResult Response;
     }
 
     /// <summary>
-    /// Presentation-side state holder for CC10. It holds the last authoritative snapshot, gates
-    /// input (offline / disabled / already in flight), replays the ORIGINAL request id after a lost
-    /// response, and de-duplicates receipts. It never mutates PlayerProfile, wallet, cards, ranks,
-    /// guild or cargo state: authoritative projections are surfaced through
-    /// <see cref="ProjectionReceived"/> for the host (Collection/Save owner) to apply.
+    /// Presentation-side state holder for CC10, built against the real, published server contract
+    /// (CloudCode/CC10Frontier). It holds the last authoritative FrontierSnapshotResult, gates
+    /// input while offline/disabled/in-flight, replays the ORIGINAL requestId after a lost
+    /// response (server dedups by requestId per authority rule 5), reloads on
+    /// AUTHORITY_GENERATION_MISMATCH (authority rule 8: reconnect after emergency-disable), and
+    /// de-duplicates by receiptId. It never writes PlayerProfile/SaveSystem directly - a command's
+    /// settlement (Cc10Receipt) surfaces through <see cref="ReceiptReceived"/> for the host
+    /// (Collection/Save owner) to apply. This layer never authors phase, threat, reward, cooldown,
+    /// or ranking values - every number here is either echoed from the server or a locked preview
+    /// constant from <see cref="Cc10Rules"/>.
     /// </summary>
     public sealed class Cc10FrontierClient
     {
@@ -29,7 +34,6 @@ namespace MyriadOfDragons.Frontier
         private readonly Dictionary<string, string> _pendingRequestIds = new Dictionary<string, string>();
         private readonly HashSet<string> _inFlight = new HashSet<string>();
         private readonly HashSet<string> _seenReceipts = new HashSet<string>();
-        private readonly HashSet<Cc10System> _locallyDisabled = new HashSet<Cc10System>();
         private readonly Func<string> _newRequestId;
         private readonly List<string> _anomalies = new List<string>();
 
@@ -41,36 +45,32 @@ namespace MyriadOfDragons.Frontier
         }
 
         public Cc10ServerClock Clock { get; }
-        public Cc10Snapshot Snapshot { get; private set; }
+        public Cc10FrontierSnapshot Snapshot { get; private set; }
         public Cc10Connection Connection { get; private set; } = Cc10Connection.Unknown;
         public IReadOnlyList<string> StateAnomalies => _anomalies;
         public int PendingRequestCount => _pendingRequestIds.Count;
-
-        public event Action Changed;
-        /// <summary>Raised once per new receipt with the server's wallet/card projection.</summary>
-        public event Action<Cc10Projection> ProjectionReceived;
-
         public bool HasState => Snapshot != null;
 
-        public bool IsSystemDisabled(Cc10System system)
-        {
-            if (_locallyDisabled.Contains(system)) return true;
-            if (Snapshot?.disabledSystems == null) return false;
-            return Array.IndexOf(Snapshot.disabledSystems, system.ToString()) >= 0;
-        }
+        public event Action Changed;
+        /// <summary>Raised once per new receiptId with the server's settlement instruction. The host
+        /// applies goldCredit/materialsCredit/goldDebit/materialsDebit/staminaDebit to the wallet;
+        /// this layer never touches PlayerProfile.</summary>
+        public event Action<Cc10Receipt> ReceiptReceived;
 
-        /// <summary>True when the screen for <paramref name="system"/> must not offer any mutation.</summary>
-        public bool IsReadOnly(Cc10System system) =>
-            Connection != Cc10Connection.Online || !HasState || IsSystemDisabled(system);
+        public bool IsSystemDisabled(string systemId) => HasState && Snapshot.IsSystemDisabled(systemId);
 
-        /// <summary>Reload authoritative state. Returns false when offline or the response was stale.
-        /// On failure the last snapshot stays visible, read-only.</summary>
+        /// <summary>True when the screen for <paramref name="systemId"/> must not offer any mutation.</summary>
+        public bool IsReadOnly(string systemId) =>
+            Connection != Cc10Connection.Online || !HasState || IsSystemDisabled(systemId);
+
+        /// <summary>Reload authoritative state. Returns false when offline or the response was stale
+        /// or unsuccessful; the last snapshot stays visible, read-only.</summary>
         public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
         {
-            Cc10Snapshot fresh;
+            Cc10FrontierSnapshot fresh;
             try
             {
-                fresh = await _gateway.CallAsync<Cc10Snapshot>(Cc10Endpoints.GetState, null, cancellationToken);
+                fresh = await _gateway.CallAsync<Cc10FrontierSnapshot>(Cc10Endpoints.GetFrontierState, null, cancellationToken);
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception)
@@ -80,7 +80,7 @@ namespace MyriadOfDragons.Frontier
                 return false;
             }
 
-            if (fresh == null || !fresh.IsSuccess)
+            if (fresh == null || !fresh.success)
             {
                 Connection = Cc10Connection.Offline;
                 RaiseChanged();
@@ -92,25 +92,26 @@ namespace MyriadOfDragons.Frontier
 
             if (Snapshot != null && fresh.stateVersion < Snapshot.stateVersion)
             {
-                // Older than what is already on screen (out-of-order reconnect response).
-                RaiseChanged();
+                RaiseChanged(); // stale/out-of-order response; keep what's on screen
                 return false;
             }
 
             RecordTransitionAnomalies(Snapshot, fresh);
             Snapshot = fresh;
-            _locallyDisabled.Clear();
             RaiseChanged();
             return true;
         }
 
-        public async Task<Cc10CommandResult> ExecuteAsync(
-            Cc10System system, string endpoint, Dictionary<string, object> payload,
+        /// <summary>Executes one mutating command. <paramref name="body"/> carries only that
+        /// endpoint's own fields (e.g. missionId, nodeId) - requestId/expectedStateVersion are
+        /// added here, matching CC10Request's base shape.</summary>
+        public async Task<Cc10CommandOutcome> ExecuteAsync(
+            string systemId, string endpoint, Dictionary<string, object> body,
             string entityKey, CancellationToken cancellationToken = default)
         {
             if (Connection != Cc10Connection.Online || !HasState)
                 return Blocked(Cc10Outcome.Offline, Cc10Copy.Offline);
-            if (IsSystemDisabled(system))
+            if (IsSystemDisabled(systemId))
                 return Blocked(Cc10Outcome.Disabled, Cc10Copy.SystemDisabled);
 
             string key = endpoint + "|" + (entityKey ?? string.Empty);
@@ -125,16 +126,15 @@ namespace MyriadOfDragons.Frontier
                     _pendingRequestIds[key] = requestId;
                 }
 
-                var body = payload != null
-                    ? new Dictionary<string, object>(payload)
-                    : new Dictionary<string, object>();
-                body["requestId"] = requestId;
-                body["expectedStateVersion"] = Snapshot.stateVersion;
+                var request = body != null ? new Dictionary<string, object>(body) : new Dictionary<string, object>();
+                request["requestId"] = requestId;
+                request["expectedStateVersion"] = Snapshot.stateVersion;
+                request["expectedAuthorityGeneration"] = Snapshot.authorityGeneration;
 
-                Cc10CommandResponse response;
+                Cc10CommandResult response;
                 try
                 {
-                    response = await _gateway.CallAsync<Cc10CommandResponse>(endpoint, body, cancellationToken);
+                    response = await _gateway.CallAsync<Cc10CommandResult>(endpoint, request, cancellationToken);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception)
@@ -143,18 +143,18 @@ namespace MyriadOfDragons.Frontier
                     // the retry replays the original request instead of creating a second one.
                     Connection = Cc10Connection.Offline;
                     RaiseChanged();
-                    return new Cc10CommandResult { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
+                    return new Cc10CommandOutcome { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
                 }
 
                 if (response == null)
                 {
                     Connection = Cc10Connection.Offline;
                     RaiseChanged();
-                    return new Cc10CommandResult { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
+                    return new Cc10CommandOutcome { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
                 }
 
                 Clock.Sample(response.serverUtcMs);
-                return await SettleAsync(system, key, response, cancellationToken);
+                return await SettleAsync(key, response, cancellationToken);
             }
             finally
             {
@@ -162,60 +162,59 @@ namespace MyriadOfDragons.Frontier
             }
         }
 
-        private async Task<Cc10CommandResult> SettleAsync(
-            Cc10System system, string key, Cc10CommandResponse response, CancellationToken cancellationToken)
+        private async Task<Cc10CommandOutcome> SettleAsync(string key, Cc10CommandResult response, CancellationToken cancellationToken)
         {
-            if (response.systemDisabled || response.status == Cc10Status.Disabled)
+            if (response.errorCode == Cc10Errors.SystemDisabled)
             {
                 _pendingRequestIds.Remove(key);
-                _locallyDisabled.Add(system);
-                RaiseChanged();
-                return new Cc10CommandResult { Outcome = Cc10Outcome.Disabled, Message = Cc10Copy.SystemDisabled, Response = response };
+                await RefreshAsync(cancellationToken); // pick up the fresh disabledSystems list
+                return new Cc10CommandOutcome { Outcome = Cc10Outcome.Disabled, Message = Cc10Copy.SystemDisabled, Response = response };
             }
 
-            if (response.IsSuccess)
+            if (response.success)
             {
                 _pendingRequestIds.Remove(key);
-                bool firstSight = string.IsNullOrEmpty(response.receiptId) || _seenReceipts.Add(response.receiptId);
-                if (firstSight && response.projection != null)
-                    ProjectionReceived?.Invoke(response.projection);
+                Cc10Receipt receipt = response.receipt;
+                bool firstSight = receipt == null || string.IsNullOrEmpty(receipt.receiptId) || _seenReceipts.Add(receipt.receiptId);
+                if (firstSight && receipt != null)
+                    ReceiptReceived?.Invoke(receipt);
                 await RefreshAsync(cancellationToken);
-                return new Cc10CommandResult
+                return new Cc10CommandOutcome
                 {
-                    Outcome = firstSight ? Cc10Outcome.Applied : Cc10Outcome.Replayed,
-                    Message = firstSight ? string.Empty : Cc10Copy.AlreadyRecorded,
+                    Outcome = (firstSight && !response.replayed) ? Cc10Outcome.Applied : Cc10Outcome.Replayed,
+                    Message = (firstSight && !response.replayed) ? string.Empty : Cc10Copy.AlreadyRecorded,
                     Response = response,
                 };
             }
 
             _pendingRequestIds.Remove(key);
-            if (response.status == Cc10Status.Conflict)
+            if (response.errorCode == Cc10Errors.Conflict || response.errorCode == Cc10Errors.AuthorityGenerationMismatch)
             {
-                await RefreshAsync(cancellationToken);
-                return new Cc10CommandResult { Outcome = Cc10Outcome.Conflict, Message = Cc10Copy.Conflict, Response = response };
+                await RefreshAsync(cancellationToken); // first valid CAS wins; reload and show the latest
+                return new Cc10CommandOutcome { Outcome = Cc10Outcome.Conflict, Message = Cc10Copy.Conflict, Response = response };
             }
 
-            return new Cc10CommandResult
+            return new Cc10CommandOutcome
             {
                 Outcome = Cc10Outcome.Rejected,
-                Message = Cc10Copy.ForRejection(response.status, response.errorCode),
+                Message = Cc10Copy.ForRejection(response.errorCode),
                 Response = response,
             };
         }
 
-        private static Cc10CommandResult Blocked(Cc10Outcome outcome, string message) =>
-            new Cc10CommandResult { Outcome = outcome, Message = message };
+        private static Cc10CommandOutcome Blocked(Cc10Outcome outcome, string message) =>
+            new Cc10CommandOutcome { Outcome = outcome, Message = message };
 
-        private void RecordTransitionAnomalies(Cc10Snapshot before, Cc10Snapshot after)
+        private void RecordTransitionAnomalies(Cc10FrontierSnapshot before, Cc10FrontierSnapshot after)
         {
             if (before?.missions == null || after?.missions == null) return;
-            foreach (Cc10MissionRow next in after.missions)
+            foreach (Cc10MissionDto next in after.missions)
             {
-                foreach (Cc10MissionRow prev in before.missions)
+                foreach (Cc10MissionDto prev in before.missions)
                 {
-                    if (prev.missionId != next.missionId || prev.attempt != next.attempt) continue;
-                    if (!Cc10StateMachine.IsMissionTransitionLegal(prev.state, next.state))
-                        _anomalies.Add(next.missionId + ":" + prev.state + ">" + next.state);
+                    if (prev.missionId != next.missionId) continue;
+                    if (!Cc10StateMachine.IsMissionTransitionLegal(prev.status, next.status))
+                        _anomalies.Add(next.missionId + ":" + prev.status + ">" + next.status);
                 }
             }
         }
@@ -223,7 +222,7 @@ namespace MyriadOfDragons.Frontier
         private void RaiseChanged() => Changed?.Invoke();
     }
 
-    /// <summary>Player-facing copy. Never surfaces raw backend codes.</summary>
+    /// <summary>Player-facing copy. Never surfaces a raw CC10Errors.* code.</summary>
     public static class Cc10Copy
     {
         public const string Offline = "You're offline. Reconnect to continue.";
@@ -233,13 +232,13 @@ namespace MyriadOfDragons.Frontier
         public const string Conflict = "Something changed. Showing the latest.";
         public const string AlreadyRecorded = "Already recorded.";
         public const string CapReached = "Daily Gold limit reached. Nothing was claimed.";
+        public const string OfflineClaimRejected = "That can't be claimed while offline.";
         public const string Generic = "That didn't go through.";
-        public const string NotReady = "Not ready yet.";
 
-        public static string ForRejection(string status, string errorCode)
+        public static string ForRejection(string errorCode)
         {
-            if (status == Cc10Status.CapExceeded) return CapReached;
-            if (status == Cc10Status.NotFound) return Conflict;
+            if (errorCode == Cc10Errors.GoldCapReached) return CapReached;
+            if (errorCode == Cc10Errors.OfflineClaimRejected) return OfflineClaimRejected;
             return Generic;
         }
     }

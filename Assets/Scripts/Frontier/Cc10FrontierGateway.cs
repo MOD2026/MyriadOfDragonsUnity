@@ -7,26 +7,21 @@ using Unity.Services.Core;
 
 namespace MyriadOfDragons.Frontier
 {
-    /// <summary>Transport seam for the CC10FrontierService. Tests substitute a fake; production
-    /// uses <see cref="UnityCloudCodeCc10FrontierGateway"/>. One generic call keeps the client free
-    /// of per-endpoint transport code.</summary>
+    /// <summary>Transport seam for MyriadOfDragons.CloudCode.CC10Frontier.CC10FrontierModule. Tests
+    /// substitute a fake; production calls the real, deployed module. Every request dictionary the
+    /// client builds mirrors CC10Request's base fields (requestId, expectedStateVersion,
+    /// expectedAuthorityGeneration, clientDisplayUtcMs - display-only, never read by a rule -
+    /// offlineQueued) plus that endpoint's own fields.</summary>
     public interface ICc10FrontierGateway
     {
         Task<T> CallAsync<T>(string endpoint, Dictionary<string, object> request, CancellationToken cancellationToken)
-            where T : Cc10Response;
-    }
-
-    /// <summary>Command response: envelope plus the authoritative wallet/card projection.</summary>
-    [System.Serializable]
-    public class Cc10CommandResponse : Cc10Response
-    {
-        public Cc10Projection projection = new Cc10Projection();
+            where T : Cc10ResultBase;
     }
 
     public sealed class UnityCloudCodeCc10FrontierGateway : ICc10FrontierGateway
     {
         public async Task<T> CallAsync<T>(string endpoint, Dictionary<string, object> request, CancellationToken cancellationToken)
-            where T : Cc10Response
+            where T : Cc10ResultBase
         {
             await UnityServices.InitializeAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();

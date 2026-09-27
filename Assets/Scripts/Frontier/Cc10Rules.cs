@@ -1,11 +1,12 @@
 using System;
-using MyriadOfDragons.Empire;
 using MyriadOfDragons.Save;
 
 namespace MyriadOfDragons.Frontier
 {
-    /// <summary>Locked beta numbers from docs/CC10_BETA_AUTHORITY_2026-09-27.md, kept only so the
-    /// client can PREVIEW what the server will enforce. The server stays the authority.</summary>
+    /// <summary>Locked beta numbers, copied from the published, validated server catalog
+    /// (CloudCode/CC10Frontier/CC10Rows.cs, CC10RowSet - CC10RowSet.Validate refuses to start on a
+    /// catalog that drifts from these). Preview only: the server remains the authority and
+    /// enforces every one of these independently.</summary>
     public static class Cc10Rules
     {
         public const int TavernMaxLevel = 10;
@@ -17,98 +18,100 @@ namespace MyriadOfDragons.Frontier
         public const int MissionGoldReward = 300;
         public const int MissionMaterialReward = 200;
 
-        public const string KindNpcPatrol = "NpcPatrol";
-        public const string KindRelicRescue = "RelicRescue";
-        public const string KindVeinConvoy = "VeinConvoy";
+        public const int GoldCapPerUtcDay = 900;
+        /// <summary>Base 300 + the locked +10% guild bonus; the bonus can never raise the cap.</summary>
+        public const int MaxExpeditionGoldPerReport = 330;
+        public const int CampaignMaterialsSourceTotal = 2300;
 
         public struct MissionRule
         {
-            public string Kind;
+            public string Type;
             public int Minutes;
             public int DailyLimit;
             public int RefreshHours;
+            /// <summary>Tavern level that must be COMPLETED before this mission unlocks.</summary>
+            public int UnlockTavernLevel;
+            public string NodeId;
         }
 
         public static readonly MissionRule[] MissionRules =
         {
-            new MissionRule { Kind = KindNpcPatrol, Minutes = 30, DailyLimit = 3, RefreshHours = 8 },
-            new MissionRule { Kind = KindRelicRescue, Minutes = 60, DailyLimit = 2, RefreshHours = 12 },
-            new MissionRule { Kind = KindVeinConvoy, Minutes = 120, DailyLimit = 1, RefreshHours = 24 },
+            new MissionRule { Type = Cc10MissionType.NpcPatrol, Minutes = 30, DailyLimit = 3, RefreshHours = 8, UnlockTavernLevel = 2, NodeId = "patrol_road" },
+            new MissionRule { Type = Cc10MissionType.RelicRescue, Minutes = 60, DailyLimit = 2, RefreshHours = 12, UnlockTavernLevel = 4, NodeId = "ruined_shrine" },
+            new MissionRule { Type = Cc10MissionType.VeinConvoy, Minutes = 120, DailyLimit = 1, RefreshHours = 24, UnlockTavernLevel = 6, NodeId = "titan_vein" },
         };
 
-        /// <summary>The shared 900 Gold UTC-day cap (Empire Expedition + CC10).</summary>
-        public static int SharedDailyGoldCap => EmpireExpeditionOpenValues.DailyExpeditionGoldCap ?? 900;
-
-        public static bool TryGetMissionRule(string kind, out MissionRule rule)
+        public static bool TryGetMissionRule(string type, out MissionRule rule)
         {
             foreach (MissionRule r in MissionRules)
             {
-                if (r.Kind == kind) { rule = r; return true; }
+                if (r.Type == type) { rule = r; return true; }
             }
             rule = default;
             return false;
         }
 
-        /// <summary>Preview only: true when claiming <paramref name="gold"/> would cross the shared
-        /// cap. Per the authority record the WHOLE claim is rejected - never a partial payout.</summary>
-        public static bool ClaimWouldCrossGoldCap(int usedToday, int gold) =>
-            gold > 0 && usedToday + gold > SharedDailyGoldCap;
-
         public static int CardTrainingCost(int level) => CollectionTrainingRules.XpCostForNextLevel(level);
         public static int CardLevelCap => CollectionSchemaRules.MaxCardLevel;
     }
 
-    /// <summary>Legal display transitions. The server owns transitions; the client uses this table
-    /// to detect an impossible state jump and reload authoritative state instead of trusting it.</summary>
+    /// <summary>Legal display transitions, copied from the enum sets in the published contract
+    /// (MissionStatus, CargoStatus). Used only to flag an impossible jump for a reload - the client
+    /// never enforces these; the server is the sole authority.</summary>
     public static class Cc10StateMachine
     {
-        public const string Accepted = "Accepted";
-        public const string Scouting = "Scouting";
-        public const string Active = "Active";
-        public const string Completed = "Completed";
-        public const string Failed = "Failed";
-        public const string Abandoned = "Abandoned";
-        public const string Claimed = "Claimed";
-        public const string Delivered = "Delivered";
-        public const string Intercepted = "Intercepted";
-        public const string Expired = "Expired";
-
-        public static bool IsTerminal(string state) =>
-            state == Claimed || state == Failed || state == Abandoned
-            || state == Intercepted || state == Expired;
+        public static bool IsMissionTerminal(string status) =>
+            status == Cc10MissionStatus.Claimed || status == Cc10MissionStatus.Failed
+            || status == Cc10MissionStatus.Abandoned || status == Cc10MissionStatus.Expired;
 
         public static bool IsMissionTransitionLegal(string from, string to)
         {
             if (from == to) return true; // idempotent replay
+            if (IsMissionTerminal(from)) return false;
             switch (from)
             {
-                case Accepted: return to == Scouting || to == Abandoned || to == Expired;
-                case Scouting: return to == Active || to == Abandoned || to == Expired;
-                case Active: return to == Completed || to == Failed || to == Abandoned || to == Expired;
-                case Completed: return to == Claimed || to == Expired;
-                default: return false;
+                case Cc10MissionStatus.Active:
+                    return to == Cc10MissionStatus.Completed || to == Cc10MissionStatus.Failed
+                        || to == Cc10MissionStatus.Abandoned || to == Cc10MissionStatus.Expired;
+                case Cc10MissionStatus.Completed:
+                    return to == Cc10MissionStatus.Claimed || to == Cc10MissionStatus.Expired;
+                default:
+                    return false;
             }
         }
+
+        public static bool IsCargoTerminal(string status) =>
+            status == Cc10CargoStatus.Claimed || status == Cc10CargoStatus.Intercepted
+            || status == Cc10CargoStatus.Abandoned || status == Cc10CargoStatus.Expired
+            || status == Cc10CargoStatus.Failed;
 
         public static bool IsCargoTransitionLegal(string from, string to)
         {
             if (from == to) return true;
+            if (IsCargoTerminal(from)) return false;
             switch (from)
             {
-                case Accepted: return to == Scouting || to == Abandoned || to == Expired;
-                case Scouting: return to == Active || to == Abandoned || to == Expired;
-                case Active: return to == Delivered || to == Intercepted || to == Abandoned
-                                    || to == Expired || to == Failed;
-                case Delivered: return to == Claimed || to == Expired;
-                default: return false;
+                case Cc10CargoStatus.Accepted:
+                    return to == Cc10CargoStatus.Scouting || to == Cc10CargoStatus.Abandoned || to == Cc10CargoStatus.Expired;
+                case Cc10CargoStatus.Scouting:
+                    return to == Cc10CargoStatus.Active || to == Cc10CargoStatus.Abandoned || to == Cc10CargoStatus.Expired;
+                case Cc10CargoStatus.Active:
+                    return to == Cc10CargoStatus.Delivered || to == Cc10CargoStatus.Intercepted
+                        || to == Cc10CargoStatus.Abandoned || to == Cc10CargoStatus.Expired || to == Cc10CargoStatus.Failed;
+                case Cc10CargoStatus.Delivered:
+                    return to == Cc10CargoStatus.Claimed || to == Cc10CargoStatus.Expired;
+                default:
+                    return false;
             }
         }
 
-        public static bool IsClaimable(string state) => state == Completed || state == Delivered;
+        public static bool IsMissionClaimable(string status) => status == Cc10MissionStatus.Completed;
+        public static bool IsCargoClaimable(string status) => status == Cc10CargoStatus.Delivered;
     }
 
     /// <summary>Display-only server clock: one server UTC sample plus a monotonic elapsed counter,
-    /// so device clock rollback/advance cannot move a timer. Never used to authorise anything.</summary>
+    /// so device clock rollback/advance cannot move a timer (authority rule 3: GetServerUtc() is
+    /// the only clock any rule uses; this is a display projection of it, nothing more).</summary>
     public sealed class Cc10ServerClock
     {
         private readonly Func<long> _monotonicMs;
@@ -134,7 +137,6 @@ namespace MyriadOfDragons.Frontier
 
         public long DisplayNowUtcMs => _hasSample ? _sampleUtcMs + (_monotonicMs() - _sampleMonotonicMs) : 0;
 
-        /// <summary>Milliseconds until <paramref name="targetUtcMs"/>; 0 when reached or unknown.</summary>
         public long RemainingMs(long targetUtcMs)
         {
             if (!_hasSample || targetUtcMs <= 0) return 0;

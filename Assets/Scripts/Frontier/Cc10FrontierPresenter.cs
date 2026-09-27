@@ -9,8 +9,9 @@ namespace MyriadOfDragons.Frontier
     /// <summary>
     /// CC10 presentation shell (legacy uGUI, procedural, landscape 1920x1080). Input and display
     /// only: every button forwards to <see cref="Cc10FrontierClient.ExecuteAsync"/> and the screen
-    /// re-renders from the server snapshot. No runtime art is bound - none is approved
-    /// (UIUX/AD gate), so surfaces are flat panels.
+    /// re-renders from the server snapshot. No runtime art is bound - none is APPROVED-RUNTIME for
+    /// any CC10 screen yet (UIUX/AD gate; see docs/CC10_PHASE1_READINESS_AUDIT_2026-09-27.md §2),
+    /// so surfaces are flat panels only.
     /// </summary>
     public sealed class Cc10FrontierPresenter : MonoBehaviour
     {
@@ -18,17 +19,24 @@ namespace MyriadOfDragons.Frontier
         private const float RefW = 1920f, RefH = 1080f;
         private const float TabH = 64f, RowH = 96f;
 
+        private static readonly string[] SectionOrder =
+        {
+            Cc10SystemId.Tavern, Cc10SystemId.Missions, Cc10SystemId.WorldMap, Cc10SystemId.NpcSpots,
+            Cc10SystemId.GuildTerritory, Cc10SystemId.IndividualResearch, Cc10SystemId.GuildResearch,
+            Cc10SystemId.IndividualRankings, Cc10SystemId.GuildRankings, Cc10SystemId.Minigame, Cc10SystemId.Cargo,
+        };
+
         private Cc10FrontierClient _client;
         private Func<IEnumerable<CardProgressionRecord>> _cards;
         private Action _onBack;
-        private Cc10System _active = Cc10System.Tavern;
+        private string _active = Cc10SystemId.Tavern;
         private RectTransform _content;
         private Text _banner;
         private Text _status;
         private Font _font;
         private bool _built;
 
-        public Cc10System ActiveSection => _active;
+        public string ActiveSection => _active;
         public string StatusText => _status != null ? _status.text : string.Empty;
         public string BannerText => _banner != null ? _banner.text : string.Empty;
         public RectTransform Root { get; private set; }
@@ -52,22 +60,18 @@ namespace MyriadOfDragons.Frontier
             if (_client != null) _client.Changed -= Render;
         }
 
-        public void SelectSection(Cc10System system)
+        public void SelectSection(string systemId)
         {
-            _active = system;
+            _active = systemId;
             Render();
         }
 
-        public async void RefreshFromServer()
-        {
-            await _client.RefreshAsync();
-        }
+        public async void RefreshFromServer() => await _client.RefreshAsync();
 
         public async void RunRow(Cc10Row row)
         {
             if (row == null || !row.HasAction || !row.ActionEnabled) return;
-            Cc10CommandResult result = await _client.ExecuteAsync(
-                _active, row.Endpoint, row.Payload, row.EntityKey);
+            Cc10CommandOutcome result = await _client.ExecuteAsync(_active, row.Endpoint, row.Payload, row.EntityKey);
             if (_status == null) return; // destroyed while awaiting
             _status.text = result.Outcome == Cc10Outcome.Applied ? string.Empty : result.Message;
         }
@@ -94,14 +98,12 @@ namespace MyriadOfDragons.Frontier
             Label("Title", Root, 48, 24, 700, 56, "Frontier", 40, TextAnchor.MiddleLeft);
             AddButton("Btn_Back", Root, RefW - 48 - 200, 24, 200, MinTouch, "Back", () => _onBack?.Invoke());
 
-            float tabW = (RefW - 96f) / 12f;
-            int i = 0;
-            foreach (Cc10System s in (Cc10System[])Enum.GetValues(typeof(Cc10System)))
+            float tabW = (RefW - 96f) / SectionOrder.Length;
+            for (int i = 0; i < SectionOrder.Length; i++)
             {
-                Cc10System captured = s;
-                AddButton("Tab_" + s, Root, 48 + i * tabW, 96, tabW - 6, TabH,
-                    Cc10ViewModels.SectionTitle(s), () => SelectSection(captured), 18);
-                i++;
+                string captured = SectionOrder[i];
+                AddButton("Tab_" + captured, Root, 48 + i * tabW, 96, tabW - 6, TabH,
+                    Cc10ViewModels.SectionTitle(captured), () => SelectSection(captured), 16);
             }
 
             _banner = Label("Banner", Root, 48, 176, RefW - 96, 40, string.Empty, 24, TextAnchor.MiddleLeft);

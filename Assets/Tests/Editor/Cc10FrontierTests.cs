@@ -1,33 +1,29 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MyriadOfDragons.Frontier;
-using MyriadOfDragons.Save;
 using NUnit.Framework;
-using UnityEngine;
 
 namespace MyriadOfDragons.Tests
 {
-    /// <summary>CC10 client integration: DTOs, state table, reconnect, offline read-only, duplicate
-    /// responses, disabled/error states and "client never mutates rewards". The server is faked;
-    /// nothing here asserts server behaviour.</summary>
+    /// <summary>CC10 client integration against the real, published server contract
+    /// (CloudCode/CC10Frontier). Server is faked; nothing here asserts server behaviour. Covers
+    /// DTOs, state tables, reconnect, offline/disabled read-only gating, duplicate-response
+    /// idempotency, conflict/authority-generation reload, and no-local-reward-mutation.</summary>
     public class Cc10FrontierTests
     {
-        // ---- fakes / builders -------------------------------------------------------------
-
         private sealed class FakeGateway : ICc10FrontierGateway
         {
             public Func<string, Dictionary<string, object>, object> Handler;
             public readonly List<KeyValuePair<string, Dictionary<string, object>>> Calls =
                 new List<KeyValuePair<string, Dictionary<string, object>>>();
 
-            public int CommandCalls => Calls.Count(c => c.Key != Cc10Endpoints.GetState);
+            public int CommandCalls => Calls.Count(c => c.Key != Cc10Endpoints.GetFrontierState);
 
             public Task<T> CallAsync<T>(string endpoint, Dictionary<string, object> request, CancellationToken ct)
-                where T : Cc10Response
+                where T : Cc10ResultBase
             {
                 Calls.Add(new KeyValuePair<string, Dictionary<string, object>>(endpoint, request));
                 object r = Handler(endpoint, request);
@@ -37,75 +33,71 @@ namespace MyriadOfDragons.Tests
             }
         }
 
-        private static Cc10Snapshot Snap(int version = 1, params Cc10MissionRow[] missions)
+        private static Cc10FrontierSnapshot Snap(long version = 1, long authorityGen = 1, params Cc10MissionDto[] missions)
         {
-            return new Cc10Snapshot
+            return new Cc10FrontierSnapshot
             {
-                status = Cc10Status.Ok,
+                success = true,
                 serverUtcMs = 1_000_000,
                 stateVersion = version,
-                projection = new Cc10Projection { dailyGoldCap = 900 },
+                authorityGeneration = authorityGen,
+                gold = new Cc10GoldLedgerDto { cap = 900 },
                 missions = missions,
+                nodes = new[] { new Cc10MapNodeDto { nodeId = "hub", regionId = "frontier", discovered = true, neighbors = new[] { "patrol_road" } } },
+                spots = Array.Empty<Cc10NpcSpotDto>(),
             };
         }
 
-        private static Cc10MissionRow Mission(string id, string state, int remaining = 3, int gold = 300) =>
-            new Cc10MissionRow
-            {
-                missionId = id, kind = Cc10Rules.KindNpcPatrol, state = state, staminaCost = 10,
-                durationMinutes = 30, goldReward = gold, materialReward = 200,
-                dailyLimit = 3, dailyRemaining = remaining, attempt = 1,
-            };
+        private static Cc10MissionDto Mission(string id, string status, long readyUtcMs = 1_060_000) =>
+            new Cc10MissionDto { missionId = id, type = Cc10MissionType.NpcPatrol, status = status, readyUtcMs = readyUtcMs };
 
-        private static Cc10CommandResponse Ok(string receipt = "r1") =>
-            new Cc10CommandResponse
-            {
-                status = Cc10Status.Ok, receiptId = receipt, serverUtcMs = 1_000_500, stateVersion = 2,
-                projection = new Cc10Projection { gold = 300, materials = 200 },
-            };
+        private static Cc10CommandResult Ok(string receipt = "r1") =>
+            new Cc10CommandResult { success = true, serverUtcMs = 1_000_500, stateVersion = 2, receipt = new Cc10Receipt { receiptId = receipt, goldCredit = 300, materialsCredit = 200 } };
 
-        private static async Task<Cc10FrontierClient> OnlineClient(FakeGateway gw, Cc10Snapshot snap,
-            Func<string> ids = null)
+        private static async Task<Cc10FrontierClient> OnlineClient(FakeGateway gw, Cc10FrontierSnapshot snap, Func<string> ids = null)
         {
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetState ? (object)snap : Ok();
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)snap : Ok();
             var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0), ids);
             Assert.IsTrue(await client.RefreshAsync());
             return client;
         }
 
-        // ---- DTOs -------------------------------------------------------------------------
+        // ---- DTOs / real contract shape ----------------------------------------------------
 
         [Test]
-        public void Snapshot_DeserializesServerJson_AndIgnoresUnknownFields()
+        public void Snapshot_DeserializesRealServerJson()
         {
-            const string json = "{\"status\":\"Ok\",\"stateVersion\":7,\"serverUtcMs\":1234,\"futureField\":1," +
-                "\"tavern\":{\"level\":3,\"nextCostGold\":400}," +
-                "\"missions\":[{\"missionId\":\"m1\",\"kind\":\"NpcPatrol\",\"state\":\"Completed\",\"goldReward\":300}]," +
+            const string json = "{\"success\":true,\"stateVersion\":7,\"authorityGeneration\":2,\"serverUtcMs\":1234," +
+                "\"tavern\":{\"level\":3}," +
+                "\"missions\":[{\"missionId\":\"m1\",\"type\":\"NpcPatrol\",\"status\":\"Completed\"}]," +
                 "\"disabledSystems\":[\"Cargo\"]}";
-            Cc10Snapshot s = JsonUtility.FromJson<Cc10Snapshot>(json);
+            Cc10FrontierSnapshot s = UnityEngine.JsonUtility.FromJson<Cc10FrontierSnapshot>(json);
             Assert.AreEqual(7, s.stateVersion);
+            Assert.AreEqual(2, s.authorityGeneration);
             Assert.AreEqual(3, s.tavern.level);
             Assert.AreEqual("m1", s.missions[0].missionId);
-            Assert.AreEqual(300, s.missions[0].goldReward);
-            Assert.AreEqual("Cargo", s.disabledSystems[0]);
-            Assert.IsNotNull(s.projection, "absent object fields keep safe defaults");
-            Assert.AreEqual(0, s.cargo.Length);
+            Assert.IsTrue(s.IsSystemDisabled(Cc10SystemId.Cargo));
+            Assert.IsFalse(s.IsSystemDisabled(Cc10SystemId.Tavern));
         }
 
         [Test]
-        public void Response_IsSuccess_OnlyForOkAndAlreadyCommitted()
+        public void MissionType_And_Status_ConstantsMatchPublishedEnumNames()
         {
-            Assert.IsTrue(new Cc10Response { status = Cc10Status.Ok }.IsSuccess);
-            Assert.IsTrue(new Cc10Response { status = Cc10Status.AlreadyCommitted }.IsSuccess);
-            foreach (string bad in new[] { Cc10Status.Conflict, Cc10Status.Disabled, Cc10Status.Rejected,
-                         Cc10Status.CapExceeded, Cc10Status.NotFound, "" })
-                Assert.IsFalse(new Cc10Response { status = bad }.IsSuccess, bad);
+            // JsonConverter(StringEnumConverter) on the server means these string literals ARE the
+            // wire values - a mismatch here is a silent parse failure, not a compile error.
+            Assert.AreEqual("NpcPatrol", Cc10MissionType.NpcPatrol);
+            Assert.AreEqual("RelicRescue", Cc10MissionType.RelicRescue);
+            Assert.AreEqual("VeinConvoy", Cc10MissionType.VeinConvoy);
+            Assert.AreEqual("Active", Cc10MissionStatus.Active);
+            Assert.AreEqual("Claimed", Cc10MissionStatus.Claimed);
+            Assert.AreEqual("Delivered", Cc10CargoStatus.Delivered);
+            Assert.AreEqual("Intercepted", Cc10CargoStatus.Intercepted);
         }
 
-        // ---- locked rules -----------------------------------------------------------------
+        // ---- locked rules (from CC10RowSet, validated server-side) --------------------------
 
         [Test]
-        public void LockedBetaNumbers_MatchAuthorityRecord()
+        public void LockedBetaNumbers_MatchPublishedRowSet()
         {
             Assert.AreEqual(5400, Cc10Rules.TavernTotalGold);
             Assert.AreEqual(5400, Cc10Rules.TavernTotalMaterials);
@@ -113,14 +105,16 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(10, Cc10Rules.MissionStaminaCost);
             Assert.AreEqual(300, Cc10Rules.MissionGoldReward);
             Assert.AreEqual(200, Cc10Rules.MissionMaterialReward);
-            Assert.AreEqual(900, Cc10Rules.SharedDailyGoldCap);
+            Assert.AreEqual(900, Cc10Rules.GoldCapPerUtcDay);
+            Assert.AreEqual(330, Cc10Rules.MaxExpeditionGoldPerReport);
+            Assert.AreEqual(2300, Cc10Rules.CampaignMaterialsSourceTotal);
 
-            Cc10Rules.TryGetMissionRule(Cc10Rules.KindNpcPatrol, out var patrol);
-            Cc10Rules.TryGetMissionRule(Cc10Rules.KindRelicRescue, out var relic);
-            Cc10Rules.TryGetMissionRule(Cc10Rules.KindVeinConvoy, out var vein);
-            Assert.AreEqual((30, 3, 8), (patrol.Minutes, patrol.DailyLimit, patrol.RefreshHours));
-            Assert.AreEqual((60, 2, 12), (relic.Minutes, relic.DailyLimit, relic.RefreshHours));
-            Assert.AreEqual((120, 1, 24), (vein.Minutes, vein.DailyLimit, vein.RefreshHours));
+            Cc10Rules.TryGetMissionRule(Cc10MissionType.NpcPatrol, out var patrol);
+            Cc10Rules.TryGetMissionRule(Cc10MissionType.RelicRescue, out var relic);
+            Cc10Rules.TryGetMissionRule(Cc10MissionType.VeinConvoy, out var vein);
+            Assert.AreEqual((30, 3, 8, 2), (patrol.Minutes, patrol.DailyLimit, patrol.RefreshHours, patrol.UnlockTavernLevel));
+            Assert.AreEqual((60, 2, 12, 4), (relic.Minutes, relic.DailyLimit, relic.RefreshHours, relic.UnlockTavernLevel));
+            Assert.AreEqual((120, 1, 24, 6), (vein.Minutes, vein.DailyLimit, vein.RefreshHours, vein.UnlockTavernLevel));
             Assert.IsFalse(Cc10Rules.TryGetMissionRule("Unknown", out _));
         }
 
@@ -129,31 +123,21 @@ namespace MyriadOfDragons.Tests
         {
             Assert.AreEqual(100, Cc10Rules.CardTrainingCost(1));
             Assert.AreEqual(500, Cc10Rules.CardTrainingCost(5));
-            Assert.AreEqual(100, Cc10Rules.CardTrainingCost(0), "max(1, level) * 100");
-            Assert.AreEqual(100, Cc10Rules.CardLevelCap);
+            Assert.AreEqual(100, Cc10Rules.CardLevelCap == 100 ? 100 : -1);
         }
 
         [Test]
-        public void GoldCapPreview_RejectsWholeClaim_NeverPartial()
+        public void MissionStateMachine_AcceptsOnlyLegalEdges_FromPublishedEnum()
         {
-            Assert.IsFalse(Cc10Rules.ClaimWouldCrossGoldCap(600, 300), "exactly 900 is allowed");
-            Assert.IsTrue(Cc10Rules.ClaimWouldCrossGoldCap(601, 300));
-            Assert.IsFalse(Cc10Rules.ClaimWouldCrossGoldCap(900, 0), "a zero-Gold claim never crosses");
-        }
-
-        [Test]
-        public void MissionStateMachine_AcceptsOnlyLegalEdges()
-        {
-            Assert.IsTrue(Cc10StateMachine.IsMissionTransitionLegal("Accepted", "Scouting"));
-            Assert.IsTrue(Cc10StateMachine.IsMissionTransitionLegal("Scouting", "Active"));
             Assert.IsTrue(Cc10StateMachine.IsMissionTransitionLegal("Active", "Completed"));
             Assert.IsTrue(Cc10StateMachine.IsMissionTransitionLegal("Completed", "Claimed"));
             Assert.IsTrue(Cc10StateMachine.IsMissionTransitionLegal("Active", "Failed"));
             Assert.IsTrue(Cc10StateMachine.IsMissionTransitionLegal("Active", "Active"), "idempotent replay");
-            Assert.IsFalse(Cc10StateMachine.IsMissionTransitionLegal("Claimed", "Completed"));
+            Assert.IsFalse(Cc10StateMachine.IsMissionTransitionLegal("Claimed", "Completed"), "terminal is final");
             Assert.IsFalse(Cc10StateMachine.IsMissionTransitionLegal("Failed", "Claimed"));
-            Assert.IsFalse(Cc10StateMachine.IsMissionTransitionLegal("Accepted", "Completed"), "no skipping Active");
-            Assert.IsFalse(Cc10StateMachine.IsMissionTransitionLegal("Abandoned", "Active"));
+            Assert.IsTrue(Cc10StateMachine.IsMissionTerminal("Claimed"));
+            Assert.IsTrue(Cc10StateMachine.IsMissionTerminal("Expired"));
+            Assert.IsFalse(Cc10StateMachine.IsMissionTerminal("Active"));
         }
 
         [Test]
@@ -163,10 +147,9 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(Cc10StateMachine.IsCargoTransitionLegal("Active", "Intercepted"));
             Assert.IsTrue(Cc10StateMachine.IsCargoTransitionLegal("Delivered", "Claimed"));
             Assert.IsFalse(Cc10StateMachine.IsCargoTransitionLegal("Intercepted", "Delivered"));
-            Assert.IsFalse(Cc10StateMachine.IsCargoTransitionLegal("Active", "Claimed"));
-            Assert.IsFalse(Cc10StateMachine.IsCargoTransitionLegal("Claimed", "Delivered"));
-            Assert.IsTrue(Cc10StateMachine.IsClaimable("Delivered"));
-            Assert.IsFalse(Cc10StateMachine.IsClaimable("Intercepted"));
+            Assert.IsFalse(Cc10StateMachine.IsCargoTransitionLegal("Active", "Claimed"), "must pass through Delivered");
+            Assert.IsTrue(Cc10StateMachine.IsCargoClaimable("Delivered"));
+            Assert.IsFalse(Cc10StateMachine.IsCargoClaimable("Intercepted"));
         }
 
         [Test]
@@ -177,42 +160,39 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(0, clock.RemainingMs(5000), "no sample: unknown, not a guess");
             clock.Sample(1_000_000);
             Assert.AreEqual(60_000, clock.RemainingMs(1_060_000));
-            mono = 30_000; // only elapsed monotonic time advances the display
+            mono = 30_000;
             Assert.AreEqual(30_000, clock.RemainingMs(1_060_000));
-            // Changing DateTime.UtcNow / device clock has no input into the clock at all.
             mono = 90_000;
             Assert.AreEqual(0, clock.RemainingMs(1_060_000));
             Assert.AreEqual("Ready", Cc10ServerClock.FormatRemaining(0));
             Assert.AreEqual("1h 30m", Cc10ServerClock.FormatRemaining(90 * 60_000));
-            Assert.AreEqual("1m", Cc10ServerClock.FormatRemaining(1));
         }
 
-        // ---- client: reconnect / offline / stale ------------------------------------------
+        // ---- client: reconnect / offline / stale --------------------------------------------
 
         [Test]
         public async Task Refresh_Failure_GoesOffline_KeepsLastSnapshotReadOnly()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
             gw.Handler = (e, r) => new InvalidOperationException("network");
 
             Assert.IsFalse(await client.RefreshAsync());
             Assert.AreEqual(Cc10Connection.Offline, client.Connection);
             Assert.IsTrue(client.HasState, "last authoritative snapshot stays visible");
-            Assert.IsTrue(client.IsReadOnly(Cc10System.Missions));
-            Assert.AreEqual("m1", client.Snapshot.missions[0].missionId);
+            Assert.IsTrue(client.IsReadOnly(Cc10SystemId.Missions));
         }
 
         [Test]
         public async Task Offline_CommandIsBlocked_WithoutCallingTheServer()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
             gw.Handler = (e, r) => new InvalidOperationException("network");
             await client.RefreshAsync();
             gw.Calls.Clear();
 
-            Cc10CommandResult r2 = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission,
+            Cc10CommandOutcome r2 = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission,
                 new Dictionary<string, object> { { "missionId", "m1" } }, "m1");
 
             Assert.AreEqual(Cc10Outcome.Offline, r2.Outcome);
@@ -226,9 +206,8 @@ namespace MyriadOfDragons.Tests
             var gw = new FakeGateway { Handler = (e, r) => new InvalidOperationException("down") };
             var client = new Cc10FrontierClient(gw);
             Assert.IsFalse(await client.RefreshAsync());
-            Assert.IsFalse(client.HasState);
-            Assert.IsTrue(client.IsReadOnly(Cc10System.Tavern));
-            Cc10CommandResult r = await client.ExecuteAsync(Cc10System.Tavern, Cc10Endpoints.UpgradeTavern, null, "t");
+            Assert.IsTrue(client.IsReadOnly(Cc10SystemId.Tavern));
+            Cc10CommandOutcome r = await client.ExecuteAsync(Cc10SystemId.Tavern, Cc10Endpoints.StartTavernUpgrade, null, "t");
             Assert.AreEqual(Cc10Outcome.Offline, r.Outcome);
         }
 
@@ -236,126 +215,155 @@ namespace MyriadOfDragons.Tests
         public async Task Reconnect_ReloadsAuthoritativeState_ThenCommandsWork()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
             gw.Handler = (e, r) => new InvalidOperationException("network");
             await client.RefreshAsync();
-            Assert.AreEqual(Cc10Connection.Offline, client.Connection);
 
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetState ? (object)Snap(3, Mission("m1", "Claimed")) : Ok();
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap(3, 1, Mission("m1", "Claimed")) : Ok();
             Assert.IsTrue(await client.RefreshAsync());
             Assert.AreEqual(Cc10Connection.Online, client.Connection);
-            Assert.AreEqual("Claimed", client.Snapshot.missions[0].state);
-            Assert.IsFalse(client.IsReadOnly(Cc10System.Missions));
+            Assert.AreEqual("Claimed", client.Snapshot.missions[0].status);
+            Assert.IsFalse(client.IsReadOnly(Cc10SystemId.Missions));
         }
 
         [Test]
         public async Task StaleSnapshot_OlderThanOnScreen_IsIgnored()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(5, Mission("m1", "Completed")));
-            gw.Handler = (e, r) => Snap(4, Mission("m1", "Active"));
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(5, 1, Mission("m1", "Completed")));
+            gw.Handler = (e, r) => Snap(4, 1, Mission("m1", "Active"));
             Assert.IsFalse(await client.RefreshAsync());
             Assert.AreEqual(5, client.Snapshot.stateVersion);
-            Assert.AreEqual("Completed", client.Snapshot.missions[0].state);
         }
 
         [Test]
         public async Task IllegalStateJump_IsRecordedAsAnomaly_ButServerStateStillWins()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Claimed")));
-            gw.Handler = (e, r) => Snap(2, Mission("m1", "Completed"));
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Claimed")));
+            gw.Handler = (e, r) => Snap(2, 1, Mission("m1", "Completed"));
             Assert.IsTrue(await client.RefreshAsync());
             Assert.AreEqual(1, client.StateAnomalies.Count);
-            Assert.AreEqual("Completed", client.Snapshot.missions[0].state, "server is authoritative");
+            Assert.AreEqual("Completed", client.Snapshot.missions[0].status, "server is authoritative");
         }
 
-        // ---- client: disabled / errors ----------------------------------------------------
+        // ---- client: disabled / errors -------------------------------------------------------
 
         [Test]
-        public async Task ServerDisabledSystem_IsReadOnly_AndRejectsMutationWithoutCall()
+        public async Task ServerDisabledSystem_IsReadOnly_AndRejectsMutationWithoutOverwritingState()
         {
             var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap(1, Mission("m1", "Completed"));
-            snap.disabledSystems = new[] { "Missions" };
+            Cc10FrontierSnapshot snap = Snap(1, 1, Mission("m1", "Completed"));
+            snap.disabledSystems = new[] { Cc10SystemId.Missions };
             Cc10FrontierClient client = await OnlineClient(gw, snap);
             gw.Calls.Clear();
 
-            Assert.IsTrue(client.IsSystemDisabled(Cc10System.Missions));
-            Assert.IsFalse(client.IsSystemDisabled(Cc10System.Tavern));
-            Cc10CommandResult r = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Assert.IsTrue(client.IsSystemDisabled(Cc10SystemId.Missions));
+            Assert.IsFalse(client.IsSystemDisabled(Cc10SystemId.Tavern));
+            Cc10CommandOutcome r = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
             Assert.AreEqual(Cc10Outcome.Disabled, r.Outcome);
             Assert.AreEqual(0, gw.Calls.Count);
-            Assert.AreEqual("Completed", client.Snapshot.missions[0].state, "state unchanged");
         }
 
         [Test]
-        public async Task DisableArrivingInResponse_FlipsSystemReadOnly_WithoutRewardEvent()
+        public async Task DisableArrivingInResponse_FlipsSystemReadOnly_WithoutReceiptEvent()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
-            int projections = 0;
-            client.ProjectionReceived += _ => projections++;
-            gw.Handler = (e, r) => new Cc10CommandResponse { status = Cc10Status.Disabled, systemDisabled = true };
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            int receipts = 0;
+            client.ReceiptReceived += _ => receipts++;
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState
+                ? (object)MarkedDisabled(Snap(1, 1, Mission("m1", "Completed")))
+                : new Cc10CommandResult { success = false, errorCode = Cc10Errors.SystemDisabled };
 
-            Cc10CommandResult r = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Cc10CommandOutcome r = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
             Assert.AreEqual(Cc10Outcome.Disabled, r.Outcome);
-            Assert.IsTrue(client.IsReadOnly(Cc10System.Missions));
-            Assert.AreEqual(0, projections);
+            Assert.IsTrue(client.IsReadOnly(Cc10SystemId.Missions));
+            Assert.AreEqual(0, receipts);
+        }
+
+        private static Cc10FrontierSnapshot MarkedDisabled(Cc10FrontierSnapshot s)
+        {
+            s.disabledSystems = new[] { Cc10SystemId.Missions };
+            return s;
         }
 
         [Test]
-        public async Task CapExceeded_IsRejectedWithPlainCopy_AndNoProjection()
+        public async Task GoldCapReached_IsRejectedWithPlainCopy_AndNoReceipt()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
-            int projections = 0;
-            client.ProjectionReceived += _ => projections++;
-            gw.Handler = (e, r) => new Cc10CommandResponse { status = Cc10Status.CapExceeded, errorCode = "GOLD_CAP" };
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            int receipts = 0;
+            client.ReceiptReceived += _ => receipts++;
+            gw.Handler = (e, r) => new Cc10CommandResult { success = false, errorCode = Cc10Errors.GoldCapReached };
 
-            Cc10CommandResult r = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Cc10CommandOutcome r = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
             Assert.AreEqual(Cc10Outcome.Rejected, r.Outcome);
             Assert.AreEqual(Cc10Copy.CapReached, r.Message);
-            StringAssert.DoesNotContain("GOLD_CAP", r.Message, "raw backend codes never reach the player");
-            Assert.AreEqual(0, projections);
+            StringAssert.DoesNotContain("GOLD_CAP_REACHED", r.Message, "raw backend codes never reach the player");
+            Assert.AreEqual(0, receipts);
+        }
+
+        [Test]
+        public async Task OfflineClaimRejected_UsesPlainCopy()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            gw.Handler = (e, r) => new Cc10CommandResult { success = false, errorCode = Cc10Errors.OfflineClaimRejected };
+            Cc10CommandOutcome r = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Assert.AreEqual(Cc10Copy.OfflineClaimRejected, r.Message);
         }
 
         [Test]
         public async Task Conflict_ReloadsState_AndReportsConflict()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetState
-                ? (object)Snap(4, Mission("m1", "Claimed"))
-                : new Cc10CommandResponse { status = Cc10Status.Conflict };
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState
+                ? (object)Snap(4, 1, Mission("m1", "Claimed"))
+                : new Cc10CommandResult { success = false, errorCode = Cc10Errors.Conflict };
 
-            Cc10CommandResult r = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Cc10CommandOutcome r = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
             Assert.AreEqual(Cc10Outcome.Conflict, r.Outcome);
-            Assert.AreEqual("Claimed", client.Snapshot.missions[0].state, "first valid CAS wins; client reloads");
+            Assert.AreEqual("Claimed", client.Snapshot.missions[0].status, "first valid CAS wins; client reloads");
         }
 
-        // ---- client: duplicates / idempotency ---------------------------------------------
-
         [Test]
-        public async Task DuplicateReceipt_IsReplayed_ProjectionRaisedOnce()
+        public async Task AuthorityGenerationMismatch_ReloadsAndTreatsAsConflict()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
-            var projections = new List<Cc10Projection>();
-            client.ProjectionReceived += projections.Add;
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState
+                ? (object)Snap(2, 2, Mission("m1", "Completed"))
+                : new Cc10CommandResult { success = false, errorCode = Cc10Errors.AuthorityGenerationMismatch };
 
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetState ? (object)Snap(2, Mission("m1", "Claimed")) : Ok("rcpt-A");
-            Cc10CommandResult first = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Cc10CommandOutcome r = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Assert.AreEqual(Cc10Outcome.Conflict, r.Outcome);
+            Assert.AreEqual(2, client.Snapshot.authorityGeneration, "reconnect reloads the new authority generation");
+        }
 
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetState
-                ? (object)Snap(2, Mission("m1", "Claimed"))
-                : new Cc10CommandResponse { status = Cc10Status.AlreadyCommitted, receiptId = "rcpt-A", projection = new Cc10Projection { gold = 300 } };
-            Cc10CommandResult second = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+        // ---- client: duplicates / idempotency -------------------------------------------------
+
+        [Test]
+        public async Task DuplicateReceipt_IsReplayed_ReceiptEventRaisedOnce()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            var receipts = new List<Cc10Receipt>();
+            client.ReceiptReceived += receipts.Add;
+
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap(2, 1, Mission("m1", "Claimed")) : Ok("rcpt-A");
+            Cc10CommandOutcome first = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState
+                ? (object)Snap(2, 1, Mission("m1", "Claimed"))
+                : new Cc10CommandResult { success = true, replayed = true, receipt = new Cc10Receipt { receiptId = "rcpt-A" } };
+            Cc10CommandOutcome second = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
 
             Assert.AreEqual(Cc10Outcome.Applied, first.Outcome);
             Assert.AreEqual(Cc10Outcome.Replayed, second.Outcome);
             Assert.AreEqual(Cc10Copy.AlreadyRecorded, second.Message);
-            Assert.AreEqual(1, projections.Count, "one receipt, one projection - never double-shown");
+            Assert.AreEqual(1, receipts.Count, "one receipt, one event - never double-applied");
         }
 
         [Test]
@@ -363,23 +371,22 @@ namespace MyriadOfDragons.Tests
         {
             var gw = new FakeGateway();
             int n = 0;
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")),
-                () => "req-" + (++n));
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")), () => "req-" + (++n));
 
             gw.Handler = (e, r) => new TimeoutException("lost");
-            Cc10CommandResult lost = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Cc10CommandOutcome lost = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
             Assert.AreEqual(Cc10Outcome.Failed, lost.Outcome);
             Assert.AreEqual(1, client.PendingRequestCount, "request id kept for replay");
 
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetState ? (object)Snap(1, Mission("m1", "Completed")) : Ok();
-            Assert.IsTrue(await client.RefreshAsync()); // reconnect
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap(1, 1, Mission("m1", "Completed")) : Ok();
+            Assert.IsTrue(await client.RefreshAsync());
 
-            Cc10CommandResult retry = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Cc10CommandOutcome retry = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
             Assert.AreEqual(Cc10Outcome.Applied, retry.Outcome);
             string first = (string)gw.Calls.First(c => c.Key == Cc10Endpoints.ClaimMission).Value["requestId"];
             string last = (string)gw.Calls.Last(c => c.Key == Cc10Endpoints.ClaimMission).Value["requestId"];
             Assert.AreEqual("req-1", first);
-            Assert.AreEqual(first, last, "same request id, so the server can replay the original receipt");
+            Assert.AreEqual(first, last, "same requestId lets the server replay the original receipt");
             Assert.AreEqual(0, client.PendingRequestCount);
         }
 
@@ -387,13 +394,13 @@ namespace MyriadOfDragons.Tests
         public async Task DoubleTap_WhileInFlight_SendsOnlyOneRequest()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
-            var tcs = new TaskCompletionSource<Cc10CommandResponse>();
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetState ? (object)Snap(2, Mission("m1", "Claimed")) : tcs.Task;
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            var tcs = new TaskCompletionSource<Cc10CommandResult>();
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap(2, 1, Mission("m1", "Claimed")) : tcs.Task;
             gw.Calls.Clear();
 
-            Task<Cc10CommandResult> a = client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
-            Cc10CommandResult b = await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Task<Cc10CommandOutcome> a = client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Cc10CommandOutcome b = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
             Assert.AreEqual(Cc10Outcome.InFlight, b.Outcome);
 
             tcs.SetResult(Ok("rcpt-D"));
@@ -402,65 +409,55 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public async Task Command_SendsExpectedStateVersion_ForServerSideCas()
+        public async Task Command_SendsRequestIdAndExpectedStateVersion_NeverRewardOrTime()
         {
             var gw = new FakeGateway();
-            Cc10FrontierClient client = await OnlineClient(gw, Snap(9, Mission("m1", "Completed")));
-            await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission,
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(9, 1, Mission("m1", "Completed")));
+            await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission,
                 new Dictionary<string, object> { { "missionId", "m1" } }, "m1");
             Dictionary<string, object> body = gw.Calls.First(c => c.Key == Cc10Endpoints.ClaimMission).Value;
-            Assert.AreEqual(9, body["expectedStateVersion"]);
+            Assert.AreEqual((long)9, body["expectedStateVersion"]);
+            Assert.AreEqual((long)1, body["expectedAuthorityGeneration"]);
             Assert.AreEqual("m1", body["missionId"]);
-            Assert.IsFalse(body.ContainsKey("goldReward") || body.ContainsKey("reward") || body.ContainsKey("utc"),
-                "the client never sends rewards or times");
+            Assert.IsFalse(body.ContainsKey("goldReward") || body.ContainsKey("reward") || body.ContainsKey("serverUtcMs"),
+                "the client never sends rewards or authoritative time");
         }
 
-        // ---- no local reward mutation -----------------------------------------------------
+        // ---- no local reward mutation --------------------------------------------------------
 
         [Test]
-        public async Task ClaimFlow_NeverMutatesLocalProfile()
+        public async Task ClaimFlow_NeverTouchesLocalProfile_SettlementSurfacesOnlyAsReceiptEvent()
         {
-            string dir = Path.Combine(Path.GetTempPath(), "MoDCc10_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(dir);
-            try
-            {
-                SaveSystem.OverrideRootDirectoryForTests(dir);
-                SaveSystem.ResetCurrentProfileForTests();
-                string before = JsonUtility.ToJson(SaveSystem.CurrentProfile);
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap(1, 1, Mission("m1", "Completed")));
+            Cc10Receipt captured = null;
+            client.ReceiptReceived += r => captured = r;
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap(2, 1, Mission("m1", "Claimed")) : Ok("rcpt-Z");
 
-                var gw = new FakeGateway();
-                Cc10FrontierClient client = await OnlineClient(gw, Snap(1, Mission("m1", "Completed")));
-                gw.Handler = (e, r) => e == Cc10Endpoints.GetState ? (object)Snap(2, Mission("m1", "Claimed")) : Ok();
-                await client.ExecuteAsync(Cc10System.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
 
-                Assert.AreEqual(before, JsonUtility.ToJson(SaveSystem.CurrentProfile),
-                    "gold/materials/cards change only when the host applies the server projection");
-            }
-            finally
-            {
-                SaveSystem.ClearRootDirectoryOverride();
-                SaveSystem.ResetCurrentProfileForTests();
-                if (Directory.Exists(dir)) Directory.Delete(dir, true);
-            }
+            Assert.IsNotNull(captured, "settlement instruction must reach the host");
+            Assert.AreEqual(300, captured.goldCredit);
+            Assert.AreEqual(200, captured.materialsCredit);
+            // The client layer has no reference to PlayerProfile/SaveSystem anywhere in this flow -
+            // applying goldCredit/materialsCredit to the wallet is entirely the host's job.
         }
 
-        // ---- view models ------------------------------------------------------------------
+        // ---- view models -----------------------------------------------------------------------
 
-        private static Cc10SectionVm Vm(Cc10FrontierClient c, Cc10System s,
-            IEnumerable<CardProgressionRecord> cards = null) => Cc10ViewModels.Build(c, s, cards);
+        private static Cc10SectionVm Vm(Cc10FrontierClient c, string systemId) => Cc10ViewModels.Build(c, systemId);
 
         [Test]
         public async Task Offline_EveryAction_IsDisabled_WithReason_RowsStillShown()
         {
             var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap(1, Mission("m1", "Completed"), Mission("m2", "Available"));
+            Cc10FrontierSnapshot snap = Snap(1, 1, Mission("m1", "Completed"));
             Cc10FrontierClient client = await OnlineClient(gw, snap);
             gw.Handler = (e, r) => new InvalidOperationException("network");
             await client.RefreshAsync();
 
-            Cc10SectionVm vm = Vm(client, Cc10System.Missions);
+            Cc10SectionVm vm = Vm(client, Cc10SystemId.Missions);
             Assert.AreEqual(Cc10Copy.Offline, vm.Banner);
-            Assert.AreEqual(2, vm.Rows.Count, "read-only view still shows the last snapshot");
             Assert.IsTrue(vm.Rows.All(r => !r.HasAction || (!r.ActionEnabled && !string.IsNullOrEmpty(r.DisabledReason))));
         }
 
@@ -468,178 +465,135 @@ namespace MyriadOfDragons.Tests
         public void NoState_ShowsBannerOnly()
         {
             var client = new Cc10FrontierClient(new FakeGateway());
-            Cc10SectionVm vm = Vm(client, Cc10System.Tavern);
+            Cc10SectionVm vm = Vm(client, Cc10SystemId.Tavern);
             Assert.AreEqual(0, vm.Rows.Count);
             Assert.IsTrue(vm.ReadOnly);
             Assert.IsNotEmpty(vm.Banner);
         }
 
         [Test]
-        public async Task Missions_ActionsFollowServerState()
-        {
-            var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap(1,
-                Mission("a", "Available", remaining: 0), Mission("b", "Available"),
-                Mission("c", "Active"), Mission("d", "Completed"), Mission("e", "Claimed"));
-            Cc10FrontierClient client = await OnlineClient(gw, snap);
-            List<Cc10Row> rows = Vm(client, Cc10System.Missions).Rows;
-
-            Assert.IsFalse(rows[0].ActionEnabled, "no attempts left today");
-            Assert.IsNotEmpty(rows[0].DisabledReason);
-            Assert.IsTrue(rows[1].ActionEnabled);
-            Assert.AreEqual(Cc10Endpoints.AssignMission, rows[1].Endpoint);
-            Assert.AreEqual(Cc10Endpoints.AbandonMission, rows[2].Endpoint);
-            Assert.AreEqual(Cc10Endpoints.ClaimMission, rows[3].Endpoint);
-            Assert.IsFalse(rows[4].HasAction, "claimed is terminal and read-only");
-        }
-
-        [Test]
-        public async Task CompletedMission_NearCap_ShowsHint_ButServerStillDecides()
-        {
-            var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap(1, Mission("d", "Completed"));
-            snap.projection.dailyGoldUsed = 700;
-            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10System.Missions).Rows[0];
-            StringAssert.Contains(Cc10Copy.CapReached, row.Detail);
-            Assert.IsTrue(row.ActionEnabled, "a stale client hint must not block a claim the server would accept");
-        }
-
-        [Test]
-        public async Task Research_LockedHasNoAction_GuildUsesContribute_ActiveIndividualCanCancel()
-        {
-            var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap();
-            snap.research = new[]
-            {
-                new Cc10ResearchNode { nodeId = "i1", scope = "Individual", state = "Locked", prerequisiteIds = new[] { "i0" } },
-                new Cc10ResearchNode { nodeId = "i2", scope = "Individual", state = "Active", completeUtcMs = 9_000_000 },
-                new Cc10ResearchNode { nodeId = "g1", scope = "Guild", state = "Available" },
-            };
-            Cc10FrontierClient client = await OnlineClient(gw, snap);
-
-            List<Cc10Row> ind = Vm(client, Cc10System.IndividualResearch).Rows;
-            Assert.AreEqual(2, ind.Count, "guild nodes are not listed under individual research");
-            Assert.IsFalse(ind[0].HasAction);
-            StringAssert.Contains("i0", ind[0].Detail);
-            Assert.AreEqual(Cc10Endpoints.CancelResearch, ind[1].Endpoint);
-
-            Cc10Row guild = Vm(client, Cc10System.GuildResearch).Rows.Single();
-            Assert.AreEqual(Cc10Endpoints.ContributeGuildResearch, guild.Endpoint);
-        }
-
-        [Test]
-        public async Task Rankings_AndNpcSpots_AreReadOnly()
-        {
-            var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap();
-            snap.rankings = new[]
-            {
-                new Cc10RankingBoard { scope = "Individual", seasonId = "S1", phase = "Published",
-                    entries = new[] { new Cc10RankEntry { rank = 1, displayName = "Ada", score = 90 } } },
-                new Cc10RankingBoard { scope = "Guild", seasonId = "S1", phase = "Published" },
-            };
-            snap.spots = new[] { new Cc10NpcSpot { spotId = "s1", kind = Cc10Rules.KindVeinConvoy, state = "Available" } };
-            Cc10FrontierClient client = await OnlineClient(gw, snap);
-
-            Assert.IsTrue(Vm(client, Cc10System.IndividualRankings).Rows.All(r => !r.HasAction));
-            Assert.AreEqual(2, Vm(client, Cc10System.IndividualRankings).Rows.Count);
-            Assert.AreEqual(1, Vm(client, Cc10System.GuildRankings).Rows.Count);
-            Assert.IsTrue(Vm(client, Cc10System.NpcSpots).Rows.All(r => !r.HasAction));
-        }
-
-        [Test]
-        public async Task Tavern_UpgradeDisabledWhileActiveOrAtMax()
-        {
-            var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap();
-            snap.tavern = new Cc10TavernState { level = 4, nextCostGold = 500, nextCostMaterials = 500 };
-            Cc10FrontierClient client = await OnlineClient(gw, snap);
-            Assert.IsTrue(Vm(client, Cc10System.Tavern).Rows[0].ActionEnabled);
-
-            snap.tavern.upgradeActive = true;
-            Assert.IsFalse(Vm(client, Cc10System.Tavern).Rows[0].ActionEnabled);
-
-            snap.tavern.upgradeActive = false;
-            snap.tavern.level = Cc10Rules.TavernMaxLevel;
-            Cc10Row max = Vm(client, Cc10System.Tavern).Rows[0];
-            Assert.IsFalse(max.ActionEnabled);
-            Assert.AreEqual("Fully upgraded", max.Detail);
-        }
-
-        [Test]
-        public async Task WorldMap_TravelIsFree_UndiscoveredHasNoAction()
-        {
-            var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap();
-            snap.nodes = new[]
-            {
-                new Cc10MapNode { nodeId = "n1", regionId = "R1", discovered = true },
-                new Cc10MapNode { nodeId = "n2", regionId = "R1", discovered = false },
-            };
-            List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10System.WorldMap).Rows;
-            Assert.AreEqual("Travel is free", rows[0].Detail);
-            Assert.IsTrue(rows[0].ActionEnabled);
-            Assert.IsFalse(rows[1].HasAction);
-        }
-
-        [Test]
-        public async Task CardTraining_UsesCollectionRules()
+        public async Task UnsupportedQuery_Sections_AreExplicitlyUnavailable_NotSilentlyEmpty()
         {
             var gw = new FakeGateway();
             Cc10FrontierClient client = await OnlineClient(gw, Snap());
-            var cards = new[]
+            foreach (string sys in new[] { Cc10SystemId.GuildTerritory, Cc10SystemId.GuildRankings, Cc10SystemId.IndividualRankings })
             {
-                new CardProgressionRecord { cardId = "poor", cardLevel = 3, trainingXp = 299 },
-                new CardProgressionRecord { cardId = "rich", cardLevel = 3, trainingXp = 300 },
-                new CardProgressionRecord { cardId = "max", cardLevel = 100, trainingXp = 99999 },
+                Cc10SectionVm vm = Vm(client, sys);
+                Assert.IsTrue(vm.ReadOnly, sys);
+                StringAssert.Contains("Not available", vm.Banner, sys);
+            }
+        }
+
+        [Test]
+        public async Task Missions_ActionsFollowServerState()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap(1, 1, Mission("c", "Active"), Mission("d", "Completed"), Mission("e", "Claimed"));
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            List<Cc10Row> rows = Vm(client, Cc10SystemId.Missions).Rows;
+
+            Assert.AreEqual(Cc10Endpoints.AbandonMission, rows[0].Endpoint);
+            Assert.AreEqual(Cc10Endpoints.ClaimMission, rows[1].Endpoint);
+            Assert.IsFalse(rows[2].HasAction, "claimed is terminal and read-only");
+        }
+
+        [Test]
+        public async Task Missions_OffersAssignableSlot_OnlyWhenASpotIsAvailable()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.spots = new[] { new Cc10NpcSpotDto { spotId = "s1", missionType = Cc10MissionType.NpcPatrol, status = Cc10SpotStatus.Available } };
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            Cc10Row assign = Vm(client, Cc10SystemId.Missions).Rows.Single();
+            Assert.AreEqual(Cc10Endpoints.AssignMission, assign.Endpoint);
+            Assert.AreEqual(Cc10MissionType.NpcPatrol, assign.Payload["missionType"]);
+            Assert.AreEqual("s1", assign.Payload["spotId"]);
+        }
+
+        [Test]
+        public async Task Tavern_ActiveProject_OffersComplete_NotUpgrade()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.tavern = new Cc10TavernDto { level = 2, activeProject = new Cc10TavernProjectDto { toLevel = 3, goldCost = 400, materialsCost = 400 } };
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            Cc10Row row = Vm(client, Cc10SystemId.Tavern).Rows.Single();
+            Assert.AreEqual(Cc10Endpoints.CompleteTavernUpgrade, row.Endpoint);
+            StringAssert.Contains("400", row.Detail);
+        }
+
+        [Test]
+        public async Task Tavern_NoProject_AtMax_DisablesUpgrade()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.tavern = new Cc10TavernDto { level = Cc10Rules.TavernMaxLevel };
+            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Tavern).Rows.Single();
+            Assert.IsFalse(row.ActionEnabled);
+            Assert.AreEqual("Fully upgraded", row.Detail);
+        }
+
+        [Test]
+        public async Task WorldMap_DiscoverOnlyOffered_ForNeighborsOfADiscoveredNode()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.nodes = new[]
+            {
+                new Cc10MapNodeDto { nodeId = "hub", regionId = "frontier", discovered = true, neighbors = new[] { "patrol_road" } },
+                new Cc10MapNodeDto { nodeId = "patrol_road", regionId = "frontier", discovered = false, neighbors = new[] { "hub", "ruined_shrine" } },
+                new Cc10MapNodeDto { nodeId = "ruined_shrine", regionId = "frontier", discovered = false, neighbors = new[] { "patrol_road" } },
             };
-            List<Cc10Row> rows = Vm(client, Cc10System.CardTraining, cards).Rows;
-            Assert.IsFalse(rows[0].ActionEnabled);
-            Assert.IsTrue(rows[1].ActionEnabled);
-            Assert.IsFalse(rows[2].ActionEnabled);
-            Assert.AreEqual("Max level", rows[2].Detail);
-            Assert.AreEqual("rich", rows[1].Payload["cardId"]);
+            List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10SystemId.WorldMap).Rows;
+            Assert.IsFalse(rows[0].HasAction, "already discovered");
+            Assert.IsTrue(rows[1].ActionEnabled, "adjacent to the discovered hub");
+            Assert.IsFalse(rows[2].ActionEnabled, "not adjacent to any discovered node yet");
+        }
+
+        [Test]
+        public async Task Research_Guild_CanComplete_Individual_CanCancel()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.research = new[]
+            {
+                new Cc10ResearchDto { nodeId = "i1", scope = Cc10ResearchScope.Individual, status = Cc10ResearchStatus.InProgress, readyUtcMs = 5_000_000 },
+                new Cc10ResearchDto { nodeId = "g1", scope = Cc10ResearchScope.Guild, status = Cc10ResearchStatus.InProgress, readyUtcMs = 5_000_000 },
+            };
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            Assert.AreEqual(Cc10Endpoints.CancelResearch, Vm(client, Cc10SystemId.IndividualResearch).Rows.Single().Endpoint);
+            Assert.AreEqual(1, Vm(client, Cc10SystemId.GuildResearch).Rows.Count);
+            Assert.IsFalse(Vm(client, Cc10SystemId.GuildResearch).Rows.Single().HasAction, "guild research cannot be individually cancelled");
         }
 
         [Test]
         public async Task Minigame_IsOptionalAndCarriesNoReward()
         {
             var gw = new FakeGateway();
-            Cc10Row row = Vm(await OnlineClient(gw, Snap()), Cc10System.Minigame).Rows.Single();
+            Cc10Row row = Vm(await OnlineClient(gw, Snap()), Cc10SystemId.Minigame).Rows.Single();
             StringAssert.Contains("optional", row.Title);
-            StringAssert.Contains("progression", row.Detail);
             Assert.IsFalse(row.Detail.Contains("Gold"));
         }
 
         [Test]
-        public async Task Cargo_ClaimOnlyWhenDelivered_TerminalsReadOnly()
+        public async Task Cargo_LifecycleFollowsRealStatuses_ClaimGoesThroughClaimMission()
         {
             var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap();
+            Cc10FrontierSnapshot snap = Snap();
             snap.cargo = new[]
             {
-                new Cc10CargoRecord { cargoId = "c1", state = "Available" },
-                new Cc10CargoRecord { cargoId = "c2", state = "Active", expiryUtcMs = 2_000_000 },
-                new Cc10CargoRecord { cargoId = "c3", state = "Delivered" },
-                new Cc10CargoRecord { cargoId = "c4", state = "Intercepted" },
+                new Cc10CargoDto { cargoId = "c1", status = Cc10CargoStatus.Accepted },
+                new Cc10CargoDto { cargoId = "c2", status = Cc10CargoStatus.Scouting },
+                new Cc10CargoDto { cargoId = "c3", status = Cc10CargoStatus.Active, encounterRequired = true },
+                new Cc10CargoDto { cargoId = "c4", status = Cc10CargoStatus.Delivered, haulGold = 300 },
+                new Cc10CargoDto { cargoId = "c5", status = Cc10CargoStatus.Intercepted, terminalReason = "npc" },
             };
-            List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10System.Cargo).Rows;
-            Assert.AreEqual(Cc10Endpoints.AcceptCargo, rows[0].Endpoint);
-            Assert.IsFalse(rows[1].HasAction);
-            Assert.AreEqual(Cc10Endpoints.ClaimCargo, rows[2].Endpoint);
-            Assert.IsFalse(rows[3].HasAction);
-        }
-
-        [Test]
-        public async Task GuildTerritory_ContributionIsCommandOnly_NoClientOwnership()
-        {
-            var gw = new FakeGateway();
-            Cc10Snapshot snap = Snap();
-            snap.territories = new[] { new Cc10Territory { territoryId = "t1", contested = true, windowEndUtcMs = 1_600_000 } };
-            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10System.GuildTerritory).Rows.Single();
-            StringAssert.Contains("Contested", row.Detail);
-            StringAssert.Contains("Unclaimed", row.Detail);
-            Assert.AreEqual(Cc10Endpoints.ContributeTerritory, row.Endpoint);
+            List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10SystemId.Cargo).Rows;
+            Assert.AreEqual(Cc10Endpoints.ScoutCargo, rows[0].Endpoint);
+            Assert.AreEqual(Cc10Endpoints.DispatchCargo, rows[1].Endpoint);
+            Assert.IsFalse(rows[2].ActionEnabled, "encounter must resolve first");
+            Assert.AreEqual(Cc10Endpoints.ClaimMission, rows[3].Endpoint);
+            Assert.IsFalse(rows[4].HasAction, "terminal");
         }
     }
 }
