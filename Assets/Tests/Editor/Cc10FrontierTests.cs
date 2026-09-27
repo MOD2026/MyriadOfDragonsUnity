@@ -546,8 +546,8 @@ namespace MyriadOfDragons.Tests
             Cc10FrontierClient client = await OnlineClient(gw, snap);
             Assert.AreEqual(Cc10Endpoints.CancelResearch, Vm(client, Cc10SystemId.IndividualResearch).Rows.Single(r => r.EntityKey == "i1").Endpoint);
             Cc10Row g1 = Vm(client, Cc10SystemId.GuildResearch).Rows.Single(r => r.EntityKey == "g1");
-            Assert.AreEqual(Cc10Endpoints.ContributeGuildResearch, g1.Endpoint,
-                "in progress guild research offers Contribute, not an individual Cancel");
+            Assert.AreEqual(Cc10Endpoints.CancelGuildResearch, g1.Endpoint,
+                "cancel now genuinely refunds the reserved cost (BE 253834ab), offered like individual research");
         }
 
         [Test]
@@ -969,6 +969,103 @@ namespace MyriadOfDragons.Tests
         {
             Cc10SectionVm vm = Cc10ViewModels.BuildRanking(Cc10SystemId.GuildRankings, null);
             StringAssert.Contains("Not available", vm.Banner);
+        }
+
+        // ---- BE 253834ab: NPC pool catalog, minigame Available/Started, guild research refund ----
+
+        [Test]
+        public void MinigameStatus_IsPlayable_CoversStartedAndActive()
+        {
+            Assert.IsTrue(Cc10MinigameStatus.IsPlayable(Cc10MinigameStatus.Started));
+            Assert.IsTrue(Cc10MinigameStatus.IsPlayable(Cc10MinigameStatus.Active));
+            Assert.IsFalse(Cc10MinigameStatus.IsPlayable(Cc10MinigameStatus.Available));
+            Assert.IsFalse(Cc10MinigameStatus.IsPlayable(Cc10MinigameStatus.Submitted));
+        }
+
+        [Test]
+        public async Task Minigame_NoSession_IsClientInferredAvailable_ServerNeverSendsThatStatus()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.minigame = null; // no session document exists - "Available" is inferred, not a real Status
+            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Minigame).Rows.Single();
+            Assert.AreEqual(Cc10Endpoints.CreateMinigameSession, row.Endpoint);
+            Assert.IsTrue(row.ActionEnabled);
+        }
+
+        [Test]
+        public async Task Minigame_Started_OffersAbandon_SameAsActive()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.minigame = new Cc10MinigameSessionDto { sessionId = "s1", status = Cc10MinigameStatus.Started };
+            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Minigame).Rows.Single();
+            Assert.AreEqual(Cc10Endpoints.AbandonMinigameSession, row.Endpoint);
+            StringAssert.Contains("In progress", row.Detail);
+        }
+
+        [Test]
+        public void MinigameTransitions_StartedBehavesLikeActive()
+        {
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Submitted));
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Abandoned));
+            Assert.IsTrue(Cc10StateMachine.IsMinigameTransitionLegal(Cc10MinigameStatus.Started, Cc10MinigameStatus.Active),
+                "a future explicit mid-session checkpoint");
+        }
+
+        [Test]
+        public async Task Mission_ShowsDeterministicallyBoundNpcPoolName_NeverClientChosen()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap(1, 1, new Cc10MissionDto
+            {
+                missionId = "m1", type = Cc10MissionType.VeinConvoy, status = Cc10MissionStatus.Active,
+                npcPool = new Cc10NpcPoolDto { poolName = "Elder Dragon", band = Cc10MapPhase.CentralRealm },
+            });
+            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Missions).Rows.Single();
+            StringAssert.Contains("Elder Dragon", row.Title);
+        }
+
+        [Test]
+        public async Task Mission_NoPoolYet_TitleHasNoPoolSuffix()
+        {
+            var gw = new FakeGateway();
+            Cc10Row row = Vm(await OnlineClient(gw, Snap(1, 1, Mission("m1", "Active"))), Cc10SystemId.Missions).Rows.Single();
+            Assert.IsFalse(row.Title.Contains("("));
+        }
+
+        [Test]
+        public async Task GuildResearchCancel_ReceiptCreditsBackTheReservedCost()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap();
+            snap.research = new[] { new Cc10ResearchDto { nodeId = "GUILD_RESEARCH_01", scope = Cc10ResearchScope.Guild, status = Cc10ResearchStatus.InProgress, readyUtcMs = 9_000_000 } };
+            Cc10FrontierClient client = await OnlineClient(gw, snap);
+            Cc10Receipt captured = null;
+            client.ReceiptReceived += r => captured = r;
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState
+                ? (object)Snap()
+                : new Cc10CommandResult { success = true, receipt = new Cc10Receipt { receiptId = "rc1", goldCredit = 700, materialsCredit = 400 } };
+
+            Cc10Row row = Vm(client, Cc10SystemId.GuildResearch).Rows.Single(r => r.EntityKey == "GUILD_RESEARCH_01");
+            Assert.AreEqual(Cc10Endpoints.CancelGuildResearch, row.Endpoint);
+            await client.ExecuteAsync(Cc10SystemId.GuildResearch, row.Endpoint, row.Payload, row.EntityKey);
+
+            Assert.IsNotNull(captured);
+            Assert.AreEqual(700, captured.goldCredit);
+            Assert.AreEqual(400, captured.materialsCredit);
+        }
+
+        [Test]
+        public async Task CancelGuildResearch_NeverSendsARefundAmount()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap());
+            await client.ExecuteAsync(Cc10SystemId.GuildResearch, Cc10Endpoints.CancelGuildResearch,
+                new Dictionary<string, object> { { "nodeId", "GUILD_RESEARCH_01" }, { "guildId", "g1" } }, "GUILD_RESEARCH_01");
+            Dictionary<string, object> body = gw.Calls.First(c => c.Key == Cc10Endpoints.CancelGuildResearch).Value;
+            Assert.IsFalse(body.ContainsKey("goldCredit") || body.ContainsKey("materialsCredit") || body.ContainsKey("refund"),
+                "the refund amount is entirely server-decided and arrives only on the receipt");
         }
     }
 }

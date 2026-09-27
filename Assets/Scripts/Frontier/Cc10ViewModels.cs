@@ -91,10 +91,7 @@ namespace MyriadOfDragons.Frontier
                 case Cc10SystemId.NpcSpots: AddSpots(vm, s); break;
                 case Cc10SystemId.GuildTerritory: AddContestDistricts(vm, s); break;
                 case Cc10SystemId.IndividualResearch: AddResearch(vm, client, s, Cc10ResearchScope.Individual); break;
-                case Cc10SystemId.GuildResearch:
-                    AddResearch(vm, client, s, Cc10ResearchScope.Guild);
-                    AddGuildResearchContribute(vm, s);
-                    break;
+                case Cc10SystemId.GuildResearch: AddResearch(vm, client, s, Cc10ResearchScope.Guild); break;
                 case Cc10SystemId.Minigame: AddMinigame(vm, s); break;
                 case Cc10SystemId.Cargo: AddCargo(vm, client, s); break;
             }
@@ -168,7 +165,7 @@ namespace MyriadOfDragons.Frontier
         {
             foreach (Cc10MissionDto m in s.missions)
             {
-                var row = new Cc10Row { Title = MissionTitle(m.type), EntityKey = m.missionId };
+                var row = new Cc10Row { Title = MissionTitle(m.type) + PoolSuffix(m.npcPool), EntityKey = m.missionId };
                 row.Payload["missionId"] = m.missionId;
                 string reward = Cc10Rules.MissionGoldReward + " Gold + " + Cc10Rules.MissionMaterialReward + " Materials";
                 switch (m.status)
@@ -213,6 +210,11 @@ namespace MyriadOfDragons.Frontier
                 vm.Rows.Add(row);
             }
         }
+
+        /// <summary>Display-only suffix naming the mission's deterministically-selected NPC pool
+        /// (server-computed from the mission's own EncounterSeed) - never client-chosen.</summary>
+        private static string PoolSuffix(Cc10NpcPoolDto pool) =>
+            pool != null && !string.IsNullOrEmpty(pool.poolName) ? " (" + pool.poolName + ")" : string.Empty;
 
         private static string MissionTitle(string type)
         {
@@ -372,10 +374,13 @@ namespace MyriadOfDragons.Frontier
                             ? Cc10Endpoints.CompleteGuildResearch : Cc10Endpoints.CompleteResearch;
                         row.ActionEnabled = true;
                     }
-                    else if (scope == Cc10ResearchScope.Individual)
+                    else
                     {
+                        // Cancel now genuinely restores the reserved Gold/Materials (BE 253834ab) -
+                        // credited back via the receipt, never computed here.
                         row.ActionLabel = "Cancel";
-                        row.Endpoint = Cc10Endpoints.CancelResearch;
+                        row.Endpoint = scope == Cc10ResearchScope.Guild
+                            ? Cc10Endpoints.CancelGuildResearch : Cc10Endpoints.CancelResearch;
                         row.ActionEnabled = true;
                     }
                 }
@@ -397,23 +402,6 @@ namespace MyriadOfDragons.Frontier
                 row.Endpoint = scope == Cc10ResearchScope.Guild ? Cc10Endpoints.StartGuildResearch : Cc10Endpoints.StartResearch;
                 row.ActionEnabled = prereqsMet; // server independently re-checks phase/top-three/cost
                 vm.Rows.Add(row);
-            }
-        }
-
-        /// <summary>Contribute-only row for a guild research node already started by someone in the
-        /// guild but not yet complete (ContributeGuildResearch is a no-op gate under the approved
-        /// catalog - every real row's RequiredContributionPoints is 0 - but the endpoint stays
-        /// available for DTO compatibility, per the server's own doc comment).</summary>
-        private static void AddGuildResearchContribute(Cc10SectionVm vm, Cc10FrontierSnapshot s)
-        {
-            foreach (Cc10ResearchDto n in s.research)
-            {
-                if (n.scope != Cc10ResearchScope.Guild || n.status == Cc10ResearchStatus.Completed) continue;
-                Cc10Row row = vm.Rows.FirstOrDefault(r => r.EntityKey == n.nodeId);
-                if (row == null || row.HasAction) continue; // don't override Complete
-                row.ActionLabel = "Contribute";
-                row.Endpoint = Cc10Endpoints.ContributeGuildResearch;
-                row.ActionEnabled = true;
             }
         }
 
@@ -439,6 +427,7 @@ namespace MyriadOfDragons.Frontier
             row.Payload["sessionId"] = g.sessionId;
             switch (g.status)
             {
+                case Cc10MinigameStatus.Started:
                 case Cc10MinigameStatus.Active:
                     row.Detail = "In progress";
                     row.ActionLabel = "Abandon";

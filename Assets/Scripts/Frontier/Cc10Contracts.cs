@@ -32,6 +32,20 @@ namespace MyriadOfDragons.Frontier
     ///
     /// Remaining GAP: GetRankingView still needs a chosen season id the shell has no source for -
     /// Individual/Guild Rankings still render "Not available yet" until a season picker exists.
+    ///
+    /// Superseded again at BE 253834ab (continues from 5ca919f6): the approved 10-pool NPC catalog
+    /// (MissionDto.NpcPool, FrontierSnapshotResult.NpcPools - deterministic pick from the mission's
+    /// own EncounterSeed, never client-chosen); MinigameStatus expanded to the packet's full 9-state
+    /// list (Available/Started/Active/Submitted/Verified/Claimed/Failed/Expired/Abandoned -
+    /// Available is client-inferred when no session exists, Started is what a real session begins
+    /// in); and CancelGuildResearch (mirrors CancelResearch's now-genuine refund - Cancel credits
+    /// back the exact Start Gold/Materials via the receipt, it no longer forfeits the reserved cost).
+    ///
+    /// No corresponding server DTO was found for "Tavern active mission-slot rows" (the dispatch
+    /// phrase) anywhere in TavernDto/TavernProjectDto/TavernLevelRowDto at this commit - Tavern has
+    /// no per-mission slot concept; NpcSpotDto.Slot (a hotspot's own daily slot number) is the only
+    /// "slot" field in the whole contract and it is unrelated to Tavern. Not implemented; flagged
+    /// below rather than invented.
     /// </summary>
     public static class Cc10SystemId
     {
@@ -77,6 +91,7 @@ namespace MyriadOfDragons.Frontier
         public const string StartGuildResearch = "StartGuildResearch";
         public const string ContributeGuildResearch = "ContributeGuildResearch";
         public const string CompleteGuildResearch = "CompleteGuildResearch";
+        public const string CancelGuildResearch = "CancelGuildResearch";
         public const string ContributeTerritory = "ContributeTerritory";
         public const string SettleTerritoryWindow = "SettleTerritoryWindow";
         public const string GetRankingView = "GetRankingView";
@@ -191,6 +206,9 @@ namespace MyriadOfDragons.Frontier
         /// <summary>The full 1-10 Tavern cost/duration track, for rendering the whole ladder, not
         /// just the current level/active project.</summary>
         public Cc10TavernLevelRowDto[] tavernCatalog = Array.Empty<Cc10TavernLevelRowDto>();
+        /// <summary>The full approved 10-pool NPC catalog, for rendering pool flavor without
+        /// waiting on a mission assignment.</summary>
+        public Cc10NpcPoolDto[] npcPools = Array.Empty<Cc10NpcPoolDto>();
 
         public bool IsSystemDisabled(string systemId) => Array.IndexOf(disabledSystems, systemId) >= 0;
     }
@@ -276,6 +294,25 @@ namespace MyriadOfDragons.Frontier
         /// mission's encounter is bound to. Display/Battle-binding only - never a client combat
         /// rule or a client-computed multiplier.</summary>
         public Cc10ThreatBandDto threatBand;
+        /// <summary>Additive, never null in a real response: the named NPC pool this mission's
+        /// encounter deterministically draws from (a pure function of the mission's own
+        /// EncounterSeed) - display/Battle-binding only, never client-chosen or client-computed.</summary>
+        public Cc10NpcPoolDto npcPool;
+    }
+
+    /// <summary>Read-only catalog data for one approved named NPC pool. Shares its band's
+    /// Cc10ThreatBandDto HP/damage/reward multiplier and AiDifficultyTier exactly - a pool adds
+    /// only encounter flavor (name/type/archetype) and deck lane composition.</summary>
+    [Serializable]
+    public class Cc10NpcPoolDto
+    {
+        public string poolName = string.Empty;
+        public string band = Cc10MapPhase.HomeOutpost;
+        public string encounterType = string.Empty;
+        public string archetype = string.Empty;
+        public int laneFront;
+        public int laneMiddle;
+        public int laneBack;
     }
 
     /// <summary>Read-only World Map threat-band catalog row. RewardMultiplier is always 1.0 - it
@@ -443,12 +480,18 @@ namespace MyriadOfDragons.Frontier
         public string terminalReason;
     }
 
-    /// <summary>Created/Started/Active are collapsed at session creation (no separate "declare
-    /// start" server call - a session is Active the moment it exists). Verified is deliberately
-    /// separate from Claimed: a verified result is not itself a claim (a claim is always a
-    /// separate, receipt-protected mutation via ClaimMinigameResult).</summary>
+    /// <summary>The packet's full 9-state lifecycle. Available is NEVER a real session's Status -
+    /// it is the client-inferred state when no session document exists yet (nothing started).
+    /// CreateMinigameSession creates the session directly in Started (no separate "declare start"
+    /// server call - Started IS the moment the session exists and is playable; earlier client code
+    /// called this "Active"). Active is reserved for a future explicit mid-session checkpoint the
+    /// server does not currently produce; Submit/Abandon accept Started or Active identically.
+    /// Verified is deliberately separate from Claimed: a verified result is not itself a claim (a
+    /// claim is always a separate, receipt-protected mutation via ClaimMinigameResult).</summary>
     public static class Cc10MinigameStatus
     {
+        public const string Available = "Available"; // client-inferred only; never a server Status
+        public const string Started = "Started";
         public const string Active = "Active";
         public const string Submitted = "Submitted";
         public const string Verified = "Verified";
@@ -456,6 +499,8 @@ namespace MyriadOfDragons.Frontier
         public const string Failed = "Failed";
         public const string Expired = "Expired";
         public const string Abandoned = "Abandoned";
+
+        public static bool IsPlayable(string status) => status == Started || status == Active;
 
         public static bool IsTerminal(string status) =>
             status == Claimed || status == Failed || status == Expired || status == Abandoned;

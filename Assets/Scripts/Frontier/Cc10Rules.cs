@@ -184,8 +184,10 @@ namespace MyriadOfDragons.Frontier
             if (Cc10MinigameStatus.IsTerminal(from)) return false;
             switch (from)
             {
+                case Cc10MinigameStatus.Started:
                 case Cc10MinigameStatus.Active:
-                    return to == Cc10MinigameStatus.Submitted || to == Cc10MinigameStatus.Expired || to == Cc10MinigameStatus.Abandoned;
+                    return to == Cc10MinigameStatus.Submitted || to == Cc10MinigameStatus.Expired
+                        || to == Cc10MinigameStatus.Abandoned || to == Cc10MinigameStatus.Active;
                 case Cc10MinigameStatus.Submitted:
                     return to == Cc10MinigameStatus.Verified || to == Cc10MinigameStatus.Failed || to == Cc10MinigameStatus.Expired;
                 case Cc10MinigameStatus.Verified:
