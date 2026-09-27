@@ -134,13 +134,17 @@ namespace MyriadOfDragons.Frontier
             Cc10TavernDto t = s.tavern ?? new Cc10TavernDto();
             bool max = t.level >= Cc10Rules.TavernMaxLevel;
             var project = t.activeProject;
+            // Server-derived (never client-computed): the caller's own current active-mission cap
+            // and how many of their missions are actually Active right now.
+            int activeCount = s.missions.Count(m => m.status == Cc10MissionStatus.Active);
+            string slots = " - " + activeCount + "/" + t.activeMissionSlots + " active missions";
 
             if (project != null)
             {
                 vm.Rows.Add(new Cc10Row
                 {
                     Title = "Tavern  Lv " + t.level + " -> " + project.toLevel,
-                    Detail = project.goldCost + " Gold + " + project.materialsCost + " Materials",
+                    Detail = project.goldCost + " Gold + " + project.materialsCost + " Materials" + slots,
                     ActionLabel = "Complete",
                     Endpoint = Cc10Endpoints.CompleteTavernUpgrade,
                     EntityKey = "tavern",
@@ -152,7 +156,7 @@ namespace MyriadOfDragons.Frontier
             vm.Rows.Add(new Cc10Row
             {
                 Title = "Tavern  Lv " + t.level,
-                Detail = max ? "Fully upgraded" : "Start the next upgrade",
+                Detail = (max ? "Fully upgraded" : "Start the next upgrade") + slots,
                 ActionLabel = "Upgrade",
                 Endpoint = Cc10Endpoints.StartTavernUpgrade,
                 EntityKey = "tavern",
@@ -191,6 +195,11 @@ namespace MyriadOfDragons.Frontier
 
             // Assignable slots: one row per unlocked mission type with a free spot this UTC day,
             // derived from the spots list (server-owned; spots are mission sources, not faucets).
+            // Slot-full preview uses only two server-provided numbers - no per-level cap table is
+            // reimplemented here; the server alone enforces the real limit (MISSION_SLOTS_FULL).
+            int activeCount = s.missions.Count(m => m.status == Cc10MissionStatus.Active);
+            int activeSlots = s.tavern != null ? s.tavern.activeMissionSlots : 0;
+            bool slotsFull = activeSlots > 0 && activeCount >= activeSlots;
             foreach (Cc10Rules.MissionRule rule in Cc10Rules.MissionRules)
             {
                 Cc10NpcSpotDto spot = s.spots.FirstOrDefault(sp => sp.missionType == rule.Type && sp.status == Cc10SpotStatus.Available);
@@ -203,7 +212,8 @@ namespace MyriadOfDragons.Frontier
                     ActionLabel = "Start",
                     Endpoint = Cc10Endpoints.AssignMission,
                     EntityKey = "assign:" + spot.spotId,
-                    ActionEnabled = true,
+                    ActionEnabled = !slotsFull,
+                    DisabledReason = Cc10Copy.MissionSlotsFull,
                 };
                 row.Payload["missionType"] = rule.Type;
                 row.Payload["spotId"] = spot.spotId;

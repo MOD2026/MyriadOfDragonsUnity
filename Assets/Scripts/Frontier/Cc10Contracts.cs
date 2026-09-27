@@ -41,11 +41,18 @@ namespace MyriadOfDragons.Frontier
     /// in); and CancelGuildResearch (mirrors CancelResearch's now-genuine refund - Cancel credits
     /// back the exact Start Gold/Materials via the receipt, it no longer forfeits the reserved cost).
     ///
-    /// No corresponding server DTO was found for "Tavern active mission-slot rows" (the dispatch
-    /// phrase) anywhere in TavernDto/TavernProjectDto/TavernLevelRowDto at this commit - Tavern has
-    /// no per-mission slot concept; NpcSpotDto.Slot (a hotspot's own daily slot number) is the only
-    /// "slot" field in the whole contract and it is unrelated to Tavern. Not implemented; flagged
-    /// below rather than invented.
+    /// Superseded again at BE 4deee700 (continues from d99b6c6d, which itself resolved the "Tavern
+    /// active mission-slot rows" gap flagged above): TavernDto.ActiveMissionSlots is now real -
+    /// server-derived from the caller's own Tavern level every command/read, never client-set. This
+    /// client renders it as-is and never re-implements the packet's per-level cap table itself; the
+    /// server alone enforces it (rejecting AssignMission with the new MISSION_SLOTS_FULL). d99b6c6d
+    /// also corrected the Vein Convoy mission's target node/threat-band/intercept-rate to genuinely
+    /// agree on the Central band (30% intercept) - a server-side row fix with no client DTO change
+    /// (MissionDto/CargoDto/ThreatBandDto shapes are unchanged; this client already displays
+    /// whatever band/intercept the server reports, never its own copy of the node graph's phase).
+    /// 4deee700 adds BattleAttestation.ReplayTranscriptBlob (the actual serialized replay transcript
+    /// for the new headless-replay verifier) - built and populated by the Battle/CR adapter, not
+    /// this shell; kept on Cc10BattleAttestation for wire-shape completeness only.
     /// </summary>
     public static class Cc10SystemId
     {
@@ -123,6 +130,8 @@ namespace MyriadOfDragons.Frontier
         // New with the reconciled catalog (5ca919f6):
         public const string MinigameCoolingDown = "MINIGAME_COOLING_DOWN";
         public const string PrerequisiteNotMet = "PREREQUISITE_NOT_MET";
+        // New with Tavern active-mission slots (d99b6c6d):
+        public const string MissionSlotsFull = "MISSION_SLOTS_FULL";
     }
 
     /// <summary>Four server-authored World Map phases (numeric order IS unlock order). Mirrors
@@ -251,6 +260,10 @@ namespace MyriadOfDragons.Frontier
     {
         public int level = 1;
         public Cc10TavernProjectDto activeProject;
+        /// <summary>Server-derived, never client-set: the caller's current per-level active-mission
+        /// cap (recomputed from the real Tavern level on every command/read). Display only - the
+        /// server alone enforces it, rejecting AssignMission with MISSION_SLOTS_FULL.</summary>
+        public int activeMissionSlots;
     }
 
     /// <summary>MissionStatus per contract: Active, Completed, Claimed, Failed, Abandoned, Expired.</summary>
@@ -599,6 +612,10 @@ namespace MyriadOfDragons.Frontier
         public string rulesetVersion = string.Empty;
         public string matchResultHash = string.Empty;
         public string replayTranscriptHash = string.Empty;
+        /// <summary>The actual serialized replay transcript the headless replay verifier re-hashes
+        /// and forwards - built by the Battle/CR attestation adapter, not this shell. Present here
+        /// only for wire-shape completeness; WH never populates or reads it.</summary>
+        public string replayTranscriptBlob;
         public string outcome = string.Empty; // "Victory" | "Loss"
     }
 }

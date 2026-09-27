@@ -530,7 +530,47 @@ namespace MyriadOfDragons.Tests
             snap.tavern = new Cc10TavernDto { level = Cc10Rules.TavernMaxLevel };
             Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Tavern).Rows.Single();
             Assert.IsFalse(row.ActionEnabled);
-            Assert.AreEqual("Fully upgraded", row.Detail);
+            StringAssert.Contains("Fully upgraded", row.Detail);
+        }
+
+        [Test]
+        public async Task Tavern_ShowsServerDerivedActiveMissionSlots_NeverAClientPerLevelTable()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap(1, 1, Mission("m1", "Active"), Mission("m2", "Active"));
+            snap.tavern = new Cc10TavernDto { level = 3, activeMissionSlots = 2 };
+            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.Tavern).Rows.Single();
+            StringAssert.Contains("2/2 active missions", row.Detail);
+        }
+
+        [Test]
+        public async Task Missions_AssignDisabled_WhenActiveMissionSlotsFull_UsingOnlyServerNumbers()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierSnapshot snap = Snap(1, 1, Mission("m1", "Active"), Mission("m2", "Active"));
+            snap.tavern = new Cc10TavernDto { level = 3, activeMissionSlots = 2 };
+            snap.spots = new[] { new Cc10NpcSpotDto { spotId = "s1", missionType = Cc10MissionType.NpcPatrol, status = Cc10SpotStatus.Available } };
+            List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10SystemId.Missions).Rows;
+            Cc10Row assign = rows.Single(r => r.Endpoint == Cc10Endpoints.AssignMission);
+            Assert.IsFalse(assign.ActionEnabled);
+            Assert.AreEqual(Cc10Copy.MissionSlotsFull, assign.DisabledReason);
+        }
+
+        [Test]
+        public async Task MissionSlotsFull_RejectionMapsToPlainCopy()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap());
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : new Cc10CommandResult { success = false, errorCode = Cc10Errors.MissionSlotsFull };
+            Cc10CommandOutcome outcome = await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.AssignMission, null, "assign:s1");
+            Assert.AreEqual(Cc10Copy.MissionSlotsFull, outcome.Message);
+        }
+
+        [Test]
+        public void BattleAttestation_CarriesReplayTranscriptBlobField_ButWhIsNeverThePopulator()
+        {
+            var attestation = new Cc10BattleAttestation();
+            Assert.IsNull(attestation.replayTranscriptBlob, "WH never builds or populates this - it's the Battle/CR adapter's field");
         }
 
         [Test]
