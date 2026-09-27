@@ -12,11 +12,19 @@ namespace MyriadOfDragons.Frontier
     /// A "namespace"-named receipt field is intentionally dropped - Unity's JsonUtility field
     /// binding cannot rename a reserved word and the client does not need it.
     ///
-    /// KNOWN GAP (blocker, not invented here): the published contract has no concept of map
-    /// "phases", outer/central "threat bands", or a scoped "three-guild" contest - TerritoryDto is
-    /// a flat per-territory pseudonym-owned record and MapNodeDto/CC10RowSet.Nodes is a plain
-    /// adjacency graph (currently 4 nodes). Those concepts do not exist server-side; this client
-    /// does not author them.
+    /// Superseded gap note: as of BE commit 3c4e5816 (settlement-closure error-code rename) and
+    /// the World Map phase model on top of it (27c7070f/b49d1bd6), four server-authored phases,
+    /// adjacency-only node expansion, deterministic NPC hotspots, outer-to-central encounter bands,
+    /// and the Central Realm's three fixed contest districts ARE real, published server contracts
+    /// (MapPhase, MapNodeDto.Phase/EncounterBand/IsContestDistrict/Owned/Expanded,
+    /// FrontierSnapshotResult.Phases/ContestDistricts). The older flat 4-node/no-phase assumption
+    /// this file carried before is replaced below.
+    ///
+    /// Remaining GAP: CC10FrontierModule still has no query endpoint returning GuildSnapshotResult
+    /// (the per-guild TerritoryDto contribution ledger for Ashen Ridge/Ember Hollow/Iron Quarry) or
+    /// a ranking view without a chosen season id - only mutation endpoints exist for those. The
+    /// Central Realm contest board IS queryable (via GetFrontierState.ContestDistricts), so
+    /// GuildTerritory now has partial query support.
     /// </summary>
     public static class Cc10SystemId
     {
@@ -42,6 +50,10 @@ namespace MyriadOfDragons.Frontier
         public const string CompleteTavernUpgrade = "CompleteTavernUpgrade";
         public const string ReportExpeditionGold = "ReportExpeditionGold";
         public const string DiscoverNode = "DiscoverNode";
+        public const string ExpandNode = "ExpandNode";
+        public const string ReportCampaignChapterComplete = "ReportCampaignChapterComplete";
+        public const string EnrollContestDistrict = "EnrollContestDistrict";
+        public const string ResolveContestDistrict = "ResolveContestDistrict";
         public const string AssignMission = "AssignMission";
         public const string SubmitMissionResult = "SubmitMissionResult";
         public const string ClaimMission = "ClaimMission";
@@ -72,12 +84,45 @@ namespace MyriadOfDragons.Frontier
     public static class Cc10Errors
     {
         // Mirrors CC10Errors in the published contract - only the ones the client branches on.
+        // Renamed at BE 3c4e5816 (settlement-closure contract): GoldCapReached->GoldCapExceeded,
+        // AuthorityGenerationMismatch->AuthorityStale, Conflict/AlreadyCommitted->PascalCase.
         public const string SystemDisabled = "SYSTEM_DISABLED";
-        public const string Conflict = "CONFLICT";
-        public const string AlreadyCommitted = "ALREADY_COMMITTED";
+        public const string Conflict = "Conflict";
+        public const string AlreadyCommitted = "AlreadyCommitted";
         public const string OfflineClaimRejected = "OFFLINE_CLAIM_REJECTED";
-        public const string GoldCapReached = "GOLD_CAP_REACHED";
-        public const string AuthorityGenerationMismatch = "AUTHORITY_GENERATION_MISMATCH";
+        public const string GoldCapExceeded = "GoldCapExceeded";
+        public const string AuthorityStale = "AuthorityStale";
+        // New with the World Map phase model (27c7070f/b49d1bd6):
+        public const string PhaseLocked = "PHASE_LOCKED";
+        public const string NotAdjacent = "NOT_ADJACENT";
+        public const string NotEligible = "NOT_ELIGIBLE";
+        public const string DistrictTaken = "DISTRICT_TAKEN";
+        public const string AlreadyEnrolledElsewhere = "ALREADY_ENROLLED_ELSEWHERE";
+        public const string WindowClosed = "WINDOW_CLOSED";
+    }
+
+    /// <summary>Four server-authored World Map phases (numeric order IS unlock order). Mirrors
+    /// MapPhase in the published contract.</summary>
+    public static class Cc10MapPhase
+    {
+        public const string HomeOutpost = "HomeOutpost";
+        public const string OuterMarches = "OuterMarches";
+        public const string InnerReach = "InnerReach";
+        public const string CentralRealm = "CentralRealm";
+
+        private static readonly string[] Order = { HomeOutpost, OuterMarches, InnerReach, CentralRealm };
+        public static int Rank(string phase) => Array.IndexOf(Order, phase);
+    }
+
+    public static class Cc10ContestStatus
+    {
+        public const string NotEnrolled = "NotEnrolled";
+        public const string Eligible = "Eligible";
+        public const string Enrolled = "Enrolled";
+        public const string Active = "Active";
+        public const string Resolving = "Resolving";
+        public const string Owned = "Owned";
+        public const string Disabled = "Disabled";
     }
 
     // ---- results --------------------------------------------------------------------------
@@ -111,6 +156,8 @@ namespace MyriadOfDragons.Frontier
         public Cc10GoldLedgerDto gold;
         public int acceptedGold;
         public int projectedEvents;
+        public string phase; // MapPhase after ReportCampaignChapterComplete, else null
+        public Cc10ContestDistrictDto contestDistrict;
     }
 
     [Serializable]
@@ -126,6 +173,9 @@ namespace MyriadOfDragons.Frontier
         public Cc10MinigameSessionDto minigame;
         public Cc10GoldLedgerDto gold = new Cc10GoldLedgerDto();
         public Cc10JournalEntryDto[] journal = Array.Empty<Cc10JournalEntryDto>();
+        public string phase = Cc10MapPhase.HomeOutpost;
+        public Cc10PhaseDto[] phases = Array.Empty<Cc10PhaseDto>();
+        public Cc10ContestDistrictDto[] contestDistricts = Array.Empty<Cc10ContestDistrictDto>();
 
         public bool IsSystemDisabled(string systemId) => Array.IndexOf(disabledSystems, systemId) >= 0;
     }
@@ -196,14 +246,50 @@ namespace MyriadOfDragons.Frontier
         public string claimReceiptId;
     }
 
+    /// <summary>Discovered/Owned/Expanded are independent booleans, per the server's own doc
+    /// comment: the true state machine is Locked/Available/Owned/Expanded, collapsed to booleans
+    /// because Available and Discovered are the same concept in this beta's node model.
+    /// PhaseUnlocked=false means the node's own MapPhase has not been reached yet (server rule,
+    /// gates ExpandNode on top of the adjacency check) - the client never computes this itself.</summary>
     [Serializable]
     public class Cc10MapNodeDto
     {
         public string nodeId = string.Empty;
         public string regionId = string.Empty;
+        public string phase = Cc10MapPhase.HomeOutpost;
+        public string encounterBand = string.Empty;
+        public bool isContestDistrict;
         public bool discovered;
         public long discoveredUtcMs;
+        public bool phaseUnlocked;
+        public bool available;
+        public bool owned;
+        public long ownedUtcMs;
+        public bool expanded;
         public string[] neighbors = Array.Empty<string>();
+    }
+
+    /// <summary>One of the four server-authored phases and whether THIS player has unlocked it
+    /// (Tavern level + reported Campaign chapter, both server-evaluated).</summary>
+    [Serializable]
+    public class Cc10PhaseDto
+    {
+        public string phase = Cc10MapPhase.HomeOutpost;
+        public bool unlocked;
+        public int requiredTavernLevel;
+        public int requiredCampaignChapter;
+    }
+
+    /// <summary>One of the Central Realm's three fixed contest districts.</summary>
+    [Serializable]
+    public class Cc10ContestDistrictDto
+    {
+        public string districtId = string.Empty;
+        public string status = Cc10ContestStatus.NotEnrolled;
+        public string enrolledGuildPseudonym;
+        public string ownerGuildPseudonym;
+        /// <summary>True only when the caller's own guild is presently a top-3 season guild.</summary>
+        public bool callerGuildEligible;
     }
 
     public static class Cc10SpotStatus

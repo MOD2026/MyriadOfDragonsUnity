@@ -159,8 +159,21 @@ namespace MyriadOfDragons.Tests
         public async Task UnsupportedQuerySection_ShowsUnavailable_NeverAnEmptyLiveList()
         {
             var (p, _, _) = await Open(e => Snap());
-            p.SelectSection(Cc10SystemId.GuildTerritory);
+            p.SelectSection(Cc10SystemId.GuildRankings);
             StringAssert.Contains("Not available", p.BannerText);
+        }
+
+        [Test]
+        public async Task WorldMapSection_RendersPhaseAndNodeRows()
+        {
+            Cc10FrontierSnapshot snap = Snap();
+            snap.phases = new[] { new Cc10PhaseDto { phase = Cc10MapPhase.HomeOutpost, unlocked = true } };
+            snap.nodes = new[] { new Cc10MapNodeDto { nodeId = "hub", owned = true, discovered = true } };
+            var (p, _, _) = await Open(e => snap);
+            p.SelectSection(Cc10SystemId.WorldMap);
+            Assert.IsEmpty(p.BannerText);
+            Assert.IsNotNull(p.Root.Find("Scroll/Content/Row_phase:HomeOutpost"));
+            Assert.IsNotNull(p.Root.Find("Scroll/Content/Row_hub"));
         }
     }
 }

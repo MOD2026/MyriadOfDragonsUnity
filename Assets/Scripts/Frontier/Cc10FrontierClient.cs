@@ -188,7 +188,7 @@ namespace MyriadOfDragons.Frontier
             }
 
             _pendingRequestIds.Remove(key);
-            if (response.errorCode == Cc10Errors.Conflict || response.errorCode == Cc10Errors.AuthorityGenerationMismatch)
+            if (response.errorCode == Cc10Errors.Conflict || response.errorCode == Cc10Errors.AuthorityStale)
             {
                 await RefreshAsync(cancellationToken); // first valid CAS wins; reload and show the latest
                 return new Cc10CommandOutcome { Outcome = Cc10Outcome.Conflict, Message = Cc10Copy.Conflict, Response = response };
@@ -233,12 +233,24 @@ namespace MyriadOfDragons.Frontier
         public const string AlreadyRecorded = "Already recorded.";
         public const string CapReached = "Daily Gold limit reached. Nothing was claimed.";
         public const string OfflineClaimRejected = "That can't be claimed while offline.";
+        public const string PhaseLocked = "That area isn't unlocked yet.";
+        public const string NotAdjacent = "Not adjacent to an owned or discovered location.";
+        public const string NotEligible = "Your guild isn't eligible right now.";
+        public const string DistrictTaken = "Another guild already enrolled there.";
+        public const string AlreadyEnrolledElsewhere = "Your guild already enrolled a different district this season.";
+        public const string WindowClosed = "That window has closed.";
         public const string Generic = "That didn't go through.";
 
         public static string ForRejection(string errorCode)
         {
-            if (errorCode == Cc10Errors.GoldCapReached) return CapReached;
+            if (errorCode == Cc10Errors.GoldCapExceeded) return CapReached;
             if (errorCode == Cc10Errors.OfflineClaimRejected) return OfflineClaimRejected;
+            if (errorCode == Cc10Errors.PhaseLocked) return PhaseLocked;
+            if (errorCode == Cc10Errors.NotAdjacent) return NotAdjacent;
+            if (errorCode == Cc10Errors.NotEligible) return NotEligible;
+            if (errorCode == Cc10Errors.DistrictTaken) return DistrictTaken;
+            if (errorCode == Cc10Errors.AlreadyEnrolledElsewhere) return AlreadyEnrolledElsewhere;
+            if (errorCode == Cc10Errors.WindowClosed) return WindowClosed;
             return Generic;
         }
     }

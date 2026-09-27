@@ -50,14 +50,14 @@ namespace MyriadOfDragons.Frontier
             }
         }
 
-        /// <summary>Systems GetFrontierState actually returns data for. GuildTerritory and
-        /// GuildRankings have mutation endpoints but no query endpoint yet (see
-        /// Cc10Endpoints.NoGuildStateQueryEndpoint) - their section renders "not yet available"
-        /// rather than an empty, misleadingly-live list.</summary>
+        /// <summary>Systems GetFrontierState actually returns data for. GuildTerritory now has
+        /// PARTIAL support: the Central Realm's three contest districts are queryable
+        /// (FrontierSnapshotResult.ContestDistricts), but the per-guild TerritoryDto contribution
+        /// ledger (Ashen Ridge/Ember Hollow/Iron Quarry) still has no query endpoint. GuildRankings
+        /// and IndividualRankings still need a chosen season id the shell has no source for.</summary>
         public static bool HasQuerySupport(string systemId) =>
-            systemId != Cc10SystemId.GuildTerritory
-            && systemId != Cc10SystemId.GuildRankings
-            && systemId != Cc10SystemId.IndividualRankings; // ranking view needs a season id the shell doesn't pick yet
+            systemId != Cc10SystemId.GuildRankings
+            && systemId != Cc10SystemId.IndividualRankings;
 
         public static Cc10SectionVm Build(Cc10FrontierClient client, string systemId,
             IEnumerable<CardProgressionRecord> cards = null)
@@ -87,8 +87,9 @@ namespace MyriadOfDragons.Frontier
             {
                 case Cc10SystemId.Tavern: AddTavern(vm, s); break;
                 case Cc10SystemId.Missions: AddMissions(vm, client, s); break;
-                case Cc10SystemId.WorldMap: AddNodes(vm, s); break;
+                case Cc10SystemId.WorldMap: AddPhases(vm, s); AddNodes(vm, s); break;
                 case Cc10SystemId.NpcSpots: AddSpots(vm, s); break;
+                case Cc10SystemId.GuildTerritory: AddContestDistricts(vm, s); break;
                 case Cc10SystemId.IndividualResearch: AddResearch(vm, client, s, Cc10ResearchScope.Individual); break;
                 case Cc10SystemId.GuildResearch: AddResearch(vm, client, s, Cc10ResearchScope.Guild); break;
                 case Cc10SystemId.Minigame: AddMinigame(vm, s); break;
@@ -221,38 +222,121 @@ namespace MyriadOfDragons.Frontier
             }
         }
 
+        /// <summary>Read-only phase ladder at the top of World Map (server-evaluated Tavern level +
+        /// reported Campaign chapter; never computed client-side).</summary>
+        private static void AddPhases(Cc10SectionVm vm, Cc10FrontierSnapshot s)
+        {
+            foreach (Cc10PhaseDto p in s.phases)
+            {
+                bool current = p.phase == s.phase;
+                vm.Rows.Add(new Cc10Row
+                {
+                    Title = PhaseTitle(p.phase) + (current ? " (current)" : string.Empty),
+                    Detail = p.unlocked
+                        ? "Unlocked"
+                        : "Locked - Tavern Lv " + p.requiredTavernLevel + (p.requiredCampaignChapter > 0
+                            ? " + Campaign ch. " + p.requiredCampaignChapter : string.Empty),
+                    EntityKey = "phase:" + p.phase,
+                });
+            }
+        }
+
+        private static string PhaseTitle(string phase)
+        {
+            switch (phase)
+            {
+                case Cc10MapPhase.HomeOutpost: return "Home Outpost";
+                case Cc10MapPhase.OuterMarches: return "Outer Marches";
+                case Cc10MapPhase.InnerReach: return "Inner Reach";
+                case Cc10MapPhase.CentralRealm: return "Central Realm";
+                default: return phase;
+            }
+        }
+
         private static void AddNodes(Cc10SectionVm vm, Cc10FrontierSnapshot s)
         {
             foreach (Cc10MapNodeDto n in s.nodes)
             {
                 var row = new Cc10Row
                 {
-                    Title = n.regionId + " / " + n.nodeId,
-                    Detail = n.discovered
-                        ? "Discovered - adjacent: " + string.Join(", ", n.neighbors ?? System.Array.Empty<string>())
-                        : "Undiscovered",
+                    Title = n.regionId + " / " + n.nodeId + " [" + PhaseTitle(n.phase) + ", " + n.encounterBand + "]"
+                        + (n.isContestDistrict ? " (contest district)" : string.Empty),
                     EntityKey = n.nodeId,
                 };
-                if (!n.discovered)
+                row.Payload["nodeId"] = n.nodeId;
+
+                if (n.owned)
                 {
-                    // Adjacency expansion: only a discovered node's own neighbor list is ever
-                    // offered next - the client does not invent which nodes exist or connect.
-                    bool reachable = s.nodes.Any(other => other.discovered
+                    row.Detail = "Owned" + (n.expanded ? " - expanded" : string.Empty);
+                }
+                else if (n.discovered)
+                {
+                    // Adjacency + phase gated ownership. The server enforces both; this preview
+                    // only explains why the button is disabled, never decides it.
+                    bool adjacentToOwned = s.nodes.Any(other => other.owned
                         && other.neighbors != null && other.neighbors.Contains(n.nodeId));
+                    row.Detail = "Discovered, not yet owned";
+                    row.ActionLabel = "Expand";
+                    row.Endpoint = Cc10Endpoints.ExpandNode;
+                    row.ActionEnabled = n.phaseUnlocked && adjacentToOwned;
+                    row.DisabledReason = !n.phaseUnlocked ? "Phase not unlocked yet" : "Not adjacent to an owned location";
+                }
+                else
+                {
+                    bool adjacentToDiscovered = s.nodes.Any(other => other.discovered
+                        && other.neighbors != null && other.neighbors.Contains(n.nodeId));
+                    row.Detail = "Undiscovered";
                     row.ActionLabel = "Discover";
                     row.Endpoint = Cc10Endpoints.DiscoverNode;
-                    row.Payload["nodeId"] = n.nodeId;
-                    row.ActionEnabled = reachable;
-                    row.DisabledReason = "Not adjacent to a discovered node yet";
+                    row.ActionEnabled = adjacentToDiscovered;
+                    row.DisabledReason = "Not adjacent to a discovered location yet";
                 }
                 vm.Rows.Add(row);
             }
         }
 
+        /// <summary>NPC hotspots scattered across discovered nodes - read-only; a hotspot only ever
+        /// binds to the mission the server already generated for it (spots are mission sources,
+        /// never independent faucets).</summary>
         private static void AddSpots(Cc10SectionVm vm, Cc10FrontierSnapshot s)
         {
             foreach (Cc10NpcSpotDto p in s.spots)
-                vm.Rows.Add(new Cc10Row { Title = MissionTitle(p.missionType) + " @ " + p.nodeId, Detail = p.status, EntityKey = p.spotId });
+                vm.Rows.Add(new Cc10Row
+                {
+                    Title = MissionTitle(p.missionType) + " hotspot @ " + p.nodeId,
+                    Detail = p.status,
+                    EntityKey = p.spotId,
+                });
+        }
+
+        /// <summary>Central Realm's three fixed contest districts - a genuine cross-guild race.
+        /// Enroll is offered only when the server says the caller's own guild is presently top-3
+        /// eligible and no district is enrolled yet; resolution is operator-gated, never a player
+        /// action, so it is shown as status only.</summary>
+        private static void AddContestDistricts(Cc10SectionVm vm, Cc10FrontierSnapshot s)
+        {
+            foreach (Cc10ContestDistrictDto d in s.contestDistricts)
+            {
+                var row = new Cc10Row { Title = "Contest: " + d.districtId, EntityKey = d.districtId };
+                row.Payload["districtId"] = d.districtId;
+                switch (d.status)
+                {
+                    case Cc10ContestStatus.NotEnrolled:
+                        row.Detail = d.callerGuildEligible ? "Eligible - top 3 this season" : "Not eligible this season";
+                        row.ActionLabel = "Enroll";
+                        row.Endpoint = Cc10Endpoints.EnrollContestDistrict;
+                        row.ActionEnabled = d.callerGuildEligible;
+                        row.DisabledReason = "Your guild is not currently top-3";
+                        break;
+                    case Cc10ContestStatus.Owned:
+                        row.Detail = "Owned by " + (d.ownerGuildPseudonym ?? "another guild");
+                        break;
+                    default:
+                        row.Detail = d.status + (d.enrolledGuildPseudonym != null ? " - " + d.enrolledGuildPseudonym : string.Empty);
+                        break;
+                }
+                vm.Rows.Add(row);
+            }
         }
 
         private static void AddResearch(Cc10SectionVm vm, Cc10FrontierClient client, Cc10FrontierSnapshot s, string scope)

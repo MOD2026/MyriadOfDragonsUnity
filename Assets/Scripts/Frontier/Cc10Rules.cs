@@ -53,6 +53,26 @@ namespace MyriadOfDragons.Frontier
 
         public static int CardTrainingCost(int level) => CollectionTrainingRules.XpCostForNextLevel(level);
         public static int CardLevelCap => CollectionSchemaRules.MaxCardLevel;
+
+        /// <summary>Preview only, copied from CC10RowSet.PhaseUnlocks - the server independently
+        /// evaluates and enforces this from its own Tavern-level state plus the player's reported
+        /// Campaign-chapter flag. Never used to gate a client action; only to explain a locked row.</summary>
+        public struct PhaseUnlockRule
+        {
+            public string Phase;
+            public int RequiredTavernLevel;
+            public int RequiredCampaignChapter;
+        }
+
+        public static readonly PhaseUnlockRule[] PhaseUnlocks =
+        {
+            new PhaseUnlockRule { Phase = Cc10MapPhase.HomeOutpost, RequiredTavernLevel = 1, RequiredCampaignChapter = 0 },
+            new PhaseUnlockRule { Phase = Cc10MapPhase.OuterMarches, RequiredTavernLevel = 3, RequiredCampaignChapter = 1 },
+            new PhaseUnlockRule { Phase = Cc10MapPhase.InnerReach, RequiredTavernLevel = 5, RequiredCampaignChapter = 2 },
+            new PhaseUnlockRule { Phase = Cc10MapPhase.CentralRealm, RequiredTavernLevel = 7, RequiredCampaignChapter = 3 },
+        };
+
+        public const int CentralRealmContestDistrictCount = 3;
     }
 
     /// <summary>Legal display transitions, copied from the enum sets in the published contract
