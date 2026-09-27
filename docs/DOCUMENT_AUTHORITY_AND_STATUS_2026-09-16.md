@@ -50,6 +50,65 @@ Older files may contain statements such as “open,” “planned,” “complet
 - Several external UI correction packages still lack code integration and/or runtime proof.
 - rc31 remains frozen; rc32 remains a candidate, not a release approval.
 
+## CC10 current authority overlay — 2026-09-27
+
+The following CC10 documents supersede the older CC10 product-direction status
+for current beta scope. The older direction document remains historical
+provenance and must not be used to report CC10 as deferred:
+
+- `CC10_BETA_FULL_SCOPE_IMPLEMENTATION_CONTRACT_2026-09-27.md` — authoritative
+  full-beta system scope and implementation contract, supplied by BS.
+- `CC10_FRONTIER_RUNTIME_IMPLEMENTATION_HANDOFF_2026-09-27.md` — runtime visual
+  source-path and presentation handoff, supplied through the UI/UX/AD lane.
+
+The external handoff files are currently stored outside this repository under
+the owner-controlled Codex output folders. Until their text is copied into a
+tracked authority packet, this section is the repository pointer and the
+current-status override for CC10. The older
+`docs/CC10_PVE_PERSISTENT_FRONTIER_PRODUCT_DIRECTION_2026-09-27.md` remains a
+historical proposal record; its Phase 2/3 deferrals and
+`NOT APPROVED FOR IMPLEMENTATION` status are superseded by the full-beta
+contract and must not be used to close or defer a CC10 implementation task.
+
+### CC10 system-completeness rule
+
+All nine CC10 systems are beta scope: card leveling, Tavern/missions,
+world-map exploration, NPC hotspots, guild territory, individual/guild
+research, individual/guild rankings, minigame, and cargo missions. A system is
+not complete merely because its room is idle, its branch is clean, or a design
+packet exists. “No more task” is permitted only when the system has all of:
+
+1. mechanics implementation;
+2. authoritative service/persistence implementation;
+3. runtime UI integration;
+4. approved runtime art handoff;
+5. focused tests and simulation evidence;
+6. integration handoff with commit/path and unresolved blockers recorded.
+
+### CC10 room ownership overlay
+
+For CC10, use this ownership map instead of the older CC8 snapshot where they
+conflict:
+
+| Room | CC10 responsibility |
+|---|---|
+| BS | Mechanics and policy contract; no Unity implementation |
+| AD | Art provenance and visual acceptance; no Unity implementation |
+| UI/UX | Runtime-ready visual assets and presentation handoff |
+| BE | Cloud Code/Cloud Save, UTC authority, receipts, idempotency, settlement and concurrency |
+| CR | Battle-owned hooks and Battle integration only |
+| WH | Metagame/minigame integration and tests |
+| GUI | Unity presenters, navigation, controls and state rendering |
+| MS | In-engine economy/progression simulation and balance tests |
+| FR/LK | Integration, build and release evidence only |
+| VE/AN | Runtime evidence and acceptance |
+| MT | Marketing only; no game implementation |
+
+No room may be declared complete from a status report alone. Every assignment
+must name the next artifact, owner, allowed scope, acceptance evidence and
+unresolved dependencies. Existing rooms receive paste-ready prompts; no new
+room, branch or worktree is created unless the owner explicitly requests it.
+
 ## Release-candidate document decision (E resolved under GR1/GR2)
 
 Keep both LK reports, but do not treat them as competing descriptions of one release:

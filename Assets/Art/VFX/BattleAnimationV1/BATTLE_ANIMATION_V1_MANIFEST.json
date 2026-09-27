@@ -1,0 +1,12 @@
+{
+  "colorSpace": "sRGB",
+  "alpha": "straight",
+  "textBaked": false,
+  "assets": [
+    {"file":"card_arrival_sparkle_atlas.png","size":"1024x256","frames":4,"frameSize":"256x256","reduced":"card_arrival_sparkle_atlas_reduced.png"},
+    {"file":"hit_flash_atlas.png","size":"1024x256","frames":4,"frameSize":"256x256","reduced":"hit_flash_atlas_reduced.png"},
+    {"file":"firestorm_impact_overlay.png","size":"512x512","frames":1,"frameSize":"512x512","reduced":"firestorm_impact_overlay_reduced.png"},
+    {"file":"reinforcement_dock_pulse_atlas.png","size":"1024x256","frames":4,"frameSize":"256x256","reduced":"reinforcement_dock_pulse_atlas_reduced.png"}
+  ],
+  "unityImport": {"textureType":"Sprite (2D and UI)","spriteMode":"Multiple for atlases, Single for overlay","mesh":"Full Rect","filter":"Bilinear","compression":"None or platform lossless","readWrite":"Disabled"}
+}
