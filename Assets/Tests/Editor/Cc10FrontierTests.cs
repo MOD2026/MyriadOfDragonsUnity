@@ -1513,14 +1513,13 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public async Task Contest_ReadsOnlyTheCanonicalSnapshot_NeverTheLegacyContestDistrictsList()
+        public async Task Contest_ReadsOnlyTheCanonicalSnapshot_AndTheLegacyListIsNotModelled()
         {
-            Cc10FrontierSnapshot frontier = Snap();
-            frontier.contestDistricts = new[] { new Cc10ContestDistrictDto { districtId = "LEGACY", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "GC01" } };
+            CollectionAssert.DoesNotContain(typeof(Cc10FrontierSnapshot).GetFields().Select(f => f.Name).ToArray(), "contestDistricts",
+                "the legacy GetFrontierState.contestDistricts list is not part of the client contract");
             var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: new[] { Contest("central_ashfall", "GC07") });
-            Cc10FrontierClient client = await ClientWithMap(new FakeGateway(), frontier, map);
+            Cc10FrontierClient client = await ClientWithMap(new FakeGateway(), Snap(), map);
             List<Cc10Row> rows = Vm(client, Cc10SystemId.GuildTerritory).Rows;
-            Assert.IsFalse(rows.Any(r => r.EntityKey == "LEGACY"), "the legacy list is never read");
             StringAssert.Contains("color 7", rows.Single(r => r.EntityKey == "central_ashfall").Detail);
         }
 

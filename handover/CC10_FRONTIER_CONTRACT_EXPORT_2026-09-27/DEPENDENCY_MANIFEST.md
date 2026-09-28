@@ -75,6 +75,13 @@ Notes for GUI:
 
 An empty `centralContest` is therefore a valid, expected state — not an error.
 
+### Legacy `contestDistricts` — not in the export
+
+`GetFrontierState.contestDistricts` (declared by BE, never populated) is **not modelled**: `Cc10FrontierSnapshot` has no such field and nothing in
+`Cc10Contracts.cs`/`Cc10Rules.cs` depends on it. Contest state comes only from `GetWorldMapSnapshot.centralContest`. `Cc10ContestDistrictDto` remains
+solely as the `contestDistrict` result of `EnrollContestDistrict`/`ResolveContestDistrict` commands. **GUI/FR presenters that still read
+`snapshot.contestDistricts` (and the removed `*GuildColorKey` fields) will not compile against this export and must migrate to `Cc10FrontierClient.WorldMap`.**
+
 ### Removed from the export (deprecated by bab7aab1)
 
 These no longer exist in `Cc10Contracts.cs`, and GUI must not re-add them:

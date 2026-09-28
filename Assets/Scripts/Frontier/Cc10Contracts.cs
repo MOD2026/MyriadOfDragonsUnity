@@ -240,7 +240,6 @@ namespace MyriadOfDragons.Frontier
         public Cc10JournalEntryDto[] journal = Array.Empty<Cc10JournalEntryDto>();
         public string phase = Cc10MapPhase.HomeOutpost;
         public Cc10PhaseDto[] phases = Array.Empty<Cc10PhaseDto>();
-        public Cc10ContestDistrictDto[] contestDistricts = Array.Empty<Cc10ContestDistrictDto>();
         /// <summary>Read-only catalog data (one row per phase) for Battle's encounter binding -
         /// never a client combat rule.</summary>
         public Cc10ThreatBandDto[] threatBands = Array.Empty<Cc10ThreatBandDto>();
@@ -427,7 +426,8 @@ namespace MyriadOfDragons.Frontier
     }
 
     /// <summary>One of the Central Realm's three fixed contest districts (enroll/resolve command
-    /// results and GetFrontierState.contestDistricts). Raw guild pseudonyms and integer color keys
+    /// results only - the legacy GetFrontierState.contestDistricts list is intentionally not
+    /// modelled: BE never populates it). Raw guild pseudonyms and integer color keys
     /// were removed from every read DTO (BE bab7aab1): the only guild-identifying data returned is
     /// an opaque presentation color TOKEN ("GC01".."GC12") that carries no guild id, name or
     /// member list.</summary>
@@ -493,7 +493,16 @@ namespace MyriadOfDragons.Frontier
         public string guildColorToken;
     }
 
-    /// <summary>Exactly the approved snapshot shape - nothing more. serverUtc is epoch
+    /// <summary>FINAL Central contest lifecycle (BE bef39415), as it appears in centralContest:
+    /// display season = newest Accepting, else newest Frozen/Published (Created/Archived expose nothing).
+    /// Enrolling while Accepting confers NO ownership and NO color - the row stays Unclaimed, token null.
+    /// ResolveContestDistrict (operator-gated, once per district, only while Frozen; a second call is
+    /// AlreadyCommitted) settles it: GuildOwned + the guild's season-unique token. Settled districts are
+    /// immutable and stay visible through Frozen/Published, vanishing at Archived. Rejections:
+    /// COLOR_PALETTE_EXHAUSTED (no free color) and COLOR_TOKEN_COLLISION (non-unique/missing allocation),
+    /// both atomic. The snapshot carries no season state, so an Unclaimed row in Frozen/Published is
+    /// indistinguishable from an open one: enrollment there is rejected WINDOW_CLOSED by the server.
+    /// Exactly the approved snapshot shape - nothing more. serverUtc is epoch
     /// milliseconds from the server clock (display only on the client).</summary>
     [Serializable]
     public class Cc10WorldMapSnapshotDto
