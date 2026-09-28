@@ -367,6 +367,7 @@ namespace MyriadOfDragons.Frontier
         public const string PrerequisiteNotMet = "You need to finish an earlier step first.";
         public const string MissionSlotsFull = "All your mission slots are full right now.";
         public const string MinigameInvalidStream = "That result couldn't be verified. Try again.";
+        public const string ColorUnavailable = "No guild color is free right now. Try again later.";
         public const string Generic = "That didn't go through.";
 
         public static string ForRejection(string errorCode)
@@ -379,6 +380,7 @@ namespace MyriadOfDragons.Frontier
             if (errorCode == Cc10Errors.DistrictTaken) return DistrictTaken;
             if (errorCode == Cc10Errors.AlreadyEnrolledElsewhere) return AlreadyEnrolledElsewhere;
             if (errorCode == Cc10Errors.WindowClosed) return WindowClosed;
+            if (errorCode == Cc10Errors.ColorTokenCollision || errorCode == Cc10Errors.ColorPaletteExhausted) return ColorUnavailable;
             if (errorCode == Cc10Errors.MinigameCoolingDown) return MinigameCoolingDown;
             if (errorCode == Cc10Errors.PrerequisiteNotMet) return PrerequisiteNotMet;
             if (errorCode == Cc10Errors.MissionSlotsFull) return MissionSlotsFull;

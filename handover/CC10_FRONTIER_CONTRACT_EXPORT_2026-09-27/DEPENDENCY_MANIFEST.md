@@ -1,9 +1,9 @@
 # CC10 Frontier Contract Export — Dependency Manifest
 
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
-**Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`bab7aab1`**
+**Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`bef39415`** (World Map DTO shape unchanged since **`bab7aab1`**)
 (approved private per-player World Map occupancy decision, 2026-09-28), which **supersedes**
-the earlier occupancy pass `fe0a2f5d`.
+the earlier occupancy pass `fe0a2f5d`; season gating and color tokens amended by **`7718db3`** then **`bef39415`** (below).
 **Scope:** the minimal WH-owned client contract only — DTO field mappings, the canonical
 World Map snapshot, Central contest guild-color tokens, and the Vein Relay contract fields.
 Everything else WH owns (`Cc10FrontierClient.cs`, `Cc10FrontierGateway.cs`,
@@ -55,14 +55,23 @@ Notes for GUI:
 - `MapNodeDto.layoutX` / `layoutY` (int, server-authored, identical for every player) are **unchanged** and
   remain the only source of a node's on-screen position.
 
-### Final BS season-gating decision (server-enforced; the client must not reproduce it)
+### Final season-gating (BE bef39415 "final amendment", supersedes bab7aab1 and 7718db3; server-enforced)
 
-1. `centralContest` is empty until the player's `unlockedPhase` is `Central`.
-2. Rows exist only while there is an **active season** = the latest non-`Archived` season. No active season → empty list.
-3. `GuildOwned` counts **only for that active season**; a prior season's owner color disappears on rollover (row reverts to `Unclaimed`, token `null`).
-4. If `GuildTerritory` is emergency-disabled the server hides **all** contest rows, while `ownOccupiedNodes` stays readable
-   (disable makes a system read-only, never blind).
-5. Beta is **per-player `ExpandNode` expansion only**: no base placement, wells, relocation/teleport, or cross-player/global occupancy.
+1. `centralContest` is empty until the player's `unlockedPhase` is `Central`, and while `GuildTerritory` is emergency-disabled.
+2. **Display season** = the newest `Accepting` ("Active") season if one exists, else the newest `Frozen`/`Published` season.
+   `Created` and `Archived` seasons expose nothing; no display season → empty list.
+3. **Only settled districts carry ownership and a color.** Enrolling while `Accepting` confers **no** ownership and allocates **no** color:
+   an enrolled district is still `Unclaimed` with a `null` token. `ResolveContestDistrict` (operator-gated, exactly once per district, only
+   while the season is `Frozen`; a second call is `AlreadyCommitted`) settles it and allocates the guild's **season-unique** token.
+   Settled districts are immutable and stay visible (`GuildOwned` + token) through `Frozen` and `Published`, and vanish when the season is `Archived`.
+4. `Unclaimed` rows therefore also appear in `Frozen`/`Published`, where enrollment is closed (`WINDOW_CLOSED`); the snapshot carries no season state,
+   so the client cannot tell and must let the server reject. An already-owned district of an un-Archived season cannot be re-enrolled (`DISTRICT_TAKEN`).
+5. **Tokens are season-unique and one-to-one** (hash index = starting preference, first free index allocated at settlement, immutable for the season).
+   Palette full → `COLOR_PALETTE_EXHAUSTED`; non-unique stored set or missing allocation → `COLOR_TOKEN_COLLISION` (atomic rejects; plain copy via
+   `Cc10Errors.ColorPaletteExhausted` / `ColorTokenCollision`). A non-unique stored set makes the server expose **no** colors. Re-enrolling the same guild
+   in the same district → `AlreadyCommitted`.
+6. Known BE caveat: `AutoAdvanceSeasons` skips `Frozen`, so settlement needs an operator `FreezeSeason`.
+7. Beta is **per-player `ExpandNode` expansion only**: no base placement, wells, relocation/teleport, or cross-player/global occupancy.
 
 An empty `centralContest` is therefore a valid, expected state — not an error.
 

@@ -74,7 +74,9 @@ namespace MyriadOfDragons.Frontier
     /// GetWorldMapSnapshot (pure read) returns the canonical Cc10WorldMapSnapshotDto. Season
     /// gating: contest rows appear only after Central unlock during an active season (the latest
     /// non-Archived season); GuildOwned counts only for that season, so prior colors disappear on
-    /// rollover; GuildTerritory emergency-disable hides all contest rows while own nodes stay
+    /// rollover; [AMENDED at BE bef39415: display season = newest Accepting, else newest
+    /// Frozen/Published; only SETTLED districts are GuildOwned with a season-unique token, an enrolled one
+    /// is still Unclaimed/null]; GuildTerritory emergency-disable hides all contest rows while own nodes stay
     /// readable. MapNodeDto.LayoutX/LayoutY are unchanged.
     /// </summary>
     public static class Cc10SystemId
@@ -152,6 +154,9 @@ namespace MyriadOfDragons.Frontier
         public const string DistrictTaken = "DISTRICT_TAKEN";
         public const string AlreadyEnrolledElsewhere = "ALREADY_ENROLLED_ELSEWHERE";
         public const string WindowClosed = "WINDOW_CLOSED";
+        // Central contest color allocation (BE 7718db3): season-scoped, one-to-one tokens.
+        public const string ColorTokenCollision = "COLOR_TOKEN_COLLISION";
+        public const string ColorPaletteExhausted = "COLOR_PALETTE_EXHAUSTED";
         // New with the reconciled catalog (5ca919f6):
         public const string MinigameCoolingDown = "MINIGAME_COOLING_DOWN";
         public const string PrerequisiteNotMet = "PREREQUISITE_NOT_MET";

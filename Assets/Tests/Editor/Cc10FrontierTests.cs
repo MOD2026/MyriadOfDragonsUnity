@@ -1728,5 +1728,40 @@ namespace MyriadOfDragons.Tests
                         StringAssert.DoesNotContain(banned, text, sys + " row '" + r.Title + "'");
                 }
         }
+
+        [Test]
+        public async Task ContestColorAllocationRejections_MapToPlainCopy_NoRawCode()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap());
+            foreach (string code in new[] { Cc10Errors.ColorTokenCollision, Cc10Errors.ColorPaletteExhausted })
+            {
+                gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : new Cc10CommandResult { success = false, errorCode = code };
+                Cc10CommandOutcome o = await client.ExecuteAsync(Cc10SystemId.GuildTerritory, Cc10Endpoints.EnrollContestDistrict, null, "d1");
+                Assert.AreEqual(Cc10Outcome.Rejected, o.Outcome, code);
+                Assert.AreEqual(Cc10Copy.ColorUnavailable, o.Message, code);
+                StringAssert.DoesNotContain("COLOR_", o.Message);
+            }
+        }
+
+        [Test]
+        public async Task EnrolledButUnsettledDistrict_ArrivesUnclaimedWithNoToken_AndShowsNoColor()
+        {
+            // BE bef39415: enrolling confers no ownership and allocates no color until the operator settles it.
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: new[] { Contest("central_ashfall") });
+            Cc10Row row = Vm(await ClientWithMap(new FakeGateway(), Snap(), map), Cc10SystemId.GuildTerritory).Rows.Single();
+            Assert.AreEqual("Unclaimed", row.Detail);
+            Assert.IsFalse(row.Detail.Contains("color"));
+        }
+
+        [Test]
+        public async Task SettledDistrict_StaysVisibleAsGuildOwned_WithItsToken_NoEnrollOffered()
+        {
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: new[] { Contest("central_ashfall", "GC05", "S3") });
+            Cc10Row row = Vm(await ClientWithMap(new FakeGateway(), Snap(), map), Cc10SystemId.GuildTerritory).Rows.Single();
+            StringAssert.Contains("Owned by a guild", row.Detail);
+            StringAssert.Contains("color 5", row.Detail);
+            Assert.IsFalse(row.HasAction);
+        }
     }
 }
