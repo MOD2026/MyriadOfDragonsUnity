@@ -50,6 +50,10 @@ namespace MyriadOfDragons.Frontier
         /// has no guild. Loaded separately from <see cref="Snapshot"/> because it needs a guild id
         /// the frontier snapshot does not carry.</summary>
         public Cc10GuildSnapshot GuildSnapshot { get; private set; }
+        /// <summary>Last accepted GetWorldMapSnapshot (private per-player occupancy + Central contest
+        /// color tokens), or null. Only a snapshot with the known schema and a non-regressing
+        /// occupancyVersion is ever accepted.</summary>
+        public Cc10WorldMapSnapshotDto WorldMap { get; private set; }
         public Cc10Connection Connection { get; private set; } = Cc10Connection.Unknown;
         public IReadOnlyList<string> StateAnomalies => _anomalies;
         public int PendingRequestCount => _pendingRequestIds.Count;
@@ -135,6 +139,45 @@ namespace MyriadOfDragons.Frontier
 
             Connection = Cc10Connection.Online;
             GuildSnapshot = fresh;
+            RaiseChanged();
+            return true;
+        }
+
+        /// <summary>Reload the canonical World Map snapshot (a pure read). Rejects (keeping the last
+        /// good one) an unknown schemaVersion, a missing snapshot, or a snapshot whose
+        /// occupancyVersion is older than the one already held - occupancyVersion is per-player
+        /// monotonic, so a lower value is a stale/out-of-order response.</summary>
+        public async Task<bool> RefreshWorldMapAsync(CancellationToken cancellationToken = default)
+        {
+            Cc10WorldMapSnapshotResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10WorldMapSnapshotResult>(Cc10Endpoints.GetWorldMapSnapshot, null, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success || fresh.snapshot == null
+                || fresh.snapshot.schemaVersion != Cc10WorldMapSnapshotSchema.V1)
+            {
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            if (WorldMap != null && fresh.snapshot.occupancyVersion < WorldMap.occupancyVersion)
+            {
+                RaiseChanged();
+                return false;
+            }
+
+            WorldMap = fresh.snapshot;
             RaiseChanged();
             return true;
         }

@@ -774,14 +774,15 @@ namespace MyriadOfDragons.Tests
             {
                 new Cc10ContestDistrictDto { districtId = "central_ashfall", status = Cc10ContestStatus.NotEnrolled, callerGuildEligible = true },
                 new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.NotEnrolled, callerGuildEligible = false },
-                new Cc10ContestDistrictDto { districtId = "central_ironquarry", status = Cc10ContestStatus.Owned, ownerGuildPseudonym = "Guild-9F2" },
+                new Cc10ContestDistrictDto { districtId = "central_ironquarry", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "GC09" },
             };
             List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10SystemId.GuildTerritory).Rows;
             Assert.IsTrue(rows[0].ActionEnabled);
             Assert.AreEqual(Cc10Endpoints.EnrollContestDistrict, rows[0].Endpoint);
             Assert.IsFalse(rows[1].ActionEnabled, "not top-3 this season");
             Assert.IsFalse(rows[2].HasAction, "already owned - no resolve action client-side (operator-gated)");
-            StringAssert.Contains("Guild-9F2", rows[2].Detail);
+            StringAssert.Contains("color 9", rows[2].Detail);
+            StringAssert.DoesNotContain("Guild-", rows[2].Detail, "no guild identity is ever shown - only a color");
         }
 
         [Test]
@@ -836,7 +837,7 @@ namespace MyriadOfDragons.Tests
             await client.ExecuteAsync(Cc10SystemId.GuildTerritory, Cc10Endpoints.EnrollContestDistrict,
                 new Dictionary<string, object> { { "districtId", "central_ashfall" }, { "guildId", "g1" }, { "seasonId", "s1" } }, "central_ashfall");
             Dictionary<string, object> body = gw.Calls.First(c => c.Key == Cc10Endpoints.EnrollContestDistrict).Value;
-            Assert.IsFalse(body.ContainsKey("eligible") || body.ContainsKey("status") || body.ContainsKey("ownerGuildPseudonym"),
+            Assert.IsFalse(body.ContainsKey("eligible") || body.ContainsKey("status") || body.ContainsKey("ownerGuildColorToken"),
                 "eligibility/status/ownership are entirely server-decided");
         }
 
@@ -1231,88 +1232,204 @@ namespace MyriadOfDragons.Tests
                 "the refund amount is entirely server-decided and arrives only on the receipt");
         }
 
-        // ---- BE fe0a2f5d: World Map strategic occupancy (LayoutX/Y, OccupantDisplayId, guild colors) ----
+        // ---- BE bab7aab1: canonical World Map snapshot, private occupancy, guild color tokens ----
+
+        private static Cc10WorldMapSnapshotResult MapResult(int occupancyVersion = 1, string schema = Cc10WorldMapSnapshotSchema.V1,
+            Cc10WorldMapOwnNodeDto[] own = null, Cc10WorldMapContestDto[] contest = null, string unlocked = Cc10WorldMapPhaseToken.Tutorial)
+        {
+            return new Cc10WorldMapSnapshotResult
+            {
+                success = true,
+                serverUtcMs = 2_000_000,
+                snapshot = new Cc10WorldMapSnapshotDto
+                {
+                    schemaVersion = schema, mapVersion = "worldmap-beta-1", serverUtc = 2_000_000,
+                    unlockedPhase = unlocked, occupancyVersion = occupancyVersion,
+                    ownOccupiedNodes = own ?? Array.Empty<Cc10WorldMapOwnNodeDto>(),
+                    centralContest = contest ?? Array.Empty<Cc10WorldMapContestDto>(),
+                },
+            };
+        }
 
         [Test]
-        public void MapNodeDto_DeserializesRealOccupancyJson()
+        public void WorldMapSnapshot_DeserializesRealServerJson_AllApprovedFields()
         {
-            const string json = "{\"nodeId\":\"hub\",\"regionId\":\"frontier\",\"phase\":\"HomeOutpost\"," +
-                "\"discovered\":true,\"owned\":true,\"layoutX\":120,\"layoutY\":-45,\"occupantDisplayId\":\"Player-7f3a\"}";
+            const string json = "{\"success\":true,\"snapshot\":{\"schemaVersion\":\"cc10.worldmap.v1\",\"mapVersion\":\"worldmap-beta-1\"," +
+                "\"serverUtc\":1234567,\"unlockedPhase\":\"Central\",\"occupancyVersion\":4," +
+                "\"ownOccupiedNodes\":[{\"nodeId\":\"hub\",\"phaseId\":\"Tutorial\"},{\"nodeId\":\"patrol_road\",\"phaseId\":\"Outer\"}]," +
+                "\"centralContest\":[{\"districtId\":\"central_ashfall\",\"seasonId\":\"S9\",\"ownershipState\":\"GuildOwned\",\"guildColorToken\":\"GC07\"}]}}";
+            Cc10WorldMapSnapshotResult r = UnityEngine.JsonUtility.FromJson<Cc10WorldMapSnapshotResult>(json);
+            Assert.IsTrue(r.success);
+            Cc10WorldMapSnapshotDto s = r.snapshot;
+            Assert.AreEqual(Cc10WorldMapSnapshotSchema.V1, s.schemaVersion);
+            Assert.AreEqual("worldmap-beta-1", s.mapVersion);
+            Assert.AreEqual(1234567, s.serverUtc);
+            Assert.AreEqual(Cc10WorldMapPhaseToken.Central, s.unlockedPhase);
+            Assert.AreEqual(4, s.occupancyVersion);
+            Assert.AreEqual(2, s.ownOccupiedNodes.Length);
+            Assert.AreEqual("Outer", s.ownOccupiedNodes[1].phaseId);
+            Assert.AreEqual("S9", s.centralContest[0].seasonId);
+            Assert.AreEqual(Cc10ContestOwnershipState.GuildOwned, s.centralContest[0].ownershipState);
+            Assert.AreEqual("GC07", s.centralContest[0].guildColorToken);
+        }
+
+        [Test]
+        public void WorldMapSnapshotDto_HasExactlyTheApprovedFields_NothingMore()
+        {
+            string[] fields = typeof(Cc10WorldMapSnapshotDto).GetFields().Select(f => f.Name).OrderBy(n => n).ToArray();
+            CollectionAssert.AreEqual(new[] { "centralContest", "mapVersion", "occupancyVersion", "ownOccupiedNodes", "schemaVersion", "serverUtc", "unlockedPhase" }, fields,
+                "the approved snapshot shape - no ownershipVersion, no top-level seasonId, no placement/well/identity fields");
+            CollectionAssert.AreEqual(new[] { "nodeId", "phaseId" }, typeof(Cc10WorldMapOwnNodeDto).GetFields().Select(f => f.Name).OrderBy(n => n).ToArray());
+            CollectionAssert.AreEqual(new[] { "districtId", "guildColorToken", "ownershipState", "seasonId" }, typeof(Cc10WorldMapContestDto).GetFields().Select(f => f.Name).OrderBy(n => n).ToArray());
+        }
+
+        [Test]
+        public void DeprecatedIdentityFields_AreGoneFromEveryExportedDto()
+        {
+            // BE bab7aab1 removed these; a client that still carried them would invite showing identity.
+            CollectionAssert.DoesNotContain(typeof(Cc10MapNodeDto).GetFields().Select(f => f.Name).ToArray(), "occupantDisplayId");
+            CollectionAssert.DoesNotContain(typeof(Cc10FrontierSnapshot).GetFields().Select(f => f.Name).ToArray(), "yourDisplayId");
+            string[] contest = typeof(Cc10ContestDistrictDto).GetFields().Select(f => f.Name).ToArray();
+            foreach (string b in new[] { "enrolledGuildPseudonym", "ownerGuildPseudonym", "enrolledGuildColorKey", "ownerGuildColorKey" })
+                CollectionAssert.DoesNotContain(contest, b);
+            CollectionAssert.Contains(contest, "enrolledGuildColorToken");
+            CollectionAssert.Contains(contest, "ownerGuildColorToken");
+        }
+
+        [Test]
+        public void MapNodeDto_KeepsServerLayoutKey_LayoutXY()
+        {
+            const string json = "{\"nodeId\":\"hub\",\"layoutX\":120,\"layoutY\":-45,\"owned\":true}";
             Cc10MapNodeDto n = UnityEngine.JsonUtility.FromJson<Cc10MapNodeDto>(json);
             Assert.AreEqual(120, n.layoutX);
             Assert.AreEqual(-45, n.layoutY);
-            Assert.AreEqual("Player-7f3a", n.occupantDisplayId);
         }
 
         [Test]
-        public void FrontierSnapshot_DeserializesYourDisplayId()
+        public void GuildColorToken_Parsing_AcceptsOnlyGC01ToGC12_OtherwiseNeutral()
         {
-            const string json = "{\"success\":true,\"yourDisplayId\":\"Player-7f3a\"}";
-            Cc10FrontierSnapshot s = UnityEngine.JsonUtility.FromJson<Cc10FrontierSnapshot>(json);
-            Assert.AreEqual("Player-7f3a", s.yourDisplayId);
-        }
-
-        [Test]
-        public void ContestDistrictDto_DeserializesGuildPseudonymAndStatus()
-        {
-            // enrolledGuildColorKey (int?) is intentionally not round-tripped through JsonUtility -
-            // Unity's JsonUtility does not support System.Nullable<T> deserialization (a real,
-            // documented engine limitation, already noted for MinigameSessionDto above); the
-            // color-key field is exercised via direct construction in the tests below instead.
-            const string json = "{\"districtId\":\"central_ashfall\",\"status\":\"Enrolled\"," +
-                "\"enrolledGuildPseudonym\":\"Guild-9F2\"}";
-            Cc10ContestDistrictDto d = UnityEngine.JsonUtility.FromJson<Cc10ContestDistrictDto>(json);
-            Assert.AreEqual("Guild-9F2", d.enrolledGuildPseudonym);
-            Assert.AreEqual("Enrolled", d.status);
-            Assert.IsNull(d.ownerGuildColorKey, "no owner resolved yet - null, not a fabricated 0");
-        }
-
-        [Test]
-        public void MapNodeDto_UnownedNode_HasNoOccupantId_NullNotEmptyString()
-        {
-            var unowned = new Cc10MapNodeDto { nodeId = "ruined_shrine", owned = false };
-            Assert.IsNull(unowned.occupantDisplayId, "an unowned node must never carry any occupant identity");
-        }
-
-        [Test]
-        public async Task PrivacyIsolation_OccupantDisplayId_IsOnlyEverTheCallersOwnPseudonym()
-        {
-            // The server has no cross-player occupancy board in this beta - the DTO shape makes
-            // seeing another player's identity structurally impossible: a node the caller does not
-            // own must never carry any occupant id, even if some other player secretly owns it.
-            var gw = new FakeGateway();
-            Cc10FrontierSnapshot snap = Snap();
-            snap.yourDisplayId = "Player-Caller";
-            snap.nodes = new[]
+            Assert.IsTrue(Cc10Rules.TryParseGuildColorToken("GC01", out int first)); Assert.AreEqual(0, first);
+            Assert.IsTrue(Cc10Rules.TryParseGuildColorToken("GC12", out int last)); Assert.AreEqual(11, last);
+            foreach (string bad in new[] { null, "", "GC00", "GC13", "gc05", "GC5", "GC+5", "#FF0000", "Guild-9F2", "GC0A" })
             {
-                new Cc10MapNodeDto { nodeId = "hub", owned = true, occupantDisplayId = "Player-Caller" },
-                new Cc10MapNodeDto { nodeId = "patrol_road", owned = false, occupantDisplayId = null },
-            };
-            Cc10FrontierClient client = await OnlineClient(gw, snap);
-            Assert.AreEqual("Player-Caller", client.Snapshot.yourDisplayId);
-            Cc10MapNodeDto owned = client.Snapshot.nodes.Single(n => n.nodeId == "hub");
-            Cc10MapNodeDto other = client.Snapshot.nodes.Single(n => n.nodeId == "patrol_road");
-            Assert.AreEqual(client.Snapshot.yourDisplayId, owned.occupantDisplayId, "the caller's own node echoes their own id");
-            Assert.IsNull(other.occupantDisplayId, "no other player's id is ever exposed - not even a placeholder");
+                Assert.IsFalse(Cc10Rules.TryParseGuildColorToken(bad, out int idx), "'" + bad + "' must be neutral");
+                Assert.AreEqual(-1, idx);
+            }
+            Assert.AreEqual(12, Cc10Rules.GuildColorPaletteSize);
         }
 
         [Test]
-        public async Task WorldMap_ShowsCallersOwnOccupantId_OnAnOwnedNode()
+        public async Task RefreshWorldMap_AcceptsKnownSchema_AndStoresSnapshot()
         {
-            var gw = new FakeGateway();
-            Cc10FrontierSnapshot snap = Snap();
-            snap.nodes = new[] { new Cc10MapNodeDto { nodeId = "hub", owned = true, occupantDisplayId = "Player-Caller" } };
-            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.WorldMap).Rows.Single(r => r.EntityKey == "hub");
-            StringAssert.Contains("Player-Caller", row.Detail);
+            var gw = new FakeGateway { Handler = (e, r) => MapResult(3, own: new[] { new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" } }) };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsTrue(await client.RefreshWorldMapAsync());
+            Assert.AreEqual(3, client.WorldMap.occupancyVersion);
+            Assert.AreEqual(Cc10Connection.Online, client.Connection);
+            Assert.AreEqual(Cc10Endpoints.GetWorldMapSnapshot, gw.Calls.Single().Key);
+            Assert.IsNull(gw.Calls.Single().Value, "a pure read carries no request body");
         }
 
         [Test]
-        public async Task WorldMap_NodeRow_CarriesServerLayoutKey_NeverComputedClientSide()
+        public async Task RefreshWorldMap_UnknownSchema_IsRejected_KeepingLastGoodSnapshot()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => MapResult(1) };
+            var client = new Cc10FrontierClient(gw);
+            await client.RefreshWorldMapAsync();
+            gw.Handler = (e, r) => MapResult(9, schema: "cc10.worldmap.v2");
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.AreEqual(1, client.WorldMap.occupancyVersion, "an unknown schema must never replace the last good snapshot");
+        }
+
+        [Test]
+        public async Task RefreshWorldMap_OlderOccupancyVersion_IsStale_AndIgnored()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => MapResult(5) };
+            var client = new Cc10FrontierClient(gw);
+            await client.RefreshWorldMapAsync();
+            gw.Handler = (e, r) => MapResult(4);
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.AreEqual(5, client.WorldMap.occupancyVersion, "occupancyVersion is per-player monotonic - lower means stale");
+            gw.Handler = (e, r) => MapResult(5);
+            Assert.IsTrue(await client.RefreshWorldMapAsync(), "an equal version is a fine idempotent re-read");
+        }
+
+        [Test]
+        public async Task RefreshWorldMap_NetworkFailure_GoesOffline_KeepingLastSnapshot()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => MapResult(2) };
+            var client = new Cc10FrontierClient(gw);
+            await client.RefreshWorldMapAsync();
+            gw.Handler = (e, r) => new InvalidOperationException("down");
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.AreEqual(Cc10Connection.Offline, client.Connection);
+            Assert.AreEqual(2, client.WorldMap.occupancyVersion);
+        }
+
+        [Test]
+        public async Task RefreshWorldMap_MissingSnapshotOrFailure_IsRejected()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10WorldMapSnapshotResult { success = true, snapshot = null } };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.IsNull(client.WorldMap);
+            gw.Handler = (e, r) => new Cc10WorldMapSnapshotResult { success = false, errorCode = "AUTHORITY_UNAVAILABLE" };
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.IsNull(client.WorldMap);
+        }
+
+        [Test]
+        public void SeasonGating_NoCentralRowsBeforeCentralUnlock_IsAValidEmptyList_NotAnError()
+        {
+            // Final BS season-gating decision (server rule): contest rows exist only after Central unlock
+            // during an active season. Before that the list is simply empty - the client must not invent rows.
+            Cc10WorldMapSnapshotDto s = MapResult(2, unlocked: Cc10WorldMapPhaseToken.Inner).snapshot;
+            Assert.AreEqual(0, s.centralContest.Length);
+            Assert.Less(Cc10WorldMapPhaseToken.Rank(s.unlockedPhase), Cc10WorldMapPhaseToken.Rank(Cc10WorldMapPhaseToken.Central));
+        }
+
+        [Test]
+        public void ContestRow_Unclaimed_CarriesNoColorToken_NeutralState()
+        {
+            var row = new Cc10WorldMapContestDto { districtId = "central_ember", seasonId = "S9" };
+            Assert.AreEqual(Cc10ContestOwnershipState.Unclaimed, row.ownershipState);
+            Assert.IsNull(row.guildColorToken, "an unclaimed district is neutral - never a fabricated color");
+        }
+
+        [Test]
+        public void PhaseTokens_AreBandNames_NotMapPhaseNames_AndOrdered()
+        {
+            Assert.AreEqual("Tutorial", Cc10WorldMapPhaseToken.Tutorial);
+            Assert.AreEqual("Outer", Cc10WorldMapPhaseToken.Outer);
+            Assert.AreEqual("Inner", Cc10WorldMapPhaseToken.Inner);
+            Assert.AreEqual("Central", Cc10WorldMapPhaseToken.Central);
+            Assert.AreEqual(0, Cc10WorldMapPhaseToken.Rank("Tutorial"));
+            Assert.AreEqual(3, Cc10WorldMapPhaseToken.Rank("Central"));
+            Assert.AreEqual(-1, Cc10WorldMapPhaseToken.Rank("HomeOutpost"), "MapPhase names are a different vocabulary");
+        }
+
+        [Test]
+        public async Task SnapshotOrdering_IsTheServersOwn_NeverReSortedByTheClient()
+        {
+            var own = new[]
+            {
+                new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" },
+                new Cc10WorldMapOwnNodeDto { nodeId = "patrol_road", phaseId = "Outer" },
+                new Cc10WorldMapOwnNodeDto { nodeId = "ruined_shrine", phaseId = "Outer" },
+            };
+            var client = new Cc10FrontierClient(new FakeGateway { Handler = (e, r) => MapResult(1, own: own) });
+            await client.RefreshWorldMapAsync();
+            CollectionAssert.AreEqual(new[] { "hub", "patrol_road", "ruined_shrine" }, client.WorldMap.ownOccupiedNodes.Select(n => n.nodeId).ToArray());
+        }
+
+        [Test]
+        public async Task WorldMap_NodeRow_NeverShowsAnyIdentity_OnlyOwnedState()
         {
             var gw = new FakeGateway();
             Cc10FrontierSnapshot snap = Snap();
             snap.nodes = new[] { new Cc10MapNodeDto { nodeId = "hub", owned = true, layoutX = 300, layoutY = -120 } };
             Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.WorldMap).Rows.Single(r => r.EntityKey == "hub");
+            Assert.AreEqual("Owned", row.Detail);
             Assert.AreEqual(300, row.Payload["layoutX"]);
             Assert.AreEqual(-120, row.Payload["layoutY"]);
         }
@@ -1333,45 +1450,30 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public async Task ContestDistrict_NeutralState_NoGuildEnrolled_ShowsNoColor_NotAFabricatedIndex()
+        public async Task ContestDistrict_NeutralState_NoGuild_ShowsNoColor()
         {
             var gw = new FakeGateway();
             Cc10FrontierSnapshot snap = Snap();
-            snap.contestDistricts = new[] { new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.NotEnrolled, enrolledGuildColorKey = null, ownerGuildColorKey = null } };
+            snap.contestDistricts = new[] { new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.NotEnrolled } };
             Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.GuildTerritory).Rows.Single();
-            Assert.IsFalse(row.Detail.Contains("color"), "no guild enrolled - never invent a color index");
+            Assert.IsFalse(row.Detail.Contains("color"), "no guild enrolled - never invent a color");
         }
 
         [Test]
-        public async Task ContestDistrict_EnrolledAndOwned_ShowRealServerColorIndex()
+        public async Task ContestDistrict_EnrolledAndOwned_ShowOnlyAColorNumber_FromTheServerToken()
         {
             var gw = new FakeGateway();
             Cc10FrontierSnapshot snap = Snap();
             snap.contestDistricts = new[]
             {
-                new Cc10ContestDistrictDto { districtId = "central_ashfall", status = Cc10ContestStatus.Enrolled, enrolledGuildPseudonym = "Guild-A", enrolledGuildColorKey = 7 },
-                new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.Owned, ownerGuildPseudonym = "Guild-B", ownerGuildColorKey = 2 },
+                new Cc10ContestDistrictDto { districtId = "central_ashfall", status = Cc10ContestStatus.Enrolled, enrolledGuildColorToken = "GC07" },
+                new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "GC02" },
+                new Cc10ContestDistrictDto { districtId = "central_ironquarry", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "not-a-token" },
             };
             List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10SystemId.GuildTerritory).Rows;
             StringAssert.Contains("color 7", rows[0].Detail);
             StringAssert.Contains("color 2", rows[1].Detail);
-        }
-
-        [Test]
-        public void GuildColorPaletteSize_IsLocked12_MatchesServerCatalog()
-        {
-            Assert.AreEqual(12, Cc10Rules.GuildColorPaletteSize);
-        }
-
-        [Test]
-        public void ColorKey_NeverAnRgbOrHexValue_AlwaysAPlainPaletteIndexOrNull()
-        {
-            // Structural check: the field type itself (int?) makes an RGB/hex string or a
-            // client-supplied color impossible to smuggle through this DTO.
-            var d = new Cc10ContestDistrictDto { enrolledGuildColorKey = 5 };
-            Assert.IsInstanceOf<int?>(d.enrolledGuildColorKey);
-            Assert.Less(d.enrolledGuildColorKey.Value, Cc10Rules.GuildColorPaletteSize);
-            Assert.GreaterOrEqual(d.enrolledGuildColorKey.Value, 0);
+            Assert.IsFalse(rows[2].Detail.Contains("color"), "an unknown token renders neutral, never a guessed color");
         }
     }
 }

@@ -131,10 +131,22 @@ namespace MyriadOfDragons.Frontier
         public const int MinigamePointsPerCorrect = 100;
         public const int MinigameMaxScore = 1_200;
 
-        /// <summary>Guild color palette size (CC10Hashing.GuildColorPaletteSize) - a contest
-        /// district's EnrolledGuildColorKey/OwnerGuildColorKey is always in [0, GuildColorPaletteSize).
-        /// The client owns the actual 12-color palette itself; the server names only the index.</summary>
+        /// <summary>Guild color palette size (CC10Hashing.GuildColorPaletteSize). The server names a
+        /// guild color only by an opaque token "GC01".."GC12"; the client owns the 12-color palette.</summary>
         public const int GuildColorPaletteSize = 12;
+
+        /// <summary>True for a well-formed guild color token ("GC01".."GC12"). Purely defensive:
+        /// an unknown token renders as neutral, never as a guessed color.</summary>
+        public static bool TryParseGuildColorToken(string token, out int paletteIndex)
+        {
+            paletteIndex = -1;
+            if (string.IsNullOrEmpty(token) || token.Length != 4 || token[0] != 'G' || token[1] != 'C') return false;
+            if (!int.TryParse(token.Substring(2), System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out int n)) return false;
+            if (n < 1 || n > GuildColorPaletteSize) return false;
+            paletteIndex = n - 1;
+            return true;
+        }
     }
 
     /// <summary>Legal display transitions, copied from the enum sets in the published contract

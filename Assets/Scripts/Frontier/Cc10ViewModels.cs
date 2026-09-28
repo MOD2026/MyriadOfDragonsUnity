@@ -286,10 +286,7 @@ namespace MyriadOfDragons.Frontier
 
                 if (n.owned)
                 {
-                    // occupantDisplayId is privacy-safe by construction: the server only ever sets
-                    // it to the CALLING player's own pseudonym on a node they themselves own.
-                    string occupant = !string.IsNullOrEmpty(n.occupantDisplayId) ? " - " + n.occupantDisplayId : string.Empty;
-                    row.Detail = "Owned" + (n.expanded ? " - expanded" : string.Empty) + occupant;
+                    row.Detail = "Owned" + (n.expanded ? " - expanded" : string.Empty);
                 }
                 else if (n.discovered)
                 {
@@ -331,16 +328,15 @@ namespace MyriadOfDragons.Frontier
                 });
         }
 
+        /// <summary>Display-only color suffix from the server's opaque token ("GC01".."GC12"). A
+        /// null/unknown token means no guild is enrolled/resolved (a neutral state, never a guessed color).</summary>
+        private static string ColorSuffix(string colorToken) =>
+            Cc10Rules.TryParseGuildColorToken(colorToken, out int index) ? " (color " + (index + 1) + ")" : string.Empty;
+
         /// <summary>Central Realm's three fixed contest districts - a genuine cross-guild race.
         /// Enroll is offered only when the server says the caller's own guild is presently top-3
         /// eligible and no district is enrolled yet; resolution is operator-gated, never a player
         /// action, so it is shown as status only.</summary>
-        /// <summary>Display-only palette-index suffix. The key is server-derived from the already-
-        /// verified guild pseudonym, never an RGB/hex value and never client-supplied; null means
-        /// no guild is enrolled/resolved (a genuinely neutral state, not colored as if one were).</summary>
-        private static string ColorSuffix(int? colorKey) =>
-            colorKey.HasValue ? " (color " + colorKey.Value + ")" : string.Empty;
-
         private static void AddContestDistricts(Cc10SectionVm vm, Cc10FrontierSnapshot s)
         {
             foreach (Cc10ContestDistrictDto d in s.contestDistricts)
@@ -357,12 +353,10 @@ namespace MyriadOfDragons.Frontier
                         row.DisabledReason = "Your guild is not currently top-3";
                         break;
                     case Cc10ContestStatus.Owned:
-                        row.Detail = "Owned by " + (d.ownerGuildPseudonym ?? "another guild") + ColorSuffix(d.ownerGuildColorKey);
+                        row.Detail = "Owned by a guild" + ColorSuffix(d.ownerGuildColorToken);
                         break;
                     default:
-                        row.Detail = d.status + (d.enrolledGuildPseudonym != null
-                            ? " - " + d.enrolledGuildPseudonym + ColorSuffix(d.enrolledGuildColorKey)
-                            : string.Empty);
+                        row.Detail = d.status + ColorSuffix(d.enrolledGuildColorToken);
                         break;
                 }
                 vm.Rows.Add(row);

@@ -67,19 +67,15 @@ namespace MyriadOfDragons.Frontier
     /// real 30-second deadline). Started/Submitted are declared in the enum for wire compatibility
     /// but the server never actually produces either value in this pass.
     ///
-    /// Superseded again at BE fe0a2f5d (continues from 5183947c): World Map strategic-occupancy
-    /// read data. MapNodeDto.LayoutX/LayoutY is server-authoritative, hand-authored catalog data
-    /// (identical for every player/read, unique per node) - the ONLY source of a node's on-screen
-    /// position; this client never invents or computes a layout position itself.
-    /// MapNodeDto.OccupantDisplayId/FrontierSnapshotResult.YourDisplayId are privacy-safe: the
-    /// server can only ever expose the CALLING player's own pseudonym (when they own that node),
-    /// never another player's - this beta's World Map has no cross-player occupancy board.
-    /// ContestDistrictDto.EnrolledGuildColorKey/OwnerGuildColorKey are a deterministic 0-11
-    /// palette-index the server derives from the already-verified guild pseudonym on the shared
-    /// contest board - never an RGB/hex value, never client-supplied, and NOT added to
-    /// MapNodeDto (a player-owned exploration node has no guild-affiliation concept in this beta;
-    /// guild ownership is a real, shared, cross-guild concern only for the three Central Realm
-    /// contest districts).
+    /// SUPERSEDED at BE bab7aab1 (approved private per-player occupancy decision, 2026-09-28):
+    /// every per-node occupant/display-id field, the caller display id, raw guild pseudonyms and
+    /// integer guild color keys are REMOVED from the client contract. Beta supports per-player ExpandNode territory
+    /// only: no base placement, wells, relocation/teleport or cross-player occupancy.
+    /// GetWorldMapSnapshot (pure read) returns the canonical Cc10WorldMapSnapshotDto. Season
+    /// gating: contest rows appear only after Central unlock during an active season (the latest
+    /// non-Archived season); GuildOwned counts only for that season, so prior colors disappear on
+    /// rollover; GuildTerritory emergency-disable hides all contest rows while own nodes stay
+    /// readable. MapNodeDto.LayoutX/LayoutY are unchanged.
     /// </summary>
     public static class Cc10SystemId
     {
@@ -102,6 +98,7 @@ namespace MyriadOfDragons.Frontier
         public const string GetServerUtc = "GetServerUtc";
         public const string GetFrontierState = "GetFrontierState";
         public const string GetGuildState = "GetGuildState";
+        public const string GetWorldMapSnapshot = "GetWorldMapSnapshot";
         public const string StartTavernUpgrade = "StartTavernUpgrade";
         public const string CompleteTavernUpgrade = "CompleteTavernUpgrade";
         public const string ReportExpeditionGold = "ReportExpeditionGold";
@@ -248,10 +245,6 @@ namespace MyriadOfDragons.Frontier
         /// <summary>The full approved 10-pool NPC catalog, for rendering pool flavor without
         /// waiting on a mission assignment.</summary>
         public Cc10NpcPoolDto[] npcPools = Array.Empty<Cc10NpcPoolDto>();
-        /// <summary>The caller's own privacy-safe, stable base-identity display id (their
-        /// pseudonym) - the same value a node's own occupantDisplayId carries for any node this
-        /// player themselves owns. Never another player's id.</summary>
-        public string yourDisplayId = string.Empty;
 
         public bool IsSystemDisabled(string systemId) => Array.IndexOf(disabledSystems, systemId) >= 0;
     }
@@ -413,12 +406,8 @@ namespace MyriadOfDragons.Frontier
         /// player and every read.</summary>
         public int layoutX;
         public int layoutY;
-        /// <summary>Privacy-safe, stable: the CALLING player's own pseudonym when THEY own this
-        /// node, null otherwise. This beta's World Map has no cross-player occupancy board - never
-        /// another player's raw id, pseudonym, or any other identifying data. Central Realm
-        /// contest ownership (a real, shared, cross-guild concern) is exposed separately on
-        /// Cc10ContestDistrictDto, never folded into this per-player field.</summary>
-        public string occupantDisplayId;
+        // Occupancy is PRIVATE per player (BE bab7aab1): `owned` is the caller's own state only. There is
+        // deliberately NO occupant/display-id field of any kind on this DTO and no per-node guild data.
     }
 
     /// <summary>One of the four server-authored phases and whether THIS player has unlocked it
@@ -432,24 +421,95 @@ namespace MyriadOfDragons.Frontier
         public int requiredCampaignChapter;
     }
 
-    /// <summary>One of the Central Realm's three fixed contest districts.</summary>
+    /// <summary>One of the Central Realm's three fixed contest districts (enroll/resolve command
+    /// results and GetFrontierState.contestDistricts). Raw guild pseudonyms and integer color keys
+    /// were removed from every read DTO (BE bab7aab1): the only guild-identifying data returned is
+    /// an opaque presentation color TOKEN ("GC01".."GC12") that carries no guild id, name or
+    /// member list.</summary>
     [Serializable]
     public class Cc10ContestDistrictDto
     {
         public string districtId = string.Empty;
         public string status = Cc10ContestStatus.NotEnrolled;
-        public string enrolledGuildPseudonym;
-        public string ownerGuildPseudonym;
         /// <summary>True only when the caller's own guild is presently a top-3 season guild.</summary>
         public bool callerGuildEligible;
-        /// <summary>Deterministic palette-index (0..Cc10Rules.GuildColorPaletteSize-1) derived
-        /// server-side from the already-verified enrolledGuildPseudonym; null when no guild is
-        /// enrolled. Names an INDEX into the client's own fixed color palette, never an RGB/hex
-        /// value and never anything a client could supply.</summary>
-        public int? enrolledGuildColorKey;
-        /// <summary>Same derivation from ownerGuildPseudonym; null when the district has no
-        /// resolved owner yet.</summary>
-        public int? ownerGuildColorKey;
+        /// <summary>Opaque color token for the enrolled guild; null when none is enrolled.</summary>
+        public string enrolledGuildColorToken;
+        /// <summary>Opaque color token for the resolved owner; null when unowned.</summary>
+        public string ownerGuildColorToken;
+    }
+
+    // ---- canonical privacy-safe World Map snapshot (GetWorldMapSnapshot, BE bab7aab1) ----------
+
+    /// <summary>Snapshot schema id the server stamps; a client must refuse an unknown schema.</summary>
+    public static class Cc10WorldMapSnapshotSchema
+    {
+        public const string V1 = "cc10.worldmap.v1";
+    }
+
+    /// <summary>Phase tokens used inside the snapshot: Tutorial, Outer, Inner, Central (these are the
+    /// band names, NOT the MapPhase names used elsewhere - HomeOutpost=Tutorial, OuterMarches=Outer,
+    /// InnerReach=Inner, CentralRealm=Central).</summary>
+    public static class Cc10WorldMapPhaseToken
+    {
+        public const string Tutorial = "Tutorial";
+        public const string Outer = "Outer";
+        public const string Inner = "Inner";
+        public const string Central = "Central";
+
+        private static readonly string[] Order = { Tutorial, Outer, Inner, Central };
+        public static int Rank(string token) => Array.IndexOf(Order, token);
+    }
+
+    public static class Cc10ContestOwnershipState
+    {
+        public const string Unclaimed = "Unclaimed";
+        public const string GuildOwned = "GuildOwned";
+    }
+
+    [Serializable]
+    public class Cc10WorldMapOwnNodeDto
+    {
+        public string nodeId = string.Empty;
+        /// <summary>Tutorial | Outer | Inner | Central.</summary>
+        public string phaseId = string.Empty;
+    }
+
+    [Serializable]
+    public class Cc10WorldMapContestDto
+    {
+        public string districtId = string.Empty;
+        /// <summary>Per-row season id (there is deliberately no top-level seasonId).</summary>
+        public string seasonId = string.Empty;
+        /// <summary>Unclaimed | GuildOwned.</summary>
+        public string ownershipState = Cc10ContestOwnershipState.Unclaimed;
+        /// <summary>Presentation token only ("GC01".."GC12"); null when Unclaimed. Never a guild
+        /// id, name or member list.</summary>
+        public string guildColorToken;
+    }
+
+    /// <summary>Exactly the approved snapshot shape - nothing more. serverUtc is epoch
+    /// milliseconds from the server clock (display only on the client).</summary>
+    [Serializable]
+    public class Cc10WorldMapSnapshotDto
+    {
+        public string schemaVersion = Cc10WorldMapSnapshotSchema.V1;
+        public string mapVersion = string.Empty;
+        public long serverUtc;
+        public string unlockedPhase = Cc10WorldMapPhaseToken.Tutorial;
+        /// <summary>Per-player monotonic counter, +1 only on a successful ExpandNode.</summary>
+        public int occupancyVersion;
+        /// <summary>Caller's OWN occupied nodes only, sorted by phase then ordinal nodeId.</summary>
+        public Cc10WorldMapOwnNodeDto[] ownOccupiedNodes = Array.Empty<Cc10WorldMapOwnNodeDto>();
+        /// <summary>Central rows appear only after Central unlock during an active season; sorted by
+        /// ordinal districtId. Empty otherwise.</summary>
+        public Cc10WorldMapContestDto[] centralContest = Array.Empty<Cc10WorldMapContestDto>();
+    }
+
+    [Serializable]
+    public sealed class Cc10WorldMapSnapshotResult : Cc10ResultBase
+    {
+        public Cc10WorldMapSnapshotDto snapshot;
     }
 
     public static class Cc10SpotStatus
