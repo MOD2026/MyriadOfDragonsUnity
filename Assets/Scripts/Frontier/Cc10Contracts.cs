@@ -466,18 +466,20 @@ namespace MyriadOfDragons.Frontier
         public static int Rank(string token) => Array.IndexOf(Order, token);
     }
 
-    /// <summary>ownershipState values a client must distinguish. BE bef39415 emits only Unclaimed and
-    /// GuildOwned (an enrolled-but-unsettled district is Unclaimed with a null token). "Enrolled" is
-    /// BS's Option A value; it is NOT emitted today (open BS/BE conflict, MS finding E1) and is handled
-    /// only defensively so a future server that sends it is never mis-rendered as open or owned. Any other
-    /// value is unknown and renders neutral with no action.</summary>
+    /// <summary>ownershipState values a client must distinguish (BE 7302a996): Unclaimed (open, or
+    /// enrolled-but-unsettled - token null), GuildOwned (settled to a guild - the ONLY state with a
+    /// token), ExplicitlyUnowned (an operator-recorded no-owner result - token null, never a color, not
+    /// open). "Enrolled" is BS's Option A value; BE does NOT emit it (open BS/BE conflict, MS E1) and it is
+    /// handled only defensively. Any other value is unknown and renders neutral with no action.</summary>
     public static class Cc10ContestOwnershipState
     {
         public const string Unclaimed = "Unclaimed";
         public const string Enrolled = "Enrolled";
         public const string GuildOwned = "GuildOwned";
+        public const string ExplicitlyUnowned = "ExplicitlyUnowned";
 
-        public static bool IsKnown(string state) => state == Unclaimed || state == Enrolled || state == GuildOwned;
+        public static bool IsKnown(string state) =>
+            state == Unclaimed || state == Enrolled || state == GuildOwned || state == ExplicitlyUnowned;
     }
 
     [Serializable]
@@ -494,10 +496,10 @@ namespace MyriadOfDragons.Frontier
         public string districtId = string.Empty;
         /// <summary>Per-row season id (there is deliberately no top-level seasonId).</summary>
         public string seasonId = string.Empty;
-        /// <summary>Unclaimed | GuildOwned.</summary>
+        /// <summary>Unclaimed | GuildOwned | ExplicitlyUnowned.</summary>
         public string ownershipState = Cc10ContestOwnershipState.Unclaimed;
-        /// <summary>Presentation token only ("GC01".."GC12"); null when Unclaimed. Never a guild
-        /// id, name or member list.</summary>
+        /// <summary>Presentation token only ("GC01".."GC12"); null unless GuildOwned. Never a guild
+        /// id, name or member list. A client ignores it for any other state.</summary>
         public string guildColorToken;
     }
 

@@ -1942,20 +1942,6 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public async Task ExplicitlyUnowned_IfEverSentAsTheOwnershipState_IsNeutral_NoColorEvenWithAToken_NoAction()
-        {
-            var contest = new[] { new Cc10WorldMapContestDto { districtId = "central_ember", seasonId = "S4", ownershipState = "ExplicitlyUnowned", guildColorToken = "GC06" } };
-            var gw = new FakeGateway();
-            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest));
-            gw.Handler = (e, r) => e == Cc10Endpoints.GetGuildState ? (object)new Cc10GuildSnapshot { success = true } : e == Cc10Endpoints.GetFrontierState ? (object)Snap() : MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest);
-            await client.RefreshGuildStateAsync("g1");
-            Cc10Row row = Vm(client, Cc10SystemId.GuildTerritory).Rows.Single();
-            Assert.IsFalse(row.Detail.Contains("color"), "no color for an explicitly-unowned district, even if a token were present");
-            Assert.IsFalse(row.HasAction, "no Enroll/Resolve action");
-            Assert.AreNotEqual("Owned by a guild", row.Detail);
-        }
-
-        [Test]
         public void ExplicitlyUnownedStatus_InACommandResult_ParsesAsAPlainStringValue()
         {
             const string json = "{\"success\":true,\"contestDistrict\":{\"districtId\":\"central_ashfall\",\"status\":\"ExplicitlyUnowned\"}}";
@@ -1983,7 +1969,7 @@ namespace MyriadOfDragons.Tests
             var contest = new[]
             {
                 Contest("central_ashfall"), Contest("central_ember", "GC02"),
-                new Cc10WorldMapContestDto { districtId = "central_x", seasonId = "S1", ownershipState = "ExplicitlyUnowned" },
+                new Cc10WorldMapContestDto { districtId = "central_x", seasonId = "S1", ownershipState = Cc10ContestOwnershipState.ExplicitlyUnowned },
             };
             var gw = new FakeGateway();
             Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest));
@@ -1995,6 +1981,112 @@ namespace MyriadOfDragons.Tests
             }
             Assert.IsFalse(typeof(Cc10Endpoints).GetFields().Any(f => f.Name == "ResolveContestDistrictUnowned"),
                 "the operator-only endpoint is not part of the player client contract");
+        }
+
+        // ---- BE 7302a996: ownershipState "ExplicitlyUnowned" serialized in the snapshot ----
+
+        [Test]
+        public void ExplicitlyUnowned_ParsesFromServerJson_AsAKnownState_WithNullToken()
+        {
+            const string json = "{\"success\":true,\"snapshot\":{\"schemaVersion\":\"cc10.worldmap.v1\",\"mapVersion\":\"worldmap-beta-1\"," +
+                "\"serverUtc\":5,\"unlockedPhase\":\"Central\",\"occupancyVersion\":1,\"ownOccupiedNodes\":[]," +
+                "\"centralContest\":[{\"districtId\":\"central_ashfall\",\"seasonId\":\"S4\",\"ownershipState\":\"ExplicitlyUnowned\",\"guildColorToken\":null}]}}";
+            Cc10WorldMapContestDto row = UnityEngine.JsonUtility.FromJson<Cc10WorldMapSnapshotResult>(json).snapshot.centralContest[0];
+            Assert.AreEqual(Cc10ContestOwnershipState.ExplicitlyUnowned, row.ownershipState);
+            Assert.IsTrue(Cc10ContestOwnershipState.IsKnown(row.ownershipState));
+            Assert.IsTrue(string.IsNullOrEmpty(row.guildColorToken), "no token on an explicitly-unowned district");
+            Assert.AreEqual(Cc10ContestOwnershipState.ExplicitlyUnowned, "ExplicitlyUnowned", "wire value is exact and case-sensitive");
+        }
+
+        [Test]
+        public async Task ExplicitlyUnowned_RowIsNeutral_NoColor_NoEnroll_NoAction_EvenWithAGuildId()
+        {
+            var contest = new[] { new Cc10WorldMapContestDto { districtId = "central_ashfall", seasonId = "S4", ownershipState = Cc10ContestOwnershipState.ExplicitlyUnowned } };
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest));
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetGuildState ? (object)new Cc10GuildSnapshot { success = true } : e == Cc10Endpoints.GetFrontierState ? (object)Snap() : MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest);
+            await client.RefreshGuildStateAsync("g1");
+
+            Cc10Row row = Vm(client, Cc10SystemId.GuildTerritory).Rows.Single();
+            Assert.AreEqual("No owner this season", row.Detail);
+            Assert.IsFalse(row.Detail.Contains("color"));
+            Assert.IsFalse(row.HasAction, "no Enroll button and no action of any kind");
+            Assert.AreEqual(string.Empty, row.ActionLabel);
+            Assert.AreEqual(string.Empty, row.Endpoint);
+            Assert.IsFalse(row.Payload.ContainsKey("guildId") || row.Payload.ContainsKey("seasonId"), "nothing to submit");
+            StringAssert.DoesNotContain("Enroll", row.Title + row.Detail);
+        }
+
+        [Test]
+        public async Task ExplicitlyUnowned_IgnoresAnyTokenThatWereAttached_DefenceInDepth()
+        {
+            var contest = new[] { new Cc10WorldMapContestDto { districtId = "central_ember", seasonId = "S4", ownershipState = Cc10ContestOwnershipState.ExplicitlyUnowned, guildColorToken = "GC06" } };
+            Cc10Row row = Vm(await ClientWithMap(new FakeGateway(), Snap(), MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest)), Cc10SystemId.GuildTerritory).Rows.Single();
+            Assert.IsFalse(row.Detail.Contains("color"));
+            Assert.IsFalse(row.Detail.Contains("6"));
+            Assert.IsFalse(row.HasAction);
+        }
+
+        [Test]
+        public async Task MixedDistricts_OpenOwnedAndExplicitlyUnowned_AreThreeDistinctRenderings()
+        {
+            var contest = new[]
+            {
+                new Cc10WorldMapContestDto { districtId = "central_ashfall", seasonId = "S4", ownershipState = Cc10ContestOwnershipState.Unclaimed },
+                new Cc10WorldMapContestDto { districtId = "central_ember", seasonId = "S4", ownershipState = Cc10ContestOwnershipState.GuildOwned, guildColorToken = "GC03" },
+                new Cc10WorldMapContestDto { districtId = "central_ironquarry", seasonId = "S4", ownershipState = Cc10ContestOwnershipState.ExplicitlyUnowned },
+            };
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest));
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetGuildState ? (object)new Cc10GuildSnapshot { success = true } : e == Cc10Endpoints.GetFrontierState ? (object)Snap() : MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest);
+            await client.RefreshGuildStateAsync("g1");
+            List<Cc10Row> rows = Vm(client, Cc10SystemId.GuildTerritory).Rows;
+            Assert.AreEqual("Unclaimed", rows[0].Detail);
+            Assert.IsTrue(rows[0].HasAction, "only the open district offers Enroll");
+            StringAssert.Contains("color 3", rows[1].Detail);
+            Assert.IsFalse(rows[1].HasAction);
+            Assert.AreEqual("No owner this season", rows[2].Detail);
+            Assert.IsFalse(rows[2].HasAction);
+            Assert.AreEqual(3, rows.Select(r => r.Detail).Distinct().Count());
+        }
+
+        [Test]
+        public async Task ExplicitlyUnowned_SurvivesOfflineAndReconnect_StillNoAction()
+        {
+            var contest = new[] { new Cc10WorldMapContestDto { districtId = "central_ashfall", seasonId = "S4", ownershipState = Cc10ContestOwnershipState.ExplicitlyUnowned } };
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest));
+            gw.Handler = (e, r) => new InvalidOperationException("down");
+            await client.RefreshAllAsync();
+            Cc10Row offline = Vm(client, Cc10SystemId.GuildTerritory).Rows.Single();
+            Assert.AreEqual("No owner this season", offline.Detail, "the retained snapshot still renders the same neutral row");
+            Assert.IsFalse(offline.HasAction && offline.ActionEnabled);
+
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : MapResult(2, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest);
+            Assert.IsTrue(await client.RefreshAllAsync());
+            Assert.IsFalse(Vm(client, Cc10SystemId.GuildTerritory).Rows.Single().HasAction);
+        }
+
+        [Test]
+        public async Task ExplicitlyUnowned_DoesNotChangeTheSeasonEpochInference()
+        {
+            // A season rollover is still detected only from the seasonId set, not from an ownership value.
+            var gw = new FakeGateway { Handler = (e, r) => ResetMap(5, "worldmap-beta-1", 2_000_000, "S4") };
+            var client = new Cc10FrontierClient(gw);
+            await client.RefreshWorldMapAsync();
+            Cc10WorldMapSnapshotResult next = ResetMap(4, "worldmap-beta-1", 3_000_000, "S4");
+            next.snapshot.centralContest[0].ownershipState = Cc10ContestOwnershipState.ExplicitlyUnowned;
+            gw.Handler = (e, r) => next;
+            Assert.IsFalse(await client.RefreshWorldMapAsync(), "same mapVersion + same season set = still stale, whatever the ownership value");
+            Assert.AreEqual(Cc10WorldMapRefresh.Stale, client.LastWorldMapRefresh);
+        }
+
+        [Test]
+        public void ExplicitlyUnowned_IsTheOnlyValueAdded_SnapshotAndCommandShapesStayFourFieldsAndFive()
+        {
+            Assert.AreEqual(4, typeof(Cc10WorldMapContestDto).GetFields().Length);
+            Assert.AreEqual(5, typeof(Cc10ContestDistrictDto).GetFields().Length);
+            Assert.IsFalse(Cc10ContestOwnershipState.IsKnown("Explicitlyunowned"));
         }
     }
 }

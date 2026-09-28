@@ -1,7 +1,7 @@
 # CC10 Frontier Contract Export — Dependency Manifest
 
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
-**Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`bef39415`** (World Map DTO shape unchanged since **`bab7aab1`**)
+**Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`7302a996`** (World Map DTO shape unchanged since **`bab7aab1`**)
 (approved private per-player World Map occupancy decision, 2026-09-28), which **supersedes**
 the earlier occupancy pass `fe0a2f5d`; season gating and color tokens amended by **`7718db3`** then **`bef39415`** (below).
 **Scope:** the minimal WH-owned client contract only — DTO field mappings, the canonical
@@ -82,10 +82,12 @@ An empty `centralContest` is therefore a valid, expected state — not an error.
   `seasonId` values differs) **and** `serverUtc` is not older than the held snapshot's (an out-of-order older response can never pass). Otherwise `Stale`.
 - **No season-epoch field.** The snapshot has no top-level `seasonId`/epoch, and BE has **not** confirmed one belongs in the DTO (MS finding B1), so none is
   modelled. Season change is inferred only from per-row `seasonId`. If BE later adds one, it replaces this inference — request it from BE, do not add it locally.
-- **`ownershipState`** — `Unclaimed` (open; the only state that offers **Enroll**), `Enrolled` (defensive only; BE bef39415 does **not** emit it — open BS/BE
-  conflict on token timing, MS E1), `GuildOwned` (owned, token shown). Any other value = unknown → neutral, no color, no action.
-  Enroll additionally needs a known guild id and an online, non-paused screen. The snapshot has no season state, so `Unclaimed` in a closed season is still
-  rejected by the server (`WINDOW_CLOSED`).
+- **`ownershipState`** (BE 7302a996) — `Unclaimed` (open, or enrolled-but-unsettled; the only state that offers **Enroll**), `GuildOwned` (settled to a guild;
+  the **only** state with a `guildColorToken`), `ExplicitlyUnowned` (operator-recorded "no owner": token `null`, neutral text, **no** color, **no** Enroll,
+  no action — the client ignores any token attached to it), `Enrolled` (defensive only; BE does **not** emit it — open BS/BE token-timing conflict, MS E1).
+  Any other value = unknown → neutral, no color, no action. Newest settled record per district wins; enrolling in a settled district is rejected
+  `DISTRICT_TAKEN`. Enroll additionally needs a known guild id and an online, non-paused screen; the snapshot has no season state, so `Unclaimed` in a closed
+  season is still rejected by the server (`WINDOW_CLOSED`).
 
 ### Legacy `contestDistricts` — not in the export
 

@@ -398,6 +398,11 @@ namespace MyriadOfDragons.Frontier
                     case Cc10ContestOwnershipState.GuildOwned:
                         row.Detail = "Owned by a guild" + ColorSuffix(d.guildColorToken);
                         break;
+                    case Cc10ContestOwnershipState.ExplicitlyUnowned:
+                        // Operator-recorded "no owner": neutral, no token/color even if one were attached,
+                        // no Enroll (not open) and no action of any kind.
+                        row.Detail = "No owner this season";
+                        break;
                     case Cc10ContestOwnershipState.Enrolled:
                         // Not emitted by BE bef39415 (open BS/BE conflict); never open, never owned, no Enroll.
                         row.Detail = "Enrolled" + ColorSuffix(d.guildColorToken);
