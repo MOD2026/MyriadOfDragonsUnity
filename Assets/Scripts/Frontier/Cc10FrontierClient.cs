@@ -9,7 +9,7 @@ namespace MyriadOfDragons.Frontier
 
     /// <summary>Outcome of the most recent GetWorldMapSnapshot attempt (the last good snapshot is
     /// always retained on anything other than Accepted).</summary>
-    public enum Cc10WorldMapRefresh { NotAttempted, Accepted, SchemaRejected, Malformed, Stale, Offline }
+    public enum Cc10WorldMapRefresh { NotAttempted, Accepted, AcceptedAfterReset, SchemaRejected, Malformed, Stale, Offline }
 
     public enum Cc10Outcome { Applied, Replayed, Conflict, Disabled, Offline, Rejected, InFlight, Failed }
 
@@ -166,7 +166,9 @@ namespace MyriadOfDragons.Frontier
         /// ALWAYS retained unless a strictly acceptable one arrives. Rejected (see
         /// <see cref="LastWorldMapRefresh"/>): a transport failure (Offline), a failed/missing snapshot
         /// or one with no mapVersion (Malformed), an unknown schemaVersion (SchemaRejected), or an
-        /// occupancyVersion lower than the one already held (Stale - it is per-player monotonic). A
+        /// occupancyVersion lower than the one already held (Stale - it is per-player monotonic) UNLESS the map epoch changed (see
+        /// MapEpochChanged) and the snapshot is not older on the server clock - then it is an accepted reset
+        /// (AcceptedAfterReset) that replaces the cache. A
         /// changed mapVersion is accepted (the server re-authored the map); an equal occupancyVersion
         /// is an idempotent re-read.</summary>
         public async Task<bool> RefreshWorldMapAsync(CancellationToken cancellationToken = default)
@@ -201,15 +203,24 @@ namespace MyriadOfDragons.Frontier
             }
 
             Clock.Sample(fresh.serverUtcMs);
+            bool reset = false;
             if (WorldMap != null && fresh.snapshot.occupancyVersion < WorldMap.occupancyVersion)
             {
-                LastWorldMapRefresh = Cc10WorldMapRefresh.Stale;
-                RaiseChanged();
-                return false;
+                // A lower occupancyVersion is normally a stale/out-of-order response. It is a legitimate
+                // server-side occupancy reset only when the map epoch changed (different mapVersion or a
+                // different set of contest seasonIds) AND the snapshot is not older on the server clock -
+                // an out-of-order older response can never pass the clock check.
+                reset = MapEpochChanged(WorldMap, fresh.snapshot) && fresh.snapshot.serverUtc >= WorldMap.serverUtc;
+                if (!reset)
+                {
+                    LastWorldMapRefresh = Cc10WorldMapRefresh.Stale;
+                    RaiseChanged();
+                    return false;
+                }
             }
 
-            WorldMap = fresh.snapshot;
-            LastWorldMapRefresh = Cc10WorldMapRefresh.Accepted;
+            WorldMap = fresh.snapshot; // an accepted reset replaces the whole cache, never merges
+            LastWorldMapRefresh = reset ? Cc10WorldMapRefresh.AcceptedAfterReset : Cc10WorldMapRefresh.Accepted;
             RaiseChanged();
             return true;
         }
@@ -314,6 +325,24 @@ namespace MyriadOfDragons.Frontier
                 Message = Cc10Copy.ForRejection(response.errorCode),
                 Response = response,
             };
+        }
+
+        /// <summary>True when two snapshots belong to different map epochs: the mapVersion differs, or the set
+        /// of contest seasonIds differs (BE exposes the season only per contest row, there is no top-level
+        /// season/epoch field).</summary>
+        internal static bool MapEpochChanged(Cc10WorldMapSnapshotDto before, Cc10WorldMapSnapshotDto after)
+        {
+            if (before.mapVersion != after.mapVersion) return true;
+            return !SeasonIds(before).SetEquals(SeasonIds(after));
+        }
+
+        private static HashSet<string> SeasonIds(Cc10WorldMapSnapshotDto s)
+        {
+            var ids = new HashSet<string>();
+            if (s.centralContest != null)
+                foreach (Cc10WorldMapContestDto d in s.centralContest)
+                    if (!string.IsNullOrEmpty(d.seasonId)) ids.Add(d.seasonId);
+            return ids;
         }
 
         /// <summary>A World Map / contest command changes the canonical snapshot, so reload it - but

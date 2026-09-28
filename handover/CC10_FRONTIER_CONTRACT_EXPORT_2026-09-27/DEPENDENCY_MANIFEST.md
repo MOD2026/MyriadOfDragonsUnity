@@ -75,6 +75,18 @@ Notes for GUI:
 
 An empty `centralContest` is therefore a valid, expected state — not an error.
 
+### Client handling rules (WH `Cc10FrontierClient` / `Cc10ViewModels`) — GUI should follow
+
+- **Occupancy reset.** `occupancyVersion` is per-player monotonic, so a lower value is normally stale. It is accepted as a full-cache **reset**
+  (`Cc10WorldMapRefresh.AcceptedAfterReset`, replaces — never merges) only when the **map epoch changed** (`mapVersion` differs, or the set of contest
+  `seasonId` values differs) **and** `serverUtc` is not older than the held snapshot's (an out-of-order older response can never pass). Otherwise `Stale`.
+- **No season-epoch field.** The snapshot has no top-level `seasonId`/epoch, and BE has **not** confirmed one belongs in the DTO (MS finding B1), so none is
+  modelled. Season change is inferred only from per-row `seasonId`. If BE later adds one, it replaces this inference — request it from BE, do not add it locally.
+- **`ownershipState`** — `Unclaimed` (open; the only state that offers **Enroll**), `Enrolled` (defensive only; BE bef39415 does **not** emit it — open BS/BE
+  conflict on token timing, MS E1), `GuildOwned` (owned, token shown). Any other value = unknown → neutral, no color, no action.
+  Enroll additionally needs a known guild id and an online, non-paused screen. The snapshot has no season state, so `Unclaimed` in a closed season is still
+  rejected by the server (`WINDOW_CLOSED`).
+
 ### Legacy `contestDistricts` — not in the export
 
 `GetFrontierState.contestDistricts` (declared by BE, never populated) is **not modelled**: `Cc10FrontierSnapshot` has no such field and nothing in

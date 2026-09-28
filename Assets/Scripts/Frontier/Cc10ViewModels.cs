@@ -393,19 +393,31 @@ namespace MyriadOfDragons.Frontier
             {
                 var row = new Cc10Row { Title = "Contest: " + d.districtId + " (season " + d.seasonId + ")", EntityKey = d.districtId };
                 row.Payload["districtId"] = d.districtId;
-                if (d.ownershipState == Cc10ContestOwnershipState.GuildOwned)
+                switch (d.ownershipState)
                 {
-                    row.Detail = "Owned by a guild" + ColorSuffix(d.guildColorToken);
-                }
-                else
-                {
-                    row.Detail = "Unclaimed";
-                    row.ActionLabel = "Enroll";
-                    row.Endpoint = Cc10Endpoints.EnrollContestDistrict;
-                    row.Payload["seasonId"] = d.seasonId;
-                    if (!string.IsNullOrEmpty(client.GuildId)) row.Payload["guildId"] = client.GuildId;
-                    row.ActionEnabled = !string.IsNullOrEmpty(client.GuildId);
-                    row.DisabledReason = "Join a guild to enter the contest";
+                    case Cc10ContestOwnershipState.GuildOwned:
+                        row.Detail = "Owned by a guild" + ColorSuffix(d.guildColorToken);
+                        break;
+                    case Cc10ContestOwnershipState.Enrolled:
+                        // Not emitted by BE bef39415 (open BS/BE conflict); never open, never owned, no Enroll.
+                        row.Detail = "Enrolled" + ColorSuffix(d.guildColorToken);
+                        break;
+                    case Cc10ContestOwnershipState.Unclaimed:
+                        // The only state the server treats as open. (A district this guild already enrolled in is
+                        // also Unclaimed today, and one in a closed season answers WINDOW_CLOSED - the snapshot
+                        // carries no season state, so the server, not this row, has the last word.)
+                        row.Detail = "Unclaimed";
+                        row.ActionLabel = "Enroll";
+                        row.Endpoint = Cc10Endpoints.EnrollContestDistrict;
+                        row.Payload["seasonId"] = d.seasonId;
+                        if (!string.IsNullOrEmpty(client.GuildId)) row.Payload["guildId"] = client.GuildId;
+                        row.ActionEnabled = !string.IsNullOrEmpty(client.GuildId);
+                        row.DisabledReason = "Join a guild to enter the contest";
+                        break;
+                    default:
+                        // Unknown state: neutral, no color, no action - never guessed as open or owned.
+                        row.Detail = "Unavailable";
+                        break;
                 }
                 vm.Rows.Add(row);
             }

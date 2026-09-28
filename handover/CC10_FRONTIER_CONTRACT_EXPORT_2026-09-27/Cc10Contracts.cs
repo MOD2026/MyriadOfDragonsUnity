@@ -466,10 +466,18 @@ namespace MyriadOfDragons.Frontier
         public static int Rank(string token) => Array.IndexOf(Order, token);
     }
 
+    /// <summary>ownershipState values a client must distinguish. BE bef39415 emits only Unclaimed and
+    /// GuildOwned (an enrolled-but-unsettled district is Unclaimed with a null token). "Enrolled" is
+    /// BS's Option A value; it is NOT emitted today (open BS/BE conflict, MS finding E1) and is handled
+    /// only defensively so a future server that sends it is never mis-rendered as open or owned. Any other
+    /// value is unknown and renders neutral with no action.</summary>
     public static class Cc10ContestOwnershipState
     {
         public const string Unclaimed = "Unclaimed";
+        public const string Enrolled = "Enrolled";
         public const string GuildOwned = "GuildOwned";
+
+        public static bool IsKnown(string state) => state == Unclaimed || state == Enrolled || state == GuildOwned;
     }
 
     [Serializable]
@@ -502,7 +510,10 @@ namespace MyriadOfDragons.Frontier
     /// COLOR_PALETTE_EXHAUSTED (no free color) and COLOR_TOKEN_COLLISION (non-unique/missing allocation),
     /// both atomic. The snapshot carries no season state, so an Unclaimed row in Frozen/Published is
     /// indistinguishable from an open one: enrollment there is rejected WINDOW_CLOSED by the server.
-    /// Exactly the approved snapshot shape - nothing more. serverUtc is epoch
+    /// Exactly the approved snapshot shape - nothing more. There is deliberately NO top-level seasonId /
+    /// season-epoch field: BE has not confirmed one belongs in the DTO (MS finding B1), so none is modelled;
+    /// season changes are detected client-side from the per-row seasonId values (see
+    /// Cc10FrontierClient.RefreshWorldMapAsync). serverUtc is epoch
     /// milliseconds from the server clock (display only on the client).</summary>
     [Serializable]
     public class Cc10WorldMapSnapshotDto
