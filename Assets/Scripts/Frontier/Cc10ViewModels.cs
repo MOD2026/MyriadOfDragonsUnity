@@ -87,9 +87,9 @@ namespace MyriadOfDragons.Frontier
             {
                 case Cc10SystemId.Tavern: AddTavern(vm, s); break;
                 case Cc10SystemId.Missions: AddMissions(vm, client, s); break;
-                case Cc10SystemId.WorldMap: AddPhases(vm, s); AddNodes(vm, s); break;
+                case Cc10SystemId.WorldMap: AddWorldMap(vm, client, s); break;
                 case Cc10SystemId.NpcSpots: AddSpots(vm, s); break;
-                case Cc10SystemId.GuildTerritory: AddContestDistricts(vm, s); break;
+                case Cc10SystemId.GuildTerritory: AddContest(vm, client); break;
                 case Cc10SystemId.IndividualResearch: AddResearch(vm, client, s, Cc10ResearchScope.Individual); break;
                 case Cc10SystemId.GuildResearch: AddResearch(vm, client, s, Cc10ResearchScope.Guild); break;
                 case Cc10SystemId.Minigame: AddMinigame(vm, client, s); break;
@@ -268,7 +268,7 @@ namespace MyriadOfDragons.Frontier
             }
         }
 
-        private static void AddNodes(Cc10SectionVm vm, Cc10FrontierSnapshot s)
+        private static void AddNodes(Cc10SectionVm vm, Cc10FrontierSnapshot s, HashSet<string> ownFromSnapshot = null)
         {
             foreach (Cc10MapNodeDto n in s.nodes)
             {
@@ -284,7 +284,7 @@ namespace MyriadOfDragons.Frontier
                 row.Payload["layoutX"] = n.layoutX;
                 row.Payload["layoutY"] = n.layoutY;
 
-                if (n.owned)
+                if (n.owned || (ownFromSnapshot != null && ownFromSnapshot.Contains(n.nodeId)))
                 {
                     row.Detail = "Owned" + (n.expanded ? " - expanded" : string.Empty);
                 }
@@ -292,7 +292,7 @@ namespace MyriadOfDragons.Frontier
                 {
                     // Adjacency + phase gated ownership. The server enforces both; this preview
                     // only explains why the button is disabled, never decides it.
-                    bool adjacentToOwned = s.nodes.Any(other => other.owned
+                    bool adjacentToOwned = s.nodes.Any(other => (other.owned || (ownFromSnapshot != null && ownFromSnapshot.Contains(other.nodeId)))
                         && other.neighbors != null && other.neighbors.Contains(n.nodeId));
                     row.Detail = "Discovered, not yet owned";
                     row.ActionLabel = "Expand";
@@ -333,34 +333,119 @@ namespace MyriadOfDragons.Frontier
         private static string ColorSuffix(string colorToken) =>
             Cc10Rules.TryParseGuildColorToken(colorToken, out int index) ? " (color " + (index + 1) + ")" : string.Empty;
 
-        /// <summary>Central Realm's three fixed contest districts - a genuine cross-guild race.
-        /// Enroll is offered only when the server says the caller's own guild is presently top-3
-        /// eligible and no district is enrolled yet; resolution is operator-gated, never a player
-        /// action, so it is shown as status only.</summary>
-        private static void AddContestDistricts(Cc10SectionVm vm, Cc10FrontierSnapshot s)
+        private static string PhaseTokenTitle(string token)
         {
-            foreach (Cc10ContestDistrictDto d in s.contestDistricts)
+            switch (token)
             {
-                var row = new Cc10Row { Title = "Contest: " + d.districtId, EntityKey = d.districtId };
+                case Cc10WorldMapPhaseToken.Tutorial: return "Home Outpost";
+                case Cc10WorldMapPhaseToken.Outer: return "Outer Marches";
+                case Cc10WorldMapPhaseToken.Inner: return "Inner Reach";
+                case Cc10WorldMapPhaseToken.Central: return "Central Realm";
+                default: return token;
+            }
+        }
+
+        /// <summary>Banner for a World Map snapshot problem that leaves the last good snapshot on
+        /// screen; empty when the last attempt was fine or never made.</summary>
+        private static string WorldMapProblemBanner(Cc10FrontierClient client)
+        {
+            switch (client.LastWorldMapRefresh)
+            {
+                case Cc10WorldMapRefresh.SchemaRejected: return "Map data is from a newer version. Update the app to see the latest.";
+                case Cc10WorldMapRefresh.Malformed: return "Map data couldn't be read. Showing the last good view.";
+                default: return string.Empty;
+            }
+        }
+
+        /// <summary>Central Realm contest rows, read ONLY from the canonical GetWorldMapSnapshot
+        /// (the legacy GetFrontierState.contestDistricts list is never read - BE does not populate
+        /// it). Everything is server-decided: the server sends no rows before Central unlock, with no
+        /// active season, or while GuildTerritory is disabled, and this view invents none of them.
+        /// A row shows a color only from the server's opaque token, never a guild identity.
+        /// Enroll is offered on an Unclaimed row; whether this guild may enroll is decided by the
+        /// server (NOT_ELIGIBLE etc. arrive as plain copy), not guessed here.</summary>
+        private static void AddContest(Cc10SectionVm vm, Cc10FrontierClient client)
+        {
+            Cc10WorldMapSnapshotDto map = client.WorldMap;
+            if (map == null)
+            {
+                vm.Banner = client.Connection == Cc10Connection.Online ? Cc10Copy.InFlight : Cc10Copy.Offline;
+                vm.ReadOnly = true;
+                return;
+            }
+
+            string problem = WorldMapProblemBanner(client);
+            if (string.IsNullOrEmpty(vm.Banner) && !string.IsNullOrEmpty(problem)) vm.Banner = problem;
+
+            if (Cc10WorldMapPhaseToken.Rank(map.unlockedPhase) < Cc10WorldMapPhaseToken.Rank(Cc10WorldMapPhaseToken.Central))
+            {
+                vm.Rows.Add(new Cc10Row { Title = "Central Realm contest", Detail = "Locked until you reach the Central Realm", EntityKey = "contest:locked" });
+                return;
+            }
+
+            if (map.centralContest.Length == 0)
+            {
+                vm.Rows.Add(new Cc10Row { Title = "Central Realm contest", Detail = "No contest is running right now", EntityKey = "contest:none" });
+                return;
+            }
+
+            foreach (Cc10WorldMapContestDto d in map.centralContest)
+            {
+                var row = new Cc10Row { Title = "Contest: " + d.districtId + " (season " + d.seasonId + ")", EntityKey = d.districtId };
                 row.Payload["districtId"] = d.districtId;
-                switch (d.status)
+                if (d.ownershipState == Cc10ContestOwnershipState.GuildOwned)
                 {
-                    case Cc10ContestStatus.NotEnrolled:
-                        row.Detail = d.callerGuildEligible ? "Eligible - top 3 this season" : "Not eligible this season";
-                        row.ActionLabel = "Enroll";
-                        row.Endpoint = Cc10Endpoints.EnrollContestDistrict;
-                        row.ActionEnabled = d.callerGuildEligible;
-                        row.DisabledReason = "Your guild is not currently top-3";
-                        break;
-                    case Cc10ContestStatus.Owned:
-                        row.Detail = "Owned by a guild" + ColorSuffix(d.ownerGuildColorToken);
-                        break;
-                    default:
-                        row.Detail = d.status + ColorSuffix(d.enrolledGuildColorToken);
-                        break;
+                    row.Detail = "Owned by a guild" + ColorSuffix(d.guildColorToken);
+                }
+                else
+                {
+                    row.Detail = "Unclaimed";
+                    row.ActionLabel = "Enroll";
+                    row.Endpoint = Cc10Endpoints.EnrollContestDistrict;
+                    row.Payload["seasonId"] = d.seasonId;
+                    if (!string.IsNullOrEmpty(client.GuildId)) row.Payload["guildId"] = client.GuildId;
+                    row.ActionEnabled = !string.IsNullOrEmpty(client.GuildId);
+                    row.DisabledReason = "Join a guild to enter the contest";
                 }
                 vm.Rows.Add(row);
             }
+        }
+
+        /// <summary>World Map rows. When the canonical snapshot is held it drives the summary and the
+        /// "your territory" list (private per-player occupancy, in the server's own order); the
+        /// per-node Discover/Expand rows still come from the frontier snapshot, with a node counted
+        /// owned if EITHER server read says so. No identity, base placement or wells anywhere.</summary>
+        private static void AddWorldMap(Cc10SectionVm vm, Cc10FrontierClient client, Cc10FrontierSnapshot s)
+        {
+            Cc10WorldMapSnapshotDto map = client.WorldMap;
+            HashSet<string> ownSet = null;
+            if (map != null)
+            {
+                string problem = WorldMapProblemBanner(client);
+                if (string.IsNullOrEmpty(vm.Banner) && !string.IsNullOrEmpty(problem)) vm.Banner = problem;
+
+                vm.Rows.Add(new Cc10Row
+                {
+                    Title = "Map " + map.mapVersion,
+                    Detail = PhaseTokenTitle(map.unlockedPhase) + " unlocked - territory v" + map.occupancyVersion,
+                    EntityKey = "worldmap:summary",
+                });
+
+                ownSet = new HashSet<string>();
+                foreach (Cc10WorldMapOwnNodeDto n in map.ownOccupiedNodes)
+                {
+                    ownSet.Add(n.nodeId);
+                    vm.Rows.Add(new Cc10Row
+                    {
+                        Title = "Your territory: " + n.nodeId + " [" + PhaseTokenTitle(n.phaseId) + "]",
+                        Detail = "Occupied",
+                        EntityKey = "own:" + n.nodeId,
+                    });
+                }
+            }
+
+            AddPhases(vm, s);
+            AddNodes(vm, s, ownSet);
         }
 
         /// <summary>Research rows: started/completed instances come straight from the server

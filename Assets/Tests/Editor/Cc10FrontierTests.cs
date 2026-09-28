@@ -766,26 +766,6 @@ namespace MyriadOfDragons.Tests
         }
 
         [Test]
-        public async Task GuildTerritory_ShowsContestDistricts_EnrollOnlyWhenEligible()
-        {
-            var gw = new FakeGateway();
-            Cc10FrontierSnapshot snap = Snap();
-            snap.contestDistricts = new[]
-            {
-                new Cc10ContestDistrictDto { districtId = "central_ashfall", status = Cc10ContestStatus.NotEnrolled, callerGuildEligible = true },
-                new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.NotEnrolled, callerGuildEligible = false },
-                new Cc10ContestDistrictDto { districtId = "central_ironquarry", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "GC09" },
-            };
-            List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10SystemId.GuildTerritory).Rows;
-            Assert.IsTrue(rows[0].ActionEnabled);
-            Assert.AreEqual(Cc10Endpoints.EnrollContestDistrict, rows[0].Endpoint);
-            Assert.IsFalse(rows[1].ActionEnabled, "not top-3 this season");
-            Assert.IsFalse(rows[2].HasAction, "already owned - no resolve action client-side (operator-gated)");
-            StringAssert.Contains("color 9", rows[2].Detail);
-            StringAssert.DoesNotContain("Guild-", rows[2].Detail, "no guild identity is ever shown - only a color");
-        }
-
-        [Test]
         public async Task ContestEnroll_RejectionCodes_MapToPlainCopy_NoRawCode()
         {
             var gw = new FakeGateway();
@@ -1449,31 +1429,304 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.AreEqual(new[] { "titan_vein", "hub", "ruined_shrine" }, rows.Select(r => r.EntityKey).ToArray());
         }
 
+
+        // ---- live view-model wiring of GetWorldMapSnapshot (occupancy, contest, retention, reconnect) ----
+
+        private static async Task<Cc10FrontierClient> ClientWithMap(FakeGateway gw, Cc10FrontierSnapshot frontier, Cc10WorldMapSnapshotResult map)
+        {
+            gw.Handler = (e, r) =>
+                e == Cc10Endpoints.GetFrontierState ? (object)frontier
+                : e == Cc10Endpoints.GetWorldMapSnapshot ? (object)map
+                : Ok();
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            Assert.IsTrue(await client.RefreshAllAsync());
+            return client;
+        }
+
+        private static Cc10WorldMapContestDto Contest(string id, string owned = null, string season = "S1") =>
+            new Cc10WorldMapContestDto
+            {
+                districtId = id, seasonId = season,
+                ownershipState = owned == null ? Cc10ContestOwnershipState.Unclaimed : Cc10ContestOwnershipState.GuildOwned,
+                guildColorToken = owned,
+            };
+
         [Test]
-        public async Task ContestDistrict_NeutralState_NoGuild_ShowsNoColor()
+        public async Task RefreshAll_LoadsBothSnapshots_InOneCall()
         {
             var gw = new FakeGateway();
-            Cc10FrontierSnapshot snap = Snap();
-            snap.contestDistricts = new[] { new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.NotEnrolled } };
-            Cc10Row row = Vm(await OnlineClient(gw, snap), Cc10SystemId.GuildTerritory).Rows.Single();
-            Assert.IsFalse(row.Detail.Contains("color"), "no guild enrolled - never invent a color");
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(2));
+            Assert.IsTrue(client.HasState);
+            Assert.AreEqual(2, client.WorldMap.occupancyVersion);
+            Assert.AreEqual(Cc10WorldMapRefresh.Accepted, client.LastWorldMapRefresh);
+            CollectionAssert.AreEquivalent(new[] { Cc10Endpoints.GetFrontierState, Cc10Endpoints.GetWorldMapSnapshot }, gw.Calls.Select(c => c.Key).ToArray());
         }
 
         [Test]
-        public async Task ContestDistrict_EnrolledAndOwned_ShowOnlyAColorNumber_FromTheServerToken()
+        public async Task WorldMapSection_ShowsSummary_AndOwnOccupiedNodes_InServerOrder()
+        {
+            var own = new[]
+            {
+                new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" },
+                new Cc10WorldMapOwnNodeDto { nodeId = "patrol_road", phaseId = "Outer" },
+            };
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(4, own: own, unlocked: Cc10WorldMapPhaseToken.Outer));
+            List<Cc10Row> rows = Vm(client, Cc10SystemId.WorldMap).Rows;
+
+            Cc10Row summary = rows.Single(r => r.EntityKey == "worldmap:summary");
+            StringAssert.Contains("worldmap-beta-1", summary.Title);
+            StringAssert.Contains("Outer Marches unlocked", summary.Detail);
+            StringAssert.Contains("territory v4", summary.Detail);
+
+            string[] ownRows = rows.Where(r => r.EntityKey.StartsWith("own:")).Select(r => r.EntityKey).ToArray();
+            CollectionAssert.AreEqual(new[] { "own:hub", "own:patrol_road" }, ownRows, "server order, never re-sorted");
+            StringAssert.Contains("Outer Marches", rows.Single(r => r.EntityKey == "own:patrol_road").Title);
+        }
+
+        [Test]
+        public async Task WorldMapSection_OwnedFromEitherServerRead_And_ExpandAdjacencyUsesBoth()
+        {
+            Cc10FrontierSnapshot frontier = Snap();
+            frontier.nodes = new[]
+            {
+                new Cc10MapNodeDto { nodeId = "hub", discovered = true, owned = false, neighbors = new[] { "patrol_road" } },
+                new Cc10MapNodeDto { nodeId = "patrol_road", discovered = true, phaseUnlocked = true, neighbors = new[] { "hub" } },
+            };
+            var own = new[] { new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" } };
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, frontier, MapResult(1, own: own));
+            List<Cc10Row> rows = Vm(client, Cc10SystemId.WorldMap).Rows;
+            Assert.AreEqual("Owned", rows.Single(r => r.EntityKey == "hub").Detail, "the canonical snapshot says hub is owned");
+            Assert.IsTrue(rows.Single(r => r.EntityKey == "patrol_road").ActionEnabled, "Expand is adjacent to a node the snapshot says is owned");
+        }
+
+        [Test]
+        public async Task WorldMapSection_WithoutSnapshot_StillRendersFromFrontier_NoSummary()
         {
             var gw = new FakeGateway();
-            Cc10FrontierSnapshot snap = Snap();
-            snap.contestDistricts = new[]
+            Cc10FrontierSnapshot frontier = Snap();
+            frontier.nodes = new[] { new Cc10MapNodeDto { nodeId = "hub", owned = true } };
+            List<Cc10Row> rows = Vm(await OnlineClient(gw, frontier), Cc10SystemId.WorldMap).Rows;
+            Assert.IsFalse(rows.Any(r => r.EntityKey == "worldmap:summary"));
+            Assert.AreEqual("Owned", rows.Single(r => r.EntityKey == "hub").Detail);
+        }
+
+        [Test]
+        public async Task Contest_ReadsOnlyTheCanonicalSnapshot_NeverTheLegacyContestDistrictsList()
+        {
+            Cc10FrontierSnapshot frontier = Snap();
+            frontier.contestDistricts = new[] { new Cc10ContestDistrictDto { districtId = "LEGACY", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "GC01" } };
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: new[] { Contest("central_ashfall", "GC07") });
+            Cc10FrontierClient client = await ClientWithMap(new FakeGateway(), frontier, map);
+            List<Cc10Row> rows = Vm(client, Cc10SystemId.GuildTerritory).Rows;
+            Assert.IsFalse(rows.Any(r => r.EntityKey == "LEGACY"), "the legacy list is never read");
+            StringAssert.Contains("color 7", rows.Single(r => r.EntityKey == "central_ashfall").Detail);
+        }
+
+        [Test]
+        public async Task Contest_BeforeCentralUnlock_ShowsLocked_NoInventedRows()
+        {
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Inner);
+            List<Cc10Row> rows = Vm(await ClientWithMap(new FakeGateway(), Snap(), map), Cc10SystemId.GuildTerritory).Rows;
+            Assert.AreEqual(1, rows.Count);
+            Assert.AreEqual("contest:locked", rows[0].EntityKey);
+            Assert.IsFalse(rows[0].HasAction);
+        }
+
+        [Test]
+        public async Task Contest_CentralUnlockedButNoActiveSeason_ShowsNoContest_NotAnError()
+        {
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: Array.Empty<Cc10WorldMapContestDto>());
+            List<Cc10Row> rows = Vm(await ClientWithMap(new FakeGateway(), Snap(), map), Cc10SystemId.GuildTerritory).Rows;
+            Assert.AreEqual("contest:none", rows.Single().EntityKey);
+        }
+
+        [Test]
+        public async Task Contest_GuildTerritoryDisabled_ServerSendsNoRows_ViewShowsPausedAndNoRows()
+        {
+            Cc10FrontierSnapshot frontier = Snap();
+            frontier.disabledSystems = new[] { Cc10SystemId.GuildTerritory };
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: Array.Empty<Cc10WorldMapContestDto>());
+            Cc10SectionVm vm = Vm(await ClientWithMap(new FakeGateway(), frontier, map), Cc10SystemId.GuildTerritory);
+            Assert.AreEqual(Cc10Copy.SystemDisabled, vm.Banner);
+            Assert.IsTrue(vm.ReadOnly);
+            Assert.IsFalse(vm.Rows.Any(r => r.HasAction));
+        }
+
+        [Test]
+        public async Task Contest_UnclaimedRow_OffersEnroll_OnlyWithAKnownGuildId_ServerDecidesEligibility()
+        {
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: new[] { Contest("central_ember", season: "S9") });
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), map);
+
+            Cc10Row noGuild = Vm(client, Cc10SystemId.GuildTerritory).Rows.Single();
+            Assert.AreEqual(Cc10Endpoints.EnrollContestDistrict, noGuild.Endpoint);
+            Assert.IsFalse(noGuild.ActionEnabled, "no guild id is known - nothing to enroll with, and none is invented");
+
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetGuildState
+                ? (object)new Cc10GuildSnapshot { success = true }
+                : e == Cc10Endpoints.GetFrontierState ? (object)Snap() : (object)map;
+            Assert.IsTrue(await client.RefreshGuildStateAsync("g1"));
+            Cc10Row withGuild = Vm(client, Cc10SystemId.GuildTerritory).Rows.Single();
+            Assert.IsTrue(withGuild.ActionEnabled);
+            Assert.AreEqual("central_ember", withGuild.Payload["districtId"]);
+            Assert.AreEqual("S9", withGuild.Payload["seasonId"]);
+            Assert.AreEqual("g1", withGuild.Payload["guildId"]);
+            Assert.IsFalse(withGuild.Payload.ContainsKey("eligible") || withGuild.Payload.ContainsKey("guildColorToken"));
+        }
+
+        [Test]
+        public async Task Contest_OwnedRow_ShowsOnlyAColorNumber_NeverAGuildIdentity_AndUnknownTokenIsNeutral()
+        {
+            var map = MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: new[]
             {
-                new Cc10ContestDistrictDto { districtId = "central_ashfall", status = Cc10ContestStatus.Enrolled, enrolledGuildColorToken = "GC07" },
-                new Cc10ContestDistrictDto { districtId = "central_ember", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "GC02" },
-                new Cc10ContestDistrictDto { districtId = "central_ironquarry", status = Cc10ContestStatus.Owned, ownerGuildColorToken = "not-a-token" },
+                Contest("central_ashfall", "GC02"), Contest("central_ember", "not-a-token"), Contest("central_ironquarry"),
+            });
+            List<Cc10Row> rows = Vm(await ClientWithMap(new FakeGateway(), Snap(), map), Cc10SystemId.GuildTerritory).Rows;
+            StringAssert.Contains("color 2", rows[0].Detail);
+            StringAssert.DoesNotContain("Guild-", rows[0].Detail);
+            Assert.IsFalse(rows[1].Detail.Contains("color"), "unknown token renders neutral");
+            Assert.AreEqual("Unclaimed", rows[2].Detail);
+        }
+
+        [Test]
+        public async Task StaleSnapshot_IsRetained_AndViewKeepsShowingTheLastGoodTerritory()
+        {
+            var gw = new FakeGateway();
+            var own5 = new[] { new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" }, new Cc10WorldMapOwnNodeDto { nodeId = "patrol_road", phaseId = "Outer" } };
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(5, own: own5));
+
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : MapResult(4, own: new[] { new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" } });
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.AreEqual(Cc10WorldMapRefresh.Stale, client.LastWorldMapRefresh);
+
+            List<Cc10Row> rows = Vm(client, Cc10SystemId.WorldMap).Rows;
+            Assert.IsTrue(rows.Any(r => r.EntityKey == "own:patrol_road"), "the newer (v5) territory stays on screen");
+            StringAssert.Contains("territory v5", rows.Single(r => r.EntityKey == "worldmap:summary").Detail);
+        }
+
+        [Test]
+        public async Task UnknownSchema_IsRetainedOver_AndViewSaysUpdateNeeded()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(2));
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : MapResult(9, schema: "cc10.worldmap.v2");
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.AreEqual(Cc10WorldMapRefresh.SchemaRejected, client.LastWorldMapRefresh);
+            Assert.AreEqual(2, client.WorldMap.occupancyVersion);
+            Cc10SectionVm vm = Vm(client, Cc10SystemId.WorldMap);
+            StringAssert.Contains("newer version", vm.Banner);
+            Assert.IsTrue(vm.Rows.Any(r => r.EntityKey == "worldmap:summary"), "the last good view is still shown");
+        }
+
+        [Test]
+        public async Task EmptyMapVersion_IsMalformed_Rejected_LastGoodRetained()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(2));
+            Cc10WorldMapSnapshotResult bad = MapResult(3);
+            bad.snapshot.mapVersion = string.Empty;
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : bad;
+            Assert.IsFalse(await client.RefreshWorldMapAsync());
+            Assert.AreEqual(Cc10WorldMapRefresh.Malformed, client.LastWorldMapRefresh);
+            Assert.AreEqual(2, client.WorldMap.occupancyVersion);
+        }
+
+        [Test]
+        public async Task ChangedMapVersion_IsAccepted_TheServerReauthoredTheMap()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(2));
+            Cc10WorldMapSnapshotResult next = MapResult(2);
+            next.snapshot.mapVersion = "worldmap-beta-2";
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : next;
+            Assert.IsTrue(await client.RefreshWorldMapAsync());
+            Assert.AreEqual("worldmap-beta-2", client.WorldMap.mapVersion);
+            StringAssert.Contains("worldmap-beta-2", Vm(client, Cc10SystemId.WorldMap).Rows.Single(r => r.EntityKey == "worldmap:summary").Title);
+        }
+
+        [Test]
+        public async Task Offline_KeepsTheLastSnapshotVisible_ReadOnly_ThenReconnectRefreshesBoth()
+        {
+            var gw = new FakeGateway();
+            var own = new[] { new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" } };
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(2, own: own, unlocked: Cc10WorldMapPhaseToken.Central, contest: new[] { Contest("central_ashfall") }));
+
+            gw.Handler = (e, r) => new InvalidOperationException("network");
+            Assert.IsFalse(await client.RefreshAllAsync());
+            Assert.AreEqual(Cc10Connection.Offline, client.Connection);
+            Assert.AreEqual(Cc10WorldMapRefresh.Offline, client.LastWorldMapRefresh);
+
+            Cc10SectionVm map = Vm(client, Cc10SystemId.WorldMap);
+            Assert.AreEqual(Cc10Copy.Offline, map.Banner);
+            Assert.IsTrue(map.Rows.Any(r => r.EntityKey == "own:hub"), "the last known territory stays visible offline");
+            Cc10SectionVm contest = Vm(client, Cc10SystemId.GuildTerritory);
+            Assert.IsTrue(contest.ReadOnly);
+            Assert.IsFalse(contest.Rows.Any(r => r.ActionEnabled), "no contest action while offline");
+
+            var back = new[] { new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" }, new Cc10WorldMapOwnNodeDto { nodeId = "patrol_road", phaseId = "Outer" } };
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap(2) : MapResult(3, own: back);
+            Assert.IsTrue(await client.RefreshAllAsync());
+            Assert.AreEqual(Cc10Connection.Online, client.Connection);
+            Assert.AreEqual(3, client.WorldMap.occupancyVersion);
+            Assert.IsTrue(Vm(client, Cc10SystemId.WorldMap).Rows.Any(r => r.EntityKey == "own:patrol_road"));
+        }
+
+        [Test]
+        public async Task SuccessfulExpand_ReloadsTheHeldWorldMapSnapshot()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(), MapResult(1));
+            int mapReads = 0;
+            gw.Handler = (e, r) =>
+            {
+                if (e == Cc10Endpoints.GetFrontierState) return Snap(2);
+                if (e == Cc10Endpoints.GetWorldMapSnapshot) { mapReads++; return MapResult(2, own: new[] { new Cc10WorldMapOwnNodeDto { nodeId = "patrol_road", phaseId = "Outer" } }); }
+                return Ok();
             };
-            List<Cc10Row> rows = Vm(await OnlineClient(gw, snap), Cc10SystemId.GuildTerritory).Rows;
-            StringAssert.Contains("color 7", rows[0].Detail);
-            StringAssert.Contains("color 2", rows[1].Detail);
-            Assert.IsFalse(rows[2].Detail.Contains("color"), "an unknown token renders neutral, never a guessed color");
+            Cc10CommandOutcome outcome = await client.ExecuteAsync(Cc10SystemId.WorldMap, Cc10Endpoints.ExpandNode,
+                new Dictionary<string, object> { { "nodeId", "patrol_road" } }, "patrol_road");
+            Assert.AreEqual(Cc10Outcome.Applied, outcome.Outcome);
+            Assert.AreEqual(1, mapReads);
+            Assert.AreEqual(2, client.WorldMap.occupancyVersion, "territory version bumped by the server, read back");
+        }
+
+        [Test]
+        public async Task CommandsOutsideTheMap_DoNotTriggerAWorldMapRead()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await ClientWithMap(gw, Snap(1, 1, Mission("m1", "Completed")), MapResult(1));
+            gw.Calls.Clear();
+            gw.Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap(2) : Ok();
+            await client.ExecuteAsync(Cc10SystemId.Missions, Cc10Endpoints.ClaimMission, null, "m1");
+            Assert.IsFalse(gw.Calls.Any(c => c.Key == Cc10Endpoints.GetWorldMapSnapshot));
+        }
+
+        [Test]
+        public async Task ExpandWithoutAHeldSnapshot_NeverIssuesAnUnrequestedMapRead()
+        {
+            var gw = new FakeGateway();
+            Cc10FrontierClient client = await OnlineClient(gw, Snap());
+            gw.Calls.Clear();
+            await client.ExecuteAsync(Cc10SystemId.WorldMap, Cc10Endpoints.ExpandNode, new Dictionary<string, object> { { "nodeId", "n" } }, "n");
+            Assert.IsFalse(gw.Calls.Any(c => c.Key == Cc10Endpoints.GetWorldMapSnapshot));
+        }
+
+        [Test]
+        public async Task NoIdentityOrPlacementRowsAnywhere_InTheWorldMapOrContestViews()
+        {
+            var map = MapResult(3, own: new[] { new Cc10WorldMapOwnNodeDto { nodeId = "hub", phaseId = "Tutorial" } },
+                unlocked: Cc10WorldMapPhaseToken.Central, contest: new[] { Contest("central_ashfall", "GC03") });
+            Cc10FrontierClient client = await ClientWithMap(new FakeGateway(), Snap(), map);
+            foreach (string sys in new[] { Cc10SystemId.WorldMap, Cc10SystemId.GuildTerritory })
+                foreach (Cc10Row r in Vm(client, sys).Rows)
+                {
+                    string text = (r.Title + " " + r.Detail + " " + r.ActionLabel).ToLowerInvariant();
+                    foreach (string banned in new[] { "well", "place base", "relocate", "teleport", "player-", "guild-", "pseudonym" })
+                        StringAssert.DoesNotContain(banned, text, sys + " row '" + r.Title + "'");
+                }
         }
     }
 }

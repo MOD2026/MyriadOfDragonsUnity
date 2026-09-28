@@ -66,7 +66,8 @@ namespace MyriadOfDragons.Frontier
             Render();
         }
 
-        public async void RefreshFromServer() => await _client.RefreshAsync();
+        /// <summary>Reload frontier + World Map snapshots. Call on open and on every reconnect.</summary>
+        public async void RefreshFromServer() => await _client.RefreshAllAsync();
 
         public async void RunRow(Cc10Row row)
         {

@@ -7,6 +7,10 @@ namespace MyriadOfDragons.Frontier
 {
     public enum Cc10Connection { Unknown, Online, Offline }
 
+    /// <summary>Outcome of the most recent GetWorldMapSnapshot attempt (the last good snapshot is
+    /// always retained on anything other than Accepted).</summary>
+    public enum Cc10WorldMapRefresh { NotAttempted, Accepted, SchemaRejected, Malformed, Stale, Offline }
+
     public enum Cc10Outcome { Applied, Replayed, Conflict, Disabled, Offline, Rejected, InFlight, Failed }
 
     public sealed class Cc10CommandOutcome
@@ -54,6 +58,10 @@ namespace MyriadOfDragons.Frontier
         /// color tokens), or null. Only a snapshot with the known schema and a non-regressing
         /// occupancyVersion is ever accepted.</summary>
         public Cc10WorldMapSnapshotDto WorldMap { get; private set; }
+        public Cc10WorldMapRefresh LastWorldMapRefresh { get; private set; } = Cc10WorldMapRefresh.NotAttempted;
+        /// <summary>The guild id GetGuildState last succeeded for, or null. Enrolling in a contest
+        /// needs it; this layer never invents one.</summary>
+        public string GuildId { get; private set; }
         public Cc10Connection Connection { get; private set; } = Cc10Connection.Unknown;
         public IReadOnlyList<string> StateAnomalies => _anomalies;
         public int PendingRequestCount => _pendingRequestIds.Count;
@@ -139,14 +147,28 @@ namespace MyriadOfDragons.Frontier
 
             Connection = Cc10Connection.Online;
             GuildSnapshot = fresh;
+            GuildId = guildId;
             RaiseChanged();
             return true;
         }
 
-        /// <summary>Reload the canonical World Map snapshot (a pure read). Rejects (keeping the last
-        /// good one) an unknown schemaVersion, a missing snapshot, or a snapshot whose
-        /// occupancyVersion is older than the one already held - occupancyVersion is per-player
-        /// monotonic, so a lower value is a stale/out-of-order response.</summary>
+        /// <summary>Reload everything a screen reads: the frontier snapshot AND the canonical World Map
+        /// snapshot. Call on open and on every reconnect. Both loads always run; the result is true
+        /// only if both were accepted.</summary>
+        public async Task<bool> RefreshAllAsync(CancellationToken cancellationToken = default)
+        {
+            bool frontier = await RefreshAsync(cancellationToken);
+            bool map = await RefreshWorldMapAsync(cancellationToken);
+            return frontier && map;
+        }
+
+        /// <summary>Reload the canonical World Map snapshot (a pure read). The last good snapshot is
+        /// ALWAYS retained unless a strictly acceptable one arrives. Rejected (see
+        /// <see cref="LastWorldMapRefresh"/>): a transport failure (Offline), a failed/missing snapshot
+        /// or one with no mapVersion (Malformed), an unknown schemaVersion (SchemaRejected), or an
+        /// occupancyVersion lower than the one already held (Stale - it is per-player monotonic). A
+        /// changed mapVersion is accepted (the server re-authored the map); an equal occupancyVersion
+        /// is an idempotent re-read.</summary>
         public async Task<bool> RefreshWorldMapAsync(CancellationToken cancellationToken = default)
         {
             Cc10WorldMapSnapshotResult fresh;
@@ -158,26 +180,36 @@ namespace MyriadOfDragons.Frontier
             catch (Exception)
             {
                 Connection = Cc10Connection.Offline;
-                RaiseChanged();
-                return false;
-            }
-
-            if (fresh == null || !fresh.success || fresh.snapshot == null
-                || fresh.snapshot.schemaVersion != Cc10WorldMapSnapshotSchema.V1)
-            {
+                LastWorldMapRefresh = Cc10WorldMapRefresh.Offline;
                 RaiseChanged();
                 return false;
             }
 
             Connection = Cc10Connection.Online;
+            if (fresh == null || !fresh.success || fresh.snapshot == null || string.IsNullOrEmpty(fresh.snapshot.mapVersion))
+            {
+                LastWorldMapRefresh = Cc10WorldMapRefresh.Malformed;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh.snapshot.schemaVersion != Cc10WorldMapSnapshotSchema.V1)
+            {
+                LastWorldMapRefresh = Cc10WorldMapRefresh.SchemaRejected;
+                RaiseChanged();
+                return false;
+            }
+
             Clock.Sample(fresh.serverUtcMs);
             if (WorldMap != null && fresh.snapshot.occupancyVersion < WorldMap.occupancyVersion)
             {
+                LastWorldMapRefresh = Cc10WorldMapRefresh.Stale;
                 RaiseChanged();
                 return false;
             }
 
             WorldMap = fresh.snapshot;
+            LastWorldMapRefresh = Cc10WorldMapRefresh.Accepted;
             RaiseChanged();
             return true;
         }
@@ -234,7 +266,7 @@ namespace MyriadOfDragons.Frontier
                 }
 
                 Clock.Sample(response.serverUtcMs);
-                return await SettleAsync(key, response, cancellationToken);
+                return await SettleAsync(systemId, key, response, cancellationToken);
             }
             finally
             {
@@ -242,7 +274,7 @@ namespace MyriadOfDragons.Frontier
             }
         }
 
-        private async Task<Cc10CommandOutcome> SettleAsync(string key, Cc10CommandResult response, CancellationToken cancellationToken)
+        private async Task<Cc10CommandOutcome> SettleAsync(string systemId, string key, Cc10CommandResult response, CancellationToken cancellationToken)
         {
             if (response.errorCode == Cc10Errors.SystemDisabled)
             {
@@ -259,6 +291,7 @@ namespace MyriadOfDragons.Frontier
                 if (firstSight && receipt != null)
                     ReceiptReceived?.Invoke(receipt);
                 await RefreshAsync(cancellationToken);
+                await RefreshWorldMapIfAffectedAsync(systemId, cancellationToken);
                 return new Cc10CommandOutcome
                 {
                     Outcome = (firstSight && !response.replayed) ? Cc10Outcome.Applied : Cc10Outcome.Replayed,
@@ -271,6 +304,7 @@ namespace MyriadOfDragons.Frontier
             if (response.errorCode == Cc10Errors.Conflict || response.errorCode == Cc10Errors.AuthorityStale)
             {
                 await RefreshAsync(cancellationToken); // first valid CAS wins; reload and show the latest
+                await RefreshWorldMapIfAffectedAsync(systemId, cancellationToken);
                 return new Cc10CommandOutcome { Outcome = Cc10Outcome.Conflict, Message = Cc10Copy.Conflict, Response = response };
             }
 
@@ -280,6 +314,16 @@ namespace MyriadOfDragons.Frontier
                 Message = Cc10Copy.ForRejection(response.errorCode),
                 Response = response,
             };
+        }
+
+        /// <summary>A World Map / contest command changes the canonical snapshot, so reload it - but
+        /// only if this client already holds one (a host that never loaded it is not surprised by a
+        /// new read).</summary>
+        private async Task RefreshWorldMapIfAffectedAsync(string systemId, CancellationToken cancellationToken)
+        {
+            if (WorldMap == null) return;
+            if (systemId != Cc10SystemId.WorldMap && systemId != Cc10SystemId.GuildTerritory) return;
+            await RefreshWorldMapAsync(cancellationToken);
         }
 
         private static Cc10CommandOutcome Blocked(Cc10Outcome outcome, string message) =>
