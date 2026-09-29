@@ -100,6 +100,7 @@ namespace MyriadOfDragons.Frontier
         public const string GetServerUtc = "GetServerUtc";
         public const string GetFrontierState = "GetFrontierState";
         public const string GetGuildState = "GetGuildState";
+        public const string GetCallerGuildIdentity = "GetCallerGuildIdentity";
         public const string GetWorldMapSnapshot = "GetWorldMapSnapshot";
         public const string StartTavernUpgrade = "StartTavernUpgrade";
         public const string CompleteTavernUpgrade = "CompleteTavernUpgrade";
@@ -139,6 +140,10 @@ namespace MyriadOfDragons.Frontier
     public static class Cc10Errors
     {
         // Mirrors CC10Errors in the published contract - only the ones the client branches on.
+        // GetCallerGuildIdentity fail-closed cases (BE ec4b49b3):
+        public const string AuthenticationRequired = "AUTHENTICATION_REQUIRED";
+        public const string AuthorityUnavailable = "AUTHORITY_UNAVAILABLE";
+        public const string StorageUnavailable = "STORAGE_UNAVAILABLE";
         // Renamed at BE 3c4e5816 (settlement-closure contract): GoldCapReached->GoldCapExceeded,
         // AuthorityGenerationMismatch->AuthorityStale, Conflict/AlreadyCommitted->PascalCase.
         public const string SystemDisabled = "SYSTEM_DISABLED";
@@ -270,6 +275,26 @@ namespace MyriadOfDragons.Frontier
     public sealed class Cc10RankingResult : Cc10ResultBase
     {
         public Cc10RankingViewDto view;
+    }
+
+    /// <summary>GetCallerGuildIdentity's result (BE ec4b49b3, zero-arg): the server-owned answer to
+    /// "what guild is the caller currently in". The client never supplies, hashes, or derives a
+    /// guild id or pseudonym - this is the ONLY source for one. BE re-verifies live against the
+    /// guild's own document before ever reporting a membership, so a revoked, expired, or otherwise
+    /// stale entry can never come back as current: hasGuild=false, guildId=null IS the valid
+    /// no-guild case (never-joined, left, revoked or expired all look identical here, by design -
+    /// this DTO carries no reason code to distinguish them), and success is still true for it.
+    /// success=false (AUTHENTICATION_REQUIRED/AUTHORITY_UNAVAILABLE/STORAGE_UNAVAILABLE/transport)
+    /// is the only case this client must fail closed on - never treat a failed call as "no guild".</summary>
+    [Serializable]
+    public sealed class Cc10GuildIdentityResult : Cc10ResultBase
+    {
+        public bool hasGuild;
+        /// <summary>The caller's OWN current guild id, plaintext (it is the caller's own
+        /// membership, never another player's data), or null/empty when hasGuild is false.</summary>
+        public string guildId;
+        public long membershipEpoch;
+        public long membershipExpiresUtcMs;
     }
 
     // ---- DTOs ------------------------------------------------------------------------------

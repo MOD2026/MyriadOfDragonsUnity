@@ -2088,5 +2088,197 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(5, typeof(Cc10ContestDistrictDto).GetFields().Length);
             Assert.IsFalse(Cc10ContestOwnershipState.IsKnown("Explicitlyunowned"));
         }
+
+        // ---- BE ec4b49b3: GetCallerGuildIdentity (zero-arg, server-owned "what guild am I in") ----
+
+        private static Cc10GuildIdentityResult Identity(bool success = true, bool hasGuild = false,
+            string guildId = null, long epoch = 0, long expires = 0, string errorCode = null) =>
+            new Cc10GuildIdentityResult
+            {
+                success = success, errorCode = errorCode ?? string.Empty, serverUtcMs = 3_000_000,
+                hasGuild = hasGuild, guildId = guildId, membershipEpoch = epoch, membershipExpiresUtcMs = expires,
+            };
+
+        [Test]
+        public void GuildIdentityResult_DeserializesRealServerJson_MemberCase()
+        {
+            const string json = "{\"success\":true,\"hasGuild\":true,\"guildId\":\"g1\"," +
+                "\"membershipEpoch\":4,\"membershipExpiresUtcMs\":9000000}";
+            Cc10GuildIdentityResult r = UnityEngine.JsonUtility.FromJson<Cc10GuildIdentityResult>(json);
+            Assert.IsTrue(r.success);
+            Assert.IsTrue(r.hasGuild);
+            Assert.AreEqual("g1", r.guildId);
+            Assert.AreEqual(4, r.membershipEpoch);
+            Assert.AreEqual(9000000, r.membershipExpiresUtcMs);
+        }
+
+        [Test]
+        public void GuildIdentityResult_DeserializesRealServerJson_NoGuildCase_StillSuccess()
+        {
+            const string json = "{\"success\":true,\"hasGuild\":false}";
+            Cc10GuildIdentityResult r = UnityEngine.JsonUtility.FromJson<Cc10GuildIdentityResult>(json);
+            Assert.IsTrue(r.success, "no-guild is a valid, successful state, never an error");
+            Assert.IsFalse(r.hasGuild);
+            Assert.IsTrue(string.IsNullOrEmpty(r.guildId));
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_Member_SetsGuildId_AcceptedStatus()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => Identity(hasGuild: true, guildId: "g1", epoch: 4, expires: 9_000_000) };
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            Assert.IsTrue(await client.RefreshGuildIdentityAsync());
+            Assert.AreEqual(Cc10GuildIdentityRefresh.Accepted, client.LastGuildIdentityRefresh);
+            Assert.AreEqual("g1", client.GuildId);
+            Assert.IsTrue(client.GuildIdentity.hasGuild);
+            Assert.AreEqual(4, client.GuildIdentity.membershipEpoch);
+            Assert.AreEqual(9_000_000, client.GuildIdentity.membershipExpiresUtcMs);
+            Assert.AreEqual(Cc10Connection.Online, client.Connection);
+            Assert.IsNull(gw.Calls.Single(c => c.Key == Cc10Endpoints.GetCallerGuildIdentity).Value,
+                "zero-arg call - no guildId, no hash, no request body of any kind sent");
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_NoGuild_IsAcceptedAndValid_GuildIdIsNull_NotAFailure()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => Identity(hasGuild: false) };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsTrue(await client.RefreshGuildIdentityAsync(), "no-guild is Accepted, not a failure");
+            Assert.AreEqual(Cc10GuildIdentityRefresh.Accepted, client.LastGuildIdentityRefresh);
+            Assert.IsNull(client.GuildId);
+            Assert.IsFalse(client.GuildIdentity.hasGuild);
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_RevokedOrExpired_ArrivesIdenticalToNoGuild_ClientNeverGuesses()
+        {
+            // BE deliberately does not distinguish never-joined/left/revoked/expired - all four collapse
+            // to hasGuild=false, success=true. This client must not attempt to tell them apart either.
+            var gw = new FakeGateway { Handler = (e, r) => Identity(hasGuild: false) };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsTrue(await client.RefreshGuildIdentityAsync());
+            Assert.IsNull(client.GuildId);
+            Assert.AreEqual(Cc10GuildIdentityRefresh.Accepted, client.LastGuildIdentityRefresh);
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_PreviouslyAMember_ThenRevoked_ClearsGuildIdOnTheNextRefresh()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => Identity(hasGuild: true, guildId: "g1", epoch: 1) };
+            var client = new Cc10FrontierClient(gw);
+            await client.RefreshGuildIdentityAsync();
+            Assert.AreEqual("g1", client.GuildId);
+
+            gw.Handler = (e, r) => Identity(hasGuild: false);
+            Assert.IsTrue(await client.RefreshGuildIdentityAsync());
+            Assert.IsNull(client.GuildId, "revocation must actually clear the previously-held guild id");
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_Unauthorized_FailsClosed_ClearsAnyPreviousGuildId()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => Identity(hasGuild: true, guildId: "g1") };
+            var client = new Cc10FrontierClient(gw);
+            await client.RefreshGuildIdentityAsync();
+            Assert.AreEqual("g1", client.GuildId);
+
+            gw.Handler = (e, r) => new Cc10GuildIdentityResult { success = false, errorCode = Cc10Errors.AuthenticationRequired };
+            Assert.IsFalse(await client.RefreshGuildIdentityAsync());
+            Assert.AreEqual(Cc10GuildIdentityRefresh.AuthenticationRequired, client.LastGuildIdentityRefresh);
+            Assert.IsNull(client.GuildId, "fail closed - never keep serving a stale guild id after an auth failure");
+            Assert.IsNull(client.GuildIdentity);
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_AuthorityUnavailable_FailsClosed()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10GuildIdentityResult { success = false, errorCode = Cc10Errors.AuthorityUnavailable } };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsFalse(await client.RefreshGuildIdentityAsync());
+            Assert.AreEqual(Cc10GuildIdentityRefresh.AuthorityUnavailable, client.LastGuildIdentityRefresh);
+            Assert.IsNull(client.GuildId);
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_StorageFailure_FailsClosed_NeverTreatedAsNoGuild()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10GuildIdentityResult { success = false, errorCode = Cc10Errors.StorageUnavailable } };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsFalse(await client.RefreshGuildIdentityAsync());
+            Assert.AreNotEqual(Cc10GuildIdentityRefresh.Accepted, client.LastGuildIdentityRefresh,
+                "a storage failure must never be reported the same way as a genuine no-guild answer");
+            Assert.IsNull(client.GuildId);
+            Assert.IsNull(client.GuildIdentity);
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_TransportFailure_FailsClosed_GoesOffline()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new InvalidOperationException("network") };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsFalse(await client.RefreshGuildIdentityAsync());
+            Assert.AreEqual(Cc10GuildIdentityRefresh.Offline, client.LastGuildIdentityRefresh);
+            Assert.AreEqual(Cc10Connection.Offline, client.Connection);
+            Assert.IsNull(client.GuildId);
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_MalformedPositiveResponse_HasGuildTrueButNoId_FailsClosed()
+        {
+            // A self-contradictory response (claims membership, names no guild) must never be trusted -
+            // the client neither invents a placeholder id nor silently treats it as no-guild.
+            var gw = new FakeGateway { Handler = (e, r) => Identity(hasGuild: true, guildId: null) };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsFalse(await client.RefreshGuildIdentityAsync());
+            Assert.AreEqual(Cc10GuildIdentityRefresh.Malformed, client.LastGuildIdentityRefresh);
+            Assert.IsNull(client.GuildId);
+            Assert.IsNull(client.GuildIdentity);
+        }
+
+        [Test]
+        public async Task RefreshGuildIdentity_NullResult_FailsClosed()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => (Cc10GuildIdentityResult)null };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsFalse(await client.RefreshGuildIdentityAsync());
+            Assert.AreEqual(Cc10GuildIdentityRefresh.Malformed, client.LastGuildIdentityRefresh);
+            Assert.IsNull(client.GuildId);
+        }
+
+        [Test]
+        public async Task GuildIdentityGuildId_FeedsOnlyIntoExistingGuildTerritoryPayload_NoNewEndpointInvented()
+        {
+            // The returned guildId must flow only into the existing EnrollContestDistrict/GetGuildState
+            // requests this client already builds - never a new call this task did not ask for.
+            var contest = new[] { Contest("central_ashfall") };
+            var gw = new FakeGateway { Handler = (e, r) =>
+                e == Cc10Endpoints.GetCallerGuildIdentity ? (object)Identity(hasGuild: true, guildId: "g1")
+                : e == Cc10Endpoints.GetFrontierState ? Snap()
+                : MapResult(1, unlocked: Cc10WorldMapPhaseToken.Central, contest: contest) };
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            Assert.IsTrue(await client.RefreshAllAsync());
+            Assert.IsTrue(await client.RefreshGuildIdentityAsync());
+            Assert.AreEqual("g1", client.GuildId);
+
+            Cc10Row row = Vm(client, Cc10SystemId.GuildTerritory).Rows.Single();
+            Assert.AreEqual("g1", row.Payload["guildId"], "the identity-supplied guildId reaches the existing Enroll payload unchanged");
+        }
+
+        [Test]
+        public void GuildIdentityRefresh_HasExactlyTheDocumentedOutcomes()
+        {
+            CollectionAssert.AreEquivalent(
+                new[] { "NotAttempted", "Accepted", "AuthenticationRequired", "AuthorityUnavailable", "Malformed", "Offline" },
+                Enum.GetNames(typeof(Cc10GuildIdentityRefresh)));
+        }
+
+        [Test]
+        public void GuildIdentityResult_HasExactlyTheApprovedFields()
+        {
+            CollectionAssert.AreEqual(new[] { "guildId", "hasGuild", "membershipEpoch", "membershipExpiresUtcMs" },
+                typeof(Cc10GuildIdentityResult).GetFields()
+                    .Where(f => f.DeclaringType == typeof(Cc10GuildIdentityResult))
+                    .Select(f => f.Name).OrderBy(n => n).ToArray());
+        }
     }
 }

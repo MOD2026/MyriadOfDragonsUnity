@@ -13,6 +13,12 @@ namespace MyriadOfDragons.Frontier
 
     public enum Cc10Outcome { Applied, Replayed, Conflict, Disabled, Offline, Rejected, InFlight, Failed }
 
+    /// <summary>Outcome of the most recent GetCallerGuildIdentity attempt. Only Accepted ever updates
+    /// <see cref="Cc10FrontierClient.GuildId"/>/<see cref="Cc10FrontierClient.GuildIdentity"/> - every
+    /// other value fails closed (clears both), including a malformed positive response
+    /// (hasGuild=true with an empty guildId, which this client never trusts).</summary>
+    public enum Cc10GuildIdentityRefresh { NotAttempted, Accepted, AuthenticationRequired, AuthorityUnavailable, Malformed, Offline }
+
     public sealed class Cc10CommandOutcome
     {
         public Cc10Outcome Outcome;
@@ -59,9 +65,16 @@ namespace MyriadOfDragons.Frontier
         /// occupancyVersion is ever accepted.</summary>
         public Cc10WorldMapSnapshotDto WorldMap { get; private set; }
         public Cc10WorldMapRefresh LastWorldMapRefresh { get; private set; } = Cc10WorldMapRefresh.NotAttempted;
-        /// <summary>The guild id GetGuildState last succeeded for, or null. Enrolling in a contest
-        /// needs it; this layer never invents one.</summary>
+        /// <summary>The caller's own current guild id, or null. Set ONLY from a successfully
+        /// Accepted <see cref="RefreshGuildIdentityAsync"/> (the server-owned answer to "what guild
+        /// am I in" - BE ec4b49b3) or from an explicit <see cref="RefreshGuildStateAsync"/> call;
+        /// this layer never supplies, hashes, or derives one itself. Enrolling in a contest needs it.</summary>
         public string GuildId { get; private set; }
+        /// <summary>Last accepted GetCallerGuildIdentity result, or null if never accepted. Carries
+        /// hasGuild/membershipEpoch/membershipExpiresUtcMs alongside guildId for a future UI to
+        /// render membership detail - this layer only reads guildId out of it.</summary>
+        public Cc10GuildIdentityResult GuildIdentity { get; private set; }
+        public Cc10GuildIdentityRefresh LastGuildIdentityRefresh { get; private set; } = Cc10GuildIdentityRefresh.NotAttempted;
         public Cc10Connection Connection { get; private set; } = Cc10Connection.Unknown;
         public IReadOnlyList<string> StateAnomalies => _anomalies;
         public int PendingRequestCount => _pendingRequestIds.Count;
@@ -150,6 +163,72 @@ namespace MyriadOfDragons.Frontier
             GuildId = guildId;
             RaiseChanged();
             return true;
+        }
+
+        /// <summary>The server-owned, zero-argument answer to "what guild is the caller currently
+        /// in" (BE ec4b49b3). Sends no guildId and performs no client-side hashing - GetServerUtc-
+        /// style identity, not a query. hasGuild=false/guildId=null is a VALID, successful no-guild
+        /// state (never-joined, left, revoked or expired all look identical here by design - BE
+        /// does not distinguish them) and updates <see cref="GuildId"/> to null exactly like any
+        /// other Accepted result. Every other outcome - a transport failure, an unsuccessful result
+        /// (AUTHENTICATION_REQUIRED/AUTHORITY_UNAVAILABLE/STORAGE_UNAVAILABLE/anything else), or a
+        /// malformed positive response (hasGuild=true with an empty guildId) - fails CLOSED: both
+        /// <see cref="GuildId"/> and <see cref="GuildIdentity"/> are cleared, never left holding a
+        /// stale or guessed value from a previous successful call.</summary>
+        public async Task<bool> RefreshGuildIdentityAsync(CancellationToken cancellationToken = default)
+        {
+            Cc10GuildIdentityResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10GuildIdentityResult>(Cc10Endpoints.GetCallerGuildIdentity, null, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                FailClosedGuildIdentity(Cc10GuildIdentityRefresh.Offline);
+                return false;
+            }
+
+            if (fresh == null)
+            {
+                FailClosedGuildIdentity(Cc10GuildIdentityRefresh.Malformed);
+                return false;
+            }
+
+            if (!fresh.success)
+            {
+                Cc10GuildIdentityRefresh status =
+                    fresh.errorCode == Cc10Errors.AuthenticationRequired ? Cc10GuildIdentityRefresh.AuthenticationRequired
+                    : fresh.errorCode == Cc10Errors.AuthorityUnavailable ? Cc10GuildIdentityRefresh.AuthorityUnavailable
+                    : Cc10GuildIdentityRefresh.Malformed; // STORAGE_UNAVAILABLE / anything else - still fail closed
+                FailClosedGuildIdentity(status);
+                return false;
+            }
+
+            if (fresh.hasGuild && string.IsNullOrEmpty(fresh.guildId))
+            {
+                // Self-contradictory positive response (claims membership but names no guild) -
+                // never trusted, same as any other malformed result.
+                FailClosedGuildIdentity(Cc10GuildIdentityRefresh.Malformed);
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            GuildIdentity = fresh;
+            GuildId = fresh.hasGuild ? fresh.guildId : null;
+            LastGuildIdentityRefresh = Cc10GuildIdentityRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
+
+        private void FailClosedGuildIdentity(Cc10GuildIdentityRefresh status)
+        {
+            GuildIdentity = null;
+            GuildId = null;
+            LastGuildIdentityRefresh = status;
+            RaiseChanged();
         }
 
         /// <summary>Reload everything a screen reads: the frontier snapshot AND the canonical World Map

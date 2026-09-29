@@ -1,7 +1,7 @@
 # CC10 Frontier Contract Export — Dependency Manifest
 
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
-**Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`7302a996`** (World Map DTO shape unchanged since **`bab7aab1`**)
+**Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`ec4b49b3`** (World Map DTO shape unchanged since **`bab7aab1`**)
 (approved private per-player World Map occupancy decision, 2026-09-28), which **supersedes**
 the earlier occupancy pass `fe0a2f5d`; season gating and color tokens amended by **`7718db3`** then **`bef39415`** (below).
 **Scope:** the minimal WH-owned client contract only — DTO field mappings, the canonical
@@ -27,7 +27,32 @@ Namespace for both: `MyriadOfDragons.Frontier` (keep it, or the two files stop c
   the Save assembly or delete those two lines; nothing else uses them.
 - No `UnityEngine`, `UnityEngine.UI` or `Unity.Services.*` reference is required.
 
-## World Map contract (BE bab7aab1) — `GetWorldMapSnapshot`
+## Guild identity (BE ec4b49b3) — `GetCallerGuildIdentity`
+
+Endpoint constant: `Cc10Endpoints.GetCallerGuildIdentity`. **Pure read, zero arguments** (`Task<Cc10GuildIdentityResult>`);
+the client never sends a guildId, a player id, or any hash of one - this endpoint is the ONLY authoritative source
+for "what guild is the caller currently in". `Cc10FrontierClient.RefreshGuildIdentityAsync()` wraps it.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `hasGuild` | bool | `true` only for a currently-valid membership, re-verified live server-side on every call. |
+| `guildId` | string? | The caller's own plaintext guild id, or `null`/empty when `hasGuild` is `false`. |
+| `membershipEpoch` | long | Set only when `hasGuild` is `true`. |
+| `membershipExpiresUtcMs` | long | Set only when `hasGuild` is `true`. |
+
+`hasGuild=false, guildId=null` is a **valid, successful** no-guild state (`success=true`) — never-joined, left, revoked
+and expired all collapse to this one shape; BE does not distinguish them and this client must not try to. The only
+case this client fails closed on is `success=false` (`AUTHENTICATION_REQUIRED`/`AUTHORITY_UNAVAILABLE`/
+`STORAGE_UNAVAILABLE`/anything else) or a transport failure — both clear `Cc10FrontierClient.GuildId` and
+`GuildIdentity` rather than keep serving a stale value, and `LastGuildIdentityRefresh` names why. A self-contradictory
+positive response (`hasGuild=true` with an empty `guildId`) is treated the same way — never trusted.
+
+The returned `guildId` feeds only the **existing** requests that already accept one: the `EnrollContestDistrict`
+payload (`Cc10ViewModels`' contest row) and `RefreshGuildStateAsync(guildId)` (`GetGuildState`) — no new endpoint
+was added to consume it. No Unity UI wires this yet (out of scope for this pass); `Cc10FrontierPresenter`'s
+`guildId`/`callerPseudonym` host-gap providers are unchanged.
+
+## World Map contract## World Map contract (BE bab7aab1) — `GetWorldMapSnapshot`
 
 Endpoint constant: `Cc10Endpoints.GetWorldMapSnapshot`. **Pure read, no request body**
 (`Task<WorldMapSnapshotResult>`); nothing is written. Result type `Cc10WorldMapSnapshotResult`
