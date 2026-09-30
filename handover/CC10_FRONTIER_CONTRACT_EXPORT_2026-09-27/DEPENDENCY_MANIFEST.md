@@ -3,6 +3,13 @@
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
 **Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`ec4b49b3`** (World Map DTO shape unchanged since **`bab7aab1`**)
 
+**Guild member search (BE `73793beb`, WH-CC11-096):** `SearchGuildMembers` - server-paged,
+server-filtered roster search keyed off the existing `GuildId` (never invented; skipped entirely,
+no request sent, when unknown). `limit` (1-50) is rejected by the server with `INVALID_REQUEST`
+outside that range, never clamped client- or server-side; `cursor` is an opaque server-issued
+offset token this client only ever echoes back. `Cc10FrontierClient.SearchGuildMembersAsync` /
+`GuildMemberSearch` / `LastGuildMemberSearchRefresh`.
+
 **CC11 (BE `7ac011a1` seams, wired live at BE-CC11-005 `0b822dcd`, WH-CC11-006):** all seven
 CloudCodeFunctions are now real and wired client-side: `GetWorldMapBaseSnapshot`,
 `PlaceWorldMapBase`, `RelocateWorldMapBase` (24h cooldown via `RATE_LIMITED`), `GetCargoSelectionCatalog`,

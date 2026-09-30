@@ -112,6 +112,9 @@ namespace MyriadOfDragons.Frontier
         /// this layer never supplies a guildId of its own.</summary>
         public Cc10GuildManagementSnapshotDto GuildManagement { get; private set; }
         public Cc10ReadRefresh LastGuildManagementRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
+        /// <summary>Last accepted SearchGuildMembers page, or null before the first search.</summary>
+        public Cc10GuildMemberSearchResult GuildMemberSearch { get; private set; }
+        public Cc10ReadRefresh LastGuildMemberSearchRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
         /// <summary>Last accepted GetRankingSeasonSource result. Null season is a valid answer -
         /// no Accepting/Frozen/Published season currently exists.</summary>
         public Cc10RankingSeasonSourceDto RankingSeasonSource { get; private set; }
@@ -382,6 +385,56 @@ namespace MyriadOfDragons.Frontier
             Clock.Sample(fresh.serverUtcMs);
             GuildManagement = fresh.guild;
             LastGuildManagementRefresh = Cc10ReadRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
+
+        /// <summary>Server-paged, server-filtered search of the caller's own guild's member
+        /// roster (BE 73793beb). Uses <see cref="GuildId"/> - never an invented guildId; skipped
+        /// entirely, no request sent, when this client has none yet, exactly like
+        /// <see cref="RefreshGuildHallManagementAsync"/>. query/cursor/limit are passed through
+        /// verbatim - limit is NOT clamped here: the server rejects an out-of-range value (1-50)
+        /// with INVALID_REQUEST rather than silently adjusting it, and this client does not paper
+        /// over that with a local clamp. cursor is the opaque token the server itself returned
+        /// from a prior page (nextCursor) - this client never parses or computes it.</summary>
+        public async Task<bool> SearchGuildMembersAsync(string query = null, string cursor = null, int limit = 20, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(GuildId))
+                return false;
+
+            var request = new Dictionary<string, object>
+            {
+                ["guildId"] = GuildId,
+                ["query"] = query ?? string.Empty,
+                ["cursor"] = cursor ?? string.Empty,
+                ["limit"] = limit,
+            };
+
+            Cc10GuildMemberSearchResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10GuildMemberSearchResult>(Cc10Endpoints.SearchGuildMembers, request, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                LastGuildMemberSearchRefresh = Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                LastGuildMemberSearchRefresh = fresh == null ? Cc10ReadRefresh.Malformed : Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            GuildMemberSearch = fresh;
+            LastGuildMemberSearchRefresh = Cc10ReadRefresh.Accepted;
             RaiseChanged();
             return true;
         }

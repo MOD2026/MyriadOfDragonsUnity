@@ -142,6 +142,7 @@ namespace MyriadOfDragons.Frontier
         public const string GetCargoSelectionCatalog = "GetCargoSelectionCatalog";
         public const string AcceptCargoParticipants = "AcceptCargoParticipants";
         public const string GetGuildHallManagement = "GetGuildHallManagement";
+        public const string SearchGuildMembers = "SearchGuildMembers"; // BE 73793beb
         public const string GetRankingSeasonSource = "GetRankingSeasonSource";
     }
 
@@ -498,6 +499,18 @@ namespace MyriadOfDragons.Frontier
     public sealed class Cc10GuildManagementResult : Cc10ResultBase
     {
         public Cc10GuildManagementSnapshotDto guild;
+    }
+
+    /// <summary>SearchGuildMembers's result (BE 73793beb): server-paged, server-filtered roster
+    /// search. limit is validated server-side (1-50) and rejected with InvalidRequest outside
+    /// that range - never clamped, client- or server-side - and cursor is an opaque offset token
+    /// this client only ever echoes back, never parses or computes.</summary>
+    [Serializable]
+    public sealed class Cc10GuildMemberSearchResult : Cc10ResultBase
+    {
+        public string query = string.Empty;
+        public Cc10GuildMemberDto[] members = Array.Empty<Cc10GuildMemberDto>();
+        public string nextCursor;
     }
 
     // ---- DTOs ------------------------------------------------------------------------------
