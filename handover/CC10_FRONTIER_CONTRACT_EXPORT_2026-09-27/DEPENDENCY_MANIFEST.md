@@ -2,6 +2,14 @@
 
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
 **Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`ec4b49b3`** (World Map DTO shape unchanged since **`bab7aab1`**)
+
+**CC11 seams (BE `7ac011a1`, WH-CC11-001):** `Cc10Contracts.cs` mirrors BE's new World Map
+base-placement, Cargo participant-selection, guild membership-management, and ranking-season-source
+DTOs (shape only). **No CloudCodeFunction exists for any of them yet** — `7ac011a1` adds only DTO
+types under `CC11Contracts.cs`/`CC11State.cs`, no module registration, no service method. No
+`Cc10Endpoints` constant and no `Cc10FrontierClient` gateway method was added for these — there is
+nothing real to call. Base placement is additionally out of Beta scope per the `bab7aab1` decision
+below regardless of when BE wires an endpoint.
 (approved private per-player World Map occupancy decision, 2026-09-28), which **supersedes**
 the earlier occupancy pass `fe0a2f5d`; season gating and color tokens amended by **`7718db3`** then **`bef39415`** (below).
 **Scope:** the minimal WH-owned client contract only — DTO field mappings, the canonical

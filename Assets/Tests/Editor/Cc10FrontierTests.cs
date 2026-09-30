@@ -2280,5 +2280,112 @@ namespace MyriadOfDragons.Tests
                     .Where(f => f.DeclaringType == typeof(Cc10GuildIdentityResult))
                     .Select(f => f.Name).OrderBy(n => n).ToArray());
         }
+
+        // ---- BE 7ac011a1 (WH-CC11-001): CC11 contract seam mirrors - shape parity only, no
+        // endpoint exists on the real server yet, so no gateway call is exercised here. ----
+
+        [Test]
+        public void WorldMapBasePlacementDto_RoundTripsAndMatchesBeShape()
+        {
+            const string json = "{\"status\":\"Placed\",\"operation\":\"Place\",\"baseNodeId\":\"node-1\"," +
+                "\"pendingNodeId\":null,\"changedUtcMs\":10}";
+            var dto = UnityEngine.JsonUtility.FromJson<Cc10WorldMapBasePlacementDto>(json);
+            Assert.AreEqual(Cc10WorldMapBaseStatus.Placed, dto.status);
+            Assert.AreEqual(Cc10WorldMapBaseOperation.Place, dto.operation);
+            Assert.AreEqual("node-1", dto.baseNodeId);
+            Assert.AreEqual(10, dto.changedUtcMs);
+            CollectionAssert.AreEqual(new[] { "baseNodeId", "changedUtcMs", "operation", "pendingNodeId", "status" },
+                typeof(Cc10WorldMapBasePlacementDto).GetFields().Select(f => f.Name).OrderBy(n => n).ToArray());
+        }
+
+        [Test]
+        public void CargoParticipantSelectionState_RoundTripsAndMatchesBeShape()
+        {
+            var state = new Cc10CargoParticipantSelectionState
+            {
+                selection = new Cc10CargoParticipantSelectionDto { avatarId = "a1", armyId = "ar1", missionId = "m1", selectedUtcMs = 5 },
+                stateVersion = 3,
+            };
+            string json = UnityEngine.JsonUtility.ToJson(state);
+            var roundTrip = UnityEngine.JsonUtility.FromJson<Cc10CargoParticipantSelectionState>(json);
+            Assert.AreEqual("a1", roundTrip.selection.avatarId);
+            Assert.AreEqual("ar1", roundTrip.selection.armyId);
+            Assert.AreEqual("m1", roundTrip.selection.missionId);
+            Assert.AreEqual(5, roundTrip.selection.selectedUtcMs);
+            Assert.AreEqual(3, roundTrip.stateVersion);
+        }
+
+        [Test]
+        public void GuildManagementSnapshotDto_RoundTripsAllSixApprovedReadSurfaces()
+        {
+            var snapshot = new Cc10GuildManagementSnapshotDto
+            {
+                members = new[] { new Cc10GuildMemberDto { memberId = "m-1", displayName = "Alice", positionId = "p-1", joinedUtcMs = 1, online = true } },
+                store = new[] { new Cc10GuildStoreItemDto { itemId = "item-1", name = "Banner", available = true } },
+                offices = new[] { new Cc10GuildOfficeDto { officeId = "office-1", positionId = "p-1", holderMemberId = "m-1" } },
+                positions = new[] { new Cc10GuildPositionDto { positionId = "p-1", name = "Officer", permissions = new[] { "invite" } } },
+                research = new[] { new Cc10GuildResearchStateDto { nodeId = "GUILD_1", status = Cc10ResearchStatus.InProgress, progress = 2, required = 5, readyUtcMs = 0 } },
+                announcements = new[] { new Cc10GuildAnnouncementDto { announcementId = "an-1", authorMemberId = "m-1", body = "hi", publishedUtcMs = 2 } },
+            };
+            string json = UnityEngine.JsonUtility.ToJson(snapshot);
+            var roundTrip = UnityEngine.JsonUtility.FromJson<Cc10GuildManagementSnapshotDto>(json);
+            Assert.AreEqual(1, roundTrip.members.Length);
+            Assert.AreEqual("Alice", roundTrip.members[0].displayName);
+            Assert.IsTrue(roundTrip.members[0].online);
+            Assert.AreEqual(1, roundTrip.store.Length);
+            Assert.IsTrue(roundTrip.store[0].available);
+            Assert.AreEqual(1, roundTrip.offices.Length);
+            Assert.AreEqual("m-1", roundTrip.offices[0].holderMemberId);
+            Assert.AreEqual(1, roundTrip.positions.Length);
+            CollectionAssert.AreEqual(new[] { "invite" }, roundTrip.positions[0].permissions);
+            Assert.AreEqual(1, roundTrip.research.Length);
+            Assert.AreEqual(Cc10ResearchStatus.InProgress, roundTrip.research[0].status);
+            Assert.AreEqual(1, roundTrip.announcements.Length);
+            Assert.AreEqual("hi", roundTrip.announcements[0].body);
+        }
+
+        [Test]
+        public void GuildMemberSearchDto_RoundTripsQueryAndCursor()
+        {
+            var search = new Cc10GuildMemberSearchDto
+            {
+                query = "ali",
+                members = new[] { new Cc10GuildMemberDto { memberId = "m-1", displayName = "Alice" } },
+                nextCursor = "cursor-2",
+            };
+            string json = UnityEngine.JsonUtility.ToJson(search);
+            var roundTrip = UnityEngine.JsonUtility.FromJson<Cc10GuildMemberSearchDto>(json);
+            Assert.AreEqual("ali", roundTrip.query);
+            Assert.AreEqual(1, roundTrip.members.Length);
+            Assert.AreEqual("cursor-2", roundTrip.nextCursor);
+        }
+
+        [Test]
+        public void RankingSeasonSourceResult_RoundTripsAndReusesExistingSeasonStateVocabulary()
+        {
+            const string json = "{\"success\":true,\"errorCode\":\"\",\"serverUtcMs\":100,\"utcDayKey\":\"d1\"," +
+                "\"authorityGeneration\":1,\"stateVersion\":1,\"season\":{\"source\":\"CC10Frontier.RankingSeasonState\"," +
+                "\"seasonId\":\"s-1\",\"state\":\"Accepting\",\"createdUtcMs\":5,\"serverUtcMs\":100}}";
+            var result = UnityEngine.JsonUtility.FromJson<Cc10RankingSeasonSourceResult>(json);
+            Assert.IsTrue(result.success);
+            Assert.AreEqual("CC10Frontier.RankingSeasonState", result.season.source);
+            Assert.AreEqual("s-1", result.season.seasonId);
+            Assert.AreEqual(Cc10SeasonState.Accepting, result.season.state);
+            Assert.AreEqual(5, result.season.createdUtcMs);
+        }
+
+        [Test]
+        public void Cc11Seams_HaveNoCorrespondingEndpointConstant_BeExposesNoCloudCodeFunctionYet()
+        {
+            // BE 7ac011a1 registers zero CloudCodeFunctions for these seams (verified via git grep
+            // against CC10FrontierModule.cs/CC10FrontierService*.cs at that commit). Guards against a
+            // future edit silently adding a call to an endpoint name the server does not expose.
+            string[] endpointConstants = typeof(Cc10Endpoints).GetFields()
+                .Select(f => (string)f.GetRawConstantValue()).ToArray();
+            CollectionAssert.DoesNotContain(endpointConstants, "GetWorldMapBasePlacement");
+            CollectionAssert.DoesNotContain(endpointConstants, "SelectCargoParticipants");
+            CollectionAssert.DoesNotContain(endpointConstants, "GetGuildManagementSnapshot");
+            CollectionAssert.DoesNotContain(endpointConstants, "GetRankingSeasonSource");
+        }
     }
 }

@@ -297,6 +297,154 @@ namespace MyriadOfDragons.Frontier
         public long membershipExpiresUtcMs;
     }
 
+    // ---- CC11 contract seams (BE 7ac011a1) ------------------------------------------------
+    // WH-CC11-001: DTO mirrors only. BE commit 7ac011a1 adds these types to
+    // CloudCode/CC10Frontier/CC11Contracts.cs and CC11State.cs, but registers NO
+    // CloudCodeFunction and no CC10FrontierService method for any of them - grepping
+    // CC10FrontierModule.cs and every CC10FrontierService*.cs at that commit for these type
+    // names returns nothing. There is no endpoint to call yet, so no Cc10Endpoints constant
+    // and no Cc10FrontierClient gateway method is added for these seams - inventing either
+    // would mean calling a CloudCodeFunction that does not exist on the real server. These
+    // mirrors exist so the DTO shape is already right, and covered by parity tests, the
+    // moment BE exposes a real read/command endpoint for World Map base placement, Cargo
+    // participant selection, guild membership management, or the ranking-season source.
+    // Note also: docs/AI_CONTRIBUTING and this file's own bab7aab1 note record Beta as
+    // ExpandNode-only territory (no base placement/wells/relocation) - base placement in
+    // particular is out of Beta scope even once BE wires an endpoint for it.
+
+    public static class Cc10WorldMapBaseOperation
+    {
+        public const string None = "None";
+        public const string Place = "Place";
+        public const string Relocate = "Relocate";
+    }
+
+    public static class Cc10WorldMapBaseStatus
+    {
+        public const string Unplaced = "Unplaced";
+        public const string Placed = "Placed";
+        public const string RelocationPending = "RelocationPending";
+        public const string Relocated = "Relocated";
+    }
+
+    [Serializable]
+    public class Cc10WorldMapBasePlacementDto
+    {
+        public string status = string.Empty;
+        public string operation = string.Empty;
+        public string baseNodeId;
+        public string pendingNodeId;
+        public long changedUtcMs;
+    }
+
+    [Serializable]
+    public class Cc10CargoParticipantSelectionDto
+    {
+        public string avatarId;
+        public string armyId;
+        public string missionId;
+        public long selectedUtcMs;
+    }
+
+    [Serializable]
+    public class Cc10CargoParticipantSelectionState
+    {
+        public Cc10CargoParticipantSelectionDto selection;
+        public long stateVersion;
+    }
+
+    [Serializable]
+    public class Cc10GuildMemberDto
+    {
+        public string memberId = string.Empty;
+        public string displayName = string.Empty;
+        public string positionId;
+        public long joinedUtcMs;
+        public bool online;
+    }
+
+    [Serializable]
+    public class Cc10GuildMemberSearchDto
+    {
+        public string query = string.Empty;
+        public Cc10GuildMemberDto[] members = Array.Empty<Cc10GuildMemberDto>();
+        public string nextCursor;
+    }
+
+    [Serializable]
+    public class Cc10GuildStoreItemDto
+    {
+        public string itemId = string.Empty;
+        public string name = string.Empty;
+        public bool available;
+    }
+
+    [Serializable]
+    public class Cc10GuildOfficeDto
+    {
+        public string officeId = string.Empty;
+        public string positionId;
+        public string holderMemberId;
+    }
+
+    [Serializable]
+    public class Cc10GuildPositionDto
+    {
+        public string positionId = string.Empty;
+        public string name = string.Empty;
+        public string[] permissions = Array.Empty<string>();
+    }
+
+    /// <summary>status is Cc10ResearchStatus (InProgress/Completed) - reuses the same vocabulary
+    /// as individual/guild research, not a new status set.</summary>
+    [Serializable]
+    public class Cc10GuildResearchStateDto
+    {
+        public string nodeId = string.Empty;
+        public string status = string.Empty;
+        public int progress;
+        public int required;
+        public long readyUtcMs;
+    }
+
+    [Serializable]
+    public class Cc10GuildAnnouncementDto
+    {
+        public string announcementId = string.Empty;
+        public string authorMemberId = string.Empty;
+        public string body = string.Empty;
+        public long publishedUtcMs;
+    }
+
+    [Serializable]
+    public class Cc10GuildManagementSnapshotDto
+    {
+        public Cc10GuildMemberDto[] members = Array.Empty<Cc10GuildMemberDto>();
+        public Cc10GuildStoreItemDto[] store = Array.Empty<Cc10GuildStoreItemDto>();
+        public Cc10GuildOfficeDto[] offices = Array.Empty<Cc10GuildOfficeDto>();
+        public Cc10GuildPositionDto[] positions = Array.Empty<Cc10GuildPositionDto>();
+        public Cc10GuildResearchStateDto[] research = Array.Empty<Cc10GuildResearchStateDto>();
+        public Cc10GuildAnnouncementDto[] announcements = Array.Empty<Cc10GuildAnnouncementDto>();
+    }
+
+    /// <summary>state is Cc10SeasonState (Created/Accepting/Frozen/Published/Archived) - the same
+    /// vocabulary Cc10RankingViewDto.state already uses, not a new status set.</summary>
+    [Serializable]
+    public class Cc10RankingSeasonSourceDto
+    {
+        public string source = string.Empty;
+        public string seasonId = string.Empty;
+        public string state = string.Empty;
+        public long createdUtcMs;
+        public long serverUtcMs;
+    }
+
+    [Serializable]
+    public sealed class Cc10RankingSeasonSourceResult : Cc10ResultBase
+    {
+        public Cc10RankingSeasonSourceDto season;
+    }
+
     // ---- DTOs ------------------------------------------------------------------------------
 
     [Serializable]
