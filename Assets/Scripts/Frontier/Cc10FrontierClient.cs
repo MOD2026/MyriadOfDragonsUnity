@@ -19,11 +19,31 @@ namespace MyriadOfDragons.Frontier
     /// (hasGuild=true with an empty guildId, which this client never trusts).</summary>
     public enum Cc10GuildIdentityRefresh { NotAttempted, Accepted, AuthenticationRequired, AuthorityUnavailable, Malformed, Offline }
 
+    /// <summary>Outcome of a pure read against the CC11 (BE-CC11-005) surfaces - World Map base
+    /// snapshot, Cargo selection catalog, Guild Hall management, ranking-season source. Failure
+    /// keeps the last accepted value (read-only degrade), matching RefreshWorldMapAsync's own
+    /// keep-last-good convention - these are not identity-sensitive like GetCallerGuildIdentity.</summary>
+    public enum Cc10ReadRefresh { NotAttempted, Accepted, Offline, Malformed }
+
     public sealed class Cc10CommandOutcome
     {
         public Cc10Outcome Outcome;
         public string Message = string.Empty;
         public Cc10CommandResult Response;
+    }
+
+    public sealed class Cc10BaseCommandOutcome
+    {
+        public Cc10Outcome Outcome;
+        public string Message = string.Empty;
+        public Cc10WorldMapBasePlacementResult Response;
+    }
+
+    public sealed class Cc10CargoSelectionOutcome
+    {
+        public Cc10Outcome Outcome;
+        public string Message = string.Empty;
+        public Cc10CargoParticipantSelectionResult Response;
     }
 
     /// <summary>
@@ -75,6 +95,27 @@ namespace MyriadOfDragons.Frontier
         /// render membership detail - this layer only reads guildId out of it.</summary>
         public Cc10GuildIdentityResult GuildIdentity { get; private set; }
         public Cc10GuildIdentityRefresh LastGuildIdentityRefresh { get; private set; } = Cc10GuildIdentityRefresh.NotAttempted;
+        /// <summary>Last accepted GetWorldMapBaseSnapshot's own base placement (BE-CC11-005) -
+        /// server-owned status/operation/nodeId, never client-derived.</summary>
+        public Cc10WorldMapBasePlacementDto BasePlacement { get; private set; }
+        /// <summary>Server-owned list of placement-eligible node ids from the same snapshot - this
+        /// client never computes eligible cells itself.</summary>
+        public string[] BaseCells { get; private set; } = Array.Empty<string>();
+        /// <summary>occupancyVersion from the last accepted base snapshot - the CAS token
+        /// PlaceWorldMapBase/RelocateWorldMapBase echo back; refreshed after every accepted or
+        /// conflicting base command so a retry always carries the latest token.</summary>
+        public int BaseOccupancyVersion { get; private set; }
+        public Cc10ReadRefresh LastBaseSnapshotRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
+        public Cc10CargoSelectionCatalogResult CargoCatalog { get; private set; }
+        public Cc10ReadRefresh LastCargoCatalogRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
+        /// <summary>Last accepted GetGuildHallManagement snapshot, keyed off <see cref="GuildId"/> -
+        /// this layer never supplies a guildId of its own.</summary>
+        public Cc10GuildManagementSnapshotDto GuildManagement { get; private set; }
+        public Cc10ReadRefresh LastGuildManagementRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
+        /// <summary>Last accepted GetRankingSeasonSource result. Null season is a valid answer -
+        /// no Accepting/Frozen/Published season currently exists.</summary>
+        public Cc10RankingSeasonSourceDto RankingSeasonSource { get; private set; }
+        public Cc10ReadRefresh LastRankingSeasonSourceRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
         public Cc10Connection Connection { get; private set; } = Cc10Connection.Unknown;
         public IReadOnlyList<string> StateAnomalies => _anomalies;
         public int PendingRequestCount => _pendingRequestIds.Count;
@@ -229,6 +270,336 @@ namespace MyriadOfDragons.Frontier
             GuildId = null;
             LastGuildIdentityRefresh = status;
             RaiseChanged();
+        }
+
+        // ---- BE-CC11-005: World Map base placement, Cargo participant selection, Guild Hall
+        // management, ranking-season source. Reads keep the last accepted value on failure
+        // (matching RefreshWorldMapAsync); the two mutating commands below never optimistically
+        // apply anything and fail closed whenever this client is offline or has no state loaded -
+        // they only ever reflect what a subsequent successful response actually said. ----
+
+        /// <summary>The server-owned base-placement cell list and CAS tokens. Never computes
+        /// eligible cells or a mapVersion/occupancyVersion itself - both are echoed straight from
+        /// the response.</summary>
+        public async Task<bool> RefreshWorldMapBaseSnapshotAsync(CancellationToken cancellationToken = default)
+        {
+            Cc10WorldMapBaseSnapshotResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10WorldMapBaseSnapshotResult>(Cc10Endpoints.GetWorldMapBaseSnapshot, null, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                LastBaseSnapshotRefresh = Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                LastBaseSnapshotRefresh = fresh == null ? Cc10ReadRefresh.Malformed : Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            BasePlacement = fresh.basePlacement;
+            BaseCells = fresh.cells ?? Array.Empty<string>();
+            BaseOccupancyVersion = fresh.occupancyVersion;
+            LastBaseSnapshotRefresh = Cc10ReadRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
+
+        /// <summary>Server-owned eligible mission/avatar/formation lists for Cargo participant
+        /// selection - avatars/formations already locked elsewhere are excluded server-side.</summary>
+        public async Task<bool> RefreshCargoSelectionCatalogAsync(CancellationToken cancellationToken = default)
+        {
+            Cc10CargoSelectionCatalogResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10CargoSelectionCatalogResult>(Cc10Endpoints.GetCargoSelectionCatalog, null, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                LastCargoCatalogRefresh = Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                LastCargoCatalogRefresh = fresh == null ? Cc10ReadRefresh.Malformed : Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            CargoCatalog = fresh;
+            LastCargoCatalogRefresh = Cc10ReadRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
+
+        /// <summary>Guild Hall management snapshot for <see cref="GuildId"/> - the caller's own,
+        /// already-known guild id from <see cref="RefreshGuildIdentityAsync"/>/
+        /// <see cref="RefreshGuildStateAsync"/>. Never calls with an invented guildId: if this
+        /// client has none yet, the call is skipped entirely rather than sent with a guess.</summary>
+        public async Task<bool> RefreshGuildHallManagementAsync(CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(GuildId))
+                return false;
+
+            Cc10GuildManagementResult fresh;
+            var request = new Dictionary<string, object> { ["guildId"] = GuildId };
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10GuildManagementResult>(Cc10Endpoints.GetGuildHallManagement, request, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                LastGuildManagementRefresh = Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                LastGuildManagementRefresh = fresh == null ? Cc10ReadRefresh.Malformed : Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            GuildManagement = fresh.guild;
+            LastGuildManagementRefresh = Cc10ReadRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
+
+        public async Task<bool> RefreshRankingSeasonSourceAsync(CancellationToken cancellationToken = default)
+        {
+            Cc10RankingSeasonSourceResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10RankingSeasonSourceResult>(Cc10Endpoints.GetRankingSeasonSource, null, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                LastRankingSeasonSourceRefresh = Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                LastRankingSeasonSourceRefresh = fresh == null ? Cc10ReadRefresh.Malformed : Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            RankingSeasonSource = fresh.season; // null is a valid answer - no live season
+            LastRankingSeasonSourceRefresh = Cc10ReadRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
+
+        public Task<Cc10BaseCommandOutcome> PlaceWorldMapBaseAsync(string nodeId, CancellationToken cancellationToken = default) =>
+            ChangeBaseAsync(Cc10WorldMapBaseOperation.Place, nodeId, cancellationToken);
+
+        public Task<Cc10BaseCommandOutcome> RelocateWorldMapBaseAsync(string nodeId, CancellationToken cancellationToken = default) =>
+            ChangeBaseAsync(Cc10WorldMapBaseOperation.Relocate, nodeId, cancellationToken);
+
+        /// <summary>Places or relocates the caller's base on a server-owned eligible cell. Offline,
+        /// no-state, disabled-system, or a blank nodeId all fail closed before any request is
+        /// sent - never an optimistic local placement. mapVersion/occupancyVersion are echoed
+        /// straight from the last accepted base snapshot, never computed here.</summary>
+        private async Task<Cc10BaseCommandOutcome> ChangeBaseAsync(string operation, string nodeId, CancellationToken cancellationToken)
+        {
+            if (Connection != Cc10Connection.Online || !HasState)
+                return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Offline, Message = Cc10Copy.Offline };
+            if (IsSystemDisabled(Cc10SystemId.WorldMap))
+                return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Disabled, Message = Cc10Copy.SystemDisabled };
+            if (string.IsNullOrEmpty(nodeId))
+                return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Rejected, Message = Cc10Copy.ForRejection(Cc10Errors.InvalidRequest) };
+
+            string key = "WorldMapBase|" + operation;
+            if (!_inFlight.Add(key))
+                return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.InFlight, Message = Cc10Copy.InFlight };
+
+            try
+            {
+                if (!_pendingRequestIds.TryGetValue(key, out string requestId))
+                {
+                    requestId = _newRequestId();
+                    _pendingRequestIds[key] = requestId;
+                }
+
+                var request = new Dictionary<string, object>
+                {
+                    ["operation"] = operation,
+                    ["nodeId"] = nodeId,
+                    ["mapVersion"] = WorldMap != null ? WorldMap.mapVersion : string.Empty,
+                    ["occupancyVersion"] = BaseOccupancyVersion,
+                    ["requestId"] = requestId,
+                    ["expectedStateVersion"] = Snapshot.stateVersion,
+                    ["expectedAuthorityGeneration"] = Snapshot.authorityGeneration,
+                };
+
+                Cc10WorldMapBasePlacementResult response;
+                try
+                {
+                    string endpoint = operation == Cc10WorldMapBaseOperation.Place ? Cc10Endpoints.PlaceWorldMapBase : Cc10Endpoints.RelocateWorldMapBase;
+                    response = await _gateway.CallAsync<Cc10WorldMapBasePlacementResult>(endpoint, request, cancellationToken);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception)
+                {
+                    // Lost response: keep the request id so a retry replays the original request.
+                    Connection = Cc10Connection.Offline;
+                    RaiseChanged();
+                    return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
+                }
+
+                if (response == null)
+                {
+                    Connection = Cc10Connection.Offline;
+                    RaiseChanged();
+                    return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
+                }
+
+                Clock.Sample(response.serverUtcMs);
+
+                if (response.errorCode == Cc10Errors.SystemDisabled)
+                {
+                    _pendingRequestIds.Remove(key);
+                    await RefreshAsync(cancellationToken);
+                    return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Disabled, Message = Cc10Copy.SystemDisabled, Response = response };
+                }
+
+                if (response.success)
+                {
+                    _pendingRequestIds.Remove(key);
+                    BasePlacement = response.basePlacement;
+                    await RefreshWorldMapBaseSnapshotAsync(cancellationToken); // reloads the canonical cells/occupancyVersion
+                    return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Applied, Response = response };
+                }
+
+                _pendingRequestIds.Remove(key);
+                if (response.errorCode == Cc10Errors.Conflict || response.errorCode == Cc10Errors.AuthorityStale)
+                {
+                    await RefreshWorldMapBaseSnapshotAsync(cancellationToken); // first valid CAS wins; reload the latest token
+                    return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Conflict, Message = Cc10Copy.Conflict, Response = response };
+                }
+
+                return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Rejected, Message = Cc10Copy.ForRejection(response.errorCode), Response = response };
+            }
+            finally
+            {
+                _inFlight.Remove(key);
+            }
+        }
+
+        /// <summary>Locks an avatar/army/formation onto one cargo's mission. Offline, no-state,
+        /// disabled-system, or any blank required field all fail closed before any request is
+        /// sent - never an optimistic local lock.</summary>
+        public async Task<Cc10CargoSelectionOutcome> AcceptCargoParticipantsAsync(
+            string cargoId, string avatarId, string armyId, string formationId, string missionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (Connection != Cc10Connection.Online || !HasState)
+                return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Offline, Message = Cc10Copy.Offline };
+            if (IsSystemDisabled(Cc10SystemId.Cargo))
+                return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Disabled, Message = Cc10Copy.SystemDisabled };
+            if (string.IsNullOrEmpty(cargoId) || string.IsNullOrEmpty(avatarId) || string.IsNullOrEmpty(formationId) || string.IsNullOrEmpty(missionId))
+                return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Rejected, Message = Cc10Copy.ForRejection(Cc10Errors.InvalidRequest) };
+
+            string key = "AcceptCargoParticipants|" + cargoId;
+            if (!_inFlight.Add(key))
+                return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.InFlight, Message = Cc10Copy.InFlight };
+
+            try
+            {
+                if (!_pendingRequestIds.TryGetValue(key, out string requestId))
+                {
+                    requestId = _newRequestId();
+                    _pendingRequestIds[key] = requestId;
+                }
+
+                var request = new Dictionary<string, object>
+                {
+                    ["cargoId"] = cargoId,
+                    ["avatarId"] = avatarId,
+                    ["armyId"] = armyId,
+                    ["formationId"] = formationId,
+                    ["missionId"] = missionId,
+                    ["requestId"] = requestId,
+                    ["expectedStateVersion"] = Snapshot.stateVersion,
+                    ["expectedAuthorityGeneration"] = Snapshot.authorityGeneration,
+                };
+
+                Cc10CargoParticipantSelectionResult response;
+                try
+                {
+                    response = await _gateway.CallAsync<Cc10CargoParticipantSelectionResult>(Cc10Endpoints.AcceptCargoParticipants, request, cancellationToken);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception)
+                {
+                    Connection = Cc10Connection.Offline;
+                    RaiseChanged();
+                    return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
+                }
+
+                if (response == null)
+                {
+                    Connection = Cc10Connection.Offline;
+                    RaiseChanged();
+                    return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Failed, Message = Cc10Copy.ConnectionLost };
+                }
+
+                Clock.Sample(response.serverUtcMs);
+
+                if (response.errorCode == Cc10Errors.SystemDisabled)
+                {
+                    _pendingRequestIds.Remove(key);
+                    await RefreshAsync(cancellationToken);
+                    return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Disabled, Message = Cc10Copy.SystemDisabled, Response = response };
+                }
+
+                if (response.success)
+                {
+                    _pendingRequestIds.Remove(key);
+                    await RefreshCargoSelectionCatalogAsync(cancellationToken); // eligible avatar/formation lists change once locked
+                    return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Applied, Response = response };
+                }
+
+                _pendingRequestIds.Remove(key);
+                if (response.errorCode == Cc10Errors.Conflict || response.errorCode == Cc10Errors.AuthorityStale)
+                {
+                    await RefreshCargoSelectionCatalogAsync(cancellationToken);
+                    return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Conflict, Message = Cc10Copy.Conflict, Response = response };
+                }
+
+                return new Cc10CargoSelectionOutcome { Outcome = Cc10Outcome.Rejected, Message = Cc10Copy.ForRejection(response.errorCode), Response = response };
+            }
+            finally
+            {
+                _inFlight.Remove(key);
+            }
         }
 
         /// <summary>Reload everything a screen reads: the frontier snapshot AND the canonical World Map
@@ -476,6 +847,10 @@ namespace MyriadOfDragons.Frontier
         public const string MissionSlotsFull = "All your mission slots are full right now.";
         public const string MinigameInvalidStream = "That result couldn't be verified. Try again.";
         public const string ColorUnavailable = "No guild color is free right now. Try again later.";
+        public const string InvalidRequest = "That request wasn't valid.";
+        public const string InvalidState = "That's not available from here right now.";
+        public const string BaseRelocationCoolingDown = "Your base was moved recently. Try again later.";
+        public const string AlreadyOwned = "You already own that location.";
         public const string Generic = "That didn't go through.";
 
         public static string ForRejection(string errorCode)
@@ -493,6 +868,10 @@ namespace MyriadOfDragons.Frontier
             if (errorCode == Cc10Errors.PrerequisiteNotMet) return PrerequisiteNotMet;
             if (errorCode == Cc10Errors.MissionSlotsFull) return MissionSlotsFull;
             if (errorCode == Cc10Errors.MinigameInvalidStream) return MinigameInvalidStream;
+            if (errorCode == Cc10Errors.InvalidRequest) return InvalidRequest;
+            if (errorCode == Cc10Errors.InvalidState) return InvalidState;
+            if (errorCode == Cc10Errors.RateLimited) return BaseRelocationCoolingDown;
+            if (errorCode == Cc10Errors.AlreadyOwned) return AlreadyOwned;
             return Generic;
         }
     }

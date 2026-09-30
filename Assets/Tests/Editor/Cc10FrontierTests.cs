@@ -2374,18 +2374,244 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(5, result.season.createdUtcMs);
         }
 
-        [Test]
-        public void Cc11Seams_HaveNoCorrespondingEndpointConstant_BeExposesNoCloudCodeFunctionYet()
+        // Cc11Seams_HaveNoCorrespondingEndpointConstant_BeExposesNoCloudCodeFunctionYet removed:
+        // its premise (no CC11 CloudCodeFunction exists) is now false as of BE-CC11-005 (0b822dcd),
+        // which registers GetWorldMapBaseSnapshot/PlaceWorldMapBase/RelocateWorldMapBase/
+        // GetCargoSelectionCatalog/AcceptCargoParticipants/GetGuildHallManagement/
+        // GetRankingSeasonSource for real - see the tests below.
+
+        // ---- BE-CC11-005 (0b822dcd), WH-CC11-006: real base/cargo/guild-hall/season endpoints ----
+
+        private static Cc10FrontierClient OnlineClient(FakeGateway gw)
         {
-            // BE 7ac011a1 registers zero CloudCodeFunctions for these seams (verified via git grep
-            // against CC10FrontierModule.cs/CC10FrontierService*.cs at that commit). Guards against a
-            // future edit silently adding a call to an endpoint name the server does not expose.
-            string[] endpointConstants = typeof(Cc10Endpoints).GetFields()
-                .Select(f => (string)f.GetRawConstantValue()).ToArray();
-            CollectionAssert.DoesNotContain(endpointConstants, "GetWorldMapBasePlacement");
-            CollectionAssert.DoesNotContain(endpointConstants, "SelectCargoParticipants");
-            CollectionAssert.DoesNotContain(endpointConstants, "GetGuildManagementSnapshot");
-            CollectionAssert.DoesNotContain(endpointConstants, "GetRankingSeasonSource");
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            return client;
+        }
+
+        [Test]
+        public async Task RefreshWorldMapBaseSnapshot_Accepted_ExposesServerOwnedCellsAndTokensVerbatim()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10WorldMapBaseSnapshotResult
+            {
+                success = true,
+                basePlacement = new Cc10WorldMapBasePlacementDto { status = Cc10WorldMapBaseStatus.Unplaced, operation = Cc10WorldMapBaseOperation.None },
+                cells = new[] { "n1", "n2" },
+                mapVersion = "map-7",
+                occupancyVersion = 4,
+            } };
+            var client = OnlineClient(gw);
+            Assert.IsTrue(await client.RefreshWorldMapBaseSnapshotAsync());
+            Assert.AreEqual(Cc10ReadRefresh.Accepted, client.LastBaseSnapshotRefresh);
+            CollectionAssert.AreEqual(new[] { "n1", "n2" }, client.BaseCells);
+            Assert.AreEqual(4, client.BaseOccupancyVersion);
+            Assert.AreEqual(Cc10WorldMapBaseStatus.Unplaced, client.BasePlacement.status);
+            Assert.IsNull(gw.Calls.Single(c => c.Key == Cc10Endpoints.GetWorldMapBaseSnapshot).Value, "pure read - no request body");
+        }
+
+        [Test]
+        public async Task RefreshWorldMapBaseSnapshot_TransportFailure_KeepsLastGoodValue_NotFailClosed()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10WorldMapBaseSnapshotResult { success = true, cells = new[] { "n1" }, occupancyVersion = 1 } };
+            var client = OnlineClient(gw);
+            await client.RefreshWorldMapBaseSnapshotAsync();
+
+            gw.Handler = (e, r) => new InvalidOperationException("network");
+            Assert.IsFalse(await client.RefreshWorldMapBaseSnapshotAsync());
+            Assert.AreEqual(Cc10ReadRefresh.Offline, client.LastBaseSnapshotRefresh);
+            CollectionAssert.AreEqual(new[] { "n1" }, client.BaseCells, "a read failure keeps the last accepted cells, unlike GetCallerGuildIdentity's fail-closed contract");
+        }
+
+        private static T CountingResult<T>(ref int counter, T value) { counter++; return value; }
+
+        [Test]
+        public async Task PlaceWorldMapBase_Success_UpdatesBasePlacementAndReloadsSnapshot()
+        {
+            var placement = new Cc10WorldMapBasePlacementDto { status = Cc10WorldMapBaseStatus.Placed, operation = Cc10WorldMapBaseOperation.Place, baseNodeId = "n1" };
+            int baseSnapshotCalls = 0;
+            var gw = new FakeGateway { Handler = (e, r) =>
+                e == Cc10Endpoints.GetFrontierState ? (object)Snap()
+                : e == Cc10Endpoints.PlaceWorldMapBase ? new Cc10WorldMapBasePlacementResult { success = true, basePlacement = placement }
+                : e == Cc10Endpoints.GetWorldMapBaseSnapshot ? CountingResult(ref baseSnapshotCalls, new Cc10WorldMapBaseSnapshotResult { success = true, basePlacement = placement, cells = new[] { "n2" }, occupancyVersion = 2 })
+                : throw new InvalidOperationException(e) };
+            var client = OnlineClient(gw);
+            await client.RefreshAsync();
+
+            Cc10BaseCommandOutcome outcome = await client.PlaceWorldMapBaseAsync("n1");
+            Assert.AreEqual(Cc10Outcome.Applied, outcome.Outcome);
+            Assert.AreEqual("n1", client.BasePlacement.baseNodeId);
+            Assert.AreEqual(1, baseSnapshotCalls, "an accepted placement reloads the canonical base snapshot exactly once");
+
+            var request = gw.Calls.Last(c => c.Key == Cc10Endpoints.PlaceWorldMapBase).Value;
+            Assert.AreEqual(Cc10WorldMapBaseOperation.Place, request["operation"]);
+            Assert.AreEqual("n1", request["nodeId"]);
+        }
+
+        [Test]
+        public async Task RelocateWorldMapBase_RateLimited_IsRejectedNotRetried()
+        {
+            var gw = new FakeGateway { Handler = (e, r) =>
+                e == Cc10Endpoints.GetFrontierState ? (object)Snap()
+                : e == Cc10Endpoints.RelocateWorldMapBase ? new Cc10WorldMapBasePlacementResult { success = false, errorCode = Cc10Errors.RateLimited }
+                : throw new InvalidOperationException(e) };
+            var client = OnlineClient(gw);
+            await client.RefreshAsync();
+
+            Cc10BaseCommandOutcome outcome = await client.RelocateWorldMapBaseAsync("n2");
+            Assert.AreEqual(Cc10Outcome.Rejected, outcome.Outcome);
+            Assert.AreEqual(Cc10Copy.BaseRelocationCoolingDown, outcome.Message);
+        }
+
+        [Test]
+        public async Task PlaceWorldMapBase_Conflict_ReloadsBaseSnapshotForLatestToken()
+        {
+            int baseSnapshotCalls = 0;
+            var gw = new FakeGateway { Handler = (e, r) =>
+                e == Cc10Endpoints.GetFrontierState ? (object)Snap()
+                : e == Cc10Endpoints.PlaceWorldMapBase ? new Cc10WorldMapBasePlacementResult { success = false, errorCode = Cc10Errors.Conflict }
+                : e == Cc10Endpoints.GetWorldMapBaseSnapshot ? CountingResult(ref baseSnapshotCalls, new Cc10WorldMapBaseSnapshotResult { success = true, occupancyVersion = 9 })
+                : throw new InvalidOperationException(e) };
+            var client = OnlineClient(gw);
+            await client.RefreshAsync();
+
+            Cc10BaseCommandOutcome outcome = await client.PlaceWorldMapBaseAsync("n1");
+            Assert.AreEqual(Cc10Outcome.Conflict, outcome.Outcome);
+            Assert.AreEqual(1, baseSnapshotCalls);
+            Assert.AreEqual(9, client.BaseOccupancyVersion, "a conflict must pick up the latest occupancyVersion so the next attempt carries a fresh CAS token");
+        }
+
+        [Test]
+        public async Task PlaceWorldMapBase_Offline_FailsClosed_NeverSendsARequest()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => throw new InvalidOperationException("must not be called while offline") };
+            var client = new Cc10FrontierClient(gw); // never RefreshAllAsync'd - Connection stays Unknown
+
+            Cc10BaseCommandOutcome outcome = await client.PlaceWorldMapBaseAsync("n1");
+            Assert.AreEqual(Cc10Outcome.Offline, outcome.Outcome);
+            Assert.IsEmpty(gw.Calls, "offline must fail closed before any request is sent - never an optimistic local placement");
+        }
+
+        [Test]
+        public async Task PlaceWorldMapBase_BlankNodeId_IsRejectedWithoutCallingTheGateway()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => e == Cc10Endpoints.GetFrontierState ? (object)Snap() : throw new InvalidOperationException(e) };
+            var client = OnlineClient(gw);
+            await client.RefreshAsync();
+
+            Cc10BaseCommandOutcome outcome = await client.PlaceWorldMapBaseAsync(null);
+            Assert.AreEqual(Cc10Outcome.Rejected, outcome.Outcome);
+            Assert.IsFalse(gw.Calls.Any(c => c.Key == Cc10Endpoints.PlaceWorldMapBase), "never invents a node id or sends a blank one");
+        }
+
+        [Test]
+        public async Task RefreshCargoSelectionCatalog_Accepted_ExposesServerOwnedEligibilityVerbatim()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10CargoSelectionCatalogResult
+            {
+                success = true,
+                missions = new[] { Mission("m1", "Active") },
+                avatars = new[] { "avatar-1" },
+                formations = new[] { "formation-1" },
+            } };
+            var client = OnlineClient(gw);
+            Assert.IsTrue(await client.RefreshCargoSelectionCatalogAsync());
+            Assert.AreEqual(Cc10ReadRefresh.Accepted, client.LastCargoCatalogRefresh);
+            CollectionAssert.AreEqual(new[] { "avatar-1" }, client.CargoCatalog.avatars);
+            CollectionAssert.AreEqual(new[] { "formation-1" }, client.CargoCatalog.formations);
+        }
+
+        [Test]
+        public async Task AcceptCargoParticipants_Success_LocksParticipantsAndRefreshesEligibility()
+        {
+            int catalogCalls = 0;
+            var gw = new FakeGateway { Handler = (e, r) =>
+                e == Cc10Endpoints.GetFrontierState ? (object)Snap()
+                : e == Cc10Endpoints.AcceptCargoParticipants ? new Cc10CargoParticipantSelectionResult
+                {
+                    success = true,
+                    selection = new Cc10CargoParticipantSelectionDto { avatarId = "a1", armyId = "ar1", formationId = "f1", missionId = "m1" },
+                }
+                : e == Cc10Endpoints.GetCargoSelectionCatalog ? CountingResult(ref catalogCalls, new Cc10CargoSelectionCatalogResult { success = true, avatars = Array.Empty<string>() })
+                : throw new InvalidOperationException(e) };
+            var client = OnlineClient(gw);
+            await client.RefreshAsync();
+
+            Cc10CargoSelectionOutcome outcome = await client.AcceptCargoParticipantsAsync("c1", "a1", "ar1", "f1", "m1");
+            Assert.AreEqual(Cc10Outcome.Applied, outcome.Outcome);
+            Assert.AreEqual("a1", outcome.Response.selection.avatarId);
+            Assert.AreEqual(1, catalogCalls, "an accepted lock reloads the eligibility catalog exactly once");
+        }
+
+        [Test]
+        public async Task AcceptCargoParticipants_NotEligible_IsRejected()
+        {
+            var gw = new FakeGateway { Handler = (e, r) =>
+                e == Cc10Endpoints.GetFrontierState ? (object)Snap()
+                : e == Cc10Endpoints.AcceptCargoParticipants ? new Cc10CargoParticipantSelectionResult { success = false, errorCode = Cc10Errors.NotEligible }
+                : throw new InvalidOperationException(e) };
+            var client = OnlineClient(gw);
+            await client.RefreshAsync();
+
+            Cc10CargoSelectionOutcome outcome = await client.AcceptCargoParticipantsAsync("c1", "a1", "ar1", "f1", "m1");
+            Assert.AreEqual(Cc10Outcome.Rejected, outcome.Outcome);
+            Assert.AreEqual(Cc10Copy.NotEligible, outcome.Message);
+        }
+
+        [Test]
+        public async Task AcceptCargoParticipants_Offline_FailsClosed_NeverSendsARequest()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => throw new InvalidOperationException("must not be called while offline") };
+            var client = new Cc10FrontierClient(gw);
+
+            Cc10CargoSelectionOutcome outcome = await client.AcceptCargoParticipantsAsync("c1", "a1", "ar1", "f1", "m1");
+            Assert.AreEqual(Cc10Outcome.Offline, outcome.Outcome);
+            Assert.IsEmpty(gw.Calls);
+        }
+
+        [Test]
+        public async Task RefreshGuildHallManagement_NoGuildId_SkipsTheCallEntirely_NeverInventsOne()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => throw new InvalidOperationException("must not be called with no known guildId") };
+            var client = new Cc10FrontierClient(gw);
+            Assert.IsFalse(await client.RefreshGuildHallManagementAsync());
+            Assert.IsEmpty(gw.Calls);
+        }
+
+        [Test]
+        public async Task RefreshGuildHallManagement_UsesTheExistingGuildIdentitySource()
+        {
+            var management = new Cc10GuildManagementSnapshotDto { members = new[] { new Cc10GuildMemberDto { memberId = "m1" } } };
+            var gw = new FakeGateway { Handler = (e, r) =>
+                e == Cc10Endpoints.GetCallerGuildIdentity ? (object)Identity(hasGuild: true, guildId: "g1")
+                : e == Cc10Endpoints.GetGuildHallManagement ? new Cc10GuildManagementResult { success = true, guild = management }
+                : throw new InvalidOperationException(e) };
+            var client = new Cc10FrontierClient(gw);
+            await client.RefreshGuildIdentityAsync();
+
+            Assert.IsTrue(await client.RefreshGuildHallManagementAsync());
+            Assert.AreEqual(1, client.GuildManagement.members.Length);
+            var request = gw.Calls.Single(c => c.Key == Cc10Endpoints.GetGuildHallManagement).Value;
+            Assert.AreEqual("g1", request["guildId"]);
+        }
+
+        [Test]
+        public async Task RefreshRankingSeasonSource_NullSeason_IsAcceptedAndValid()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10RankingSeasonSourceResult { success = true, season = null } };
+            var client = OnlineClient(gw);
+            Assert.IsTrue(await client.RefreshRankingSeasonSourceAsync());
+            Assert.AreEqual(Cc10ReadRefresh.Accepted, client.LastRankingSeasonSourceRefresh);
+            Assert.IsNull(client.RankingSeasonSource);
+        }
+
+        [Test]
+        public async Task RefreshRankingSeasonSource_Accepted_ExposesSourceVerbatim()
+        {
+            var season = new Cc10RankingSeasonSourceDto { source = "CC10Frontier.RankingSeasonState", seasonId = "s-1", state = Cc10SeasonState.Accepting };
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10RankingSeasonSourceResult { success = true, season = season } };
+            var client = OnlineClient(gw);
+            Assert.IsTrue(await client.RefreshRankingSeasonSourceAsync());
+            Assert.AreEqual("s-1", client.RankingSeasonSource.seasonId);
+            Assert.AreEqual(Cc10SeasonState.Accepting, client.RankingSeasonSource.state);
         }
     }
 }

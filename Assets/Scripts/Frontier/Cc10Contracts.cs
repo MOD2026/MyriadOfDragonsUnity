@@ -135,6 +135,14 @@ namespace MyriadOfDragons.Frontier
         public const string SubmitMinigameResult = "SubmitMinigameResult";
         public const string ClaimMinigameResult = "ClaimMinigameResult";
         public const string AbandonMinigameSession = "AbandonMinigameSession";
+        // BE-CC11-005 (0b822dcd): real, registered CloudCodeFunctions - not seams anymore.
+        public const string GetWorldMapBaseSnapshot = "GetWorldMapBaseSnapshot";
+        public const string PlaceWorldMapBase = "PlaceWorldMapBase";
+        public const string RelocateWorldMapBase = "RelocateWorldMapBase";
+        public const string GetCargoSelectionCatalog = "GetCargoSelectionCatalog";
+        public const string AcceptCargoParticipants = "AcceptCargoParticipants";
+        public const string GetGuildHallManagement = "GetGuildHallManagement";
+        public const string GetRankingSeasonSource = "GetRankingSeasonSource";
     }
 
     public static class Cc10Errors
@@ -169,6 +177,11 @@ namespace MyriadOfDragons.Frontier
         public const string MissionSlotsFull = "MISSION_SLOTS_FULL";
         // New with the Vein Relay minigame packet (6e93d10d):
         public const string MinigameInvalidStream = "MINIGAME_INVALID_STREAM";
+        // BE-CC11-005 (0b822dcd): World Map base placement/relocation and Cargo participant lock.
+        public const string InvalidRequest = "INVALID_REQUEST";
+        public const string InvalidState = "INVALID_STATE";
+        public const string RateLimited = "RATE_LIMITED"; // relocation cooldown not elapsed yet
+        public const string AlreadyOwned = "ALREADY_OWNED";
     }
 
     /// <summary>Four server-authored World Map phases (numeric order IS unlock order). Mirrors
@@ -297,20 +310,18 @@ namespace MyriadOfDragons.Frontier
         public long membershipExpiresUtcMs;
     }
 
-    // ---- CC11 contract seams (BE 7ac011a1) ------------------------------------------------
-    // WH-CC11-001: DTO mirrors only. BE commit 7ac011a1 adds these types to
-    // CloudCode/CC10Frontier/CC11Contracts.cs and CC11State.cs, but registers NO
-    // CloudCodeFunction and no CC10FrontierService method for any of them - grepping
-    // CC10FrontierModule.cs and every CC10FrontierService*.cs at that commit for these type
-    // names returns nothing. There is no endpoint to call yet, so no Cc10Endpoints constant
-    // and no Cc10FrontierClient gateway method is added for these seams - inventing either
-    // would mean calling a CloudCodeFunction that does not exist on the real server. These
-    // mirrors exist so the DTO shape is already right, and covered by parity tests, the
-    // moment BE exposes a real read/command endpoint for World Map base placement, Cargo
-    // participant selection, guild membership management, or the ranking-season source.
+    // ---- CC11 contract (BE 7ac011a1 seams, wired live at BE-CC11-005 / 0b822dcd) -----------
+    // WH-CC11-001 added these as DTO-only mirrors (7ac011a1 registered no endpoint for any of
+    // them). BE-CC11-005 (0b822dcd) now registers real CloudCodeFunctions for all seven -
+    // GetWorldMapBaseSnapshot/PlaceWorldMapBase/RelocateWorldMapBase/GetCargoSelectionCatalog/
+    // AcceptCargoParticipants/GetGuildHallManagement/GetRankingSeasonSource - see
+    // Cc10FrontierClient for the gateway methods. formationId was added to
+    // CargoParticipantSelectionDto/Request at 0b822dcd; mirrored below.
     // Note also: docs/AI_CONTRIBUTING and this file's own bab7aab1 note record Beta as
-    // ExpandNode-only territory (no base placement/wells/relocation) - base placement in
-    // particular is out of Beta scope even once BE wires an endpoint for it.
+    // ExpandNode-only territory - base PLACEMENT itself (choosing/relocating a base node) is a
+    // separate mechanic from ExpandNode's per-player node ownership and is still not surfaced
+    // in any Beta UI; this pass wires the real, published gateway contract only, per task scope
+    // ("Do not invent ... UI").
 
     public static class Cc10WorldMapBaseOperation
     {
@@ -343,6 +354,7 @@ namespace MyriadOfDragons.Frontier
         public string avatarId;
         public string armyId;
         public string missionId;
+        public string formationId;
         public long selectedUtcMs;
     }
 
@@ -443,6 +455,49 @@ namespace MyriadOfDragons.Frontier
     public sealed class Cc10RankingSeasonSourceResult : Cc10ResultBase
     {
         public Cc10RankingSeasonSourceDto season;
+    }
+
+    /// <summary>GetWorldMapBaseSnapshot's result (BE-CC11-005). cells is the server-owned list of
+    /// placement-eligible node ids (own-phase, non-start, non-contest-district nodes) - this
+    /// client never computes eligible cells itself. mapVersion/occupancyVersion are the CAS
+    /// tokens PlaceWorldMapBase/RelocateWorldMapBase must echo back.</summary>
+    [Serializable]
+    public sealed class Cc10WorldMapBaseSnapshotResult : Cc10ResultBase
+    {
+        public Cc10WorldMapBasePlacementDto basePlacement;
+        public string[] cells = Array.Empty<string>();
+        public string mapVersion = string.Empty;
+        public int occupancyVersion;
+    }
+
+    [Serializable]
+    public sealed class Cc10WorldMapBasePlacementResult : Cc10ResultBase
+    {
+        public Cc10WorldMapBasePlacementDto basePlacement;
+    }
+
+    /// <summary>GetCargoSelectionCatalog's result (BE-CC11-005): the server-owned eligible
+    /// mission/avatar/formation lists for cargo participant selection - avatars/formations
+    /// already locked into another cargo's selection are excluded server-side; this client
+    /// never computes eligibility itself.</summary>
+    [Serializable]
+    public sealed class Cc10CargoSelectionCatalogResult : Cc10ResultBase
+    {
+        public Cc10MissionDto[] missions = Array.Empty<Cc10MissionDto>();
+        public string[] avatars = Array.Empty<string>();
+        public string[] formations = Array.Empty<string>();
+    }
+
+    [Serializable]
+    public sealed class Cc10CargoParticipantSelectionResult : Cc10ResultBase
+    {
+        public Cc10CargoParticipantSelectionDto selection;
+    }
+
+    [Serializable]
+    public sealed class Cc10GuildManagementResult : Cc10ResultBase
+    {
+        public Cc10GuildManagementSnapshotDto guild;
     }
 
     // ---- DTOs ------------------------------------------------------------------------------
