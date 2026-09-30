@@ -3,6 +3,19 @@
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
 **Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`ec4b49b3`** (World Map DTO shape unchanged since **`bab7aab1`**)
 
+**World Map region (BE `0784b04b`, WH CC12-WH-WORLDMAP-WIRING-018):** `GetWorldMapRegion` - a
+bounded logical-coordinate window (`minX`/`minY`/`maxX`/`maxY`, server-rejects >128 wide/tall or
+inverted) for visible-region loading and marker data. `Cc10FrontierClient.RefreshWorldMapRegionAsync`
+/ `WorldMapRegion` / `LastWorldMapRegionRefresh`; the last-queried bounds are remembered so an
+accepted or conflicting `PlaceWorldMapBase`/`RelocateWorldMapBase` silently refreshes the same
+visible region afterward. `Cc10WorldMapBasePlacementDto` gained `x`/`y` (server-owned logical
+coordinates); `PlaceWorldMapBaseAsync`/`RelocateWorldMapBaseAsync` gained optional `x`/`y`
+parameters - passed through only if the caller supplies them (read off a server-supplied cell),
+never invented - which the server treats as an integrity check against the node's real coordinate
+(mismatch → Conflict). **Not independently verified by a build/test run this pass** (task
+explicitly said implement-only, no tests/builds/audits) - MS should run the EditMode suite before
+relying on this.
+
 **Guild member search (BE `73793beb`, WH-CC11-096):** `SearchGuildMembers` - server-paged,
 server-filtered roster search keyed off the existing `GuildId` (never invented; skipped entirely,
 no request sent, when unknown). `limit` (1-50) is rejected by the server with `INVALID_REQUEST`

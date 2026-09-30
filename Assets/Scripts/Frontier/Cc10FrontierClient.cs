@@ -106,6 +106,12 @@ namespace MyriadOfDragons.Frontier
         /// conflicting base command so a retry always carries the latest token.</summary>
         public int BaseOccupancyVersion { get; private set; }
         public Cc10ReadRefresh LastBaseSnapshotRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
+        /// <summary>Last accepted GetWorldMapRegion result (BE 0784b04b) - a bounded
+        /// logical-coordinate window for visible-region loading and marker data. cells/
+        /// hotspots/validPlacement/occupiedByYou are entirely server-computed.</summary>
+        public Cc10WorldMapRegionSnapshotResult WorldMapRegion { get; private set; }
+        public Cc10ReadRefresh LastWorldMapRegionRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
+        private (int minX, int minY, int maxX, int maxY)? _lastRegionQuery;
         public Cc10CargoSelectionCatalogResult CargoCatalog { get; private set; }
         public Cc10ReadRefresh LastCargoCatalogRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
         /// <summary>Last accepted GetGuildHallManagement snapshot, keyed off <see cref="GuildId"/> -
@@ -317,6 +323,54 @@ namespace MyriadOfDragons.Frontier
             return true;
         }
 
+        /// <summary>Loads a bounded logical-coordinate window of the map (BE 0784b04b) - visible-
+        /// region loading and marker data for a viewport MS owns. minX/minY/maxX/maxY are passed
+        /// through verbatim; this client never computes or clamps the window itself - the server
+        /// rejects an oversized or inverted window with INVALID_REQUEST. Remembers the last
+        /// queried bounds so an accepted or conflicting base command (see ChangeBaseAsync) can
+        /// silently refresh the same visible region afterward.</summary>
+        public async Task<bool> RefreshWorldMapRegionAsync(int minX, int minY, int maxX, int maxY, CancellationToken cancellationToken = default)
+        {
+            _lastRegionQuery = (minX, minY, maxX, maxY);
+            var request = new Dictionary<string, object> { ["minX"] = minX, ["minY"] = minY, ["maxX"] = maxX, ["maxY"] = maxY };
+
+            Cc10WorldMapRegionSnapshotResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10WorldMapRegionSnapshotResult>(Cc10Endpoints.GetWorldMapRegion, request, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                LastWorldMapRegionRefresh = Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                LastWorldMapRegionRefresh = fresh == null ? Cc10ReadRefresh.Malformed : Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            WorldMapRegion = fresh;
+            LastWorldMapRegionRefresh = Cc10ReadRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
+
+        /// <summary>Reloads the last-queried region window, if any (called after an accepted or
+        /// conflicting base command so a visible region already on screen picks up the new
+        /// occupancy/base marker without the caller having to remember the bounds itself).</summary>
+        private Task RefreshLastWorldMapRegionIfAnyAsync(CancellationToken cancellationToken) =>
+            _lastRegionQuery.HasValue
+                ? RefreshWorldMapRegionAsync(_lastRegionQuery.Value.minX, _lastRegionQuery.Value.minY, _lastRegionQuery.Value.maxX, _lastRegionQuery.Value.maxY, cancellationToken)
+                : Task.CompletedTask;
+
         /// <summary>Server-owned eligible mission/avatar/formation lists for Cargo participant
         /// selection - avatars/formations already locked elsewhere are excluded server-side.</summary>
         public async Task<bool> RefreshCargoSelectionCatalogAsync(CancellationToken cancellationToken = default)
@@ -470,17 +524,22 @@ namespace MyriadOfDragons.Frontier
             return true;
         }
 
-        public Task<Cc10BaseCommandOutcome> PlaceWorldMapBaseAsync(string nodeId, CancellationToken cancellationToken = default) =>
-            ChangeBaseAsync(Cc10WorldMapBaseOperation.Place, nodeId, cancellationToken);
+        /// <param name="x">Optional integrity check only - the logical x coordinate this client
+        /// read off a server-supplied cell (GetWorldMapRegion/GetWorldMapBaseSnapshot), never a
+        /// client-invented value. Omit when not available; the server rejects a mismatch with
+        /// this node's real coordinate as Conflict rather than silently ignoring it.</param>
+        public Task<Cc10BaseCommandOutcome> PlaceWorldMapBaseAsync(string nodeId, int? x = null, int? y = null, CancellationToken cancellationToken = default) =>
+            ChangeBaseAsync(Cc10WorldMapBaseOperation.Place, nodeId, x, y, cancellationToken);
 
-        public Task<Cc10BaseCommandOutcome> RelocateWorldMapBaseAsync(string nodeId, CancellationToken cancellationToken = default) =>
-            ChangeBaseAsync(Cc10WorldMapBaseOperation.Relocate, nodeId, cancellationToken);
+        public Task<Cc10BaseCommandOutcome> RelocateWorldMapBaseAsync(string nodeId, int? x = null, int? y = null, CancellationToken cancellationToken = default) =>
+            ChangeBaseAsync(Cc10WorldMapBaseOperation.Relocate, nodeId, x, y, cancellationToken);
 
         /// <summary>Places or relocates the caller's base on a server-owned eligible cell. Offline,
         /// no-state, disabled-system, or a blank nodeId all fail closed before any request is
         /// sent - never an optimistic local placement. mapVersion/occupancyVersion are echoed
-        /// straight from the last accepted base snapshot, never computed here.</summary>
-        private async Task<Cc10BaseCommandOutcome> ChangeBaseAsync(string operation, string nodeId, CancellationToken cancellationToken)
+        /// straight from the last accepted base snapshot, never computed here; x/y (BE 0784b04b)
+        /// are passed through only if the caller supplied them, never invented.</summary>
+        private async Task<Cc10BaseCommandOutcome> ChangeBaseAsync(string operation, string nodeId, int? x, int? y, CancellationToken cancellationToken)
         {
             if (Connection != Cc10Connection.Online || !HasState)
                 return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Offline, Message = Cc10Copy.Offline };
@@ -511,6 +570,8 @@ namespace MyriadOfDragons.Frontier
                     ["expectedStateVersion"] = Snapshot.stateVersion,
                     ["expectedAuthorityGeneration"] = Snapshot.authorityGeneration,
                 };
+                if (x.HasValue) request["x"] = x.Value;
+                if (y.HasValue) request["y"] = y.Value;
 
                 Cc10WorldMapBasePlacementResult response;
                 try
@@ -548,6 +609,7 @@ namespace MyriadOfDragons.Frontier
                     _pendingRequestIds.Remove(key);
                     BasePlacement = response.basePlacement;
                     await RefreshWorldMapBaseSnapshotAsync(cancellationToken); // reloads the canonical cells/occupancyVersion
+                    await RefreshLastWorldMapRegionIfAnyAsync(cancellationToken); // picks up the new base marker if a region is on screen
                     return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Applied, Response = response };
                 }
 
@@ -555,6 +617,7 @@ namespace MyriadOfDragons.Frontier
                 if (response.errorCode == Cc10Errors.Conflict || response.errorCode == Cc10Errors.AuthorityStale)
                 {
                     await RefreshWorldMapBaseSnapshotAsync(cancellationToken); // first valid CAS wins; reload the latest token
+                    await RefreshLastWorldMapRegionIfAnyAsync(cancellationToken);
                     return new Cc10BaseCommandOutcome { Outcome = Cc10Outcome.Conflict, Message = Cc10Copy.Conflict, Response = response };
                 }
 

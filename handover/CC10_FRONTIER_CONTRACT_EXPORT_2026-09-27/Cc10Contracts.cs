@@ -137,6 +137,7 @@ namespace MyriadOfDragons.Frontier
         public const string AbandonMinigameSession = "AbandonMinigameSession";
         // BE-CC11-005 (0b822dcd): real, registered CloudCodeFunctions - not seams anymore.
         public const string GetWorldMapBaseSnapshot = "GetWorldMapBaseSnapshot";
+        public const string GetWorldMapRegion = "GetWorldMapRegion"; // BE 0784b04b
         public const string PlaceWorldMapBase = "PlaceWorldMapBase";
         public const string RelocateWorldMapBase = "RelocateWorldMapBase";
         public const string GetCargoSelectionCatalog = "GetCargoSelectionCatalog";
@@ -347,6 +348,36 @@ namespace MyriadOfDragons.Frontier
         public string baseNodeId;
         public string pendingNodeId;
         public long changedUtcMs;
+        /// <summary>Server-owned logical cell coordinates (BE 0784b04b) - never computed or
+        /// guessed client-side, only ever echoed from GetWorldMapBaseSnapshot/GetWorldMapRegion/
+        /// a successful PlaceWorldMapBase/RelocateWorldMapBase.</summary>
+        public int x;
+        public int y;
+    }
+
+    [Serializable]
+    public class Cc10WorldMapCellDto
+    {
+        public string nodeId = string.Empty;
+        public string regionId = string.Empty;
+        public int x;
+        public int y;
+        public bool validPlacement;
+        public bool occupiedByYou;
+    }
+
+    /// <summary>GetWorldMapRegion's result (BE 0784b04b): a bounded logical-coordinate window of
+    /// the map, for visible-region loading and marker data. cells/hotspots/validPlacement/
+    /// occupiedByYou are entirely server-computed - this client never derives eligibility or
+    /// ownership from coordinates itself.</summary>
+    [Serializable]
+    public sealed class Cc10WorldMapRegionSnapshotResult : Cc10ResultBase
+    {
+        public Cc10WorldMapCellDto[] cells = Array.Empty<Cc10WorldMapCellDto>();
+        public Cc10NpcSpotDto[] hotspots = Array.Empty<Cc10NpcSpotDto>();
+        public Cc10WorldMapBasePlacementDto basePlacement;
+        public string mapVersion = string.Empty;
+        public int occupancyVersion;
     }
 
     [Serializable]
