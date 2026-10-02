@@ -3,6 +3,14 @@
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
 **Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`ec4b49b3`** (World Map DTO shape unchanged since **`bab7aab1`**)
 
+**World Map spatial fields (BE `79a5e208`/`820be66d`, WH):** `Cc10WorldMapBaseSnapshotResult` and
+`Cc10WorldMapRegionSnapshotResult` now preserve `coordinateSystem`, `mapBounds`, `markers`,
+`playerPrivateOccupancy`, `cooldownUntilUtc`, `eligibilityState`, `playerBaseLocationId`; cells carry
+nullable `anchorX`/`anchorY` (absent stays null). `820be66d`'s module diff adds no new endpoint (it only
+re-registers ones already wired); its `ResearchCatalogResult` has no CloudCodeFunction yet, so it is not
+mirrored. `markers[].metadata` (Dictionary) is omitted, as JsonUtility cannot bind it. The client keeps
+the whole last base snapshot in `BaseSnapshot`. Verified: EditMode Cc10FrontierTests 175/175, 0 error CS.
+
 **World Map region (BE `0784b04b`, WH CC12-WH-WORLDMAP-WIRING-018):** `GetWorldMapRegion` - a
 bounded logical-coordinate window (`minX`/`minY`/`maxX`/`maxY`, server-rejects >128 wide/tall or
 inverted) for visible-region loading and marker data. `Cc10FrontierClient.RefreshWorldMapRegionAsync`

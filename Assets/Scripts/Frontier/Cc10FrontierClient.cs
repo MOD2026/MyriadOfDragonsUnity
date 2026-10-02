@@ -105,6 +105,10 @@ namespace MyriadOfDragons.Frontier
         /// PlaceWorldMapBase/RelocateWorldMapBase echo back; refreshed after every accepted or
         /// conflicting base command so a retry always carries the latest token.</summary>
         public int BaseOccupancyVersion { get; private set; }
+        /// <summary>The whole last accepted GetWorldMapBaseSnapshot result, so the BE 820be66d fields
+        /// (coordinateSystem, mapBounds, markers, playerPrivateOccupancy, cooldownUntilUtc,
+        /// eligibilityState, playerBaseLocationId) are preserved verbatim for the presenter owner.</summary>
+        public Cc10WorldMapBaseSnapshotResult BaseSnapshot { get; private set; }
         public Cc10ReadRefresh LastBaseSnapshotRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
         /// <summary>Last accepted GetWorldMapRegion result (BE 0784b04b) - a bounded
         /// logical-coordinate window for visible-region loading and marker data. cells/
@@ -318,6 +322,7 @@ namespace MyriadOfDragons.Frontier
             BasePlacement = fresh.basePlacement;
             BaseCells = fresh.cells ?? Array.Empty<string>();
             BaseOccupancyVersion = fresh.occupancyVersion;
+            BaseSnapshot = fresh;
             LastBaseSnapshotRefresh = Cc10ReadRefresh.Accepted;
             RaiseChanged();
             return true;

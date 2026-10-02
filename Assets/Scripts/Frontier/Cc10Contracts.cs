@@ -364,6 +364,57 @@ namespace MyriadOfDragons.Frontier
         public int y;
         public bool validPlacement;
         public bool occupiedByYou;
+        /// <summary>BE 79a5e208/820be66d: server-authoritative anchor in the same logical grid as x/y.
+        /// Nullable - absent means the server sent none; never defaulted or computed client-side.</summary>
+        public int? anchorX;
+        public int? anchorY;
+    }
+
+    /// <summary>BE 820be66d. units is a server label (currently "layout-grid"); origin is optional.</summary>
+    [Serializable]
+    public class Cc10WorldMapCoordinateSystemDto
+    {
+        public string units;
+        public int? originX;
+        public int? originY;
+    }
+
+    [Serializable]
+    public class Cc10WorldMapBoundsDto
+    {
+        public int? minX;
+        public int? minY;
+        public int? maxX;
+        public int? maxY;
+    }
+
+    /// <summary>BE 820be66d marker row. Every field is optional on the wire and mirrored as-is.
+    /// BE also sends metadata as Dictionary&lt;string,string&gt;, omitted here for the same reason
+    /// Cc10ResearchDto omits Contributions: JsonUtility cannot bind a Dictionary, and no client
+    /// rule reads it.</summary>
+    [Serializable]
+    public class Cc10WorldMapMarkerDto
+    {
+        public string id;
+        public string displayName;
+        public string type;
+        public string status;
+        public string regionId;
+        public int? priority;
+        public string[] actions;
+        public string markerId;
+        public string markerType;
+        public string locationId;
+        public string labelKey;
+        public string sortKey;
+    }
+
+    [Serializable]
+    public class Cc10WorldMapPrivateOccupancyDto
+    {
+        public string locationId;
+        public bool? occupied;
+        public bool? occupiedBySelf;
     }
 
     /// <summary>GetWorldMapRegion's result (BE 0784b04b): a bounded logical-coordinate window of
@@ -378,6 +429,14 @@ namespace MyriadOfDragons.Frontier
         public Cc10WorldMapBasePlacementDto basePlacement;
         public string mapVersion = string.Empty;
         public int occupancyVersion;
+        public Cc10WorldMapCoordinateSystemDto coordinateSystem;
+        public Cc10WorldMapBoundsDto mapBounds;
+        public Cc10WorldMapMarkerDto[] markers;
+        public Cc10WorldMapPrivateOccupancyDto playerPrivateOccupancy;
+        /// <summary>Server UTC ms until which relocation is on cooldown; null when none is reported.</summary>
+        public long? cooldownUntilUtc;
+        public string eligibilityState;
+        public string playerBaseLocationId;
     }
 
     [Serializable]
@@ -500,6 +559,14 @@ namespace MyriadOfDragons.Frontier
         public string[] cells = Array.Empty<string>();
         public string mapVersion = string.Empty;
         public int occupancyVersion;
+        public Cc10WorldMapCoordinateSystemDto coordinateSystem;
+        public Cc10WorldMapBoundsDto mapBounds;
+        public Cc10WorldMapMarkerDto[] markers;
+        public Cc10WorldMapPrivateOccupancyDto playerPrivateOccupancy;
+        /// <summary>Server UTC ms until which relocation is on cooldown; null when none is reported.</summary>
+        public long? cooldownUntilUtc;
+        public string eligibilityState;
+        public string playerBaseLocationId;
     }
 
     [Serializable]

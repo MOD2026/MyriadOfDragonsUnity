@@ -2294,7 +2294,7 @@ namespace MyriadOfDragons.Tests
             Assert.AreEqual(Cc10WorldMapBaseOperation.Place, dto.operation);
             Assert.AreEqual("node-1", dto.baseNodeId);
             Assert.AreEqual(10, dto.changedUtcMs);
-            CollectionAssert.AreEqual(new[] { "baseNodeId", "changedUtcMs", "operation", "pendingNodeId", "status" },
+            CollectionAssert.AreEqual(new[] { "baseNodeId", "changedUtcMs", "operation", "pendingNodeId", "status", "x", "y" },
                 typeof(Cc10WorldMapBasePlacementDto).GetFields().Select(f => f.Name).OrderBy(n => n).ToArray());
         }
 
@@ -2612,6 +2612,65 @@ namespace MyriadOfDragons.Tests
             Assert.IsTrue(await client.RefreshRankingSeasonSourceAsync());
             Assert.AreEqual("s-1", client.RankingSeasonSource.seasonId);
             Assert.AreEqual(Cc10SeasonState.Accepting, client.RankingSeasonSource.state);
+        }
+
+        // ---- BE 820be66d / 79a5e208: World Map spatial fields preserved verbatim ----
+
+        [Test]
+        public async Task RefreshWorldMapBaseSnapshot_PreservesSpatialCooldownAndEligibilityFields()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10WorldMapBaseSnapshotResult
+            {
+                success = true, cells = new[] { "n1" }, mapVersion = "m1", occupancyVersion = 2,
+                coordinateSystem = new Cc10WorldMapCoordinateSystemDto { units = "layout-grid", originX = 0, originY = 0 },
+                mapBounds = new Cc10WorldMapBoundsDto { minX = -5, minY = -6, maxX = 7, maxY = 8 },
+                markers = new[] { new Cc10WorldMapMarkerDto { markerId = "k1", markerType = "Npc", locationId = "n1", priority = 3, actions = new[] { "Open" } } },
+                playerPrivateOccupancy = new Cc10WorldMapPrivateOccupancyDto { locationId = "n1", occupied = true, occupiedBySelf = true },
+                cooldownUntilUtc = 123456L, eligibilityState = "Eligible", playerBaseLocationId = "n1",
+            } };
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            Assert.IsTrue(await client.RefreshWorldMapBaseSnapshotAsync());
+            Cc10WorldMapBaseSnapshotResult b = client.BaseSnapshot;
+            Assert.AreEqual("layout-grid", b.coordinateSystem.units);
+            Assert.AreEqual(-5, b.mapBounds.minX);
+            Assert.AreEqual(8, b.mapBounds.maxY);
+            Assert.AreEqual("k1", b.markers[0].markerId);
+            Assert.AreEqual(3, b.markers[0].priority);
+            Assert.IsTrue(b.playerPrivateOccupancy.occupiedBySelf);
+            Assert.AreEqual(123456L, b.cooldownUntilUtc);
+            Assert.AreEqual("Eligible", b.eligibilityState);
+            Assert.AreEqual("n1", b.playerBaseLocationId);
+        }
+
+        [Test]
+        public async Task RefreshWorldMapRegion_PreservesAnchorsAndSpatialFields_AndAbsentMeansNull()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10WorldMapRegionSnapshotResult
+            {
+                success = true, mapVersion = "m1", occupancyVersion = 1,
+                cells = new[] { new Cc10WorldMapCellDto { nodeId = "n1", x = 1, y = 2, anchorX = 10, anchorY = 20 }, new Cc10WorldMapCellDto { nodeId = "n2" } },
+                mapBounds = new Cc10WorldMapBoundsDto { minX = 0, maxX = 9 },
+                cooldownUntilUtc = null, eligibilityState = "Cooldown",
+            } };
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            Assert.IsTrue(await client.RefreshWorldMapRegionAsync(0, 0, 9, 9));
+            Cc10WorldMapRegionSnapshotResult r = client.WorldMapRegion;
+            Assert.AreEqual(10, r.cells[0].anchorX);
+            Assert.AreEqual(20, r.cells[0].anchorY);
+            Assert.IsNull(r.cells[1].anchorX, "an absent anchor stays null - never defaulted to 0");
+            Assert.IsNull(r.cooldownUntilUtc);
+            Assert.AreEqual("Cooldown", r.eligibilityState);
+        }
+
+        [Test]
+        public void WorldMapSpatialDtos_HaveExactlyTheApprovedFields()
+        {
+            string[] F(System.Type t) => t.GetFields().Select(f => f.Name).OrderBy(n => n).ToArray();
+            CollectionAssert.AreEqual(new[] { "originX", "originY", "units" }, F(typeof(Cc10WorldMapCoordinateSystemDto)));
+            CollectionAssert.AreEqual(new[] { "maxX", "maxY", "minX", "minY" }, F(typeof(Cc10WorldMapBoundsDto)));
+            CollectionAssert.AreEqual(new[] { "locationId", "occupied", "occupiedBySelf" }, F(typeof(Cc10WorldMapPrivateOccupancyDto)));
+            CollectionAssert.AreEqual(new[] { "actions", "displayName", "id", "labelKey", "locationId", "markerId", "markerType", "priority", "regionId", "sortKey", "status", "type" }, F(typeof(Cc10WorldMapMarkerDto)));
+            CollectionAssert.IsSubsetOf(new[] { "anchorX", "anchorY" }, F(typeof(Cc10WorldMapCellDto)));
         }
     }
 }
