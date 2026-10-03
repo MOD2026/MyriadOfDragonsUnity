@@ -3,6 +3,12 @@
 **For:** GUI's Unity bundle / FR (WH → GUI handoff).
 **Source:** `wh/cc10-beta-metagame-integration`. BE contract read through **`ec4b49b3`** (World Map DTO shape unchanged since **`bab7aab1`**)
 
+**Research catalog (BE `baac6c8b`, WH):** `GetResearchCatalog` (pure read) - server-authoritative node
+definitions for Individual and Guild research. `Cc10FrontierClient.RefreshResearchCatalogAsync` /
+`ResearchCatalog` / `LastResearchCatalogRefresh` (keep-last-good). Correction: the earlier note that
+`ResearchCatalogResult` had no CloudCodeFunction was true only of the `820be66d` lineage; `baac6c8b`
+registers it. No name/description/effect field exists on the BE DTO, so none is mirrored.
+
 **World Map spatial fields (BE `79a5e208`/`820be66d`, WH):** `Cc10WorldMapBaseSnapshotResult` and
 `Cc10WorldMapRegionSnapshotResult` now preserve `coordinateSystem`, `mapBounds`, `markers`,
 `playerPrivateOccupancy`, `cooldownUntilUtc`, `eligibilityState`, `playerBaseLocationId`; cells carry

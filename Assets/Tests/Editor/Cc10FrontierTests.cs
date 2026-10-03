@@ -2672,5 +2672,59 @@ namespace MyriadOfDragons.Tests
             CollectionAssert.AreEqual(new[] { "actions", "displayName", "id", "labelKey", "locationId", "markerId", "markerType", "priority", "regionId", "sortKey", "status", "type" }, F(typeof(Cc10WorldMapMarkerDto)));
             CollectionAssert.IsSubsetOf(new[] { "anchorX", "anchorY" }, F(typeof(Cc10WorldMapCellDto)));
         }
+
+        // ---- BE baac6c8b: GetResearchCatalog ----
+
+        [Test]
+        public async Task RefreshResearchCatalog_Accepted_ExposesServerNodesVerbatim()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10ResearchCatalogResult
+            {
+                success = true,
+                nodes = new[]
+                {
+                    new Cc10ResearchNodeDefinitionDto { nodeId = "IND_1", scope = "Individual", goldCost = 100, materialsCost = 20, durationMs = 60000, requiredTavernLevel = 2, requiredPhase = "OuterMarches" },
+                    new Cc10ResearchNodeDefinitionDto { nodeId = "GUILD_1", scope = "Guild", prerequisites = new[] { "IND_1" }, requiresTopThreeGuild = true },
+                },
+            } };
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            Assert.IsTrue(await client.RefreshResearchCatalogAsync());
+            Assert.AreEqual(Cc10ReadRefresh.Accepted, client.LastResearchCatalogRefresh);
+            Assert.AreEqual(2, client.ResearchCatalog.Length);
+            Assert.AreEqual(100, client.ResearchCatalog[0].goldCost);
+            Assert.AreEqual("OuterMarches", client.ResearchCatalog[0].requiredPhase);
+            Assert.IsTrue(client.ResearchCatalog[1].requiresTopThreeGuild);
+            Assert.IsNull(gw.Calls.Single(c => c.Key == Cc10Endpoints.GetResearchCatalog).Value, "pure read - no request body");
+        }
+
+        [Test]
+        public async Task RefreshResearchCatalog_Failure_KeepsLastGoodCatalog()
+        {
+            var gw = new FakeGateway { Handler = (e, r) => new Cc10ResearchCatalogResult { success = true, nodes = new[] { new Cc10ResearchNodeDefinitionDto { nodeId = "IND_1" } } } };
+            var client = new Cc10FrontierClient(gw, new Cc10ServerClock(() => 0));
+            await client.RefreshResearchCatalogAsync();
+
+            gw.Handler = (e, r) => new InvalidOperationException("network");
+            Assert.IsFalse(await client.RefreshResearchCatalogAsync());
+            Assert.AreEqual(Cc10ReadRefresh.Offline, client.LastResearchCatalogRefresh);
+            Assert.AreEqual(Cc10Connection.Offline, client.Connection);
+            Assert.AreEqual("IND_1", client.ResearchCatalog[0].nodeId, "a failed read keeps the last accepted catalog");
+
+            gw.Handler = (e, r) => new Cc10ResearchCatalogResult { success = false, errorCode = Cc10Errors.AuthorityUnavailable };
+            Assert.IsFalse(await client.RefreshResearchCatalogAsync());
+            Assert.AreEqual(1, client.ResearchCatalog.Length);
+
+            gw.Handler = (e, r) => (Cc10ResearchCatalogResult)null;
+            Assert.IsFalse(await client.RefreshResearchCatalogAsync());
+            Assert.AreEqual(Cc10ReadRefresh.Malformed, client.LastResearchCatalogRefresh);
+        }
+
+        [Test]
+        public void ResearchNodeDefinitionDto_HasExactlyTheBeFields_NoInventedNameOrEffect()
+        {
+            CollectionAssert.AreEqual(
+                new[] { "durationMs", "goldCost", "materialsCost", "nodeId", "prerequisites", "requiredContributionPoints", "requiredPhase", "requiredPlayerPhase", "requiredTavernLevel", "requiresTopThreeGuild", "scope" },
+                typeof(Cc10ResearchNodeDefinitionDto).GetFields().Select(f => f.Name).OrderBy(n => n).ToArray());
+        }
     }
 }

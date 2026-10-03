@@ -116,6 +116,11 @@ namespace MyriadOfDragons.Frontier
         public Cc10WorldMapRegionSnapshotResult WorldMapRegion { get; private set; }
         public Cc10ReadRefresh LastWorldMapRegionRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
         private (int minX, int minY, int maxX, int maxY)? _lastRegionQuery;
+        /// <summary>Server-authoritative research node definitions (GetResearchCatalog, BE baac6c8b),
+        /// Individual and Guild scope together - callers filter by scope. Never computes a cost,
+        /// prerequisite or gate itself; kept as-is (read-only) on any failed refresh.</summary>
+        public Cc10ResearchNodeDefinitionDto[] ResearchCatalog { get; private set; } = Array.Empty<Cc10ResearchNodeDefinitionDto>();
+        public Cc10ReadRefresh LastResearchCatalogRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
         public Cc10CargoSelectionCatalogResult CargoCatalog { get; private set; }
         public Cc10ReadRefresh LastCargoCatalogRefresh { get; private set; } = Cc10ReadRefresh.NotAttempted;
         /// <summary>Last accepted GetGuildHallManagement snapshot, keyed off <see cref="GuildId"/> -
@@ -375,6 +380,37 @@ namespace MyriadOfDragons.Frontier
             _lastRegionQuery.HasValue
                 ? RefreshWorldMapRegionAsync(_lastRegionQuery.Value.minX, _lastRegionQuery.Value.minY, _lastRegionQuery.Value.maxX, _lastRegionQuery.Value.maxY, cancellationToken)
                 : Task.CompletedTask;
+
+        public async Task<bool> RefreshResearchCatalogAsync(CancellationToken cancellationToken = default)
+        {
+            Cc10ResearchCatalogResult fresh;
+            try
+            {
+                fresh = await _gateway.CallAsync<Cc10ResearchCatalogResult>(Cc10Endpoints.GetResearchCatalog, null, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                Connection = Cc10Connection.Offline;
+                LastResearchCatalogRefresh = Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            if (fresh == null || !fresh.success)
+            {
+                LastResearchCatalogRefresh = fresh == null ? Cc10ReadRefresh.Malformed : Cc10ReadRefresh.Offline;
+                RaiseChanged();
+                return false;
+            }
+
+            Connection = Cc10Connection.Online;
+            Clock.Sample(fresh.serverUtcMs);
+            ResearchCatalog = fresh.nodes ?? Array.Empty<Cc10ResearchNodeDefinitionDto>();
+            LastResearchCatalogRefresh = Cc10ReadRefresh.Accepted;
+            RaiseChanged();
+            return true;
+        }
 
         /// <summary>Server-owned eligible mission/avatar/formation lists for Cargo participant
         /// selection - avatars/formations already locked elsewhere are excluded server-side.</summary>

@@ -138,6 +138,7 @@ namespace MyriadOfDragons.Frontier
         // BE-CC11-005 (0b822dcd): real, registered CloudCodeFunctions - not seams anymore.
         public const string GetWorldMapBaseSnapshot = "GetWorldMapBaseSnapshot";
         public const string GetWorldMapRegion = "GetWorldMapRegion"; // BE 0784b04b
+        public const string GetResearchCatalog = "GetResearchCatalog"; // BE baac6c8b
         public const string PlaceWorldMapBase = "PlaceWorldMapBase";
         public const string RelocateWorldMapBase = "RelocateWorldMapBase";
         public const string GetCargoSelectionCatalog = "GetCargoSelectionCatalog";
@@ -591,6 +592,33 @@ namespace MyriadOfDragons.Frontier
     public sealed class Cc10CargoParticipantSelectionResult : Cc10ResultBase
     {
         public Cc10CargoParticipantSelectionDto selection;
+    }
+
+    /// <summary>GetResearchCatalog's node (BE baac6c8b): the server-authoritative definition for
+    /// both Individual and Guild research. Field-for-field with BE's ResearchNodeDefinitionDto;
+    /// requiredPhase/requiredPlayerPhase arrive as the MapPhase name, or empty when BE sends null
+    /// (JsonUtility has no nullable-enum support). The BE DTO carries no name/description/effect,
+    /// so none exists here. The server re-validates every gate on each real Start call regardless.</summary>
+    [Serializable]
+    public class Cc10ResearchNodeDefinitionDto
+    {
+        public string nodeId = string.Empty;
+        public string scope = string.Empty;
+        public string[] prerequisites = Array.Empty<string>();
+        public int goldCost;
+        public int materialsCost;
+        public long durationMs;
+        public int requiredContributionPoints;
+        public int requiredTavernLevel;
+        public string requiredPhase = string.Empty;
+        public string requiredPlayerPhase = string.Empty;
+        public bool requiresTopThreeGuild;
+    }
+
+    [Serializable]
+    public sealed class Cc10ResearchCatalogResult : Cc10ResultBase
+    {
+        public Cc10ResearchNodeDefinitionDto[] nodes = Array.Empty<Cc10ResearchNodeDefinitionDto>();
     }
 
     [Serializable]
